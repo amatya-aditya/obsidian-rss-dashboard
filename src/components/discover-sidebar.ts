@@ -5,7 +5,7 @@ import {
   FeedMetadata,
   CategoryPath,
 } from "../types/discover-types";
-import { attachInputClearButton } from "../utils/platform-utils";
+import { addInputClearButton } from "../utils/input-clear-button";
 
 interface DiscoverSidebarCallbacks {
   onFilterChange: () => void;
@@ -187,9 +187,13 @@ export class DiscoverSidebar {
     });
     searchInput.addClass("rss-discover-search-input");
 
-    attachInputClearButton(searchInputWrapper, searchInput, () => {
-      this.filters.query = "";
-      this.callbacks.onFilterChange();
+    addInputClearButton(searchInput, {
+      container: searchInputWrapper,
+      label: "Clear search",
+      onClear: () => {
+        this.filters.query = "";
+        this.callbacks.onFilterChange();
+      },
     });
 
     searchInput.addEventListener("input", (e) => {

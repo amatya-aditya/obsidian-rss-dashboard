@@ -849,6 +849,38 @@ label `is-disabled` (toggle). `setDisplayFormat` rewrites the slider's
 models all of these; the color picker's element is exposed as `colorPickerEl`,
 matching the runtime.
 
+## SearchComponent and the input clear button
+
+**Source:** read from the app bundles, not a console probe: `app.js` and
+`app.css` in `obsidian-1.14.4.asar` (the installed 1.14.4 desktop app) and
+`obsidian-1.8.7.asar` (the public release asset `check:stub-drift` downloads),
+on 2026-10-13. The iPhone and Android Settings search show the same control
+(checked by hand on both phones, 2026-10-13).
+
+**Structure (modeled):** `new SearchComponent(containerEl)` builds
+`div.search-input-container` holding
+`<input type="search" enterkeyhint="search">` and a sibling
+`div.search-input-clear-button`, and exposes `containerEl`, `inputEl` and
+`clearButtonEl` (`containerEl` is not in the public API types). The clear button cancels `mousedown`, so the input keeps
+focus; a click, unless the component is disabled, empties the input, calls
+`onChanged()` (which runs the `onChange` handler) and focuses the input.
+`Setting.addSearch` adds one to the control. The stub models all of these.
+
+**Styling (not modeled; jsdom does not apply app.css):** the button holds no
+svg. `.search-input-clear-button::after` paints a 12-unit filled circle with
+an x cut out as a CSS mask in `currentColor`, sized
+`--search-clear-button-size`; the button is `position: absolute`,
+`inset-inline-end: 2px`, 28px wide and `--input-height` tall, colored
+`--search-clear-button-color` (`--text-muted`), and `--text-normal` on hover.
+`.search-input-container input:placeholder-shown ~ .search-input-clear-button`
+hides it while the input is empty, and a non-empty input gets
+`padding-inline-end: 28px`. Both versions match, except the mobile size: 1.8.7
+sets `--search-clear-button-size: 16px` under `.is-mobile`, 1.14.4
+`max(16px, calc(16px * var(--preferred-text-scale)))`; desktop is 13px in
+both. There are no `.is-ios` or `.is-android` clear-button rules. The
+plugin's `addInputClearButton` reuses the class (see **Input Clear Buttons**
+in `docs/development/design-spec.md`).
+
 ## Step 3: Menu
 
 **Probe:** `test_files/stubs/probes/menu.repl`.

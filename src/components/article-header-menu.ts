@@ -2,6 +2,7 @@ import { setIcon } from "obsidian";
 import { ArticleGroupByOption, RssDashboardSettings } from "../types/types";
 import { FilterChangeEvent } from "./article-filter-menu";
 import { SelectOptionEntries, ThemedSelectPopup } from "./themed-select-popup";
+import { addInputClearButton } from "../utils/input-clear-button";
 
 let menuInstanceId = 0;
 
@@ -262,6 +263,10 @@ export class ArticleHeaderMenu {
       const val = (e.target as HTMLInputElement).value;
       this.searchQuery = val;
       this.callbacks.onSearch(val);
+    });
+    addInputClearButton(searchInput, {
+      container: searchContainer,
+      label: "Clear search",
     });
 
     this.popup.createSelector(

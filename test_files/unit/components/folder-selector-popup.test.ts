@@ -185,7 +185,7 @@ describe("FolderSelectorPopup", () => {
     expect(firstItemText).toBe("Zeta");
   });
 
-  it("filters folders and toggles the clear button on input", () => {
+  it("filters folders on input and clears the filter with the clear button", () => {
     const anchorEl = createDiv();
     vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
       left: 0,
@@ -204,16 +204,14 @@ describe("FolderSelectorPopup", () => {
     const input = document.body.querySelector(
       ".rss-folder-selector-input",
     ) as HTMLInputElement;
-    const clearBtn = document.body.querySelector(
-      ".rss-folder-selector-clear",
-    ) as HTMLElement;
-
-    expect(clearBtn.classList.contains("is-hidden")).toBe(true);
+    const clearBtn = document.body.querySelector<HTMLButtonElement>(
+      ".rss-folder-selector-input-wrapper > button.search-input-clear-button",
+    );
+    expect(clearBtn?.getAttribute("aria-label")).toBe("Clear folder");
 
     input.value = "child";
     input.dispatchEvent(new Event("input"));
 
-    expect(clearBtn.classList.contains("is-hidden")).toBe(false);
     const items = Array.from(
       document.body.querySelectorAll(".rss-folder-selector-item"),
     );
@@ -221,10 +219,9 @@ describe("FolderSelectorPopup", () => {
     expect(items.length).toBe(2);
     expect(items[1].textContent).toContain("Zeta/Child");
 
-    // Clear via button resets filter + hides button
-    clearBtn.click();
+    // The clear button empties the input and resets the filter.
+    clearBtn?.click();
     expect(input.value).toBe("");
-    expect(clearBtn.classList.contains("is-hidden")).toBe(true);
     expect(
       document.body.querySelectorAll(".rss-folder-selector-item").length,
     ).toBeGreaterThan(1);

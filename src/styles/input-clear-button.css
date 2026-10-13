@@ -1,0 +1,107 @@
+/* =============================================================================
+ * Input Clear Button (input-clear-button.css)
+ *
+ * Clear (circle-x) button inside text inputs, built by addInputClearButton in
+ * src/utils/input-clear-button.ts. The button carries Obsidian's own
+ * `.search-input-clear-button` class, so Obsidian's app.css draws the icon,
+ * positions it at the input's end, and sizes it per platform (13px desktop,
+ * 16px or text-scaled on mobile). These rules only add what Obsidian scopes to
+ * its `.search-input-container`, and reset the native button defaults.
+ * =============================================================================
+ */
+
+.rss-input-clear {
+  position: relative;
+}
+
+/* Wrapper the helper creates: as wide as the input it holds. */
+.rss-input-clear-wrap {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+/* Wrapper for an input that spans its row. */
+.rss-input-clear-fill {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.rss-input-clear-fill > input {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+/* Room for the button while it shows, as Obsidian's search input does. */
+.rss-input-clear > input:not(:placeholder-shown) {
+  padding-inline-end: 28px;
+}
+
+.rss-input-clear > input:placeholder-shown ~ .search-input-clear-button,
+.rss-input-clear > input:disabled ~ .search-input-clear-button,
+.rss-input-clear > input:read-only ~ .search-input-clear-button {
+  display: none;
+}
+
+/* Native <button> defaults would draw a pill behind the icon, recolor it, or
+ * resize it: Obsidian's own clear button is a bare div. Host button rules
+ * reach (0,3,1), such as the feed dialogs' phone-width `min-height: 44px`, so
+ * the reset uses both button classes, and this file loads after them. Width,
+ * margin, and height restate Obsidian's `.search-input-clear-button` box. */
+.rss-input-clear
+  > input
+  ~ button.search-input-clear-button.rss-input-clear-button {
+  background-color: transparent;
+  box-shadow: none;
+  padding: 0;
+  width: 28px;
+  min-height: 0;
+  margin: auto;
+  color: var(--search-clear-button-color);
+}
+
+/* Phones: Obsidian stretches buttons in modal setting rows (Settings is a
+ * modal there) with `.is-phone .modal .setting-item-control
+ * button:not(.clickable-icon) { width: 100%; margin: 0 }` and `padding: 10px`,
+ * at (0,4,1). Without this the button covers the input and a tap clears it. */
+.is-phone
+  .rss-input-clear
+  > input
+  ~ button.search-input-clear-button.rss-input-clear-button {
+  padding: 0;
+  width: 28px;
+  min-height: 0;
+  margin: auto;
+}
+
+@media (hover: hover) {
+  .rss-input-clear
+    > input
+    ~ button.search-input-clear-button.rss-input-clear-button:hover {
+    background-color: transparent;
+    box-shadow: none;
+    color: var(--text-normal);
+  }
+}
+
+.rss-input-clear
+  > input
+  ~ button.search-input-clear-button.rss-input-clear-button.mobile-tap {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.rss-input-clear
+  > input
+  ~ button.search-input-clear-button.rss-input-clear-button:active {
+  color: var(--text-normal);
+}
+
+.rss-input-clear
+  > input
+  ~ button.search-input-clear-button.rss-input-clear-button:focus-visible {
+  box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+}

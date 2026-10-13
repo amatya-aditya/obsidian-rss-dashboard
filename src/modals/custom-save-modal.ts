@@ -1,4 +1,4 @@
-import { App, Modal, Notice, Setting, setIcon } from "obsidian";
+import { App, Modal, Notice, Setting } from "obsidian";
 import {
   DEFAULT_SETTINGS,
   type FeedItem,
@@ -14,6 +14,7 @@ import {
   ConfirmTemplateReplacementModal,
   SavedTemplateEditorModal,
 } from "../settings/modals/settings-modals";
+import { addInputClearButton } from "../utils/input-clear-button";
 
 interface PendingTemplate {
   id: string;
@@ -91,25 +92,12 @@ function createFolderControls(
       value: context.getSettings().articleSaving.defaultFolder || "",
     },
   });
-  const clearIcon = folderContainer.createDiv({
-    cls: "clickable-icon rss-dashboard-clear-icon",
-    attr: {
-      "aria-label": "Clear save folder",
-      role: "button",
-      tabindex: "0",
-    },
-  });
-  setIcon(clearIcon, "x");
-  const clearAction = () => {
-    folderInput.value = "";
-    folderInput.focus();
-  };
-  clearIcon.addEventListener("click", clearAction);
-  clearIcon.addEventListener("keydown", (event) => {
-    if (event.key === "Enter" || event.key === " ") {
-      event.preventDefault();
-      clearAction();
-    }
+  // Clearing only empties the field, as before; it does not reopen the
+  // folder suggestions.
+  addInputClearButton(folderInput, {
+    container: folderContainer,
+    label: "Clear save folder",
+    onClear: () => {},
   });
   new VaultFolderSuggest(app, folderInput);
   return folderInput;
@@ -201,6 +189,7 @@ function createFilenamePatternControls(
       "aria-describedby": "rss-dashboard-filename-pattern-description",
     },
   });
+  addInputClearButton(input, { fill: true, label: "Clear filename pattern" });
   content.createEl("p", {
     cls: "setting-item-description",
     attr: { id: "rss-dashboard-filename-pattern-description" },

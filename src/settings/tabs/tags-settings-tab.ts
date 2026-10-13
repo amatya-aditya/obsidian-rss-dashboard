@@ -14,6 +14,7 @@ import { updateTagInSettings } from "../../utils/tag-utils";
 import { deleteTagFromSettings } from "../../utils/tag-settings";
 import { ConfirmActionModal } from "../modals/settings-modals";
 import { renderTagShapeControl } from "./tag-shape-control";
+import { addInputClearButton } from "../../utils/input-clear-button";
 
 interface AutoTagSettingConfig {
   name: string;
@@ -185,7 +186,10 @@ export function renderTagsSettingsTab(
 
   const tagNameSetting = new Setting(newTagContainer)
     .setName("Tag name")
-    .addText((text) => text.setPlaceholder("Enter tag name"));
+    .addText((text) => {
+      text.setPlaceholder("Enter tag name");
+      addInputClearButton(text.inputEl);
+    });
 
   const tagColorSetting = new Setting(newTagContainer)
     .setName("Tag color")

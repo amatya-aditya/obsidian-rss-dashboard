@@ -15,6 +15,7 @@ related:
 
 ## Update History
 
+- 2026-10-13: Add **Input Clear Buttons**: every free-text input gets Obsidian's own circle-x clear button through `addInputClearButton`, replacing the plain Lucide `x` buttons; record Obsidian's clear button as a core surface
 - 2026-10-12: Pin the keyboard shortcut help rows to the text baseline with the key flush right, remove the native close button so only the header one shows, and stack the help header on mobile (#1013)
 - 2026-10-10: Record the native Reader icon-button pattern verified on desktop and Android (#801), with the scoped Reader button reset and the Android Shift+Tab unknown
 - 2026-10-10: Align the Reader toolbar tags button with its siblings on the verified scoped-reset path (#979)
@@ -487,6 +488,52 @@ are migrated.
 - **Stroke Weights**: Preserve Lucide's default `stroke-width: 2` unless a specific variation is required.
 - **Android Visibility**: Use contain: layout style on the container and explicit pixel dimensions on > svg to prevent Android WebView rendering drops. See §Android WebView SVG Rendering: Avoiding !important."
 
+### Input Clear Buttons
+
+Every free-text input has a clear button inside it, at its end: Obsidian's
+own control, not a Lucide `x`. Obsidian draws it the same way on desktop,
+iPhone, and Android (Android checked by hand, 2026-10-13): a filled circle
+with the x cut out, in `--text-muted`, turning `--text-normal` on hover, shown
+only while the input holds text.
+
+- **Build it with `addInputClearButton`** (`src/utils/input-clear-button.ts`).
+  It puts the input in a `.rss-input-clear` container (wrapping it, or using
+  a `container` you pass) and appends
+  `<button type="button" class="search-input-clear-button" aria-label="Clear">`.
+  Obsidian's app.css styles that class, so the icon, size (13px desktop,
+  16px or text-scaled on mobile), position, and color follow Obsidian and its
+  themes. `src/styles/input-clear-button.css` adds only what Obsidian scopes
+  to its own `.search-input-container`, and resets the native button pill.
+  The button also carries `rss-input-clear-button` so that reset outranks
+  host button rules, including Obsidian's phone rule that stretches buttons
+  in modal setting rows to the full width (Settings is a modal on phones).
+  Check a new surface in phone emulation (`app.emulateMobile(true)`).
+- **Never add a separate clear control** next to an input, such as a
+  `Setting.addExtraButton` with the `x` icon: it wraps below the input on a
+  phone.
+- **Hidden while empty, by CSS**, the way Obsidian does it: the button hides
+  while the input shows its placeholder, so values set by code update it too.
+  The helper gives an input with no placeholder a blank one.
+- **Clearing** empties the input, keeps focus in it (a phone keeps its
+  keyboard), then dispatches `input` and `change` so a `TextComponent`'s
+  `onChange` or a commit-on-change listener sees the empty value. Pass
+  `onClear` to run your own handler instead.
+- **Layout.** A created wrapper is `inline-flex`, as wide as its input. Pass
+  `fill: true` for an input that spans its row. Sizing that sat on the input
+  (`flex`, `max-width`) moves to the wrapper.
+- **Which inputs.** Free-text inputs: search, filters, names, titles, URLs,
+  folder paths, patterns, keywords. Not number inputs or text fields that
+  hold a number (clearing would save 0 or an invalid value), color, file,
+  range, or checkbox inputs, textareas, or a disabled or read-only input (the
+  button hides there).
+
+Obsidian's own `SearchComponent` builds the same parts, verified in the
+1.8.7 and 1.14.4 app bundles: `div.search-input-container` holding
+`input[type=search]` and `div.search-input-clear-button`. The test stub models
+it (`SearchComponent`, `Setting.addSearch`), and the stub drift check pins both
+class names. Our button is a native `<button>` rather than Obsidian's `div`,
+following **Implementation Structure** above.
+
 ### Android WebView SVG Rendering: Avoiding `!important`
 
 **This section supersedes the `!important` guidance previously listed under Styling Guidelines.** The prior pattern worked but conflicted with the v2.3.0 remediation goal of eliminating `!important` from the codebase. The approach below solves the same Android WebView failures without it.
@@ -579,6 +626,11 @@ changes between versions, and the plugin supports everything from
   `removeNativeModalCloseButton` in `src/utils/modal-close-button.ts`, which
   handles both. CSS that styles or hides the native button must list both
   selectors.
+- **Input clear button.** `.search-input-clear-button` and its circle-x mask,
+  the `--search-clear-button-color` and `--search-clear-button-size` tokens,
+  and the hide-while-placeholder rule are the same in 1.8.7 and 1.14.4. Only
+  the mobile size differs: 16px in 1.8.7, `max(16px, 16px × text scale)` in
+  1.14.4. See **Input Clear Buttons**.
 - **Checking a version difference.** `test_files/stubs/obsidian.contract.test.ts`
   records the Obsidian behavior the test stub models, with the version it was
   observed on. Check it before styling or querying a core element, and add an

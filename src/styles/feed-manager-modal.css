@@ -338,7 +338,6 @@
     grid-area: auto;
     flex: 0 0 auto;
     height: var(--input-height, 36px);
-    padding-right: 0;
   }
 
   .rss-mobile-feed-manager-modal
