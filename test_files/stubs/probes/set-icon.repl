@@ -78,6 +78,20 @@ const cases = [
   "link",
   "star-off",
   "youtube",
+  "minus-vertical",
+  "separator-vertical",
+  "ban",
+  "type",
+  "newspaper",
+  "layout-grid",
+  "history",
+  "dices",
+  "square",
+  "check-square",
+  "chevrons-up",
+  "chevrons-down",
+  "wand-2",
+  "folders",
 ];
 const renderedClass = {};
 for (const name of cases) {
