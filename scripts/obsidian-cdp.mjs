@@ -56,7 +56,7 @@ const COMMANDS = [
   "open-settings",
   "help",
 ];
-const STEP_NAMES = ["eval", "shot", "wait", "target", "settings"];
+const STEP_NAMES = ["eval", "shot", "wait", "target", "settings", "vault"];
 const STEP_LINE = new RegExp(`^@(?:${STEP_NAMES.join("|")})(?:[ \\t]|$)`);
 
 const USAGE = `Drive a running Obsidian instance over the Chrome DevTools Protocol.
@@ -83,7 +83,8 @@ Options:
                      own page) instead of the vault window, for eval, shot and
                      repl. Needs --profile and --expect-vault; the window must
                      be titled for the expected vault. In a repl, the
-                     @settings step switches to it.
+                     @settings step switches to it and the @vault step
+                     switches back (it needs --profile and --expect-vault too).
   --wait <ms>        Poll for a ready vault target for up to <ms> before failing
                      (default: 0, fail fast).
   --json             Print machine-readable output where supported.
@@ -379,8 +380,8 @@ function dedent(lines) {
 /**
  * Reads a batch script into steps. Each step starts on a line beginning with
  * `@`: `@eval` (with an inline expression or a multi-line body up to the next
- * `@` line), `@shot <path>`, `@wait <ms>`, or `@target <title>`. Blank lines
- * between steps are ignored. Exported for unit tests.
+ * `@` line), `@shot <path>`, `@wait <ms>`, `@target <title>`, `@settings`, or
+ * `@vault`. Blank lines between steps are ignored. Exported for unit tests.
  */
 export function parseBatch(text) {
   const lines = String(text)
@@ -451,6 +452,11 @@ export function parseBatch(text) {
         throw new CdpError(`Line ${stepLine}: @settings takes no argument.`);
       }
       steps.push({ kind: "settings" });
+    } else if (name === "vault") {
+      if (inline.trim() !== "") {
+        throw new CdpError(`Line ${stepLine}: @vault takes no argument.`);
+      }
+      steps.push({ kind: "vault" });
     } else {
       throw new CdpError(
         `Line ${stepLine}: unknown step "@${name}". Use ${STEP_NAMES.map((step) => `@${step}`).join(", ")}.`,
@@ -1105,7 +1111,7 @@ async function openTarget(host, ports, title, options = {}) {
   throw new CdpError(outcome.reason);
 }
 
-/** Runs every step over one connection, reconnecting only on `@target`. */
+/** Runs every step over one connection, reconnecting on window-switch steps. */
 async function runBatch(options, initialConnection, steps) {
   let connection = initialConnection;
   try {
@@ -1120,6 +1126,14 @@ async function runBatch(options, initialConnection, steps) {
           waitMs: options.waitMs,
           pinnedPort: Boolean(options.profile),
           settings: true,
+        });
+        connection.close();
+        connection = next.connection;
+      } else if (step.kind === "vault") {
+        const next = await openTarget(options.host, options.ports, undefined, {
+          expectVault: options.expectVault,
+          waitMs: options.waitMs,
+          pinnedPort: Boolean(options.profile),
         });
         connection.close();
         connection = next.connection;
@@ -1251,7 +1265,7 @@ async function main() {
   if (
     options.settings ||
     options.command === "open-settings" ||
-    steps.some((step) => step.kind === "settings")
+    steps.some((step) => step.kind === "settings" || step.kind === "vault")
   ) {
     assertCompanionGuard(options, pinnedPort);
   }

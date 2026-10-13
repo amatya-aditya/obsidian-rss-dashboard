@@ -223,8 +223,8 @@ A `repl` script (alias `batch`) runs every step over one connection, so nothing
 drifts between them. Each step starts with `@`: `@eval` (an inline expression,
 or a multi-line body up to the next `@` line), `@shot <path>`, `@wait <ms>`, or
 `@target <text>` (switch to another window, such as the settings window, and
-keep going). For example, open the dashboard, wait for it to finish rendering,
-read the first card previews, and screenshot:
+keep going), `@settings`, or `@vault` (see the table below). For example,
+open the dashboard, wait for it to finish rendering, read the first card previews, and screenshot:
 
 ```text
 @eval
@@ -280,11 +280,12 @@ beside it. This works only when `--profile` pinned the port to your own
 instance; without `--profile` or `--expect-vault`, or when the title names
 another vault, it refuses with a non-zero exit.
 
-| Command                      | Effect                                                                                                          |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `--settings eval ./probe.js` | Evaluate in the Settings window instead of the vault window (`--settings shot <out.png>` captures it).          |
-| `@settings` (repl step)      | Switch the connection to the Settings window, guarded the same way. It is one-way; start a new run to go back.  |
-| `open-settings <tab-id>`     | In the vault window, run `app:open-settings` and `app.setting.openTabById(<tab-id>)`, then wait for the window. |
+| Command                      | Effect                                                                                                            |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `--settings eval ./probe.js` | Evaluate in the Settings window instead of the vault window (`--settings shot <out.png>` captures it).            |
+| `@settings` (repl step)      | Switch the connection to the Settings window, guarded the same way.                                               |
+| `@vault` (repl step)         | Switch back to the vault window under the first attach's guard (no title match); works with Settings open or not. |
+| `open-settings <tab-id>`     | In the vault window, run `app:open-settings` and `app.setting.openTabById(<tab-id>)`, then wait for the window.   |
 
 `open-settings` prints the Settings window it found, so the next `--settings`
 call attaches to a ready window. `--wait <ms>` sets how long it waits (default
