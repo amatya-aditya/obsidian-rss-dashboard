@@ -5,6 +5,7 @@ import type {
   MediaSettings,
   RssDashboardSettings,
 } from "../types/types";
+import type { DeepPartial } from "../types/deep-partial";
 import {
   DEFAULT_SETTINGS,
   IMAGE_CACHE_LIMIT_MAX_MIB,
@@ -138,11 +139,11 @@ function withLegacyYouTubeFocusMode(
  * fields to the canonical `allArticlesPageSize` value. Does not run the
  * versioned migrations in {@link migrateSettings} — callers typically invoke
  * both when loading persisted data from disk.
- * @param {Partial<RssDashboardSettings> | null} [rawData] Raw settings as loaded from disk, possibly partial, malformed, or absent
+ * @param {DeepPartial<RssDashboardSettings> | null} [rawData] Raw settings as loaded from disk, possibly partial, malformed, or absent
  * @returns {RssDashboardSettings} A complete, normalized settings object
  */
 export function loadAndNormalizeSettings(
-  rawData?: Partial<RssDashboardSettings> | null,
+  rawData?: DeepPartial<RssDashboardSettings> | null,
 ): RssDashboardSettings {
   const settings = Object.assign({}, DEFAULT_SETTINGS, rawData ?? {});
 

@@ -1,5 +1,12 @@
 import { Notice } from "obsidian";
-import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../types/types";
+import {
+  DEFAULT_SETTINGS,
+  type Feed,
+  type Folder,
+  type RssDashboardSettings,
+  type Tag,
+} from "../types/types";
+import type { DeepPartial } from "../types/deep-partial";
 import type {
   FeedStorageRepository,
   PersistSettingsOptions,
@@ -48,14 +55,15 @@ export class SettingsImportApplier {
   }
 
   public async applyUserPreferencesImport(
-    parsed: Partial<RssDashboardSettings>,
+    parsed: DeepPartial<RssDashboardSettings>,
     kind: ImportKind,
   ): Promise<void> {
-    const parsedWithCollections = parsed as Partial<RssDashboardSettings> & {
-      feeds?: unknown;
-      folders?: unknown;
-      availableTags?: unknown;
-    };
+    const parsedWithCollections =
+      parsed as DeepPartial<RssDashboardSettings> & {
+        feeds?: Feed[];
+        folders?: Folder[];
+        availableTags?: Tag[];
+      };
 
     if (kind === "replacing") {
       const { folders, availableTags } = this.settings;
@@ -140,10 +148,10 @@ export class SettingsImportApplier {
       folders: _folders,
       availableTags: _availableTags,
       ...settingsOnly
-    } = parsed as Partial<RssDashboardSettings> & {
-      feeds?: unknown;
-      folders?: unknown;
-      availableTags?: unknown;
+    } = parsed as DeepPartial<RssDashboardSettings> & {
+      feeds?: Feed[];
+      folders?: Folder[];
+      availableTags?: Tag[];
     };
     void _feeds;
     void _folders;

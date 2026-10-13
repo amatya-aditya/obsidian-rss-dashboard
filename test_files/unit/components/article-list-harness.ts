@@ -7,18 +7,9 @@ import {
   type RssDashboardSettings,
 } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
+import type { DeepPartial } from "../../../src/types/deep-partial";
 
 type ArticleListCallbacks = ConstructorParameters<typeof ArticleList>[6];
-
-type DeepPartial<T> = {
-  [K in keyof T]?: T[K] extends Array<infer U>
-    ? Array<DeepPartial<U>>
-    : T[K] extends ReadonlyArray<infer U>
-      ? ReadonlyArray<DeepPartial<U>>
-      : T[K] extends object
-        ? DeepPartial<T[K]>
-        : T[K];
-};
 
 export interface ArticleListHarnessOverrides {
   container?: HTMLElement;

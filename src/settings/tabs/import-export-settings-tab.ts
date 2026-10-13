@@ -11,6 +11,7 @@ import { ImportOpmlModal } from "../../modals/import-opml-modal";
 import { ImportStarredModal } from "../../modals/import-starred-modal";
 import { ImportSuccessModal } from "../../modals/import-success-modal";
 import { AutoBackupSettings, RssDashboardSettings } from "../../types/types";
+import type { DeepPartial } from "../../types/deep-partial";
 import { settingsUiCompatibility } from "../settings-ui-compat";
 
 export class FactoryResetConfirmModal extends Modal {
@@ -116,7 +117,9 @@ export function renderImportExportSettingsTab(
               if (!file) return;
               const text = await file.text();
               try {
-                const data = JSON.parse(text) as Partial<RssDashboardSettings>;
+                const data = JSON.parse(
+                  text,
+                ) as DeepPartial<RssDashboardSettings>;
                 plugin.settings = Object.assign({}, plugin.settings, data);
                 // The imported file replaces the feed list, so feeds it lacks
                 // keep their article state rather than counting as removed
