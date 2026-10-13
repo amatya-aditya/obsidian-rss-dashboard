@@ -324,7 +324,6 @@ export function renderSidebarSettingsTab(
       const iconSetting = new Setting(iconRowsContainer)
         .setName(icon.label)
         .setDesc(`Show the ${icon.label} icon in the sidebar header`)
-        .setDisabled(hideToolbar)
         .addToggle((toggle) =>
           toggle
             .setValue(!(plugin.settings.display[hideKey] as boolean))
@@ -339,7 +338,9 @@ export function renderSidebarSettingsTab(
                 }
               })();
             }),
-        );
+        )
+        // After addToggle: Setting.setDisabled only reaches existing components.
+        .setDisabled(hideToolbar);
 
       iconSetting.settingEl.addClass("rss-dashboard-icon-visibility-row");
       iconSetting.settingEl.setAttribute("data-icon-id", id);
