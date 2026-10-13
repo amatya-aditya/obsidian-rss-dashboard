@@ -659,7 +659,7 @@ describe("Obsidian stub contract", () => {
       );
     });
 
-    // Observed on Obsidian 1.13.7 desktop (Windows), #1037: the default article
+    // Observed on Obsidian 1.14.4 desktop (Windows), #1037: the default article
     // template buttons' ids resolve to lucide ids of the same name, and
     // `circle-check-big` draws the same two paths as `check-circle`.
     it("renders circle-check-big and eraser under their own names", () => {
