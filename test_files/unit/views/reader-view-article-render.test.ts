@@ -765,7 +765,7 @@ describe("ReaderView article rendering (characterization)", () => {
       );
     });
 
-    it("does not mark the item restricted when the blocked fetch still returned a full article", async () => {
+    it("honors a restricted fetch outcome even when it includes a substantial body", async () => {
       fetchMock().mockImplementation(() => {
         internals(view).currentFullContentFailureType = "restricted";
         return Promise.resolve({
@@ -777,8 +777,11 @@ describe("ReaderView article rendering (characterization)", () => {
 
       await view.displayItem(item);
 
-      expect(item.restrictedReason).toBeUndefined();
-      expect(q(".rss-reader-paywall-banner")).toBeNull();
+      expect(item.restrictedReason).toBe(RESTRICTED_ARTICLE_REASON);
+      expect(q(".rss-reader-paywall-banner-text")?.textContent).toBe(
+        RESTRICTED_ARTICLE_BANNER,
+      );
+      expect(q(".rss-reader-content-toggle")).toBeNull();
     });
 
     it("leaves an earlier restricted reason in place when the fetch merely failed", async () => {

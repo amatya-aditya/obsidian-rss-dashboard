@@ -1376,6 +1376,7 @@ export class ReaderView extends ItemView {
       result = { content: "", failureType: "network" };
     }
     // Metadata belongs to the fetched item even after navigation or close.
+    // Keep the substantial-body gate: a short extraction must not lock metadata.
     if (hasMeaningfulArticleContent(result.content)) {
       this.persistFetchedMetadata(item, result.content, result.pageMetadata);
     }
@@ -1386,7 +1387,7 @@ export class ReaderView extends ItemView {
     this.currentFetchedArticleContent = fetchedContent.trim()
       ? fetchedContent
       : undefined;
-    if (hasMeaningfulArticleContent(fetchedContent)) {
+    if (this.isSuccessfulArticleFetch(result)) {
       item.restrictedReason = undefined;
       versions.ready();
     } else {
@@ -1413,6 +1414,10 @@ export class ReaderView extends ItemView {
           // The RSS version and the optional full-article button remain usable.
         });
     }
+  }
+
+  private isSuccessfulArticleFetch(result: FullArticleFetchResult): boolean {
+    return result.failureType === "none" && result.content.trim().length > 0;
   }
 
   private async displayVideo(item: FeedItem): Promise<void> {

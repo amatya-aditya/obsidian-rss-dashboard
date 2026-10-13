@@ -187,6 +187,53 @@ describe.each(["ReaderView", "ArticleRenderer"])(
       expect(article.description).toBe("<p>Short feed blurb</p>");
     });
 
+    it("offers a successful short fetch without announcing failure or locking metadata", async () => {
+      const harness = await setup();
+      const pending = deferFetch();
+      const article: FeedItem = {
+        ...item("A"),
+        restrictedReason: "Previously restricted",
+      };
+      const opening = harness.render(article);
+      pending.resolve({ ...result("A"), content: "<p>short</p>" });
+      await opening;
+
+      expect(harness.container.textContent).not.toContain("Could not fetch");
+      expect(
+        harness.container.querySelector('[role="status"]')?.textContent,
+      ).toBe("Fetched content ready. RSS content is still shown.");
+      expect(article.restrictedReason).toBeUndefined();
+      expect(
+        harness.container.querySelector(".rss-reader-paywall-banner"),
+      ).toBeNull();
+      const toggle = harness.container.querySelector<HTMLButtonElement>(
+        "button.rss-reader-content-toggle",
+      )!;
+      expect(toggle.textContent).toBe("Show fetched content");
+      expect(harness.container.textContent).toContain("Short feed blurb");
+      toggle.click();
+      expect(
+        harness.container.querySelector(".rss-reader-article-content")
+          ?.textContent,
+      ).toContain("short");
+      expect(
+        harness.container.querySelector(".rss-reader-article-content")
+          ?.textContent,
+      ).not.toContain("Short feed blurb");
+      expect(article.metadataFetchedAt).toBeUndefined();
+      expect(harness.updates).not.toHaveBeenCalled();
+
+      // A short extraction must not lock out a later substantial metadata write.
+      fetchMock.mockResolvedValueOnce(result("A"));
+      await harness.render(article);
+      expect(article).toMatchObject(expectedMetadata("A"));
+      expect(harness.updates).toHaveBeenCalledExactlyOnceWith(
+        article,
+        expectedMetadata("A"),
+        false,
+      );
+    });
+
     it.each(["network", "restricted"] as const)(
       "keeps RSS readable after %s failure",
       async (failureType) => {

@@ -150,8 +150,8 @@ describe.each(["ReaderView", "ArticleRenderer"])(
             const a = item("A");
             const b = item("B");
             const other = restrictedId === "A" ? b : a;
-            // A usable body must clear a previously stored restriction, even
-            // when that request's outcome also reports restricted access.
+            // A successful body clears a prior restriction; a restricted
+            // outcome remains a failure even when it includes some content.
             if (otherResult.content) other.restrictedReason = "Old restriction";
             const restrictedResult: FullArticleFetchResult = {
               content: "",
@@ -183,16 +183,20 @@ describe.each(["ReaderView", "ArticleRenderer"])(
                 ? "Old restriction"
                 : undefined,
             );
+            const currentIsRestricted =
+              restrictedId === "B" || otherResult.failureType === "restricted";
             expect(b.restrictedReason).toBe(
-              restrictedId === "B" ? RESTRICTED_ARTICLE_REASON : undefined,
+              currentIsRestricted ? RESTRICTED_ARTICLE_REASON : undefined,
             );
             const banners = harness.container.querySelectorAll(
               ".rss-reader-paywall-banner",
             );
-            expect(banners).toHaveLength(restrictedId === "B" ? 1 : 0);
-            if (restrictedId === "B") {
+            expect(banners).toHaveLength(currentIsRestricted ? 1 : 0);
+            if (currentIsRestricted) {
               expect(banners[0]?.textContent).toContain(
-                RESTRICTED_ARTICLE_BANNER,
+                restrictedId === "A" && otherResult.content
+                  ? "Old restriction"
+                  : RESTRICTED_ARTICLE_BANNER,
               );
               expect(banners[0]?.querySelector("a")?.getAttribute("href")).toBe(
                 b.link,
@@ -206,7 +210,9 @@ describe.each(["ReaderView", "ArticleRenderer"])(
               harness.container.querySelector(".rss-reader-content-toggle")
                 ?.textContent,
             ).toBe(
-              restrictedId === "A" && otherResult.content
+              restrictedId === "A" &&
+                otherResult.content &&
+                otherResult.failureType === "none"
                 ? "Show fetched content"
                 : undefined,
             );

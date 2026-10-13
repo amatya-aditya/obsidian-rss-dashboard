@@ -181,6 +181,7 @@ export class ArticleRenderer {
       this.contentVersions = versions;
       const fetchResult = await this.fetchFullArticleContent(item.link);
       // Metadata belongs to the fetched item even after navigation or close.
+      // Keep the substantial-body gate: a short extraction must not lock metadata.
       if (this.hasMeaningfulArticleContent(fetchResult.content)) {
         this.persistFetchedMetadata(
           item,
@@ -191,7 +192,10 @@ export class ArticleRenderer {
       if (identity !== this.displayIdentity || !versions.isActive()) return;
       this.currentFullContentFailureType = fetchResult.failureType;
       fetchedContent = fetchResult.content;
-      if (this.hasMeaningfulArticleContent(fetchedContent)) {
+      if (
+        fetchResult.failureType === "none" &&
+        fetchedContent.trim().length > 0
+      ) {
         item.restrictedReason = undefined;
         versions.ready();
       } else {
