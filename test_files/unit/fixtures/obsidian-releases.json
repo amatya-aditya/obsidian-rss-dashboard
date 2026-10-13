@@ -1,0 +1,46 @@
+{
+  "comment": "Recorded from the GitHub releases API for obsidianmd/obsidian-releases (https://api.github.com/repos/obsidianmd/obsidian-releases/releases), trimmed to the fields the release selector reads. v1.13.8 is mobile-only (an APK alone), so it must be skipped in favour of v1.13.7.",
+  "releases": [
+    {
+      "tag_name": "v1.14.4",
+      "prerelease": false,
+      "draft": false,
+      "published_at": "2026-09-30T00:00:00Z",
+      "assets": [
+        { "name": "Obsidian-1.14.4-arm64.AppImage" },
+        { "name": "obsidian-1.14.4-arm64.tar.gz" },
+        { "name": "Obsidian-1.14.4.apk" },
+        { "name": "Obsidian-1.14.4.AppImage" },
+        { "name": "obsidian-1.14.4.asar.gz" },
+        { "name": "Obsidian-1.14.4.dmg" },
+        { "name": "Obsidian-1.14.4.exe" },
+        { "name": "obsidian-1.14.4.tar.gz" },
+        { "name": "obsidian_1.14.4_amd64.deb" }
+      ]
+    },
+    {
+      "tag_name": "v1.13.8",
+      "prerelease": false,
+      "draft": false,
+      "published_at": "2026-08-01T00:00:00Z",
+      "assets": [{ "name": "Obsidian-1.13.8.apk" }]
+    },
+    {
+      "tag_name": "v1.13.7",
+      "prerelease": false,
+      "draft": false,
+      "published_at": "2026-07-01T00:00:00Z",
+      "assets": [
+        { "name": "Obsidian-1.13.7-arm64.AppImage" },
+        { "name": "obsidian-1.13.7-arm64.tar.gz" },
+        { "name": "Obsidian-1.13.7.apk" },
+        { "name": "Obsidian-1.13.7.AppImage" },
+        { "name": "obsidian-1.13.7.asar.gz" },
+        { "name": "Obsidian-1.13.7.dmg" },
+        { "name": "Obsidian-1.13.7.exe" },
+        { "name": "obsidian-1.13.7.tar.gz" },
+        { "name": "obsidian_1.13.7_amd64.deb" }
+      ]
+    }
+  ]
+}

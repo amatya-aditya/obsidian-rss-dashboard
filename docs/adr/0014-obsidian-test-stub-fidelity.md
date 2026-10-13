@@ -10,7 +10,9 @@ accepted
 
 ## Date
 
-2026-09-25. Amended 2026-10-12: the drift check is a local, manual step (see _Amendment, 2026-10-12_).
+2026-09-25. Amended 2026-10-12: the behavioral drift check is a local, manual
+step; 2026-10-13: an app-free canary complements it (see _Amendments,
+2026-10-12_ and _2026-10-13_).
 
 ## Context and problem
 
@@ -61,8 +63,8 @@ imitate, and what to do when a more faithful stub makes existing tests fail.
 
 ### Amendment, 2026-10-12
 
-The drift check named above is a local, manual step, and stays that way
-deliberately.
+The **behavioral** drift check named above is a local, manual step, and stays
+that way deliberately.
 
 The check re-observes real Obsidian behavior to keep the stub's recorded
 expectations true. CI has no Obsidian install and no desktop app to observe, so
@@ -84,6 +86,22 @@ The command and the runbook live with the records they refresh:
 A driver's changed output is a new finding under this ADR, not a test to fix
 silently. This amendment clarifies how the drift check runs; it does not change
 the decision above.
+
+### Amendment, 2026-10-13
+
+An app-free canary now complements the manual probes
+([#1063](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1063)).
+`npm run check:stub-drift` downloads the public `obsidian-<version>.asar.gz`
+release asset and fails when a string the stub pins — a distinctive
+error-message literal or a CSS class name — is gone from the certified baseline
+(`test_files/stubs/obsidian-baseline.json`). It needs no Obsidian install, and
+it is not a required gate: a weekly workflow files at most one
+`obsidian-update` issue when it finds drift.
+
+It detects a _removed_ string only, so it never re-observes behavior, and the
+probe library above stays the check that confirms what the stub imitates. The
+reference pin and the baseline still move only after a probe session and a green
+contract test.
 
 ## Consequences
 

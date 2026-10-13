@@ -109,6 +109,13 @@ which would false-positive on ordinary WIP if automated into
       merge dates after the previous tag — see
       [release-notes-workflow.md](release-notes-workflow.md)).
 - [ ] `npm run build` passes clean on the branch you're about to cut from.
+- [ ] Any open `obsidian-update` issue (filed by the weekly stub-drift canary)
+      is resolved or explicitly deferred, then the reference is re-certified:
+      re-probe on a real Obsidian install (`npm run stub:probes`), bump
+      `OBSIDIAN_REFERENCE_VERSION` in `test_files/stubs/obsidian.ts`, update the
+      baseline (`npm run check:stub-drift -- --update-baseline`), and record the
+      outcome on the issue. The behavioral probe needs a device; the app-free
+      `check:stub-drift` does not.
 - [ ] The build also passes in a copy with no `.git` folder, which is how the
       community directory scanner builds: `git archive HEAD | tar -x -C <empty
 folder>`, then `npm ci && npm run build` there. Compliance scripts that
