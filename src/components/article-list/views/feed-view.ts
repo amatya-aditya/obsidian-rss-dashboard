@@ -108,10 +108,6 @@ function renderArticleCard(
     cls: "rss-dashboard-feed-content",
   });
 
-  const hasDisplayedImage = renderFeedImage(feedContent, article, ctx, () => {
-    showPlaceholder(false);
-  });
-
   const textRegion = feedContent.createDiv({
     cls: "rss-dashboard-feed-text-region",
   });
@@ -176,9 +172,14 @@ function renderArticleCard(
         "rss-dashboard-feed-summary rss-dashboard-feed-preview-placeholder",
         descriptionId,
       );
-      feedItem.setAttribute("aria-describedby", descriptionId);
     }
   };
+  const hasDisplayedImage = renderFeedImage(feedContent, article, ctx, () => {
+    showPlaceholder(false);
+  });
+
+  // Keep the image before the text while defining its error callback first.
+  feedContent.appendChild(textRegion);
   showPlaceholder(hasDisplayedImage);
 
   if (hasTags) {

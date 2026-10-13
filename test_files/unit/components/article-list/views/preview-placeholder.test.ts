@@ -85,6 +85,15 @@ for (const view of ["card", "feed"] as const) {
           expected ? 1 : 0,
         );
         expect(!!container.querySelector("img")).toBe(hasDisplayedImage);
+        if (view === "feed" && hasDisplayedImage) {
+          expect(
+            container
+              .querySelector(".rss-dashboard-feed-content")
+              ?.firstElementChild?.classList.contains(
+                "rss-dashboard-feed-preview-region",
+              ),
+          ).toBe(true);
+        }
         if (placeholder) {
           expect(placeholder.textContent).toBe("No description");
           expect(placeholder.getAttribute("role")).toBe("note");
@@ -106,6 +115,21 @@ for (const view of ["card", "feed"] as const) {
               new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
             );
             expect(bubbledEnter).not.toHaveBeenCalled();
+          } else {
+            const feedItem = placeholder.closest(".rss-dashboard-feed-item");
+            expect(feedItem?.hasAttribute("aria-describedby")).toBe(false);
+            expect(feedItem?.hasAttribute("tabindex")).toBe(false);
+            expect(placeholder.tabIndex).toBe(-1);
+            expect(
+              placeholder.parentElement?.classList.contains(
+                "rss-dashboard-feed-text-region",
+              ),
+            ).toBe(true);
+            expect(
+              placeholder.previousElementSibling?.classList.contains(
+                "rss-dashboard-feed-header",
+              ),
+            ).toBe(true);
           }
         }
         if (showSummary && hasText) {
