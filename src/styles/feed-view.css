@@ -123,6 +123,11 @@
   text-overflow: ellipsis;
 }
 
+.rss-dashboard-feed-view .rss-dashboard-feed-preview-placeholder {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 .rss-dashboard-feed-tags-region {
   padding: 0 20px 12px 20px;
 }

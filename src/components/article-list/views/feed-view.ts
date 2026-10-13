@@ -12,6 +12,10 @@ import {
 import { renderSingleRowCardTagChips } from "../utils/tag-layout-utils";
 import { groupArticles } from "../utils/article-grouping";
 import type { BaseViewContext, ViewDeps } from "./view-types";
+import {
+  renderPreviewPlaceholder,
+  shouldShowPreviewPlaceholder,
+} from "./preview-placeholder";
 
 function isSelectedArticle(
   article: FeedItem,
@@ -23,33 +27,12 @@ function isSelectedArticle(
   );
 }
 
-function renderArticleCard(
+function renderFeedImage(
   container: HTMLElement,
   article: FeedItem,
   ctx: BaseViewContext,
-  deps: ViewDeps,
-): void {
-  const hasTags = !!article.tags?.length;
-  const feedItem = container.createDiv({
-    cls:
-      "rss-dashboard-feed-item" +
-      (isSelectedArticle(article, ctx.selectedArticle) ? " active" : "") +
-      (article.read ? " read" : " unread") +
-      (article.starred ? " starred" : " unstarred") +
-      (article.saved ? " saved" : "") +
-      (article.mediaType === "video" ? " rss-dashboard-youtube-article" : "") +
-      (article.mediaType === "podcast" ? " rss-dashboard-podcast-article" : ""),
-    attr: {
-      id: `article-${article.guid}`,
-      "data-article-guid": article.guid,
-      "data-feed-url": article.feedUrl,
-    },
-  });
-
-  const feedContent = feedItem.createDiv({
-    cls: "rss-dashboard-feed-content",
-  });
-
+  onImageUnavailable: () => void,
+): boolean {
   const coverImgSrc = ctx.settings.display.showCoverImage
     ? resolveArticlePreviewImage(article, ["image", "coverImage"])
     : undefined;
@@ -58,7 +41,7 @@ function renderArticleCard(
       ? (ctx.resolveCachedImageUrl?.(coverImgSrc) ?? coverImgSrc)
       : coverImgSrc;
   if (displayedCoverImgSrc) {
-    const previewRegion = feedContent.createDiv({
+    const previewRegion = container.createDiv({
       cls: "rss-dashboard-feed-preview-region",
     });
     const heroBlur = previewRegion.createDiv({
@@ -87,9 +70,43 @@ function renderArticleCard(
           "style",
           `background-image: url('${coverImgSrc}')`,
         );
+        return;
       }
+      if (!previewRegion.parentElement) return;
+      previewRegion.remove();
+      onImageUnavailable();
     };
   }
+
+  return !!displayedCoverImgSrc;
+}
+
+function renderArticleCard(
+  container: HTMLElement,
+  article: FeedItem,
+  ctx: BaseViewContext,
+  deps: ViewDeps,
+): void {
+  const hasTags = !!article.tags?.length;
+  const feedItem = container.createDiv({
+    cls:
+      "rss-dashboard-feed-item" +
+      (isSelectedArticle(article, ctx.selectedArticle) ? " active" : "") +
+      (article.read ? " read" : " unread") +
+      (article.starred ? " starred" : " unstarred") +
+      (article.saved ? " saved" : "") +
+      (article.mediaType === "video" ? " rss-dashboard-youtube-article" : "") +
+      (article.mediaType === "podcast" ? " rss-dashboard-podcast-article" : ""),
+    attr: {
+      id: `article-${article.guid}`,
+      "data-article-guid": article.guid,
+      "data-feed-url": article.feedUrl,
+    },
+  });
+
+  const feedContent = feedItem.createDiv({
+    cls: "rss-dashboard-feed-content",
+  });
 
   const textRegion = feedContent.createDiv({
     cls: "rss-dashboard-feed-text-region",
@@ -140,6 +157,30 @@ function renderArticleCard(
       summaryEl.textContent = feedPreviewText;
     }
   }
+
+  const showPlaceholder = (hasDisplayedImage: boolean): void => {
+    if (
+      shouldShowPreviewPlaceholder(
+        ctx.settings.display.showSummary,
+        feedPreviewText,
+        hasDisplayedImage,
+      )
+    ) {
+      const descriptionId = `${feedItem.id}-description`;
+      renderPreviewPlaceholder(
+        textRegion,
+        "rss-dashboard-feed-summary rss-dashboard-feed-preview-placeholder",
+        descriptionId,
+      );
+    }
+  };
+  const hasDisplayedImage = renderFeedImage(feedContent, article, ctx, () => {
+    showPlaceholder(false);
+  });
+
+  // Keep the image before the text while defining its error callback first.
+  feedContent.appendChild(textRegion);
+  showPlaceholder(hasDisplayedImage);
 
   if (hasTags) {
     const tagsRegion = feedItem.createDiv({

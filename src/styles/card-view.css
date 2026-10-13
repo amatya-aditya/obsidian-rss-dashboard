@@ -272,17 +272,15 @@
   display: block;
 }
 
-.rss-dashboard-card-placeholder {
-  width: 100%;
-  height: 100%;
+.rss-dashboard-card-view
+  .rss-dashboard-card-preview-region
+  .rss-dashboard-card-preview-placeholder {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #6a82fb 0, #fc5c7d 100%);
-  color: #fff;
-  font-size: 2.7em;
-  box-shadow: 0 2px 12px rgb(108 92 231 / 0.12);
-  animation: gradientBG 2.5s ease-in-out infinite alternate;
+  height: clamp(120px, 24vh, 200px);
+  color: var(--text-muted);
+  font-style: italic;
 }
 
 .rss-dashboard-article-title {

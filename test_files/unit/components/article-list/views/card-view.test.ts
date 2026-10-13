@@ -487,7 +487,7 @@ describe("card-view", () => {
     ).toBeFalsy();
   });
 
-  it("omits preview region when no image or summary text is available", () => {
+  it("shows a placeholder when no image or summary text is available", () => {
     renderCardView(
       container,
       [
@@ -507,8 +507,9 @@ describe("card-view", () => {
     );
 
     expect(
-      container.querySelector(".rss-dashboard-card-preview-region"),
-    ).toBeFalsy();
+      container.querySelector(".rss-dashboard-card-preview-placeholder")
+        ?.textContent,
+    ).toBe("No description");
   });
 
   it("renders card footer toolbar when showCardToolbar is true", () => {
