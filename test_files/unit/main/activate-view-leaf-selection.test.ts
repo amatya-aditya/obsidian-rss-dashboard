@@ -33,7 +33,6 @@ vi.mock("../../../src/services/feed-parser", () => ({
 vi.mock("../../../src/services/article-saver", () => ({
   ArticleSaver: class ArticleSaver {
     constructor(_app?: any, _settings?: any) {}
-    fixSavedFilePaths = vi.fn().mockResolvedValue(undefined);
   },
 }));
 

@@ -954,6 +954,58 @@ title: "{{title}}"
     expect(longSecond?.basename.length).toBe(100);
     expect(longSecond?.basename.endsWith(" 2")).toBe(true);
   });
+
+  it("keeps a saved item's state when the title-derived path is already taken by another note", async () => {
+    // #843: a saved note is updated in place at its recorded path. A collision
+    // on the title-derived path must not reset the item's saved state.
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultFolder: "Articles",
+      defaultTemplate: "{{content}}",
+    });
+    const saver = new ArticleSaver(app, settings);
+    const item = createItem({
+      title: "Collision",
+      saved: true,
+      savedFilePath: "Articles/Known note.md",
+    });
+
+    await app.vault.createFolder("Articles");
+    const savedNote = await app.vault.create("Articles/Known note.md", "old");
+    await app.vault.create("Articles/Collision.md", "another note");
+
+    const process = vi.spyOn(app.vault, "process");
+    const create = vi.spyOn(app.vault, "create");
+
+    const file = await saver.saveArticle(item, undefined, undefined, "NEW");
+
+    expect(file?.path).toBe("Articles/Known note.md");
+    expect(process).toHaveBeenCalledTimes(1);
+    expect(process.mock.calls[0][0]).toBe(savedNote);
+    expect(process.mock.calls[0][1]?.("old")).toBe("NEW");
+    expect(create).not.toHaveBeenCalled();
+    expect(item.saved).toBe(true);
+    expect(item.savedFilePath).toBe("Articles/Known note.md");
+  });
+
+  it("records the collision-suffixed path and keeps the item saved when the target name is taken", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultFolder: "Articles",
+      defaultTemplate: "{{content}}",
+    });
+    const saver = new ArticleSaver(app, settings);
+    const item = createItem();
+
+    await app.vault.createFolder("Articles");
+    await app.vault.create("Articles/Test Article.md", "existing");
+
+    const file = await saver.saveArticle(item, undefined, undefined, "BODY");
+
+    expect(file?.path).toBe("Articles/Test Article 2.md");
+    expect(item.saved).toBe(true);
+    expect(item.savedFilePath).toBe("Articles/Test Article 2.md");
+  });
 });
 
 describe("ArticleSaver date variables", () => {
