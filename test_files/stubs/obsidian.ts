@@ -1480,9 +1480,55 @@ class PluginSettingTabStub {
 // UI Components
 // =============================================================================
 
+/**
+ * Observed on Obsidian 1.14.4 desktop (Windows): a `Notice` instance has the
+ * own keys `timerId`, `buttonContainerEl`, `win`, `containerEl`, `noticeEl`
+ * and `messageEl`, and its prototype has `setMessage`, `setAutoHide`,
+ * `addButton` and `hide`. `noticeEl` has class `notice-message` and holds the
+ * message text (see obsidian-console-probes.md, "Notice"). The `console.debug`
+ * line is stub tooling, not an Obsidian behavior: many tests watch it to see
+ * which notices a code path shows.
+ */
 class NoticeStub {
-  constructor(message: string, _timeout?: number) {
+  timerId: number | null;
+  buttonContainerEl: HTMLDivElement;
+  win: Window;
+  containerEl: HTMLDivElement;
+  // Deprecated in obsidian.d.ts; `messageEl` is the modern alias.
+  noticeEl: HTMLDivElement;
+  messageEl: HTMLDivElement;
+
+  constructor(message: string | DocumentFragment, _timeout?: number) {
+    this.timerId = null;
+    this.buttonContainerEl = createDiv();
+    this.win = activeWindow;
+    this.containerEl = createDiv();
+    this.containerEl.appendChild(this.buttonContainerEl);
+    this.noticeEl = this.containerEl.createDiv({ cls: "notice-message" });
+    this.messageEl = this.noticeEl;
+    this.setMessage(message);
     console.debug("[Stub Notice]", message);
+  }
+
+  // From obsidian.d.ts ("Change the message of this notice.").
+  setMessage(message: string | DocumentFragment): this {
+    if (message instanceof DocumentFragment) {
+      this.messageEl.empty();
+      this.messageEl.appendChild(message);
+    } else {
+      this.messageEl.textContent = message;
+    }
+    return this;
+  }
+
+  setAutoHide(_autoHide: boolean): this {
+    return this;
+  }
+
+  addButton(cb: (component: ObsidianApi.ButtonComponent) => unknown): this {
+    const component = new ButtonComponentStub(this.buttonContainerEl);
+    cb(component as unknown as ObsidianApi.ButtonComponent);
+    return this;
   }
 
   hide(): void {}
@@ -1600,6 +1646,74 @@ interface SettingComponent {
   setDisabled(disabled: boolean): unknown;
 }
 
+/**
+ * A button control, the shape shared by `Setting.addButton` and
+ * `Notice.addButton`. Observed on Obsidian 1.14.4 desktop (Windows): it wraps
+ * a `<button>` in the given container and disables through
+ * `buttonEl.disabled`.
+ */
+class ButtonComponentStub implements SettingComponent {
+  buttonEl: HTMLButtonElement;
+  private clickHandler: ((evt: MouseEvent) => void) | null = null;
+
+  constructor(container: HTMLElement) {
+    this.buttonEl = container.createEl("button");
+  }
+
+  setButtonText(text: string): this {
+    this.buttonEl.textContent = text;
+    return this;
+  }
+
+  setIcon(icon: string): this {
+    setIconImpl(this.buttonEl, icon);
+    return this;
+  }
+
+  setTooltip(tooltip: string): this {
+    this.buttonEl.setAttribute("aria-label", tooltip);
+    return this;
+  }
+
+  onClick(handler: (evt: MouseEvent) => void): this {
+    this.clickHandler = handler;
+    this.buttonEl.addEventListener("click", handler);
+    return this;
+  }
+
+  // Observed on Obsidian 1.14.4 desktop (Windows): disabling a button
+  // writes `buttonEl.disabled`.
+  setDisabled(disabled: boolean): this {
+    this.buttonEl.disabled = disabled;
+    return this;
+  }
+
+  setCta(): this {
+    this.buttonEl.classList.add("mod-cta");
+    return this;
+  }
+
+  // Observed on Obsidian 1.14.4 desktop (Windows): setWarning is
+  // `setDestructive().setCta()`, so it adds `mod-destructive mod-cta` and
+  // never `mod-warning`.
+  setWarning(): this {
+    return this.setDestructive().setCta();
+  }
+
+  setDestructive(): this {
+    this.buttonEl.classList.add("mod-destructive");
+    return this;
+  }
+
+  _triggerClick(evt?: MouseEvent): void {
+    if (this.clickHandler) {
+      this.clickHandler(evt ?? new MouseEvent("click"));
+    } else {
+      this.buttonEl.click();
+    }
+  }
+}
+
 class SettingStub {
   settingEl: HTMLDivElement;
   nameEl: HTMLDivElement;
@@ -1685,70 +1799,7 @@ class SettingStub {
     return this;
   }
   addButton(cb: (component: ObsidianApi.ButtonComponent) => unknown): this {
-    class ButtonComponent {
-      buttonEl: HTMLButtonElement;
-      private clickHandler: ((evt: MouseEvent) => void) | null = null;
-
-      constructor(container: HTMLElement) {
-        this.buttonEl = container.createEl("button");
-      }
-
-      setButtonText(text: string): this {
-        this.buttonEl.textContent = text;
-        return this;
-      }
-
-      setIcon(icon: string): this {
-        setIconImpl(this.buttonEl, icon);
-        return this;
-      }
-
-      setTooltip(tooltip: string): this {
-        this.buttonEl.setAttribute("aria-label", tooltip);
-        return this;
-      }
-
-      onClick(handler: (evt: MouseEvent) => void): this {
-        this.clickHandler = handler;
-        this.buttonEl.addEventListener("click", handler);
-        return this;
-      }
-
-      // Observed on Obsidian 1.14.4 desktop (Windows): disabling a button
-      // writes `buttonEl.disabled`.
-      setDisabled(disabled: boolean): this {
-        this.buttonEl.disabled = disabled;
-        return this;
-      }
-
-      setCta(): this {
-        this.buttonEl.classList.add("mod-cta");
-        return this;
-      }
-
-      // Observed on Obsidian 1.14.4 desktop (Windows): setWarning is
-      // `setDestructive().setCta()`, so it adds `mod-destructive mod-cta` and
-      // never `mod-warning`.
-      setWarning(): this {
-        return this.setDestructive().setCta();
-      }
-
-      setDestructive(): this {
-        this.buttonEl.classList.add("mod-destructive");
-        return this;
-      }
-
-      _triggerClick(evt?: MouseEvent): void {
-        if (this.clickHandler) {
-          this.clickHandler(evt ?? new MouseEvent("click"));
-        } else {
-          this.buttonEl.click();
-        }
-      }
-    }
-
-    const component = new ButtonComponent(this.controlEl);
-    return this.attach(component, cb);
+    return this.attach(new ButtonComponentStub(this.controlEl), cb);
   }
 
   addExtraButton(

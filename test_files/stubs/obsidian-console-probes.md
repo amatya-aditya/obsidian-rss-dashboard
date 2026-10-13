@@ -801,8 +801,8 @@ the menu renders elsewhere.
 `buttonContainerEl`, `win`, `containerEl`, `noticeEl`, `messageEl`; its
 prototype has `setMessage`, `setAutoHide`, `addButton`, `hide`; `noticeEl` has
 class `notice-message` and holds the message text. The global `Notice` is the
-same constructor. The stub only models `hide()`; the instance shape is a
-separate confirmation slice (#431).
+same constructor. The stub models the instance shape and the contract test pins
+it (#431).
 
 ## Step 3: setIcon
 
@@ -845,7 +845,8 @@ does for a name it does not ship. The stub models neither `getIcon` nor
 with `Mod` resolved to the platform key: `["Mod", "Shift"]` → `"Ctrl,Shift"` on
 Windows, `["Ctrl", "Alt"]` → `"Alt,Ctrl"`, `null` → `null`, `[]` → `""`. A
 `Scope` has no `handlers` property. The stub stores the modifier array that
-tests inspect; the string form is not modeled (#431).
+tests inspect and the contract test pins that divergence; the string form is not
+modeled (#431).
 
 ## Step 3: AbstractInputSuggest
 
@@ -854,8 +855,9 @@ tests inspect; the string form is not modeled (#431).
 `PopoverSuggest`. Its prototype has `showSuggestions`, `setValue`, `getValue`,
 `onInputFocus`, `onInputChange`, `selectSuggestion`, `onSelect`, `close`,
 `reposition`, `open`, `autoReposition`; `getSuggestions` and `renderSuggestion`
-are abstract. Stays thin in the stub: no production consumer; model it
-faithfully when one appears (#431).
+are abstract. The stub stays thin by design and the contract test pins that
+surface; there is no production consumer, so model it faithfully when one
+appears (#431).
 
 ## Step 3: MarkdownRenderer (the 1.14 math DOM)
 
@@ -874,8 +876,8 @@ exist. Plain markdown renders `<h1 data-heading="H" dir="auto">H</h1>` and
 (`src/utils/math-rendering.ts`) reads back only `.math` and `mjx-container` and
 sets its own `data-math`, all of which the MathJax 4 DOM still provides, so the
 swap did not break the plugin; the reference pin moves to 1.14.4. The stub's
-math model is a bare `mjx-container` holding the LaTeX text, a divergence to
-confirm in the confirmations slice (#431).
+math model is a bare `mjx-container` holding the LaTeX text; the contract test
+pins that subset and records the divergence (#431).
 
 ## Step 3: moment
 
