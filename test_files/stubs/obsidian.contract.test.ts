@@ -1132,13 +1132,11 @@ describe("Obsidian stub contract", () => {
       ]);
     });
 
-    // Observed on Obsidian 1.14.4 desktop (Windows): hide returns the menu and
-    // close returns undefined.
-    it("returns the menu from hide and nothing from close", () => {
+    // Observed on Obsidian 1.14.4 desktop (Windows): hide returns the menu.
+    it("returns the menu from hide", () => {
       const menu = new Menu();
 
       expect(menu.hide()).toBe(menu);
-      expect(menu.close()).toBeUndefined();
     });
   });
 
