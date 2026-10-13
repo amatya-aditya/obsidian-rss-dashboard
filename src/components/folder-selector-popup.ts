@@ -3,6 +3,10 @@ import type RssDashboardPlugin from "../../main";
 import { collectFolderPaths } from "../utils/folder-paths";
 import { FolderNameModal } from "../modals/folder-name-modal";
 import { addInputClearButton } from "../utils/input-clear-button";
+import {
+  FOLDER_POPUP_MOBILE_MAX_WIDTH_PX,
+  isNarrowViewport,
+} from "../utils/platform-utils";
 
 export interface FolderSelectorOptions {
   /** The element to position the popup relative to */
@@ -133,7 +137,10 @@ export class FolderSelectorPopup {
 
     // On mobile, CSS controls the popup's horizontal sheet layout while the
     // inline top keeps it anchored to the button. Desktop uses both offsets.
-    const isMobile = activeWindow.matchMedia("(max-width: 600px)").matches;
+    const isMobile = isNarrowViewport(
+      activeWindow,
+      FOLDER_POPUP_MOBILE_MAX_WIDTH_PX,
+    );
     if (isMobile) {
       popup.style.removeProperty("left");
       popup.style.top = `${top}px`;

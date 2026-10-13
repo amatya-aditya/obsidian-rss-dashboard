@@ -1,5 +1,6 @@
 import { setIcon } from "obsidian";
 import type { ReaderFormatSettings } from "../types/types";
+import { isNarrowViewport } from "./platform-utils";
 
 export type ReaderFormatPortalOptions = {
   anchor: HTMLElement;
@@ -29,7 +30,7 @@ export function createReaderFormatPortal(options: ReaderFormatPortalOptions): {
   const targetDocument = anchor.ownerDocument;
   const targetBody = targetDocument.body;
   const targetWindow = targetDocument.defaultView || activeWindow;
-  const isMobile = targetWindow.matchMedia("(max-width: 768px)").matches;
+  const isMobile = isNarrowViewport(targetWindow);
 
   targetDocument
     .querySelectorAll(

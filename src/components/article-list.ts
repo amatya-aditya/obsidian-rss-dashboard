@@ -7,7 +7,7 @@ import {
 } from "../types/types";
 import { ArticleHeader } from "./article-header";
 import { ArticleEmptyState } from "./article-empty-state";
-import { setCssProps } from "../utils/platform-utils";
+import { isNarrowViewport, setCssProps } from "../utils/platform-utils";
 import type { FilterContext } from "../utils/filter-detection";
 import { HighlightService } from "../services/highlight-service";
 import { getEffectiveDateMs } from "../services/feed-parser/feed-retention";
@@ -245,7 +245,7 @@ export class ArticleList {
   }
 
   private isMobileViewport(): boolean {
-    return activeWindow.matchMedia("(max-width: 768px)").matches;
+    return isNarrowViewport(activeWindow);
   }
 
   private shouldShowToolbarForView(view: "list" | "card" | "feed"): boolean {
