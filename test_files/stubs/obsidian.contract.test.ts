@@ -660,6 +660,27 @@ describe("Obsidian stub contract", () => {
       );
     });
 
+    // Observed on Obsidian 1.14.4 desktop (Windows), #1037: the default article
+    // template buttons' ids resolve to lucide ids of the same name, and
+    // `circle-check-big` draws the same two paths as `check-circle`.
+    it("renders circle-check-big and eraser under their own names", () => {
+      const check = createDiv();
+      const eraser = createDiv();
+
+      setIcon(check, "circle-check-big");
+      setIcon(eraser, "eraser");
+
+      expect(
+        check.querySelector("svg.svg-icon.lucide-circle-check-big"),
+      ).not.toBeNull();
+      expect(eraser.querySelector("svg.svg-icon.lucide-eraser")).not.toBeNull();
+      const legacy = createDiv();
+      setIcon(legacy, "check-circle");
+      expect(check.querySelector("svg")?.innerHTML).toBe(
+        legacy.querySelector("svg")?.innerHTML,
+      );
+    });
+
     // Observed on Obsidian 1.14.4 desktop (Windows): an unknown name empties
     // the element and inserts nothing (probed with an element that held text).
     it("leaves the element empty for an unknown name", () => {

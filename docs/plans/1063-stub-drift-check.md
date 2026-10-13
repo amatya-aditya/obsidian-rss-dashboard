@@ -106,13 +106,28 @@ written by `--update-baseline`. Certified at `1.14.4` first (the current pin).
 Serialized in the repository's Prettier format so regenerating it does not fail
 `format:check`.
 
-### Canary (Part B — separate follow-up PR)
+### Canary (Part B — this PR)
 
 `.github/workflows/obsidian-canary.yml`: weekly `schedule` + `workflow_dispatch`
 only, `permissions: contents: read, issues: write`, runs the check against the
 newest release with `--report drift.md`, ensures the `obsidian-update` label,
 files or updates one issue, and fails only when a pinned fact is gone. Actions
-pinned by full commit SHA with a `# v7`-style comment, matching `test.yml`.
+pinned by full commit SHA with a `# v7`-style comment, matching `test.yml`. No
+`push` or `pull_request` trigger, so PR checks are unchanged (AC-005). The
+manual dispatch takes an optional `obsidian` version input, forwarded as
+`--obsidian <input>` only when non-empty.
+
+**Filing trigger (decision):** the canary files or updates the issue only when
+the check reports **drift** (exit 1, a pinned fact gone). New, absent, and
+retired facts are informational in `drift.md` and file nothing, so a clean run
+opens no issue. A failure with no `drift.md` (the download or the check itself
+failed) fails the run without filing a misleading drift issue.
+
+`scripts/upsert-obsidian-update-issue.mjs` holds the create-or-update logic
+(DEC-006): it ensures the label, reads the open issue number from
+`gh issue list`, and edits the existing issue (stable title) or creates it.
+The workflow is a thin caller. The `gh` calls are injected, so the decision
+helpers are unit tested without shelling out.
 
 ## Implementation and tests
 
@@ -124,6 +139,14 @@ pinned by full commit SHA with a `# v7`-style comment, matching `test.yml`.
   dispositions; exact Prettier-shape baseline round-trip), `TEST-004`
   (newest-release selection over a recorded releases-API fixture with a
   mobile-only newest release).
+- `.github/workflows/obsidian-canary.yml`: `AC-005` — the weekly and
+  manual-dispatch canary. Runs the app-free check, files or updates one
+  `obsidian-update` issue from the report, and fails only on drift.
+- `scripts/upsert-obsidian-update-issue.mjs` and
+  `test_files/unit/upsert-obsidian-update-issue.test.ts`: the create-or-update
+  issue logic (`TEST-005`) with injected `gh` calls, so the filing path is
+  covered hermetically (found → update, none → create, list failure → nothing
+  filed).
 - `test_files/unit/fixtures/obsidian-releases.json`: the recorded fixture.
 - `test_files/stubs/obsidian-console-probes.md`: names `check:stub-drift` as the
   app-free half and separates it from the device-required probes.
@@ -135,9 +158,15 @@ pinned by full commit SHA with a `# v7`-style comment, matching `test.yml`.
 
 ## Validation
 
-`npm run format` and `format:check`, `npm run lint`, the focused vitest file,
+`npm run format` and `format:check`, `npm run lint`, the focused vitest files,
 `tsc --noEmit`, `check:platform`, `check:architecture`, `check:pre-release`,
 `check:doc-links`, and `npm run build`.
+
+Part B additionally reviews the workflow config (`AC-005`): only `schedule` and
+`workflow_dispatch` triggers, `issues: write`, actions pinned by SHA, and the
+upsert unit test green. After merge, `gh workflow view obsidian-canary.yml`
+confirms the triggers, and one real dispatch confirms a clean run files nothing
+(`TEST-005`).
 
 `TEST-002` (no Obsidian source under `test_files/` or `scripts/`) is an
 inspection seam: the baseline carries fact ids, match strings, and source file
@@ -153,12 +182,19 @@ decision.
 - `npm run check:stub-drift -- --obsidian 1.14.4` → exit 0, all 18 facts present.
 - `npm run check:stub-drift -- --obsidian 1.13.7` → exit 0 (every fact predates
   the pin), and `--obsidian 0.11.1` → exit 1, naming the four facts it lacks.
-- Part B: dispatch the canary once after merge; confirm no issue is filed when
-  nothing has gone, then confirm the filing path with the stubbed fixture.
+- Part B: the upsert unit test covers found → update, none → create, and list
+  failure → nothing filed. After merge, dispatch the canary once and confirm no
+  issue is filed when nothing has gone; then dispatch against a release older
+  than the pin (or a baseline missing a fact) and confirm the run files one
+  `obsidian-update` issue, updates it (not duplicated) on a second run, and
+  fails.
 
 ## Staging
 
-- **Part A (this PR, `chore/1063-stub-drift-check`)**: the script, baseline,
-  tests, and docs (AC-001…004).
-- **Part B (follow-up PR, `chore/1063-stub-drift-canary`)**: the workflow
-  (AC-005), whose issue-filing path depends on Part A merging first.
+- **Part A (landed, `chore/1063-stub-drift-check` → #1066)**: the script,
+  baseline, tests, and docs (AC-001…004).
+- **Part B (this PR, `chore/1063-stub-drift-canary`)**: the canary workflow and
+  the create-or-update issue script with its unit test (AC-005). The plan stays
+  `in-progress` until the post-merge dispatch is green, then moves to
+  `docs/archive/plans/unreleased/` with this file's inbound links and the
+  archive catalog updated.

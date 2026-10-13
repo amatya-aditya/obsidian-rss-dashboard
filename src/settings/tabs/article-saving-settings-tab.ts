@@ -15,6 +15,7 @@ import {
 } from "../modals/settings-modals";
 import { clearTemplateAssignments } from "../../utils/saved-template-utils";
 import { settingsUiCompatibility } from "../settings-ui-compat";
+import { addActionButtonContent } from "../../utils/action-button-content";
 import { renderTemplateVariableHelp } from "../template-variable-help";
 import { addInputClearButton } from "../../utils/input-clear-button";
 
@@ -34,6 +35,8 @@ export interface ArticleSavingPluginLike {
   };
   saveSettings: () => Promise<void>;
 }
+
+const MINIMAL_TEMPLATE = "{{content}}";
 
 const defaultTemplateHint =
   "The built-in template. It is used when neither the feed nor the global default saved template sets one.";
@@ -112,6 +115,16 @@ export function renderArticleSavingSettingsTab(
       );
     });
 
+  renderDefaultTemplateSection(containerEl, plugin, onRefresh);
+
+  renderSavedTemplatesList(containerEl, plugin, onRefresh);
+}
+
+function renderDefaultTemplateSection(
+  containerEl: HTMLElement,
+  plugin: ArticleSavingPluginLike,
+  onRefresh: () => void,
+): void {
   // ── Default template ──────────────────────────────────────────────────────
   new Setting(containerEl).setName("Default template").setHeading();
   containerEl.createEl("p", {
@@ -132,79 +145,142 @@ export function renderArticleSavingSettingsTab(
     cls: "rss-dashboard-template-input",
   });
   templateInput.value = plugin.settings.articleSaving.defaultTemplate;
-  templateInput.addEventListener("change", () => {
-    void (async () => {
-      plugin.settings.articleSaving.defaultTemplate = templateInput.value;
-      templateSetting.setDesc(getArticleTemplateHint(templateInput.value));
-      await plugin.saveSettings();
-    })();
-  });
+  const articleSaving = plugin.settings.articleSaving;
+  const shippedTemplate = DEFAULT_SETTINGS.articleSaving.defaultTemplate;
 
-  templateContainer.appendChild(templateInput);
+  const resolveGlobalDefaultName = (): string | undefined => {
+    const id = articleSaving.globalDefaultTemplateId;
+    if (!id) return undefined;
+    return (articleSaving.savedTemplates ?? []).find(
+      (template) => template.id === id,
+    )?.name;
+  };
+
+  const templateStatusEl = templateContainer.createDiv({
+    cls: "rss-dashboard-template-status",
+    attr: { role: "status", "aria-live": "polite" },
+  });
 
   const templateBtnRow = containerEl.createDiv({
     cls: "rss-dashboard-template-btn-row",
   });
 
-  const resetBtn = templateBtnRow.createEl("button", {
-    text: "Reset to default",
-    cls: "rss-dashboard-template-btn",
-  });
-  resetBtn.onclick = () => {
+  const createTemplateButton = (
+    iconName: string,
+    label: string,
+  ): HTMLButtonElement => {
+    const button = templateBtnRow.createEl("button", {
+      cls: "rss-dashboard-template-btn",
+    });
+    addActionButtonContent(button, iconName, label);
+    return button;
+  };
+
+  const useAsDefaultBtn = createTemplateButton(
+    "circle-check-big",
+    "Use as default",
+  );
+  const saveAsTemplateBtn = createTemplateButton("save", "Save as template");
+  const resetBtn = createTemplateButton("rotate-ccw", "Reset");
+  const clearBtn = createTemplateButton("eraser", "Clear");
+
+  const syncTemplateState = (): void => {
+    const globalName = resolveGlobalDefaultName();
+    templateStatusEl.setText(
+      `Default saves use: ${globalName ?? "the template above"}`,
+    );
+    // Use as default stays focusable and bright while the box is already the
+    // default: `aria-disabled` plus the state class, never native `disabled`.
+    const boxIsDefault = globalName === undefined;
+    useAsDefaultBtn.toggleClass("is-default", boxIsDefault);
+    if (boxIsDefault) useAsDefaultBtn.setAttribute("aria-disabled", "true");
+    else useAsDefaultBtn.removeAttribute("aria-disabled");
+    const nextDisabled = new Map<HTMLButtonElement, boolean>([
+      [resetBtn, templateInput.value === shippedTemplate],
+      [clearBtn, templateInput.value === MINIMAL_TEMPLATE],
+    ]);
+    // A focused button that disables itself drops keyboard focus to the page
+    // body (Chromium blurs it the moment `disabled` is set), so hand focus to
+    // the one button that is never a no-op first. Ask each button's own
+    // document: the settings window is another window, so the active document
+    // can differ and `instanceof` fails across realms.
+    const losesFocus = [...nextDisabled].some(
+      ([button, disabled]) =>
+        disabled && button.ownerDocument.activeElement === button,
+    );
+    if (losesFocus) saveAsTemplateBtn.focus();
+    nextDisabled.forEach((disabled, button) => {
+      button.disabled = disabled;
+    });
+    templateSetting.setDesc(getArticleTemplateHint(templateInput.value));
+  };
+  syncTemplateState();
+
+  templateInput.addEventListener("change", () => {
     void (async () => {
-      const confirm = new ConfirmActionModal(plugin.app, {
-        title: "Reset to default?",
-        message:
-          "This replaces the default article template with the built-in template. Saved templates are not changed.",
-        confirmLabel: "Reset to default",
-      });
-      confirm.open();
-      const shouldReset = await confirm.waitForClose();
-      if (!shouldReset) return;
-      templateInput.value = DEFAULT_SETTINGS.articleSaving.defaultTemplate;
-      plugin.settings.articleSaving.defaultTemplate =
-        DEFAULT_SETTINGS.articleSaving.defaultTemplate;
-      templateSetting.setDesc(defaultTemplateHint);
+      articleSaving.defaultTemplate = templateInput.value;
+      syncTemplateState();
       await plugin.saveSettings();
-      new Notice("Template reset to default");
+    })();
+  });
+
+  useAsDefaultBtn.onclick = () => {
+    if (useAsDefaultBtn.getAttribute("aria-disabled") === "true") return;
+    void (async () => {
+      articleSaving.globalDefaultTemplateId = undefined;
+      syncTemplateState();
+      await plugin.saveSettings();
     })();
   };
 
-  const saveAsTemplateBtn = templateBtnRow.createEl("button", {
-    text: "Save as template",
-    cls: "rss-dashboard-template-btn",
-  });
-  saveAsTemplateBtn.onclick = async () => {
-    const modal = new SavedTemplateEditorModal(
-      plugin.app,
-      {
-        name: "",
-        template: plugin.settings.articleSaving.defaultTemplate,
-        defaultFolder: "",
-        filenamePattern: "",
-        makeGlobalDefault: false,
-      },
-      plugin.settings.articleSaving.savedTemplates || [],
-    );
-    modal.open();
-    const result = await modal.waitForClose();
-    if (!result) return;
-    const newTemplate: SavedTemplate = {
-      id: `template-${Date.now()}`,
-      name: result.name,
-      template: result.template,
-      defaultFolder: result.defaultFolder,
-      filenamePattern: result.filenamePattern,
-    };
-    const savedTemplates = (plugin.settings.articleSaving.savedTemplates ??=
-      []);
-    savedTemplates.push(newTemplate);
-    if (result.makeGlobalDefault) {
-      plugin.settings.articleSaving.globalDefaultTemplateId = newTemplate.id;
-    }
+  const confirmThenSetBox = async (
+    options: {
+      title: string;
+      message: string;
+      confirmLabel: string;
+    },
+    nextTemplate: string,
+    notice: string,
+  ): Promise<void> => {
+    const confirm = new ConfirmActionModal(plugin.app, options);
+    confirm.open();
+    const shouldApply = await confirm.waitForClose();
+    if (!shouldApply) return;
+    templateInput.value = nextTemplate;
+    articleSaving.defaultTemplate = nextTemplate;
+    syncTemplateState();
     await plugin.saveSettings();
-    new Notice(`Template "${newTemplate.name}" saved`);
-    onRefresh();
+    new Notice(notice);
+  };
+
+  resetBtn.onclick = () => {
+    void confirmThenSetBox(
+      {
+        title: "Reset template?",
+        message:
+          "This replaces the default article template with the built-in template. Saved templates are not changed.",
+        confirmLabel: "Reset",
+      },
+      shippedTemplate,
+      "Template reset to default",
+    );
+  };
+
+  clearBtn.onclick = () => {
+    void confirmThenSetBox(
+      {
+        title: "Clear template?",
+        message:
+          "This replaces the default article template with a minimal {{content}} template. Saved templates are not changed.",
+        confirmLabel: "Clear",
+      },
+      MINIMAL_TEMPLATE,
+      "Template cleared",
+    );
+  };
+
+  saveAsTemplateBtn.onclick = () => {
+    void saveBoxAsTemplate(plugin, onRefresh);
   };
 
   const helpText = containerEl.createDiv({
@@ -212,7 +288,48 @@ export function renderArticleSavingSettingsTab(
   });
 
   renderTemplateVariableHelp(helpText);
+}
 
+async function saveBoxAsTemplate(
+  plugin: ArticleSavingPluginLike,
+  onRefresh: () => void,
+): Promise<void> {
+  const modal = new SavedTemplateEditorModal(
+    plugin.app,
+    {
+      name: "",
+      template: plugin.settings.articleSaving.defaultTemplate,
+      defaultFolder: "",
+      filenamePattern: "",
+      makeGlobalDefault: false,
+    },
+    plugin.settings.articleSaving.savedTemplates || [],
+  );
+  modal.open();
+  const result = await modal.waitForClose();
+  if (!result) return;
+  const newTemplate: SavedTemplate = {
+    id: `template-${Date.now()}`,
+    name: result.name,
+    template: result.template,
+    defaultFolder: result.defaultFolder,
+    filenamePattern: result.filenamePattern,
+  };
+  const savedTemplates = (plugin.settings.articleSaving.savedTemplates ??= []);
+  savedTemplates.push(newTemplate);
+  if (result.makeGlobalDefault) {
+    plugin.settings.articleSaving.globalDefaultTemplateId = newTemplate.id;
+  }
+  await plugin.saveSettings();
+  new Notice(`Template "${newTemplate.name}" saved`);
+  onRefresh();
+}
+
+function renderSavedTemplatesList(
+  containerEl: HTMLElement,
+  plugin: ArticleSavingPluginLike,
+  onRefresh: () => void,
+): void {
   // ── Saved templates ───────────────────────────────────────────────────────
   new Setting(containerEl).setName("Saved templates").setHeading();
 
