@@ -7,7 +7,8 @@ disable-model-invocation: true
 # Manual Test Checklist
 
 A disposable checklist the **user** works through by hand. (For Claude to run
-the checks itself and fix what fails, the user invokes `/test-checklist`.)
+the checks itself and fix what fails, the user invokes `/test-drive-and-fix`;
+to run them read-only and get findings back, `/test-drive`.)
 
 1. Read `docs/development/test_coverage/test-scenarios.md` in full and
    build the scenario list from it. Done when every item is action → expected
