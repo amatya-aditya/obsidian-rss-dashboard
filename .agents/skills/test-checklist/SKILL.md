@@ -13,7 +13,7 @@ clicks through by hand, they invoke `/manual-test-checklist`.)
 
 ## 1. Build the checklist
 
-Read `C:\Users\marcc\.claude\reference\test-scenarios.md` in full and build
+Read `docs/development/test_coverage/test-scenarios.md` in full and build
 the scenario list from it. For each item add the **route** you will drive it
 through, the cheapest one that exercises the real thing:
 
