@@ -191,6 +191,16 @@ function renderDefaultTemplateSection(
     resetBtn.disabled = templateInput.value === shippedTemplate;
     clearBtn.disabled = templateInput.value === MINIMAL_TEMPLATE;
     templateSetting.setDesc(getArticleTemplateHint(templateInput.value));
+    // A button that disables itself drops keyboard focus to the page body, so
+    // hand focus to the one button that is never a no-op.
+    const focused = activeDocument.activeElement;
+    if (
+      focused instanceof HTMLButtonElement &&
+      focused.disabled &&
+      templateBtnRow.contains(focused)
+    ) {
+      saveAsTemplateBtn.focus();
+    }
   };
   syncTemplateState();
 

@@ -762,6 +762,29 @@ describe("Default article template actions (#1037)", () => {
     expect(getButton(containerEl, "Clear").disabled).toBe(true);
   });
 
+  it("moves keyboard focus to Save as template when the focused button disables itself", async () => {
+    const { containerEl } = render({
+      savedTemplates: [savedA],
+      globalDefaultTemplateId: "a",
+    });
+    document.body.appendChild(containerEl);
+    try {
+      const useAsDefault = getButton(containerEl, "Use as default");
+      useAsDefault.focus();
+      expect(document.activeElement).toBe(useAsDefault);
+
+      useAsDefault.click();
+      await flushPromises();
+
+      expect(useAsDefault.disabled).toBe(true);
+      expect(document.activeElement).toBe(
+        getButton(containerEl, "Save as template"),
+      );
+    } finally {
+      containerEl.remove();
+    }
+  });
+
   it("Save as template still rebuilds the tab through onRefresh", async () => {
     const { containerEl, plugin, onRefresh } = render({ defaultTemplate: "X" });
     vi.spyOn(SavedTemplateEditorModal.prototype, "open").mockImplementation(
