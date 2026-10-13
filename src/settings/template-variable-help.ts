@@ -7,6 +7,9 @@
  * must appear here exactly once; a unit test enforces it.
  */
 
+import { Notice, setTooltip } from "obsidian";
+import { copyTextToClipboard } from "../utils/export-utils";
+
 interface TemplateVariableHelpEntry {
   /** The placeholder as written in a template, without braces. */
   readonly name: string;
@@ -153,12 +156,73 @@ export const TEMPLATE_VARIABLE_HELP_GROUPS: readonly TemplateVariableHelpGroup[]
     },
   ];
 
+/** The copy value of the leading `{{date:FORMAT}}` chip: its description's example. */
+const DATE_FORMAT_EXAMPLE = "{{date:YYYY/MM/DD}}";
+
+/**
+ * Tokens inside a description. The `tags: [{{tags}}]` example is matched whole,
+ * because its brackets are the point of that example; every other `{{...}}` is
+ * a chip of its own.
+ */
+const DESCRIPTION_TOKEN_PATTERN = /tags: \[\{\{tags\}\}\]|\{\{[^{}]+\}\}/g;
+
+/**
+ * Add a copy chip to `parent`: a button wrapping a `<code>`. `copyValue` is
+ * what lands on the clipboard. A chip that only repeats another entry's
+ * placeholder stays out of the tab order, so Tab visits each variable once.
+ */
+function renderCopyChip(
+  parent: HTMLElement,
+  label: string,
+  copyValue: string,
+  inTabOrder: boolean,
+): void {
+  const chip = parent.createEl("button", {
+    cls: "rss-dashboard-variable-chip",
+    attr: { type: "button" },
+  });
+  chip.createEl("code", { text: label });
+  setTooltip(chip, `Copy ${copyValue}`);
+  if (!inTabOrder) chip.setAttribute("tabindex", "-1");
+  chip.addEventListener("click", () => {
+    void copyTextToClipboard(copyValue).then((result) => {
+      new Notice(
+        result === "copied"
+          ? `Copied ${copyValue}`
+          : `Couldn't copy ${copyValue}`,
+      );
+    });
+  });
+}
+
+/** Write a description into `parent`, turning each `{{...}}` token into a chip. */
+function renderDescription(
+  parent: HTMLElement,
+  description: string,
+  leadingTokens: ReadonlySet<string>,
+): void {
+  let cursor = 0;
+  for (const match of description.matchAll(DESCRIPTION_TOKEN_PATTERN)) {
+    const token = match[0];
+    parent.appendText(description.slice(cursor, match.index));
+    renderCopyChip(parent, token, token, !leadingTokens.has(token));
+    cursor = match.index + token.length;
+  }
+  parent.appendText(description.slice(cursor));
+}
+
 /**
  * Render the grouped variable reference into `container`: an `h4` per group,
- * then a list of each variable in `<code>` with its description. Groups are set
- * apart by heading text, never by colour alone (WCAG 2.2 SC 1.3.1).
+ * then a list of each variable as a copy chip with its description. Every
+ * `{{...}}` in a description is a chip too. Groups are set apart by heading
+ * text, never by colour alone (WCAG 2.2 SC 1.3.1).
  */
 export function renderTemplateVariableHelp(container: HTMLElement): void {
+  const leadingTokens = new Set(
+    TEMPLATE_VARIABLE_HELP_GROUPS.flatMap((group) =>
+      group.variables.map((variable) => `{{${variable.name}}}`),
+    ),
+  );
   container.createEl("p", {
     text: "These placeholders are replaced when an article is saved.",
   });
@@ -172,8 +236,15 @@ export function renderTemplateVariableHelp(container: HTMLElement): void {
     });
     for (const variable of group.variables) {
       const item = list.createEl("li");
-      item.createEl("code", { text: `{{${variable.name}}}` });
-      item.appendText(` — ${variable.description}`);
+      const token = `{{${variable.name}}}`;
+      renderCopyChip(
+        item,
+        token,
+        variable.name === "date:FORMAT" ? DATE_FORMAT_EXAMPLE : token,
+        true,
+      );
+      item.appendText(" — ");
+      renderDescription(item, variable.description, leadingTokens);
     }
   }
 }
