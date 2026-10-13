@@ -9,6 +9,7 @@ import {
   DEFAULT_SETTINGS,
   type RssDashboardSettings,
 } from "../../../src/types/types";
+import type { DeepPartial } from "../../../src/types/deep-partial";
 
 describe("migrateMediaVideoTagSettings", () => {
   it("adds defaultVideoTag default and Video tag when missing", () => {
@@ -170,7 +171,7 @@ describe("migrateMediaVideoTagSettings", () => {
   it("carries a dev-build hideYouTubeDescriptions value through loading into Focus mode", () => {
     const loaded = loadAndNormalizeSettings({
       media: { hideYouTubeDescriptions: true },
-    } as unknown as Partial<RssDashboardSettings>);
+    } as unknown as DeepPartial<RssDashboardSettings>);
     migrateSettings(loaded);
 
     const media = loaded.media as unknown as Record<string, unknown>;
@@ -181,7 +182,7 @@ describe("migrateMediaVideoTagSettings", () => {
   it("keeps an existing Focus mode value over a stale old key", () => {
     const loaded = loadAndNormalizeSettings({
       media: { youtubeFocusMode: false, hideYouTubeDescriptions: true },
-    } as unknown as Partial<RssDashboardSettings>);
+    } as unknown as DeepPartial<RssDashboardSettings>);
     migrateSettings(loaded);
 
     const media = loaded.media as unknown as Record<string, unknown>;
@@ -211,7 +212,7 @@ describe("removed settings load cleanly (#919)", () => {
     // during normalization (#919).
     const loaded = loadAndNormalizeSettings({
       media: { autoTagVideos: false },
-    } as unknown as Partial<RssDashboardSettings>);
+    } as unknown as DeepPartial<RssDashboardSettings>);
     migrateSettings(loaded);
 
     expect(loaded.media.defaultVideoTag).toBe("");
@@ -242,7 +243,7 @@ describe("removed settings load cleanly (#919)", () => {
       customProxyUrls: ["https://proxy.example"],
       display: { useDomainIconsYouTube: true },
       media: { autoTagVideos: true, openInSplitView: true },
-    } as unknown as Partial<RssDashboardSettings>);
+    } as unknown as DeepPartial<RssDashboardSettings>);
 
     migrateSettings(loaded);
 

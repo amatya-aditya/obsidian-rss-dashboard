@@ -19,6 +19,7 @@ import {
 } from "../../../src/services/starred-import-mapper";
 import { loadAndNormalizeSettings } from "../../../src/utils/settings-loader";
 import type { Feed, RssDashboardSettings } from "../../../src/types/types";
+import type { DeepPartial } from "../../../src/types/deep-partial";
 import { TEMPLATE_DIR } from "../../../scripts/generate-fixture-vault.mjs";
 
 // Parses every file in the fixture vault's import-fixtures folder with the
@@ -39,7 +40,7 @@ function readJsonFixture(name: string): unknown {
 function fixtureVaultSettings(): RssDashboardSettings {
   const metadata = JSON.parse(
     readFileSync(join(TEMPLATE_DIR, "rss-dashboard-data", "data.json"), "utf8"),
-  ) as Partial<RssDashboardSettings>;
+  );
   const settings = loadAndNormalizeSettings(metadata);
   for (const feed of settings.feeds) {
     const shard = JSON.parse(
@@ -61,7 +62,7 @@ function fixtureVaultSettings(): RssDashboardSettings {
 function importService(settings: RssDashboardSettings) {
   const confirmations: ImportConfirmation[] = [];
   const applied: Array<{
-    preferences: Record<string, unknown>;
+    preferences: DeepPartial<RssDashboardSettings>;
     kind: ImportKind;
   }> = [];
   const service = new ImportExportService({

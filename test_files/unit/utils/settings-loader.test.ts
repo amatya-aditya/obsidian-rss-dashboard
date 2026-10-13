@@ -14,6 +14,7 @@ import {
   type FeedItem,
   type RssDashboardSettings,
 } from "../../../src/types/types";
+import type { DeepPartial } from "../../../src/types/deep-partial";
 
 vi.mock("../../../src/utils/settings-loader", { spy: true });
 
@@ -78,13 +79,13 @@ describe("settings-loader", () => {
 
       const withoutPreference = loadAndNormalizeSettings({
         display: {},
-      } as unknown as Partial<RssDashboardSettings>);
+      });
       const explicitlyEnabled = loadAndNormalizeSettings({
         display: { showVersionInStatusBar: true },
-      } as unknown as Partial<RssDashboardSettings>);
+      });
       const explicitlyDisabled = loadAndNormalizeSettings({
         display: { showVersionInStatusBar: false },
-      } as unknown as Partial<RssDashboardSettings>);
+      });
 
       expect(withoutPreference.display.showVersionInStatusBar).toBe(false);
       expect(explicitlyEnabled.display.showVersionInStatusBar).toBe(true);
@@ -102,7 +103,7 @@ describe("settings-loader", () => {
           imageCacheLimitMiB: 0,
           imageCacheUnlimited: true,
         },
-      } as unknown as Partial<RssDashboardSettings>);
+      });
 
       expect(result.display.imageCacheLimitMiB).toBe(100);
       expect(result.display.imageCacheUnlimited).toBe(true);
@@ -114,7 +115,7 @@ describe("settings-loader", () => {
 
       const result = loadAndNormalizeSettings({
         display: { imageCacheLimitMiB: 2_048 },
-      } as unknown as Partial<RssDashboardSettings>);
+      });
 
       expect(result.display.imageCacheLimitMiB).toBe(1_024);
     });
@@ -255,7 +256,7 @@ describe("settings-loader", () => {
 
       const raw = { readerViewLocation: "external-browser" };
       const result = loadAndNormalizeSettings(
-        raw as unknown as Partial<RssDashboardSettings>,
+        raw as unknown as DeepPartial<RssDashboardSettings>,
       );
 
       expect(result.readerViewLocation).toBe("main");
@@ -271,7 +272,7 @@ describe("settings-loader", () => {
         savedArticleOpenLocation: "external-browser",
       };
       const result = loadAndNormalizeSettings(
-        raw as unknown as Partial<RssDashboardSettings>,
+        raw as unknown as DeepPartial<RssDashboardSettings>,
       );
 
       expect(result.savedArticleOpenLocation).toBe("main");

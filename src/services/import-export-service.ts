@@ -5,6 +5,7 @@ import type {
   RssDashboardSettings,
   SettingsBundle,
 } from "../types/types";
+import type { DeepPartial } from "../types/deep-partial";
 import { OpmlManager } from "./opml-manager";
 import {
   exportBlob,
@@ -49,7 +50,7 @@ export class ImportExportService {
   private getSettingsBundle?: () => SettingsBundle;
   private importSettingsBundle?: (bundle: unknown) => Promise<void>;
   private importUserPreferences?: (
-    preferences: Record<string, unknown>,
+    preferences: DeepPartial<RssDashboardSettings>,
     kind: ImportKind,
   ) => Promise<void>;
   private confirmImport: (
@@ -82,7 +83,7 @@ export class ImportExportService {
     getSettingsBundle?: () => SettingsBundle;
     importSettingsBundle?: (bundle: unknown) => Promise<void>;
     importUserPreferences?: (
-      preferences: Record<string, unknown>,
+      preferences: DeepPartial<RssDashboardSettings>,
       kind: ImportKind,
     ) => Promise<void>;
     confirmImport?: (
@@ -448,7 +449,7 @@ export class ImportExportService {
       );
     }
 
-    const preferences = parsed as Record<string, unknown>;
+    const preferences = parsed as DeepPartial<RssDashboardSettings>;
     const { feeds, folders, availableTags } = preferences;
     const kind: ImportKind =
       Array.isArray(feeds) ||
