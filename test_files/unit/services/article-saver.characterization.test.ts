@@ -286,6 +286,25 @@ describe("ArticleSaver.saveArticle frontmatter decision", () => {
     );
   });
 
+  it("adds the plugin frontmatter when the default template is cleared to {{content}} (#1037)", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(
+      app,
+      createSettings({
+        includeFrontmatter: true,
+        frontmatterTemplate: "---\ntitle: {{title}}\n---",
+        defaultTemplate: "{{content}}",
+      }),
+    );
+    const file = requireFile(
+      await saver.saveArticle(createItem(), undefined, undefined, "BODY"),
+    );
+
+    await expect(app.vault.read(file)).resolves.toBe(
+      "---\ntitle: Test Article\n---\nBODY",
+    );
+  });
+
   it("adds no frontmatter when the note template starts with its own", async () => {
     const app = App.createMock();
     const saver = new ArticleSaver(
