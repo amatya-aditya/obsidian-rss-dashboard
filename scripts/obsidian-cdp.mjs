@@ -16,7 +16,7 @@
 
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { request } from "node:http";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { clearTimeout, setTimeout } from "node:timers";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
@@ -26,9 +26,18 @@ export const DEFAULT_PORTS = [9222, 9333, 9334];
 const DEFAULT_HOST = "localhost";
 const ENV_PORT = "CDP_PORT";
 const ENV_TARGET = "CDP_TARGET";
+const ENV_EXPECT_VAULT = "CDP_EXPECT_VAULT";
+const ENV_PROFILE = "CDP_PROFILE";
+const ENV_WAIT = "CDP_WAIT";
 const OBSIDIAN_URL_PREFIX = "app://obsidian.md";
+/** The real vault window. The picker (starter.html) opens without a vault. */
+const OBSIDIAN_VAULT_URL = "app://obsidian.md/index.html";
 /** Abandons a DevTools call that never answers, so the CLI cannot hang. */
 const DEFAULT_CALL_TIMEOUT_MS = 30_000;
+/** Gap between polls while waiting for a ready target. */
+const DEFAULT_POLL_INTERVAL_MS = 150;
+/** Chromium writes this into --user-data-dir, naming the bound debug port. */
+const DEVTOOLS_ACTIVE_PORT_FILE = "DevToolsActivePort";
 
 const COMMANDS = ["targets", "eval", "shot", "repl", "batch", "help"];
 const STEP_NAMES = ["eval", "shot", "wait", "target"];
@@ -48,12 +57,20 @@ Options:
   --port <n>         Debug port to use (default: probe ${DEFAULT_PORTS.join(", ")}).
   --host <host>      Debug host (default: ${DEFAULT_HOST}).
   --target <text>    Pick the page whose title contains <text>.
+  --expect-vault <p> Refuse unless this vault path is the one open in the target.
+  --profile <dir>    Pin the port recorded in <dir>/${DEVTOOLS_ACTIVE_PORT_FILE}, and
+                     refuse any target that is not the expected vault.
+  --wait <ms>        Poll for a ready vault target for up to <ms> before failing
+                     (default: 0, fail fast).
   --json             Print machine-readable output where supported.
   -h, --help         Show this help.
 
 Environment:
   ${ENV_PORT}        Same as --port.
-  ${ENV_TARGET}      Same as --target.`;
+  ${ENV_TARGET}      Same as --target.
+  ${ENV_EXPECT_VAULT}   Same as --expect-vault.
+  ${ENV_PROFILE}     Same as --profile.
+  ${ENV_WAIT}        Same as --wait.`;
 
 export class CdpError extends Error {
   constructor(message) {
@@ -79,6 +96,24 @@ function parsePort(value, source) {
     throw new CdpError(`Invalid port "${value ?? ""}" from ${source}.`);
   }
   return port;
+}
+
+function parseWait(value, source) {
+  const ms = Number(value);
+  if (!Number.isInteger(ms) || ms < 0) {
+    throw new CdpError(
+      `Invalid wait "${value ?? ""}" from ${source}; use a whole number of milliseconds.`,
+    );
+  }
+  return ms;
+}
+
+function nonEmptyValue(value, name) {
+  const text = String(value ?? "").trim();
+  if (text === "") {
+    throw new CdpError(`Option ${name} needs a value.`);
+  }
+  return text;
 }
 
 function assertArity(command, args) {
@@ -111,6 +146,9 @@ export function parseArgs(argv, env = process.env) {
     ports: [...DEFAULT_PORTS],
     host: DEFAULT_HOST,
     target: env[ENV_TARGET] || undefined,
+    expectVault: env[ENV_EXPECT_VAULT] || undefined,
+    profile: env[ENV_PROFILE] || undefined,
+    waitMs: 0,
     json: false,
     help: false,
   };
@@ -118,6 +156,9 @@ export function parseArgs(argv, env = process.env) {
   let port;
   if (env[ENV_PORT] !== undefined && env[ENV_PORT] !== "") {
     port = parsePort(env[ENV_PORT], ENV_PORT);
+  }
+  if (env[ENV_WAIT] !== undefined && env[ENV_WAIT] !== "") {
+    options.waitMs = parseWait(env[ENV_WAIT], ENV_WAIT);
   }
 
   const positionals = [];
@@ -138,6 +179,21 @@ export function parseArgs(argv, env = process.env) {
       }
     } else if (arg === "--target" || arg.startsWith("--target=")) {
       options.target = optionValue(argv, i, "--target");
+      if (!arg.includes("=")) i += 1;
+    } else if (arg === "--expect-vault" || arg.startsWith("--expect-vault=")) {
+      options.expectVault = nonEmptyValue(
+        optionValue(argv, i, "--expect-vault"),
+        "--expect-vault",
+      );
+      if (!arg.includes("=")) i += 1;
+    } else if (arg === "--profile" || arg.startsWith("--profile=")) {
+      options.profile = nonEmptyValue(
+        optionValue(argv, i, "--profile"),
+        "--profile",
+      );
+      if (!arg.includes("=")) i += 1;
+    } else if (arg === "--wait" || arg.startsWith("--wait=")) {
+      options.waitMs = parseWait(optionValue(argv, i, "--wait"), "--wait");
       if (!arg.includes("=")) i += 1;
     } else if (arg.startsWith("-") && arg !== "-") {
       throw new CdpError(`Unknown option "${arg}".\n\n${USAGE}`);
@@ -184,6 +240,23 @@ function isObsidianTarget(target) {
   return String(target.url || "").startsWith(OBSIDIAN_URL_PREFIX);
 }
 
+function isStarterTarget(target) {
+  return String(target.url || "").includes("starter.html");
+}
+
+/**
+ * True only for the real vault window (`index.html`), not the vault picker.
+ * Exported for unit tests.
+ */
+export function isObsidianVaultTarget(target) {
+  const url = String(target.url || "");
+  return (
+    url === OBSIDIAN_VAULT_URL ||
+    url.startsWith(`${OBSIDIAN_VAULT_URL}?`) ||
+    url.startsWith(`${OBSIDIAN_VAULT_URL}#`)
+  );
+}
+
 function describeTarget(target) {
   return `${target.title || "(untitled)"} — ${target.url || "(no url)"}`;
 }
@@ -222,9 +295,17 @@ export function selectTarget(pages, { title } = {}) {
     return matches[0];
   }
 
-  const obsidian = candidates.filter(isObsidianTarget);
-  if (obsidian.length > 0) {
-    return obsidian[0];
+  const vaults = candidates.filter(isObsidianVaultTarget);
+  if (vaults.length > 0) {
+    return vaults[0];
+  }
+  // The picker (starter.html) is not an Obsidian app window with a vault, so
+  // never treat it as "the Obsidian target" while other pages are open.
+  const apps = candidates.filter(
+    (target) => isObsidianTarget(target) && !isStarterTarget(target),
+  );
+  if (apps.length > 0) {
+    return apps[0];
   }
   if (candidates.length === 1) {
     return candidates[0];
@@ -375,7 +456,9 @@ function httpGetJson(url) {
         }
       });
     });
-    req.on("error", (error) => reject(new CdpError(error.message)));
+    req.on("error", (error) =>
+      reject(new CdpError(error.message || error.code || "request failed")),
+    );
     req.setTimeout(2000, () =>
       req.destroy(new CdpError(`timed out requesting ${url}`)),
     );
@@ -405,21 +488,158 @@ function noDebuggablePage(host, ports, detail) {
 }
 
 /**
- * Prefers a port with an Obsidian window over one that only has other pages
- * (for example a Chrome on 9222), so the harness does not attach to the wrong
- * app; falls back to the first reachable port. Exported for unit tests.
+ * Prefers a port with a real Obsidian vault window, then one with any Obsidian
+ * page (for example a picker), over one that only has other pages (such as a
+ * Chrome on 9222); falls back to the first reachable port. Exported for tests.
  */
 export function choosePort(candidates) {
   if (candidates.length === 0) {
     return undefined;
   }
   return (
+    candidates.find((candidate) =>
+      candidate.pages.some(isObsidianVaultTarget),
+    ) ??
     candidates.find((candidate) => candidate.pages.some(isObsidianTarget)) ??
     candidates[0]
   );
 }
 
-async function discover(host, ports) {
+/**
+ * Normalizes a vault path for comparison: forward slashes, no trailing slash,
+ * lower case, so Windows paths compare case-insensitively. Exported for tests.
+ */
+export function normalizeVaultPath(value) {
+  if (value === undefined || value === null) return undefined;
+  const text = String(value).trim();
+  if (text === "") return undefined;
+  const slashed = text.replace(/\\/g, "/").replace(/\/+$/, "");
+  return slashed === "" ? undefined : slashed.toLowerCase();
+}
+
+/**
+ * Decides whether the attached window is the intended vault. Pure: give it the
+ * target URL, the vault path read from the page, and the expected vault.
+ * Exported so the guard is unit-tested without a live socket. With no
+ * expectation it has no opinion, which keeps the default CLI behavior.
+ */
+export function assessVaultOwnership({
+  targetUrl,
+  vaultPath,
+  expectedVault,
+} = {}) {
+  const expectation = normalizeVaultPath(expectedVault);
+  const found = normalizeVaultPath(vaultPath);
+
+  if (expectation === undefined) {
+    return { ok: true, code: "no-expectation", foundVault: vaultPath };
+  }
+  if (!isObsidianVaultTarget({ url: targetUrl })) {
+    return {
+      ok: false,
+      code: "not-a-vault",
+      foundVault: vaultPath,
+      message:
+        `Refusing to attach: ${targetUrl || "(no url)"} is not an open ` +
+        "Obsidian vault window (the picker and other targets have none). " +
+        "Open the expected vault, or pass --port/--profile to target the " +
+        "right instance.",
+    };
+  }
+  if (found === undefined) {
+    return {
+      ok: false,
+      code: "no-vault",
+      foundVault: vaultPath,
+      message:
+        "Refusing to attach: the target reports no vault path " +
+        "(app.vault.adapter.getBasePath() returned nothing). Expected " +
+        `${expectedVault}.`,
+    };
+  }
+  if (found !== expectation) {
+    return {
+      ok: false,
+      code: "mismatch",
+      foundVault: vaultPath,
+      message:
+        `Refusing to attach: the open vault is ${vaultPath}, but ` +
+        `${expectedVault} was expected. Pass --port/--profile for the ` +
+        "instance that has the expected vault.",
+    };
+  }
+  return { ok: true, code: "ok", foundVault: vaultPath };
+}
+
+/**
+ * Reads the bound port from a ${DEVTOOLS_ACTIVE_PORT_FILE} file's first line.
+ * Exported for tests.
+ */
+export function parseDevToolsActivePort(text) {
+  const first = String(text).split(/\r?\n/, 1)[0].trim();
+  const port = Number(first);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new CdpError(
+      `DevToolsActivePort does not name a port (read ${JSON.stringify(first)}).`,
+    );
+  }
+  return port;
+}
+
+function readDevToolsActivePort(profileDir) {
+  const file = join(profileDir, DEVTOOLS_ACTIVE_PORT_FILE);
+  let text;
+  try {
+    text = readFileSync(file, "utf8");
+  } catch (error) {
+    throw new CdpError(
+      `Could not read ${file}: ${errorMessage(error)}. Is --profile the ` +
+        "--user-data-dir the app was launched with?",
+    );
+  }
+  return parseDevToolsActivePort(text);
+}
+
+/**
+ * @typedef {object} PollOptions
+ * @property {() => Promise<unknown>} attempt Returns a value when ready, else undefined to keep polling.
+ * @property {number} [budgetMs] Total time to keep polling; zero tries once and fails fast.
+ * @property {number} [intervalMs] Gap between polls.
+ * @property {() => number} [now] Clock, injectable for tests.
+ * @property {(ms: number) => Promise<void>} [sleep] Delay, injectable for tests.
+ * @property {() => Error} [onTimeout] Builds the error thrown when the budget runs out.
+ */
+
+/**
+ * Polls `attempt` until it returns a value or `budgetMs` runs out. One attempt
+ * always runs, so a zero budget fails fast. `now` and `sleep` are injectable so
+ * the wait is tested without real time. Exported for tests.
+ *
+ * @param {PollOptions} options
+ */
+export async function pollUntilReady({
+  attempt,
+  budgetMs = 0,
+  intervalMs = DEFAULT_POLL_INTERVAL_MS,
+  now = () => Date.now(),
+  sleep = delay,
+  onTimeout = () => new CdpError("Timed out waiting for a ready target."),
+} = {}) {
+  const deadline = now() + Math.max(0, budgetMs);
+  for (;;) {
+    const value = await attempt();
+    if (value !== undefined && value !== null) {
+      return value;
+    }
+    const remaining = deadline - now();
+    if (remaining <= 0) {
+      throw onTimeout();
+    }
+    await sleep(Math.min(intervalMs, remaining));
+  }
+}
+
+async function discoverOnce(host, ports) {
   const attempts = [];
   const reachable = [];
   for (const port of ports) {
@@ -434,11 +654,7 @@ async function discover(host, ports) {
       attempts.push(`  ${port}: ${errorMessage(error)}`);
     }
   }
-  const chosen = choosePort(reachable);
-  if (!chosen) {
-    throw noDebuggablePage(host, ports, attempts.join("\n"));
-  }
-  return chosen;
+  return { reachable, attempts };
 }
 
 export function connect(
@@ -578,12 +794,103 @@ async function screenshot(connection, path) {
   return path;
 }
 
-async function openTarget(host, ports, title) {
-  const { port, pages } = await discover(host, ports);
-  const target = selectTarget(pages, { title });
-  const connection = connect(target.webSocketDebuggerUrl);
-  await connection.opened;
-  return { connection, port, target };
+// Reads the open vault's base path from the page. A missing `app` (the picker)
+// or a missing adapter returns null, which readVaultPath turns into undefined.
+const VAULT_PATH_EXPRESSION =
+  "(() => { try { return (typeof app !== 'undefined' && app.vault && " +
+  "app.vault.adapter && typeof app.vault.adapter.getBasePath === 'function') " +
+  "? app.vault.adapter.getBasePath() : null; } catch { return null; } })()";
+
+/** Returns the page's vault base path, or undefined when there is none. */
+async function readVaultPath(connection) {
+  const result = await evaluate(connection, VAULT_PATH_EXPRESSION);
+  const value = result && typeof result.value === "string" ? result.value : "";
+  return value.trim() === "" ? undefined : value;
+}
+
+/**
+ * One attempt to attach. Returns `{ ok: true, ... }` on success, or
+ * `{ ok: false, sawTargets, reason }` when nothing usable is up yet. A pinned
+ * profile is trusted: a target that is not the expected vault throws loudly
+ * instead of falling back to another port.
+ */
+async function tryAttachOnce({ host, ports, title, expectVault, pinnedPort }) {
+  const { reachable, attempts } = await discoverOnce(host, ports);
+  if (reachable.length === 0) {
+    return { ok: false, sawTargets: false, reason: attempts.join("\n") };
+  }
+  const chosen = choosePort(reachable);
+  let target;
+  try {
+    target = selectTarget(chosen.pages, { title });
+  } catch (error) {
+    return { ok: false, sawTargets: true, reason: errorMessage(error) };
+  }
+  let connection;
+  try {
+    connection = connect(target.webSocketDebuggerUrl);
+    await connection.opened;
+  } catch (error) {
+    return { ok: false, sawTargets: true, reason: errorMessage(error) };
+  }
+  let vaultPath;
+  try {
+    vaultPath = await readVaultPath(connection);
+  } catch (error) {
+    connection.close();
+    return { ok: false, sawTargets: true, reason: errorMessage(error) };
+  }
+  const ownership = assessVaultOwnership({
+    targetUrl: target.url,
+    vaultPath,
+    expectedVault: expectVault,
+  });
+  if (!ownership.ok) {
+    connection.close();
+    if (pinnedPort) {
+      throw new CdpError(ownership.message);
+    }
+    return { ok: false, sawTargets: true, reason: ownership.message };
+  }
+  return { ok: true, connection, port: chosen.port, target, vaultPath };
+}
+
+/**
+ * Attaches to the intended target. With `waitMs > 0`, polls until a ready
+ * target appears or the budget expires; otherwise a single attempt fails fast.
+ */
+async function openTarget(host, ports, title, options = {}) {
+  const { expectVault, waitMs = 0, pinnedPort = false } = options;
+  const request = { host, ports, title, expectVault, pinnedPort };
+
+  if (waitMs > 0) {
+    let lastReason = "";
+    return pollUntilReady({
+      attempt: async () => {
+        const outcome = await tryAttachOnce(request);
+        if (outcome.ok) return outcome;
+        lastReason = outcome.reason;
+        return undefined;
+      },
+      budgetMs: waitMs,
+      onTimeout: () => {
+        const base = noDebuggablePage(host, ports, lastReason || undefined);
+        return new CdpError(
+          `Timed out after ${waitMs}ms waiting for a ready Obsidian vault ` +
+            `target${expectVault ? ` (${expectVault})` : ""}.\n${base.message}`,
+        );
+      },
+    });
+  }
+
+  const outcome = await tryAttachOnce(request);
+  if (outcome.ok) {
+    return outcome;
+  }
+  if (!outcome.sawTargets) {
+    throw noDebuggablePage(host, ports, outcome.reason);
+  }
+  throw new CdpError(outcome.reason);
 }
 
 /** Runs every step over one connection, reconnecting only on `@target`. */
@@ -646,11 +953,19 @@ async function main() {
 
   assertWebSocket();
 
-  const { connection } = await openTarget(
-    options.host,
-    options.ports,
-    options.target,
-  );
+  let ports = options.ports;
+  let pinnedPort = false;
+  if (options.profile) {
+    ports = [readDevToolsActivePort(options.profile)];
+    pinnedPort = true;
+    options.ports = ports;
+  }
+
+  const { connection } = await openTarget(options.host, ports, options.target, {
+    expectVault: options.expectVault,
+    waitMs: options.waitMs,
+    pinnedPort,
+  });
   try {
     if (options.command === "eval") {
       const code = readInput(options.args[0]);

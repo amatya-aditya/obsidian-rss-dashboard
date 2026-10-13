@@ -3,11 +3,16 @@ import { describe, expect, it } from "vitest";
 import {
   CdpError,
   DEFAULT_PORTS,
+  assessVaultOwnership,
   assertWebSocket,
   choosePort,
   connect,
+  isObsidianVaultTarget,
+  normalizeVaultPath,
   parseArgs,
   parseBatch,
+  parseDevToolsActivePort,
+  pollUntilReady,
   renderValue,
   selectTarget,
 } from "../../scripts/obsidian-cdp.mjs";
@@ -77,6 +82,9 @@ describe("obsidian-cdp parseArgs", () => {
     expect(options.ports).toEqual(DEFAULT_PORTS);
     expect(options.host).toBe("localhost");
     expect(options.target).toBeUndefined();
+    expect(options.expectVault).toBeUndefined();
+    expect(options.profile).toBeUndefined();
+    expect(options.waitMs).toBe(0);
     expect(options.json).toBe(false);
     expect(options.help).toBe(false);
   });
@@ -128,6 +136,65 @@ describe("obsidian-cdp parseArgs", () => {
       "127.0.0.1",
     );
     expect(parseArgs(["--json", "targets"], noEnv).json).toBe(true);
+  });
+
+  it("reads the vault expectation, profile, and wait in both forms", () => {
+    const spaced = parseArgs(
+      [
+        "--expect-vault",
+        "C:\\vault",
+        "--profile",
+        "C:\\profile",
+        "--wait",
+        "5000",
+        "eval",
+        "probe.js",
+      ],
+      noEnv,
+    );
+    expect(spaced.expectVault).toBe("C:\\vault");
+    expect(spaced.profile).toBe("C:\\profile");
+    expect(spaced.waitMs).toBe(5000);
+
+    const equals = parseArgs(
+      [
+        "--expect-vault=C:\\vault",
+        "--profile=C:\\profile",
+        "--wait=0",
+        "targets",
+      ],
+      noEnv,
+    );
+    expect(equals.expectVault).toBe("C:\\vault");
+    expect(equals.profile).toBe("C:\\profile");
+    expect(equals.waitMs).toBe(0);
+  });
+
+  it("falls back to CDP_EXPECT_VAULT, CDP_PROFILE, and CDP_WAIT", () => {
+    const options = parseArgs(["targets"], {
+      CDP_EXPECT_VAULT: "C:\\vault",
+      CDP_PROFILE: "C:\\profile",
+      CDP_WAIT: "250",
+    });
+    expect(options.expectVault).toBe("C:\\vault");
+    expect(options.profile).toBe("C:\\profile");
+    expect(options.waitMs).toBe(250);
+  });
+
+  it("rejects bad ownership and wait values", () => {
+    expect(() => parseArgs(["--wait", "-1", "targets"], noEnv)).toThrow(
+      CdpError,
+    );
+    expect(() => parseArgs(["--wait", "soon", "targets"], noEnv)).toThrow(
+      CdpError,
+    );
+    expect(() => parseArgs(["--expect-vault", "", "targets"], noEnv)).toThrow(
+      CdpError,
+    );
+    expect(() => parseArgs(["--profile", "", "targets"], noEnv)).toThrow(
+      CdpError,
+    );
+    expect(() => parseArgs(["targets"], { CDP_WAIT: "x" })).toThrow(CdpError);
   });
 
   it("recognises help", () => {
@@ -228,6 +295,37 @@ describe("obsidian-cdp selectTarget", () => {
     expect(picked.id).toBe("only");
   });
 
+  it("prefers a real vault window over the picker", () => {
+    const picked = selectTarget(
+      [
+        page({
+          id: "picker",
+          title: "Obsidian",
+          url: "app://obsidian.md/starter.html",
+        }),
+        page({
+          id: "vault",
+          title: "Obsidian",
+          url: "app://obsidian.md/index.html",
+        }),
+      ],
+      {},
+    );
+    expect(picked.id).toBe("vault");
+  });
+
+  it("does not silently pick the picker while other pages are open", () => {
+    expect(() =>
+      selectTarget(
+        [
+          page({ id: "picker", url: "app://obsidian.md/starter.html" }),
+          page({ id: "settings", url: "about:blank" }),
+        ],
+        {},
+      ),
+    ).toThrow(CdpError);
+  });
+
   it("reports the available titles when the requested one is missing", () => {
     expect(() =>
       selectTarget([page({ id: "main", title: "Obsidian" })], {
@@ -277,6 +375,167 @@ describe("obsidian-cdp choosePort", () => {
 
   it("returns undefined when no port is reachable", () => {
     expect(choosePort([])).toBeUndefined();
+  });
+
+  it("prefers a real vault port over a picker-only port", () => {
+    const chosen = choosePort([
+      {
+        port: 9333,
+        pages: [page({ id: "picker", url: "app://obsidian.md/starter.html" })],
+      },
+      {
+        port: 9334,
+        pages: [page({ id: "vault", url: "app://obsidian.md/index.html" })],
+      },
+    ]);
+    expect(chosen.port).toBe(9334);
+  });
+});
+
+describe("obsidian-cdp vault ownership", () => {
+  it("accepts the expected vault, ignoring case and separators", () => {
+    const result = assessVaultOwnership({
+      targetUrl: "app://obsidian.md/index.html",
+      vaultPath: "C:\\Work\\Vault\\",
+      expectedVault: "c:/work/vault",
+    });
+    expect(result.ok).toBe(true);
+    expect(result.code).toBe("ok");
+  });
+
+  it("refuses a different vault and names the one it found", () => {
+    const result = assessVaultOwnership({
+      targetUrl: "app://obsidian.md/index.html",
+      vaultPath: "C:\\other\\worktree\\.fixture-vault",
+      expectedVault: "C:\\mine\\.fixture-vault",
+    });
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe("mismatch");
+    expect(result.message).toContain("C:\\other\\worktree\\.fixture-vault");
+    expect(result.message).toContain("--port");
+  });
+
+  it("refuses the vault picker, which has no vault", () => {
+    const result = assessVaultOwnership({
+      targetUrl: "app://obsidian.md/starter.html",
+      vaultPath: undefined,
+      expectedVault: "C:\\mine\\.fixture-vault",
+    });
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe("not-a-vault");
+    expect(result.message).toContain("starter.html");
+  });
+
+  it("refuses a vault window whose path is missing", () => {
+    const result = assessVaultOwnership({
+      targetUrl: "app://obsidian.md/index.html",
+      vaultPath: undefined,
+      expectedVault: "C:\\mine",
+    });
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe("no-vault");
+  });
+
+  it("has no opinion without an expectation (backward compatible)", () => {
+    const result = assessVaultOwnership({
+      targetUrl: "app://obsidian.md/starter.html",
+      vaultPath: undefined,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.code).toBe("no-expectation");
+  });
+
+  it("recognises only the vault window, not the picker or other urls", () => {
+    expect(isObsidianVaultTarget({ url: "app://obsidian.md/index.html" })).toBe(
+      true,
+    );
+    expect(
+      isObsidianVaultTarget({ url: "app://obsidian.md/starter.html" }),
+    ).toBe(false);
+    expect(isObsidianVaultTarget({ url: "about:blank" })).toBe(false);
+    expect(isObsidianVaultTarget({ url: "https://example.com/" })).toBe(false);
+  });
+
+  it("normalises Windows paths for comparison", () => {
+    expect(normalizeVaultPath("C:\\Vault\\")).toBe("c:/vault");
+    expect(normalizeVaultPath("c:/vault")).toBe("c:/vault");
+    expect(normalizeVaultPath("  ")).toBeUndefined();
+    expect(normalizeVaultPath(undefined)).toBeUndefined();
+  });
+});
+
+describe("obsidian-cdp parseDevToolsActivePort", () => {
+  it("reads the bound port from the first line", () => {
+    expect(parseDevToolsActivePort("9333\n/devtools/browser/abc\n")).toBe(9333);
+    expect(parseDevToolsActivePort("  9437  \r\n")).toBe(9437);
+  });
+
+  it("rejects a file without a usable port", () => {
+    expect(() => parseDevToolsActivePort("")).toThrow(CdpError);
+    expect(() => parseDevToolsActivePort("nope")).toThrow(CdpError);
+    expect(() => parseDevToolsActivePort("99999")).toThrow(CdpError);
+  });
+});
+
+describe("obsidian-cdp pollUntilReady", () => {
+  function fakeClock() {
+    let value = 0;
+    return {
+      now: () => value,
+      sleep: async (ms: number) => {
+        value += ms;
+      },
+    };
+  }
+
+  it("returns the value once the target appears after N polls", async () => {
+    let polls = 0;
+    const clock = fakeClock();
+    const result = await pollUntilReady({
+      attempt: async () => {
+        polls += 1;
+        return polls >= 3 ? { id: "ready" } : undefined;
+      },
+      budgetMs: 1000,
+      intervalMs: 100,
+      now: clock.now,
+      sleep: clock.sleep,
+    });
+    expect(result).toEqual({ id: "ready" });
+    expect(polls).toBe(3);
+  });
+
+  it("throws when the budget expires with no target", async () => {
+    let polls = 0;
+    const clock = fakeClock();
+    await expect(
+      pollUntilReady({
+        attempt: async () => {
+          polls += 1;
+          return undefined;
+        },
+        budgetMs: 300,
+        intervalMs: 100,
+        now: clock.now,
+        sleep: clock.sleep,
+        onTimeout: () => new CdpError("nothing ready yet"),
+      }),
+    ).rejects.toThrow(/nothing ready yet/);
+    expect(polls).toBeGreaterThan(1);
+  });
+
+  it("tries once and fails fast with no budget", async () => {
+    let polls = 0;
+    await expect(
+      pollUntilReady({
+        attempt: async () => {
+          polls += 1;
+          return undefined;
+        },
+        budgetMs: 0,
+      }),
+    ).rejects.toThrow(CdpError);
+    expect(polls).toBe(1);
   });
 });
 
