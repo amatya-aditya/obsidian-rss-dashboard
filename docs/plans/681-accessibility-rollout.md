@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: in-progress
 created: 2026-10-02
 issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/681"
 milestone: ""
@@ -84,11 +84,27 @@ The scope and governing decision are recorded in [ACCESSIBILITY.md](../../ACCESS
 
 ## Open decisions for implementation
 
-- Which existing Obsidian/CDP runtime setup can provide repeatable accessibility-tree and screenshot checks without adding a new browser stack?
-- Which screen-reader/device combinations are practical to verify first across the supported desktop and mobile contexts?
-- Which automated scan, if any, provides a useful supplemental regression signal for the actual plugin runtime?
+- Resolved: the committed Obsidian/CDP harness ([#974](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/974)) provides repeatable accessibility-tree and screenshot checks without a new browser stack.
+- Resolved: automated accessibility gates were decided in [#782](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/782).
+- Open: which screen-reader/device combinations are practical to verify first across the supported desktop and mobile contexts?
+- Open: record which workflows from the lightweight pass (dashboard navigation and article actions, Reader controls, settings and forms, dialogs, keyboard-opened menus) remain unchecked.
 
 These are implementation questions to answer while the rollout proceeds; they are not prerequisites for the accepted scope or for issue #502.
+
+## Tracking
+
+[Issue #681](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/681) tracks the rollout. Each focused accessibility issue is attached to it as a sub-issue, and its body keeps a grouped index of them. Attach new focused issues as sub-issues and add them to the index.
+
+## Exit criteria
+
+Close #681 and archive this plan when all of these hold:
+
+1. The completion evidence above is met.
+2. Every sub-issue of #681 is closed, except issues deliberately deferred and recorded in `ACCESSIBILITY.md` as known gaps.
+3. The open decisions above are answered or recorded as known unknowns in `ACCESSIBILITY.md`.
+4. `ACCESSIBILITY.md` states the verified contexts and the remaining unknowns accurately.
+
+After closing, report new barriers as separate `accessibility`-labelled issues and review `ACCESSIBILITY.md` when supported surfaces, Obsidian requirements, standards, or tooling change, as the scope already requires.
 
 ## Related
 
