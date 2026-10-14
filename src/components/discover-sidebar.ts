@@ -17,6 +17,26 @@ interface DiscoverSidebarCallbacks {
 // Type for nested category structure - using unknown for leaf values
 type CategoryNode = Record<string, unknown>;
 
+let filterLabelCounter = 0;
+
+/**
+ * Add the visible label beside a filter checkbox and name the checkbox from it
+ * (WCAG 2.2 4.1.2, 1.3.1). `aria-labelledby` keeps the label a sibling, so the
+ * row layout is unchanged, and the counter keeps ids unique when the sidebar
+ * and the mobile filters dialog render at once.
+ */
+function addFilterLabel(
+  row: HTMLElement,
+  checkbox: HTMLInputElement,
+  text: string,
+): HTMLLabelElement {
+  filterLabelCounter += 1;
+  const id = `rss-discover-filter-label-${filterLabelCounter}`;
+  const label = row.createEl("label", { text, attr: { id } });
+  checkbox.setAttribute("aria-labelledby", id);
+  return label;
+}
+
 export class DiscoverSidebar {
   private container: HTMLElement;
   private app: App;
@@ -224,8 +244,7 @@ export class DiscoverSidebar {
       const checkbox = typeItem.createEl("input", { type: "checkbox" });
       checkbox.checked = this.filters.selectedTypes.includes(type);
 
-      const label = typeItem.createEl("label");
-      label.textContent = type;
+      addFilterLabel(typeItem, checkbox, type);
 
       const count = typeItem.createDiv({
         cls: "rss-discover-type-count",
@@ -420,8 +439,7 @@ export class DiscoverSidebar {
       );
       checkbox.checked = isSelected;
 
-      const label = mainContent.createEl("label");
-      label.textContent = key;
+      addFilterLabel(mainContent, checkbox, key);
 
       const count = contentRow.createDiv({
         cls: "rss-discover-category-count",
@@ -519,8 +537,7 @@ export class DiscoverSidebar {
       const checkbox = tagItem.createEl("input", { type: "checkbox" });
       checkbox.checked = this.filters.selectedTags.includes(tag);
 
-      const label = tagItem.createEl("label");
-      label.textContent = tag;
+      addFilterLabel(tagItem, checkbox, tag);
 
       const count = tagItem.createDiv({
         cls: "rss-discover-tag-count",
