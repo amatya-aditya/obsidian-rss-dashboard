@@ -14,6 +14,7 @@ import { MobileDiscoverFiltersModal } from "../modals/mobile-discover-filters-mo
 import type RssDashboardPlugin from "../../main";
 import {
   TABLET_LAYOUT_MAX_WIDTH,
+  isNarrowViewport,
   shouldUseMobileSidebarLayout,
   windowInstanceOf,
 } from "../utils/platform-utils";
@@ -2142,7 +2143,7 @@ export class DiscoverView extends ItemView {
     const isMobile =
       typeof activeWindow !== "undefined" &&
       typeof activeWindow.matchMedia === "function"
-        ? activeWindow.matchMedia("(max-width: 768px)").matches
+        ? isNarrowViewport(activeWindow)
         : false;
     const maxPagesToShow = isMobile ? 3 : 5;
     const padding = isMobile ? 1 : 2;

@@ -3,7 +3,7 @@ import type { FeedItem, RssDashboardSettings, Tag } from "../types/types";
 import { DEFAULT_TAG_COLOR } from "./tag-colors";
 import { showEditTagModal } from "./tag-utils";
 import { onActivate } from "./keyboard-activation";
-import { windowInstanceOf } from "./platform-utils";
+import { isNarrowViewport, windowInstanceOf } from "./platform-utils";
 import { addInputClearButton } from "./input-clear-button";
 
 export type TagsDropdownPortalOptions = {
@@ -45,7 +45,7 @@ export function createTagsDropdownPortal(
   const targetDocument = anchor.ownerDocument;
   const targetBody = targetDocument.body;
   const targetWindow = targetDocument.defaultView || activeWindow;
-  const isMobile = targetWindow.matchMedia("(max-width: 768px)").matches;
+  const isMobile = isNarrowViewport(targetWindow);
   // Inside a modal, mount within its container: Obsidian's modal focus trap
   // pulls focus back into the modal whenever it lands outside that element.
   const mountEl = anchor.closest<HTMLElement>(".modal-container") ?? targetBody;

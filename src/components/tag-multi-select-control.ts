@@ -1,6 +1,7 @@
 import { setIcon } from "obsidian";
 import type { Tag } from "../types/types";
 import { isDomNode } from "../utils/dom-node";
+import { isNarrowViewport } from "../utils/platform-utils";
 
 export interface TagMultiSelectControlOptions {
   setting: import("obsidian").Setting;
@@ -133,7 +134,7 @@ export function addTagMultiSelectControl(
     const targetDocument = trigger.ownerDocument;
     const targetWindow = targetDocument.defaultView ?? window;
     const targetBody = targetDocument.body;
-    const isMobile = targetWindow.matchMedia("(max-width: 768px)").matches;
+    const isMobile = isNarrowViewport(targetWindow);
 
     const backdrop = isMobile
       ? targetBody.createDiv({ cls: CLS_BACKDROP })

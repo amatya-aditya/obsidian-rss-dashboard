@@ -7,6 +7,9 @@ import {
   formatRelativeTime,
   getViewportTier,
   isPhoneViewport,
+  isNarrowViewport,
+  MOBILE_LAYOUT_MAX_WIDTH_PX,
+  FOLDER_POPUP_MOBILE_MAX_WIDTH_PX,
   isTabletViewport,
   robustFetch,
   setCssProps,
@@ -311,5 +314,46 @@ describe("platform-utils.misc", () => {
     expect(result.title).not.toMatch(/^First seen: /);
 
     vi.useRealTimers();
+  });
+});
+
+describe("platform-utils.isNarrowViewport", () => {
+  it.each([true, false])(
+    "uses the default 768px query and returns matches=%s",
+    (matches) => {
+      const matchMedia = vi.fn(() => ({ matches }));
+      const win = { matchMedia } as unknown as Window;
+
+      expect(MOBILE_LAYOUT_MAX_WIDTH_PX).toBe(768);
+      expect(isNarrowViewport(win)).toBe(matches);
+      expect(matchMedia).toHaveBeenCalledExactlyOnceWith("(max-width: 768px)");
+    },
+  );
+
+  it.each([true, false])(
+    "uses the folder popup's 600px query and returns matches=%s",
+    (matches) => {
+      const matchMedia = vi.fn(() => ({ matches }));
+      const win = { matchMedia } as unknown as Window;
+
+      expect(FOLDER_POPUP_MOBILE_MAX_WIDTH_PX).toBe(600);
+      expect(isNarrowViewport(win, FOLDER_POPUP_MOBILE_MAX_WIDTH_PX)).toBe(
+        matches,
+      );
+      expect(matchMedia).toHaveBeenCalledExactlyOnceWith("(max-width: 600px)");
+    },
+  );
+
+  it("reevaluates the supplied window on each call", () => {
+    const matchMedia = vi
+      .fn()
+      .mockReturnValueOnce({ matches: true })
+      .mockReturnValueOnce({ matches: false });
+    const win = { matchMedia } as unknown as Window;
+
+    expect(isNarrowViewport(win, 480)).toBe(true);
+    expect(isNarrowViewport(win, 480)).toBe(false);
+    expect(matchMedia).toHaveBeenNthCalledWith(1, "(max-width: 480px)");
+    expect(matchMedia).toHaveBeenNthCalledWith(2, "(max-width: 480px)");
   });
 });
