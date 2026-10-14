@@ -54,11 +54,11 @@ describe("fallbackParse characterization - feed metadata", () => {
     expect(result.feedImageUrl).toBe("");
   });
 
-  it("takes channel title, description, and link from the first item when the channel omits them", () => {
-    // BUG: pinned, see #1122
-    // The DOM path keeps channel metadata out of item descendants (see
-    // "does not take RSS 2.0 channel metadata from item descendants"), but the
-    // regex fallback reads the first matching tag anywhere after <channel>.
+  it("keeps channel metadata out of item descendants", () => {
+    // The DOM path also keeps channel metadata out of item descendants (see
+    // "does not take RSS 2.0 channel metadata from item descendants" in
+    // custom-xml-parser.test.ts). The regex fallback now matches: with no
+    // channel-level metadata, the feed falls back to the default values.
     const result = parseFallback(
       "<item>" +
         "<title>Only an item</title>" +
@@ -68,9 +68,9 @@ describe("fallbackParse characterization - feed metadata", () => {
         "</item>",
     );
 
-    expect(result.title).toBe("Only an item");
-    expect(result.link).toBe("https://example.com/item");
-    expect(result.description).toBe("Item description");
+    expect(result.title).toBe("Unknown feed");
+    expect(result.link).toBe("");
+    expect(result.description).toBe("");
     expect(result.items).toHaveLength(1);
   });
 });

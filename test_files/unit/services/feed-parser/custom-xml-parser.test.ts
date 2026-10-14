@@ -253,6 +253,34 @@ describe("CustomXMLParser - channel metadata boundaries", () => {
     expect(result.items[0]?.author).toBe("Item author");
   });
 
+  it("keeps channel metadata out of item descendants in the regex fallback", () => {
+    const parser = new CustomXMLParser();
+    // The unclosed <oops> element makes the document malformed, so parseString
+    // rejects the DOM path and takes the regex fallback. The fallback must keep
+    // channel metadata out of item descendants, like the DOM path above.
+    const xml = `<rss version="2.0"><channel><item><title>Only an item</title><link>https://example.com/item</link><description>Item description</description><guid>item-1</guid></item><oops></channel></rss>`;
+
+    const result = parser.parseString(xml);
+
+    expect(result.title).toBe("Unknown feed");
+    expect(result.link).toBe("");
+    expect(result.description).toBe("");
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].title).toBe("Only an item");
+  });
+
+  it("keeps channel metadata declared before items in the regex fallback", () => {
+    const parser = new CustomXMLParser();
+    const xml = `<rss version="2.0"><channel><title>Channel title</title><link>https://example.com</link><description>Channel description</description><item><title>Item title</title><link>https://example.com/item</link><description>Item description</description></item><oops></channel></rss>`;
+
+    const result = parser.parseString(xml);
+
+    expect(result.title).toBe("Channel title");
+    expect(result.link).toBe("https://example.com");
+    expect(result.description).toBe("Channel description");
+    expect(result.items[0]?.title).toBe("Item title");
+  });
+
   it("keeps RSS 2.0 metadata declared directly on the channel", () => {
     const parser = new CustomXMLParser();
     const xml = `<?xml version="1.0" encoding="UTF-8"?>

@@ -44,28 +44,50 @@ function maskCdata(xml: string): string {
   );
 }
 
+/**
+ * Returns the channel's own markup for metadata reads, stopping before the
+ * first `<item>` (or at `</channel>`). This keeps feed metadata from leaking
+ * out of item descendants, matching the DOM path's channel-scoped lookups.
+ */
+function channelMetadataScope(cleanedXml: string): string {
+  const maskedXml = maskCdata(cleanedXml);
+  const channelStartMatch = maskedXml.match(/<channel[^>]*>/i);
+  if (!channelStartMatch || channelStartMatch.index === undefined) {
+    return "";
+  }
+
+  const contentStart = channelStartMatch.index + channelStartMatch[0].length;
+  const contentBoundary = maskedXml
+    .substring(contentStart)
+    .match(/<item[^>]*>|<\/channel>/i);
+  const contentEnd =
+    contentBoundary?.index !== undefined
+      ? contentStart + contentBoundary.index
+      : maskedXml.length;
+
+  return cleanedXml.substring(contentStart, contentEnd);
+}
+
 /** Reads the channel title/description/link, applying `sanitize` to text. */
 function readFallbackChannelMetadata(
   cleanedXml: string,
   sanitize: SanitizeCdata,
 ): { title: string; description: string; link: string } {
-  const channelTitleMatch = cleanedXml.match(
-    /<channel[^>]*>[\s\S]*?<title[^>]*>([^<]+)<\/title>/i,
-  );
+  const channelXml = channelMetadataScope(cleanedXml);
+
+  const channelTitleMatch = channelXml.match(/<title[^>]*>([^<]+)<\/title>/i);
   const title = channelTitleMatch?.[1]
     ? sanitize(channelTitleMatch[1].trim())
     : "Unknown feed";
 
-  const channelDescMatch = cleanedXml.match(
-    /<channel[^>]*>[\s\S]*?<description[^>]*>([\s\S]*?)<\/description>/i,
+  const channelDescMatch = channelXml.match(
+    /<description[^>]*>([\s\S]*?)<\/description>/i,
   );
   const description = channelDescMatch?.[1]
     ? sanitize(channelDescMatch[1].trim())
     : "";
 
-  const channelLinkMatch = cleanedXml.match(
-    /<channel[^>]*>[\s\S]*?<link[^>]*>([^<]+)<\/link>/i,
-  );
+  const channelLinkMatch = channelXml.match(/<link[^>]*>([^<]+)<\/link>/i);
   const link = channelLinkMatch?.[1]?.trim() ?? "";
 
   return { title, description, link };
