@@ -45,7 +45,7 @@ These paid for themselves while this program was built (every live check used th
 
 - About two thirds of the added lines are tests (roughly 3,400 of 5,000), because the tests drive the real runner, view and toolbar rather than fake DOM. That is deliberate; the one time a test built a fake DOM it missed a real bug.
 - The ids and hooks above are contracts to keep stable.
-- Menus, dialogs and landmarks (Slice 4) are not done. `Copy diagnostics` was dropped on purpose (see DEC-012 in the spec).
+- Menus, dialogs and landmarks (Slice 4) are not done; the audit in `826-agent-testability-quick-wins/slice-4-audit.md` maps what remains. `Copy diagnostics` was dropped on purpose (see DEC-012 in the spec).
 
 ### Removing a part later
 
@@ -131,6 +131,14 @@ Put registration in a new module (for example `src/commands/`), called from `onl
 - `data-rss-ready` flag on the view root after initial render, so harnesses wait on a signal instead of a timeout.
 
 ### Slice 4: Menus, dialogs, landmarks
+
+Superseded by an audit on 2026-10-13: findings, labels and order of work are in
+[`slice-4-audit.md`](826-agent-testability-quick-wins/slice-4-audit.md), and the
+replacement criteria and ticket list are in
+[`slice-4-drafts.md`](826-agent-testability-quick-wins/slice-4-drafts.md). The
+outline below is kept as the original intent. Two of its items changed: cards
+do not get `role="article"`, and selects stay `listbox`/`option` rather than
+`menu`.
 
 - Menus: `role="menu"`/`menuitem`, arrow-key navigation, Esc closes, focus returns to the trigger. Candidates: filter menu, tags dropdown, sidebar context menus.
 - Dialogs: `role="dialog"`, `aria-modal`, focus trap, defined initial focus.
