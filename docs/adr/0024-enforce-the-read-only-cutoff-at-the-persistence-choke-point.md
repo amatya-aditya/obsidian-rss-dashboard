@@ -6,13 +6,12 @@
 
 ## Status
 
-proposed
+accepted
 
-Designed in
+Decided in
 [#1078](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1078) and
 decomposed in
 [`docs/plans/1078-slice-readonly-cutoff-spec.md`](../plans/1078-slice-readonly-cutoff-spec.md).
-This record remains proposed until its pull request and this text are reviewed.
 
 ## Date
 
