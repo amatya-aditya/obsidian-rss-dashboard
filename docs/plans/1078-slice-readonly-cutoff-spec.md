@@ -115,9 +115,9 @@ impossible.
 
 ## Slices
 
-Each slice is independently reviewable and leaves the tree green. **Every slice
-belongs to the 3.0 line and none of them may land on `dev` while 2.x minors still
-ship from it** (see _Landing constraint_).
+Each slice is independently reviewable and leaves the tree green. **No slice may
+land on `dev` until `release/2.8.0` has been cut and `dev` has stopped shipping
+as 2.x** (see _Landing constraint_).
 
 ### Slice 1 — Read-only invariant and importer exemption
 
@@ -257,16 +257,24 @@ Deliver the interface contract with
 
 ## Landing constraint
 
-This is the constraint the sequence places on the 3.0 landing strategy, which
-[#1071](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1071)
-defers to the scope-lock ticket. It is mandatory, not optional:
+Settled on [#1071](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1071)
+on 2026-10-14: **2.8.x is the last 2.x release.** After `release/2.8.0` is cut,
+`dev` becomes the 3.0 line — there is no long-lived integration branch — and 2.x
+continues only as `release/2.8.y` hotfixes cut from `master`.
 
-**Slice 1 merged to `dev` today would make an existing 2.x user's Legacy JSON
-vault read-only.** Breaking work cannot sit on `dev` while 2.x minors keep
-shipping from it. The whole set therefore ships on the 3.0 integration line and
-is released together, and no slice is written with a `requireApiVersion` guard or
-a version-gated activation to make it `dev`-safe — that would contradict the
-"no straddle" corollary of ADR 0023.
+That makes the constraint concrete and mandatory: **no slice may land on `dev`
+until `release/2.8.0` has been cut and `dev` has stopped shipping as 2.x.** A
+`dev` that still advertises 2.8.0 would hand an existing Legacy JSON user a
+read-only vault. Once `dev` is the 3.0 line, the slices land there in order.
+
+No slice is written with a `requireApiVersion` guard, a version-gated activation,
+or a capability-absent path. Below-floor users never receive 3.0, so such a path
+has no audience; this is the "no straddle" corollary of ADR 0023.
+
+**`src/services/feed-storage-repository.ts` is frozen for the duration.** [#1144](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1144)
+splits `hydrateSettings`/`persistSettings` in the same module these slices gate
+and gut. It is sequenced after Slice 4, and no other extraction targets the file
+while the slices are in flight.
 
 ## Order with respect to #319
 
@@ -311,8 +319,9 @@ repair` (v2-only), and `Storage revert` (removed at 3.0).
 
 - **Who maintains 2.x for the users the floor cuts off.** A consequence of the
   floor raise (#1075), not of the cutoff; tracked on #1071.
-- **The 3.0 landing mechanism** (integration branch vs feature flags). This plan
-  states the constraint; #1071 decides the mechanism.
+- **The 3.0 landing mechanism**, settled on #1071 on 2026-10-14: `dev` is the 3.0
+  line, feature flags are development-only toggles deleted as each slice
+  completes, and any flag that would reach a released build is out of scope.
 - **Re-deciding ADR 0006** or the FreshRSS decisions from #221.
 - **The portable-bundle import path.** It is a different feature, it is how a
   user restores, and it remains a legitimate v2 write route.
