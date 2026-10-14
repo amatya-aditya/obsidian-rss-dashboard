@@ -13,11 +13,14 @@ import {
   parseArgs,
   parseBatch,
   parseDevToolsActivePort,
+  parseKeySpec,
   parseSettingsTitle,
   pollUntilReady,
   renderValue,
   selectSettingsTarget,
   selectTarget,
+  summarizeAxNode,
+  summarizeAxQuery,
   vaultBasename,
 } from "../../scripts/obsidian-cdp.mjs";
 
@@ -786,6 +789,168 @@ describe("obsidian-cdp parseBatch", () => {
     expect(() => parseBatch("@shot")).toThrow(CdpError);
     expect(() => parseBatch("@wait soon")).toThrow(CdpError);
     expect(() => parseBatch("")).toThrow(CdpError);
+  });
+
+  it("reads key steps with an optional repeat count", () => {
+    expect(parseBatch("@key Tab\n@key Shift+Tab 3")).toEqual([
+      { kind: "key", key: parseKeySpec("Tab"), spec: "Tab", count: 1 },
+      {
+        kind: "key",
+        key: parseKeySpec("Shift+Tab"),
+        spec: "Shift+Tab",
+        count: 3,
+      },
+    ]);
+  });
+
+  it("reads ax and axquery steps, keeping spaces in the selector", () => {
+    const text = [
+      '@ax .workspace-leaf-content[data-type="rss-dashboard-view"] .rss-dashboard-feed',
+      "@axquery heading .modal-container .modal",
+    ].join("\n");
+    expect(parseBatch(text)).toEqual([
+      {
+        kind: "ax",
+        selector:
+          '.workspace-leaf-content[data-type="rss-dashboard-view"] .rss-dashboard-feed',
+      },
+      { kind: "axquery", role: "heading", selector: ".modal-container .modal" },
+    ]);
+  });
+
+  it("rejects incomplete key, ax and axquery steps", () => {
+    expect(() => parseBatch("@key")).toThrow(CdpError);
+    expect(() => parseBatch("@key Tab zero")).toThrow(CdpError);
+    expect(() => parseBatch("@key Tab 0")).toThrow(CdpError);
+    expect(() => parseBatch("@key Hyper+Tab")).toThrow(CdpError);
+    expect(() => parseBatch("@ax")).toThrow(CdpError);
+    expect(() => parseBatch("@axquery heading")).toThrow(CdpError);
+  });
+});
+
+describe("obsidian-cdp parseKeySpec", () => {
+  it("reads named keys without text", () => {
+    expect(parseKeySpec("Tab")).toEqual({
+      key: "Tab",
+      code: "Tab",
+      windowsVirtualKeyCode: 9,
+      modifiers: 0,
+    });
+    expect(parseKeySpec("Esc")).toMatchObject({
+      key: "Escape",
+      windowsVirtualKeyCode: 27,
+    });
+    expect(parseKeySpec("ArrowDown")).toMatchObject({
+      code: "ArrowDown",
+      windowsVirtualKeyCode: 40,
+    });
+  });
+
+  it("gives Enter and Space the text that activates native controls", () => {
+    expect(parseKeySpec("Enter")).toMatchObject({ text: "\r" });
+    expect(parseKeySpec("Space")).toMatchObject({ key: " ", text: " " });
+  });
+
+  it("sets modifier bits and reads function keys", () => {
+    expect(parseKeySpec("Shift+F10")).toEqual({
+      key: "F10",
+      code: "F10",
+      windowsVirtualKeyCode: 121,
+      modifiers: 8,
+    });
+    expect(parseKeySpec("Ctrl+Alt+Delete").modifiers).toBe(3);
+    expect(parseKeySpec("Meta+k").modifiers).toBe(4);
+  });
+
+  it("types a letter, upper-casing it under Shift", () => {
+    expect(parseKeySpec("t")).toEqual({
+      key: "t",
+      code: "KeyT",
+      windowsVirtualKeyCode: 84,
+      modifiers: 0,
+      text: "t",
+    });
+    expect(parseKeySpec("Shift+s")).toMatchObject({
+      key: "S",
+      code: "KeyS",
+      modifiers: 8,
+      text: "S",
+    });
+  });
+
+  it("sends no text for a shortcut held with Ctrl, Alt or Meta", () => {
+    expect(parseKeySpec("Ctrl+p")).not.toHaveProperty("text");
+  });
+
+  it("types digits and ?", () => {
+    expect(parseKeySpec("1")).toMatchObject({ code: "Digit1", text: "1" });
+    expect(parseKeySpec("?")).toMatchObject({ key: "?", text: "?" });
+  });
+
+  it("rejects empty specs, unknown keys and unknown modifiers", () => {
+    expect(() => parseKeySpec("")).toThrow(CdpError);
+    expect(() => parseKeySpec("Shift+")).toThrow(CdpError);
+    expect(() => parseKeySpec("Banana")).toThrow(CdpError);
+    expect(() => parseKeySpec("Hyper+a")).toThrow(CdpError);
+  });
+});
+
+describe("obsidian-cdp accessibility summaries", () => {
+  it("summarizes a node's role, name, ignored flag and properties", () => {
+    expect(
+      summarizeAxNode({
+        nodeId: "7",
+        ignored: false,
+        role: { type: "role", value: "heading" },
+        name: { type: "computedString", value: "Article one" },
+        properties: [
+          { name: "level", value: { type: "integer", value: 3 } },
+          {
+            name: "focusable",
+            value: { type: "booleanOrUndefined", value: true },
+          },
+        ],
+      }),
+    ).toEqual({
+      role: "heading",
+      name: "Article one",
+      ignored: false,
+      properties: { level: 3, focusable: true },
+    });
+  });
+
+  it("reports an ignored node with an empty name", () => {
+    expect(
+      summarizeAxNode({
+        ignored: true,
+        role: { type: "role", value: "none" },
+      }),
+    ).toEqual({ role: "none", name: "", ignored: true, properties: {} });
+  });
+
+  it("counts query matches and leaves ignored nodes out", () => {
+    expect(
+      summarizeAxQuery([
+        {
+          ignored: false,
+          role: { value: "dialog" },
+          name: { value: "Add feed" },
+        },
+        { ignored: true, role: { value: "dialog" } },
+        { ignored: false, role: { value: "dialog" } },
+      ]),
+    ).toEqual({
+      count: 2,
+      nodes: [
+        { role: "dialog", name: "Add feed" },
+        { role: "dialog", name: "" },
+      ],
+    });
+  });
+
+  it("returns an empty result for no matches", () => {
+    expect(summarizeAxQuery([])).toEqual({ count: 0, nodes: [] });
+    expect(summarizeAxQuery(undefined)).toEqual({ count: 0, nodes: [] });
   });
 });
 

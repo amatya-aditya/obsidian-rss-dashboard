@@ -1,7 +1,8 @@
 // Drives a running Obsidian instance (or any Chromium) over the Chrome
 // DevTools Protocol, so an agent or maintainer can read the app's DOM, click,
-// and screenshot without a human at the keyboard. See "Driving the vault over
-// CDP" in docs/development/fixture-vault.md.
+// and screenshot without a human at the keyboard. Batch scripts can also press
+// real keys and read the accessibility tree. See "Driving the vault over CDP"
+// in docs/development/fixture-vault.md.
 //
 //   node scripts/obsidian-cdp.mjs targets
 //   node scripts/obsidian-cdp.mjs eval ./probe.js
@@ -56,7 +57,57 @@ const COMMANDS = [
   "open-settings",
   "help",
 ];
-const STEP_NAMES = ["eval", "shot", "wait", "target", "settings"];
+const STEP_NAMES = [
+  "eval",
+  "shot",
+  "wait",
+  "target",
+  "settings",
+  "key",
+  "ax",
+  "axquery",
+];
+
+/** CDP `Input.dispatchKeyEvent` modifier bits. */
+const MODIFIER_BITS = {
+  alt: 1,
+  ctrl: 2,
+  control: 2,
+  meta: 4,
+  cmd: 4,
+  shift: 8,
+};
+/** Modifiers that turn a key into a shortcut, so it types no text. */
+const SHORTCUT_MODIFIERS =
+  MODIFIER_BITS.alt | MODIFIER_BITS.ctrl | MODIFIER_BITS.meta;
+
+/** Named keys: [key, code, Windows virtual key code, text it types]. */
+const NAMED_KEYS = {
+  tab: ["Tab", "Tab", 9],
+  enter: ["Enter", "Enter", 13, "\r"],
+  escape: ["Escape", "Escape", 27],
+  esc: ["Escape", "Escape", 27],
+  space: [" ", "Space", 32, " "],
+  backspace: ["Backspace", "Backspace", 8],
+  delete: ["Delete", "Delete", 46],
+  home: ["Home", "Home", 36],
+  end: ["End", "End", 35],
+  pageup: ["PageUp", "PageUp", 33],
+  pagedown: ["PageDown", "PageDown", 34],
+  arrowleft: ["ArrowLeft", "ArrowLeft", 37],
+  arrowup: ["ArrowUp", "ArrowUp", 38],
+  arrowright: ["ArrowRight", "ArrowRight", 39],
+  arrowdown: ["ArrowDown", "ArrowDown", 40],
+  contextmenu: ["ContextMenu", "ContextMenu", 93],
+};
+for (let n = 1; n <= 12; n += 1) {
+  NAMED_KEYS[`f${n}`] = [`F${n}`, `F${n}`, 111 + n];
+}
+/** Punctuation keys: [code, virtual key code, needs Shift on a US layout]. */
+const PUNCTUATION_KEYS = {
+  "?": ["Slash", 191, true],
+  "/": ["Slash", 191, false],
+};
 const STEP_LINE = new RegExp(`^@(?:${STEP_NAMES.join("|")})(?:[ \\t]|$)`);
 
 const USAGE = `Drive a running Obsidian instance over the Chrome DevTools Protocol.
@@ -71,6 +122,20 @@ Commands:
   open-settings <id> Open Settings on the tab with this id (for example
                      rss-dashboard) and wait for the Settings window. Needs
                      --profile and --expect-vault.
+
+Batch steps (one per line in a repl script):
+  @eval <expr>       Evaluate an expression, or a multi-line body below it.
+  @shot <out.png>    Capture a screenshot.
+  @wait <ms>         Pause.
+  @target <text>     Switch to the page whose title contains <text>.
+  @settings          Switch to the Settings window.
+  @key <key> [n]     Press a real key n times: Tab, Shift+Tab, Enter, Escape,
+                     Shift+F10, ArrowDown, t, and so on.
+  @ax <selector>     Print the accessibility node (role, name, state) of the
+                     first element matching <selector>.
+  @axquery <role> <selector>
+                     Print the exposed accessibility nodes with <role> inside
+                     the first element matching <selector>.
 
 Options:
   --port <n>         Debug port to use (default: probe ${DEFAULT_PORTS.join(", ")}).
@@ -377,10 +442,129 @@ function dedent(lines) {
 }
 
 /**
+ * Turns a key spec such as `Tab`, `Shift+Tab`, `Shift+F10`, `Enter` or `t` into
+ * the fields `Input.dispatchKeyEvent` needs. Modifiers are `Shift`, `Ctrl`,
+ * `Alt` and `Meta` (or `Cmd`). A key that types a character carries `text`
+ * unless Ctrl, Alt or Meta is held; Enter and Space carry it too, because
+ * native buttons activate on the typed character. Exported for unit tests.
+ */
+export function parseKeySpec(spec) {
+  const parts = String(spec ?? "").split("+");
+  const keyName = parts.pop() ?? "";
+  if (keyName.trim() === "" || parts.some((part) => part.trim() === "")) {
+    throw new CdpError(
+      `Could not read the key "${spec ?? ""}". Use a key such as Tab, Shift+Tab or t.`,
+    );
+  }
+
+  let modifiers = 0;
+  for (const part of parts) {
+    const bit = MODIFIER_BITS[part.trim().toLowerCase()];
+    if (bit === undefined) {
+      throw new CdpError(
+        `Unknown modifier "${part}" in "${spec}". Use Shift, Ctrl, Alt or Meta.`,
+      );
+    }
+    modifiers |= bit;
+  }
+  const shifted = (modifiers & MODIFIER_BITS.shift) !== 0;
+  const types = (modifiers & SHORTCUT_MODIFIERS) === 0;
+  const withText = (fields, text) =>
+    types && text !== undefined ? { ...fields, text } : fields;
+
+  const named = NAMED_KEYS[keyName.toLowerCase()];
+  if (named) {
+    const [key, code, windowsVirtualKeyCode, text] = named;
+    return withText({ key, code, windowsVirtualKeyCode, modifiers }, text);
+  }
+  if (/^[A-Za-z]$/.test(keyName)) {
+    const upper = keyName.toUpperCase();
+    const key = shifted ? upper : keyName.toLowerCase();
+    return withText(
+      {
+        key,
+        code: `Key${upper}`,
+        windowsVirtualKeyCode: upper.charCodeAt(0),
+        modifiers,
+      },
+      key,
+    );
+  }
+  if (/^[0-9]$/.test(keyName)) {
+    return withText(
+      {
+        key: keyName,
+        code: `Digit${keyName}`,
+        windowsVirtualKeyCode: keyName.charCodeAt(0),
+        modifiers,
+      },
+      keyName,
+    );
+  }
+  const punctuation = PUNCTUATION_KEYS[keyName];
+  if (punctuation) {
+    const [code, windowsVirtualKeyCode, needsShift] = punctuation;
+    return withText(
+      {
+        key: keyName,
+        code,
+        windowsVirtualKeyCode,
+        modifiers: needsShift ? modifiers | MODIFIER_BITS.shift : modifiers,
+      },
+      keyName,
+    );
+  }
+  throw new CdpError(
+    `Unknown key "${keyName}" in "${spec}". Use a letter, a digit, ? or /, or ` +
+      "a named key such as Tab, Enter, Escape, Space, an arrow key, Home, " +
+      "End, PageUp, PageDown, ContextMenu or F1 to F12.",
+  );
+}
+
+function axValue(value) {
+  return value && "value" in value ? value.value : undefined;
+}
+
+/**
+ * Reduces one `Accessibility` AXNode to its role, name, ignored flag and
+ * properties. Exported for unit tests.
+ */
+export function summarizeAxNode(node) {
+  const properties = {};
+  for (const property of node?.properties ?? []) {
+    properties[property.name] = axValue(property.value);
+  }
+  return {
+    role: axValue(node?.role) ?? "",
+    name: axValue(node?.name) ?? "",
+    ignored: Boolean(node?.ignored),
+    properties,
+  };
+}
+
+/**
+ * Reduces an `Accessibility.queryAXTree` result to the nodes an assistive
+ * technology would meet: ignored nodes are left out. Exported for unit tests.
+ */
+export function summarizeAxQuery(nodes) {
+  const exposed = (Array.isArray(nodes) ? nodes : []).filter(
+    (node) => !node.ignored,
+  );
+  return {
+    count: exposed.length,
+    nodes: exposed.map((node) => ({
+      role: axValue(node.role) ?? "",
+      name: axValue(node.name) ?? "",
+    })),
+  };
+}
+
+/**
  * Reads a batch script into steps. Each step starts on a line beginning with
  * `@`: `@eval` (with an inline expression or a multi-line body up to the next
- * `@` line), `@shot <path>`, `@wait <ms>`, or `@target <title>`. Blank lines
- * between steps are ignored. Exported for unit tests.
+ * `@` line), `@shot <path>`, `@wait <ms>`, `@target <title>`, `@settings`,
+ * `@key <key> [count]`, `@ax <selector>`, or `@axquery <role> <selector>`.
+ * Blank lines between steps are ignored. Exported for unit tests.
  */
 export function parseBatch(text) {
   const lines = String(text)
@@ -451,6 +635,39 @@ export function parseBatch(text) {
         throw new CdpError(`Line ${stepLine}: @settings takes no argument.`);
       }
       steps.push({ kind: "settings" });
+    } else if (name === "key") {
+      const [spec, countText, ...rest] = inline.trim().split(/\s+/);
+      if (!spec || rest.length > 0) {
+        throw new CdpError(
+          `Line ${stepLine}: @key needs a key and an optional count, for example @key Shift+Tab 3.`,
+        );
+      }
+      const count = countText === undefined ? 1 : Number(countText);
+      if (!Number.isInteger(count) || count < 1) {
+        throw new CdpError(
+          `Line ${stepLine}: @key count must be a whole number of at least 1.`,
+        );
+      }
+      let key;
+      try {
+        key = parseKeySpec(spec);
+      } catch (error) {
+        throw new CdpError(`Line ${stepLine}: ${errorMessage(error)}`);
+      }
+      steps.push({ kind: "key", key, spec, count });
+    } else if (name === "ax") {
+      if (inline.trim() === "") {
+        throw new CdpError(`Line ${stepLine}: @ax needs a CSS selector.`);
+      }
+      steps.push({ kind: "ax", selector: inline.trim() });
+    } else if (name === "axquery") {
+      const match = /^(\S+)\s+(.+)$/.exec(inline.trim());
+      if (!match) {
+        throw new CdpError(
+          `Line ${stepLine}: @axquery needs a role and a CSS selector, for example @axquery heading .modal.`,
+        );
+      }
+      steps.push({ kind: "axquery", role: match[1], selector: match[2] });
     } else {
       throw new CdpError(
         `Line ${stepLine}: unknown step "@${name}". Use ${STEP_NAMES.map((step) => `@${step}`).join(", ")}.`,
@@ -965,6 +1182,79 @@ async function screenshot(connection, path) {
   return path;
 }
 
+/**
+ * Sends one real key press through the browser's input pipeline, so focus
+ * moves, buttons activate and `contextmenu` fires the way a keyboard user
+ * would see. A synthetic `dispatchEvent` does none of that.
+ */
+async function pressKey(connection, key) {
+  const base = {
+    key: key.key,
+    code: key.code,
+    windowsVirtualKeyCode: key.windowsVirtualKeyCode,
+    nativeVirtualKeyCode: key.windowsVirtualKeyCode,
+    modifiers: key.modifiers,
+  };
+  if (key.text !== undefined) {
+    await connection.send("Input.dispatchKeyEvent", {
+      type: "keyDown",
+      ...base,
+      text: key.text,
+      unmodifiedText: key.text,
+    });
+  } else {
+    await connection.send("Input.dispatchKeyEvent", {
+      type: "rawKeyDown",
+      ...base,
+    });
+  }
+  await connection.send("Input.dispatchKeyEvent", { type: "keyUp", ...base });
+}
+
+const axEnabled = new WeakSet();
+
+/** Resolves a CSS selector to a DOM node id, enabling the domains once. */
+async function axNodeId(connection, selector) {
+  if (!axEnabled.has(connection)) {
+    await connection.send("DOM.enable");
+    await connection.send("Accessibility.enable");
+    axEnabled.add(connection);
+  }
+  const { root } = await connection.send("DOM.getDocument", { depth: 0 });
+  const { nodeId } = await connection.send("DOM.querySelector", {
+    nodeId: root.nodeId,
+    selector,
+  });
+  if (!nodeId) {
+    throw new CdpError(`No element matches ${selector}.`);
+  }
+  return nodeId;
+}
+
+/** The accessibility node of the first element matching `selector`. */
+async function readAxNode(connection, selector) {
+  const nodeId = await axNodeId(connection, selector);
+  const { nodes } = await connection.send("Accessibility.getPartialAXTree", {
+    nodeId,
+    fetchRelatives: false,
+  });
+  return summarizeAxNode(nodes?.[0]);
+}
+
+/**
+ * Accessibility nodes with `role` inside the first element matching
+ * `selector`. On a large subtree with no match, Chromium can take longer than
+ * the call timeout; scope the selector tightly.
+ */
+async function queryAxRole(connection, role, selector) {
+  const nodeId = await axNodeId(connection, selector);
+  const { nodes } = await connection.send("Accessibility.queryAXTree", {
+    nodeId,
+    role,
+  });
+  return summarizeAxQuery(nodes);
+}
+
 // Reads the open vault's base path from the page. A missing `app` (the picker)
 // or a missing adapter returns null, which readVaultPath turns into undefined.
 const VAULT_PATH_EXPRESSION =
@@ -1128,6 +1418,25 @@ async function runBatch(options, initialConnection, steps) {
       } else if (step.kind === "shot") {
         await screenshot(connection, step.path);
         console.log(`shot -> ${step.path}`);
+      } else if (step.kind === "key") {
+        for (let i = 0; i < step.count; i += 1) {
+          await pressKey(connection, step.key);
+        }
+        console.log(
+          `key ${step.spec}${step.count > 1 ? ` x${step.count}` : ""}`,
+        );
+      } else if (step.kind === "ax") {
+        console.log(
+          JSON.stringify(await readAxNode(connection, step.selector), null, 2),
+        );
+      } else if (step.kind === "axquery") {
+        console.log(
+          JSON.stringify(
+            await queryAxRole(connection, step.role, step.selector),
+            null,
+            2,
+          ),
+        );
       } else {
         console.log(renderValue(await evaluate(connection, step.code)));
       }
