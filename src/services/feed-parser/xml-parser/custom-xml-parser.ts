@@ -8,9 +8,9 @@ import {
 } from "./xml-html-utils.js";
 import {
   extractRssContent,
-  fallbackParse,
   preprocessXmlContent,
 } from "./xml-preprocessing.js";
+import { fallbackParse } from "./fallback-parse.js";
 import { parseAtom } from "./atom-parser.js";
 import { parseJSON } from "./json-feed-parser.js";
 import { parseRSS, parseRSS1 } from "./rss-parser.js";
