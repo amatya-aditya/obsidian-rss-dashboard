@@ -1,6 +1,7 @@
 import { ItemView } from "obsidian";
 import type { RssDashboardView } from "../views/dashboard-view";
 import { isDomNode } from "../utils/dom-node";
+import { SIDEBAR_ROW_SELECTOR } from "../utils/sidebar-row-interactions";
 import { dashboardCandidates, findDashboardBinding } from "./keymap";
 
 /**
@@ -21,10 +22,13 @@ export function isInteractiveTarget(target: EventTarget | null): boolean {
 
   // A bare tabindex is not a control: card titles, feed names, and summaries
   // take tabindex="0" only so keyboard users can reach their text. Every
-  // custom control the plugin builds also carries one of these roles.
-  return !!target.closest(
+  // custom control the plugin builds also carries one of these roles. A
+  // sidebar row is a link by role but is driven by the dashboard's own keys,
+  // so it is not a control here; a button inside it still is.
+  const control = target.closest(
     'button, a[href], [role="button"], [role="combobox"], [role="link"], [role="option"], [role="menuitem"], [role="checkbox"], [role="radio"], [role="slider"], [role="switch"], [role="tab"]',
   );
+  return control !== null && !control.matches(SIDEBAR_ROW_SELECTOR);
 }
 
 /**
