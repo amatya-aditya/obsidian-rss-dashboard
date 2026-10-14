@@ -129,6 +129,8 @@ Batch steps (one per line in a repl script):
   @wait <ms>         Pause.
   @target <text>     Switch to the page whose title contains <text>.
   @settings          Switch to the Settings window.
+  @vault             Switch back to the vault window, checked against
+                     --expect-vault.
   @key <key> [n]     Press a real key n times: Tab, Shift+Tab, Enter, Escape,
                      Shift+F10, ArrowDown, t, and so on.
   @ax <selector>     Print the accessibility node (role, name, state) of the
@@ -148,7 +150,7 @@ Options:
                      own page) instead of the vault window, for eval, shot and
                      repl. Needs --profile and --expect-vault; the window must
                      be titled for the expected vault. In a repl, the
-                     @settings step switches to it.
+                     @settings step switches to it and @vault switches back.
   --wait <ms>        Poll for a ready vault target for up to <ms> before failing
                      (default: 0, fail fast).
   --json             Print machine-readable output where supported.
@@ -563,7 +565,7 @@ export function summarizeAxQuery(nodes) {
  * Reads a batch script into steps. Each step starts on a line beginning with
  * `@`: `@eval` (with an inline expression or a multi-line body up to the next
  * `@` line), `@shot <path>`, `@wait <ms>`, `@target <title>`, `@settings`,
- * `@key <key> [count]`, `@ax <selector>`, or `@axquery <role> <selector>`.
+ * `@vault`, `@key <key> [count]`, `@ax <selector>`, or `@axquery <role> <selector>`.
  * Blank lines between steps are ignored. Exported for unit tests.
  */
 export function parseBatch(text) {
@@ -635,6 +637,11 @@ export function parseBatch(text) {
         throw new CdpError(`Line ${stepLine}: @settings takes no argument.`);
       }
       steps.push({ kind: "settings" });
+    } else if (name === "vault") {
+      if (inline.trim() !== "") {
+        throw new CdpError(`Line ${stepLine}: @vault takes no argument.`);
+      }
+      steps.push({ kind: "vault" });
     } else if (name === "key") {
       const [spec, countText, ...rest] = inline.trim().split(/\s+/);
       if (!spec || rest.length > 0) {
@@ -1395,7 +1402,7 @@ async function openTarget(host, ports, title, options = {}) {
   throw new CdpError(outcome.reason);
 }
 
-/** Runs every step over one connection, reconnecting only on `@target`. */
+/** Runs every step over one connection, reconnecting on `@target`, `@settings` and `@vault`. */
 async function runBatch(options, initialConnection, steps) {
   let connection = initialConnection;
   try {
@@ -1410,6 +1417,14 @@ async function runBatch(options, initialConnection, steps) {
           waitMs: options.waitMs,
           pinnedPort: Boolean(options.profile),
           settings: true,
+        });
+        connection.close();
+        connection = next.connection;
+      } else if (step.kind === "vault") {
+        const next = await openTarget(options.host, options.ports, undefined, {
+          expectVault: options.expectVault,
+          waitMs: options.waitMs,
+          pinnedPort: Boolean(options.profile),
         });
         connection.close();
         connection = next.connection;
@@ -1560,7 +1575,7 @@ async function main() {
   if (
     options.settings ||
     options.command === "open-settings" ||
-    steps.some((step) => step.kind === "settings")
+    steps.some((step) => step.kind === "settings" || step.kind === "vault")
   ) {
     assertCompanionGuard(options, pinnedPort);
   }

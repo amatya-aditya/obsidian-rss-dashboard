@@ -783,6 +783,18 @@ describe("obsidian-cdp parseBatch", () => {
     ]);
   });
 
+  it("reads the vault step", () => {
+    expect(parseBatch("@settings\n@vault\n@shot v.png")).toEqual([
+      { kind: "settings" },
+      { kind: "vault" },
+      { kind: "shot", path: "v.png" },
+    ]);
+  });
+
+  it("rejects an argument on the vault step", () => {
+    expect(() => parseBatch("@vault my-vault")).toThrow(CdpError);
+  });
+
   it("rejects stray, unknown, or incomplete steps", () => {
     expect(() => parseBatch("just text")).toThrow(CdpError);
     expect(() => parseBatch("@frob")).toThrow(CdpError);
