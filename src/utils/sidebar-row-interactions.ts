@@ -4,6 +4,14 @@
  * where an open folder goes when its tree moves. No DOM or Obsidian imports.
  */
 
+/**
+ * The keyboard-navigable sidebar rows: "All feeds", folder headers and feed
+ * rows. Each is exposed as `role="link"` but is driven by the dashboard's own
+ * hotkeys, not by the keys a native link or button owns.
+ */
+export const SIDEBAR_ROW_SELECTOR =
+  ".rss-dashboard-all-feeds-button, .rss-dashboard-feed-folder-header, .rss-dashboard-feed";
+
 /** The part of a row's bounding box that drop placement reads. */
 export interface RowDropRect {
   top: number;
