@@ -192,7 +192,8 @@ function renderArticleCard(
     renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
   }
 
-  const feedFooter = feedItem.createEl("footer", {
+  // A div, not a <footer>: see the card footer (WCAG 2.2 1.3.1).
+  const feedFooter = feedItem.createDiv({
     cls: "rss-dashboard-feed-footer",
   });
   const actionToolbar = feedFooter.createDiv({

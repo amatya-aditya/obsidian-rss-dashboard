@@ -363,13 +363,19 @@ describe("Sidebar row semantics (AC-014b)", () => {
   });
 
   describe("keyboard paths keep working", () => {
-    it("leaves rows focusable by script only, not in the Tab order", () => {
+    it("keeps every row focusable, with one of them the Tab stop (AC-014g)", () => {
       build();
-      const rows = container.querySelectorAll(ROW_SELECTOR);
+      const rows = [...container.querySelectorAll(ROW_SELECTOR)];
       expect(rows).toHaveLength(7);
-      for (const row of rows) {
-        expect(row.getAttribute("tabindex")).toBe("-1");
-      }
+      expect(rows.map((row) => row.getAttribute("tabindex")).sort()).toEqual([
+        "-1",
+        "-1",
+        "-1",
+        "-1",
+        "-1",
+        "-1",
+        "0",
+      ]);
     });
 
     it("moves focus to the current row on Shift+S and along the rows on the arrows", () => {

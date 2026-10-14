@@ -70,6 +70,8 @@ import { getArticlePreviewSummaryText } from "../utils/article-preview-utils";
 import { removeFolderByPath } from "../utils/folder-tree";
 import { createIconButton, getIconButtonAction } from "../utils/icon-button";
 import { createLiveRegion } from "../utils/live-region";
+import { markMainLandmark, markNamedLandmark } from "../utils/landmarks";
+import { SIDEBAR_ROW_SELECTOR } from "../utils/sidebar-row-interactions";
 import { clearViewReady, markViewReady } from "../utils/view-ready";
 import { REFRESH_ANNOUNCEMENT_EVENT } from "../services/refresh-announcements";
 import { attachRovingToolbar } from "../utils/roving-toolbar";
@@ -836,7 +838,9 @@ export class RssDashboardView extends ItemView {
       const interactive = target.closest(
         'input, button, select, textarea, a, [tabindex]:not([tabindex="-1"])',
       );
-      if (!interactive) {
+      // The sidebar row holding the Tab stop (tabindex="0") is not a control
+      // here: a click on it still hands focus to the view, as for any other row.
+      if (!interactive || interactive.matches(SIDEBAR_ROW_SELECTOR)) {
         this.containerEl.focus({ preventScroll: true });
       }
     });
@@ -1110,6 +1114,8 @@ export class RssDashboardView extends ItemView {
         inlineToolbarFocus = this.captureInlineToolbarFocus(contentContainer);
         contentContainer.empty();
       }
+      // The content area is the dashboard's one `main` landmark (#826).
+      markMainLandmark(contentContainer);
 
       const feedsByUrl = this.buildFeedUrlIndex();
       const scopedArticles = this.getUnfilteredArticles(feedsByUrl);
@@ -4248,7 +4254,7 @@ export class RssDashboardView extends ItemView {
       },
     });
 
-    header.createDiv({
+    const titleEl = header.createDiv({
       cls: "rss-reader-title",
       text: this.inlineArticle?.title || "Article",
     });
@@ -4345,6 +4351,7 @@ export class RssDashboardView extends ItemView {
     const body = container.createDiv({
       cls: "rss-reader-content inline-reader-content",
     });
+    markNamedLandmark(body, "region", titleEl);
 
     if (this.articleRenderer && this.inlineArticle) {
       const related = this.getRelatedItems(this.inlineArticle);

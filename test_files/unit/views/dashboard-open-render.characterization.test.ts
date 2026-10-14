@@ -595,6 +595,30 @@ describe("Dashboard onOpen characterization", () => {
     expect(focus).not.toHaveBeenCalled();
   });
 
+  it("still focuses the container when a click lands on the sidebar row that holds the Tab stop", async () => {
+    // AC-014g: one sidebar row has tabindex="0". It is a row, not a control, so
+    // a click on it must keep handing focus to the view like any other row.
+    const { view } = createHarness();
+    await view.onOpen();
+    const focus = vi.spyOn(view.containerEl, "focus");
+    view.getSidebarKeyboardController = () => ({ blurSidebarFocus: vi.fn() });
+
+    const sidebar = view.containerEl.createDiv({
+      cls: "rss-dashboard-sidebar",
+    });
+    const row = sidebar.createDiv({
+      cls: "rss-dashboard-feed",
+      attr: { tabindex: "0" },
+    });
+    row.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(focus).toHaveBeenCalledTimes(1);
+    focus.mockClear();
+
+    const nested = row.createEl("button", { attr: { tabindex: "0" } });
+    nested.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(focus).not.toHaveBeenCalled();
+  });
+
   it("focuses the container when its own leaf becomes active", async () => {
     const { view, app } = createHarness();
     await view.onOpen();
