@@ -40,8 +40,33 @@ const METHOD_SINKS: Readonly<Record<string, number>> = {
 /** Object properties whose string value is an icon id. */
 const PROPERTY_SINKS = new Set(["icon", "lucideIcon"]);
 
+/** Suffix of an identifier that maps names to icon ids, e.g. `SIDEBAR_ICONS`. */
+const ICON_MAP_SUFFIX = "ICONS";
+
 /** An object literal that maps names to icon ids, e.g. a view-style map. */
-const ICON_MAP = /ICONS$/;
+const ICON_MAP = new RegExp(`${ICON_MAP_SUFFIX}$`);
+
+/** Every name `iconIdsIn` treats as naming an icon id. */
+const ICON_SINK_NAMES: readonly string[] = [
+  ...Object.keys(CALL_SINKS),
+  ...Object.keys(METHOD_SINKS),
+  ...PROPERTY_SINKS,
+];
+
+/**
+ * Cheap substring prefilter. Every shape `iconIdsIn` recognizes contains one of
+ * these tokens verbatim, so a file that contains none cannot name an icon id
+ * and its AST parse is skipped. Derived from the sink vocabulary so a new sink
+ * cannot silently fall out of the prefilter. The scan is CPU-bound and runs
+ * inside one default-timeout test, so skipping the files that name no icon
+ * keeps it clear of the 5 s limit under full-suite load (#1104).
+ */
+const SINK_TOKENS: readonly string[] = [...ICON_SINK_NAMES, ICON_MAP_SUFFIX];
+
+/** Whether `text` could name an icon id, so the AST scan is worth running. */
+function mayNameIcon(text: string): boolean {
+  return SINK_TOKENS.some((token) => text.includes(token));
+}
 
 function sourceFiles(dir: string): string[] {
   return readdirSync(dir).flatMap((entry) => {
@@ -110,12 +135,49 @@ function iconIdsIn(text: string): string[] {
   return found;
 }
 
+describe("icon-id prefilter", () => {
+  // Sources the AST scan names an icon id in, paired with the id it must find.
+  // The prefilter must accept every one: a false negative here would silently
+  // drop a file from the guard without failing it (#1104).
+  const NAMED: ReadonlyArray<readonly [string, string]> = [
+    ['setIcon(el, "play");', "play"],
+    ['el.setIcon("play");', "play"],
+    ['addRibbonIcon("play", "Play");', "play"],
+    ['createSelector(el, "play");', "play"],
+    ['makeButton(el, "play");', "play"],
+    ['createNewTagsActionButton(a, b, "play");', "play"],
+    ['createHeaderNavButton(a, b, c, d, "play");', "play"],
+    ['const o = { icon: "play" };', "play"],
+    ['const o = { lucideIcon: "play" };', "play"],
+    ['const FOO_ICONS = { a: "play" };', "play"],
+  ];
+
+  it("keeps a file whose text names an icon through any sink", () => {
+    for (const [source, id] of NAMED) {
+      expect(mayNameIcon(source)).toBe(true);
+      expect(iconIdsIn(source)).toContain(id);
+    }
+  });
+
+  it("skips a file whose text names no icon sink", () => {
+    expect(mayNameIcon("const total = items.length;")).toBe(false);
+  });
+
+  it("keeps the prefilter in step with the sink vocabulary", () => {
+    for (const name of ICON_SINK_NAMES) {
+      expect(mayNameIcon(name)).toBe(true);
+    }
+  });
+});
+
 describe("production icon ids", () => {
   it("are all carried by the Obsidian test stub", () => {
     const missing: string[] = [];
     for (const file of sourceFiles(srcDir)) {
+      const text = readFileSync(file, "utf-8");
+      if (!mayNameIcon(text)) continue;
       const relative = path.relative(srcDir, file).split(path.sep).join("/");
-      for (const name of iconIdsIn(readFileSync(file, "utf-8"))) {
+      for (const name of iconIdsIn(text)) {
         if (renderIconMarkup(name) === "") {
           missing.push(`${relative}: "${name}"`);
         }
