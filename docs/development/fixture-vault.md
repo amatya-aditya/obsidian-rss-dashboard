@@ -329,11 +329,12 @@ beside it. This works only when `--profile` pinned the port to your own
 instance; without `--profile` or `--expect-vault`, or when the title names
 another vault, it refuses with a non-zero exit.
 
-| Command                      | Effect                                                                                                          |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| `--settings eval ./probe.js` | Evaluate in the Settings window instead of the vault window (`--settings shot <out.png>` captures it).          |
-| `@settings` (repl step)      | Switch the connection to the Settings window, guarded the same way. It is one-way; start a new run to go back.  |
-| `open-settings <tab-id>`     | In the vault window, run `app:open-settings` and `app.setting.openTabById(<tab-id>)`, then wait for the window. |
+| Command                      | Effect                                                                                                              |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `--settings eval ./probe.js` | Evaluate in the Settings window instead of the vault window (`--settings shot <out.png>` captures it).              |
+| `@settings` (repl step)      | Switch the connection to the Settings window, guarded the same way.                                                 |
+| `@vault` (repl step)         | Switch back to the vault window, checked against `--expect-vault` and `--profile`, whether or not Settings is open. |
+| `open-settings <tab-id>`     | In the vault window, run `app:open-settings` and `app.setting.openTabById(<tab-id>)`, then wait for the window.     |
 
 `open-settings` prints the Settings window it found, so the next `--settings`
 call attaches to a ready window. `--wait <ms>` sets how long it waits (default
