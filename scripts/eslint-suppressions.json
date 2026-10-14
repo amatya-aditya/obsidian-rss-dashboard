@@ -71,14 +71,6 @@
       "count": 2
     }
   },
-  "src/services/feed-parser/feed-fetch.ts": {
-    "complexity": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
   "src/services/feed-parser/xml-parser/custom-xml-parser.ts": {
     "complexity": {
       "count": 1
