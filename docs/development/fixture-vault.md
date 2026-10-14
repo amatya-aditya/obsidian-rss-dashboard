@@ -221,9 +221,10 @@ waits for the returned promise.
 
 A `repl` script (alias `batch`) runs every step over one connection, so nothing
 drifts between them. Each step starts with `@`: `@eval` (an inline expression,
-or a multi-line body up to the next `@` line), `@shot <path>`, `@wait <ms>`, or
+or a multi-line body up to the next `@` line), `@shot <path>`, `@wait <ms>`,
 `@target <text>` (switch to another window, such as the settings window, and
-keep going). For example, open the dashboard, wait for it to finish rendering,
+keep going), or the keyboard and accessibility-tree steps described
+[below](#keyboard-and-accessibility-tree-steps). For example, open the dashboard, wait for it to finish rendering,
 read the first card previews, and screenshot:
 
 ```text
@@ -247,6 +248,54 @@ Array.from(document.querySelectorAll(".rss-dashboard-card-preview-region"))
 
 @shot dashboard.png
 ```
+
+### Keyboard and accessibility-tree steps
+
+Three more steps check what a keyboard or screen-reader user meets, which DOM
+reads and synthetic events can miss:
+
+| Step                         | Effect                                                                                                                                                                      |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@key <key> [count]`         | Presses a real key through the browser's input pipeline, `count` times. Examples: `Tab`, `Shift+Tab`, `Enter`, `Escape`, `Space`, `ArrowDown`, `Shift+F10`, `t`, `Shift+s`. |
+| `@ax <selector>`             | Prints the accessibility node of the first matching element: role, name, `ignored`, and properties such as `level`, `checked` or `expanded`.                                |
+| `@axquery <role> <selector>` | Prints the exposed nodes with that role inside the first matching element, with a count. Ignored nodes are left out.                                                        |
+
+Use `@key` rather than `element.dispatchEvent(new KeyboardEvent(...))` for
+focus behavior. A synthetic event does not move focus on Tab, does not activate
+a button on Enter, and does not fire `contextmenu` on Shift+F10. `@key` does
+all three, so it is how to check a focus trap, focus return, or a keyboard path
+to a context menu. Enter and Space carry the typed character, which native
+buttons need in order to activate.
+
+Use `@ax` and `@axquery` to confirm roles and names. The DOM can mislead in
+both directions: a `div` with `role="heading"` is a heading, and a `<footer>`
+outside sectioning content becomes a `contentinfo` landmark.
+
+```text
+@axquery heading .workspace-leaf-content[data-type="rss-dashboard-view"] .rss-dashboard-article-card
+@ax .workspace-leaf-content[data-type="rss-dashboard-view"] .rss-dashboard-feed
+
+@eval document.querySelector('.workspace-leaf-content[data-type="rss-dashboard-view"] button[aria-label="Add folder"]').focus()
+@key Enter
+@wait 800
+@key Tab 4
+@eval document.querySelector(".modal-container").contains(document.activeElement)
+@key Escape
+```
+
+Gotchas:
+
+- Scope selectors with `.workspace-leaf-content[data-type="..."]`. The tab
+  header carries the same `data-type`, so a bare `[data-type="..."]` can match
+  it first.
+- Set the window to desktop width before you test layout-dependent keys. A
+  narrow window switches the dashboard to its compact layout, which hides the
+  sidebar and moves header controls into the ☰ menu, so `Shift+s` and `focus()`
+  on those controls do nothing.
+- `@axquery` on a large subtree with no match (the Reader body, Discover's
+  cards) can outlast the call timeout. Point the selector at a smaller element.
+- Dashboard hotkeys answer only while the dashboard leaf is active. Activate it
+  first with `app.workspace.setActiveLeaf(leaf, { focus: true })`.
 
 To act on another window, `@target` reconnects by title. This switches to the
 settings window and captures it:
