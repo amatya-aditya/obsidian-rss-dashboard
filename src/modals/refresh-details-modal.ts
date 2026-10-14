@@ -1,10 +1,11 @@
-import { App, Modal } from "obsidian";
+import { App } from "obsidian";
+import { AccessibleModal } from "../utils/accessible-modal";
 
 /**
  * Refresh details shown as a modal on mobile, where an anchored popover
  * beside the full-width sidebar has no room to be read.
  */
-export class RefreshDetailsModal extends Modal {
+export class RefreshDetailsModal extends AccessibleModal {
   private readonly lines: string[];
 
   constructor(app: App, lines: string[]) {

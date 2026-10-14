@@ -10,7 +10,8 @@
  *   - DomainIconToggleConfirmModal — modal for confirming domain icon toggles
  *   - showDomainIconToggleConfirm(app, params) — shows modal and returns confirmation
  */
-import { App, Modal, Setting } from "obsidian";
+import { App, Setting } from "obsidian";
+import { AccessibleModal } from "./accessible-modal";
 import { FeedParser } from "../services/feed-parser";
 import { MastodonService } from "../services/mastodon-service";
 import { FeedItem, Tag, DisplaySettings, MediaSettings } from "../types/types";
@@ -27,7 +28,7 @@ export interface DomainIconToggleModalParams {
   onConfirm?: () => void;
 }
 
-export class DomainIconToggleConfirmModal extends Modal {
+export class DomainIconToggleConfirmModal extends AccessibleModal {
   private confirmed = false;
   private resolvePromise: ((value: boolean) => void) | null = null;
   private params: DomainIconToggleModalParams;

@@ -1,4 +1,5 @@
-import { Modal, App, setIcon, Setting } from "obsidian";
+import { App, setIcon, Setting } from "obsidian";
+import { AccessibleModal } from "../utils/accessible-modal";
 import { FeedMetadata } from "../types/discover-types";
 import { fetchFeedXml } from "../services/feed-parser";
 import { decodeHtmlEntities } from "../services/feed-parser/xml-parser/xml-html-utils";
@@ -12,7 +13,7 @@ interface PreviewArticle {
   image?: string;
 }
 
-export class FeedPreviewModal extends Modal {
+export class FeedPreviewModal extends AccessibleModal {
   private feed: FeedMetadata;
   private articles: PreviewArticle[] = [];
   private isLoading = true;

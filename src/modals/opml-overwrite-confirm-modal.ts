@@ -1,4 +1,5 @@
-import { App, Modal, Setting } from "obsidian";
+import { App, Setting } from "obsidian";
+import { AccessibleModal } from "../utils/accessible-modal";
 
 export interface OpmlOverwriteConfirmModalOptions {
   /** Backs up the current feeds; the dialog stays open afterwards. */
@@ -7,7 +8,7 @@ export interface OpmlOverwriteConfirmModalOptions {
   onConfirm: () => void;
 }
 
-export class OpmlOverwriteConfirmModal extends Modal {
+export class OpmlOverwriteConfirmModal extends AccessibleModal {
   private readonly opts: OpmlOverwriteConfirmModalOptions;
 
   constructor(app: App, opts: OpmlOverwriteConfirmModalOptions) {

@@ -1,4 +1,5 @@
 import { App, Modal, Notice, Setting } from "obsidian";
+import { AccessibleModal } from "../utils/accessible-modal";
 import {
   DEFAULT_SETTINGS,
   type FeedItem,
@@ -589,7 +590,7 @@ function createActionButtons(
   });
 }
 
-export class CustomSaveModal extends Modal {
+export class CustomSaveModal extends AccessibleModal {
   private readonly item: FeedItem;
   private readonly context: CustomSaveModalContext;
 

@@ -1,4 +1,5 @@
-import { Modal, App, Setting, setIcon, Notice } from "obsidian";
+import { App, Setting, setIcon, Notice } from "obsidian";
+import { AccessibleModal } from "../../utils/accessible-modal";
 import type RssDashboardPlugin from "../../../main";
 import type { Folder } from "../../types/types";
 import { ImportOpmlModal } from "../import-opml-modal";
@@ -20,7 +21,7 @@ function countFoldersRecursively(folders: readonly Folder[]): number {
   );
 }
 
-export class FeedManagerModal extends Modal {
+export class FeedManagerModal extends AccessibleModal {
   plugin: RssDashboardPlugin;
 
   constructor(app: App, plugin: RssDashboardPlugin) {
@@ -125,7 +126,7 @@ export class FeedManagerModal extends Modal {
         return;
       }
 
-      const confirmModal = new Modal(this.app);
+      const confirmModal = new AccessibleModal(this.app);
       confirmModal.modalEl.addClass("rss-dashboard-confirm-modal");
 
       const { contentEl } = confirmModal;
@@ -195,7 +196,7 @@ export class FeedManagerModal extends Modal {
         return;
       }
 
-      const confirmModal = new Modal(this.app);
+      const confirmModal = new AccessibleModal(this.app);
       confirmModal.modalEl.addClass("rss-dashboard-confirm-modal");
 
       const { contentEl } = confirmModal;

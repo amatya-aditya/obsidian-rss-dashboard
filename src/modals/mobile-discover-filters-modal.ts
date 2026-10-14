@@ -1,9 +1,10 @@
-import { App, Modal, Platform } from "obsidian";
+import { App, Platform } from "obsidian";
+import { AccessibleModal } from "../utils/accessible-modal";
 import { DiscoverSidebar } from "../components/discover-sidebar";
 import type RssDashboardPlugin from "../../main";
 import { DiscoverFilters, FeedMetadata } from "../types/discover-types";
 
-export class MobileDiscoverFiltersModal extends Modal {
+export class MobileDiscoverFiltersModal extends AccessibleModal {
   private sidebar!: DiscoverSidebar;
 
   constructor(
@@ -15,6 +16,11 @@ export class MobileDiscoverFiltersModal extends Modal {
     private onFilterChange: () => void,
   ) {
     super(app);
+  }
+
+  // The sheet shows the Discover sidebar and no heading of its own.
+  protected getDialogLabel(): string {
+    return "Discover filters";
   }
 
   onOpen() {

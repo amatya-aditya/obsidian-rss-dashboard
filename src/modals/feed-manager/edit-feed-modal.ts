@@ -1,4 +1,5 @@
-import { Modal, App, Setting, Notice, setIcon } from "obsidian";
+import { App, Setting, Notice, setIcon } from "obsidian";
+import { AccessibleModal } from "../../utils/accessible-modal";
 import type RssDashboardPlugin from "../../../main";
 import type {
   Feed,
@@ -52,7 +53,7 @@ export interface EditFeedModalOptions {
 
 const PER_FEED_HIGHLIGHT_DURATION_MS = 3000;
 
-export class EditFeedModal extends Modal {
+export class EditFeedModal extends AccessibleModal {
   feed: Feed;
   plugin: RssDashboardPlugin;
   onSave: () => void;
@@ -1015,7 +1016,7 @@ export class EditFeedModal extends Modal {
   }
 
   private handleDeleteFeed(): void {
-    const confirmModal = new Modal(this.app);
+    const confirmModal = new AccessibleModal(this.app);
     confirmModal.modalEl.addClass("rss-dashboard-confirm-modal");
     const { contentEl } = confirmModal;
     contentEl.empty();

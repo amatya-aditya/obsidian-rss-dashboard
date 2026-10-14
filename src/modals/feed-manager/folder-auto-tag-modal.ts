@@ -1,4 +1,5 @@
-import { Modal, App, Setting, Notice } from "obsidian";
+import { App, Setting, Notice } from "obsidian";
+import { AccessibleModal } from "../../utils/accessible-modal";
 import type RssDashboardPlugin from "../../../main";
 import type { Tag } from "../../types/types";
 import type { FolderExistingArticleAction } from "../../utils/folder-tag-sync";
@@ -6,7 +7,7 @@ import { shouldUseMobileSidebarLayout } from "../../utils/platform-utils";
 import { removeNativeModalCloseButton } from "../../utils/modal-close-button";
 import { addTagMultiSelectControl } from "../../components/tag-multi-select-control";
 
-export class FolderAutoTagModal extends Modal {
+export class FolderAutoTagModal extends AccessibleModal {
   plugin: RssDashboardPlugin;
   folderPath: string;
   selectedTagNames: string[];

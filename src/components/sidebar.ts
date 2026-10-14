@@ -8,6 +8,7 @@ import {
   setIcon,
   Setting,
 } from "obsidian";
+import { AccessibleModal } from "../utils/accessible-modal";
 import {
   Feed,
   Folder,
@@ -2733,7 +2734,7 @@ export class Sidebar {
     // confirmed by the next OK click without the user seeing its message.
     if (this.openConfirmModal) return;
 
-    const confirmModal = new Modal(this.app);
+    const confirmModal = new AccessibleModal(this.app);
     this.openConfirmModal = confirmModal;
     confirmModal.onClose = () => {
       if (this.openConfirmModal === confirmModal) {
@@ -2774,7 +2775,7 @@ export class Sidebar {
   }
 
   private showErrorDetailModal(error: string, feedTitle: string): void {
-    const modal = new Modal(this.app);
+    const modal = new AccessibleModal(this.app);
     modal.modalEl.addClass("rss-feed-error-detail-modal");
 
     const { contentEl } = modal;

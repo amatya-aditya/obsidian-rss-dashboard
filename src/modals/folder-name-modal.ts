@@ -1,4 +1,5 @@
-import { App, Modal, setIcon, Setting } from "obsidian";
+import { App, setIcon, Setting } from "obsidian";
+import { AccessibleModal } from "../utils/accessible-modal";
 import { isValidFolderName } from "../utils/validation";
 import { addInputClearButton } from "../utils/input-clear-button";
 
@@ -15,7 +16,7 @@ export interface FolderNameModalOptions {
 // ⚠️ DO NOT move the input to a raw document.body div or add event.stopPropagation()
 // guards. Previous attempts created race conditions with Obsidian's workspace handler,
 // causing text deletion, lag, and dropped keystrokes. See bug docs for history.
-export class FolderNameModal extends Modal {
+export class FolderNameModal extends AccessibleModal {
   private readonly opts: FolderNameModalOptions;
 
   constructor(app: App, opts: FolderNameModalOptions) {

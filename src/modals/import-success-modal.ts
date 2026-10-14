@@ -1,9 +1,10 @@
-import { Modal, App, Setting } from "obsidian";
+import { App, Setting } from "obsidian";
+import { AccessibleModal } from "../utils/accessible-modal";
 
 /**
  * A simple confirmation modal shown after a successful data import.
  */
-export class ImportSuccessModal extends Modal {
+export class ImportSuccessModal extends AccessibleModal {
   private message: string;
 
   constructor(app: App, message: string) {
