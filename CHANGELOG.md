@@ -44,6 +44,8 @@
 
 ### Fixes
 
+- Reader updates keep articles within the dashboard’s selected feed or folder scope, including descendant folders, so visible rows and filter counts stay consistent. [GH Issue #1133](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1133)
+
 - Feed discovery now resolves a feed address the way a browser does, so protocol-relative, relative, and HTML-encoded `<link rel="alternate">` and anchor addresses point at the right feed, and an address that does not resolve to http(s) is ignored instead of fetched. [GH Issue #1098](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1098)
 - Reader star, read, and tag updates no longer put keyword-excluded articles back into the dashboard or leave them displayed with conflicting filter counts. Global and per-feed rules retain their existing override and bypass behavior. [GH Issue #1083](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1083)
 - Closing the Reader or switching away from a podcast now cancels its sleep timer, preventing countdown updates from continuing after the player is closed. [GH Issue #1087](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1087)

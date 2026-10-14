@@ -41,6 +41,7 @@ import {
 import { resolveSavedTemplateForArticle } from "../utils/saved-template-utils";
 import { getEffectiveDateMs } from "../services/feed-parser/feed-retention.js";
 import {
+  createFeedScopePredicate,
   getFilteredArticleScope,
   getUnfilteredArticleScope,
   getTotalArticleScopeCount,
@@ -3020,7 +3021,7 @@ export class RssDashboardView extends ItemView {
       ) {
         this.sidebar.render();
       }
-      this.syncArticleListAfterUpdate(article);
+      this.syncArticleListAfterUpdate(article, feed);
     }
   }
 
@@ -3076,7 +3077,7 @@ export class RssDashboardView extends ItemView {
       this.sidebar.render();
     }
 
-    this.syncArticleListAfterUpdate(originalArticle);
+    this.syncArticleListAfterUpdate(originalArticle, feed);
   }
 
   public setSelectedArticleFromExternal(article: FeedItem): void {
@@ -3140,7 +3141,7 @@ export class RssDashboardView extends ItemView {
     this.articleRenderer?.setVideoTags(inline.tags);
   }
 
-  private syncArticleListAfterUpdate(article: FeedItem): void {
+  private syncArticleListAfterUpdate(article: FeedItem, feed: Feed): void {
     if (!this.articleList) {
       return;
     }
@@ -3149,8 +3150,18 @@ export class RssDashboardView extends ItemView {
       article,
       this.buildFeedUrlIndex(),
     );
-    if (!this.matchesArticleEligibility(article, keywordDecision.included)) {
-      this.articleList.removeArticleInPlace(article.guid, article.feedUrl);
+    const isInScope = createFeedScopePredicate(this.getArticleScopeState());
+    const feedInScope = isInScope(feed);
+    if (
+      !feedInScope ||
+      !this.matchesArticleEligibility(article, keywordDecision.included)
+    ) {
+      // Scope pools use the backing feed URL; keep the existing display
+      // identity for status/keyword removals within the current feed.
+      this.articleList.removeArticleInPlace(
+        article.guid,
+        feedInScope ? article.feedUrl : feed.url,
+      );
       this.refreshFilterStatusBarOnly();
       return;
     }

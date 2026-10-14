@@ -16,6 +16,49 @@ export interface ArticleScopeState {
   readonly getAllDescendantFolders: (path: string) => string[];
 }
 
+/** Feed membership only; status, keyword, tag, and age filters stay separate. */
+export function createFeedScopePredicate(
+  state: ArticleScopeState,
+): (feed: Feed) => boolean {
+  if (state.currentFeed) {
+    const currentFeedUrl = state.currentFeed.url;
+    return (feed) => feed.url === currentFeedUrl;
+  }
+
+  const selectedFeeds = new Set(state.selectedFeeds);
+  const folders = new Set<string>();
+  if (state.selectedFolders.length > 0 || selectedFeeds.size > 0) {
+    for (const path of state.selectedFolders) {
+      folders.add(path);
+      for (const descendant of state.getAllDescendantFolders(path)) {
+        folders.add(descendant);
+      }
+    }
+    return (feed) =>
+      selectedFeeds.has(feed.url) ||
+      Boolean(feed.folder && folders.has(feed.folder));
+  }
+
+  const specialFolders = [
+    "read",
+    "unread",
+    "starred",
+    "saved",
+    "videos",
+    "podcasts",
+  ];
+  if (state.currentFolder && !specialFolders.includes(state.currentFolder)) {
+    folders.add(state.currentFolder);
+    for (const descendant of state.getAllDescendantFolders(
+      state.currentFolder,
+    )) {
+      folders.add(descendant);
+    }
+    return (feed) => Boolean(feed.folder && folders.has(feed.folder));
+  }
+  return () => true;
+}
+
 export function getFilteredArticleScope(state: ArticleScopeState): FeedItem[] {
   let articles = getFilteredPool(state);
 
@@ -51,20 +94,9 @@ function getFilteredPool(state: ArticleScopeState): FeedItem[] {
     (state.selectedFolders && state.selectedFolders.length > 0) ||
     (state.selectedFeeds && state.selectedFeeds.length > 0)
   ) {
-    const allFolders = new Set<string>();
-    if (state.selectedFolders) {
-      for (const path of state.selectedFolders) {
-        allFolders.add(path);
-        for (const f of state.getAllDescendantFolders(path)) {
-          allFolders.add(f);
-        }
-      }
-    }
+    const isInScope = createFeedScopePredicate(state);
     for (const feed of state.settings.feeds) {
-      if (
-        (feed.folder && allFolders.has(feed.folder)) ||
-        (state.selectedFeeds && state.selectedFeeds.includes(feed.url))
-      ) {
+      if (isInScope(feed)) {
         articles = articles.concat(
           feed.items.map((item) => ({
             ...item,
@@ -126,10 +158,9 @@ function getFilteredFolderPool(
       );
     }
   } else {
-    const allFolders = state.getAllDescendantFolders(currentFolder);
-    allFolders.push(currentFolder);
+    const isInScope = createFeedScopePredicate(state);
     for (const feed of state.settings.feeds) {
-      if (feed.folder && allFolders.includes(feed.folder)) {
+      if (isInScope(feed)) {
         articles = articles.concat(
           feed.items.map((item) => ({
             ...item,
