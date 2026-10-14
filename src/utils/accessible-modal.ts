@@ -175,6 +175,11 @@ export class AccessibleModal extends Modal {
   private applyDialogSemantics(): void {
     this.containerEl.setAttribute("role", "dialog");
     this.containerEl.setAttribute("aria-modal", "true");
+    // A click on non-interactive modal text drops focus to <body>, where Tab
+    // would walk into the page behind. With a tabindex, the click focuses the
+    // container instead, so the key handler below still sees the Tab. -1 keeps
+    // it out of the Tab order.
+    this.containerEl.setAttribute("tabindex", "-1");
     this.syncDialogName();
     // A modal that redraws its content swaps the heading element; follow it.
     this.nameObserver?.disconnect();

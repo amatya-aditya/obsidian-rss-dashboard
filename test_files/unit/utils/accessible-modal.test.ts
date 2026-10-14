@@ -376,6 +376,47 @@ describe("AccessibleModal Tab containment", () => {
     modal.close();
   });
 
+  // A click on non-interactive modal text drops focus to <body> (verified live
+  // on Obsidian 1.14.4), so Shift+Tab then walked into the dashboard behind.
+  // The container takes that click's focus instead, and Tab keys from it work.
+  describe("when a click on modal text leaves nothing focused", () => {
+    it("lets the modal container take focus so keys stay inside the modal", () => {
+      const { modal } = openForm();
+
+      expect(modal.containerEl.tabIndex).toBe(-1);
+      modal.containerEl.focus();
+
+      expect(document.activeElement).toBe(modal.containerEl);
+      modal.close();
+    });
+
+    it("enters at the first control on Tab and the last on Shift+Tab", () => {
+      const { modal, stops } = openForm();
+      modal.containerEl.focus();
+
+      const forward = pressTab();
+      expect(forward.defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(stops[0]);
+
+      modal.containerEl.focus();
+      const backward = pressTab(true);
+      expect(backward.defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(stops[stops.length - 1]);
+      modal.close();
+    });
+
+    it("keeps the container out of the Tab order", () => {
+      const { modal, stops } = openForm();
+      stops[stops.length - 1].focus();
+
+      pressTab();
+
+      expect(document.activeElement).toBe(stops[0]);
+      expect(stops.every((stop) => stop !== modal.containerEl)).toBe(true);
+      modal.close();
+    });
+  });
+
   it("contains only the topmost of two stacked modals", () => {
     const lower = new TestModal(titledForm);
     const upper = new TestModal(titledForm);
