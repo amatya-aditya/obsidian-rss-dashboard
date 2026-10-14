@@ -1223,6 +1223,7 @@ export class PodcastPlayer {
 
   destroy(): void {
     this.stopProgressTracking();
+    this.clearSleepTimer();
 
     if (this.audioElement) {
       this.saveProgress(true);
