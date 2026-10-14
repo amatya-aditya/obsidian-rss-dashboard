@@ -464,8 +464,10 @@ export class ArticleFilterMenu {
       if (keyboardEvent.key !== "Escape") return;
       keyboardEvent.preventDefault();
       keyboardEvent.stopPropagation();
+      // Read the opener now: retarget() may have swapped it since show().
+      const focusTarget = this.activeOpener ?? opener;
       this.close();
-      opener.focus();
+      focusTarget.focus();
     });
 
     targetWindow.setTimeout(() => {
@@ -476,13 +478,37 @@ export class ArticleFilterMenu {
         (e: Event) => {
           if (
             !menuPortal.contains(e.target as Node) &&
-            !toggleBtn.contains(e.target as Node)
+            !this.activeFilterToggleBtn?.contains(e.target as Node)
           ) {
             this.close();
           }
         },
       );
     }, 0);
+  }
+
+  // The header rebuilds its Filters button while the menu is open. Move the
+  // open state, the toggle and the Esc focus target onto the replacement, so
+  // aria-expanded still matches the menu and Esc lands on a live control.
+  public retarget(newToggle: HTMLElement): void {
+    const oldToggle = this.activeFilterToggleBtn;
+    if (
+      !oldToggle ||
+      oldToggle === newToggle ||
+      !this.activePortal?.isConnected
+    ) {
+      return;
+    }
+    if (ArticleFilterMenu.activeMobileMenus.get(oldToggle) === this) {
+      ArticleFilterMenu.activeMobileMenus.delete(oldToggle);
+      ArticleFilterMenu.activeMobileMenus.set(newToggle, this);
+    }
+    oldToggle.removeClass("active");
+    oldToggle.setAttribute("aria-expanded", "false");
+    newToggle.addClass("active");
+    newToggle.setAttribute("aria-expanded", "true");
+    if (this.activeOpener === oldToggle) this.activeOpener = newToggle;
+    this.activeFilterToggleBtn = newToggle;
   }
 
   // Commit the staged filter state in one batch event.

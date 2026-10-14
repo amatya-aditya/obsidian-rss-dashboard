@@ -53,6 +53,7 @@ export class ArticleHeader {
   private resizeObserver: ResizeObserver | null = null;
   private articleSearchQuery: string = "";
   private headerMenu: ArticleHeaderMenuController | null = null;
+  private filterMenu: ArticleFilterMenu | null = null;
 
   private statusFilters: Set<string>;
   private tagFilters: Set<string>;
@@ -186,6 +187,8 @@ export class ArticleHeader {
       "filter",
     );
     this.updateFilterBadge(mobileFilterBtn);
+    // A menu left open across this re-render now belongs to the new button.
+    this.filterMenu?.retarget(mobileFilterBtn);
     mobileFilterBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       this.showFiltersMenu(
@@ -273,6 +276,7 @@ export class ArticleHeader {
         onFilterChange: (f) => this.callbacks.onFilterChange(f),
       },
     );
+    this.filterMenu = menu;
     menu.show(btn, opener);
   }
 }

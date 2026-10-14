@@ -262,6 +262,98 @@ describe("ArticleHeader Component", () => {
       expect(document.activeElement).toBe(opener);
     });
 
+    it("keeps the open menu attached to the new Filters button when the header re-renders", () => {
+      const header = new ArticleHeader(
+        container,
+        settings,
+        "Title",
+        null,
+        null,
+        new Set(),
+        new Set(),
+        "OR",
+        mockCallbacks,
+      );
+      header.render();
+      const first = container.querySelector(
+        ".rss-dashboard-mobile-filter-button",
+      ) as HTMLElement;
+      first.click();
+
+      header.render();
+      const second = container.querySelector(
+        ".rss-dashboard-mobile-filter-button",
+      ) as HTMLElement;
+      expect(second).not.toBe(first);
+      expect(second.getAttribute("aria-expanded")).toBe("true");
+      expect(second.classList.contains("active")).toBe(true);
+
+      pressEscape();
+
+      expect(second.getAttribute("aria-expanded")).toBe("false");
+      expect(second.classList.contains("active")).toBe(false);
+      expect(document.activeElement).toBe(second);
+    });
+
+    it("lets the new Filters button close the menu with a second click after a re-render", () => {
+      const header = new ArticleHeader(
+        container,
+        settings,
+        "Title",
+        null,
+        null,
+        new Set(),
+        new Set(),
+        "OR",
+        mockCallbacks,
+      );
+      header.render();
+      (
+        container.querySelector(
+          ".rss-dashboard-mobile-filter-button",
+        ) as HTMLElement
+      ).click();
+      header.render();
+      const second = container.querySelector(
+        ".rss-dashboard-mobile-filter-button",
+      ) as HTMLElement;
+
+      second.click();
+
+      expect(
+        document.querySelector(".rss-dashboard-filter-menu-portal"),
+      ).toBeNull();
+      expect(second.getAttribute("aria-expanded")).toBe("false");
+    });
+
+    it("leaves a closed menu alone when the header re-renders", () => {
+      const header = new ArticleHeader(
+        container,
+        settings,
+        "Title",
+        null,
+        null,
+        new Set(),
+        new Set(),
+        "OR",
+        mockCallbacks,
+      );
+      header.render();
+      const first = container.querySelector(
+        ".rss-dashboard-mobile-filter-button",
+      ) as HTMLElement;
+      first.click();
+      pressEscape();
+
+      header.render();
+      const second = container.querySelector(
+        ".rss-dashboard-mobile-filter-button",
+      ) as HTMLElement;
+
+      expect(second.getAttribute("aria-expanded")).toBe("false");
+      expect(second.classList.contains("active")).toBe(false);
+    });
+
     it("forgets the other control, so a later click on Filters returns focus to Filters", () => {
       const filterButton = renderFilterButton();
       const opener = createDiv();
