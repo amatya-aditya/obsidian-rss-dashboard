@@ -111,16 +111,6 @@
   padding: 15px 14px;
 }
 
-/* On mobile the generic modal is a bottom sheet; the folder-name modal is
-   small enough that we pin it to the top instead so the soft keyboard never
-   slides up over it. */
-body .rss-folder-name-modal.rss-dashboard-modal-container {
-  top: env(safe-area-inset-top, 0px);
-  bottom: auto;
-  border-radius: 0 0 16px 16px;
-  max-height: 60vh;
-}
-
 /* ============================================
  * 3. Typography & Form Basics
  * Headings, labels, and setting row layouts

@@ -86,23 +86,22 @@ describe("Mobile modal positioning scope (#753)", () => {
     }
   });
 
-  it("keeps the folder-name modal pinned to the top safe area with a 60vh cap", () => {
-    const declarations = new Map<string, string>();
+  it("leaves the folder-name modal out of the shared dashboard modal rules", () => {
+    // FolderNameModal only carries `rss-folder-name-modal`, so a rule keyed on
+    // `.rss-folder-name-modal.rss-dashboard-modal-container` can never match.
+    const dead: string[] = [];
     modalsStylesheet.walkRules((rule) => {
-      if (
-        !rule.selectors.includes(
-          "body .rss-folder-name-modal.rss-dashboard-modal-container",
-        )
-      )
-        return;
-      rule.walkDecls((decl) => {
-        declarations.set(decl.prop, decl.value);
-      });
+      for (const selector of rule.selectors) {
+        if (
+          selector.includes(".rss-folder-name-modal") &&
+          selector.includes(".rss-dashboard-modal-container")
+        ) {
+          dead.push(selector);
+        }
+      }
     });
 
-    expect(declarations.get("top")).toBe("env(safe-area-inset-top, 0px)");
-    expect(declarations.get("max-height")).toBe("60vh");
-    expect(declarations.get("border-radius")).toBe("0 0 16px 16px");
+    expect(dead).toEqual([]);
   });
 
   it("does not let any phone-width rule outrank the folder-name modal's placement", () => {
