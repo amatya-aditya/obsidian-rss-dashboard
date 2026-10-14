@@ -66,6 +66,16 @@
       "match": "notice-message",
       "sources": ["app.js"]
     },
+    "class.search-input-clear-button": {
+      "kind": "class",
+      "match": "search-input-clear-button",
+      "sources": ["app.css", "app.js"]
+    },
+    "class.search-input-container": {
+      "kind": "class",
+      "match": "search-input-container",
+      "sources": ["app.css", "app.js"]
+    },
     "class.setting-item-heading": {
       "kind": "class",
       "match": "setting-item-heading",

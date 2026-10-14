@@ -1,5 +1,6 @@
 import { App, Modal, setIcon, Setting } from "obsidian";
 import { isValidFolderName } from "../utils/validation";
+import { addInputClearButton } from "../utils/input-clear-button";
 
 export interface FolderNameModalOptions {
   title: string;
@@ -49,21 +50,10 @@ export class FolderNameModal extends Modal {
     });
     nameInput.spellcheck = false;
 
-    const clearInputButton = inputWrapper.createEl("button", {
-      cls: "rss-folder-name-modal-input-clear",
-      attr: {
-        type: "button",
-        "aria-label": "Clear folder name",
-      },
+    addInputClearButton(nameInput, {
+      container: inputWrapper,
+      label: "Clear folder name",
     });
-    setIcon(clearInputButton, "x");
-
-    const updateClearButtonState = () => {
-      clearInputButton.classList.toggle(
-        "is-hidden",
-        nameInput.value.length === 0,
-      );
-    };
 
     const errorMsg = contentEl.createDiv({
       cls: "rss-folder-name-modal-error rss-folder-name-modal-error-hidden",
@@ -99,22 +89,10 @@ export class FolderNameModal extends Modal {
       this.opts.onSubmit(name);
     };
 
-    nameInput.addEventListener("input", () => {
-      clearError();
-      updateClearButtonState();
-    });
+    nameInput.addEventListener("input", clearError);
     nameInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") submit();
     });
-
-    clearInputButton.addEventListener("click", () => {
-      nameInput.value = "";
-      clearError();
-      updateClearButtonState();
-      nameInput.focus();
-    });
-
-    updateClearButtonState();
 
     const buttonContainer = contentEl.createDiv({
       cls: "rss-dashboard-modal-buttons rss-folder-name-modal-buttons",

@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("../../../src/utils/fetch-helpers", () => ({
+vi.mock("../../../src/utils/fetch-helpers", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("../../../src/utils/fetch-helpers")
+  >()),
   fetchWithProxyFallbackDetailed: vi.fn(),
 }));
 

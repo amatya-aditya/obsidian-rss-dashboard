@@ -113,6 +113,31 @@ We use `jsdom` alongside custom polyfills (`test_files/unit/test-dom-polyfills.t
 - **Watch mode**: `npx vitest`
 - **Coverage report**: `npm run test:unit -- --coverage`
 - **Tests affected by a change**: `npx vitest related --run <changed files>`
+- **Mutation testing (opt-in)**: `npm run test:mutation`
+
+### Mutation testing (opt-in, not a gate)
+
+`npm run test:mutation` runs StrykerJS over the two highest-risk pipelines to
+check that their tests not only execute the code but catch changes to it. It is
+an **opt-in, local/release-time command**: it is not part of `npm run test:unit`,
+`npm run build`, or any CI gate, and its result never blocks a pull request.
+
+The run is scoped by `stryker.conf.json` (the mutated files) and
+`vitest.mutation.config.mjs` (the test files), which reuse this repository's real
+`vitest.config.mjs` projects so the `obsidian` stub alias, the jsdom setup, and
+the shared/isolated split match a normal test run:
+
+- Mutated: `src/services/feed-refresh-runner.ts`,
+  `src/services/feed-refresh-scheduler.ts`,
+  `src/services/feed-operation-tracker.ts`, and `src/services/article-saver.ts`.
+- Tests: the seven files selected in `vitest.mutation.config.mjs`.
+
+On a 16 GB / 16-core developer machine the full run takes roughly 45 minutes at
+`--concurrency 3`; raise or lower `--concurrency` to suit the machine. Treat the
+mutation score as a **conservative floor, not a target**: it counts only the
+selected test files, so a path another test file covers (the refresh
+announcements, an article-saver caller) can still show as a survivor. Use it to
+find untested behavior and file follow-ups, not to chase a percentage.
 
 `vitest related` runs every test file whose imports reach the files you name,
 including What's New notes and repository scripts. A change to a widely

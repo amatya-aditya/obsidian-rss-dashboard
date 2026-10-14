@@ -4,6 +4,7 @@ import { DEFAULT_TAG_COLOR } from "./tag-colors";
 import { showEditTagModal } from "./tag-utils";
 import { onActivate } from "./keyboard-activation";
 import { windowInstanceOf } from "./platform-utils";
+import { addInputClearButton } from "./input-clear-button";
 
 export type TagsDropdownPortalOptions = {
   app: App;
@@ -303,6 +304,7 @@ export function createTagsDropdownPortal(
       cls: "rss-dashboard-tag-inline-input",
     });
     nameInput.spellcheck = false;
+    addInputClearButton(nameInput, { fill: true });
 
     const addButton = inlineAddRow.createDiv({
       cls: "rss-dashboard-tag-inline-button clickable-icon",

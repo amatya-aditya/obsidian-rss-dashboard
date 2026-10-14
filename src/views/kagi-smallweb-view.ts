@@ -1,7 +1,8 @@
 import { ItemView, WorkspaceLeaf, Notice, setIcon, requestUrl } from "obsidian";
 import { Feed } from "../types/types";
 import type RssDashboardPlugin from "../../main";
-import { setCssProps, attachInputClearButton } from "../utils/platform-utils";
+import { setCssProps } from "../utils/platform-utils";
+import { addInputClearButton } from "../utils/input-clear-button";
 import { FolderSelectorPopup } from "../components/folder-selector-popup";
 
 export const RSS_SMALLWEB_VIEW_TYPE = "rss-smallweb-view";
@@ -389,10 +390,14 @@ export class KagiSmallwebView extends ItemView {
     });
     searchInput.addClass("rss-discover-search-input");
 
-    attachInputClearButton(searchWrapper, searchInput, () => {
-      this.smallwebSearchQuery = "";
-      this.filterSmallwebEntries();
-      this.render();
+    addInputClearButton(searchInput, {
+      container: searchWrapper,
+      label: "Clear search",
+      onClear: () => {
+        this.smallwebSearchQuery = "";
+        this.filterSmallwebEntries();
+        this.render();
+      },
     });
 
     searchInput.addEventListener("input", (e) => {

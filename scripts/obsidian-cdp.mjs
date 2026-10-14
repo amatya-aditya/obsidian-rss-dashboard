@@ -1,13 +1,16 @@
 // Drives a running Obsidian instance (or any Chromium) over the Chrome
 // DevTools Protocol, so an agent or maintainer can read the app's DOM, click,
-// and screenshot without a human at the keyboard. See "Driving the vault over
-// CDP" in docs/development/fixture-vault.md.
+// and screenshot without a human at the keyboard. Batch scripts can also press
+// real keys and read the accessibility tree. See "Driving the vault over CDP"
+// in docs/development/fixture-vault.md.
 //
 //   node scripts/obsidian-cdp.mjs targets
 //   node scripts/obsidian-cdp.mjs eval ./probe.js
 //   echo '1 + 1' | node scripts/obsidian-cdp.mjs eval -
 //   node scripts/obsidian-cdp.mjs shot ./dashboard.png
 //   node scripts/obsidian-cdp.mjs repl ./steps.txt
+//   node scripts/obsidian-cdp.mjs open-settings rss-dashboard
+//   node scripts/obsidian-cdp.mjs --settings shot ./settings.png
 //
 // Dependency-free: it uses Node's built-in http module and the global
 // WebSocket, so it needs Node 22 or newer. The app under test must have been
@@ -36,11 +39,75 @@ const OBSIDIAN_VAULT_URL = "app://obsidian.md/index.html";
 const DEFAULT_CALL_TIMEOUT_MS = 30_000;
 /** Gap between polls while waiting for a ready target. */
 const DEFAULT_POLL_INTERVAL_MS = 150;
+/** How long open-settings waits for the Settings window when --wait is 0. */
+const DEFAULT_SETTINGS_WAIT_MS = 10_000;
+/** Obsidian 1.14 opens Settings as its own page; this is its url. */
+const SETTINGS_URL = "about:blank";
+/** `Settings - <vault name> - Obsidian <version>`; a vault name may hold " - ". */
+const SETTINGS_TITLE = /^Settings - (.+) - Obsidian (\S+)$/;
 /** Chromium writes this into --user-data-dir, naming the bound debug port. */
 const DEVTOOLS_ACTIVE_PORT_FILE = "DevToolsActivePort";
 
-const COMMANDS = ["targets", "eval", "shot", "repl", "batch", "help"];
-const STEP_NAMES = ["eval", "shot", "wait", "target"];
+const COMMANDS = [
+  "targets",
+  "eval",
+  "shot",
+  "repl",
+  "batch",
+  "open-settings",
+  "help",
+];
+const STEP_NAMES = [
+  "eval",
+  "shot",
+  "wait",
+  "target",
+  "settings",
+  "key",
+  "ax",
+  "axquery",
+];
+
+/** CDP `Input.dispatchKeyEvent` modifier bits. */
+const MODIFIER_BITS = {
+  alt: 1,
+  ctrl: 2,
+  control: 2,
+  meta: 4,
+  cmd: 4,
+  shift: 8,
+};
+/** Modifiers that turn a key into a shortcut, so it types no text. */
+const SHORTCUT_MODIFIERS =
+  MODIFIER_BITS.alt | MODIFIER_BITS.ctrl | MODIFIER_BITS.meta;
+
+/** Named keys: [key, code, Windows virtual key code, text it types]. */
+const NAMED_KEYS = {
+  tab: ["Tab", "Tab", 9],
+  enter: ["Enter", "Enter", 13, "\r"],
+  escape: ["Escape", "Escape", 27],
+  esc: ["Escape", "Escape", 27],
+  space: [" ", "Space", 32, " "],
+  backspace: ["Backspace", "Backspace", 8],
+  delete: ["Delete", "Delete", 46],
+  home: ["Home", "Home", 36],
+  end: ["End", "End", 35],
+  pageup: ["PageUp", "PageUp", 33],
+  pagedown: ["PageDown", "PageDown", 34],
+  arrowleft: ["ArrowLeft", "ArrowLeft", 37],
+  arrowup: ["ArrowUp", "ArrowUp", 38],
+  arrowright: ["ArrowRight", "ArrowRight", 39],
+  arrowdown: ["ArrowDown", "ArrowDown", 40],
+  contextmenu: ["ContextMenu", "ContextMenu", 93],
+};
+for (let n = 1; n <= 12; n += 1) {
+  NAMED_KEYS[`f${n}`] = [`F${n}`, `F${n}`, 111 + n];
+}
+/** Punctuation keys: [code, virtual key code, needs Shift on a US layout]. */
+const PUNCTUATION_KEYS = {
+  "?": ["Slash", 191, true],
+  "/": ["Slash", 191, false],
+};
 const STEP_LINE = new RegExp(`^@(?:${STEP_NAMES.join("|")})(?:[ \\t]|$)`);
 
 const USAGE = `Drive a running Obsidian instance over the Chrome DevTools Protocol.
@@ -52,6 +119,23 @@ Commands:
   eval <file|->      Evaluate JavaScript in the target and print the result.
   shot <out.png>     Capture a PNG screenshot of the target.
   repl [file|->]     Run a batch of steps over one connection (alias: batch).
+  open-settings <id> Open Settings on the tab with this id (for example
+                     rss-dashboard) and wait for the Settings window. Needs
+                     --profile and --expect-vault.
+
+Batch steps (one per line in a repl script):
+  @eval <expr>       Evaluate an expression, or a multi-line body below it.
+  @shot <out.png>    Capture a screenshot.
+  @wait <ms>         Pause.
+  @target <text>     Switch to the page whose title contains <text>.
+  @settings          Switch to the Settings window.
+  @key <key> [n]     Press a real key n times: Tab, Shift+Tab, Enter, Escape,
+                     Shift+F10, ArrowDown, t, and so on.
+  @ax <selector>     Print the accessibility node (role, name, state) of the
+                     first element matching <selector>.
+  @axquery <role> <selector>
+                     Print the exposed accessibility nodes with <role> inside
+                     the first element matching <selector>.
 
 Options:
   --port <n>         Debug port to use (default: probe ${DEFAULT_PORTS.join(", ")}).
@@ -60,6 +144,11 @@ Options:
   --expect-vault <p> Refuse unless this vault path is the one open in the target.
   --profile <dir>    Pin the port recorded in <dir>/${DEVTOOLS_ACTIVE_PORT_FILE}, and
                      refuse any target that is not the expected vault.
+  --settings         Attach to the Settings window (Obsidian 1.14 opens it as its
+                     own page) instead of the vault window, for eval, shot and
+                     repl. Needs --profile and --expect-vault; the window must
+                     be titled for the expected vault. In a repl, the
+                     @settings step switches to it.
   --wait <ms>        Poll for a ready vault target for up to <ms> before failing
                      (default: 0, fail fast).
   --json             Print machine-readable output where supported.
@@ -133,6 +222,23 @@ function assertArity(command, args) {
   if (command === "repl" && args.length > 1) {
     throw new CdpError(`repl takes at most one argument, got ${args.length}.`);
   }
+  if (command === "open-settings" && args.length !== 1) {
+    throw new CdpError(
+      "open-settings needs one argument: a settings tab id, for example rss-dashboard.",
+    );
+  }
+}
+
+function assertSettingsFlag(options) {
+  if (!options.settings) return;
+  if (options.command === "targets" || options.command === "open-settings") {
+    throw new CdpError(`--settings does not apply to ${options.command}.`);
+  }
+  if (options.target) {
+    throw new CdpError(
+      "--settings and --target both pick the window; pass only one.",
+    );
+  }
 }
 
 /**
@@ -148,6 +254,7 @@ export function parseArgs(argv, env = process.env) {
     target: env[ENV_TARGET] || undefined,
     expectVault: env[ENV_EXPECT_VAULT] || undefined,
     profile: env[ENV_PROFILE] || undefined,
+    settings: false,
     waitMs: 0,
     json: false,
     help: false,
@@ -168,6 +275,8 @@ export function parseArgs(argv, env = process.env) {
       options.help = true;
     } else if (arg === "--json") {
       options.json = true;
+    } else if (arg === "--settings") {
+      options.settings = true;
     } else if (arg === "--port" || arg.startsWith("--port=")) {
       port = parsePort(optionValue(argv, i, "--port"), "--port");
       if (!arg.includes("=")) i += 1;
@@ -223,6 +332,7 @@ export function parseArgs(argv, env = process.env) {
 
   options.command = command === "batch" ? "repl" : command;
   assertArity(options.command, args);
+  assertSettingsFlag(options);
   options.args = args;
   return options;
 }
@@ -332,10 +442,129 @@ function dedent(lines) {
 }
 
 /**
+ * Turns a key spec such as `Tab`, `Shift+Tab`, `Shift+F10`, `Enter` or `t` into
+ * the fields `Input.dispatchKeyEvent` needs. Modifiers are `Shift`, `Ctrl`,
+ * `Alt` and `Meta` (or `Cmd`). A key that types a character carries `text`
+ * unless Ctrl, Alt or Meta is held; Enter and Space carry it too, because
+ * native buttons activate on the typed character. Exported for unit tests.
+ */
+export function parseKeySpec(spec) {
+  const parts = String(spec ?? "").split("+");
+  const keyName = parts.pop() ?? "";
+  if (keyName.trim() === "" || parts.some((part) => part.trim() === "")) {
+    throw new CdpError(
+      `Could not read the key "${spec ?? ""}". Use a key such as Tab, Shift+Tab or t.`,
+    );
+  }
+
+  let modifiers = 0;
+  for (const part of parts) {
+    const bit = MODIFIER_BITS[part.trim().toLowerCase()];
+    if (bit === undefined) {
+      throw new CdpError(
+        `Unknown modifier "${part}" in "${spec}". Use Shift, Ctrl, Alt or Meta.`,
+      );
+    }
+    modifiers |= bit;
+  }
+  const shifted = (modifiers & MODIFIER_BITS.shift) !== 0;
+  const types = (modifiers & SHORTCUT_MODIFIERS) === 0;
+  const withText = (fields, text) =>
+    types && text !== undefined ? { ...fields, text } : fields;
+
+  const named = NAMED_KEYS[keyName.toLowerCase()];
+  if (named) {
+    const [key, code, windowsVirtualKeyCode, text] = named;
+    return withText({ key, code, windowsVirtualKeyCode, modifiers }, text);
+  }
+  if (/^[A-Za-z]$/.test(keyName)) {
+    const upper = keyName.toUpperCase();
+    const key = shifted ? upper : keyName.toLowerCase();
+    return withText(
+      {
+        key,
+        code: `Key${upper}`,
+        windowsVirtualKeyCode: upper.charCodeAt(0),
+        modifiers,
+      },
+      key,
+    );
+  }
+  if (/^[0-9]$/.test(keyName)) {
+    return withText(
+      {
+        key: keyName,
+        code: `Digit${keyName}`,
+        windowsVirtualKeyCode: keyName.charCodeAt(0),
+        modifiers,
+      },
+      keyName,
+    );
+  }
+  const punctuation = PUNCTUATION_KEYS[keyName];
+  if (punctuation) {
+    const [code, windowsVirtualKeyCode, needsShift] = punctuation;
+    return withText(
+      {
+        key: keyName,
+        code,
+        windowsVirtualKeyCode,
+        modifiers: needsShift ? modifiers | MODIFIER_BITS.shift : modifiers,
+      },
+      keyName,
+    );
+  }
+  throw new CdpError(
+    `Unknown key "${keyName}" in "${spec}". Use a letter, a digit, ? or /, or ` +
+      "a named key such as Tab, Enter, Escape, Space, an arrow key, Home, " +
+      "End, PageUp, PageDown, ContextMenu or F1 to F12.",
+  );
+}
+
+function axValue(value) {
+  return value && "value" in value ? value.value : undefined;
+}
+
+/**
+ * Reduces one `Accessibility` AXNode to its role, name, ignored flag and
+ * properties. Exported for unit tests.
+ */
+export function summarizeAxNode(node) {
+  const properties = {};
+  for (const property of node?.properties ?? []) {
+    properties[property.name] = axValue(property.value);
+  }
+  return {
+    role: axValue(node?.role) ?? "",
+    name: axValue(node?.name) ?? "",
+    ignored: Boolean(node?.ignored),
+    properties,
+  };
+}
+
+/**
+ * Reduces an `Accessibility.queryAXTree` result to the nodes an assistive
+ * technology would meet: ignored nodes are left out. Exported for unit tests.
+ */
+export function summarizeAxQuery(nodes) {
+  const exposed = (Array.isArray(nodes) ? nodes : []).filter(
+    (node) => !node.ignored,
+  );
+  return {
+    count: exposed.length,
+    nodes: exposed.map((node) => ({
+      role: axValue(node.role) ?? "",
+      name: axValue(node.name) ?? "",
+    })),
+  };
+}
+
+/**
  * Reads a batch script into steps. Each step starts on a line beginning with
  * `@`: `@eval` (with an inline expression or a multi-line body up to the next
- * `@` line), `@shot <path>`, `@wait <ms>`, or `@target <title>`. Blank lines
- * between steps are ignored. Exported for unit tests.
+ * `@` line), `@shot <path>`, `@wait <ms>`, `@target <title>`, `@settings`,
+ * `@key <key> [count]`, `@ax <selector>`, or `@axquery <role> <selector>`.
+ * Blank lines between steps are ignored. Exported for unit tests.
  */
 export function parseBatch(text) {
   const lines = String(text)
@@ -401,6 +630,44 @@ export function parseBatch(text) {
         );
       }
       steps.push({ kind: "target", title: inline.trim() });
+    } else if (name === "settings") {
+      if (inline.trim() !== "") {
+        throw new CdpError(`Line ${stepLine}: @settings takes no argument.`);
+      }
+      steps.push({ kind: "settings" });
+    } else if (name === "key") {
+      const [spec, countText, ...rest] = inline.trim().split(/\s+/);
+      if (!spec || rest.length > 0) {
+        throw new CdpError(
+          `Line ${stepLine}: @key needs a key and an optional count, for example @key Shift+Tab 3.`,
+        );
+      }
+      const count = countText === undefined ? 1 : Number(countText);
+      if (!Number.isInteger(count) || count < 1) {
+        throw new CdpError(
+          `Line ${stepLine}: @key count must be a whole number of at least 1.`,
+        );
+      }
+      let key;
+      try {
+        key = parseKeySpec(spec);
+      } catch (error) {
+        throw new CdpError(`Line ${stepLine}: ${errorMessage(error)}`);
+      }
+      steps.push({ kind: "key", key, spec, count });
+    } else if (name === "ax") {
+      if (inline.trim() === "") {
+        throw new CdpError(`Line ${stepLine}: @ax needs a CSS selector.`);
+      }
+      steps.push({ kind: "ax", selector: inline.trim() });
+    } else if (name === "axquery") {
+      const match = /^(\S+)\s+(.+)$/.exec(inline.trim());
+      if (!match) {
+        throw new CdpError(
+          `Line ${stepLine}: @axquery needs a role and a CSS selector, for example @axquery heading .modal.`,
+        );
+      }
+      steps.push({ kind: "axquery", role: match[1], selector: match[2] });
     } else {
       throw new CdpError(
         `Line ${stepLine}: unknown step "@${name}". Use ${STEP_NAMES.map((step) => `@${step}`).join(", ")}.`,
@@ -412,6 +679,127 @@ export function parseBatch(text) {
     throw new CdpError("No steps found. A batch needs at least one @step.");
   }
   return steps;
+}
+
+/**
+ * Reads `Settings - <vault name> - Obsidian <version>`, the title Obsidian 1.14
+ * gives its Settings window, or returns undefined for any other title.
+ * Exported for unit tests.
+ */
+export function parseSettingsTitle(title) {
+  const match = SETTINGS_TITLE.exec(String(title ?? ""));
+  return match ? { vaultName: match[1], version: match[2] } : undefined;
+}
+
+/**
+ * The vault's folder name, lower case: the last segment of a vault path.
+ * Exported for unit tests.
+ */
+export function vaultBasename(value) {
+  const normalized = normalizeVaultPath(value);
+  if (normalized === undefined) return undefined;
+  return normalized.slice(normalized.lastIndexOf("/") + 1);
+}
+
+/**
+ * @typedef {object} CompanionVerdict
+ * @property {boolean} ok
+ * @property {string} code
+ * @property {string} [message] Why it was refused; set when `ok` is false.
+ * @property {any} [target] The accepted page; set when `ok` is true.
+ */
+
+/** @returns {CompanionVerdict | undefined} */
+function companionPreconditions({ expectedVault, pinned }) {
+  if (normalizeVaultPath(expectedVault) === undefined) {
+    return {
+      ok: false,
+      code: "no-expectation",
+      message:
+        "Refusing the Settings window: pass --expect-vault so it can be " +
+        "matched to the vault you meant.",
+    };
+  }
+  if (!pinned) {
+    return {
+      ok: false,
+      code: "unpinned",
+      message:
+        "Refusing the Settings window: pass --profile so the port is pinned " +
+        "to this session's own Obsidian. Without it the window may belong to " +
+        "another session.",
+    };
+  }
+  return undefined;
+}
+
+/**
+ * Decides whether a page is the Settings window of the expected vault. The
+ * Settings window has no `app`, so its identity is its title, and the title is
+ * only trusted on a port that --profile pinned to this session's own
+ * instance. Pure; exported so the rule is unit-tested without a live socket.
+ *
+ * @returns {CompanionVerdict}
+ */
+export function assessCompanionTarget({ target, expectedVault, pinned } = {}) {
+  const refusal = companionPreconditions({ expectedVault, pinned });
+  if (refusal) return refusal;
+  const parsed = parseSettingsTitle(target?.title);
+  if (!parsed || String(target?.url ?? "") !== SETTINGS_URL) {
+    return {
+      ok: false,
+      code: "not-settings",
+      message:
+        `Refusing to attach: ${describeTarget(target ?? {})} is not an ` +
+        "Obsidian Settings window.",
+    };
+  }
+  if (parsed.vaultName.toLowerCase() !== vaultBasename(expectedVault)) {
+    return {
+      ok: false,
+      code: "wrong-vault",
+      message:
+        `Refusing to attach: the Settings window is for the vault ` +
+        `"${parsed.vaultName}", but ${expectedVault} was expected.`,
+    };
+  }
+  return { ok: true, code: "ok", target };
+}
+
+/**
+ * Picks the Settings window among a port's pages. Returns `{ ok: true, target }`,
+ * or `{ ok: false, code, message }`; `none-open` means it may simply not have
+ * appeared yet, so a caller can keep polling. Exported for unit tests.
+ *
+ * @returns {CompanionVerdict}
+ */
+export function selectSettingsTarget(pages, { expectedVault, pinned } = {}) {
+  const refusal = companionPreconditions({ expectedVault, pinned });
+  if (refusal) return refusal;
+  const titled = (Array.isArray(pages) ? pages : []).filter(
+    (candidate) =>
+      isPageTarget(candidate) && parseSettingsTitle(candidate.title),
+  );
+  if (titled.length === 0) {
+    return {
+      ok: false,
+      code: "none-open",
+      message: "No Obsidian Settings window is open on this port.",
+    };
+  }
+  const verdicts = titled.map((target) =>
+    assessCompanionTarget({ target, expectedVault, pinned }),
+  );
+  const accepted = verdicts.filter((verdict) => verdict.ok);
+  if (accepted.length === 1) return accepted[0];
+  if (accepted.length > 1) {
+    return {
+      ok: false,
+      code: "ambiguous",
+      message: `Several Settings windows match ${expectedVault}:\n${describeTargets(titled)}`,
+    };
+  }
+  return verdicts[0];
 }
 
 /** Fails with a pointed message when the runtime lacks a global WebSocket. */
@@ -794,6 +1182,79 @@ async function screenshot(connection, path) {
   return path;
 }
 
+/**
+ * Sends one real key press through the browser's input pipeline, so focus
+ * moves, buttons activate and `contextmenu` fires the way a keyboard user
+ * would see. A synthetic `dispatchEvent` does none of that.
+ */
+async function pressKey(connection, key) {
+  const base = {
+    key: key.key,
+    code: key.code,
+    windowsVirtualKeyCode: key.windowsVirtualKeyCode,
+    nativeVirtualKeyCode: key.windowsVirtualKeyCode,
+    modifiers: key.modifiers,
+  };
+  if (key.text !== undefined) {
+    await connection.send("Input.dispatchKeyEvent", {
+      type: "keyDown",
+      ...base,
+      text: key.text,
+      unmodifiedText: key.text,
+    });
+  } else {
+    await connection.send("Input.dispatchKeyEvent", {
+      type: "rawKeyDown",
+      ...base,
+    });
+  }
+  await connection.send("Input.dispatchKeyEvent", { type: "keyUp", ...base });
+}
+
+const axEnabled = new WeakSet();
+
+/** Resolves a CSS selector to a DOM node id, enabling the domains once. */
+async function axNodeId(connection, selector) {
+  if (!axEnabled.has(connection)) {
+    await connection.send("DOM.enable");
+    await connection.send("Accessibility.enable");
+    axEnabled.add(connection);
+  }
+  const { root } = await connection.send("DOM.getDocument", { depth: 0 });
+  const { nodeId } = await connection.send("DOM.querySelector", {
+    nodeId: root.nodeId,
+    selector,
+  });
+  if (!nodeId) {
+    throw new CdpError(`No element matches ${selector}.`);
+  }
+  return nodeId;
+}
+
+/** The accessibility node of the first element matching `selector`. */
+async function readAxNode(connection, selector) {
+  const nodeId = await axNodeId(connection, selector);
+  const { nodes } = await connection.send("Accessibility.getPartialAXTree", {
+    nodeId,
+    fetchRelatives: false,
+  });
+  return summarizeAxNode(nodes?.[0]);
+}
+
+/**
+ * Accessibility nodes with `role` inside the first element matching
+ * `selector`. On a large subtree with no match, Chromium can take longer than
+ * the call timeout; scope the selector tightly.
+ */
+async function queryAxRole(connection, role, selector) {
+  const nodeId = await axNodeId(connection, selector);
+  const { nodes } = await connection.send("Accessibility.queryAXTree", {
+    nodeId,
+    role,
+  });
+  return summarizeAxQuery(nodes);
+}
+
 // Reads the open vault's base path from the page. A missing `app` (the picker)
 // or a missing adapter returns null, which readVaultPath turns into undefined.
 const VAULT_PATH_EXPRESSION =
@@ -814,7 +1275,14 @@ async function readVaultPath(connection) {
  * profile is trusted: a target that is not the expected vault throws loudly
  * instead of falling back to another port.
  */
-async function tryAttachOnce({ host, ports, title, expectVault, pinnedPort }) {
+async function tryAttachOnce({
+  host,
+  ports,
+  title,
+  expectVault,
+  pinnedPort,
+  settings,
+}) {
   const { reachable, attempts } = await discoverOnce(host, ports);
   if (reachable.length === 0) {
     return { ok: false, sawTargets: false, reason: attempts.join("\n") };
@@ -852,7 +1320,36 @@ async function tryAttachOnce({ host, ports, title, expectVault, pinnedPort }) {
     }
     return { ok: false, sawTargets: true, reason: ownership.message };
   }
-  return { ok: true, connection, port: chosen.port, target, vaultPath };
+  if (!settings) {
+    return { ok: true, connection, port: chosen.port, target, vaultPath };
+  }
+
+  // The vault window on this port is the expected vault, so the Settings
+  // window beside it is a companion target: trust it by its title.
+  connection.close();
+  const picked = selectSettingsTarget(chosen.pages, {
+    expectedVault: expectVault,
+    pinned: pinnedPort,
+  });
+  if (!picked.ok) {
+    if (picked.code === "none-open") {
+      return { ok: false, sawTargets: true, reason: picked.message };
+    }
+    throw new CdpError(picked.message);
+  }
+  try {
+    const companion = connect(picked.target.webSocketDebuggerUrl);
+    await companion.opened;
+    return {
+      ok: true,
+      connection: companion,
+      port: chosen.port,
+      target: picked.target,
+      vaultPath,
+    };
+  } catch (error) {
+    return { ok: false, sawTargets: true, reason: errorMessage(error) };
+  }
 }
 
 /**
@@ -860,8 +1357,13 @@ async function tryAttachOnce({ host, ports, title, expectVault, pinnedPort }) {
  * target appears or the budget expires; otherwise a single attempt fails fast.
  */
 async function openTarget(host, ports, title, options = {}) {
-  const { expectVault, waitMs = 0, pinnedPort = false } = options;
-  const request = { host, ports, title, expectVault, pinnedPort };
+  const {
+    expectVault,
+    waitMs = 0,
+    pinnedPort = false,
+    settings = false,
+  } = options;
+  const request = { host, ports, title, expectVault, pinnedPort, settings };
 
   if (waitMs > 0) {
     let lastReason = "";
@@ -902,11 +1404,39 @@ async function runBatch(options, initialConnection, steps) {
         const next = await openTarget(options.host, options.ports, step.title);
         connection.close();
         connection = next.connection;
+      } else if (step.kind === "settings") {
+        const next = await openTarget(options.host, options.ports, undefined, {
+          expectVault: options.expectVault,
+          waitMs: options.waitMs,
+          pinnedPort: Boolean(options.profile),
+          settings: true,
+        });
+        connection.close();
+        connection = next.connection;
       } else if (step.kind === "wait") {
         await delay(step.ms);
       } else if (step.kind === "shot") {
         await screenshot(connection, step.path);
         console.log(`shot -> ${step.path}`);
+      } else if (step.kind === "key") {
+        for (let i = 0; i < step.count; i += 1) {
+          await pressKey(connection, step.key);
+        }
+        console.log(
+          `key ${step.spec}${step.count > 1 ? ` x${step.count}` : ""}`,
+        );
+      } else if (step.kind === "ax") {
+        console.log(
+          JSON.stringify(await readAxNode(connection, step.selector), null, 2),
+        );
+      } else if (step.kind === "axquery") {
+        console.log(
+          JSON.stringify(
+            await queryAxRole(connection, step.role, step.selector),
+            null,
+            2,
+          ),
+        );
       } else {
         console.log(renderValue(await evaluate(connection, step.code)));
       }
@@ -914,6 +1444,70 @@ async function runBatch(options, initialConnection, steps) {
   } finally {
     connection.close();
   }
+}
+
+/** Refuses before any side effect unless the Settings guard can hold. */
+function assertCompanionGuard(options, pinnedPort) {
+  const refusal = companionPreconditions({
+    expectedVault: options.expectVault,
+    pinned: pinnedPort,
+  });
+  if (refusal) throw new CdpError(refusal.message);
+}
+
+/** Waits for the expected vault's Settings window and returns its target. */
+async function waitForCompanion(options, budgetMs) {
+  const port = options.ports[0];
+  return pollUntilReady({
+    attempt: async () => {
+      const picked = selectSettingsTarget(
+        await pageTargetsOn(options.host, port),
+        { expectedVault: options.expectVault, pinned: true },
+      );
+      if (!picked.ok) {
+        if (picked.code === "none-open") return undefined;
+        throw new CdpError(picked.message);
+      }
+      const companion = connect(picked.target.webSocketDebuggerUrl);
+      try {
+        await companion.opened;
+        const state = await evaluate(companion, "document.readyState");
+        return state.value === "complete" ? picked.target : undefined;
+      } finally {
+        companion.close();
+      }
+    },
+    budgetMs,
+    onTimeout: () =>
+      new CdpError(
+        `No ready Settings window for ${options.expectVault} appeared within ${budgetMs}ms.`,
+      ),
+  });
+}
+
+/**
+ * Opens Settings on one tab from the guarded vault window, then waits for the
+ * Settings window to become the ready companion target.
+ */
+async function openSettings(options, connection) {
+  const tabId = options.args[0];
+  const budgetMs = options.waitMs || DEFAULT_SETTINGS_WAIT_MS;
+  await evaluate(
+    connection,
+    'app.commands.executeCommandById("app:open-settings")',
+  );
+  const openTab =
+    "(() => { try { return Boolean(app.setting.openTabById(" +
+    `${JSON.stringify(tabId)})); } catch { return false; } })()`;
+  await pollUntilReady({
+    attempt: async () =>
+      (await evaluate(connection, openTab)).value === true ? true : undefined,
+    budgetMs,
+    onTimeout: () =>
+      new CdpError(`Obsidian has no settings tab with the id "${tabId}".`),
+  });
+  const target = await waitForCompanion(options, budgetMs);
+  console.log(`Settings tab ${tabId} is open: ${describeTarget(target)}`);
 }
 
 async function listTargets(options) {
@@ -961,12 +1555,27 @@ async function main() {
     options.ports = ports;
   }
 
+  const steps =
+    options.command === "repl" ? parseBatch(readInput(options.args[0])) : [];
+  if (
+    options.settings ||
+    options.command === "open-settings" ||
+    steps.some((step) => step.kind === "settings")
+  ) {
+    assertCompanionGuard(options, pinnedPort);
+  }
+
   const { connection } = await openTarget(options.host, ports, options.target, {
     expectVault: options.expectVault,
     waitMs: options.waitMs,
     pinnedPort,
+    settings: options.settings,
   });
   try {
+    if (options.command === "open-settings") {
+      await openSettings(options, connection);
+      return;
+    }
     if (options.command === "eval") {
       const code = readInput(options.args[0]);
       console.log(renderValue(await evaluate(connection, code)));
@@ -977,7 +1586,7 @@ async function main() {
       console.log(`Wrote ${options.args[0]}`);
       return;
     }
-    await runBatch(options, connection, parseBatch(readInput(options.args[0])));
+    await runBatch(options, connection, steps);
   } finally {
     connection.close();
   }

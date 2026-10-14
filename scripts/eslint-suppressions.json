@@ -17,11 +17,6 @@
       "count": 1
     }
   },
-  "src/components/article-list/views/feed-view.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
   "src/components/article-list/views/list-view.ts": {
     "complexity": {
       "count": 1
@@ -73,14 +68,6 @@
   },
   "src/services/background-import-service.ts": {
     "complexity": {
-      "count": 2
-    }
-  },
-  "src/services/feed-parser/feed-fetch.ts": {
-    "complexity": {
-      "count": 3
-    },
-    "max-lines-per-function": {
       "count": 2
     }
   },

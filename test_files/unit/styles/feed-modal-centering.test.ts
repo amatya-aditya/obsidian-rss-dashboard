@@ -46,3 +46,74 @@ describe("Feed manager modal positioning", () => {
     expect(declarations.get("translate")).toBe("none");
   });
 });
+
+describe("Mobile modal positioning scope (#753)", () => {
+  const modalsStylesheet = postcss.parse(
+    readFileSync(
+      path.resolve(testDir, "../../../src/styles/modals.css"),
+      "utf-8",
+    ),
+  );
+
+  function phoneMediaRules(root: postcss.Root): postcss.Rule[] {
+    const rules: postcss.Rule[] = [];
+    root.walkAtRules("media", (atRule) => {
+      if (!/max-width:\s*768px/.test(atRule.params)) return;
+      atRule.walkRules((rule) => {
+        rules.push(rule);
+      });
+    });
+    return rules;
+  }
+
+  it("applies the centered-card override only to opted-in feed-management dialogs", () => {
+    const centeringRules = phoneMediaRules(stylesheet).filter((rule) => {
+      let centers = false;
+      rule.walkDecls("top", (decl) => {
+        if (decl.value === "50%") centers = true;
+      });
+      return centers;
+    });
+
+    expect(centeringRules.length).toBeGreaterThan(0);
+    for (const rule of centeringRules) {
+      for (const selector of rule.selectors) {
+        if (!selector.includes("rss-dashboard-modal-container")) continue;
+        // :where() keeps the opt-in at zero specificity, so the per-dialog
+        // `transform: none` / width rules below still win the cascade.
+        expect(selector).toContain(":where(.rss-mobile-feed-manager-modal)");
+      }
+    }
+  });
+
+  it("leaves the folder-name modal out of the shared dashboard modal rules", () => {
+    // FolderNameModal only carries `rss-folder-name-modal`, so a rule keyed on
+    // `.rss-folder-name-modal.rss-dashboard-modal-container` can never match.
+    const dead: string[] = [];
+    modalsStylesheet.walkRules((rule) => {
+      for (const selector of rule.selectors) {
+        if (
+          selector.includes(".rss-folder-name-modal") &&
+          selector.includes(".rss-dashboard-modal-container")
+        ) {
+          dead.push(selector);
+        }
+      }
+    });
+
+    expect(dead).toEqual([]);
+  });
+
+  it("does not let any phone-width rule outrank the folder-name modal's placement", () => {
+    const phoneSelectors = phoneMediaRules(stylesheet).flatMap(
+      (rule) => rule.selectors,
+    );
+    const unscoped = phoneSelectors.filter(
+      (selector) =>
+        selector.endsWith(".rss-dashboard-modal-container") &&
+        !selector.includes(".rss-mobile-feed-manager-modal"),
+    );
+
+    expect(unscoped).toEqual([]);
+  });
+});

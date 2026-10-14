@@ -404,20 +404,6 @@
   color: var(--text-on-accent);
 }
 
-.rss-dashboard-tags-clear-button {
-  margin: 4px 10px 8px;
-  font-size: 11px;
-  color: var(--text-accent);
-  cursor: pointer;
-  text-align: right;
-  transition: opacity 0.2s ease;
-}
-
-.rss-dashboard-tags-clear-button:hover {
-  text-decoration: underline;
-  opacity: 0.8;
-}
-
 .rss-dashboard-sidebar-tags-list {
   max-height: 300px;
   overflow-y: auto;
@@ -1177,35 +1163,6 @@ body.theme-dark .rss-dashboard-all-feeds-button {
   position: relative;
 }
 
-.rss-dashboard-search-dock .rss-dashboard-search-input {
-  padding-right: 32px;
-}
-
-.rss-dashboard-search-clear {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 18px;
-  height: 18px;
-  border: none;
-  padding: 0;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.rss-dashboard-search-clear:hover {
-  color: var(--text-normal);
-}
-
-.rss-dashboard-search-clear.is-hidden {
-  display: none;
-}
-
 /* Zero-results feedback, styled after Obsidian core search's empty state */
 .rss-dashboard-search-empty-state {
   display: flex;
@@ -1340,33 +1297,11 @@ body .rss-folder-name-modal {
   position: relative;
   z-index: 1;
   pointer-events: auto;
-  padding-right: 34px;
 }
 
-.rss-folder-name-modal-input-clear {
-  position: absolute;
-  top: 50%;
-  right: 10px;
-  transform: translateY(-50%);
-  width: 18px;
-  height: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  cursor: pointer;
+/* The input sits on z-index 1, so lift the clear button above it. */
+.rss-folder-name-modal-input-wrapper > .search-input-clear-button {
   z-index: 2;
-}
-
-.rss-folder-name-modal-input-clear:hover {
-  color: var(--text-normal);
-}
-
-.rss-folder-name-modal-input-clear.is-hidden {
-  display: none;
 }
 
 .rss-folder-name-modal-buttons {

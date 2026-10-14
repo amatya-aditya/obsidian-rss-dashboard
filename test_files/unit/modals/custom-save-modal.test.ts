@@ -261,7 +261,9 @@ describe("CustomSaveModal", () => {
     ).toBe(0);
     expect(
       root
-        .querySelector<HTMLElement>(".rss-dashboard-clear-icon")
+        .querySelector<HTMLElement>(
+          ".rss-dashboard-folder-input-container > button.search-input-clear-button",
+        )
         ?.getAttribute("aria-label"),
     ).toBe("Clear save folder");
     expect(
@@ -485,19 +487,21 @@ describe("CustomSaveModal", () => {
     expect(harness.feed.customTemplate).toBe("one");
   });
 
-  it("clears the folder field by click or keyboard and closes when cancelled", () => {
+  it("clears the folder field with its native clear button and closes when cancelled", () => {
     createHarness().open();
     const root = modal();
     const folder = root.querySelector<HTMLInputElement>("input");
-    const clear = root.querySelector<HTMLElement>(".rss-dashboard-clear-icon");
+    const clear = root.querySelector<HTMLButtonElement>(
+      ".rss-dashboard-folder-input-container > button.search-input-clear-button",
+    );
     if (!folder || !clear) throw new Error("Folder controls were not rendered");
-    clear.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    // A native button: the browser supplies Enter and Space activation.
+    expect(clear.type).toBe("button");
+    expect(clear.hasAttribute("role")).toBe(false);
+    expect(clear.hasAttribute("tabindex")).toBe(false);
+    clear.click();
     expect(folder.value).toBe("");
-    for (const key of ["Enter", " "]) {
-      folder.value = "Again";
-      clear.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
-      expect(folder.value).toBe("");
-    }
+    expect(activeDocument.activeElement).toBe(folder);
     root
       .querySelector<HTMLButtonElement>(
         ".rss-dashboard-custom-save-cancel-button",

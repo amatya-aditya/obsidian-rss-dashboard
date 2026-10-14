@@ -204,7 +204,7 @@ describe("ReaderView Tag Synchronization", () => {
     });
     getInternals(readerView).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue("<p>Content</p>");
+      .mockResolvedValue({ content: "<p>Content</p>", failureType: "none" });
     await readerView.displayItem(item);
 
     readerView.applyExternalUpdate(

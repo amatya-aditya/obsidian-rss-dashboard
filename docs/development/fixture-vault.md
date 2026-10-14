@@ -207,6 +207,13 @@ guard first) so its output can be diffed against the records; see
 [Re-running these probes (drift check)](../../test_files/stubs/obsidian-console-probes.md#re-running-these-probes-drift-check)
 in that ledger for the setup, the diff rule, and the triggers.
 
+A real Obsidian **mobile** app is driven the same way over an Android emulator:
+forward the renderer's webview devtools socket with `adb forward` and pass
+`--host`/`--port`. The full route — AVD, APK, `adb forward`, the throwaway
+device vault, and the keep-awake step — lives with the probe library in
+[Mobile (Android) setup over
+adb](../../test_files/stubs/obsidian-console-probes.md#mobile-android-setup-over-adb).
+
 `eval`'s expression runs in the app's renderer, where `app` is the Obsidian
 API. It is evaluated in REPL mode, so a bare top-level `await` works and a
 later step can redeclare a `const` or `let` from an earlier one — the harness
@@ -214,9 +221,10 @@ waits for the returned promise.
 
 A `repl` script (alias `batch`) runs every step over one connection, so nothing
 drifts between them. Each step starts with `@`: `@eval` (an inline expression,
-or a multi-line body up to the next `@` line), `@shot <path>`, `@wait <ms>`, or
+or a multi-line body up to the next `@` line), `@shot <path>`, `@wait <ms>`,
 `@target <text>` (switch to another window, such as the settings window, and
-keep going). For example, open the dashboard, wait for it to finish rendering,
+keep going), or the keyboard and accessibility-tree steps described
+[below](#keyboard-and-accessibility-tree-steps). For example, open the dashboard, wait for it to finish rendering,
 read the first card previews, and screenshot:
 
 ```text
@@ -241,6 +249,54 @@ Array.from(document.querySelectorAll(".rss-dashboard-card-preview-region"))
 @shot dashboard.png
 ```
 
+### Keyboard and accessibility-tree steps
+
+Three more steps check what a keyboard or screen-reader user meets, which DOM
+reads and synthetic events can miss:
+
+| Step                         | Effect                                                                                                                                                                      |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@key <key> [count]`         | Presses a real key through the browser's input pipeline, `count` times. Examples: `Tab`, `Shift+Tab`, `Enter`, `Escape`, `Space`, `ArrowDown`, `Shift+F10`, `t`, `Shift+s`. |
+| `@ax <selector>`             | Prints the accessibility node of the first matching element: role, name, `ignored`, and properties such as `level`, `checked` or `expanded`.                                |
+| `@axquery <role> <selector>` | Prints the exposed nodes with that role inside the first matching element, with a count. Ignored nodes are left out.                                                        |
+
+Use `@key` rather than `element.dispatchEvent(new KeyboardEvent(...))` for
+focus behavior. A synthetic event does not move focus on Tab, does not activate
+a button on Enter, and does not fire `contextmenu` on Shift+F10. `@key` does
+all three, so it is how to check a focus trap, focus return, or a keyboard path
+to a context menu. Enter and Space carry the typed character, which native
+buttons need in order to activate.
+
+Use `@ax` and `@axquery` to confirm roles and names. The DOM can mislead in
+both directions: a `div` with `role="heading"` is a heading, and a `<footer>`
+outside sectioning content becomes a `contentinfo` landmark.
+
+```text
+@axquery heading .workspace-leaf-content[data-type="rss-dashboard-view"] .rss-dashboard-article-card
+@ax .workspace-leaf-content[data-type="rss-dashboard-view"] .rss-dashboard-feed
+
+@eval document.querySelector('.workspace-leaf-content[data-type="rss-dashboard-view"] button[aria-label="Add folder"]').focus()
+@key Enter
+@wait 800
+@key Tab 4
+@eval document.querySelector(".modal-container").contains(document.activeElement)
+@key Escape
+```
+
+Gotchas:
+
+- Scope selectors with `.workspace-leaf-content[data-type="..."]`. The tab
+  header carries the same `data-type`, so a bare `[data-type="..."]` can match
+  it first.
+- Set the window to desktop width before you test layout-dependent keys. A
+  narrow window switches the dashboard to its compact layout, which hides the
+  sidebar and moves header controls into the ☰ menu, so `Shift+s` and `focus()`
+  on those controls do nothing.
+- `@axquery` on a large subtree with no match (the Reader body, Discover's
+  cards) can outlast the call timeout. Point the selector at a smaller element.
+- Dashboard hotkeys answer only while the dashboard leaf is active. Activate it
+  first with `app.workspace.setActiveLeaf(leaf, { focus: true })`.
+
 To act on another window, `@target` reconnects by title. This switches to the
 settings window and captures it:
 
@@ -260,6 +316,91 @@ it has no `app`:
 @target Settings
 @eval window.close()
 ```
+
+### Drive the Settings window under the guard
+
+The Settings window has no `app` and is not `index.html`, so the ownership guard
+would refuse it. Instead the harness treats it as a **companion target**: a page
+on the same port whose title is `Settings - <vault name> - Obsidian <version>`,
+where `<vault name>` is the folder name of the `--expect-vault` path (compared
+case-insensitively) and the url is `about:blank`. The harness first confirms the
+vault window on that port is the expected vault, then trusts the Settings window
+beside it. This works only when `--profile` pinned the port to your own
+instance; without `--profile` or `--expect-vault`, or when the title names
+another vault, it refuses with a non-zero exit.
+
+| Command                      | Effect                                                                                                          |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `--settings eval ./probe.js` | Evaluate in the Settings window instead of the vault window (`--settings shot <out.png>` captures it).          |
+| `@settings` (repl step)      | Switch the connection to the Settings window, guarded the same way. It is one-way; start a new run to go back.  |
+| `open-settings <tab-id>`     | In the vault window, run `app:open-settings` and `app.setting.openTabById(<tab-id>)`, then wait for the window. |
+
+`open-settings` prints the Settings window it found, so the next `--settings`
+call attaches to a ready window. `--wait <ms>` sets how long it waits (default
+10000). The plugin's tab id is `rss-dashboard`:
+
+```sh
+node scripts/obsidian-cdp.mjs --profile "$env:TEMP\rss-dashboard-cdp-profile" --expect-vault "$PWD\.fixture-vault" open-settings rss-dashboard
+node scripts/obsidian-cdp.mjs --profile "$env:TEMP\rss-dashboard-cdp-profile" --expect-vault "$PWD\.fixture-vault" --settings shot settings.png
+```
+
+Unlike the older workarounds (mounting the tab in an overlay in the vault
+window, or `@target Settings` without the guard), this captures the real
+Settings layout under the ownership check.
+
+#### Phone width
+
+The Settings window cannot be resized below 599px, so emulate a phone: set the
+device metrics to 390x844 with `Emulation.setDeviceMetricsOverride`, and add the
+`is-mobile` and `is-phone` classes to `<body>` so Obsidian's mobile styles
+apply. The override lasts only while the connection that set it stays open, so
+set it and capture in the same script. `repl` has no step for raw protocol
+calls, so use a short Node 22 script over the same Settings target:
+
+```js
+// phone-settings.mjs: node phone-settings.mjs <port> <out.png>
+import { writeFileSync } from "node:fs";
+
+const [port, out] = process.argv.slice(2);
+const pages = await (await fetch(`http://localhost:${port}/json/list`)).json();
+const settings = pages.find(
+  (page) =>
+    page.type === "page" && /^Settings - .+ - Obsidian \S+$/.test(page.title),
+);
+const socket = new WebSocket(settings.webSocketDebuggerUrl);
+await new Promise((resolve) => socket.addEventListener("open", resolve));
+let nextId = 1;
+const pending = new Map();
+socket.addEventListener("message", ({ data }) => {
+  const message = JSON.parse(String(data));
+  pending.get(message.id)?.(message);
+});
+const send = (method, params = {}) =>
+  new Promise((resolve) => {
+    const id = nextId++;
+    pending.set(id, resolve);
+    socket.send(JSON.stringify({ id, method, params }));
+  });
+
+await send("Emulation.setDeviceMetricsOverride", {
+  width: 390,
+  height: 844,
+  deviceScaleFactor: 2,
+  mobile: true,
+});
+await send("Runtime.evaluate", {
+  expression: "document.body.classList.add('is-mobile', 'is-phone')",
+});
+await new Promise((resolve) => setTimeout(resolve, 500));
+const { result } = await send("Page.captureScreenshot", { format: "png" });
+writeFileSync(out, Buffer.from(result.data, "base64"));
+socket.close();
+```
+
+Pass the port from your own profile's `DevToolsActivePort` file, so the script
+cannot pick up another session's Settings window; run `open-settings` first so
+the window is open and on the tab you want. It is a hand-written script, so it
+does not carry the ownership guard itself.
 
 A release build (`npm run build`) is byte-for-byte reproducible: its `main.js`
 embeds no commit or timestamp, so its hash is stable. A local dev/watch build

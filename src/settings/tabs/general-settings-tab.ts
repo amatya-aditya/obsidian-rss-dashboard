@@ -10,6 +10,7 @@
  */
 import { App, Notice, Setting, WorkspaceLeaf } from "obsidian";
 import { setCssProps } from "../../utils/platform-utils";
+import { addInputClearButton } from "../../utils/input-clear-button";
 import { normalizeRefreshIntervalMinutes } from "../../utils/validation";
 import { isPresetRefreshInterval } from "../../utils/refresh-intervals";
 export {
@@ -758,22 +759,22 @@ export function renderGeneralSettingsTab(
           text.inputEl.blur();
         });
 
-        setCssProps(text.inputEl, {
-          flex: "1 1 auto",
-          minWidth: "150px",
+        addInputClearButton(text.inputEl, {
+          label: "Clear proxy URL",
+          onClear: () => {
+            plugin.settings.corsProxyUrl = "";
+            lastSavedProxyUrl = "";
+            pendingProxyUrl = "";
+            void plugin.saveSettings();
+          },
         });
-
-        proxySetting.addExtraButton((cb) => {
-          cb.setIcon("x")
-            .setTooltip("Clear")
-            .onClick(async () => {
-              text.setValue("");
-              plugin.settings.corsProxyUrl = "";
-              lastSavedProxyUrl = "";
-              pendingProxyUrl = "";
-              await plugin.saveSettings();
-            });
-        });
+        if (text.inputEl.parentElement) {
+          setCssProps(text.inputEl.parentElement, {
+            flex: "1 1 auto",
+            minWidth: "150px",
+          });
+        }
+        setCssProps(text.inputEl, { width: "100%" });
       })
       .addButton((btn) => {
         saveButton = btn;

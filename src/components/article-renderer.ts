@@ -1,3 +1,4 @@
+import { ReaderContentVersions } from "./reader-content-versions";
 import { App, type Component, TFile } from "obsidian";
 import { renderReaderTagChips } from "../utils/reader-tag-chips";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
@@ -93,11 +94,12 @@ export class ArticleRenderer {
   private currentItem: FeedItem | null = null;
   private relatedItems: FeedItem[] = [];
   private currentFullContent?: string;
+  private displayIdentity = {};
+  private contentVersions?: ReaderContentVersions;
   private currentDisplayTitle?: string;
   private currentReaderTitle?: string;
   private currentContentIsFullArticle = false;
   private currentFullContentFailureType: FullArticleFetchFailureType = "none";
-  private lastRestrictedNoticeGuid: string | null = null;
 
   constructor(options: ArticleRendererOptions) {
     this.app = options.app;
@@ -120,10 +122,8 @@ export class ArticleRenderer {
     item: FeedItem,
     relatedItems: FeedItem[] = [],
   ): Promise<void> {
-    if (this.currentItem?.guid !== item.guid) {
-      this.lastRestrictedNoticeGuid = null;
-    }
-
+    this.cancelPendingDisplay();
+    const identity = this.displayIdentity;
     container.empty();
     this.currentItem = item;
     this.relatedItems = relatedItems;
@@ -151,36 +151,68 @@ export class ArticleRenderer {
       }
       await this.displayPodcast(container, item);
     } else {
-      const fetchResult = this.shouldSkipFullArticleFetch(item)
-        ? undefined
-        : await this.fetchFullArticleContent(item.link);
-      const fetchedContent = fetchResult?.content ?? "";
-      const hasFullArticleContent =
-        this.hasMeaningfulArticleContent(fetchedContent);
-
-      if (hasFullArticleContent) {
-        item.restrictedReason = undefined;
+      const feedContent = item.content || item.description || "";
+      this.currentFullContent = feedContent;
+      if (this.shouldSkipFullArticleFetch(item) || !item.link) {
+        await this.displayArticle(container, item, feedContent);
+        return;
+      }
+      this.cleanupPlayers();
+      let fetchedContent = "";
+      const versions = new ReaderContentVersions(
+        container,
+        (parent, version) =>
+          this.renderArticle(
+            parent,
+            item,
+            version === "rss" ? feedContent : fetchedContent,
+          ),
+        (version) => {
+          this.currentContentIsFullArticle = version === "full";
+          this.currentFullContent =
+            version === "full" ? fetchedContent : feedContent;
+          this.currentDisplayTitle =
+            version === "full"
+              ? this.extractDisplayTitleFromHtml(fetchedContent) || undefined
+              : undefined;
+        },
+        !this.hasMeaningfulArticleContent(feedContent),
+      );
+      this.contentVersions = versions;
+      const fetchResult = await this.fetchFullArticleContent(item.link);
+      // Metadata belongs to the fetched item even after navigation or close.
+      // Keep the substantial-body gate: a short extraction must not lock metadata.
+      if (this.hasMeaningfulArticleContent(fetchResult.content)) {
         this.persistFetchedMetadata(
           item,
-          fetchedContent,
-          fetchResult?.pageMetadata,
+          fetchResult.content,
+          fetchResult.pageMetadata,
         );
-      } else if (fetchResult?.failureType === "restricted") {
-        item.restrictedReason = RESTRICTED_ARTICLE_REASON;
-        this.showRestrictedNotice(item);
       }
-
-      const displayTitle = hasFullArticleContent
-        ? this.extractDisplayTitleFromHtml(fetchedContent)
-        : null;
-      const fullContent = hasFullArticleContent
-        ? fetchedContent
-        : item.content || item.description || "";
-      this.currentFullContent = fullContent;
-      this.currentDisplayTitle = displayTitle || undefined;
-      this.currentContentIsFullArticle = hasFullArticleContent;
-      await this.displayArticle(container, item, fullContent);
+      if (identity !== this.displayIdentity || !versions.isActive()) return;
+      this.currentFullContentFailureType = fetchResult.failureType;
+      fetchedContent = fetchResult.content;
+      if (
+        fetchResult.failureType === "none" &&
+        fetchedContent.trim().length > 0
+      ) {
+        item.restrictedReason = undefined;
+        versions.ready();
+      } else {
+        if (fetchResult.failureType === "restricted") {
+          item.restrictedReason = RESTRICTED_ARTICLE_REASON;
+          if (!container.querySelector(".rss-reader-paywall-banner"))
+            this.renderRestrictedBanner(container, item);
+        }
+        versions.failed(fetchResult);
+      }
     }
+  }
+
+  public cancelPendingDisplay(): void {
+    this.displayIdentity = {};
+    this.contentVersions?.dispose();
+    this.contentVersions = undefined;
   }
 
   private async displayVideo(
@@ -638,6 +670,12 @@ export class ArticleRenderer {
   }
 
   public setVideoTags(tags: Tag[] | undefined): void {
+    this.contentVersions?.visitVersions((container) => {
+      const header = container.querySelector<HTMLElement>(
+        ".rss-reader-article-header",
+      );
+      if (header) renderReaderTagChips(header, tags);
+    });
     this.videoPlayer?.setTags(tags);
   }
 
@@ -658,7 +696,6 @@ export class ArticleRenderer {
     url?: string,
   ): Promise<FullArticleFetchResult> {
     if (!url) {
-      this.currentFullContentFailureType = "none";
       return { content: "", failureType: "none" };
     }
 
@@ -671,10 +708,8 @@ export class ArticleRenderer {
         proxyUrl,
         this.settings.articleSaving.fetchTimeout,
       );
-      this.currentFullContentFailureType = result.failureType;
       return result;
     } catch {
-      this.currentFullContentFailureType = "network";
       return { content: "", failureType: "network" };
     }
   }
@@ -693,11 +728,6 @@ export class ArticleRenderer {
       feedLanguageFor(this.settings.feeds, item),
     );
     if (update) this.onArticleUpdate(item, update, false);
-  }
-
-  private showRestrictedNotice(item: FeedItem): void {
-    // Toast notification removed for paywalled/restricted articles.
-    this.lastRestrictedNoticeGuid = item.guid;
   }
 
   private lastFullArticleFetchWasRestricted(): boolean {

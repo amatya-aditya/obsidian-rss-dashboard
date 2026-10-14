@@ -42,9 +42,11 @@ describe("Reader custom save modal styles", () => {
     expect(folderInput.get("width")).toBe("100%");
     expect(folderInput.get("min-width")).toBe("0");
     expect(folderInput.get("box-sizing")).toBe("border-box");
-    expect(declarationsFor(".rss-dashboard-clear-icon").get("position")).toBe(
-      "absolute",
-    );
+    // Obsidian's clear button (input-clear-button.css) is absolutely
+    // positioned inside this container.
+    expect(
+      declarationsFor(".rss-dashboard-folder-input-container").get("position"),
+    ).toBe("relative");
   });
 
   it("keeps the filename pattern override full-width and keyboard-visible", () => {

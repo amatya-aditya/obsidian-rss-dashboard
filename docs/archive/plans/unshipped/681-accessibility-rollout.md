@@ -1,23 +1,20 @@
 ---
-status: accepted
+status: superseded
 created: 2026-10-02
+superseded: 2026-10-14
+superseded_by: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/681"
 issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/681"
-milestone: ""
-owner: unassigned
-workstream: accessibility
-sequence: null
-depends_on: []
-release_requirement: ""
-implementation: ""
 ---
 
 # Accessibility Policy and Incremental Rollout
+
+> **Superseded.** This plan now lives in [issue #681](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/681) (Rollout plan section), which is the source of truth for the plan, exit criteria and sub-issue index. This file is kept as history only.
 
 ## Summary
 
 Establish a clear accessibility scope and improve RSS Dashboard incrementally against WCAG 2.2 AA as a design and audit reference. Human access remains the purpose of the work. Better AI-agent testability is an added benefit, not the primary driver.
 
-The scope and governing decision are recorded in [ACCESSIBILITY.md](../../ACCESSIBILITY.md) and [ADR 0016](../adr/0016-wcag-22-aa-accessibility-reference.md). This plan does not claim current conformance.
+The scope and governing decision are recorded in [ACCESSIBILITY.md](../../../../ACCESSIBILITY.md) and [ADR 0016](../../../adr/0016-wcag-22-aa-accessibility-reference.md). This plan does not claim current conformance.
 
 ## Goals
 
@@ -84,15 +81,31 @@ The scope and governing decision are recorded in [ACCESSIBILITY.md](../../ACCESS
 
 ## Open decisions for implementation
 
-- Which existing Obsidian/CDP runtime setup can provide repeatable accessibility-tree and screenshot checks without adding a new browser stack?
-- Which screen-reader/device combinations are practical to verify first across the supported desktop and mobile contexts?
-- Which automated scan, if any, provides a useful supplemental regression signal for the actual plugin runtime?
+- Resolved: the committed Obsidian/CDP harness ([#974](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/974)) provides repeatable accessibility-tree and screenshot checks without a new browser stack.
+- Resolved: automated accessibility gates were decided in [#782](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/782).
+- Open: which screen-reader/device combinations are practical to verify first across the supported desktop and mobile contexts?
+- Open: record which workflows from the lightweight pass (dashboard navigation and article actions, Reader controls, settings and forms, dialogs, keyboard-opened menus) remain unchecked.
 
 These are implementation questions to answer while the rollout proceeds; they are not prerequisites for the accepted scope or for issue #502.
 
+## Tracking
+
+[Issue #681](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/681) tracks the rollout. Each focused accessibility issue is attached to it as a sub-issue, and its body keeps a grouped index of them. Attach new focused issues as sub-issues and add them to the index.
+
+## Exit criteria
+
+Close #681 and archive this plan when all of these hold:
+
+1. The completion evidence above is met.
+2. Every sub-issue of #681 is closed, except issues deliberately deferred and recorded in `ACCESSIBILITY.md` as known gaps.
+3. The open decisions above are answered or recorded as known unknowns in `ACCESSIBILITY.md`.
+4. `ACCESSIBILITY.md` states the verified contexts and the remaining unknowns accurately.
+
+After closing, report new barriers as separate `accessibility`-labelled issues and review `ACCESSIBILITY.md` when supported surfaces, Obsidian requirements, standards, or tooling change, as the scope already requires.
+
 ## Related
 
-- [Accessibility declaration](../../ACCESSIBILITY.md)
-- [ADR 0016 — WCAG 2.2 AA as the accessibility reference](../adr/0016-wcag-22-aa-accessibility-reference.md)
-- [Accessibility research](../development/accessibility-research.md)
+- [Accessibility declaration](../../../../ACCESSIBILITY.md)
+- [ADR 0016 — WCAG 2.2 AA as the accessibility reference](../../../adr/0016-wcag-22-aa-accessibility-reference.md)
+- [Accessibility research](../../../development/accessibility-research.md)
 - [Issue #502 — Native icon buttons](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/502)

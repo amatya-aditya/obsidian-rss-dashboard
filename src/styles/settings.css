@@ -679,3 +679,10 @@
 .rss-dashboard-tag-shape .rss-dashboard-tag-shape-reset {
   align-self: flex-start;
 }
+
+/* The custom radius input sits in a clear-button wrapper (input-clear-button.css). */
+.rss-dashboard-tag-shape .rss-dashboard-tag-shape-custom > .rss-input-clear {
+  min-width: 0;
+  flex: 1 1 180px;
+  max-width: 280px;
+}

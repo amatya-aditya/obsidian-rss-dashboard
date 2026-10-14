@@ -2084,6 +2084,9 @@ class SettingStub {
     const component = new TextComponent(this.controlEl);
     return this.attach(component, cb);
   }
+  addSearch(cb: (component: ObsidianApi.SearchComponent) => unknown): this {
+    return this.attach(new SearchComponentStub(this.controlEl), cb);
+  }
   addDropdown(cb: (component: ObsidianApi.DropdownComponent) => unknown): this {
     class DropdownComponent {
       selectEl: HTMLSelectElement;
@@ -2156,6 +2159,69 @@ class TextComponentStub {
 
   onChange(handler: (value: string) => void): this {
     this.changeHandler = handler;
+    return this;
+  }
+}
+
+// Observed in the Obsidian 1.14.4 and 1.8.7 app bundles (app.js, app.css):
+// `SearchComponent` builds `div.search-input-container` holding
+// `input[type=search][enterkeyhint=search]` and a sibling
+// `div.search-input-clear-button`. The clear button swallows `mousedown` so
+// the input keeps focus; a click empties the input, runs the change handler,
+// and focuses the input. app.css draws the button's filled circle-x and hides
+// it while the input shows its placeholder, so it never renders an icon.
+class SearchComponentStub {
+  containerEl: HTMLDivElement;
+  inputEl: HTMLInputElement;
+  clearButtonEl: HTMLDivElement;
+  private changeHandler: ((value: string) => void) | null = null;
+
+  constructor(container: HTMLElement) {
+    this.containerEl = container.createDiv("search-input-container");
+    this.inputEl = this.containerEl.createEl("input", {
+      type: "search",
+      attr: { enterkeyhint: "search" },
+    });
+    this.inputEl.addEventListener("input", () => this.onChanged());
+    this.clearButtonEl = this.containerEl.createDiv(
+      "search-input-clear-button",
+    );
+    this.clearButtonEl.addEventListener("mousedown", (event) =>
+      event.preventDefault(),
+    );
+    this.clearButtonEl.addEventListener("click", () => {
+      if (this.inputEl.disabled) return;
+      this.inputEl.value = "";
+      this.onChanged();
+      this.inputEl.focus();
+    });
+  }
+
+  onChanged(): void {
+    this.changeHandler?.(this.inputEl.value);
+  }
+
+  setValue(value: string): this {
+    this.inputEl.value = value;
+    return this;
+  }
+
+  setPlaceholder(value: string): this {
+    this.inputEl.placeholder = value;
+    return this;
+  }
+
+  getValue(): string {
+    return this.inputEl.value;
+  }
+
+  onChange(handler: (value: string) => void): this {
+    this.changeHandler = handler;
+    return this;
+  }
+
+  setDisabled(disabled: boolean): this {
+    this.inputEl.disabled = disabled;
     return this;
   }
 }
@@ -2325,6 +2391,9 @@ export const Setting = SettingStub as unknown as typeof ObsidianApi.Setting;
 export type TextComponent = ObsidianApi.TextComponent;
 export const TextComponent =
   TextComponentStub as unknown as typeof ObsidianApi.TextComponent;
+export type SearchComponent = ObsidianApi.SearchComponent;
+export const SearchComponent =
+  SearchComponentStub as unknown as typeof ObsidianApi.SearchComponent;
 export type Modal = ObsidianApi.Modal;
 export const Modal = ModalStub as unknown as typeof ObsidianApi.Modal;
 export type AbstractInputSuggest<T> = ObsidianApi.AbstractInputSuggest<T>;
@@ -2349,6 +2418,7 @@ export type StubSignatureChecks = [
   StubMatches<ObsidianApi.MenuItem, MenuItemStub>,
   StubMatches<ObsidianApi.Setting, SettingStub>,
   StubMatches<ObsidianApi.TextComponent, TextComponentStub>,
+  StubMatches<ObsidianApi.SearchComponent, SearchComponentStub>,
   StubMatches<ObsidianApi.Modal, ModalStub>,
   StubMatches<
     ObsidianApi.AbstractInputSuggest<unknown>,

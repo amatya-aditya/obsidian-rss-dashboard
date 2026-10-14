@@ -92,7 +92,7 @@ describe("ReaderView YouTube focus mode", () => {
     await view.onOpen();
     internals(view).fetchFullArticleContent = vi
       .fn()
-      .mockResolvedValue("<p>Content</p>");
+      .mockResolvedValue({ content: "<p>Content</p>", failureType: "none" });
   }
 
   const header = (): HTMLElement => {

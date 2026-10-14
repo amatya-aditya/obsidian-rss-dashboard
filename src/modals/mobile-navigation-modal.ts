@@ -1,4 +1,4 @@
-import { App, Modal, Platform, setIcon, setTooltip } from "obsidian";
+import { App, Modal, Platform } from "obsidian";
 import {
   Sidebar,
   SidebarOptions,
@@ -10,7 +10,6 @@ import { RssDashboardSettings } from "../types/types";
 export class MobileNavigationModal extends Modal {
   private sidebar!: Sidebar;
   private sidebarWrapper!: HTMLElement;
-  private refreshIntervalId: number | null = null;
 
   constructor(
     app: App,
@@ -124,35 +123,39 @@ export class MobileNavigationModal extends Modal {
     );
 
     this.sidebar.render();
-
-    // Update all-feeds-icon refresh state immediately after render
-    this.updateAllFeedsIconRefreshState();
-
-    // Register to update refresh state when feeds are being refreshed
-    this.refreshIntervalId = window.setInterval(() => {
-      this.updateAllFeedsIconRefreshState();
-    }, 100);
   }
 
-  private updateAllFeedsIconRefreshState(): void {
-    const isCancellable = this.plugin.isGlobalRefreshCancellable ?? false;
-    const isRefreshActive =
-      !isCancellable &&
-      (this.plugin.isMultiFeedRefreshActive ||
-        (this.plugin.activeRefreshState?.size ?? 0) > 0);
+  /**
+   * Re-renders the drawer after a refresh-status change, so an open drawer
+   * shows live progress, per-feed refresh state, and the Stop affordance the
+   * same way the inline desktop sidebar does. The dashboard's current
+   * selection is copied in, without replacing the object the drawer's own
+   * callbacks mutate.
+   */
+  public refreshSidebar(options?: SidebarOptions): void {
+    if (!this.sidebar) return;
+    if (options) Object.assign(this.options, options);
+    this.sidebar["settings"] = this.plugin.settings;
+    // Match the inline sidebar: cached folder paths must be dropped so feeds
+    // and folders added while the drawer is open (for example by an import)
+    // appear on the next render instead of on reopen.
+    this.sidebar.clearFolderPathCache();
+    this.sidebar.render();
+  }
 
-    const allFeedsIcon = this.sidebarWrapper.querySelector(
-      ".rss-dashboard-all-feeds-icon",
-    );
-    if (allFeedsIcon?.instanceOf(HTMLElement)) {
-      allFeedsIcon.classList.toggle("stop", isCancellable);
-      allFeedsIcon.classList.toggle("refreshing", isRefreshActive);
-      setTooltip(
-        allFeedsIcon,
-        isCancellable ? "Stop refresh" : "Refresh all feeds",
-      );
-      setIcon(allFeedsIcon, isCancellable ? "square-stop" : "refresh-cw");
-    }
+  /**
+   * Applies refresh-status changes to the open drawer's rows in place, so a
+   * refresh run never interrupts a scroll through the drawer.
+   */
+  public refreshSidebarStatus(): void {
+    if (!this.sidebar) return;
+    this.sidebar["settings"] = this.plugin.settings;
+    this.sidebar.refreshStatusInPlace();
+  }
+
+  /** Updates only the global-refresh progress text, without rebuilding rows. */
+  public refreshGlobalRefreshProgressOnly(): void {
+    this.sidebar?.refreshGlobalRefreshProgressOnly();
   }
 
   private applyModalWidth(): void {
@@ -162,11 +165,6 @@ export class MobileNavigationModal extends Modal {
   }
 
   onClose() {
-    if (this.refreshIntervalId !== null) {
-      window.clearInterval(this.refreshIntervalId);
-      this.refreshIntervalId = null;
-    }
-
     this.sidebar?.destroy();
     const { contentEl } = this;
     contentEl.empty();
