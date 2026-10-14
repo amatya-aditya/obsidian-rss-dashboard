@@ -79,7 +79,9 @@ describe("Mobile modal positioning scope (#753)", () => {
     for (const rule of centeringRules) {
       for (const selector of rule.selectors) {
         if (!selector.includes("rss-dashboard-modal-container")) continue;
-        expect(selector).toContain(".rss-mobile-feed-manager-modal");
+        // :where() keeps the opt-in at zero specificity, so the per-dialog
+        // `transform: none` / width rules below still win the cascade.
+        expect(selector).toContain(":where(.rss-mobile-feed-manager-modal)");
       }
     }
   });

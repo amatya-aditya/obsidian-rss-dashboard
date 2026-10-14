@@ -271,9 +271,10 @@
   /* Only the feed-management dialogs opt into the centered card via
      `.rss-mobile-feed-manager-modal`; every other dashboard modal keeps the
      shared bottom sheet (and the folder-name modal its top safe-area pin)
-     from modals.css. */
+     from modals.css. `:where()` keeps the opt-in at zero specificity, so the
+     per-dialog Add/Edit/Manage Feeds rules below still win the cascade. */
   .modal-container.mod-dim
-    .modal.rss-dashboard-modal-container.rss-mobile-feed-manager-modal {
+    .modal.rss-dashboard-modal-container:where(.rss-mobile-feed-manager-modal) {
     width: 90vw;
     max-height: 90vh;
     max-width: 400px;
