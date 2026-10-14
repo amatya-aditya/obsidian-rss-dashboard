@@ -9,7 +9,15 @@ import type {
   Folder,
 } from "../types/types";
 import { OpmlManager } from "./opml-manager";
-import { getFeedErrorMessage } from "./feed-parser";
+import {
+  computeBackgroundImportCadence,
+  createImportStatusBarItem,
+  finishBackgroundImportRun,
+  importBackgroundFeed,
+  renderBackgroundImportProgress,
+  shouldPersistBackgroundImport,
+  shouldRenderBackgroundImport,
+} from "./background-import-runner";
 import {
   BACKGROUND_IMPORT_FEED_REQUEST_TIMEOUT_MS,
   BACKGROUND_IMPORT_TIMEOUT_RETRY_COUNT,
@@ -393,35 +401,13 @@ export class BackgroundImportService {
     this.isBackgroundImporting = true;
 
     if (!this.importStatusBarItem) {
-      this.importStatusBarItem = this.addStatusBarItem();
-      this.importStatusBarItem.textContent = "";
-      const iconSpan = this.importStatusBarItem.createSpan({
-        cls: "rss-dashboard-import-statusbar-icon",
-      });
-      setIcon(iconSpan, "rss");
-      this.importStatusBarItem.createSpan({
-        cls: "import-statusbar-text",
-      });
+      this.importStatusBarItem = createImportStatusBarItem(
+        this.addStatusBarItem,
+      );
     }
 
-    const totalFeeds = this.backgroundImportTotalCount;
-    const saveEvery =
-      totalFeeds >= 20000
-        ? 200
-        : totalFeeds >= 5000
-          ? 100
-          : totalFeeds >= 1000
-            ? 25
-            : 5;
-    const renderEvery =
-      totalFeeds >= 20000
-        ? 500
-        : totalFeeds >= 5000
-          ? 150
-          : totalFeeds >= 1000
-            ? 40
-            : 3;
-    const shouldRenderDuringImport = totalFeeds < 5000;
+    const { saveEvery, renderEvery, shouldRenderDuringImport } =
+      computeBackgroundImportCadence(this.backgroundImportTotalCount);
     const workerCount = Math.min(
       MAX_CONCURRENT_FETCHES,
       this.backgroundImportQueue.length,
@@ -441,16 +427,20 @@ export class BackgroundImportService {
       );
       await Promise.all(backgroundPromises);
 
-      if (!this.isGlobalOperationCancelled?.()) {
-        await this.saveSettingsWithMode(
-          this.getPersistModeForBackgroundImport(),
-        );
-        const view = await this.getView();
-        if (view) {
-          view.render();
-        }
-        this.onImportQueueDrained?.(this.backgroundImportProcessedCount);
-      }
+      await finishBackgroundImportRun({
+        isCancelled: () => this.isGlobalOperationCancelled?.() ?? false,
+        persist: () =>
+          this.saveSettingsWithMode(this.getPersistModeForBackgroundImport()),
+        render: async () => {
+          const view = await this.getView();
+          if (view) {
+            view.render();
+          }
+        },
+        onDrained: (processedCount) =>
+          this.onImportQueueDrained?.(processedCount),
+        processedCount: this.backgroundImportProcessedCount,
+      });
     } finally {
       if (this.importStatusBarItem) {
         this.importStatusBarItem.remove();
@@ -563,6 +553,19 @@ export class BackgroundImportService {
   }
 
   /**
+   * Whether the current background import run is cancelled, by either the
+   * global operation's abort signal or the tracker's cancellation flag. Gates
+   * the merge, the per-feed error record, and the save/render cadence.
+   * @returns {boolean} true when the run is aborted or cancelled
+   */
+  private backgroundImportIsCancelled(): boolean {
+    return (
+      (this.backgroundImportSignal?.aborted ?? false) ||
+      (this.isGlobalOperationCancelled?.() ?? false)
+    );
+  }
+
+  /**
    * Fetch and merge a single feed into settings, updating its
    * `importStatus` throughout (`processing` → `completed`/`failed`/
    * `timed_out`/back to `pending` if cancelled). Never throws — fetch and
@@ -584,57 +587,24 @@ export class BackgroundImportService {
     this.backgroundImportInFlightUrls.add(feedMetadata.url);
 
     try {
-      feedMetadata.importStatus = "processing";
-      this.updateBackgroundImportProgress(
-        this.backgroundImportProcessedCount,
-        this.backgroundImportTotalCount,
-        feedMetadata.title,
-      );
-
-      const parsedFeed = await this.parseFeedWithTimeout(
-        feedMetadata.url,
-        this.backgroundImportSignal ?? undefined,
-      );
-      const wasCancelled =
-        this.backgroundImportSignal?.aborted ||
-        this.isGlobalOperationCancelled?.();
-      if (!wasCancelled) {
-        const importedFeed = this.mergeBackgroundImportedFeed(
-          feedMetadata,
-          parsedFeed,
-        );
-        if (importedFeed) {
-          this.onFeedImported?.(importedFeed);
-        }
-        feedMetadata.importStatus = "completed";
-      }
-    } catch (error) {
-      if (
-        this.backgroundImportSignal?.aborted ||
-        this.isGlobalOperationCancelled?.()
-      ) {
-        feedMetadata.importStatus = "pending";
-        delete feedMetadata.importError;
-      } else if (error instanceof Error && error.message === "Timed out") {
-        feedMetadata.importStatus = "timed_out";
-      } else {
-        feedMetadata.importStatus = "failed";
-      }
-      if (
-        !this.backgroundImportSignal?.aborted &&
-        !this.isGlobalOperationCancelled?.()
-      ) {
-        this.clearImportPending(feedMetadata.url);
-        feedMetadata.importError = getFeedErrorMessage(
-          error instanceof Error ? error : new Error(String(error)),
-        );
-        // Intentionally not rethrown: a single feed's fetch/parse failure must
-        // not abort the rest of the batch. The error is logged for debugging
-        // and recorded on the placeholder so the UI can surface it per-feed.
-        console.error(
-          `[RSS Dashboard] Background import failed for feed "${feedMetadata.url}": ${feedMetadata.importError}`,
-        );
-      }
+      await importBackgroundFeed(feedMetadata, {
+        isCancelled: () => this.backgroundImportIsCancelled(),
+        updateProgress: (currentFeedTitle) =>
+          this.updateBackgroundImportProgress(
+            this.backgroundImportProcessedCount,
+            this.backgroundImportTotalCount,
+            currentFeedTitle,
+          ),
+        parseFeed: (url) =>
+          this.parseFeedWithTimeout(
+            url,
+            this.backgroundImportSignal ?? undefined,
+          ),
+        merge: (metadata, parsedFeed) =>
+          this.mergeBackgroundImportedFeed(metadata, parsedFeed),
+        onImported: (feed) => this.onFeedImported?.(feed),
+        clearImportPending: (url) => this.clearImportPending(url),
+      });
     } finally {
       this.backgroundImportInFlightUrls.delete(feedMetadata.url);
       this.backgroundImportProcessedCount += 1;
@@ -645,27 +615,24 @@ export class BackgroundImportService {
     }
 
     if (
-      !this.backgroundImportSignal?.aborted &&
-      !this.isGlobalOperationCancelled?.() &&
-      this.backgroundImportProcessedCount % saveEvery === 0
+      shouldPersistBackgroundImport(
+        this.backgroundImportProcessedCount,
+        saveEvery,
+        this.backgroundImportIsCancelled(),
+      )
     ) {
       await this.saveSettingsWithMode(this.getPersistModeForBackgroundImport());
     }
 
     if (
-      shouldRenderDuringImport &&
-      !this.backgroundImportSignal?.aborted &&
-      !this.isGlobalOperationCancelled?.() &&
-      this.backgroundImportProcessedCount % renderEvery === 0
+      shouldRenderBackgroundImport(
+        this.backgroundImportProcessedCount,
+        renderEvery,
+        shouldRenderDuringImport,
+        this.backgroundImportIsCancelled(),
+      )
     ) {
-      const view = await this.getView();
-      if (view) {
-        if (typeof view.refreshSidebarOnly === "function") {
-          view.refreshSidebarOnly();
-        } else {
-          view.render();
-        }
-      }
+      renderBackgroundImportProgress(await this.getView());
     }
   }
 

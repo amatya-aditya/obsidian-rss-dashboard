@@ -66,11 +66,6 @@
       "count": 2
     }
   },
-  "src/services/background-import-service.ts": {
-    "complexity": {
-      "count": 2
-    }
-  },
   "src/services/feed-storage-repository.ts": {
     "complexity": {
       "count": 2
