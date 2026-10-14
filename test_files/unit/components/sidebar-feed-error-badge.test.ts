@@ -198,6 +198,153 @@ describe("Feed Error Badge Rendering", () => {
       feedNameContainer?.querySelector(".rss-dashboard-feed-error-badge"),
     ).toBeNull();
   });
+
+  // GH #1140: a feed whose background import failed was rendered as a bare
+  // title, indistinguishable from a feed that simply has no articles yet.
+  it("should render a warning badge for a feed whose background import failed", () => {
+    settings.feeds = [
+      {
+        title: "Local fail",
+        url: "url-import-fail",
+        folder: "Folder 1",
+        items: [],
+        importStatus: "failed",
+        importError: "Request failed, status 500",
+      } as unknown as Feed,
+    ];
+
+    const sidebar = new Sidebar(
+      app as unknown as import("obsidian").App,
+      container,
+      plugin as unknown as RssDashboardPlugin,
+      settings,
+      options,
+      callbacks,
+    );
+    sidebar.render();
+
+    const errorBadge = container.querySelector(
+      '[data-feed-url="url-import-fail"] .rss-dashboard-feed-error-badge',
+    ) as HTMLElement;
+
+    expect(errorBadge).not.toBeNull();
+    expect(errorBadge.getAttribute("aria-label")).toContain("status 500");
+    expect(lucideIconId(errorBadge)).toBe("alert-circle");
+  });
+
+  it("should render a warning badge for a feed whose background import timed out", () => {
+    settings.feeds = [
+      {
+        title: "Slow feed",
+        url: "url-import-timeout",
+        folder: "Folder 1",
+        items: [],
+        importStatus: "timed_out",
+        importError: "Timed out",
+      } as unknown as Feed,
+    ];
+
+    const sidebar = new Sidebar(
+      app as unknown as import("obsidian").App,
+      container,
+      plugin as unknown as RssDashboardPlugin,
+      settings,
+      options,
+      callbacks,
+    );
+    sidebar.render();
+
+    expect(
+      container.querySelector(
+        '[data-feed-url="url-import-timeout"] .rss-dashboard-feed-error-badge',
+      ),
+    ).not.toBeNull();
+  });
+
+  it("should hide the import warning badge when feed fetch error badges are hidden", () => {
+    settings.display.hideFeedFetchErrorBadges = true;
+    settings.feeds = [
+      {
+        title: "Local fail",
+        url: "url-import-hidden",
+        folder: "Folder 1",
+        items: [],
+        importStatus: "failed",
+        importError: "Request failed, status 500",
+      } as unknown as Feed,
+    ];
+
+    const sidebar = new Sidebar(
+      app as unknown as import("obsidian").App,
+      container,
+      plugin as unknown as RssDashboardPlugin,
+      settings,
+      options,
+      callbacks,
+    );
+    sidebar.render();
+
+    expect(
+      container.querySelector(
+        '[data-feed-url="url-import-hidden"] .rss-dashboard-feed-error-badge',
+      ),
+    ).toBeNull();
+  });
+
+  it("should not render a warning badge for a feed that simply has no articles", () => {
+    settings.feeds = [
+      {
+        title: "New feed",
+        url: "url-empty",
+        folder: "Folder 1",
+        items: [],
+      } as unknown as Feed,
+    ];
+
+    const sidebar = new Sidebar(
+      app as unknown as import("obsidian").App,
+      container,
+      plugin as unknown as RssDashboardPlugin,
+      settings,
+      options,
+      callbacks,
+    );
+    sidebar.render();
+
+    expect(
+      container.querySelector(
+        '[data-feed-url="url-empty"] .rss-dashboard-feed-error-badge',
+      ),
+    ).toBeNull();
+  });
+
+  it("should not render an import warning badge for a feed whose import is still running", () => {
+    settings.feeds = [
+      {
+        title: "Importing feed",
+        url: "url-importing",
+        folder: "Folder 1",
+        items: [],
+        importStatus: "processing",
+      } as unknown as Feed,
+    ];
+
+    const sidebar = new Sidebar(
+      app as unknown as import("obsidian").App,
+      container,
+      plugin as unknown as RssDashboardPlugin,
+      settings,
+      options,
+      callbacks,
+    );
+    sidebar.render();
+
+    expect(
+      container.querySelector(
+        '[data-feed-url="url-importing"] .rss-dashboard-feed-error-badge',
+      ),
+    ).toBeNull();
+  });
 });
 
 describe("parseFetchErrorMessage", () => {

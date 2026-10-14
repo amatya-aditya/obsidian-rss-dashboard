@@ -603,7 +603,8 @@ export class BackgroundImportService {
         merge: (metadata, parsedFeed) =>
           this.mergeBackgroundImportedFeed(metadata, parsedFeed),
         onImported: (feed) => this.onFeedImported?.(feed),
-        clearImportPending: (url) => this.clearImportPending(url),
+        recordImportFailure: (feedMetadata) =>
+          this.recordImportFailure(feedMetadata),
       });
     } finally {
       this.backgroundImportInFlightUrls.delete(feedMetadata.url);
@@ -811,6 +812,8 @@ export class BackgroundImportService {
       lastUpdated: Date.now(),
     };
     delete importedFeed.importPending;
+    delete importedFeed.importStatus;
+    delete importedFeed.importError;
     settings.feeds[feedIndex] = importedFeed;
     return importedFeed;
   }
@@ -890,9 +893,25 @@ export class BackgroundImportService {
     };
   }
 
-  private clearImportPending(url: string): void {
-    const feed = this.getSettings().feeds.find((f) => f.url === url);
-    if (feed) delete feed.importPending;
+  /**
+   * Record a failed background import on the feed the sidebar renders. The
+   * import queue holds a copy of each feed, so the status and error must be
+   * written back onto the settings feed by URL; otherwise the failure would
+   * live only on the discarded copy and the feed would look like an ordinary
+   * empty one (GH #1140).
+   * @param {FeedMetadata} feedMetadata Queued import entry that has already been updated with its failure status and error
+   * @returns {void}
+   */
+  private recordImportFailure(feedMetadata: FeedMetadata): void {
+    const feed = this.getSettings().feeds.find(
+      (candidate) => candidate.url === feedMetadata.url,
+    );
+    if (!feed) {
+      return;
+    }
+    delete feed.importPending;
+    feed.importStatus = feedMetadata.importStatus;
+    feed.importError = feedMetadata.importError;
   }
 
   /**

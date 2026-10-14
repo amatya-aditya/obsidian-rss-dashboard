@@ -1080,6 +1080,27 @@ describe("FeedParser.parseFeed", () => {
     expect(feed.lastFetchError).toBe("previous error");
   });
 
+  // GH #1140: a background import that failed must stop showing its warning
+  // once a later fetch of the same feed succeeds.
+  it("clears a background-import failure on a successful refresh", async () => {
+    const feed: Feed = {
+      title: "Recovered Feed",
+      url: "https://example.com/recovered.xml",
+      folder: "Uncategorized",
+      items: [],
+      lastUpdated: Date.now(),
+      importStatus: "failed",
+      importError: "Request failed, status 500",
+    };
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
+    vi.spyOn(parser, "parseFeed").mockResolvedValue(feed);
+
+    const result = await parser.refreshFeed(feed);
+
+    expect(result.importError).toBeUndefined();
+    expect(result.importStatus).toBeUndefined();
+  });
+
   // GH: explicitly assigning a new feed to Root (no folder) was silently
   // overridden back to the media-type default folder ("Videos"/"Podcast")
   // because the override check (`!existingFeed?.folder`) treats an explicit

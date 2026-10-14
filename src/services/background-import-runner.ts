@@ -100,14 +100,15 @@ export interface BackgroundImportFeedHooks {
   parseFeed: (url: string) => Promise<Feed>;
   merge: (feedMetadata: FeedMetadata, parsedFeed: Feed) => Feed | null;
   onImported: (feed: Feed) => void;
-  clearImportPending: (url: string) => void;
+  recordImportFailure: (feedMetadata: FeedMetadata) => void;
 }
 
 /**
  * Fetch and merge a single feed into settings, updating its `importStatus`
  * throughout (`processing` → `completed`/`failed`/`timed_out`/back to
  * `pending` if cancelled). Never throws — fetch and merge errors are caught
- * and recorded on `feedMetadata.importError` instead.
+ * and recorded on `feedMetadata.importError`, which the owner then writes
+ * back onto the feed the UI renders.
  * @param {FeedMetadata} feedMetadata Placeholder feed being imported; mutated in place with status/error
  * @param {BackgroundImportFeedHooks} hooks Current cancellation state and the parse/merge/record callbacks
  * @returns {Promise<void>} Resolves once the feed has been fetched (or has failed/timed out) and recorded
@@ -139,10 +140,14 @@ export async function importBackgroundFeed(
       feedMetadata.importStatus = "failed";
     }
     if (!hooks.isCancelled()) {
-      hooks.clearImportPending(feedMetadata.url);
       feedMetadata.importError = getFeedErrorMessage(
         error instanceof Error ? error : new Error(String(error)),
       );
+      // Record the failure on the feed the UI renders. The queue holds a copy
+      // of the feed, so the owner writes the status and error back by URL;
+      // without that they would live only on the discarded copy and the
+      // sidebar would show an ordinary empty feed (GH #1140).
+      hooks.recordImportFailure(feedMetadata);
       // Intentionally not rethrown: a single feed's fetch/parse failure must
       // not abort the rest of the batch. The error is logged for debugging
       // and recorded on the placeholder so the UI can surface it per-feed.
