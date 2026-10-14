@@ -427,6 +427,43 @@ describe("DiscoverView (P1-3)", () => {
     ).toHaveLength(4);
   });
 
+  it("exposes every feed card title as a level 3 heading named with the feed title", async () => {
+    const { view } = await createView();
+
+    view.loadData();
+    view.render();
+
+    const cards = Array.from(
+      view.containerEl.querySelectorAll<HTMLElement>(".rss-discover-card"),
+    );
+    expect(cards).toHaveLength(FEEDS_FIXTURE.length);
+
+    // WCAG 1.3.1: each title is a heading at one level (the dashboard cards use 3).
+    for (const card of cards) {
+      const headings = card.querySelectorAll('[role="heading"]');
+      expect(headings).toHaveLength(1);
+      expect(headings[0].getAttribute("aria-level")).toBe("3");
+      expect(headings[0].textContent).toBe(
+        FEEDS_FIXTURE.find((feed) => feed.url === card.dataset.feedUrl)?.title,
+      );
+    }
+  });
+
+  it("keeps the feed card title out of the tab order and unchanged in text after becoming a heading", async () => {
+    const { view } = await createView();
+
+    view.loadData();
+    view.render();
+
+    const title = view.containerEl.querySelector<HTMLElement>(
+      ".rss-discover-card-title",
+    );
+    expect(title).not.toBeNull();
+    expect(title?.hasAttribute("tabindex")).toBe(false);
+    expect(title?.children).toHaveLength(0);
+    expect(title?.textContent).toBe("Alpha Tech Blog");
+  });
+
   it("single follow routes its fetch through the cancellable global operation", async () => {
     const { plugin, view } = await createView();
 
