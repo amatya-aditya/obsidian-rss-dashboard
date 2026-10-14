@@ -444,13 +444,68 @@ describe("AccessibleModal Tab containment", () => {
     expect(pressTab().defaultPrevented).toBe(false);
   });
 
-  it("takes no part when the modal has nothing to focus", () => {
+  // The Discover feed preview has a heading and a div close button and no
+  // tab stop, so it opens with focus on <body> and Tab walked into the page
+  // behind it (found live, #826).
+  describe("when the modal has nothing to focus", () => {
+    function openNotice(): TestModal {
+      const modal = new TestModal((m) => {
+        new Setting(m.contentEl).setName("Notice").setHeading();
+        m.contentEl.createDiv({ text: "Nothing to tab to" });
+      });
+      modal.open();
+      return modal;
+    }
+
+    it("takes focus on the modal container so later keys reach it", () => {
+      const modal = openNotice();
+
+      expect(document.activeElement).toBe(modal.containerEl);
+      modal.close();
+    });
+
+    it("keeps focus on the container when Tab or Shift+Tab is pressed", () => {
+      const modal = openNotice();
+
+      const forward = pressTab();
+      expect(forward.defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(modal.containerEl);
+
+      const backward = pressTab(true);
+      expect(backward.defaultPrevented).toBe(true);
+      expect(document.activeElement).toBe(modal.containerEl);
+      modal.close();
+    });
+
+    it("returns focus to the opener on close", () => {
+      const trigger = opener();
+      const modal = openNotice();
+
+      modal.close();
+
+      expect(document.activeElement).toBe(trigger);
+    });
+  });
+
+  it("leaves a modal's own initial focus where the modal put it", () => {
     const modal = new TestModal((m) => {
-      new Setting(m.contentEl).setName("Notice").setHeading();
+      titledForm(m);
+      m.contentEl.querySelector("input")?.focus();
     });
     modal.open();
 
-    expect(pressTab().defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(modal.contentEl.querySelector("input"));
+    modal.close();
+  });
+
+  it("moves focus into the container when it opens with focus outside the modal and none of its own", () => {
+    const modal = new TestModal(titledForm);
+    const pageButton = button(document.body.createDiv(), "Page button");
+    pageButton.focus();
+
+    modal.open();
+
+    expect(document.activeElement).toBe(modal.containerEl);
     modal.close();
   });
 });

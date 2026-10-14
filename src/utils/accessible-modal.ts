@@ -145,6 +145,7 @@ export class AccessibleModal extends Modal {
     super.open();
     this.applyDialogSemantics();
     this.startFocusTrap();
+    this.ensureFocusInside();
   }
 
   close(): void {
@@ -164,6 +165,15 @@ export class AccessibleModal extends Modal {
     return active === activeDocument.documentElement
       ? null
       : (active as HTMLElement);
+  }
+
+  // A modal with no focusable control (the Discover feed preview) leaves focus
+  // on <body>, where no key reaches the Tab handler. Park focus on the
+  // container instead. A modal that took focus itself is left alone.
+  private ensureFocusInside(): void {
+    const active = this.containerEl.ownerDocument.activeElement;
+    if (active && this.containerEl.contains(active)) return;
+    this.containerEl.focus({ preventScroll: true });
   }
 
   private returnFocus(opener: HTMLElement | null): void {
@@ -237,6 +247,12 @@ export class AccessibleModal extends Modal {
     if (event.key !== "Tab" || event.defaultPrevented) return;
     if (event.ctrlKey || event.altKey || event.metaKey) return;
     const stops = tabStopsIn(this.containerEl);
+    if (stops.length === 0) {
+      // Nothing to tab to: keep focus here rather than let it leave.
+      event.preventDefault();
+      this.containerEl.focus({ preventScroll: true });
+      return;
+    }
     const target = wrapTarget(
       stops,
       this.containerEl.ownerDocument.activeElement,
