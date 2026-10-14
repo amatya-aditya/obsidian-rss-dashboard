@@ -51,7 +51,10 @@ import { ReaderView, RSS_READER_VIEW_TYPE } from "./reader-view";
 import { FeedManagerModal } from "../modals/feed-manager-modal";
 import { MobileNavigationModal } from "../modals/mobile-navigation-modal";
 import { ShortcutHelpModal } from "../modals/shortcut-help-modal";
-import { KeywordFilterService } from "../services/keyword-filter-service";
+import {
+  KeywordFilterService,
+  type KeywordFilterDecision,
+} from "../services/keyword-filter-service";
 import { matchesArticleFilters } from "../services/article-filters";
 import { resolveSidebarRangeSelection } from "../services/sidebar-range-selection";
 import {
@@ -1774,8 +1777,11 @@ export class RssDashboardView extends ItemView {
     // Capture dashboard multi-filter counts using the post-keyword-filter pool.
     this.computeDashboardMultiFilterCounts(articles);
 
-    // Apply filters (multi-filters, special folders, age, etc.)
-    articles = articles.filter((item) => this.matchesFilters(item));
+    // Every remaining article already passed the keyword-only pass above.
+    // Reuse that verdict to avoid evaluating keyword rules a second time.
+    articles = articles.filter((item) =>
+      this.matchesArticleEligibility(item, true),
+    );
 
     if (this.settings.articleSort === "oldest") {
       articles.sort(
@@ -1901,11 +1907,7 @@ export class RssDashboardView extends ItemView {
     articles: FeedItem[],
     feedsByUrl: ReadonlyMap<string, Feed> = this.buildFeedUrlIndex(),
   ): FeedItem[] {
-    const globalRules = this.settings.keywordRules || {
-      includeLogic: "AND" as const,
-      bypassAll: false,
-      rules: [],
-    };
+    const globalRules = this.ensureKeywordRules();
 
     const hasGlobalRules = KeywordFilterService.hasActiveRules(
       globalRules.rules,
@@ -1943,12 +1945,7 @@ export class RssDashboardView extends ItemView {
     const filtered: FeedItem[] = [];
 
     for (const article of articles) {
-      const feed = this.findFeedForArticle(article, feedsByUrl);
-      const decision = KeywordFilterService.evaluateForArticle(
-        article,
-        feed,
-        globalRules,
-      );
+      const decision = this.evaluateArticleKeywordRules(article, feedsByUrl);
       if (decision.included) {
         filtered.push(article);
       } else if (decision.excludedBy === "global") {
@@ -1968,6 +1965,25 @@ export class RssDashboardView extends ItemView {
     };
 
     return filtered;
+  }
+
+  private evaluateArticleKeywordRules(
+    article: FeedItem,
+    feedsByUrl: ReadonlyMap<string, Feed>,
+  ): KeywordFilterDecision {
+    return KeywordFilterService.evaluateForArticle(
+      article,
+      this.findFeedForArticle(article, feedsByUrl),
+      this.ensureKeywordRules(),
+    );
+  }
+
+  /** Combines a known keyword verdict with the remaining viewing filters. */
+  private matchesArticleEligibility(
+    article: FeedItem,
+    keywordIncluded: boolean,
+  ): boolean {
+    return keywordIncluded && this.matchesFilters(article);
   }
 
   private hasActiveFeedRulesInScope(
@@ -3129,7 +3145,11 @@ export class RssDashboardView extends ItemView {
       return;
     }
 
-    if (!this.matchesFilters(article)) {
+    const keywordDecision = this.evaluateArticleKeywordRules(
+      article,
+      this.buildFeedUrlIndex(),
+    );
+    if (!this.matchesArticleEligibility(article, keywordDecision.included)) {
       this.articleList.removeArticleInPlace(article.guid, article.feedUrl);
       this.refreshFilterStatusBarOnly();
       return;
