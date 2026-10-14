@@ -77,7 +77,7 @@ Rejected. A fixed date cannot be honored, because 3.0 ships when its contents ar
 
 ### Decouple the cutoff from the rest of 3.0 so it ships on its own schedule
 
-Rejected. A major release is only cut when its contents justify it; the deprecation rides with the FreshRSS work and the `minAppVersion` floor raise those features require, so that users absorb one disruption instead of three.
+Rejected. A major release is only cut when its contents justify it; the deprecation rides with the FreshRSS work and the 3.0 `minAppVersion` floor raise, so that users absorb one disruption instead of three. _(Corrected 2026-10-14: FreshRSS does not require the floor raise — SecretStorage is reachable behind a `requireApiVersion` guard at 1.8.7. The raise is still cut together with the deprecation; see [ADR 0023](0023-set-the-3-0-support-floor-at-obsidian-1-11-5.md).)_
 
 ## Implementation notes
 
@@ -85,6 +85,7 @@ The existing `storageMigrationDismissedPermanently` boolean is replaced by a ver
 
 ## Related
 
+- [ADR 0023 — Set the 3.0 support floor at Obsidian 1.11.5](0023-set-the-3-0-support-floor-at-obsidian-1-11-5.md) — the floor raise cut with this deprecation
 - [ADR 0004 — Split article state from feed content in Shard storage v2](0004-split-article-state-from-feed-content-in-shard-storage-v2.md)
 - [Vault Shards storage guide](../user/storage-vault-shards-guide.md) — user documentation for the storage modes
 - [Glossary: Storage](../../CONTEXT.md#storage) — defines _Deprecated storage mode_

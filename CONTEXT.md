@@ -365,6 +365,20 @@ _Avoid_: Rollback, downgrade
 The user's choice, offered right after a metadata storage move succeeds, to delete or keep the `data.json` copy left behind at the previous location. Clearing the Metadata location is a move back to the plugin folder: it first asks the user to confirm moving the vault `data.json` to the trash, and Metadata cleanup is offered afterward only for any other copy left behind, such as `user-state.json` under Shard storage v2.
 _Avoid_: Backup cleanup, orphan file
 
+## Version support
+
+**Declared floor**:
+The oldest Obsidian app version the plugin declares support for, stated in `manifest.json` `minAppVersion` and mirrored by the matching `versions.json` entry and by `MINIMUM_SUPPORTED_APP_VERSION` in `scripts/check-release-compatibility.mjs`. Obsidian serves a user the newest plugin release whose declared floor their app version satisfies, so raising it is what stops an older app receiving updates. It is also the number `obsidianmd/no-unsupported-api` measures API calls against. See [ADR 0023](docs/adr/0023-set-the-3-0-support-floor-at-obsidian-1-11-5.md).
+_Avoid_: Minimum version, minver, supported version
+
+**Feature floor**:
+The Obsidian version that first provides an API a feature needs. Distinct from the [[declared floor]]: a feature floor above it is reachable by checking the version at runtime, which the linter accepts, but that choice obliges the plugin to define and maintain what users below that version get instead.
+_Avoid_: Required version, API version
+
+**Guarded feature**:
+A feature whose API sits at a [[feature floor]] above the [[declared floor]], offered only after a runtime version check. It obligates the plugin to define the below-floor behavior for as long as that floor is declared. Distinct from a feature gated by the [[declared floor]] alone, where users below it receive no release carrying the feature at all.
+_Avoid_: Backwards-compatible feature, versioned feature
+
 ## Update notifications
 
 **What's New popup**:
