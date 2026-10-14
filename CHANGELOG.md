@@ -44,6 +44,7 @@
 
 ### Fixes
 
+- Clearing **Settings → Article saving → Save path**, or entering only whitespace, now keeps the saved folder and reopened field empty for the vault root. Non-empty paths are trimmed and normalized. [GH Issue #1085](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1085)
 - Feed discovery now resolves a feed address the way a browser does, so protocol-relative, relative, and HTML-encoded `<link rel="alternate">` and anchor addresses point at the right feed, and an address that does not resolve to http(s) is ignored instead of fetched. [GH Issue #1098](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1098)
 - Reader star, read, and tag updates no longer put keyword-excluded articles back into the dashboard or leave them displayed with conflicting filter counts. Global and per-feed rules retain their existing override and bypass behavior. [GH Issue #1083](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1083)
 - Closing the Reader or switching away from a podcast now cancels its sleep timer, preventing countdown updates from continuing after the player is closed. [GH Issue #1087](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1087)
