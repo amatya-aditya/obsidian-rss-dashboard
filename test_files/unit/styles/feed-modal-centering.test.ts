@@ -46,3 +46,73 @@ describe("Feed manager modal positioning", () => {
     expect(declarations.get("translate")).toBe("none");
   });
 });
+
+describe("Mobile modal positioning scope (#753)", () => {
+  const modalsStylesheet = postcss.parse(
+    readFileSync(
+      path.resolve(testDir, "../../../src/styles/modals.css"),
+      "utf-8",
+    ),
+  );
+
+  function phoneMediaRules(root: postcss.Root): postcss.Rule[] {
+    const rules: postcss.Rule[] = [];
+    root.walkAtRules("media", (atRule) => {
+      if (!/max-width:\s*768px/.test(atRule.params)) return;
+      atRule.walkRules((rule) => {
+        rules.push(rule);
+      });
+    });
+    return rules;
+  }
+
+  it("applies the centered-card override only to opted-in feed-management dialogs", () => {
+    const centeringRules = phoneMediaRules(stylesheet).filter((rule) => {
+      let centers = false;
+      rule.walkDecls("top", (decl) => {
+        if (decl.value === "50%") centers = true;
+      });
+      return centers;
+    });
+
+    expect(centeringRules.length).toBeGreaterThan(0);
+    for (const rule of centeringRules) {
+      for (const selector of rule.selectors) {
+        if (!selector.includes("rss-dashboard-modal-container")) continue;
+        expect(selector).toContain(".rss-mobile-feed-manager-modal");
+      }
+    }
+  });
+
+  it("keeps the folder-name modal pinned to the top safe area with a 60vh cap", () => {
+    const declarations = new Map<string, string>();
+    modalsStylesheet.walkRules((rule) => {
+      if (
+        !rule.selectors.includes(
+          "body .rss-folder-name-modal.rss-dashboard-modal-container",
+        )
+      )
+        return;
+      rule.walkDecls((decl) => {
+        declarations.set(decl.prop, decl.value);
+      });
+    });
+
+    expect(declarations.get("top")).toBe("env(safe-area-inset-top, 0px)");
+    expect(declarations.get("max-height")).toBe("60vh");
+    expect(declarations.get("border-radius")).toBe("0 0 16px 16px");
+  });
+
+  it("does not let any phone-width rule outrank the folder-name modal's placement", () => {
+    const phoneSelectors = phoneMediaRules(stylesheet).flatMap(
+      (rule) => rule.selectors,
+    );
+    const unscoped = phoneSelectors.filter(
+      (selector) =>
+        selector.endsWith(".rss-dashboard-modal-container") &&
+        !selector.includes(".rss-mobile-feed-manager-modal"),
+    );
+
+    expect(unscoped).toEqual([]);
+  });
+});

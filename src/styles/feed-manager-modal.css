@@ -268,7 +268,12 @@
 }
 
 @media (max-width: 768px) {
-  .modal-container.mod-dim .modal.rss-dashboard-modal-container {
+  /* Only the feed-management dialogs opt into the centered card via
+     `.rss-mobile-feed-manager-modal`; every other dashboard modal keeps the
+     shared bottom sheet (and the folder-name modal its top safe-area pin)
+     from modals.css. */
+  .modal-container.mod-dim
+    .modal.rss-dashboard-modal-container.rss-mobile-feed-manager-modal {
     width: 90vw;
     max-height: 90vh;
     max-width: 400px;
