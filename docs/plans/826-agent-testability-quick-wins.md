@@ -7,7 +7,7 @@ owner: unassigned
 workstream: accessibility
 sequence: null
 depends_on:
-  - 681-accessibility-rollout.md
+  - "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/681"
 release_requirement: ""
 implementation: ""
 ---
@@ -16,7 +16,7 @@ implementation: ""
 
 ## Summary
 
-Make plugin state and controls readable and operable through user-facing semantics, so automated and AI-driven tests run faster and keyboard and screen-reader users get the same access. This extends [681 — Accessibility Rollout](681-accessibility-rollout.md) (step 4, agent operation). Human access stays the purpose; agent speed is the added benefit.
+Make plugin state and controls readable and operable through user-facing semantics, so automated and AI-driven tests run faster and keyboard and screen-reader users get the same access. This extends [681 — Accessibility Rollout](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/681) (step 4, agent operation). Human access stays the purpose; agent speed is the added benefit.
 
 Not a conformance claim. Cite the applicable WCAG 2.2 criterion on each PR (2.1.1 Keyboard, 2.4.3 Focus Order, 4.1.2 Name/Role/Value, 4.1.3 Status Messages).
 
@@ -159,7 +159,7 @@ Put registration in a new module (for example `src/commands/`), called from `onl
 
 ## Related
 
-- [681 — Accessibility Rollout](681-accessibility-rollout.md)
+- [681 — Accessibility Rollout](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/681)
 - [Accessibility declaration](../../ACCESSIBILITY.md)
 - [Keyboard shortcuts](../user/keyboard-shortcuts.md)
 - [Issue #502 — Native icon buttons](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/502)
