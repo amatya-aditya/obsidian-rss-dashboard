@@ -477,6 +477,7 @@ export class KagiSmallwebView extends ItemView {
     titleArea.createDiv({
       cls: "rss-discover-card-title",
       text: this.truncateTitle(entry.blogName, 50),
+      attr: { role: "heading", "aria-level": "3" },
     });
 
     if (entry.postTitle && entry.postTitle !== entry.blogName) {
