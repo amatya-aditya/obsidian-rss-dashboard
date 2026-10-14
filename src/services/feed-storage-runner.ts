@@ -11,6 +11,7 @@ import type { UserStateStore } from "./user-state-store";
 import {
   createComparableFeedShardJson,
   createFeedShard,
+  dropInvalidShardItems,
   getFeedShardPath,
   isHiddenFromSync,
   normalizeFolderPath,
@@ -127,7 +128,12 @@ export async function hydrateFeedStorage(
     }
   }
 
-  shardCount = await hydrateFeedShards(settings, host);
+  const {
+    shardCount: hydratedShardCount,
+    repairedFeedIds,
+    didDropInvalidItems,
+  } = await hydrateFeedShards(settings, host);
+  shardCount = hydratedShardCount;
 
   host.state.shardFolderHiddenFromSync = computeShardFolderHiddenFromSync(
     settings,
@@ -145,28 +151,51 @@ export async function hydrateFeedStorage(
   }
 
   host.capturePersistedState(settings);
-  return { didChange: didAssignFeedIds, shardCount, userStateLoaded };
+  // The on-disk shard still holds the dropped entries; leave its baseline
+  // empty so the next save sees a difference and rewrites it.
+  for (const feedId of repairedFeedIds) {
+    host.state.lastPersistedShardJsonByFeedId.delete(feedId);
+  }
+  return {
+    didChange: didAssignFeedIds || didDropInvalidItems,
+    shardCount,
+    userStateLoaded,
+  };
+}
+
+interface HydratedShardResult {
+  hydrated: boolean;
+  droppedCount: number;
 }
 
 async function hydrateFeedShards(
   settings: RssDashboardSettings,
   host: FeedStorageRunnerHost,
-): Promise<number> {
+): Promise<{
+  shardCount: number;
+  repairedFeedIds: Set<string>;
+  didDropInvalidItems: boolean;
+}> {
   let shardCount = 0;
+  let didDropInvalidItems = false;
+  const repairedFeedIds = new Set<string>();
   for (const feed of settings.feeds) {
-    const hydrated = await hydrateFeedShard(feed, settings, host);
-    if (hydrated) {
+    const result = await hydrateFeedShard(feed, settings, host);
+    if (result.hydrated) {
       shardCount += 1;
     }
+    if (noteDroppedShardItems(feed, result.droppedCount, repairedFeedIds)) {
+      didDropInvalidItems = true;
+    }
   }
-  return shardCount;
+  return { shardCount, repairedFeedIds, didDropInvalidItems };
 }
 
 async function hydrateFeedShard(
   feed: Feed,
   settings: RssDashboardSettings,
   host: FeedStorageRunnerHost,
-): Promise<boolean> {
+): Promise<HydratedShardResult> {
   if (feed.feedId) {
     host.state.hydratedShardGuidsByFeedId.delete(feed.feedId);
   }
@@ -179,7 +208,7 @@ async function hydrateFeedShard(
       title: feed.title,
       shardPath,
     });
-    return false;
+    return { hydrated: false, droppedCount: 0 };
   }
 
   try {
@@ -193,7 +222,11 @@ async function hydrateFeedShard(
       throw new Error("Invalid shard data");
     }
 
-    feed.items = parsed.items;
+    // A hand-edited or damaged shard can hold nullish entries; drop them
+    // before any `.guid` access and report the repair so the load saves it.
+    const validItems = dropInvalidShardItems(parsed.items);
+    const droppedCount = parsed.items.length - validItems.length;
+    feed.items = validItems;
     if (feed.feedId) {
       host.state.feedShardHealthById.delete(feed.feedId);
       host.state.hydratedShardGuidsByFeedId.set(
@@ -207,7 +240,7 @@ async function hydrateFeedShard(
       shardPath,
       itemCount: feed.items.length,
     });
-    return true;
+    return { hydrated: true, droppedCount };
   } catch (error) {
     if (feed.feedId) host.state.feedShardHealthById.set(feed.feedId, "corrupt");
     storageError("Failed to hydrate feed shard", error, {
@@ -221,8 +254,24 @@ async function hydrateFeedShard(
         error instanceof Error ? error.message : "Unknown error"
       }`,
     );
-    return false;
+    return { hydrated: false, droppedCount: 0 };
   }
+}
+
+/** Logs and records a shard repair; returns whether anything was dropped. */
+function noteDroppedShardItems(
+  feed: Feed,
+  droppedCount: number,
+  repairedFeedIds: Set<string>,
+): boolean {
+  if (droppedCount === 0) return false;
+  if (feed.feedId) repairedFeedIds.add(feed.feedId);
+  storageLog("Dropped invalid items from feed shard", {
+    feedId: feed.feedId,
+    title: feed.title,
+    droppedCount,
+  });
+  return true;
 }
 
 function computeShardFolderHiddenFromSync(

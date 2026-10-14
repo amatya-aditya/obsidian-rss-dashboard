@@ -1,7 +1,17 @@
 import { normalizePath } from "obsidian";
-import type { Feed, FeedItemsShard } from "../types/types";
+import type { Feed, FeedItem, FeedItemsShard } from "../types/types";
 import { SHARD_VERSION, cloneJson } from "./storage-json";
 import { trimSurroundingSlashes } from "../utils/folder-paths";
+
+/** Keeps only entries usable as items: plain objects with a string guid. */
+export function dropInvalidShardItems(items: unknown[]): FeedItem[] {
+  return items.filter(
+    (item): item is FeedItem =>
+      item != null &&
+      typeof item === "object" &&
+      typeof (item as { guid?: unknown }).guid === "string",
+  );
+}
 
 export function normalizeFolderPath(path: string): string {
   const trimmed = path.trim().replace(/\\/g, "/");
