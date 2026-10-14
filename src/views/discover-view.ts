@@ -1573,6 +1573,7 @@ export class DiscoverView extends ItemView {
     titleAndUrl.createDiv({
       cls: "rss-discover-card-title",
       text: feed.title,
+      attr: { role: "heading", "aria-level": "3" },
     });
 
     const content = card.createDiv({ cls: "rss-discover-card-content" });
