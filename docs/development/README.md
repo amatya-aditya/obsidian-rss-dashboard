@@ -8,7 +8,7 @@ Internal developer documentation for the RSS Dashboard plugin.
 - [Architecture Guardrails](./architecture.md)
 - [Article Enrichment: Previews, Pages, and Fetch-on-Open](./article-enrichment.md)
 - [Accessibility Policy and Agent-Friendly Testing Research](./accessibility-research.md)
-- [Accessibility Policy and Incremental Rollout](../plans/681-accessibility-rollout.md)
+- [Accessibility Policy and Incremental Rollout (issue #681)](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/681)
 - [Compliance Patterns and Audit Guardrails](./compliance-patterns.md)
 - [Feed Data Lifecycle](./data-flow.md)
 - [Feed Validation](./feed-validation.md)

@@ -4,7 +4,7 @@ Source requirements and decision record:
 
 - `docs/plans/826-agent-testability-quick-wins.md` (renamed from the draft; r1 snapshot taken at base commit `bc639d6ec41f84c6a695afef198120dbe9b79159`)
 - Shipped prior work: issue #803, PR #816 (commit `ea0d6a48`), `src/settings/version-status-bar.ts`
-- Parent program: `docs/plans/681-accessibility-rollout.md` (step 4); related #502
+- Parent program: [issue #681](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/681) (Rollout plan, step 4); related #502
 
 Readiness: **draft with blockers.** Slice 1a is ready for scoped implementation. Slice 1b (diagnostics and mark-all-read only), Slice 2 and Slice 3 have blockers listed under Unknowns. Slice 4 is outline-level only and is not ready.
 

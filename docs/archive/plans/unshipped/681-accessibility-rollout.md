@@ -1,23 +1,20 @@
 ---
-status: in-progress
+status: superseded
 created: 2026-10-02
+superseded: 2026-10-14
+superseded_by: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/681"
 issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/681"
-milestone: ""
-owner: unassigned
-workstream: accessibility
-sequence: null
-depends_on: []
-release_requirement: ""
-implementation: ""
 ---
 
 # Accessibility Policy and Incremental Rollout
+
+> **Superseded.** This plan now lives in [issue #681](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/681) (Rollout plan section), which is the source of truth for the plan, exit criteria and sub-issue index. This file is kept as history only.
 
 ## Summary
 
 Establish a clear accessibility scope and improve RSS Dashboard incrementally against WCAG 2.2 AA as a design and audit reference. Human access remains the purpose of the work. Better AI-agent testability is an added benefit, not the primary driver.
 
-The scope and governing decision are recorded in [ACCESSIBILITY.md](../../ACCESSIBILITY.md) and [ADR 0016](../adr/0016-wcag-22-aa-accessibility-reference.md). This plan does not claim current conformance.
+The scope and governing decision are recorded in [ACCESSIBILITY.md](../../../../ACCESSIBILITY.md) and [ADR 0016](../../../adr/0016-wcag-22-aa-accessibility-reference.md). This plan does not claim current conformance.
 
 ## Goals
 
@@ -108,7 +105,7 @@ After closing, report new barriers as separate `accessibility`-labelled issues a
 
 ## Related
 
-- [Accessibility declaration](../../ACCESSIBILITY.md)
-- [ADR 0016 — WCAG 2.2 AA as the accessibility reference](../adr/0016-wcag-22-aa-accessibility-reference.md)
-- [Accessibility research](../development/accessibility-research.md)
+- [Accessibility declaration](../../../../ACCESSIBILITY.md)
+- [ADR 0016 — WCAG 2.2 AA as the accessibility reference](../../../adr/0016-wcag-22-aa-accessibility-reference.md)
+- [Accessibility research](../../../development/accessibility-research.md)
 - [Issue #502 — Native icon buttons](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/502)
