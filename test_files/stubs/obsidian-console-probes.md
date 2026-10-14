@@ -969,6 +969,40 @@ from the same target.
 2.0.0). The stub models this against a running version that defaults to the
 pinned reference (1.14.4) and is switchable through a test hook (#431).
 
+## Step 3: debounce
+
+**Probe:** `test_files/stubs/probes/debounce.repl`.
+**Observed on 1.14.4 (Windows):** `debounce(cb, timeout?, resetTimer?)` returns
+a callable function whose own `cancel` and `run` are functions; calling it or
+`cancel` returns the debouncer itself. A call schedules a trailing invocation
+after `timeout` ms (0 when omitted), with the arguments of the last call:
+
+- `resetTimer: true` restarts the wait on every call, so a burst inside the
+  window fires once, after the last call.
+- `resetTimer: false` keeps the first call's deadline; a later call updates the
+  arguments the trailing call receives without pushing the call back.
+- `cancel()` drops a pending call, and is a no-op with none pending. `run()`
+  fires a pending call immediately, returns the callback's value, and leaves no
+  trailing call.
+- The omitted `resetTimer` behaves like `false`: the first call's deadline
+  stands.
+
+Two runs of the driver agree:
+
+```js
+{"debounce":"function","callable":"function","cancel":"function","run":"function","returnsSelfOnCall":true,"returnsSelfOnCancel":true}
+{"burstResetTrue":["b"],"twoBurstsResetTrue":["x","y"],"resetFalse":{"calls":["b"],"elapsedMs":86},"cancelPending":[],"cancelIdle":{"idleThrew":null,"calls":["b"]},"runPending":{"result":"ran:a","afterRun":["a"],"afterWait":["a"]},"runIdle":{"result":"undefined","calls":[]},"defaultResetTimer":{"calls":["b"],"elapsedMs":92},"defaultTimeout":["a"]}
+```
+
+`resetFalse` fired about 86 ms after the first call (the 80 ms timeout) with
+the last value `"b"`, which pins both the non-reset deadline and the last-wins
+arguments. `defaultResetTimer` fired about 92 ms after the first call, while
+the same burst with `resetTimer: true` fires about 112 ms, so the omitted
+argument behaves like `false`. `cancelIdle` shows a cancel with nothing pending
+neither throws nor breaks the debouncer. The timing records assume the app
+window is in the foreground; a backgrounded window clamps timers to about a
+second. The stub models these (#358).
+
 ## Step 3: Setting
 
 **Probe:** `test_files/stubs/probes/setting.repl`.
