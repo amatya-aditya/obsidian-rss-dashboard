@@ -17,8 +17,8 @@ import { isDomNode } from "../utils/dom-node";
 const HIDDEN_ROW_SELECTOR =
   ".rss-dashboard-folder-feeds.collapsed, .rss-dashboard-search-hidden";
 
-/** The dashboard layout that holds the sidebar next to the article area. */
-const LAYOUT_SELECTOR = ".rss-dashboard-layout";
+/** Dialogs and menus that borrow focus from a row and hand it back. */
+const TRANSIENT_FOCUS_SELECTOR = ".modal-container, .menu";
 
 /** Whether a row can hold the Tab stop: it is displayed, not collapsed away. */
 export function isSidebarRowReachable(row: HTMLElement): boolean {
@@ -77,9 +77,14 @@ export function attachSidebarFocusSync(
   const onFocusOut = (event: FocusEvent): void => {
     const next = event.relatedTarget;
     if (!isDomNode(next) || container.contains(next)) return;
-    // A dialog or menu opened from a row mounts outside the layout and gives
-    // focus back; only a move into the rest of the view ends sidebar focus.
-    if (container.closest(LAYOUT_SELECTOR)?.contains(next)) {
+    // A dialog or menu opened from a row takes focus and gives it back, so the
+    // keys stay with the sidebar. Focus anywhere else, the rest of the view or
+    // Obsidian's own controls, ends it: it may later reach the article list
+    // from there, where the arrow keys must move cards.
+    const borrowed =
+      next.instanceOf(HTMLElement) &&
+      next.closest(TRANSIENT_FOCUS_SELECTOR) !== null;
+    if (!borrowed) {
       handlers.onFocusLeaveSidebar();
     }
   };

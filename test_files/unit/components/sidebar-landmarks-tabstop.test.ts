@@ -398,7 +398,8 @@ describe("Sidebar landmark and Tab stop (AC-014g)", () => {
     it("keeps keyboard focus when a dialog outside the view takes focus", () => {
       build();
       feedRow(alpha.url).focus();
-      const dialogButton = document.body.createEl("button");
+      const dialog = document.body.createDiv({ cls: "modal-container" });
+      const dialogButton = dialog.createEl("button");
 
       feedRow(alpha.url).dispatchEvent(
         new FocusEvent("focusout", {
@@ -408,6 +409,53 @@ describe("Sidebar landmark and Tab stop (AC-014g)", () => {
       );
 
       expect(sidebar.hasKeyboardFocus()).toBe(true);
+    });
+
+    it("keeps keyboard focus when a context menu takes focus", () => {
+      build();
+      feedRow(alpha.url).focus();
+      const menu = document.body.createDiv({ cls: "menu" });
+      const item = menu.createDiv({ attr: { tabindex: "-1" } });
+
+      feedRow(alpha.url).dispatchEvent(
+        new FocusEvent("focusout", { bubbles: true, relatedTarget: item }),
+      );
+
+      expect(sidebar.hasKeyboardFocus()).toBe(true);
+    });
+
+    it("hands the keys back when Shift+Tab leaves the view for Obsidian's own controls", () => {
+      build();
+      feedRow(alpha.url).focus();
+      expect(sidebar.hasKeyboardFocus()).toBe(true);
+      const chromeButton = document.body.createEl("button");
+
+      feedRow(alpha.url).dispatchEvent(
+        new FocusEvent("focusout", {
+          bubbles: true,
+          relatedTarget: chromeButton,
+        }),
+      );
+
+      expect(sidebar.hasKeyboardFocus()).toBe(false);
+    });
+
+    it("hands the keys back when focus later reaches the article list from a sidebar toolbar button", () => {
+      build();
+      feedRow(alpha.url).focus();
+      const toolbar = container.querySelector<HTMLElement>("button")!;
+      // Tab from the row onto a toolbar button keeps the keys with the sidebar...
+      feedRow(alpha.url).dispatchEvent(
+        new FocusEvent("focusout", { bubbles: true, relatedTarget: toolbar }),
+      );
+      expect(sidebar.hasKeyboardFocus()).toBe(true);
+
+      // ...and leaving that button for anything outside the sidebar ends it.
+      const cardTitle = layout.createDiv({ attr: { tabindex: "0" } });
+      toolbar.dispatchEvent(
+        new FocusEvent("focusout", { bubbles: true, relatedTarget: cardTitle }),
+      );
+      expect(sidebar.hasKeyboardFocus()).toBe(false);
     });
 
     it("keeps keyboard focus while focus moves between sidebar controls", () => {
