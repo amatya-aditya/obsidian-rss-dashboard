@@ -81,14 +81,6 @@
       "count": 1
     }
   },
-  "src/services/feed-parser/xml-parser/xml-preprocessing.ts": {
-    "complexity": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 2
-    }
-  },
   "src/services/feed-storage-repository.ts": {
     "complexity": {
       "count": 2
