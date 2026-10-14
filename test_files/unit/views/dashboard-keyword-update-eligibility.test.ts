@@ -137,9 +137,16 @@ function fixture(configure?: (settings: RssDashboardSettings) => void) {
 }
 
 const ruleSources = [
-  { name: "global", configure: (_settings: RssDashboardSettings) => {} },
+  {
+    name: "global",
+    globalExcluded: 1,
+    feedExcluded: 0,
+    configure: (_settings: RssDashboardSettings) => {},
+  },
   {
     name: "per-feed",
+    globalExcluded: 0,
+    feedExcluded: 1,
     configure: (settings: RssDashboardSettings) => {
       settings.keywordRules.rules = [];
       settings.feeds[0].keywordRules = {
@@ -151,6 +158,8 @@ const ruleSources = [
   },
   {
     name: "per-feed overriding global",
+    globalExcluded: 0,
+    feedExcluded: 1,
     configure: (settings: RssDashboardSettings) => {
       settings.keywordRules.rules = [rule({ keyword: "Allowed" })];
       settings.feeds[0].keywordRules = {
@@ -164,7 +173,7 @@ const ruleSources = [
 
 describe.each(ruleSources)(
   "Reader updates with $name keyword rules (#1083)",
-  ({ configure }) => {
+  ({ configure, globalExcluded, feedExcluded }) => {
     it.each(["star", "read", "tag"] as const)(
       "keeps the excluded article absent after a %s update",
       async (kind) => {
@@ -183,6 +192,9 @@ describe.each(ruleSources)(
         expect(f.updates).toHaveLength(1);
         expect(f.rows()).toEqual(["article-allowed"]);
         expect(f.status()).toContain("Showing 1");
+        expect(f.status()).toContain(
+          `Articles retrieved: 2 | Excluded by global keyword rules: ${globalExcluded} | Excluded by per-feed keyword rules: ${feedExcluded}`,
+        );
         f.view.render();
         expect(f.rows()).toEqual(["article-allowed"]);
         if (kind === "star") expect(f.blocked.starred).toBe(true);
@@ -213,7 +225,10 @@ describe.each(ruleSources)(
         expect(f.rows()).toHaveLength(2);
         expect(f.rows()).toContain("article-blocked");
         expect(f.status()).toContain("Showing 2");
-        expect(f.status()).toContain("Keyword rules bypassed");
+        expect(f.status()).toContain(
+          "Keyword rules bypassed - showing all 2 articles",
+        );
+        expect(f.status()).not.toContain("Excluded by");
       },
     );
 
@@ -227,6 +242,9 @@ describe.each(ruleSources)(
       f.update("star");
       await vi.waitFor(() => expect(f.rows()).toEqual(["article-allowed"]));
       expect(f.status()).toContain("Showing 1");
+      expect(f.status()).toContain(
+        `Articles retrieved: 2 | Excluded by global keyword rules: ${globalExcluded} | Excluded by per-feed keyword rules: ${feedExcluded}`,
+      );
     });
   },
 );
@@ -244,6 +262,9 @@ it("lets a feed override a global exclusion and insert an eligible article", asy
   await Promise.resolve();
   expect(f.rows()).toHaveLength(2);
   expect(f.status()).toContain("Showing 2");
+  expect(f.status()).toContain(
+    "Articles retrieved: 2 | Excluded by global keyword rules: 0 | Excluded by per-feed keyword rules: 0",
+  );
 });
 
 it.each(["disabled", "empty", "missing"] as const)(
