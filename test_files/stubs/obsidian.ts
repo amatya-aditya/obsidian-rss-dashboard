@@ -488,6 +488,66 @@ function requireApiVersionImpl(version: string): boolean {
   return compareVersions(version, apiVersion) <= 0;
 }
 
+/**
+ * Models Obsidian's `debounce` (observed on 1.14.4 desktop, Windows; see
+ * `obsidian-console-probes.md`). Returns a callable that collapses a burst of
+ * calls into one trailing call after `timeout` ms:
+ * - `resetTimer` restarts the wait on every call, so a burst fires once, after
+ *   the last call, with that call's arguments.
+ * - Without it, the first call fixes the deadline; a later call updates the
+ *   arguments but does not push the call back.
+ * `cancel()` drops a pending call (a no-op with none pending), `run()` fires a
+ * pending call immediately and returns the callback's value, and both return
+ * the debouncer so calls can chain.
+ */
+function debounceImpl<T extends unknown[], V>(
+  cb: (...args: [...T]) => V,
+  timeout = 0,
+  resetTimer = false,
+): ObsidianApi.Debouncer<T, V> {
+  let timer: number | null = null;
+  let latestArgs: [...T] | undefined;
+
+  const fire = (): V | void => {
+    timer = null;
+    const args = latestArgs;
+    return args === undefined ? undefined : cb(...args);
+  };
+
+  const debounced = ((...args: [...T]): ObsidianApi.Debouncer<T, V> => {
+    latestArgs = args;
+    if (timer !== null && resetTimer) {
+      window.clearTimeout(timer);
+      timer = null;
+    }
+    if (timer === null) {
+      // Observed: a later call with `resetTimer: false` still supplies the
+      // arguments the trailing call receives, even though it keeps the
+      // original deadline.
+      timer = window.setTimeout(() => {
+        fire();
+      }, timeout);
+    }
+    return debounced;
+  }) as ObsidianApi.Debouncer<T, V>;
+
+  debounced.cancel = (): ObsidianApi.Debouncer<T, V> => {
+    if (timer !== null) {
+      window.clearTimeout(timer);
+      timer = null;
+    }
+    return debounced;
+  };
+
+  debounced.run = (): V | void => {
+    if (timer === null) return undefined;
+    window.clearTimeout(timer);
+    return fire();
+  };
+
+  return debounced;
+}
+
 function renderMathImpl(source: string, display: boolean): HTMLElement {
   return createSpan({ cls: "math", text: source });
 }
@@ -2343,6 +2403,7 @@ export const normalizePath: typeof ObsidianApi.normalizePath =
   normalizePathImpl;
 export const requireApiVersion: typeof ObsidianApi.requireApiVersion =
   requireApiVersionImpl;
+export const debounce: typeof ObsidianApi.debounce = debounceImpl;
 export const renderMath: typeof ObsidianApi.renderMath = renderMathImpl;
 export const finishRenderMath: typeof ObsidianApi.finishRenderMath =
   finishRenderMathImpl;

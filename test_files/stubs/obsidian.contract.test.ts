@@ -8,11 +8,12 @@
  * Add the expectation before changing the stub. Use the console probes in
  * `obsidian-console-probes.md` to observe the behavior, and name the version.
  */
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AbstractInputSuggest,
   App,
   Component,
+  debounce,
   ItemView,
   MarkdownRenderer,
   Menu,
@@ -93,6 +94,184 @@ describe("Obsidian stub contract", () => {
       __setObsidianVersion("1.8.7");
       expect(requireApiVersion("1.8.7")).toBe(true);
       expect(requireApiVersion("1.8.8")).toBe(false);
+    });
+  });
+
+  describe("debounce", () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    // Observed on Obsidian 1.14.4 desktop (Windows): `debounce` returns a
+    // callable whose own `cancel` and `run` are functions; a call and a
+    // `cancel` both return the debouncer itself.
+    it("returns a callable with cancel and run that return itself", () => {
+      const debounced = debounce((value: string) => value, 10, true);
+
+      expect(typeof debounced).toBe("function");
+      expect(typeof debounced.cancel).toBe("function");
+      expect(typeof debounced.run).toBe("function");
+      expect(debounced("x")).toBe(debounced);
+      expect(debounced.cancel()).toBe(debounced);
+    });
+
+    // Observed on 1.14.4 (Windows): with `resetTimer` true, each call restarts
+    // the wait, so a burst fires once after the last call with its arguments.
+    it("fires once after the last call when resetTimer is true", () => {
+      const calls: string[] = [];
+      const debounced = debounce(
+        (value: string) => calls.push(value),
+        60,
+        true,
+      );
+
+      debounced("a");
+      vi.advanceTimersByTime(20);
+      debounced("b");
+      vi.advanceTimersByTime(120);
+
+      expect(calls).toEqual(["b"]);
+    });
+
+    it("fires for each burst separated by more than the timeout", () => {
+      const calls: string[] = [];
+      const debounced = debounce(
+        (value: string) => calls.push(value),
+        40,
+        true,
+      );
+
+      debounced("x");
+      vi.advanceTimersByTime(90);
+      debounced("y");
+      vi.advanceTimersByTime(90);
+
+      expect(calls).toEqual(["x", "y"]);
+    });
+
+    // Observed on 1.14.4 (Windows): with `resetTimer` false, the first call
+    // fixes the deadline; a later call supplies the trailing arguments but
+    // does not push the call back.
+    it("keeps the first call's deadline when resetTimer is false", () => {
+      const calls: string[] = [];
+      const debounced = debounce(
+        (value: string) => calls.push(value),
+        80,
+        false,
+      );
+
+      debounced("a");
+      vi.advanceTimersByTime(30);
+      debounced("b");
+      vi.advanceTimersByTime(20);
+      expect(calls).toEqual([]);
+
+      vi.advanceTimersByTime(30);
+      expect(calls).toEqual(["b"]);
+    });
+
+    // Observed on 1.14.4 (Windows): `cancel` drops a pending call.
+    it("cancels a pending call", () => {
+      const calls: string[] = [];
+      const debounced = debounce(
+        (value: string) => calls.push(value),
+        40,
+        true,
+      );
+
+      debounced("a");
+      debounced.cancel();
+      vi.advanceTimersByTime(90);
+
+      expect(calls).toEqual([]);
+    });
+
+    // Observed on 1.14.4 (Windows): `cancel` with nothing pending neither
+    // throws nor breaks the debouncer.
+    it("is a no-op to cancel with nothing pending and stays usable", () => {
+      const calls: string[] = [];
+      const debounced = debounce(
+        (value: string) => calls.push(value),
+        40,
+        true,
+      );
+
+      expect(() => debounced.cancel()).not.toThrow();
+      debounced("a");
+      debounced.cancel();
+      debounced("b");
+      vi.advanceTimersByTime(90);
+
+      expect(calls).toEqual(["b"]);
+    });
+
+    // Observed on 1.14.4 (Windows): `run` fires a pending call immediately,
+    // returns the callback's value, and leaves no trailing call.
+    it("runs a pending call immediately and returns its value", () => {
+      const calls: string[] = [];
+      const debounced = debounce(
+        (value: string) => {
+          calls.push(value);
+          return `ran:${value}`;
+        },
+        80,
+        true,
+      );
+
+      debounced("a");
+      const result = debounced.run();
+      vi.advanceTimersByTime(140);
+
+      expect(result).toBe("ran:a");
+      expect(calls).toEqual(["a"]);
+    });
+
+    // Observed on 1.14.4 (Windows): `run` with nothing pending does nothing and
+    // returns undefined.
+    it("does nothing from run with nothing pending", () => {
+      const calls: string[] = [];
+      const debounced = debounce(
+        (value: string) => calls.push(value),
+        80,
+        true,
+      );
+
+      const result = debounced.run();
+      vi.advanceTimersByTime(140);
+
+      expect(result).toBeUndefined();
+      expect(calls).toEqual([]);
+    });
+
+    // Observed on 1.14.4 (Windows): the timeout defaults to 0 when omitted.
+    it("defaults the timeout to 0 when omitted", () => {
+      const calls: string[] = [];
+      const debounced = debounce((value: string) => calls.push(value));
+
+      debounced("a");
+      vi.advanceTimersByTime(1);
+
+      expect(calls).toEqual(["a"]);
+    });
+
+    // Observed on 1.14.4 (Windows): the omitted `resetTimer` behaves like
+    // `false`, so the first call's deadline stands.
+    it("defaults resetTimer to false when omitted", () => {
+      const calls: string[] = [];
+      const debounced = debounce((value: string) => calls.push(value), 80);
+
+      debounced("a");
+      vi.advanceTimersByTime(30);
+      debounced("b");
+      vi.advanceTimersByTime(20);
+      expect(calls).toEqual([]);
+
+      vi.advanceTimersByTime(30);
+      expect(calls).toEqual(["b"]);
     });
   });
 

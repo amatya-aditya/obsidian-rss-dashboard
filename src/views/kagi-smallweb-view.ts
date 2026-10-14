@@ -1,4 +1,11 @@
-import { ItemView, WorkspaceLeaf, Notice, setIcon, requestUrl } from "obsidian";
+import {
+  ItemView,
+  WorkspaceLeaf,
+  Notice,
+  setIcon,
+  requestUrl,
+  debounce,
+} from "obsidian";
 import { Feed } from "../types/types";
 import type RssDashboardPlugin from "../../main";
 import { setCssProps } from "../utils/platform-utils";
@@ -35,8 +42,16 @@ export class KagiSmallwebView extends ItemView {
   private smallwebIsLoading = false;
   private smallwebError: string | null = null;
   private smallwebSearchQuery = "";
-  private smallwebSearchDebounceTimer: number | null = null;
   private smallwebFeedUpdatedAt: Date | null = null;
+  private readonly debouncedSmallwebSearch = debounce(
+    (query: string) => {
+      this.smallwebSearchQuery = query;
+      this.filterSmallwebEntries();
+      this.render();
+    },
+    150,
+    true,
+  );
 
   constructor(
     leaf: WorkspaceLeaf,
@@ -63,9 +78,7 @@ export class KagiSmallwebView extends ItemView {
   }
 
   async onClose(): Promise<void> {
-    if (this.smallwebSearchDebounceTimer) {
-      window.clearTimeout(this.smallwebSearchDebounceTimer);
-    }
+    this.debouncedSmallwebSearch.cancel();
     await super.onClose();
   }
 
@@ -394,6 +407,7 @@ export class KagiSmallwebView extends ItemView {
       container: searchWrapper,
       label: "Clear search",
       onClear: () => {
+        this.debouncedSmallwebSearch.cancel();
         this.smallwebSearchQuery = "";
         this.filterSmallwebEntries();
         this.render();
@@ -412,17 +426,6 @@ export class KagiSmallwebView extends ItemView {
         text: `${this.smallwebFilteredEntries.length} results`,
       });
     }
-  }
-
-  private debouncedSmallwebSearch(query: string): void {
-    if (this.smallwebSearchDebounceTimer) {
-      window.clearTimeout(this.smallwebSearchDebounceTimer);
-    }
-    this.smallwebSearchDebounceTimer = window.setTimeout(() => {
-      this.smallwebSearchQuery = query;
-      this.filterSmallwebEntries();
-      this.render();
-    }, 150);
   }
 
   private filterSmallwebEntries(): void {

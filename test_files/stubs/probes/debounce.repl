@@ -1,0 +1,167 @@
+@eval
+// Bootstrap the obsidian module the way require-api-version.repl does, since
+// `debounce` is not one of the console globals. Throwaway vault only.
+const A = app.vault.adapter;
+const probeDir = ".obsidian/plugins/obsidian-probe";
+await A.mkdir(probeDir).catch(() => {});
+await A.write(
+  `${probeDir}/manifest.json`,
+  JSON.stringify({
+    id: "obsidian-probe",
+    name: "Obsidian probe",
+    version: "1.0.0",
+    minAppVersion: "1.0.0",
+    description: "Probe helper: stashes the obsidian module on window (#431).",
+    author: "rss-dashboard probe",
+    isDesktopOnly: false,
+  }),
+);
+await A.write(
+  `${probeDir}/main.js`,
+  'const o=require("obsidian");class P extends o.Plugin{onload(){window.__obsidianApi=o}}module.exports=P;',
+);
+await app.plugins.setEnable(true);
+await app.plugins.loadManifests();
+if (!app.plugins.plugins["obsidian-probe"]) {
+  await app.plugins.enablePluginAndSave("obsidian-probe");
+}
+await new Promise((r) => window.setTimeout(r, 300));
+const api = window.__obsidianApi;
+const shape = api.debounce(() => {}, 10);
+JSON.stringify({
+  debounce: typeof api.debounce,
+  callable: typeof shape,
+  cancel: typeof shape.cancel,
+  run: typeof shape.run,
+  returnsSelfOnCall: shape("x") === shape,
+  returnsSelfOnCancel: shape.cancel() === shape,
+})
+
+@eval
+const r = {};
+const sleep = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+
+// resetTimer true, typo burst: one trailing call, with the last value.
+{
+  const calls = [];
+  const d = api.debounce((v) => calls.push(v), 60, true);
+  d("a");
+  await sleep(20);
+  d("b");
+  await sleep(120);
+  r.burstResetTrue = calls;
+}
+
+// resetTimer true, two bursts apart: two calls.
+{
+  const calls = [];
+  const d = api.debounce((v) => calls.push(v), 40, true);
+  d("x");
+  await sleep(90);
+  d("y");
+  await sleep(90);
+  r.twoBurstsResetTrue = calls;
+}
+
+// resetTimer false: the first call schedules and later calls don't restart it.
+{
+  const calls = [];
+  let ranAt = null;
+  const d = api.debounce(
+    (v) => {
+      calls.push(v);
+      ranAt = performance.now();
+    },
+    80,
+    false,
+  );
+  const t0 = performance.now();
+  d("a");
+  await sleep(30);
+  d("b");
+  await sleep(140);
+  r.resetFalse = { calls, elapsedMs: Math.round(ranAt - t0) };
+}
+
+// cancel drops a pending call.
+{
+  const calls = [];
+  const d = api.debounce((v) => calls.push(v), 40, true);
+  d("a");
+  d.cancel();
+  await sleep(90);
+  r.cancelPending = calls;
+}
+
+// cancel with nothing pending is a no-op, and the debouncer still works after.
+{
+  const calls = [];
+  let idleThrew = null;
+  const d = api.debounce((v) => calls.push(v), 40, true);
+  try {
+    d.cancel();
+  } catch (error) {
+    idleThrew = String(error);
+  }
+  d("a");
+  d.cancel();
+  d("b");
+  await sleep(90);
+  r.cancelIdle = { idleThrew, calls };
+}
+
+// run() fires a pending call immediately and returns the callback's value.
+{
+  const calls = [];
+  const d = api.debounce(
+    (v) => {
+      calls.push(v);
+      return `ran:${v}`;
+    },
+    80,
+    true,
+  );
+  d("a");
+  const result = d.run();
+  const afterRun = calls.slice();
+  await sleep(140);
+  r.runPending = { result, afterRun, afterWait: calls };
+}
+
+// run() with nothing pending does nothing and returns undefined.
+{
+  const calls = [];
+  const d = api.debounce((v) => {
+    calls.push(v);
+    return "ran";
+  }, 80, true);
+  const result = d.run();
+  r.runIdle = { result: result === undefined ? "undefined" : result, calls };
+}
+
+// resetTimer's default when omitted: does a later call restart the wait?
+{
+  const calls = [];
+  let ranAt = null;
+  const d = api.debounce((v) => {
+    calls.push(v);
+    ranAt = performance.now();
+  }, 80);
+  const t0 = performance.now();
+  d("a");
+  await sleep(30);
+  d("b");
+  await sleep(140);
+  r.defaultResetTimer = { calls, elapsedMs: Math.round(ranAt - t0) };
+}
+
+// The timeout defaults to 0 when omitted.
+{
+  const calls = [];
+  const d = api.debounce((v) => calls.push(v));
+  d("a");
+  await sleep(30);
+  r.defaultTimeout = calls;
+}
+
+JSON.stringify(r)
