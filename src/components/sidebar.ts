@@ -48,6 +48,11 @@ import {
 } from "../utils/sidebar-row-interactions";
 import { applyFolderSortOrder } from "../utils/sidebar-folder-sort-utils";
 import { renderFeedBadges, renderFeedIcon } from "./sidebar-feed-row";
+import {
+  applySidebarRowSemantics,
+  syncFolderExpanded,
+  syncSidebarRowName,
+} from "./sidebar-row-semantics";
 import { clearMovedSelection, reportBatchMove } from "./sidebar-selection";
 import { renderSidebarHeader, type SidebarHeaderHost } from "./sidebar-header";
 import {
@@ -947,6 +952,8 @@ export class Sidebar {
       });
     }
 
+    applySidebarRowSemantics(allFeedsButton, { current: isAllActive });
+
     // Click handler
     allFeedsButton.addEventListener("click", () => {
       this.callbacks.onFolderClick(null);
@@ -1065,6 +1072,7 @@ export class Sidebar {
       );
       if (count === 0) {
         badge?.remove();
+        syncSidebarRowName(row.element);
         continue;
       }
       if (!badge) {
@@ -1076,6 +1084,7 @@ export class Sidebar {
           ?.after(badge);
       }
       badge.setText(count.toString());
+      syncSidebarRowName(row.element);
     }
   }
 
@@ -1207,6 +1216,8 @@ export class Sidebar {
       "aria-label",
       isCollapsed ? "Expand folder" : "Collapse folder",
     );
+    // The folder row itself carries the expanded state (aria-expanded below).
+    toggleButton.setAttr("aria-hidden", "true");
     setIcon(toggleButton, isCollapsed ? "chevron-right" : "chevron-down");
 
     if (folderObj.pinned) {
@@ -1228,6 +1239,11 @@ export class Sidebar {
         text: folderUnreadCount.toString(),
       });
     }
+
+    applySidebarRowSemantics(folderHeader, {
+      current: isActive,
+      folder: { expandable: isExpandable, collapsed: isCollapsed },
+    });
 
     // Create the container for both subfolders and feeds
     const folderFeedsList = folderEl.createDiv({
@@ -1309,6 +1325,7 @@ export class Sidebar {
       const isNowCollapsed = !folderHeader.classList.contains("collapsed");
       folderHeader.classList.toggle("collapsed", isNowCollapsed);
       folderFeedsList.classList.toggle("collapsed", isNowCollapsed);
+      syncFolderExpanded(folderHeader);
 
       setIcon(toggleButton, isNowCollapsed ? "chevron-right" : "chevron-down");
 
@@ -1661,6 +1678,9 @@ export class Sidebar {
       this.settings,
     );
 
+    applySidebarRowSemantics(feedEl, {
+      current: feed === this.options.currentFeed,
+    });
     this.attachFeedRowInteractions(feedEl, feed);
   }
 
@@ -4030,6 +4050,7 @@ export class Sidebar {
 
     folderHeader.removeClass("collapsed");
     folderFeeds.removeClass("collapsed");
+    syncFolderExpanded(folderHeader);
 
     const toggleButton = folderHeader.querySelector<HTMLElement>(
       ".rss-dashboard-feed-folder-toggle",
@@ -4058,6 +4079,7 @@ export class Sidebar {
         if (wasCollapsed) {
           header.addClass("collapsed");
         }
+        syncFolderExpanded(header);
         const toggleButton = header.querySelector<HTMLElement>(
           ".rss-dashboard-feed-folder-toggle",
         );
