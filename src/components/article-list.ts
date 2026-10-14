@@ -44,7 +44,7 @@ interface ArticleListCallbacks {
   onToggleViewStyle: (style: "list" | "card" | "feed") => void;
   onRefreshFeeds: () => Promise<void>;
   onSearch: (query: string) => void;
-  onOpenViewFilters?: () => void;
+  onOpenViewFilters?: (opener?: HTMLElement) => void;
   onOpenPerFeedSettings?: () => void;
 
   onArticleUpdate: (
@@ -1267,6 +1267,29 @@ export class ArticleList {
     );
   }
 
+  private renderEmptyState(articlesList: HTMLElement): void {
+    const emptyState = new ArticleEmptyState();
+    const actionTarget = this.emptyStateContext?.actionTarget;
+    const onAction =
+      actionTarget === "per-feed-settings"
+        ? this.callbacks.onOpenPerFeedSettings
+        : actionTarget === "view-filter"
+          ? this.callbacks.onOpenViewFilters
+          : undefined;
+    emptyState.render(
+      articlesList,
+      this.emptyStateContext ?? {
+        type: "NoArticlesAtAll",
+        unfilteredCount: 0,
+      },
+      {
+        onAction,
+        // The view-filter action opens the Filter menu, a popup.
+        hasPopup: actionTarget === "view-filter" ? "dialog" : undefined,
+      },
+    );
+  }
+
   private renderArticles(): void {
     const renderPagination = (): void => {
       const paginationWrapper = this.container.createDiv({
@@ -1330,21 +1353,7 @@ export class ArticleList {
     }
 
     if (this.articles.length === 0) {
-      const emptyState = new ArticleEmptyState();
-      const onAction =
-        this.emptyStateContext?.actionTarget === "per-feed-settings"
-          ? this.callbacks.onOpenPerFeedSettings
-          : this.emptyStateContext?.actionTarget === "view-filter"
-            ? this.callbacks.onOpenViewFilters
-            : undefined;
-      emptyState.render(
-        articlesList,
-        this.emptyStateContext ?? {
-          type: "NoArticlesAtAll",
-          unfilteredCount: 0,
-        },
-        { onAction },
-      );
+      this.renderEmptyState(articlesList);
       return;
     }
 

@@ -32,6 +32,7 @@ import type {
 } from "../../main";
 import { Sidebar, type SidebarOptions } from "../components/sidebar";
 import { ArticleList } from "../components/article-list";
+import { openFilterMenuFrom } from "../components/article-filter-menu";
 import { ArticleSaver } from "../services/article-saver";
 import { CustomSaveModal } from "../modals/custom-save-modal";
 import {
@@ -1209,8 +1210,8 @@ export class RssDashboardView extends ItemView {
       onSearch: (_q: string) => {
         // State is handled by ArticleList locally, but we could sync it here if needed
       },
-      onOpenViewFilters: () => {
-        this.openViewingFiltersMenu();
+      onOpenViewFilters: (opener) => {
+        this.openViewingFiltersMenu(opener);
       },
       onOpenPerFeedSettings: () => {
         if (this.currentFeed) {
@@ -1535,13 +1536,15 @@ export class RssDashboardView extends ItemView {
         role: "button",
         tabindex: "0",
         "aria-label": "Open viewing filters",
+        "aria-haspopup": "dialog",
+        "aria-expanded": "false",
       },
     });
     setIcon(viewFiltersBtn, "filter");
 
     const openFiltersMenu = (e?: Event) => {
       e?.stopPropagation();
-      this.openViewingFiltersMenu();
+      this.openViewingFiltersMenu(viewFiltersBtn);
     };
 
     viewFiltersBtn.addEventListener("click", openFiltersMenu);
@@ -3341,7 +3344,7 @@ export class RssDashboardView extends ItemView {
     return null;
   }
 
-  private openViewingFiltersMenu(): void {
+  private openViewingFiltersMenu(opener?: HTMLElement): void {
     const root = this.containerEl ?? activeDocument.body;
 
     const trigger =
@@ -3353,7 +3356,11 @@ export class RssDashboardView extends ItemView {
       ) ??
       root.querySelector<HTMLElement>(".rss-dashboard-filter-trigger");
 
-    trigger?.click();
+    if (trigger && opener) {
+      openFilterMenuFrom(trigger, opener);
+    } else {
+      trigger?.click();
+    }
   }
 
   private getViewFilterReasonLabel(): string | null {

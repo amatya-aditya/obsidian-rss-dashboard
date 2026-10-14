@@ -2,7 +2,10 @@ import { setIcon } from "obsidian";
 import type { FilterContext } from "../utils/filter-detection";
 
 interface ArticleEmptyStateOptions {
-  onAction?: () => void;
+  /** Receives the action button, so a popup it opens can hand focus back. */
+  onAction?: (button: HTMLElement) => void;
+  /** Set when the action opens a popup: the button then reports its state. */
+  hasPopup?: "dialog";
 }
 
 /**
@@ -79,6 +82,7 @@ export class ArticleEmptyState {
       emptyState,
       context.actionLabel ?? "Adjust view filters",
       options?.onAction,
+      options?.hasPopup,
     );
   }
 
@@ -103,7 +107,8 @@ export class ArticleEmptyState {
   private renderActionButton(
     emptyState: HTMLElement,
     label: string,
-    onAction?: () => void,
+    onAction?: (button: HTMLElement) => void,
+    hasPopup?: "dialog",
   ): void {
     const button = emptyState.createDiv({
       cls: "rss-dashboard-empty-state-button",
@@ -114,6 +119,10 @@ export class ArticleEmptyState {
       },
     });
     button.textContent = label;
+    if (hasPopup && onAction) {
+      button.setAttribute("aria-haspopup", hasPopup);
+      button.setAttribute("aria-expanded", "false");
+    }
 
     if (!onAction) {
       return;
@@ -122,12 +131,12 @@ export class ArticleEmptyState {
     button.addEventListener("keydown", (e: KeyboardEvent) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
-        onAction();
+        onAction(button);
       }
     });
 
     button.addEventListener("click", () => {
-      onAction();
+      onAction(button);
     });
   }
 }

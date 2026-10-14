@@ -202,6 +202,50 @@ describe("ArticleEmptyState - Component Rendering", () => {
       expect(button?.getAttribute("aria-label")).toContain("Adjust");
     });
 
+    it("passes the button to the action so a popup can return focus to it", () => {
+      const component = new ArticleEmptyState();
+      const onAction = vi.fn();
+      component.render(
+        container,
+        {
+          type: "AllArticlesFiltered",
+          unfilteredCount: 5,
+          filteredCount: 0,
+          filterReason: "view-filter",
+        },
+        { onAction, hasPopup: "dialog" },
+      );
+      const button = container.querySelector('[role="button"]') as HTMLElement;
+
+      button.click();
+      button.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      );
+
+      expect(onAction).toHaveBeenNthCalledWith(1, button);
+      expect(onAction).toHaveBeenNthCalledWith(2, button);
+      expect(button.getAttribute("aria-haspopup")).toBe("dialog");
+      expect(button.getAttribute("aria-expanded")).toBe("false");
+    });
+
+    it("leaves popup attributes off when the action opens no popup", () => {
+      const component = new ArticleEmptyState();
+      component.render(
+        container,
+        {
+          type: "AllArticlesFiltered",
+          unfilteredCount: 5,
+          filteredCount: 0,
+          filterReason: "age filter (1 month)",
+        },
+        { onAction: vi.fn() },
+      );
+      const button = container.querySelector('[role="button"]') as HTMLElement;
+
+      expect(button.hasAttribute("aria-haspopup")).toBe(false);
+      expect(button.hasAttribute("aria-expanded")).toBe(false);
+    });
+
     it("button is keyboard accessible - handles Enter key", () => {
       // Arrange
       const context: FilterContext = {

@@ -24,6 +24,39 @@ export interface ArticleFilterCallbacks {
 }
 
 /**
+ * Controls that open the menu through the Filters button, mapped to the one
+ * the person used. The Filters button reads and clears its entry while its own
+ * click runs, so an entry never outlives `openFilterMenuFrom`.
+ */
+const pendingOpeners = new WeakMap<HTMLElement, HTMLElement>();
+
+/**
+ * Opens the menu by activating `trigger` (the Filters button), on behalf of
+ * another control such as the viewing-filters icon. The menu reports its open
+ * state on `opener` too, and Esc returns focus to `opener` (WCAG 2.4.3).
+ */
+export function openFilterMenuFrom(
+  trigger: HTMLElement,
+  opener: HTMLElement,
+): void {
+  pendingOpeners.set(trigger, opener);
+  try {
+    trigger.click();
+  } finally {
+    pendingOpeners.delete(trigger);
+  }
+}
+
+/** The control that asked `trigger` to open the menu, if any. */
+export function takePendingFilterMenuOpener(
+  trigger: HTMLElement,
+): HTMLElement | undefined {
+  const opener = pendingOpeners.get(trigger);
+  pendingOpeners.delete(trigger);
+  return opener;
+}
+
+/**
  * ArticleFilterMenu Component
  *
  * Extracted from ArticleList.ts to manage complex multi-filtering (Status + Tags).
@@ -44,6 +77,7 @@ export class ArticleFilterMenu {
   private activePortal: HTMLElement | null = null;
   private activeFilterOutsideListenerCleanup: (() => void) | null = null;
   private activeFilterToggleBtn: HTMLElement | null = null;
+  private activeOpener: HTMLElement | null = null;
   private documentListeners: Array<{
     target: Document;
     type: string;
@@ -65,7 +99,9 @@ export class ArticleFilterMenu {
   }
 
   // Open the floating menu and stage all filter changes locally until Apply.
-  public show(toggleBtn: HTMLElement): void {
+  // `opener` is the control the person used when it is not `toggleBtn`: it
+  // reports the open state and takes focus back on Escape.
+  public show(toggleBtn: HTMLElement, opener: HTMLElement = toggleBtn): void {
     const targetDocument = toggleBtn.ownerDocument;
     const targetBody = targetDocument.body;
     const targetWindow = targetDocument.defaultView || activeWindow;
@@ -99,7 +135,10 @@ export class ArticleFilterMenu {
     if (toggleBtn.classList.contains("rss-dashboard-mobile-filter-button")) {
       ArticleFilterMenu.activeMobileMenus.set(toggleBtn, this);
     }
+    this.activeOpener = opener;
     toggleBtn.addClass("active");
+    toggleBtn.setAttribute("aria-expanded", "true");
+    opener.setAttribute("aria-expanded", "true");
 
     const pendingStatusFilters = new Set(this.statusFilters);
     const pendingTagFilters = new Set(this.tagFilters);
@@ -426,7 +465,7 @@ export class ArticleFilterMenu {
       keyboardEvent.preventDefault();
       keyboardEvent.stopPropagation();
       this.close();
-      toggleBtn.focus();
+      opener.focus();
     });
 
     targetWindow.setTimeout(() => {
@@ -591,7 +630,12 @@ export class ArticleFilterMenu {
     }
     if (this.activeFilterToggleBtn) {
       this.activeFilterToggleBtn.removeClass("active");
+      this.activeFilterToggleBtn.setAttribute("aria-expanded", "false");
       this.activeFilterToggleBtn = null;
+    }
+    if (this.activeOpener) {
+      this.activeOpener.setAttribute("aria-expanded", "false");
+      this.activeOpener = null;
     }
     this.documentListeners.forEach(({ target, type, listener }) => {
       target.removeEventListener(type, listener);
