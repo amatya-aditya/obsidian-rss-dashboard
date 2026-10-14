@@ -1,6 +1,17 @@
 import { robustFetch } from "../../utils/platform-utils.js";
+import { resolveAbsoluteHttpUrl } from "../../utils/url-utils.js";
 import { hostMatches } from "../../utils/url-host.js";
+import { decodeHtmlEntities } from "./xml-parser/xml-html-utils.js";
 import type { FeedEncoding } from "../../types/types.js";
+
+/**
+ * Turn a `href` captured from page markup into an absolute http(s) feed
+ * address, or null when it cannot resolve to one. The attribute text is
+ * decoded first: browsers decode HTML entities before resolving the address.
+ */
+function resolveFeedHref(href: string, baseUrl: string): string | null {
+  return resolveAbsoluteHttpUrl(decodeHtmlEntities(href), baseUrl);
+}
 
 /**
  * What the FeedBurner candidate probe found. "none" lets discovery go on to the
@@ -97,16 +108,10 @@ function findLinkTagFeedUrl(
       const hrefMatch = match.match(/href="([^"]+)"/);
       const href = hrefMatch?.[1];
       if (href) {
-        let feedUrl = href;
-
-        if (feedUrl.startsWith("/")) {
-          const url = new URL(baseUrl);
-          feedUrl = `${url.protocol}//${url.host}${feedUrl}`;
-        } else if (!feedUrl.startsWith("http")) {
-          feedUrl = `${baseUrl}/${feedUrl}`;
-        }
-
-        return feedUrl;
+        // The first candidate with an address decides, as before; a non-http(s)
+        // address yields nothing rather than a mangled one. Trying a later
+        // candidate after one fails is #1099, not this fix.
+        return resolveFeedHref(href, baseUrl);
       }
     }
   }
@@ -132,13 +137,7 @@ function findAnchorFeedUrl(
         const hrefMatch = match.match(/href="([^"]+)"/);
         const href = hrefMatch?.[1];
         if (href) {
-          let feedUrl = href;
-          if (feedUrl.startsWith("/")) {
-            const url = new URL(baseUrl);
-            feedUrl = `${url.protocol}//${url.host}${feedUrl}`;
-          } else if (!feedUrl.startsWith("http")) {
-            feedUrl = `${baseUrl}/${feedUrl}`;
-          }
+          const feedUrl = resolveFeedHref(href, baseUrl);
           if (feedUrl === baseUrl) continue;
 
           return feedUrl;

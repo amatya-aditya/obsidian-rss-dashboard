@@ -217,74 +217,105 @@ describe("discoverFeedUrl, reached after the WordPress fallback addresses fail",
       ]);
     });
 
-    it("appends a relative address to the page address", async () => {
+    it("resolves a relative address against the page's directory", async () => {
       const served = serve({
         [SITE]: wpPage(
           '<link rel="alternate" type="application/rss+xml" href="discovered.xml">',
         ),
-        "https://example.com/blog/discovered.xml": feedXml("Discovered"),
+        "https://example.com/discovered.xml": feedXml("Discovered"),
       });
       await fetchFeedXml(SITE, DIRECT);
       expect(after(served.requested, SITE, 2)).toEqual([
-        "https://example.com/blog/discovered.xml",
+        "https://example.com/discovered.xml",
       ]);
     });
 
-    it("requests a double slash when the page address ends in a slash", async () => {
-      // BUG: pinned, see #1098
+    it("resolves a relative address on a page address ending in a slash without a double slash", async () => {
       const site = "https://example.com/blog/";
       const served = serve({
         [site]: wpPage(
           '<link rel="alternate" type="application/rss+xml" href="discovered.xml">',
         ),
-        "https://example.com/blog//discovered.xml": feedXml("Discovered"),
+        "https://example.com/blog/discovered.xml": feedXml("Discovered"),
       });
       await fetchFeedXml(site, DIRECT);
       expect(after(served.requested, site, 2)).toEqual([
-        "https://example.com/blog//discovered.xml",
+        "https://example.com/blog/discovered.xml",
       ]);
     });
 
-    it("mangles a protocol-relative address", async () => {
-      // BUG: pinned, see #1098
+    it("resolves a protocol-relative address against the page's scheme", async () => {
       const served = serve({
         [SITE]: wpPage(
           '<link rel="alternate" type="application/rss+xml" href="//cdn.example.net/blog.xml">',
         ),
+        "https://cdn.example.net/blog.xml": feedXml("Discovered"),
       });
-      await expect(fetchFeedXml(SITE, DIRECT)).rejects.toThrow(ALL_FAILED);
+      await expect(fetchFeedXml(SITE, DIRECT)).resolves.toContain(
+        "<title>Discovered</title>",
+      );
       expect(after(served.requested, SITE, 2)).toEqual([
-        "https://example.com//cdn.example.net/blog.xml",
+        "https://cdn.example.net/blog.xml",
       ]);
     });
 
-    it("treats a relative address that starts with http as absolute", async () => {
-      // BUG: pinned, see #1098
+    it("resolves a relative address beginning with http as relative", async () => {
       const served = serve({
         [SITE]: wpPage(
           '<link rel="alternate" type="application/rss+xml" href="http-feed.xml">',
         ),
+        "https://example.com/http-feed.xml": feedXml("Discovered"),
       });
-      await expect(fetchFeedXml(SITE, DIRECT)).rejects.toThrow(ALL_FAILED);
-      expect(after(served.requested, SITE, 2)).toEqual(["http-feed.xml"]);
+      await expect(fetchFeedXml(SITE, DIRECT)).resolves.toContain(
+        "<title>Discovered</title>",
+      );
+      expect(after(served.requested, SITE, 2)).toEqual([
+        "https://example.com/http-feed.xml",
+      ]);
     });
 
-    it("requests an address with its HTML entities undecoded", async () => {
-      // BUG: pinned, see #1098
+    it("requests an address with its HTML entities decoded", async () => {
       const served = serve({
         [SITE]: wpPage(
           '<link rel="alternate" type="application/rss+xml" href="https://feeds.example.net/blog?a=1&amp;b=2">',
         ),
+        "https://feeds.example.net/blog?a=1&b=2": feedXml("Discovered"),
       });
-      await expect(fetchFeedXml(SITE, DIRECT)).rejects.toThrow(ALL_FAILED);
+      await expect(fetchFeedXml(SITE, DIRECT)).resolves.toContain(
+        "<title>Discovered</title>",
+      );
       expect(after(served.requested, SITE, 2)).toEqual([
-        "https://feeds.example.net/blog?a=1&amp;b=2",
+        "https://feeds.example.net/blog?a=1&b=2",
       ]);
     });
 
-    it("turns a throw while resolving the address into no discovery", async () => {
-      // A root-relative address needs `new URL(baseUrl)`, which throws for an
-      // address without a scheme; the outer catch turns that into null.
+    it("drops a link tag whose address does not resolve to http(s)", async () => {
+      const served = serve({
+        [SITE]: wpPage(
+          '<link rel="alternate" type="application/rss+xml" href="ftp://cdn.example.net/blog.xml">',
+        ),
+      });
+      await expect(fetchFeedXml(SITE, DIRECT)).rejects.toThrow(ALL_FAILED);
+      expect(after(served.requested, SITE, 2)).toEqual([]);
+    });
+
+    it("does not try a later link tag when the first cannot resolve to http(s)", async () => {
+      // #1098 corrects the address each candidate yields but leaves candidate
+      // iteration to #1099, so the first link tag still decides.
+      const served = serve({
+        [SITE]: wpPage(
+          '<link rel="alternate" type="application/rss+xml" href="ftp://cdn.example.net/first.xml">' +
+            '<link rel="alternate" type="application/rss+xml" href="/discovered.xml">',
+        ),
+        "https://example.com/discovered.xml": feedXml("Discovered"),
+      });
+      await expect(fetchFeedXml(SITE, DIRECT)).rejects.toThrow(ALL_FAILED);
+      expect(after(served.requested, SITE, 2)).toEqual([]);
+    });
+
+    it("finds nothing when the page address cannot resolve a root-relative candidate", async () => {
+      // An address without a scheme cannot resolve a candidate, so it is
+      // dropped rather than requested.
       const site = "example.com/blog";
       const served = serve({
         [site]: wpPage(
@@ -449,14 +480,50 @@ describe("discoverFeedUrl, reached after the WordPress fallback addresses fail",
       ]);
     });
 
-    it("appends a relative anchor address to the page address", async () => {
+    it("resolves a relative anchor address against the page's directory", async () => {
       const served = serve({
         [SITE]: wpPage('<a href="subscribe-feed">Feed</a>'),
-        "https://example.com/blog/subscribe-feed": feedXml("Discovered"),
+        "https://example.com/subscribe-feed": feedXml("Discovered"),
       });
       await fetchFeedXml(SITE, DIRECT);
       expect(after(served.requested, SITE, 2)).toEqual([
+        "https://example.com/subscribe-feed",
+      ]);
+    });
+
+    it("resolves a relative anchor address on a page address ending in a slash without a double slash", async () => {
+      const site = "https://example.com/blog/";
+      const served = serve({
+        [site]: wpPage('<a href="subscribe-feed">Feed</a>'),
+        "https://example.com/blog/subscribe-feed": feedXml("Discovered"),
+      });
+      await fetchFeedXml(site, DIRECT);
+      expect(after(served.requested, site, 2)).toEqual([
         "https://example.com/blog/subscribe-feed",
+      ]);
+    });
+
+    it("resolves a relative anchor address beginning with http as relative", async () => {
+      const served = serve({
+        [SITE]: wpPage('<a href="http-feed.xml">Feed</a>'),
+        "https://example.com/http-feed.xml": feedXml("Discovered"),
+      });
+      await fetchFeedXml(SITE, DIRECT);
+      expect(after(served.requested, SITE, 2)).toEqual([
+        "https://example.com/http-feed.xml",
+      ]);
+    });
+
+    it("decodes HTML entities in an anchor address before fetching it", async () => {
+      const served = serve({
+        [SITE]: wpPage(
+          '<a href="https://feeds.example.net/blog?a=1&amp;b=2">Feed</a>',
+        ),
+        "https://feeds.example.net/blog?a=1&b=2": feedXml("Discovered"),
+      });
+      await fetchFeedXml(SITE, DIRECT);
+      expect(after(served.requested, SITE, 2)).toEqual([
+        "https://feeds.example.net/blog?a=1&b=2",
       ]);
     });
 
@@ -471,14 +538,16 @@ describe("discoverFeedUrl, reached after the WordPress fallback addresses fail",
       ]);
     });
 
-    it("mangles a protocol-relative anchor address", async () => {
-      // BUG: pinned, see #1098
+    it("resolves a protocol-relative anchor address against the page's scheme", async () => {
       const served = serve({
         [SITE]: wpPage('<a href="//cdn.example.net/blog.rss">RSS</a>'),
+        "https://cdn.example.net/blog.rss": feedXml("Discovered"),
       });
-      await expect(fetchFeedXml(SITE, DIRECT)).rejects.toThrow(ALL_FAILED);
+      await expect(fetchFeedXml(SITE, DIRECT)).resolves.toContain(
+        "<title>Discovered</title>",
+      );
       expect(after(served.requested, SITE, 2)).toEqual([
-        "https://example.com//cdn.example.net/blog.rss",
+        "https://cdn.example.net/blog.rss",
       ]);
     });
 
@@ -496,15 +565,28 @@ describe("discoverFeedUrl, reached after the WordPress fallback addresses fail",
       ]);
     });
 
-    it("follows a mailto anchor as if it were a relative address", async () => {
-      // BUG: pinned, see #1099
+    it("drops a mailto anchor whose address does not resolve to http(s)", async () => {
+      // `mailto:feedback@example.com` matches the `feed` pattern; its scheme is
+      // not http(s), so discovery drops the candidate (#1098) rather than
+      // requesting it. #1099 owns the remaining anchor-selection behavior.
       const served = serve({
         [SITE]: wpPage('<a href="mailto:feedback@example.com">Mail</a>'),
       });
       await expect(fetchFeedXml(SITE, DIRECT)).rejects.toThrow(ALL_FAILED);
-      expect(after(served.requested, SITE, 2)).toEqual([
-        "https://example.com/blog/mailto:feedback@example.com",
-      ]);
+      expect(after(served.requested, SITE, 2)).toEqual([]);
+    });
+
+    it("does not try a later anchor when the first cannot resolve to http(s)", async () => {
+      // #1098 corrects the address each candidate yields but leaves candidate
+      // iteration to #1099, so the first matching anchor still decides.
+      const served = serve({
+        [SITE]: wpPage(
+          '<a href="mailto:feedback@example.com">Mail</a><a href="/news.rss">RSS</a>',
+        ),
+        "https://example.com/news.rss": feedXml("Discovered"),
+      });
+      await expect(fetchFeedXml(SITE, DIRECT)).rejects.toThrow(ALL_FAILED);
+      expect(after(served.requested, SITE, 2)).toEqual([]);
     });
 
     it("also follows a tag whose name merely starts with a", async () => {
