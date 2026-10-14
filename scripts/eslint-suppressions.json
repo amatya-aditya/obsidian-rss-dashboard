@@ -76,11 +76,6 @@
       "count": 1
     }
   },
-  "src/services/feed-parser/xml-parser/rss-parser.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
   "src/services/feed-storage-repository.ts": {
     "complexity": {
       "count": 2
