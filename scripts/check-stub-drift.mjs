@@ -139,6 +139,16 @@ export const FACT_CATALOG = [
     kind: "class",
     match: "extra-setting-button",
   },
+  {
+    id: "class.search-input-container",
+    kind: "class",
+    match: "search-input-container",
+  },
+  {
+    id: "class.search-input-clear-button",
+    kind: "class",
+    match: "search-input-clear-button",
+  },
 ];
 
 export class StubDriftError extends Error {

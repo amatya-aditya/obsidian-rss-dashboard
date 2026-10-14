@@ -24,6 +24,7 @@ import {
 } from "../../utils/domain-icon-helpers";
 import { FeedItem, Feed } from "../../types/types";
 import { settingsUiCompatibility } from "../settings-ui-compat";
+import { addInputClearButton } from "../../utils/input-clear-button";
 
 // ── Pure helpers (exported for unit tests) ────────────────────────────────────
 
@@ -178,6 +179,7 @@ export function renderSidebarSettingsTab(
             await applyBadgeColor(normalized);
           });
         text.inputEl.addClass("rss-dashboard-color-hex-input");
+        addInputClearButton(text.inputEl, { label: "Clear color" });
         text.inputEl.setAttribute("aria-label", `${label} hex color`);
       });
     // The color picker component exposes no element, so name its input here.
@@ -322,7 +324,6 @@ export function renderSidebarSettingsTab(
       const iconSetting = new Setting(iconRowsContainer)
         .setName(icon.label)
         .setDesc(`Show the ${icon.label} icon in the sidebar header`)
-        .setDisabled(hideToolbar)
         .addToggle((toggle) =>
           toggle
             .setValue(!(plugin.settings.display[hideKey] as boolean))
@@ -337,7 +338,9 @@ export function renderSidebarSettingsTab(
                 }
               })();
             }),
-        );
+        )
+        // After addToggle: Setting.setDisabled only reaches existing components.
+        .setDisabled(hideToolbar);
 
       iconSetting.settingEl.addClass("rss-dashboard-icon-visibility-row");
       iconSetting.settingEl.setAttribute("data-icon-id", id);

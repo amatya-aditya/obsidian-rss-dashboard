@@ -67,6 +67,7 @@ function createHarness(): Harness {
     activeRefreshState: new Map<string, FeedRefreshState>(),
     renderStatus: async () => {},
     renderSidebar: async () => {},
+    renderSidebarStatus: async () => {},
     onCancelled: () => {},
   });
 

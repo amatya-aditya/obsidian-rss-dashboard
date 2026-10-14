@@ -8,6 +8,12 @@ We use [WCAG 2.2 Level AA](https://www.w3.org/TR/WCAG22/) as the design and audi
 
 This scope applies to plugin-owned views, controls, accessible names and states, and content the plugin creates or presents in its own interface across desktop, mobile, and popout use. Obsidian's host interface and third-party article content are outside RSS Dashboard's direct control. We aim to integrate with the host accessibly and will document material host or content limitations when they are verified.
 
+## Priorities and host baseline
+
+- WCAG 2.2 AA is the bar for plugin-owned UI. Obsidian's behavior is a floor (never less accessible than the comparable host surface) and a pattern to reuse, not the goal. Where the host leaves a gap in our content, such as modals with no dialog role, the plugin fills it.
+- The reading path comes first: the article list, cards, the Reader, and moving between feeds and articles.
+- Audit findings are labelled **FAIL** (violates a cited WCAG 2.2 A/AA criterion), **GAP** (short of an ARIA Authoring Practices pattern or an expectation on this page), **HOST** (owned by Obsidian) or **UNVERIFIED**. See the [2026-10-13 amendment to ADR 0016](docs/adr/0016-wcag-22-aa-accessibility-reference.md#amendment-2026-10-13).
+
 ## User experience expectations
 
 - Interactive controls use native semantic elements when available and have names, roles, and states that describe their purpose and current state.
@@ -44,5 +50,5 @@ Project maintainers collectively maintain this scope. Review it when supported p
 ## Related project records
 
 - [ADR 0016 — WCAG 2.2 AA as the accessibility reference](docs/adr/0016-wcag-22-aa-accessibility-reference.md)
-- [Accessibility rollout plan](docs/plans/681-accessibility-rollout.md)
+- [Accessibility rollout tracking issue (#681)](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/681)
 - [Accessibility research](docs/development/accessibility-research.md)

@@ -11,6 +11,7 @@ import {
 import { isValidFeedTitle, isValidFolderName } from "../utils/validation";
 import { ImporterShell } from "./importer-shell";
 import { OpmlOverwriteConfirmModal } from "./opml-overwrite-confirm-modal";
+import { addInputClearButton } from "../utils/input-clear-button";
 
 /**
  * Import OPML Modal - Provides a preview-based import experience
@@ -504,6 +505,10 @@ export class ImportOpmlModal extends Modal {
       input.className = "import-preview-edit-input";
       input.value = node.name;
       nameText.replaceWith(input);
+      const clearBtn = addInputClearButton(input, {
+        fill: true,
+        label: "Clear folder name",
+      });
       input.focus();
       input.select();
 
@@ -530,7 +535,14 @@ export class ImportOpmlModal extends Modal {
           this.renderPreview();
         }
       });
-      input.addEventListener("blur", () => commit());
+      // Focus moving between the input and its clear button is not a commit.
+      const onFocusLeave = (e: FocusEvent) => {
+        const next = e.relatedTarget;
+        if (next === input || next === clearBtn) return;
+        commit();
+      };
+      input.addEventListener("blur", onFocusLeave);
+      clearBtn.addEventListener("blur", onFocusLeave);
     };
 
     edit.addEventListener("click", (e) => {
@@ -660,6 +672,10 @@ export class ImportOpmlModal extends Modal {
       input.className = "import-preview-edit-input";
       input.value = feed.title;
       titleText.replaceWith(input);
+      const clearBtn = addInputClearButton(input, {
+        fill: true,
+        label: "Clear feed title",
+      });
       input.focus();
       input.select();
 
@@ -686,7 +702,14 @@ export class ImportOpmlModal extends Modal {
           this.renderPreview();
         }
       });
-      input.addEventListener("blur", () => commit());
+      // Focus moving between the input and its clear button is not a commit.
+      const onFocusLeave = (e: FocusEvent) => {
+        const next = e.relatedTarget;
+        if (next === input || next === clearBtn) return;
+        commit();
+      };
+      input.addEventListener("blur", onFocusLeave);
+      clearBtn.addEventListener("blur", onFocusLeave);
     };
 
     edit.addEventListener("click", (e) => {

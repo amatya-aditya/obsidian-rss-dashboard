@@ -55,12 +55,15 @@ const BUSY_OPERATION_NOTICE = "A feed operation is already in progress.";
 const BUSY_REFRESH_NOTICE = "A multi-feed refresh is already in progress.";
 const STOPPED_NOTICE = "Refresh stopped.";
 
-type ViewCall = "sidebar" | "statusbar" | "progress" | "refresh" | "render";
-type StatusRedraw = "full" | "sidebar";
+type ViewCall =
+  "sidebar" | "status" | "statusbar" | "progress" | "refresh" | "render";
+/** "status" is an in-place row update that keeps the sidebar's DOM (#1064). */
+type StatusRedraw = "full" | "sidebar" | "status";
 type FetchOptions = { signal?: AbortSignal; allowEmpty?: boolean };
 
 interface DashboardDouble {
   refreshSidebarOnly: Mock<() => void>;
+  refreshSidebarStatusOnly: Mock<() => void>;
   refreshFilterStatusBarOnly: Mock<() => void>;
   refreshGlobalRefreshProgressOnly: Mock<() => void>;
   refresh: Mock<() => void>;
@@ -165,6 +168,9 @@ function createDashboardDouble(calls: ViewCall[]): DashboardDouble {
   return {
     refreshSidebarOnly: vi.fn(() => {
       calls.push("sidebar");
+    }),
+    refreshSidebarStatusOnly: vi.fn(() => {
+      calls.push("status");
     }),
     refreshFilterStatusBarOnly: vi.fn(() => {
       calls.push("statusbar");
@@ -286,6 +292,10 @@ function statusRedraws(harness: Harness): StatusRedraw[] {
   const redraws: StatusRedraw[] = [];
   const calls = harness.statusCalls;
   for (let index = 0; index < calls.length; index += 1) {
+    if (calls[index] === "status") {
+      redraws.push("status");
+      continue;
+    }
     if (calls[index] !== "sidebar") continue;
     if (calls[index + 1] === "statusbar") {
       redraws.push("full");
@@ -547,7 +557,7 @@ describe("global feed operation: refresh-all batch", () => {
     await flush();
     await vi.advanceTimersByTimeAsync(250);
 
-    expect(statusRedraws(harness)).toEqual(["sidebar"]);
+    expect(statusRedraws(harness)).toEqual(["status"]);
     expect(plugin.activeRefreshState.has(first.url)).toBe(true);
     expect(plugin.activeRefreshState.has(second.url)).toBe(true);
 
@@ -555,11 +565,11 @@ describe("global feed operation: refresh-all batch", () => {
 
     expect(plugin.activeRefreshState.has(first.url)).toBe(false);
     expect(plugin.activeRefreshState.has(second.url)).toBe(true);
-    expect(statusRedraws(harness)).toEqual(["sidebar"]);
+    expect(statusRedraws(harness)).toEqual(["status"]);
 
     await vi.advanceTimersByTimeAsync(250);
 
-    expect(statusRedraws(harness)).toEqual(["sidebar", "sidebar"]);
+    expect(statusRedraws(harness)).toEqual(["status", "status"]);
 
     await settle(harness, second.url);
     await refresh;
@@ -1404,7 +1414,7 @@ describe("global feed operation: automatic refresh", () => {
 });
 
 describe("global feed operation: sidebar status redraws", () => {
-  it("coalesces status changes into one sidebar redraw, 250 ms after the first request", async () => {
+  it("coalesces status changes into one in-place sidebar update, 250 ms after the first request", async () => {
     const feeds = [createFeed("a"), createFeed("b"), createFeed("c")];
     const harness = createHarness(feeds);
 
@@ -1419,7 +1429,7 @@ describe("global feed operation: sidebar status redraws", () => {
 
     await vi.advanceTimersByTimeAsync(1);
 
-    expect(statusRedraws(harness)).toEqual(["sidebar"]);
+    expect(statusRedraws(harness)).toEqual(["status"]);
 
     for (const url of heldUrls(harness)) await settle(harness, url);
     await refresh;

@@ -1560,6 +1560,12 @@ describe("Reader HTML cleanup utilities (characterization)", () => {
         .mockResolvedValue({ content: html, failureType: "none" });
 
       await view.displayItem(makeItem({ description }));
+      const fullArticleToggle =
+        viewHarness.readingContainer.querySelector<HTMLButtonElement>(
+          ".rss-reader-content-toggle",
+        );
+      expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+      fullArticleToggle?.click();
 
       const content = viewHarness.readingContainer.querySelector(
         ".rss-reader-article-content",
@@ -1588,6 +1594,12 @@ describe("Reader HTML cleanup utilities (characterization)", () => {
       });
 
       await view.displayItem(makeItem({ coverImage: hero }));
+      const fullArticleToggle =
+        viewHarness.readingContainer.querySelector<HTMLButtonElement>(
+          ".rss-reader-content-toggle",
+        );
+      expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+      fullArticleToggle?.click();
 
       const content = viewHarness.readingContainer.querySelector(
         ".rss-reader-article-content",

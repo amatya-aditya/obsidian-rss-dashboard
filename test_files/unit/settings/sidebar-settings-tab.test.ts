@@ -492,4 +492,56 @@ describe("renderSidebarSettingsTab() - disabled icon rows", () => {
       true,
     );
   });
+
+  // Obsidian's Setting.setDisabled only reaches components that already
+  // exist, so the row class alone does not make the control inert (#1028).
+  it("disables each icon toggle when the toolbar is already hidden", () => {
+    const settings = cloneSettings();
+    settings.display.hideToolbarEntirely = true;
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 0),
+      getActiveDashboardView: vi.fn(async () => null),
+    } as unknown as RssDashboardPlugin;
+
+    renderSidebarSettingsTab(containerEl, plugin, vi.fn());
+
+    const toggles = Array.from(
+      containerEl.querySelectorAll(
+        ".rss-dashboard-icon-visibility-row .checkbox-container",
+      ),
+    );
+    expect(toggles.length).toBeGreaterThan(0);
+    expect(toggles.every((el) => el.classList.contains("is-disabled"))).toBe(
+      true,
+    );
+  });
+
+  it("leaves each icon toggle enabled when the toolbar is shown", () => {
+    const settings = cloneSettings();
+    settings.display.hideToolbarEntirely = false;
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 0),
+      getActiveDashboardView: vi.fn(async () => null),
+    } as unknown as RssDashboardPlugin;
+
+    renderSidebarSettingsTab(containerEl, plugin, vi.fn());
+
+    const toggles = Array.from(
+      containerEl.querySelectorAll(
+        ".rss-dashboard-icon-visibility-row .checkbox-container",
+      ),
+    );
+    expect(toggles.length).toBeGreaterThan(0);
+    expect(toggles.some((el) => el.classList.contains("is-disabled"))).toBe(
+      false,
+    );
+  });
 });

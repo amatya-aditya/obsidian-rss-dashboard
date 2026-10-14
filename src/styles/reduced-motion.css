@@ -36,7 +36,6 @@
   .rss-dashboard-header-icon-button,
   .rss-dashboard-toolbar-button,
   .rss-dashboard-tag-filter-mode-btn,
-  .rss-dashboard-tags-clear-button,
   .rss-dashboard-sidebar-tags-list,
   .rss-dashboard-sidebar-tag-row,
   .rss-dashboard-sidebar-add-tag-btn,
@@ -101,14 +100,6 @@
   .rss-dashboard-card-view
     .rss-dashboard-card-preview-region
     .rss-dashboard-summary-overlay {
-    transition-duration: 0.01ms;
-    transition-delay: 0s;
-  }
-
-  .rss-dashboard-card-placeholder {
-    animation-duration: 0.01ms;
-    animation-delay: 0s;
-    animation-iteration-count: 1;
     transition-duration: 0.01ms;
     transition-delay: 0s;
   }
@@ -354,8 +345,7 @@
   }
 
   /* discover-sidebar.css */
-  .rss-discover-header-nav-button,
-  .rss-discover-search-input-wrapper .rss-discover-search-clear {
+  .rss-discover-header-nav-button {
     transition-duration: 0.01ms;
     transition-delay: 0s;
   }
@@ -409,8 +399,7 @@
 
   /* folder-selector-popup.css */
   body .rss-folder-selector-input,
-  .rss-folder-selector-item,
-  .rss-folder-selector-clear {
+  .rss-folder-selector-item {
     transition-duration: 0.01ms;
     transition-delay: 0s;
   }

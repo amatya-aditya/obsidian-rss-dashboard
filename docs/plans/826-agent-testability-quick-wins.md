@@ -7,7 +7,7 @@ owner: unassigned
 workstream: accessibility
 sequence: null
 depends_on:
-  - 681-accessibility-rollout.md
+  - "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/681"
 release_requirement: ""
 implementation: ""
 ---
@@ -16,7 +16,7 @@ implementation: ""
 
 ## Summary
 
-Make plugin state and controls readable and operable through user-facing semantics, so automated and AI-driven tests run faster and keyboard and screen-reader users get the same access. This extends [681 — Accessibility Rollout](681-accessibility-rollout.md) (step 4, agent operation). Human access stays the purpose; agent speed is the added benefit.
+Make plugin state and controls readable and operable through user-facing semantics, so automated and AI-driven tests run faster and keyboard and screen-reader users get the same access. This extends [681 — Accessibility Rollout](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/681) (step 4, agent operation). Human access stays the purpose; agent speed is the added benefit.
 
 Not a conformance claim. Cite the applicable WCAG 2.2 criterion on each PR (2.1.1 Keyboard, 2.4.3 Focus Order, 4.1.2 Name/Role/Value, 4.1.3 Status Messages).
 
@@ -45,7 +45,7 @@ These paid for themselves while this program was built (every live check used th
 
 - About two thirds of the added lines are tests (roughly 3,400 of 5,000), because the tests drive the real runner, view and toolbar rather than fake DOM. That is deliberate; the one time a test built a fake DOM it missed a real bug.
 - The ids and hooks above are contracts to keep stable.
-- Menus, dialogs and landmarks (Slice 4) are not done. `Copy diagnostics` was dropped on purpose (see DEC-012 in the spec).
+- Menus, dialogs and landmarks (Slice 4) are not done; the audit in `826-agent-testability-quick-wins/slice-4-audit.md` maps what remains. `Copy diagnostics` was dropped on purpose (see DEC-012 in the spec).
 
 ### Removing a part later
 
@@ -132,6 +132,14 @@ Put registration in a new module (for example `src/commands/`), called from `onl
 
 ### Slice 4: Menus, dialogs, landmarks
 
+Superseded by an audit on 2026-10-13: findings, labels and order of work are in
+[`slice-4-audit.md`](826-agent-testability-quick-wins/slice-4-audit.md), and the
+replacement criteria and ticket list are in
+[`slice-4-drafts.md`](826-agent-testability-quick-wins/slice-4-drafts.md). The
+outline below is kept as the original intent. Two of its items changed: cards
+do not get `role="article"`, and selects stay `listbox`/`option` rather than
+`menu`.
+
 - Menus: `role="menu"`/`menuitem`, arrow-key navigation, Esc closes, focus returns to the trigger. Candidates: filter menu, tags dropdown, sidebar context menus.
 - Dialogs: `role="dialog"`, `aria-modal`, focus trap, defined initial focus.
 - Landmarks: sidebar `navigation`, article list `main`, cards `article`, `aria-current` on the active feed/article.
@@ -159,7 +167,7 @@ Put registration in a new module (for example `src/commands/`), called from `onl
 
 ## Related
 
-- [681 — Accessibility Rollout](681-accessibility-rollout.md)
+- [681 — Accessibility Rollout](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/681)
 - [Accessibility declaration](../../ACCESSIBILITY.md)
 - [Keyboard shortcuts](../user/keyboard-shortcuts.md)
 - [Issue #502 — Native icon buttons](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/502)

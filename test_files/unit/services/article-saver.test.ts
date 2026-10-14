@@ -1041,34 +1041,43 @@ describe("ArticleSaver date variables", () => {
 });
 
 describe("ArticleSaver.fetchFullArticleContent", () => {
-  it("retries sagepub full-text URLs via /doi/abs/ when the full-text fetch returns empty", async () => {
-    const app = App.createMock();
-    const settings = createSettings();
-    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+  it("retries sagepub full-text URLs via /doi/abs/ with only the time remaining after an empty full-text fetch", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    try {
+      const app = App.createMock();
+      const settings = createSettings();
+      const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
 
-    const fetchSpy = vi
-      .spyOn(fetchHelpers, "fetchWithProxyFallbackDetailed")
-      .mockResolvedValueOnce({ content: "", failureType: "network" })
-      .mockResolvedValueOnce({
-        content: "<p>abstract</p>",
-        failureType: "none",
-      });
+      const fetchSpy = vi
+        .spyOn(fetchHelpers, "fetchWithProxyFallbackDetailed")
+        .mockImplementationOnce(async () => {
+          vi.setSystemTime(1000);
+          return { content: "", failureType: "network" };
+        })
+        .mockResolvedValueOnce({
+          content: "<p>abstract</p>",
+          failureType: "none",
+        });
 
-    const url = "https://journals.sagepub.com/doi/full/10.1177/00000000";
-    const result = await saver.fetchFullArticleContent(url);
+      const url = "https://journals.sagepub.com/doi/full/10.1177/00000000";
+      const result = await saver.fetchFullArticleContent(url);
 
-    expect(result).toBe("<p>abstract</p>");
-    expect(fetchSpy).toHaveBeenCalledTimes(2);
-    expect(fetchSpy.mock.calls[0]).toEqual([
-      url,
-      "https://proxy/?url=",
-      30_000,
-    ]);
-    expect(fetchSpy.mock.calls[1]).toEqual([
-      "https://journals.sagepub.com/doi/abs/10.1177/00000000",
-      "https://proxy/?url=",
-      30_000,
-    ]);
+      expect(result).toBe("<p>abstract</p>");
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+      expect(fetchSpy.mock.calls[0]).toEqual([
+        url,
+        "https://proxy/?url=",
+        30_000,
+      ]);
+      expect(fetchSpy.mock.calls[1]).toEqual([
+        "https://journals.sagepub.com/doi/abs/10.1177/00000000",
+        "https://proxy/?url=",
+        29_999,
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -1812,7 +1821,7 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
 
     expect(logSpy).toHaveBeenCalledWith(
       "[Stub Notice]",
-      "Full article is restricted. Showing available feed excerpt.",
+      "Fetched content is restricted. Showing available RSS content.",
     );
     expect(logSpy).not.toHaveBeenCalledWith(
       "[Stub Notice]",

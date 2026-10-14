@@ -1,6 +1,7 @@
 import { App, Modal, Notice, Setting } from "obsidian";
 import type { RssDashboardSettings, Tag } from "../types/types";
 import { updateTagInSettings } from "../utils/tag-settings";
+import { addInputClearButton } from "../utils/input-clear-button";
 
 export interface EditTagModalOptions {
   settings: Readonly<RssDashboardSettings>;
@@ -48,6 +49,7 @@ export class EditTagModal extends Modal {
       cls: "rss-dashboard-tag-modal-name-input",
     });
     nameInput.spellcheck = false;
+    addInputClearButton(nameInput, { fill: true });
 
     const buttonContainer = contentEl.createDiv({
       cls: "rss-dashboard-modal-buttons",

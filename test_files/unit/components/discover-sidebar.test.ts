@@ -10,19 +10,6 @@ import { lucideIconId } from "../test-icon-helpers";
 
 type TestPlugin = ConstructorParameters<typeof DiscoverSidebar>[2];
 
-vi.mock("../../../src/utils/platform-utils", () => ({
-  attachInputClearButton: (
-    wrapper: HTMLDivElement,
-    _input: HTMLInputElement,
-    onClear: () => void,
-  ) => {
-    const button = wrapper.appendChild(createEl("button"));
-    button.textContent = "Clear";
-    button.className = "rss-test-clear-button";
-    button.addEventListener("click", () => onClear());
-  },
-}));
-
 function createFeed(overrides: Partial<FeedMetadata> = {}): FeedMetadata {
   return {
     id: overrides.id ?? "f1",
@@ -140,11 +127,12 @@ describe("DiscoverSidebar", () => {
     expect(filters.query).toBe("next");
     expect(callbacks.onFilterChange).toHaveBeenCalledTimes(1);
 
-    const clearBtn = container.querySelector(
-      ".rss-test-clear-button",
-    ) as HTMLButtonElement;
-    expect(clearBtn).toBeTruthy();
-    clearBtn.click();
+    const clearBtn = container.querySelector<HTMLButtonElement>(
+      "button.search-input-clear-button",
+    );
+    expect(clearBtn?.getAttribute("aria-label")).toBe("Clear search");
+    clearBtn?.click();
+    expect(input.value).toBe("");
     expect(filters.query).toBe("");
     expect(callbacks.onFilterChange).toHaveBeenCalledTimes(2);
   });

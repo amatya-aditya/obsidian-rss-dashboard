@@ -6,14 +6,7 @@ import {
   decodeHtmlEntities as decodeHtmlEntitiesUtil,
   sanitizeCDATA as sanitizeCDATAUtil,
 } from "./xml-html-utils.js";
-import {
-  extractRssContent,
-  fallbackParse,
-  preprocessXmlContent,
-} from "./xml-preprocessing.js";
-import { parseAtom } from "./atom-parser.js";
-import { parseJSON } from "./json-feed-parser.js";
-import { parseRSS, parseRSS1 } from "./rss-parser.js";
+import { routeFeedDocument } from "./feed-document-router.js";
 
 export class CustomXMLParser {
   private parseXML(xmlString: string): Document {
@@ -504,84 +497,13 @@ export class CustomXMLParser {
   }
 
   parseString(xmlString: string): ParsedFeed {
-    try {
-      if (xmlString.trim().startsWith("{")) {
-        return parseJSON(xmlString, {
-          transformSageUrl: this.transformSageUrl.bind(this),
-        });
-      }
-
-      const cleanedXml = preprocessXmlContent(xmlString.trim());
-
-      const doc = this.parseXML(cleanedXml);
-
-      const parserError = doc.querySelector("parsererror");
-      if (parserError) {
-        const extractedXml = extractRssContent(xmlString);
-        if (extractedXml !== xmlString) {
-          try {
-            const extractedDoc = this.parseXML(extractedXml);
-            const extractedParserError =
-              extractedDoc.querySelector("parsererror");
-            if (
-              !extractedParserError &&
-              this.validateFeedStructure(extractedDoc)
-            ) {
-              const rootElement = extractedDoc.documentElement;
-              const isRDF =
-                rootElement && rootElement.tagName.toLowerCase() === "rdf:rdf";
-              if (isRDF) {
-                return parseRSS1(extractedDoc, this.getRssParserDeps());
-              } else if (extractedDoc.querySelector("rss")) {
-                return parseRSS(extractedDoc, this.getRssParserDeps());
-              } else if (extractedDoc.querySelector("feed")) {
-                return parseAtom(extractedDoc, this.getAtomParserDeps());
-              }
-            }
-          } catch (extractError) {
-            console.error(
-              "[RSS dashboard] parseString: Error in fallback extraction",
-              extractError,
-            );
-          }
-        }
-
-        return fallbackParse(xmlString, this.getFallbackParseDeps());
-      }
-
-      if (!this.validateFeedStructure(doc)) {
-        return fallbackParse(xmlString, this.getFallbackParseDeps());
-      }
-
-      const rootElement = doc.documentElement;
-      const isRDF =
-        rootElement &&
-        (rootElement.tagName.toLowerCase() === "rdf:rdf" ||
-          rootElement.getAttribute("xmlns") === "http://purl.org/rss/1/");
-
-      if (isRDF) {
-        return parseRSS1(doc, this.getRssParserDeps());
-      } else if (doc.querySelector("rss")) {
-        return parseRSS(doc, this.getRssParserDeps());
-      } else if (doc.querySelector("feed")) {
-        return parseAtom(doc, this.getAtomParserDeps());
-      } else {
-        return fallbackParse(xmlString, this.getFallbackParseDeps());
-      }
-    } catch (error) {
-      console.error("[RSS dashboard] parseString error:", error);
-      try {
-        return fallbackParse(xmlString, this.getFallbackParseDeps());
-      } catch (fallbackError) {
-        const errorMsg = error instanceof Error ? error.message : String(error);
-        const fallbackMsg =
-          fallbackError instanceof Error
-            ? fallbackError.message
-            : String(fallbackError);
-        throw new Error(
-          `All parsing attempts failed: ${errorMsg}. Fallback error: ${fallbackMsg}`,
-        );
-      }
-    }
+    return routeFeedDocument(xmlString, {
+      transformSageUrl: this.transformSageUrl.bind(this),
+      parseXML: (xml) => this.parseXML(xml),
+      validateFeedStructure: (doc) => this.validateFeedStructure(doc),
+      getRssParserDeps: () => this.getRssParserDeps(),
+      getAtomParserDeps: () => this.getAtomParserDeps(),
+      getFallbackParseDeps: () => this.getFallbackParseDeps(),
+    });
   }
 }

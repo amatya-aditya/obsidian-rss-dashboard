@@ -1,20 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as Obsidian from "obsidian";
 import {
-  attachInputClearButton,
   ensureUtf8Meta,
   formatDateWithRelative,
   formatArticleDate,
   formatRelativeTime,
   getViewportTier,
   isPhoneViewport,
+  isNarrowViewport,
+  MOBILE_LAYOUT_MAX_WIDTH_PX,
+  FOLDER_POPUP_MOBILE_MAX_WIDTH_PX,
   isTabletViewport,
   robustFetch,
   setCssProps,
   shouldUseMobileSidebarLayout,
 } from "../../../src/utils/platform-utils";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
-import { lucideIconId } from "../test-icon-helpers";
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(
@@ -187,104 +188,6 @@ describe("platform-utils.robustFetch", () => {
   });
 });
 
-describe("platform-utils.attachInputClearButton", () => {
-  it("toggles visibility on input events and clears on click", () => {
-    const wrapper = createDiv();
-    document.body.appendChild(wrapper);
-    const input = createEl("input");
-    input.type = "text";
-    wrapper.appendChild(input);
-    const onClear = vi.fn();
-
-    const clearButton = attachInputClearButton(wrapper, input, onClear);
-
-    expect(lucideIconId(clearButton)).toBe("x");
-    expect(clearButton.classList.contains("rss-discover-search-clear")).toBe(
-      true,
-    );
-    expect(
-      clearButton.classList.contains("rss-discover-search-clear-hidden"),
-    ).toBe(true);
-
-    input.value = "abc";
-    input.dispatchEvent(new Event("input"));
-    expect(
-      clearButton.classList.contains("rss-discover-search-clear-hidden"),
-    ).toBe(false);
-
-    clearButton.click();
-    expect(input.value).toBe("");
-    expect(
-      clearButton.classList.contains("rss-discover-search-clear-hidden"),
-    ).toBe(true);
-    expect(onClear).toHaveBeenCalledTimes(1);
-  });
-
-  it("supports keyboard activation via Enter and Space", () => {
-    const wrapper = createDiv();
-    document.body.appendChild(wrapper);
-    const input = createEl("input");
-    input.type = "text";
-    wrapper.appendChild(input);
-    input.value = "abc";
-
-    const onClear = vi.fn();
-    const clearButton = attachInputClearButton(wrapper, input, onClear);
-
-    input.dispatchEvent(new Event("input"));
-    expect(
-      clearButton.classList.contains("rss-discover-search-clear-hidden"),
-    ).toBe(false);
-
-    const enterEvent = new KeyboardEvent("keydown", {
-      key: "Enter",
-      cancelable: true,
-    });
-    clearButton.dispatchEvent(enterEvent);
-    expect(enterEvent.defaultPrevented).toBe(true);
-    expect(onClear).toHaveBeenCalledTimes(1);
-    expect(input.value).toBe("");
-
-    input.value = "xyz";
-    input.dispatchEvent(new Event("input"));
-    const spaceEvent = new KeyboardEvent("keydown", {
-      key: " ",
-      cancelable: true,
-    });
-    clearButton.dispatchEvent(spaceEvent);
-    expect(spaceEvent.defaultPrevented).toBe(true);
-    expect(onClear).toHaveBeenCalledTimes(2);
-    expect(input.value).toBe("");
-  });
-
-  it("honors useButtonElement and custom classes", () => {
-    const wrapper = createDiv();
-    document.body.appendChild(wrapper);
-    const input = createEl("input");
-    input.type = "text";
-    wrapper.appendChild(input);
-    input.value = "abc";
-
-    const onClear = vi.fn();
-    const clearButton = attachInputClearButton(wrapper, input, onClear, {
-      useButtonElement: true,
-      buttonClass: "my-clear",
-      hiddenClass: "my-hidden",
-    });
-
-    expect(clearButton.tagName).toBe("BUTTON");
-    expect(clearButton.getAttribute("type")).toBe("button");
-    expect(clearButton.getAttribute("aria-label")).toBe("Clear search");
-    expect(clearButton.hasAttribute("title")).toBe(false);
-    expect(clearButton.classList.contains("my-clear")).toBe(true);
-    expect(clearButton.classList.contains("my-hidden")).toBe(false);
-
-    input.value = "";
-    input.dispatchEvent(new Event("input"));
-    expect(clearButton.classList.contains("my-hidden")).toBe(true);
-  });
-});
-
 describe("platform-utils.misc", () => {
   it("ensureUtf8Meta inserts a meta charset when missing", () => {
     expect(ensureUtf8Meta("<div>hi</div>")).toBe(
@@ -411,5 +314,46 @@ describe("platform-utils.misc", () => {
     expect(result.title).not.toMatch(/^First seen: /);
 
     vi.useRealTimers();
+  });
+});
+
+describe("platform-utils.isNarrowViewport", () => {
+  it.each([true, false])(
+    "uses the default 768px query and returns matches=%s",
+    (matches) => {
+      const matchMedia = vi.fn(() => ({ matches }));
+      const win = { matchMedia } as unknown as Window;
+
+      expect(MOBILE_LAYOUT_MAX_WIDTH_PX).toBe(768);
+      expect(isNarrowViewport(win)).toBe(matches);
+      expect(matchMedia).toHaveBeenCalledExactlyOnceWith("(max-width: 768px)");
+    },
+  );
+
+  it.each([true, false])(
+    "uses the folder popup's 600px query and returns matches=%s",
+    (matches) => {
+      const matchMedia = vi.fn(() => ({ matches }));
+      const win = { matchMedia } as unknown as Window;
+
+      expect(FOLDER_POPUP_MOBILE_MAX_WIDTH_PX).toBe(600);
+      expect(isNarrowViewport(win, FOLDER_POPUP_MOBILE_MAX_WIDTH_PX)).toBe(
+        matches,
+      );
+      expect(matchMedia).toHaveBeenCalledExactlyOnceWith("(max-width: 600px)");
+    },
+  );
+
+  it("reevaluates the supplied window on each call", () => {
+    const matchMedia = vi
+      .fn()
+      .mockReturnValueOnce({ matches: true })
+      .mockReturnValueOnce({ matches: false });
+    const win = { matchMedia } as unknown as Window;
+
+    expect(isNarrowViewport(win, 480)).toBe(true);
+    expect(isNarrowViewport(win, 480)).toBe(false);
+    expect(matchMedia).toHaveBeenNthCalledWith(1, "(max-width: 480px)");
+    expect(matchMedia).toHaveBeenNthCalledWith(2, "(max-width: 480px)");
   });
 });

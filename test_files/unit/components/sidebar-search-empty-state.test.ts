@@ -200,7 +200,9 @@ describe("Sidebar search empty state", () => {
     typeQuery(input, "zzz-no-such-feed");
 
     container
-      .querySelector<HTMLElement>(".rss-dashboard-search-clear")
+      .querySelector<HTMLElement>(
+        ".rss-dashboard-search-container > button.search-input-clear-button",
+      )
       ?.click();
 
     expect(emptyState()).toBeNull();

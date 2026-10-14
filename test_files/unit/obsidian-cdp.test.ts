@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   CdpError,
   DEFAULT_PORTS,
+  assessCompanionTarget,
   assessVaultOwnership,
   assertWebSocket,
   choosePort,
@@ -12,12 +13,21 @@ import {
   parseArgs,
   parseBatch,
   parseDevToolsActivePort,
+  parseKeySpec,
+  parseSettingsTitle,
   pollUntilReady,
   renderValue,
+  selectSettingsTarget,
   selectTarget,
+  summarizeAxNode,
+  summarizeAxQuery,
+  vaultBasename,
 } from "../../scripts/obsidian-cdp.mjs";
 
 const noEnv = {};
+
+const SETTINGS_TITLE = "Settings - .fixture-vault - Obsidian 1.14.0";
+const FIXTURE_VAULT = "C:\\work\\rss\\.fixture-vault";
 
 function page(
   overrides: Record<string, unknown> = {},
@@ -195,6 +205,27 @@ describe("obsidian-cdp parseArgs", () => {
       CdpError,
     );
     expect(() => parseArgs(["targets"], { CDP_WAIT: "x" })).toThrow(CdpError);
+  });
+
+  it("reads --settings and the open-settings command", () => {
+    expect(parseArgs(["eval", "probe.js"], noEnv).settings).toBe(false);
+    expect(parseArgs(["--settings", "eval", "probe.js"], noEnv).settings).toBe(
+      true,
+    );
+    const open = parseArgs(["open-settings", "rss-dashboard"], noEnv);
+    expect(open.command).toBe("open-settings");
+    expect(open.args).toEqual(["rss-dashboard"]);
+  });
+
+  it("rejects --settings where it has no meaning", () => {
+    expect(() => parseArgs(["--settings", "targets"], noEnv)).toThrow(CdpError);
+    expect(() =>
+      parseArgs(["--settings", "open-settings", "rss-dashboard"], noEnv),
+    ).toThrow(CdpError);
+    expect(() =>
+      parseArgs(["--settings", "--target", "x", "eval", "p.js"], noEnv),
+    ).toThrow(CdpError);
+    expect(() => parseArgs(["open-settings"], noEnv)).toThrow(CdpError);
   });
 
   it("recognises help", () => {
@@ -464,6 +495,142 @@ describe("obsidian-cdp vault ownership", () => {
   });
 });
 
+describe("obsidian-cdp companion Settings target", () => {
+  const settingsPage = (overrides: Record<string, unknown> = {}) =>
+    page({
+      id: "settings",
+      title: SETTINGS_TITLE,
+      url: "about:blank",
+      ...overrides,
+    });
+
+  it("reads the vault name and version from the Settings title", () => {
+    expect(parseSettingsTitle(SETTINGS_TITLE)).toEqual({
+      vaultName: ".fixture-vault",
+      version: "1.14.0",
+    });
+    expect(
+      parseSettingsTitle("Settings - My - Vault - Obsidian 1.14.0")?.vaultName,
+    ).toBe("My - Vault");
+    expect(parseSettingsTitle("Obsidian")).toBeUndefined();
+    expect(parseSettingsTitle("Settings - RSS Dashboard")).toBeUndefined();
+    expect(parseSettingsTitle(undefined)).toBeUndefined();
+  });
+
+  it("takes the vault name from the last path segment, ignoring case", () => {
+    expect(vaultBasename("C:\\Work\\.Fixture-Vault\\")).toBe(".fixture-vault");
+    expect(vaultBasename("/home/me/vault")).toBe("vault");
+    expect(vaultBasename("  ")).toBeUndefined();
+  });
+
+  it("accepts the Settings window of the expected vault on a pinned port", () => {
+    const result = assessCompanionTarget({
+      target: settingsPage(),
+      expectedVault: FIXTURE_VAULT,
+      pinned: true,
+    });
+    expect(result.ok).toBe(true);
+    expect(result.code).toBe("ok");
+  });
+
+  it("refuses a Settings window that names another vault", () => {
+    const result = assessCompanionTarget({
+      target: settingsPage({
+        title: "Settings - Personal - Obsidian 1.14.0",
+      }),
+      expectedVault: FIXTURE_VAULT,
+      pinned: true,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe("wrong-vault");
+    expect(result.message).toContain("Personal");
+  });
+
+  it("refuses the Settings window when the port is not pinned by --profile", () => {
+    const result = assessCompanionTarget({
+      target: settingsPage(),
+      expectedVault: FIXTURE_VAULT,
+      pinned: false,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe("unpinned");
+    expect(result.message).toContain("--profile");
+  });
+
+  it("refuses the Settings window without an expected vault", () => {
+    const result = assessCompanionTarget({
+      target: settingsPage(),
+      expectedVault: undefined,
+      pinned: true,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe("no-expectation");
+    expect(result.message).toContain("--expect-vault");
+  });
+
+  it("refuses a page that is not titled as a Settings window", () => {
+    const result = assessCompanionTarget({
+      target: page({ title: "Some page", url: "about:blank" }),
+      expectedVault: FIXTURE_VAULT,
+      pinned: true,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe("not-settings");
+  });
+
+  it("refuses a Settings-titled page that is not about:blank", () => {
+    const result = assessCompanionTarget({
+      target: settingsPage({ url: "https://evil.example/" }),
+      expectedVault: FIXTURE_VAULT,
+      pinned: true,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe("not-settings");
+  });
+
+  it("selects the matching Settings window among the open pages", () => {
+    const picked = selectSettingsTarget(
+      [page({ id: "vault" }), settingsPage()],
+      { expectedVault: FIXTURE_VAULT, pinned: true },
+    );
+    expect(picked.ok).toBe(true);
+    expect(picked.target?.id).toBe("settings");
+  });
+
+  it("reports that no Settings window is open yet", () => {
+    const picked = selectSettingsTarget([page({ id: "vault" })], {
+      expectedVault: FIXTURE_VAULT,
+      pinned: true,
+    });
+    expect(picked.ok).toBe(false);
+    expect(picked.code).toBe("none-open");
+  });
+
+  it("refuses to pick when only another vault's Settings window is open", () => {
+    const picked = selectSettingsTarget(
+      [
+        page({ id: "vault" }),
+        settingsPage({ title: "Settings - Personal - Obsidian 1.14.0" }),
+      ],
+      { expectedVault: FIXTURE_VAULT, pinned: true },
+    );
+    expect(picked.ok).toBe(false);
+    expect(picked.code).toBe("wrong-vault");
+  });
+
+  it("refuses to pick on an unpinned port even when the name matches", () => {
+    const picked = selectSettingsTarget(
+      [page({ id: "vault" }), settingsPage()],
+      {
+        expectedVault: FIXTURE_VAULT,
+        pinned: false,
+      },
+    );
+    expect(picked.ok).toBe(false);
+    expect(picked.code).toBe("unpinned");
+  });
+});
+
 describe("obsidian-cdp parseDevToolsActivePort", () => {
   it("reads the bound port from the first line", () => {
     expect(parseDevToolsActivePort("9333\n/devtools/browser/abc\n")).toBe(9333);
@@ -609,12 +776,193 @@ describe("obsidian-cdp parseBatch", () => {
     ]);
   });
 
+  it("reads the settings step", () => {
+    expect(parseBatch("@settings\n@shot s.png")).toEqual([
+      { kind: "settings" },
+      { kind: "shot", path: "s.png" },
+    ]);
+  });
+
+  it("reads the vault step", () => {
+    expect(parseBatch("@settings\n@vault\n@shot v.png")).toEqual([
+      { kind: "settings" },
+      { kind: "vault" },
+      { kind: "shot", path: "v.png" },
+    ]);
+  });
+
+  it("rejects an argument on the vault step", () => {
+    expect(() => parseBatch("@vault my-vault")).toThrow(CdpError);
+  });
+
   it("rejects stray, unknown, or incomplete steps", () => {
     expect(() => parseBatch("just text")).toThrow(CdpError);
     expect(() => parseBatch("@frob")).toThrow(CdpError);
     expect(() => parseBatch("@shot")).toThrow(CdpError);
     expect(() => parseBatch("@wait soon")).toThrow(CdpError);
     expect(() => parseBatch("")).toThrow(CdpError);
+  });
+
+  it("reads key steps with an optional repeat count", () => {
+    expect(parseBatch("@key Tab\n@key Shift+Tab 3")).toEqual([
+      { kind: "key", key: parseKeySpec("Tab"), spec: "Tab", count: 1 },
+      {
+        kind: "key",
+        key: parseKeySpec("Shift+Tab"),
+        spec: "Shift+Tab",
+        count: 3,
+      },
+    ]);
+  });
+
+  it("reads ax and axquery steps, keeping spaces in the selector", () => {
+    const text = [
+      '@ax .workspace-leaf-content[data-type="rss-dashboard-view"] .rss-dashboard-feed',
+      "@axquery heading .modal-container .modal",
+    ].join("\n");
+    expect(parseBatch(text)).toEqual([
+      {
+        kind: "ax",
+        selector:
+          '.workspace-leaf-content[data-type="rss-dashboard-view"] .rss-dashboard-feed',
+      },
+      { kind: "axquery", role: "heading", selector: ".modal-container .modal" },
+    ]);
+  });
+
+  it("rejects incomplete key, ax and axquery steps", () => {
+    expect(() => parseBatch("@key")).toThrow(CdpError);
+    expect(() => parseBatch("@key Tab zero")).toThrow(CdpError);
+    expect(() => parseBatch("@key Tab 0")).toThrow(CdpError);
+    expect(() => parseBatch("@key Hyper+Tab")).toThrow(CdpError);
+    expect(() => parseBatch("@ax")).toThrow(CdpError);
+    expect(() => parseBatch("@axquery heading")).toThrow(CdpError);
+  });
+});
+
+describe("obsidian-cdp parseKeySpec", () => {
+  it("reads named keys without text", () => {
+    expect(parseKeySpec("Tab")).toEqual({
+      key: "Tab",
+      code: "Tab",
+      windowsVirtualKeyCode: 9,
+      modifiers: 0,
+    });
+    expect(parseKeySpec("Esc")).toMatchObject({
+      key: "Escape",
+      windowsVirtualKeyCode: 27,
+    });
+    expect(parseKeySpec("ArrowDown")).toMatchObject({
+      code: "ArrowDown",
+      windowsVirtualKeyCode: 40,
+    });
+  });
+
+  it("gives Enter and Space the text that activates native controls", () => {
+    expect(parseKeySpec("Enter")).toMatchObject({ text: "\r" });
+    expect(parseKeySpec("Space")).toMatchObject({ key: " ", text: " " });
+  });
+
+  it("sets modifier bits and reads function keys", () => {
+    expect(parseKeySpec("Shift+F10")).toEqual({
+      key: "F10",
+      code: "F10",
+      windowsVirtualKeyCode: 121,
+      modifiers: 8,
+    });
+    expect(parseKeySpec("Ctrl+Alt+Delete").modifiers).toBe(3);
+    expect(parseKeySpec("Meta+k").modifiers).toBe(4);
+  });
+
+  it("types a letter, upper-casing it under Shift", () => {
+    expect(parseKeySpec("t")).toEqual({
+      key: "t",
+      code: "KeyT",
+      windowsVirtualKeyCode: 84,
+      modifiers: 0,
+      text: "t",
+    });
+    expect(parseKeySpec("Shift+s")).toMatchObject({
+      key: "S",
+      code: "KeyS",
+      modifiers: 8,
+      text: "S",
+    });
+  });
+
+  it("sends no text for a shortcut held with Ctrl, Alt or Meta", () => {
+    expect(parseKeySpec("Ctrl+p")).not.toHaveProperty("text");
+  });
+
+  it("types digits and ?", () => {
+    expect(parseKeySpec("1")).toMatchObject({ code: "Digit1", text: "1" });
+    expect(parseKeySpec("?")).toMatchObject({ key: "?", text: "?" });
+  });
+
+  it("rejects empty specs, unknown keys and unknown modifiers", () => {
+    expect(() => parseKeySpec("")).toThrow(CdpError);
+    expect(() => parseKeySpec("Shift+")).toThrow(CdpError);
+    expect(() => parseKeySpec("Banana")).toThrow(CdpError);
+    expect(() => parseKeySpec("Hyper+a")).toThrow(CdpError);
+  });
+});
+
+describe("obsidian-cdp accessibility summaries", () => {
+  it("summarizes a node's role, name, ignored flag and properties", () => {
+    expect(
+      summarizeAxNode({
+        nodeId: "7",
+        ignored: false,
+        role: { type: "role", value: "heading" },
+        name: { type: "computedString", value: "Article one" },
+        properties: [
+          { name: "level", value: { type: "integer", value: 3 } },
+          {
+            name: "focusable",
+            value: { type: "booleanOrUndefined", value: true },
+          },
+        ],
+      }),
+    ).toEqual({
+      role: "heading",
+      name: "Article one",
+      ignored: false,
+      properties: { level: 3, focusable: true },
+    });
+  });
+
+  it("reports an ignored node with an empty name", () => {
+    expect(
+      summarizeAxNode({
+        ignored: true,
+        role: { type: "role", value: "none" },
+      }),
+    ).toEqual({ role: "none", name: "", ignored: true, properties: {} });
+  });
+
+  it("counts query matches and leaves ignored nodes out", () => {
+    expect(
+      summarizeAxQuery([
+        {
+          ignored: false,
+          role: { value: "dialog" },
+          name: { value: "Add feed" },
+        },
+        { ignored: true, role: { value: "dialog" } },
+        { ignored: false, role: { value: "dialog" } },
+      ]),
+    ).toEqual({
+      count: 2,
+      nodes: [
+        { role: "dialog", name: "Add feed" },
+        { role: "dialog", name: "" },
+      ],
+    });
+  });
+
+  it("returns an empty result for no matches", () => {
+    expect(summarizeAxQuery([])).toEqual({ count: 0, nodes: [] });
+    expect(summarizeAxQuery(undefined)).toEqual({ count: 0, nodes: [] });
   });
 });
 

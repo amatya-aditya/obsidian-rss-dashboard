@@ -13,6 +13,7 @@ import {
   HighlightWordEditModal,
   ConfirmDeleteModal,
 } from "../modals/settings-modals";
+import { addInputClearButton } from "../../utils/input-clear-button";
 
 // ── Types (inline to avoid circular deps) ────────────────────────────────────
 
@@ -347,7 +348,10 @@ export function renderHighlightsSettingsTab(
 
   const wordInputSetting = new Setting(newWordContainer)
     .setName("Word or phrase")
-    .addText((text) => text.setPlaceholder("Enter word to highlight"));
+    .addText((text) => {
+      text.setPlaceholder("Enter word to highlight");
+      addInputClearButton(text.inputEl);
+    });
 
   const wholeWordSetting = new Setting(newWordContainer)
     .setName("Whole word only")

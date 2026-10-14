@@ -87,6 +87,11 @@ describe("ReaderView headline de-dupe", () => {
 
     const item = makeBaseItem({ title: "Feed Title Should Not Show" });
     await readerView.displayItem(item);
+    const fullArticleToggle = getInternals(
+      readerView,
+    ).contentEl.querySelector<HTMLButtonElement>(".rss-reader-content-toggle");
+    expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+    fullArticleToggle?.click();
 
     const container = getInternals(readerView).readingContainer;
     expect(
@@ -126,6 +131,11 @@ describe("ReaderView headline de-dupe", () => {
 
     const item = makeBaseItem({ title: "Feed Title Here" });
     await readerView.displayItem(item);
+    const fullArticleToggle = getInternals(
+      readerView,
+    ).contentEl.querySelector<HTMLButtonElement>(".rss-reader-content-toggle");
+    expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+    fullArticleToggle?.click();
 
     const container = getInternals(readerView).readingContainer;
     expect(

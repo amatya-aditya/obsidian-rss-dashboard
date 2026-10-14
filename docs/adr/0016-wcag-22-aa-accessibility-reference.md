@@ -18,6 +18,24 @@ Use WCAG 2.2 Level AA as the design and audit reference for applicable plugin-ow
 
 Human accessibility is the purpose and deciding factor. AI-assisted UI testing is an additional benefit: test agents should use the same user-facing semantic controls and keyboard pathways where practical, with CDP accessibility-tree inspection and screenshots as complementary evidence. Automated checks alone do not prove accessibility. Prioritize severe barriers, user-task impact, and reusable improvements; low test coverage is a risk signal, not a reason to delay broad, practical improvements for extensive coverage research.
 
+### Amendment, 2026-10-13
+
+Obsidian's own behavior is not the pass/fail bar. RSS Dashboard is a reading tool, and a reader who depends on assistive technology needs the article list and Reader to work whether or not core Obsidian meets WCAG elsewhere. WCAG 2.2 AA stays the bar for plugin-owned UI. Obsidian's behavior is used two ways:
+
+- **A floor.** A plugin surface is never less accessible than the comparable host surface.
+- **A consistency guide.** Reuse host patterns (for example Obsidian's `Menu`) instead of inventing new ones, and fix gaps the host leaves in our content rather than inheriting them. For example, Obsidian's `Modal` adds no dialog role or name, so plugin modals add their own.
+
+The reading path (article list, cards, Reader, and moving between feeds and articles) is fixed first and gets the extra checks: heading and landmark structure and screen-reader walks. The bar is the same everywhere; only the order differs.
+
+Audits label findings so a criterion failure is not confused with a recommendation:
+
+- **FAIL**: violates a named WCAG 2.2 A or AA success criterion; the finding cites the criterion and the W3C failure or technique it rests on.
+- **GAP**: falls short of an ARIA Authoring Practices pattern or an `ACCESSIBILITY.md` expectation without violating a criterion.
+- **HOST**: owned by Obsidian; recorded as a limitation.
+- **UNVERIFIED**: not exercised, or not checked with the evidence the finding needs.
+
+This amendment refines how the reference is applied; it does not change the decision above. It came out of the Slice 4 audit for [#826](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/826).
+
 ## Consequences
 
 - Contributors have a named, stable reference for applicable accessibility expectations and can distinguish a target from a completed audit or conformance claim.
@@ -42,6 +60,6 @@ This provides a clear basis for design and audit work while stating plainly that
 ## Related
 
 - [Accessibility declaration](../../ACCESSIBILITY.md)
-- [Accessibility rollout plan](../plans/681-accessibility-rollout.md)
+- [Accessibility rollout tracking issue (#681)](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/681)
 - [Accessibility research](../development/accessibility-research.md)
 - [Issue #502 — Use native buttons for icon buttons instead of div role="button"](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/502)

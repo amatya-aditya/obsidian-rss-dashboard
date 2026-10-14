@@ -164,6 +164,13 @@ describe("ReaderView Image Duplication", () => {
 
     await readerView.onOpen();
     await readerView.displayItem(item);
+    const fullArticleToggle = getHarness(
+      readerView,
+    ).readingContainer.querySelector<HTMLButtonElement>(
+      ".rss-reader-content-toggle",
+    );
+    expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+    fullArticleToggle?.click();
 
     const body = getHarness(
       readerView,
@@ -436,6 +443,13 @@ describe("ReaderView – summary de-duplication", () => {
       .mockResolvedValue({ content: fetchedHtml, failureType: "none" });
 
     await readerView.displayItem(item);
+    const fullArticleToggle = getHarness(
+      readerView,
+    ).readingContainer.querySelector<HTMLButtonElement>(
+      ".rss-reader-content-toggle",
+    );
+    expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+    fullArticleToggle?.click();
 
     const rc = getHarness(readerView).readingContainer;
     const callout = rc.querySelector(".rss-reader-description-callout");
@@ -555,6 +569,13 @@ describe("ReaderView – summary de-duplication", () => {
       .mockResolvedValue({ content: fetchedHtml, failureType: "none" });
 
     await readerView.displayItem(item);
+    const fullArticleToggle = getHarness(
+      readerView,
+    ).readingContainer.querySelector<HTMLButtonElement>(
+      ".rss-reader-content-toggle",
+    );
+    expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+    fullArticleToggle?.click();
 
     const rc = getHarness(readerView).readingContainer;
     const heroImg = rc.querySelector<HTMLImageElement>(
@@ -681,6 +702,13 @@ describe("ReaderView – summary de-duplication", () => {
       .fn()
       .mockResolvedValue({ content: fetchedHtml, failureType: "none" });
     await readerView.displayItem(item);
+    const fullArticleToggle = getHarness(
+      readerView,
+    ).readingContainer.querySelector<HTMLButtonElement>(
+      ".rss-reader-content-toggle",
+    );
+    expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+    fullArticleToggle?.click();
 
     const body = getHarness(
       readerView,
@@ -730,6 +758,13 @@ describe("ReaderView – summary de-duplication", () => {
       .fn()
       .mockResolvedValue({ content: fetchedHtml, failureType: "none" });
     await readerView.displayItem(item);
+    const fullArticleToggle = getHarness(
+      readerView,
+    ).readingContainer.querySelector<HTMLButtonElement>(
+      ".rss-reader-content-toggle",
+    );
+    expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+    fullArticleToggle?.click();
 
     const body = getHarness(readerView).readingContainer.querySelector(
       ".rss-reader-article-content",
@@ -794,6 +829,13 @@ describe("ReaderView – summary de-duplication", () => {
       .fn()
       .mockResolvedValue({ content: fetchedHtml, failureType: "none" });
     await readerView.displayItem(item);
+    const fullArticleToggle = getHarness(
+      readerView,
+    ).readingContainer.querySelector<HTMLButtonElement>(
+      ".rss-reader-content-toggle",
+    );
+    expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+    fullArticleToggle?.click();
 
     expect(
       getHarness(readerView).readingContainer.querySelector(
@@ -842,6 +884,13 @@ describe("ReaderView – summary de-duplication", () => {
       });
       fetchReturning(FETCHED);
       await readerView.displayItem(item);
+      const fullArticleToggle = getHarness(
+        readerView,
+      ).readingContainer.querySelector<HTMLButtonElement>(
+        ".rss-reader-content-toggle",
+      );
+      expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+      fullArticleToggle?.click();
 
       expect(callout()?.querySelector("summary")?.textContent).toBe(
         "Feed description",
@@ -855,6 +904,13 @@ describe("ReaderView – summary de-duplication", () => {
       const item = makeItem({ description: "<p>Short feed blurb</p>" });
       fetchReturning(FETCHED, rawPage({ metaDescription: PAGE_DESCRIPTION }));
       await readerView.displayItem(item);
+      const fullArticleToggle = getHarness(
+        readerView,
+      ).readingContainer.querySelector<HTMLButtonElement>(
+        ".rss-reader-content-toggle",
+      );
+      expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+      fullArticleToggle?.click();
 
       expect(item.publisherDescription).toBe(PAGE_DESCRIPTION);
       expect(item.description).toBe("<p>Short feed blurb</p>");
@@ -907,6 +963,13 @@ describe("ReaderView – summary de-duplication", () => {
         `<div><p>${PAGE_DESCRIPTION}. ${"More. ".repeat(20)}</p></div>`,
       );
       await readerView.displayItem(item);
+      const fullArticleToggle = getHarness(
+        readerView,
+      ).readingContainer.querySelector<HTMLButtonElement>(
+        ".rss-reader-content-toggle",
+      );
+      expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+      fullArticleToggle?.click();
 
       expect(callout()).toBeNull();
     });
@@ -962,6 +1025,13 @@ describe("ReaderView – summary de-duplication", () => {
       .fn()
       .mockResolvedValue({ content: fetchedHtml, failureType: "none" });
     await readerView.displayItem(item);
+    const fullArticleToggle = getHarness(
+      readerView,
+    ).readingContainer.querySelector<HTMLButtonElement>(
+      ".rss-reader-content-toggle",
+    );
+    expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+    fullArticleToggle?.click();
 
     const rc = getHarness(readerView).readingContainer;
     const body = rc.querySelector(".rss-reader-article-content") as HTMLElement;

@@ -1,4 +1,4 @@
-import { requestUrl, setIcon } from "obsidian";
+import { requestUrl } from "obsidian";
 import type { RequestUrlParam } from "obsidian";
 
 export interface RobustFetchResult {
@@ -281,80 +281,21 @@ export function windowInstanceOf<T extends object>(
   );
 }
 
+/** Width at or below which views switch to their compact mobile layout. */
+export const MOBILE_LAYOUT_MAX_WIDTH_PX = 768;
+/** Narrower cutoff used only by the folder selector popup. */
+export const FOLDER_POPUP_MOBILE_MAX_WIDTH_PX = 600;
+
+/** True when `win`'s viewport is at or below `maxWidthPx`. */
+export function isNarrowViewport(
+  win: Window,
+  maxWidthPx: number = MOBILE_LAYOUT_MAX_WIDTH_PX,
+): boolean {
+  return win.matchMedia(`(max-width: ${maxWidthPx}px)`).matches;
+}
+
 export const PHONE_MAX_WIDTH = 768;
 export const TABLET_LAYOUT_MAX_WIDTH = 1200;
-
-/**
- * Attaches a clear (X) button inside a search input wrapper.
- * Handles creation, visibility toggling, click, and keyboard events.
- * The `onClear` callback is called when the input is cleared.
- * @param wrapper The container element for the input and clear button
- * @param input The input element to attach the clear button to
- * @param onClear Callback invoked after input is cleared
- * @param options Optional configuration (CSS classes, button element type)
- */
-export function attachInputClearButton(
-  wrapper: HTMLElement,
-  input: HTMLInputElement,
-  onClear: () => void,
-  options?: {
-    buttonClass?: string;
-    hiddenClass?: string;
-    useButtonElement?: boolean;
-  },
-): HTMLElement {
-  const buttonClass = options?.buttonClass || "rss-discover-search-clear";
-  const hiddenClass =
-    options?.hiddenClass || "rss-discover-search-clear-hidden";
-  const useButton = options?.useButtonElement ?? false;
-
-  const clearButton = useButton
-    ? wrapper.createEl("button", {
-        cls: buttonClass,
-        attr: {
-          type: "button",
-          "aria-label": "Clear search",
-        },
-      })
-    : wrapper.createDiv({
-        cls: `clickable-icon ${buttonClass}`,
-        attr: {
-          "aria-label": "Clear search",
-          role: "button",
-          tabindex: "0",
-        },
-      });
-
-  setIcon(clearButton, "x");
-
-  if (!input.value) {
-    clearButton.addClass(hiddenClass);
-  }
-
-  clearButton.addEventListener("click", () => {
-    input.value = "";
-    clearButton.addClass(hiddenClass);
-    onClear();
-  });
-
-  clearButton.addEventListener("keydown", (e) => {
-    const keyEvent = e as KeyboardEvent;
-    if (keyEvent.key === "Enter" || keyEvent.key === " ") {
-      keyEvent.preventDefault();
-      clearButton.click();
-    }
-  });
-
-  input.addEventListener("input", () => {
-    if (input.value) {
-      clearButton.removeClass(hiddenClass);
-    } else {
-      clearButton.addClass(hiddenClass);
-    }
-  });
-
-  return clearButton;
-}
 
 export type ViewportTier = "phone" | "tablet" | "desktop";
 

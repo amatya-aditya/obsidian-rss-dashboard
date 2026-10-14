@@ -96,15 +96,15 @@ describe("ReaderView tab title sync", () => {
 
     await readerView.displayItem(itemA);
     expect(readerView.getDisplayText()).toBe("Article A");
-    expect(mockLeaf.updateHeader).toHaveBeenCalledTimes(2);
+    expect(mockLeaf.updateHeader).toHaveBeenCalledTimes(1);
 
     await readerView.displayItem(itemB);
 
     expect(readerView.getDisplayText()).toBe("Article B");
-    expect(mockLeaf.updateHeader).toHaveBeenCalledTimes(4);
+    expect(mockLeaf.updateHeader).toHaveBeenCalledTimes(2);
   });
 
-  it("refreshes the tab title again when fetched full article content provides a better title", async () => {
+  it("changes the tab title only after selecting the fetched full article", async () => {
     const item = makeItem({
       title: "Feed Title",
       link: "https://example.com/full-article",
@@ -122,6 +122,14 @@ describe("ReaderView tab title sync", () => {
       });
 
     await readerView.displayItem(item);
+
+    expect(readerView.getDisplayText()).toBe("Feed Title");
+    expect(mockLeaf.updateHeader).toHaveBeenCalledTimes(1);
+    const fullArticleToggle = getInternals(
+      readerView,
+    ).contentEl.querySelector<HTMLButtonElement>(".rss-reader-content-toggle");
+    expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+    fullArticleToggle?.click();
 
     expect(readerView.getDisplayText()).toBe("Fetched Full Article Title");
     expect(mockLeaf.updateHeader).toHaveBeenCalledTimes(2);

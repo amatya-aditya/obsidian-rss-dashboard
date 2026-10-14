@@ -1,21 +1,12 @@
----
-name: test-checklist
-description: Build a test checklist for the current work, then run it autonomously on the user's machine, fixing bugs and parking decisions.
-disable-model-invocation: true
----
+# Executing a test checklist
 
-# Test Checklist
+Shared reference for `/test-drive` and `/test-drive-and-fix`: how to drive each
+item, capture evidence that stands on its own, and report it. Read
+`test-scenarios.md` first for how the list is built.
 
-You take over the machine and **run** the checklist yourself: drive the real
-app, gather evidence, fix what fails, and keep moving. The user is likely away;
-you ping them only for decisions and never wait on them. (For a list the user
-clicks through by hand, they invoke `/manual-test-checklist`.)
+## Pick the lightest route
 
-## 1. Build the checklist
-
-Read `docs/development/test_coverage/test-scenarios.md` in full and build
-the scenario list from it. For each item add the **route** you will drive it
-through, the cheapest one that exercises the real thing:
+For each item choose the cheapest route that exercises the real thing:
 
 - **Script/CLI**: commands, a REPL snippet, reading a written file.
 - **Browser pane**: web UIs and dev servers.
@@ -45,11 +36,7 @@ control only when the behaviour needs real input, native chrome, or pixel-level
 layout. A CDP screenshot beats a clicked-through run when the only question is
 what the UI shows.
 
-Print the numbered checklist with routes before starting, so the user can see
-the plan if they are watching. Done when every item has action → expected
-result → route.
-
-## 2. Set up a sandbox
+## Set up a sandbox
 
 Every item runs in a **sandbox**: a disposable vault, profile, or dataset where
 destructive actions cost nothing. Check memory for a known test environment;
@@ -67,7 +54,11 @@ next tester reuses it; if it is one-off, heavy, or network-bound, build it in a
 disposable copy and leave nothing behind. Hand-edits that live only in the
 disposable working copy are invisible to the next run.
 
-## 3. Run each item
+**Never dirty the change under test.** Building is fine; the working tree stays
+clear of edits to the change. Build into the sandbox and leave the checkout as
+you found it, so a read-only run (`/test-drive`) genuinely changes nothing.
+
+## Run each item
 
 Work top to bottom. Each item ends in exactly one terminal status:
 
@@ -76,8 +67,12 @@ Work top to bottom. Each item ends in exactly one terminal status:
 | ✅ Pass    | Observed the expected result; evidence captured      |
 | 🔧 Fixed   | Failed, fixed, re-run, now passes                    |
 | 🔴 Open    | Failed; fix blocked or out of scope, with the reason |
-| ❓ Parked  | Needs a user decision (step 5)                       |
+| ❓ Parked  | Needs a user decision                                |
 | ⏭ Hand-off | Out of reach for you; the user must check it         |
+
+A read-only run has no 🔧: a failure is 🔴 or ❓. A run with write authority
+(`/test-drive-and-fix`) may use all five. A read-only run may also sit an item
+out as not applicable to the change; say why.
 
 **Evidence** is what you observed, not what you expected: a screenshot for
 visual items, the exact text or output for the rest. Take a fresh screenshot
@@ -101,44 +96,10 @@ the change is. A pair that looks identical is not evidence: reframe and reshoot.
 When the change lives in a file (a saved note, written config), also save the
 before and after text next to the screenshots and report their diff.
 
-## 4. Fix what fails
+## Report
 
-A failure is a bug report in progress. Before touching code:
-
-1. Confirm it is the change under test and not the sandbox (stale build,
-   missing seed data, plugin not reloaded). Re-run once after correcting
-   the setup.
-2. Build a **red** loop at the right seam: a failing regression test that
-   reproduces the observed symptom (follow the `diagnosing-bugs` discipline).
-3. Fix, watch the test go green, run the repo's required validation, rebuild,
-   reload, and re-run the failed item plus every earlier ✅ item that shares
-   the code you changed.
-4. Commit each fix on its own on the current branch, stating the cause in the
-   message. Push only when the user asks.
-
-**Fix in scope**: the bug sits in behavior this diff introduced or touched.
-A bug in untouched code gets 🔴 plus a background task chip
-(`spawn_task`), and you move on.
-
-## 5. Park decisions, keep moving
-
-A **decision** is anything where the expected result is genuinely ambiguous or
-the fix changes product behavior, UX copy, scope, or data: the user's call,
-not yours. For each one:
-
-1. Send a push notification (`PushNotification`, loaded via ToolSearch) with
-   the item number, the question, and your recommended answer.
-2. Mark it ❓ with the options and your recommendation.
-3. Continue with the next item. When later items depend on the answer, test
-   them under your recommended answer and say so.
-
-When the user answers mid-run, apply it at the next item boundary and re-run
-what it affects.
-
-## 6. Report
-
-Done when every item has a terminal status, every 🔧 has a commit and a
-regression test, and the sandbox is left in a known state. Then report:
+Done when every item has a terminal status and the sandbox is left in a known
+state. Then report:
 
 1. The sandbox that was tested, first line of the report: the full absolute
    path of the vault (or profile/dataset) and the build identifier loaded into
@@ -147,11 +108,11 @@ regression test, and the sandbox is left in a known state. Then report:
    already mentioned earlier in the run.
 2. The checklist with final statuses and one line of evidence each.
 3. Before/after screenshots: for each visual item, the absolute paths of the
-   before and after PNGs side by side, with one line saying what changed.
-   Send the pairs to the user (`SendUserFile`, or attach them) so they can
-   validate at a glance without opening the vault.
-4. Each bug in the repo's bug report format (in `AGENTS.md`/`CLAUDE.md` when
-   defined), one per 🔧 and 🔴.
-5. ❓ Parked decisions: question, options, recommendation.
-6. ⏭ Hand-off items the user must check themselves, as checkboxes.
-7. Commits made, and validation results for the final state.
+   before and after PNGs side by side, with one line saying what changed. Send
+   the pairs to the user (`SendUserFile`, or attach them) so they can validate
+   at a glance without opening the vault.
+4. ⏭ Hand-off items the user must check themselves, as checkboxes.
+
+A run with write authority also appends its findings in the repo's bug report
+format, its parked decisions, and the commits it made; see the skill you are
+running for those.
