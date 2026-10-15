@@ -126,6 +126,7 @@ async function fetchToggledScheme(
     }
   }
 
+  if (signal?.aborted) throw new Error("Timed out");
   return null;
 }
 

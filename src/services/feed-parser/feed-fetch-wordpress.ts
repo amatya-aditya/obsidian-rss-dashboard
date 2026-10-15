@@ -63,6 +63,7 @@ async function fetchAlternativeUrls(
     }
   }
 
+  if (signal?.aborted) throw new Error("Timed out");
   return null;
 }
 
@@ -130,6 +131,8 @@ export async function fetchWordPressFallback(
     encodingOverride,
   );
   if (discoveredText !== null) return discoveredText;
+
+  if (signal?.aborted) throw new Error("Timed out");
 
   throw new Error(
     "All alternative feed URLs failed, received PHP file instead of RSS feed",

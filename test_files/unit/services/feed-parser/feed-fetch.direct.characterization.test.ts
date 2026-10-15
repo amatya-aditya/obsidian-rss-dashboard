@@ -315,6 +315,21 @@ describe("the direct attempt in fetchFeedXml", () => {
       ).rejects.toMatchObject({ message: "Timed out" });
       expect(served.requested).toEqual([TARGET]);
     });
+
+    it("throws that it timed out when cancelled during the toggled-scheme request", async () => {
+      // #1116: the abort lands during the only request of the toggled sequence,
+      // after its pre-request check, so the sequence re-checks before reporting
+      // the page as not a feed.
+      const controller = new AbortController();
+      const served = serve(
+        { [TARGET]: plainPage("no feed") },
+        cancelOn(controller, HTTP),
+      );
+      await expect(
+        fetchFeedXml(TARGET, DIRECT, controller.signal),
+      ).rejects.toMatchObject({ message: "Timed out" });
+      expect(served.requested).toEqual([TARGET, HTTP]);
+    });
   });
 
   describe("arXiv stub feeds", () => {

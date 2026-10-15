@@ -124,6 +124,7 @@ export async function fetchThroughConfiguredProxies(
     }
   }
 
+  if (signal?.aborted) throw new Error("Timed out");
   return null;
 }
 
@@ -172,6 +173,7 @@ export async function fetchThroughFallbackProxies(
         );
       }
     } catch {
+      if (signal?.aborted) throw new Error("Timed out");
       return null;
     }
   }
@@ -371,6 +373,7 @@ export async function fetchThroughPublicProxies(
   if (signal?.aborted) throw new Error("Timed out");
   const rawText = await fetchAllOriginsRaw(targetUrl, encodingOverride);
   if (rawText !== null) return rawText;
+  if (signal?.aborted) throw new Error("Timed out");
 
   if (!isAndroid) {
     const desktopText = await fetchThroughDesktopProxies(
