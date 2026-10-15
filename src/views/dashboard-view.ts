@@ -40,6 +40,7 @@ import {
   type CustomSaveHooks,
 } from "../components/article-list/utils/save-options-menu";
 import { resolveSavedTemplateForArticle } from "../utils/saved-template-utils";
+import { resolveSaveVersion } from "../utils/save-version";
 import { getEffectiveDateMs } from "../services/feed-parser/feed-retention.js";
 import {
   getFilteredArticleScope,
@@ -2935,7 +2936,10 @@ export class RssDashboardView extends ItemView {
       template,
       savedTemplate,
     );
-    if (!this.settings.articleSaving.saveFullContent) return file;
+    if (
+      resolveSaveVersion(this.settings.articleSaving, savedTemplate) === "rss"
+    )
+      return file;
     // Propagate restrictedReason if set during save
     if (article.restrictedReason) {
       // Update selectedArticle and inlineArticle if they match

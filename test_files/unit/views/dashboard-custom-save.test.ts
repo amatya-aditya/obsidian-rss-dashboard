@@ -94,7 +94,7 @@ function cloneSettings(): RssDashboardSettings {
 
 function summarySettings(): RssDashboardSettings {
   const settings = cloneSettings();
-  settings.articleSaving.saveFullContent = false;
+  settings.articleSaving.saveVersion = "rss";
   return settings;
 }
 
@@ -165,7 +165,7 @@ async function makeView(settings: RssDashboardSettings) {
       template?: string,
       savedTemplate?: SavedTemplate,
     ) =>
-      settings.articleSaving.saveFullContent
+      settings.articleSaving.saveVersion === "fetched"
         ? saver.saveArticleWithFullContent(
             item,
             folder,
@@ -212,9 +212,9 @@ describe("Dashboard Custom save", () => {
     expect(article.saved).toBeUndefined();
   });
 
-  it("saves the full article with the dialog choices when saveFullContent is on, and shows saving state", async () => {
+  it("saves the full article with the dialog choices when the default save version is Fetched content, and shows saving state", async () => {
     const settings = cloneSettings();
-    settings.articleSaving.saveFullContent = true;
+    settings.articleSaving.saveVersion = "fetched";
     settings.feeds = [makeFeed("https://example.com/feed")];
     const { view } = await makeView(settings);
     const article = settings.feeds[0].items[0];
@@ -241,9 +241,9 @@ describe("Dashboard Custom save", () => {
     expect(states).toEqual([true, false]);
   });
 
-  it("saves the summary with the dialog choices when saveFullContent is off", async () => {
+  it("saves the summary with the dialog choices when the default save version is RSS content", async () => {
     const settings = cloneSettings();
-    settings.articleSaving.saveFullContent = false;
+    settings.articleSaving.saveVersion = "rss";
     settings.feeds = [makeFeed("https://example.com/feed")];
     const { view } = await makeView(settings);
     const article = settings.feeds[0].items[0];
@@ -267,7 +267,7 @@ describe("Dashboard Custom save", () => {
 
   it("clears the saving state and saves nothing when the full-content save fails", async () => {
     const settings = cloneSettings();
-    settings.articleSaving.saveFullContent = true;
+    settings.articleSaving.saveVersion = "fetched";
     settings.feeds = [makeFeed("https://example.com/feed")];
     const { view } = await makeView(settings);
     const article = settings.feeds[0].items[0];
@@ -304,7 +304,7 @@ describe("Dashboard Custom save", () => {
 
   it("propagates restrictedReason from a full-content Custom save", async () => {
     const settings = cloneSettings();
-    settings.articleSaving.saveFullContent = true;
+    settings.articleSaving.saveVersion = "fetched";
     settings.feeds = [makeFeed("https://example.com/feed")];
     const { view } = await makeView(settings);
     const article = settings.feeds[0].items[0];

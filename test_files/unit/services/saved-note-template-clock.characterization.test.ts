@@ -32,7 +32,7 @@ function settings(): ArticleSavingSettings {
     frontmatterTemplate: FRONTMATTER,
     includeFrontmatter: true,
     addSavedTag: false,
-    saveFullContent: false,
+    saveVersion: "rss",
     fetchTimeout: 30000,
     savedTemplates: [],
   };

@@ -63,7 +63,7 @@ describe("Reader save completion after navigation", () => {
           defaultTemplate: "# {{title}}\n\n{{content}}",
           includeFrontmatter: false,
           addSavedTag: false,
-          saveFullContent: false,
+          saveVersion: "rss",
         };
         const onArticleSave = vi.fn<(item: FeedItem) => void>();
         const view = new ReaderView(

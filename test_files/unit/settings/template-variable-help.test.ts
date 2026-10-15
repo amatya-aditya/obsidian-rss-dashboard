@@ -105,7 +105,8 @@ describe("renderTemplateVariableHelp", () => {
     expect(text("source")).toContain("same value as {{feedTitle}}");
     expect(text("tags")).toContain("tags: [{{tags}}]");
     expect(text("language")).toContain("left out when the language is unknown");
-    expect(text("content")).toContain("Save full content");
+    expect(text("content")).toContain("Default save version");
+    expect(text("content")).not.toContain("Save full content");
   });
 
   describe("copy chips", () => {

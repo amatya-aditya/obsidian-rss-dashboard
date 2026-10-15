@@ -2,6 +2,8 @@
 
 ### Features
 
+- **Save full content** is now **Default save version**, a dropdown under **Settings → Article Saving** with two choices: **RSS content** (the feed item's content, falling back to the feed description, then the summary) and **Fetched content** (the article page, falling back to marked RSS content when the fetch fails). Your current choice carries over: on becomes Fetched content and off becomes RSS content, including from an exported settings file made before this change. New installs start on Fetched content, as before. Saves write the same content as before. [GH Issue #1183](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1183)
+
 - Both readers show RSS content immediately while content from the article page loads. Switch between cached RSS content and fetched content explicitly, keeping a separate reading position for each. Successful short fetched bodies are available through the toggle without being announced as failures. Page metadata still persists once to its own article if fetching finishes after navigation or close. Fetching and failure states are announced, and the direct request, sequential proxies, and article fallback share one Fetch timeout budget. [GH Issue #954](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/954)
 
 - Card and feed views show a muted, accessible "No description" placeholder when summaries are on and neither text nor a displayed image is present. [GH Issue #964](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/964)
@@ -45,6 +47,7 @@
 ### Fixes
 
 - Saving an article whose feed embeds a YouTube video now keeps the video in the note: the note gets the video embed on its own line, followed by a plain "Watch on YouTube" link, instead of silently dropping it. Saved from the RSS version, the Reader, or a card with full-content saving on. [GH Issue #1168](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1168)
+- A feed's article file containing an empty (`null`) or malformed entry no longer stops the plugin from loading: the dashboard used to come up with no feeds and refuse to save. The bad entry is now skipped, the feed's other articles and their read and starred state load as usual, and the file is rewritten without it. [GH Issue #1171](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1171)
 - The Reader and the dashboard inline reader no longer use an invisible 1x1 tracking counter as an article's hero image when the feed body has no other picture; a real photo later in the body still becomes the hero. This fixes feeds such as The Conversation, whose article content ends with a `count.gif` pixel. [GH Issue #1170](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1170)
 - Articles from sites with an anti-bot filter (for example 1000-Word Philosophy) no longer show "Fetched content is restricted" while they load normally in a browser. The full-article fetch now sends Obsidian's own User-Agent instead of an incomplete Chrome one that those filters reject with a 403. [GH Issue #1109](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1109)
 - Feeds on sites with an anti-bot filter (for example Stratechery and 1000-Word Philosophy) no longer fail to preview or fetch. Feed fetching, feed preview, feed discovery, the WordPress and proxy fallbacks, and the Mastodon, Apple Podcasts and YouTube lookups now send Obsidian's own User-Agent instead of an incomplete Chrome one those filters reject with a 403, the same change the full-article fetch made above. [GH Issue #1162](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1162)
@@ -204,6 +207,7 @@
 
 ### Developer
 
+- The fixture vault seeds the #1169 tracking-counter cases, so a reset reproduces them: an article whose only image is a 1x1 counter, one with a counter before a real photo, one whose photo declares its size, and one whose only image is a URL-pattern pixel. The fixture server now also serves the counter and pixel images from `test_files/fixture-pages/`, so they genuinely load instead of taking a card's error path. [GH Issue #1175](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1175)
 - The lint rule against a `title` attribute now also catches one inside a conditional or logical `attr` value, without flagging an unrelated nested object, and has a test of its own. [GH Issue #587](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/587), [GH Issue #591](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/591)
 
 ## 2.7.1 - October 3, 2026

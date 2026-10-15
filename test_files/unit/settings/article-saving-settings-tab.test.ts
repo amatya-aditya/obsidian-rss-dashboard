@@ -30,7 +30,7 @@ interface TestPlugin {
     articleSaving: {
       defaultFolder: string;
       addSavedTag: boolean;
-      saveFullContent: boolean;
+      saveVersion: "rss" | "fetched";
       fetchTimeout: number | undefined;
       defaultTemplate: string;
       savedTemplates: SavedTemplate[] | undefined;
@@ -59,7 +59,7 @@ function getSettingByName(containerEl: HTMLElement, name: string): HTMLElement {
 function createPlugin(overrides?: {
   defaultFolder?: string;
   addSavedTag?: boolean;
-  saveFullContent?: boolean;
+  saveVersion?: "rss" | "fetched";
   fetchTimeout?: number | undefined;
   defaultTemplate?: string;
   savedTemplates?: SavedTemplate[] | undefined;
@@ -74,7 +74,7 @@ function createPlugin(overrides?: {
       articleSaving: {
         defaultFolder: overrides?.defaultFolder ?? "Inbox",
         addSavedTag: overrides?.addSavedTag ?? false,
-        saveFullContent: overrides?.saveFullContent ?? false,
+        saveVersion: overrides?.saveVersion ?? "rss",
         fetchTimeout: overrides?.fetchTimeout,
         defaultTemplate: overrides?.defaultTemplate ?? "TEMPLATE",
         savedTemplates: overrides?.savedTemplates,
@@ -183,9 +183,9 @@ describe("renderArticleSavingSettingsTab()", () => {
     expect(plugin.mocks.saveSettings).toHaveBeenCalledTimes(1);
   });
 
-  it("persists toggles (addSavedTag, saveFullContent)", async () => {
+  it("persists the saved-tag toggle and the Default save version", async () => {
     const containerEl = createDiv();
-    const plugin = createPlugin({ addSavedTag: false, saveFullContent: false });
+    const plugin = createPlugin({ addSavedTag: false, saveVersion: "rss" });
     const onRefresh = vi.fn<() => void>();
 
     renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
@@ -200,28 +200,46 @@ describe("renderArticleSavingSettingsTab()", () => {
 
     expect(plugin.settings.articleSaving.addSavedTag).toBe(true);
 
-    const fullContentSetting = getSettingByName(
+    const saveVersionSetting = getSettingByName(
       containerEl,
-      "Save full content",
+      "Default save version",
     );
-    const fullContentToggle = fullContentSetting.querySelector(
-      'input[type="checkbox"]',
-    ) as HTMLInputElement;
-    expect(fullContentSetting.textContent).toContain(
-      "Choose what {{content}} saves: the fetched article when on, or the feed item's content when off.",
+    const saveVersionSelect = saveVersionSetting.querySelector(
+      "select",
+    ) as HTMLSelectElement;
+    expect(saveVersionSetting.textContent).toContain(
+      "RSS content is the feed item's content, falling back to the feed description, then the summary.",
     );
-    expect(fullContentSetting.textContent).toContain(
+    expect(saveVersionSetting.textContent).toContain(
       "{{content}} controls placement in the template; {{summary}} keeps its existing output.",
     );
-    expect(fullContentToggle.type).toBe("checkbox");
-    fullContentToggle.checked = true;
-    fullContentToggle.dispatchEvent(new Event("change"));
+    expect(
+      Array.from(saveVersionSelect.options).map((option) => [
+        option.value,
+        option.textContent,
+      ]),
+    ).toEqual([
+      ["rss", "RSS content"],
+      ["fetched", "Fetched content"],
+    ]);
+    expect(saveVersionSelect.value).toBe("rss");
+    saveVersionSelect.value = "fetched";
+    saveVersionSelect.dispatchEvent(new Event("change"));
     await flushPromises();
 
-    expect(plugin.settings.articleSaving.saveFullContent).toBe(true);
+    expect(plugin.settings.articleSaving.saveVersion).toBe("fetched");
     expect(plugin.mocks.saveSettings).toHaveBeenCalledTimes(2);
   });
 
+  it("names the Default save version in the template precedence note", () => {
+    const containerEl = createDiv();
+    renderArticleSavingSettingsTab(containerEl, createPlugin(), vi.fn());
+
+    expect(containerEl.textContent).toContain(
+      "The default save version and the saved tag remain global options.",
+    );
+    expect(containerEl.textContent).not.toContain("Save full content");
+  });
   it("defaults fetchTimeout to 10 and persists slider changes", async () => {
     const containerEl = createDiv();
     const plugin = createPlugin({ fetchTimeout: undefined });

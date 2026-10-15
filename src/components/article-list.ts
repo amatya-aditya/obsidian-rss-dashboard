@@ -8,6 +8,7 @@ import {
 import { ArticleHeader } from "./article-header";
 import { ArticleEmptyState } from "./article-empty-state";
 import { isNarrowViewport, setCssProps } from "../utils/platform-utils";
+import { resolveSaveVersion } from "../utils/save-version";
 import type { FilterContext } from "../utils/filter-detection";
 import { HighlightService } from "../services/highlight-service";
 import { getEffectiveDateMs } from "../services/feed-parser/feed-retention";
@@ -1096,7 +1097,7 @@ export class ArticleList {
         saveToggle,
         article.saved
           ? "Click to open saved article"
-          : this.settings.articleSaving.saveFullContent
+          : resolveSaveVersion(this.settings.articleSaving) === "fetched"
             ? "Save full article content to notes"
             : "Save article summary to notes",
       );

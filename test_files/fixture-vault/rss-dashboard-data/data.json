@@ -171,6 +171,23 @@
       "lastRefreshAttemptCompletedAt": 1788220800000
     },
     {
+      "feedId": "fx-user-agent",
+      "title": "User-Agent echo (fixture)",
+      "url": "http://127.0.0.1:8787/user-agent-feed.xml",
+      "siteUrl": "http://127.0.0.1:8787",
+      "folder": "",
+      "lastUpdated": 1788264000000,
+      "mediaType": "article",
+      "autoDeleteDuration": 0,
+      "maxItemsLimit": 0,
+      "keywordRules": {
+        "overrideGlobalRules": false,
+        "includeLogic": "AND",
+        "rules": []
+      },
+      "lastRefreshAttemptCompletedAt": 1788264000000
+    },
+    {
       "feedId": "fx-bulk",
       "title": "BBC Technology (fixture, 120 articles)",
       "url": "https://feeds.bbci.co.uk/news/technology/rss.xml",
@@ -294,7 +311,7 @@
     "addSavedTag": true,
     "defaultFolder": "saved-articles/",
     "includeFrontmatter": true,
-    "saveFullContent": true,
+    "saveVersion": "fetched",
     "fetchTimeout": 10,
     "savedTemplates": []
   },

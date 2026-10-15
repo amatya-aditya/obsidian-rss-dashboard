@@ -26,8 +26,9 @@ export const IMPORT_FIXTURES_FOLDER = "import-fixtures";
 export const SAVED_ARTICLE_PATH =
   "saved-articles/fixture-guide-to-offline-reading.md";
 
-// The fixture server (scripts/fixture-server.mjs) serves these pages, so an
-// article whose feed ships no text can fetch a page owned by this repository.
+// The fixture server (scripts/fixture-server.mjs) serves these files, so an
+// article whose feed ships no text can fetch a page owned by this repository,
+// and a seeded tracking counter can genuinely load.
 export const FIXTURE_PAGES_DIR = join(ROOT_DIR, "test_files", "fixture-pages");
 export const FIXTURE_SERVER_HOST = "127.0.0.1";
 export const FIXTURE_SERVER_PORT = 8787;
@@ -35,6 +36,22 @@ export const FIXTURE_SERVER_ORIGIN = `http://${FIXTURE_SERVER_HOST}:${FIXTURE_SE
 // The one seed article whose link is not on example.com (#975).
 export const EMPTY_DESCRIPTION_PAGE = "empty-description.html";
 export const EMPTY_DESCRIPTION_LINK = `${FIXTURE_SERVER_ORIGIN}/${EMPTY_DESCRIPTION_PAGE}`;
+// The one address the fixture server answers with a synthesized feed instead of
+// a page from the folder, printing the request's identity headers as it does.
+// The seeded feed below points at it. See "Checking the outbound User-Agent" in
+// docs/development/fixture-vault.md.
+export const FIXTURE_FEED_PATH = "/user-agent-feed.xml";
+export const FIXTURE_FEED_URL = `${FIXTURE_SERVER_ORIGIN}${FIXTURE_FEED_PATH}`;
+
+// The tracking-counter scenarios (#1169) point their counters at images the
+// fixture server also serves, so the counter genuinely loads: a 404 would take
+// the card's error path and hide the defect. The counter's own address matches
+// no tracking-pixel URL fragment, so only the declared 1x1 size rejects it;
+// the pixel's address is what the URL rule covers.
+export const COUNTER_IMAGE_FILE = "counter.gif";
+export const COUNTER_IMAGE_URL = `${FIXTURE_SERVER_ORIGIN}/${COUNTER_IMAGE_FILE}`;
+export const URL_PATTERN_PIXEL_FILE = "rss-pixel.png";
+export const URL_PATTERN_PIXEL_URL = `${FIXTURE_SERVER_ORIGIN}/${URL_PATTERN_PIXEL_FILE}`;
 
 // 2026-09-01T12:00:00Z. Every seeded timestamp counts back from here.
 const BASE_MS = Date.UTC(2026, 8, 1, 12, 0, 0);
@@ -133,6 +150,20 @@ function previewImage(seed) {
   return `https://picsum.photos/seed/rss-fixture-${seed}/800/450`;
 }
 
+// The 1x1 counter the seeded tracking scenarios embed (#1169). Its address
+// matches no tracking-pixel URL fragment, so only the declared size rejects it.
+const COUNTER_IMG = `<img src="${COUNTER_IMAGE_URL}" width="1" height="1" alt="">`;
+
+/**
+ * A real photo whose address ends in an image extension. The parser's content
+ * scan accepts an image only when its address looks like one (an extension, or
+ * the word "image"), so a photo embedded in `content` needs the extension to be
+ * picked over a counter ahead of it (#1169).
+ */
+function contentPhotoImage(seed) {
+  return `${previewImage(seed)}.jpg`;
+}
+
 /** A long article body that exercises the reader's block-level formatting. */
 function longArticleHtml(seedText) {
   const random = createRandom(hashSeed(seedText));
@@ -160,7 +191,7 @@ function longArticleHtml(seedText) {
     }
     if (section === 8) {
       sections.push(
-        "<pre><code>const fixture = { feeds: 11, articles: 155 };\nconsole.log(fixture);</code></pre>",
+        "<pre><code>const fixture = { feeds: 12, articles: 159 };\nconsole.log(fixture);</code></pre>",
       );
     }
     if (section === 10) {
@@ -302,6 +333,17 @@ const FEEDS = [
     mediaType: "article",
   },
   {
+    // Seeded with no articles: refresh it with the fixture server running and
+    // the terminal prints the headers the fetch sent. Its URL is the fixture
+    // server's, so it shows a fetch error when the server is not running.
+    feedId: "fx-user-agent",
+    title: "User-Agent echo (fixture)",
+    url: FIXTURE_FEED_URL,
+    siteUrl: FIXTURE_SERVER_ORIGIN,
+    folder: "",
+    mediaType: "article",
+  },
+  {
     feedId: "fx-bulk",
     title: "BBC Technology (fixture, 120 articles)",
     url: "https://feeds.bbci.co.uk/news/technology/rss.xml",
@@ -413,6 +455,56 @@ function rssTechItems() {
         `
 <p><img src="${CDN_RESIZED_IMAGE}" alt="Cloudinary demo sample, resized to 300 pixels wide"></p>`,
       summary: paragraphs("rss-tech-9", 1)[0],
+    }),
+    item(feed, {
+      // Tracking-counter cases (#1169). Card View and Feed View read the
+      // stored image fields first and scan the content only as a fallback, so
+      // each item stores the image the parser keeps from its own content.
+      title: "1x1 counter as the only image",
+      link: link(10),
+      pubDate: at(4),
+      author: "Fixture Author",
+      description: htmlParagraphs("rss-tech-10", 1),
+      content: `${htmlParagraphs("rss-tech-10", 1)}
+${COUNTER_IMG}`,
+      summary: paragraphs("rss-tech-10", 1)[0],
+      extra: { image: "" },
+    }),
+    item(feed, {
+      title: "1x1 counter before a real photo",
+      link: link(11),
+      pubDate: at(6),
+      author: "Fixture Author",
+      coverImage: contentPhotoImage("rss-tech-11"),
+      description: htmlParagraphs("rss-tech-11", 1),
+      content: `${COUNTER_IMG}
+${htmlParagraphs("rss-tech-11", 1)}
+<p><img src="${contentPhotoImage("rss-tech-11")}" alt="A placeholder photo"></p>`,
+      summary: paragraphs("rss-tech-11", 1)[0],
+      extra: { image: contentPhotoImage("rss-tech-11") },
+    }),
+    item(feed, {
+      title: "Photo with a declared size",
+      link: link(12),
+      pubDate: at(7),
+      author: "Fixture Author",
+      coverImage: contentPhotoImage("rss-tech-12"),
+      description: htmlParagraphs("rss-tech-12", 1),
+      content: `${htmlParagraphs("rss-tech-12", 1)}
+<p><img src="${contentPhotoImage("rss-tech-12")}" width="640" height="360" alt="A sized placeholder photo"></p>`,
+      summary: paragraphs("rss-tech-12", 1)[0],
+      extra: { image: contentPhotoImage("rss-tech-12") },
+    }),
+    item(feed, {
+      title: "URL-pattern pixel as the only image",
+      link: link(13),
+      pubDate: at(8),
+      author: "Fixture Author",
+      description: htmlParagraphs("rss-tech-13", 1),
+      content: `${htmlParagraphs("rss-tech-13", 1)}
+<p><img src="${URL_PATTERN_PIXEL_URL}" alt=""></p>`,
+      summary: paragraphs("rss-tech-13", 1)[0],
+      extra: { image: "" },
     }),
   ];
 }
@@ -672,6 +764,9 @@ const ITEM_BUILDERS = {
   "fx-mastodon": mastodonItems,
   "fx-smallweb": smallwebItems,
   "fx-single": singleItem,
+  // Seeded empty on purpose: refreshing it against the fixture server is what
+  // prints the request's identity headers (#1162).
+  "fx-user-agent": () => [],
   "fx-bulk": bulkItems,
 };
 
@@ -792,7 +887,7 @@ function buildSettings(feedConfigs) {
       addSavedTag: true,
       defaultFolder: "saved-articles/",
       includeFrontmatter: true,
-      saveFullContent: true,
+      saveVersion: "fetched",
       fetchTimeout: 10,
       savedTemplates: [],
     },

@@ -47,6 +47,7 @@ import { firstNonFormulaImageUrl } from "../utils/image-url-utils";
 import { escapeYamlDoubleQuoted } from "../utils/yaml-escape";
 import { ensureVaultFolder } from "../utils/vault-files";
 import { ONE_SAVE_OVERRIDE_TEMPLATE_ID } from "../utils/saved-template-utils";
+import { resolveSaveVersion } from "../utils/save-version";
 
 const MAX_FILENAME_LENGTH = 100;
 const RSS_FALLBACK_MARKER =
@@ -450,7 +451,7 @@ guid: "{{guid}}"
       fetchedHtml?: string;
     },
   ): Promise<TFile | null> {
-    if (!this.settings.saveFullContent) {
+    if (resolveSaveVersion(this.settings, savedTemplate) === "rss") {
       return this.saveArticle(
         item,
         customFolder,

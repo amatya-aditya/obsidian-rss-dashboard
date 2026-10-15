@@ -469,7 +469,7 @@ describe("ReaderView fetched metadata and saved content", () => {
       corsProxyEnabled: false,
       articleSaving: {
         ...DEFAULT_SETTINGS.articleSaving,
-        saveFullContent: true,
+        saveVersion: "fetched" as const,
         defaultTemplate: "{{content}}",
         includeFrontmatter: false,
       },
