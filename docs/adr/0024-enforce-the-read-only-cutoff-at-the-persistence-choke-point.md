@@ -9,9 +9,8 @@
 accepted
 
 Decided in
-[#1078](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1078) and
-decomposed in
-[`docs/plans/1078-slice-readonly-cutoff-spec.md`](../plans/1078-slice-readonly-cutoff-spec.md).
+[#1078](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1078), which
+also carries the slice plan for carrying it out.
 
 ## Date
 
@@ -132,5 +131,5 @@ importer's import allowlist.
 
 - [ADR 0006 — Deprecate Legacy JSON and Shard storage v1](0006-deprecate-legacy-json-and-shard-storage-v1.md)
 - [ADR 0023 — Set the 3.0 support floor at Obsidian 1.11.5](0023-set-the-3-0-support-floor-at-obsidian-1-11-5.md)
-- [Plan: Slice the ADR 0006 read-only cutoff into an implementable spec](../plans/1078-slice-readonly-cutoff-spec.md)
+- [Plan: Slice the ADR 0006 read-only cutoff into an implementable spec](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1078) — the plan of record
 - [Glossary: Storage](../../CONTEXT.md#storage)
