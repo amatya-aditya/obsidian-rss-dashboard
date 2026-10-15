@@ -2,6 +2,7 @@ import { App, Notice, TFile, TFolder, normalizePath } from "obsidian";
 import type {
   Feed,
   FeedBundle,
+  FeedItem,
   FeedItemsShard,
   PortableDataBundle,
   PersistedFeedConfig,
@@ -113,6 +114,12 @@ export function isHiddenFromSync(folderPath: string): boolean {
 
 function getFeedShardPath(storageFolder: string, feedId: string): string {
   return normalizePath(`${normalizeFolderPath(storageFolder)}/${feedId}.json`);
+}
+
+function dropInvalidShardItems(items: unknown[]): FeedItem[] {
+  return items.filter(
+    (item): item is FeedItem => item != null && typeof item === "object",
+  );
 }
 
 function createFeedShard(feed: Feed, stripState = false): FeedItemsShard {
@@ -284,6 +291,7 @@ export class FeedStorageRepository {
     });
     const didAssignFeedIds = this.ensureFeedIds(settings);
     let shardCount = 0;
+    let didDropInvalidItems = false;
 
     this.shardFolderHiddenFromSync = false;
     if (
@@ -336,7 +344,11 @@ export class FeedStorageRepository {
           throw new Error("Invalid shard data");
         }
 
-        feed.items = parsed.items;
+        // A hand-edited or damaged shard can hold nullish entries; drop them
+        // before any `.guid` access and report the repair so the load saves it.
+        const validItems = dropInvalidShardItems(parsed.items);
+        didDropInvalidItems ||= validItems.length !== parsed.items.length;
+        feed.items = validItems;
         if (feed.feedId) {
           this.feedShardHealthById.delete(feed.feedId);
           this.hydratedShardGuidsByFeedId.set(
@@ -386,7 +398,11 @@ export class FeedStorageRepository {
     }
 
     this.capturePersistedState(settings);
-    return { didChange: didAssignFeedIds, shardCount, userStateLoaded };
+    return {
+      didChange: didAssignFeedIds || didDropInvalidItems,
+      shardCount,
+      userStateLoaded,
+    };
   }
 
   public async persistSettings(
