@@ -142,11 +142,6 @@
       "count": 1
     }
   },
-  "src/utils/settings-loader.ts": {
-    "complexity": {
-      "count": 3
-    }
-  },
   "src/utils/settings-migration.ts": {
     "complexity": {
       "count": 1
