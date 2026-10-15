@@ -45,6 +45,7 @@
 ### Fixes
 
 - Articles from sites with an anti-bot filter (for example 1000-Word Philosophy) no longer show "Fetched content is restricted" while they load normally in a browser. The full-article fetch now sends Obsidian's own User-Agent instead of an incomplete Chrome one that those filters reject with a 403. [GH Issue #1109](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1109)
+- The WordPress/PHP feed fallback no longer requests a blog's `rss.xml` address twice, so a refresh that reaches the fallback sends one fewer request. [GH Issue #1115](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1115)
 - A feed whose first (background) import fails or times out now shows a warning badge on its sidebar row, with the reason in its tooltip, instead of appearing as an ordinary feed with no articles. The badge clears once the feed imports or refreshes successfully. [GH Issue #1140](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1140)
 - Cancelling a feed refresh now reports that it timed out instead of the error of whichever request was in flight. [GH Issue #1116](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1116)
 - Feed discovery now resolves a feed address the way a browser does, so protocol-relative, relative, and HTML-encoded `<link rel="alternate">` and anchor addresses point at the right feed, and an address that does not resolve to http(s) is ignored instead of fetched. [GH Issue #1098](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1098)

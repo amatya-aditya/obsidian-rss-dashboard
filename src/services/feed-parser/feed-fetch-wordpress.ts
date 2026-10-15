@@ -31,7 +31,6 @@ async function fetchAlternativeUrls(
 
     `${baseUrl}/feed`,
     `${baseUrl}/rss`,
-    `${baseUrl}/rss.xml`,
     `${baseUrl}/index.rss`,
     `${baseUrl}/index.xml`,
 
