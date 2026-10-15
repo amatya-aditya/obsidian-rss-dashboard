@@ -44,8 +44,6 @@
 
 ### Fixes
 
-- Reader updates keep articles within the dashboard’s selected feed or folder scope, including descendant folders, so visible rows and filter counts stay consistent. [GH Issue #1133](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1133)
-
 - Feed discovery now resolves a feed address the way a browser does, so protocol-relative, relative, and HTML-encoded `<link rel="alternate">` and anchor addresses point at the right feed, and an address that does not resolve to http(s) is ignored instead of fetched. [GH Issue #1098](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1098)
 - Reader star, read, and tag updates no longer put keyword-excluded articles back into the dashboard or leave them displayed with conflicting filter counts. Global and per-feed rules retain their existing override and bypass behavior. [GH Issue #1083](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1083)
 - Closing the Reader or switching away from a podcast now cancels its sleep timer, preventing countdown updates from continuing after the player is closed. [GH Issue #1087](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1087)
@@ -70,6 +68,7 @@
 - The dashboard's inline reader now follows your current settings after an import replaces them, instead of using the values from when the dashboard opened. [GH Issue #960](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/960)
 - Saving settings while an automatic feed refresh is still running no longer starts duplicate requests. The next refresh follows the current feed list and intervals after the pending attempt finishes. [GH Issue #962](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/962)
 - Moving several folders at once keeps a selected subfolder inside its selected parent, whatever order they were selected in. [GH Issue #655](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/655)
+- Reader updates keep articles within the dashboard’s selected feed or folder scope, including descendant folders, so visible rows and filter counts stay consistent. [GH Issue #1133](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1133)
 - Restoring a Feed bundle or Portable data bundle now preserves article state across old cleanup deadlines, including read, starred, tags, saved-note associations, and playback progress. [GH Issue #963](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/963)
 - Fetching a full article no longer fails slowly when the page only mentions a paywall in its script data, as Ars Technica pages do. Before, such a page was treated as blocked and sent through the proxy list, which took about 20 seconds and returned nothing; it now loads straight away. Pages that really show paywall or sign-in wording still count as restricted. [GH Issue #950](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/950)
 - Enabling **Add "Saved" tag** now registers the tag in the Tags list so it can be edited, deleted, and filtered like any other tag. Previously the chip appeared on saved articles but the tag never appeared under Settings > Tags or in the sidebar tag filter. [GH Issue #943](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/943)
