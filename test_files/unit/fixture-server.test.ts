@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { readFileSync } from "node:fs";
 import { request, type Server } from "node:http";
 import { join } from "node:path";
@@ -5,17 +6,19 @@ import { Readability } from "@mozilla/readability";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  COUNTER_IMAGE_FILE,
   EMPTY_DESCRIPTION_LINK,
   EMPTY_DESCRIPTION_PAGE,
   FIXTURE_FEED_PATH,
   FIXTURE_FEED_URL,
   FIXTURE_PAGES_DIR,
   TEMPLATE_DIR,
+  URL_PATTERN_PIXEL_FILE,
 } from "../../scripts/generate-fixture-vault.mjs";
 import {
   describeRequestIdentity,
   isFixtureFeedPath,
-  resolveFixturePage,
+  resolveFixtureFile,
   startFixtureServer,
 } from "../../scripts/fixture-server.mjs";
 import {
@@ -92,6 +95,28 @@ function get(
   });
 }
 
+/** Fetches a path as raw bytes, for the image responses a string read cannot check. */
+function getBytes(
+  port: number,
+  path: string,
+): Promise<{ status: number; body: Buffer; contentType: string }> {
+  return new Promise((resolve, reject) => {
+    const req = request({ host: "127.0.0.1", port, path }, (res) => {
+      const chunks: Buffer[] = [];
+      res.on("data", (chunk: Buffer) => chunks.push(chunk));
+      res.on("end", () =>
+        resolve({
+          status: res.statusCode ?? 0,
+          body: Buffer.concat(chunks),
+          contentType: String(res.headers["content-type"] ?? ""),
+        }),
+      );
+    });
+    req.on("error", reject);
+    req.end();
+  });
+}
+
 async function listeningPort(): Promise<number> {
   const server = await startFixtureServer({ port: 0 });
   servers.push(server);
@@ -135,23 +160,6 @@ describe("Empty-description fixture scenario (#975)", () => {
     const update = applyArticleMetadata(item, pageMetadata, articleHtml);
     expect(update?.publisherDescription).toBe(PAGE_DESCRIPTION);
     expect(item.publisherDescription).toBe(PAGE_DESCRIPTION);
-  });
-
-  it("maps only committed page names to files in the pages folder", () => {
-    expect(resolveFixturePage(`/${EMPTY_DESCRIPTION_PAGE}`)?.name).toBe(
-      EMPTY_DESCRIPTION_PAGE,
-    );
-    expect(resolveFixturePage("/missing.html")).toBeNull();
-    expect(resolveFixturePage("/../scripts/fixture-server.mjs")).toBeNull();
-    expect(resolveFixturePage("/")).toBeNull();
-  });
-
-  it("refuses encoded traversal and names outside the folder listing", () => {
-    expect(resolveFixturePage("/%2e%2e%2fpackage.json")).toBeNull();
-    expect(resolveFixturePage("/..%2F..%2Fsecret.html")).toBeNull();
-    expect(resolveFixturePage("/..%5Csecret.html")).toBeNull();
-    expect(resolveFixturePage("/..html")).toBeNull();
-    expect(resolveFixturePage("/%E0%A4%A.html")).toBeNull();
   });
 
   it("serves the page over HTTP and 404s anything else", async () => {
@@ -245,5 +253,54 @@ describe("User-Agent echo fixture (#1162)", () => {
     expect(
       describeRequestIdentity({ "user-agent": "obsidian/1.14.4" }),
     ).toContain("user-agent: obsidian/1.14.4");
+  });
+});
+
+describe("Fixture server file mapping (#1169)", () => {
+  it("maps only committed pages and images in the pages folder", () => {
+    expect(resolveFixtureFile(`/${EMPTY_DESCRIPTION_PAGE}`)).toMatchObject({
+      name: EMPTY_DESCRIPTION_PAGE,
+      contentType: "text/html; charset=utf-8",
+    });
+    expect(resolveFixtureFile(`/${COUNTER_IMAGE_FILE}`)).toMatchObject({
+      name: COUNTER_IMAGE_FILE,
+      contentType: "image/gif",
+    });
+    expect(resolveFixtureFile(`/${URL_PATTERN_PIXEL_FILE}`)).toMatchObject({
+      name: URL_PATTERN_PIXEL_FILE,
+      contentType: "image/png",
+    });
+    expect(resolveFixtureFile("/missing.html")).toBeNull();
+    expect(resolveFixtureFile("/fixture-server.mjs")).toBeNull();
+    expect(resolveFixtureFile("/../scripts/fixture-server.mjs")).toBeNull();
+    expect(resolveFixtureFile("/")).toBeNull();
+  });
+
+  it("refuses encoded traversal and names outside the folder listing", () => {
+    expect(resolveFixtureFile("/%2e%2e%2fpackage.json")).toBeNull();
+    expect(resolveFixtureFile("/..%2F..%2Fsecret.html")).toBeNull();
+    expect(resolveFixtureFile("/..%5Csecret.html")).toBeNull();
+    expect(resolveFixtureFile("/..html")).toBeNull();
+    expect(resolveFixtureFile("/%E0%A4%A.html")).toBeNull();
+  });
+
+  it("serves the seeded counter and pixel as real images, not 404s (#1169)", async () => {
+    const port = await listeningPort();
+
+    // The counter only reproduces the defect when it genuinely loads; a 404
+    // takes the card's error path and hides it, so the response must be a GIF.
+    const counter = await getBytes(port, `/${COUNTER_IMAGE_FILE}`);
+    expect(counter.status).toBe(200);
+    expect(counter.contentType).toContain("image/gif");
+    expect(counter.body.subarray(0, 6).toString("latin1")).toMatch(
+      /^GIF8[79]a$/,
+    );
+
+    const pixel = await getBytes(port, `/${URL_PATTERN_PIXEL_FILE}`);
+    expect(pixel.status).toBe(200);
+    expect(pixel.contentType).toContain("image/png");
+    expect(Array.from(pixel.body.subarray(0, 8))).toEqual([
+      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+    ]);
   });
 });

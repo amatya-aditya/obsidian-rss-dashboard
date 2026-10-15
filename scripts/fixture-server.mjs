@@ -1,19 +1,20 @@
-// Serves the committed fixture pages over HTTP for manual testing, so a
-// scenario that needs the Reader to fetch an article page can point at a page
-// owned by this repository instead of an off-repo server. It also answers one
-// synthesized feed whose request headers it prints, so a tester can see what
-// the plugin claims to be when it fetches. See "Fixture pages and the fixture
-// server" in docs/development/fixture-vault.md.
+// Serves the committed fixture files over HTTP for manual testing, so a
+// scenario that needs the Reader to fetch an article page, or a card to load a
+// tracking counter, can point at a file owned by this repository instead of an
+// off-repo server. It also answers one synthesized feed whose request headers
+// it prints, so a tester can see what the plugin claims to be when it fetches.
+// See "Fixture pages and the fixture server" in
+// docs/development/fixture-vault.md.
 //
 //   npm run fixture:serve
 //
-// Dependency-free: it uses Node's built-in http module. It serves only the
-// .html files directly inside the pages folder, plus the one feed address the
-// seed data points at, on the host and port that data uses.
+// Dependency-free: it uses Node's built-in http module. It serves the .html
+// pages and .gif/.png images directly inside the pages folder, plus the one
+// feed address the seed data points at, on the host and port that data uses.
 
 import { readdirSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
-import { join } from "node:path";
+import { extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -23,6 +24,20 @@ import {
   FIXTURE_SERVER_HOST,
   FIXTURE_SERVER_PORT,
 } from "./generate-fixture-vault.mjs";
+
+// The committed files the server answers for, by extension, with the content
+// type each one is served as. HTML backs the "Article with no feed
+// description" scenario (#975); the images back the tracking-counter
+// scenarios (#1169), whose counter only reproduces the defect when it loads.
+const CONTENT_TYPES = new Map([
+  [".html", "text/html; charset=utf-8"],
+  [".gif", "image/gif"],
+  [".png", "image/png"],
+]);
+
+// One file name with an allowed extension, at the folder root: no slashes, so
+// a path or `..` can never escape the folder.
+const SERVED_FILE_PATTERN = /^\/([A-Za-z0-9._-]+)(\.[A-Za-z0-9]+)$/;
 
 /**
  * The headers a request can use to describe itself as a browser. A request that
@@ -38,12 +53,13 @@ const IDENTITY_HEADERS = [
 ];
 
 /**
- * Maps a request path to a committed fixture page, or null when it names no
- * page in the folder. Only a bare `<name>.html` at the folder root is served:
- * the request is matched against the folder's own listing, and the file path is
- * built from that listing, so no part of the request ever reaches the path.
+ * Maps a request path to a committed fixture file, or null when it names no
+ * servable file in the folder. Only a bare `<name>.<ext>` at the folder root
+ * is served: the request is matched against the folder's own listing, and the
+ * file path is built from that listing, so no part of the request ever reaches
+ * the path.
  */
-export function resolveFixturePage(requestPath) {
+export function resolveFixtureFile(requestPath) {
   const [pathname = ""] = requestPath.split(/[?#]/);
   let decoded;
   try {
@@ -51,18 +67,29 @@ export function resolveFixturePage(requestPath) {
   } catch {
     return null;
   }
-  if (!/^\/[A-Za-z0-9._-]+\.html$/.test(decoded)) return null;
+
+  const match = SERVED_FILE_PATTERN.exec(decoded);
+  if (!match) return null;
+  const extension = match[2];
+  const contentType = CONTENT_TYPES.get(extension.toLowerCase());
+  if (!contentType) return null;
 
   const requested = decoded.slice(1);
-  const name = listFixturePages().find((page) => page === requested);
-  return name ? { name, file: join(FIXTURE_PAGES_DIR, name) } : null;
+  const name = listFixtureFiles().find((file) => file === requested);
+  return name
+    ? { name, file: join(FIXTURE_PAGES_DIR, name), contentType }
+    : null;
 }
 
-/** The `.html` files directly inside the pages folder, read per request. */
-function listFixturePages() {
+/** The servable files directly inside the pages folder, read per request. */
+function listFixtureFiles() {
   try {
     return readdirSync(FIXTURE_PAGES_DIR, { withFileTypes: true })
-      .filter((entry) => entry.isFile() && entry.name.endsWith(".html"))
+      .filter(
+        (entry) =>
+          entry.isFile() &&
+          CONTENT_TYPES.has(extname(entry.name).toLowerCase()),
+      )
       .map((entry) => entry.name);
   } catch {
     return [];
@@ -138,22 +165,22 @@ export function createFixtureServer() {
       return;
     }
 
-    const page =
-      request.method === "GET" ? resolveFixturePage(requestPath) : null;
+    const file =
+      request.method === "GET" ? resolveFixtureFile(requestPath) : null;
 
-    if (!page) {
+    if (!file) {
       response.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
       response.end("Not found\n");
       return;
     }
 
-    const body = readFileSync(page.file);
+    const body = readFileSync(file.file);
     response.writeHead(200, {
-      "content-type": "text/html; charset=utf-8",
+      "content-type": file.contentType,
       "content-length": String(body.byteLength),
     });
     response.end(body);
-    console.log(`GET ${requestPath} -> 200 (${page.name})`);
+    console.log(`GET ${requestPath} -> 200 (${file.name})`);
     console.log(describeRequestIdentity(request.headers));
   });
 }
