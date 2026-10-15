@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ArticleHeader } from "../../../src/components/article-header";
+import { openFilterMenuFrom } from "../../../src/components/article-filter-menu";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 type TestSettings = ConstructorParameters<typeof ArticleHeader>[1];
@@ -185,6 +186,187 @@ describe("ArticleHeader Component", () => {
     expect(
       document.querySelector(".rss-dashboard-filter-menu-portal"),
     ).toBeNull();
+  });
+
+  describe("Filters button popup state", () => {
+    function renderFilterButton(): HTMLElement {
+      const header = new ArticleHeader(
+        container,
+        settings,
+        "Title",
+        null,
+        null,
+        new Set(),
+        new Set(),
+        "OR",
+        mockCallbacks,
+      );
+      header.render();
+      return container.querySelector(
+        ".rss-dashboard-mobile-filter-button",
+      ) as HTMLElement;
+    }
+    const pressEscape = () =>
+      document.body.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+
+    it("announces a closed popup before the menu opens", () => {
+      const filterButton = renderFilterButton();
+
+      expect(filterButton.getAttribute("aria-haspopup")).toBe("dialog");
+      expect(filterButton.getAttribute("aria-expanded")).toBe("false");
+    });
+
+    it("reports expanded while the menu is open and collapsed after Escape or a second click", () => {
+      const filterButton = renderFilterButton();
+
+      filterButton.click();
+      expect(filterButton.getAttribute("aria-expanded")).toBe("true");
+
+      pressEscape();
+      expect(filterButton.getAttribute("aria-expanded")).toBe("false");
+      expect(document.activeElement).toBe(filterButton);
+
+      filterButton.click();
+      filterButton.click();
+      expect(filterButton.getAttribute("aria-expanded")).toBe("false");
+    });
+
+    it("reports collapsed after a click outside the menu", async () => {
+      const filterButton = renderFilterButton();
+      filterButton.click();
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+
+      document.body.dispatchEvent(
+        new MouseEvent("mousedown", { bubbles: true }),
+      );
+
+      expect(filterButton.getAttribute("aria-expanded")).toBe("false");
+    });
+
+    it("opens from another control and returns Escape focus to that control", () => {
+      const filterButton = renderFilterButton();
+      const opener = createDiv();
+      opener.setAttribute("role", "button");
+      opener.setAttribute("tabindex", "0");
+      opener.setAttribute("aria-expanded", "false");
+      document.body.appendChild(opener);
+
+      openFilterMenuFrom(filterButton, opener);
+      expect(opener.getAttribute("aria-expanded")).toBe("true");
+
+      pressEscape();
+
+      expect(opener.getAttribute("aria-expanded")).toBe("false");
+      expect(document.activeElement).toBe(opener);
+    });
+
+    it("keeps the open menu attached to the new Filters button when the header re-renders", () => {
+      const header = new ArticleHeader(
+        container,
+        settings,
+        "Title",
+        null,
+        null,
+        new Set(),
+        new Set(),
+        "OR",
+        mockCallbacks,
+      );
+      header.render();
+      const first = container.querySelector(
+        ".rss-dashboard-mobile-filter-button",
+      ) as HTMLElement;
+      first.click();
+
+      header.render();
+      const second = container.querySelector(
+        ".rss-dashboard-mobile-filter-button",
+      ) as HTMLElement;
+      expect(second).not.toBe(first);
+      expect(second.getAttribute("aria-expanded")).toBe("true");
+      expect(second.classList.contains("active")).toBe(true);
+
+      pressEscape();
+
+      expect(second.getAttribute("aria-expanded")).toBe("false");
+      expect(second.classList.contains("active")).toBe(false);
+      expect(document.activeElement).toBe(second);
+    });
+
+    it("lets the new Filters button close the menu with a second click after a re-render", () => {
+      const header = new ArticleHeader(
+        container,
+        settings,
+        "Title",
+        null,
+        null,
+        new Set(),
+        new Set(),
+        "OR",
+        mockCallbacks,
+      );
+      header.render();
+      (
+        container.querySelector(
+          ".rss-dashboard-mobile-filter-button",
+        ) as HTMLElement
+      ).click();
+      header.render();
+      const second = container.querySelector(
+        ".rss-dashboard-mobile-filter-button",
+      ) as HTMLElement;
+
+      second.click();
+
+      expect(
+        document.querySelector(".rss-dashboard-filter-menu-portal"),
+      ).toBeNull();
+      expect(second.getAttribute("aria-expanded")).toBe("false");
+    });
+
+    it("leaves a closed menu alone when the header re-renders", () => {
+      const header = new ArticleHeader(
+        container,
+        settings,
+        "Title",
+        null,
+        null,
+        new Set(),
+        new Set(),
+        "OR",
+        mockCallbacks,
+      );
+      header.render();
+      const first = container.querySelector(
+        ".rss-dashboard-mobile-filter-button",
+      ) as HTMLElement;
+      first.click();
+      pressEscape();
+
+      header.render();
+      const second = container.querySelector(
+        ".rss-dashboard-mobile-filter-button",
+      ) as HTMLElement;
+
+      expect(second.getAttribute("aria-expanded")).toBe("false");
+      expect(second.classList.contains("active")).toBe(false);
+    });
+
+    it("forgets the other control, so a later click on Filters returns focus to Filters", () => {
+      const filterButton = renderFilterButton();
+      const opener = createDiv();
+      opener.setAttribute("tabindex", "0");
+      document.body.appendChild(opener);
+      openFilterMenuFrom(filterButton, opener);
+      pressEscape();
+
+      filterButton.click();
+      pressEscape();
+
+      expect(document.activeElement).toBe(filterButton);
+    });
   });
 
   it("closes the mobile filter menu when clicking outside", async () => {

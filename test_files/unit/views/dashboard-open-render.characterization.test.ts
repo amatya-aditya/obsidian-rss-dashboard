@@ -25,6 +25,7 @@ import {
 } from "../../../src/types/types";
 import type RssDashboardPlugin from "../../../main";
 import { RssDashboardView } from "../../../src/views/dashboard-view";
+import { ArticleHeader } from "../../../src/components/article-header";
 
 const recorded = vi.hoisted(() => ({
   sidebars: [] as Array<{ args: unknown[]; renders: number; cleared: number }>,
@@ -171,7 +172,7 @@ interface ViewInternals {
     filteredOut: number;
     total: number;
   } | null;
-  openViewingFiltersMenu: () => void;
+  openViewingFiltersMenu: (opener?: HTMLElement) => void;
   renderInlineArticle: (container: HTMLElement) => void;
   renderToolbar: (container: HTMLElement) => void;
   getFilteredArticles: () => FeedItem[];
@@ -1018,6 +1019,95 @@ describe("Dashboard renderFilterSubheader characterization", () => {
       new KeyboardEvent("keydown", { key: "a", bubbles: true }),
     );
     expect(open).toHaveBeenCalledTimes(3);
+  });
+
+  describe("viewing filters button popup state", () => {
+    it("announces that it opens a popup that is closed", () => {
+      const { container } = strip((view) => {
+        view.dashboardMultiFilterCounts = {
+          shown: 1,
+          filteredOut: 0,
+          total: 1,
+        };
+      });
+      const button = container.querySelector(
+        ".rss-dashboard-viewing-filter-open-btn",
+      ) as HTMLElement;
+      expect(button.getAttribute("aria-haspopup")).toBe("dialog");
+      expect(button.getAttribute("aria-expanded")).toBe("false");
+    });
+
+    it("hands itself to the menu opener on click and on Enter", () => {
+      const { container, h } = strip((view) => {
+        view.dashboardMultiFilterCounts = {
+          shown: 1,
+          filteredOut: 0,
+          total: 1,
+        };
+      });
+      const open = vi.fn();
+      h.view.openViewingFiltersMenu = open;
+      const button = container.querySelector(
+        ".rss-dashboard-viewing-filter-open-btn",
+      ) as HTMLElement;
+
+      button.click();
+      button.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      );
+
+      expect(open).toHaveBeenNthCalledWith(1, button);
+      expect(open).toHaveBeenNthCalledWith(2, button);
+    });
+
+    it("keeps the menu state on the button and returns Esc focus to it", () => {
+      const { container, h } = strip((view) => {
+        view.dashboardMultiFilterCounts = {
+          shown: 1,
+          filteredOut: 0,
+          total: 1,
+        };
+      });
+      vi.stubGlobal(
+        "ResizeObserver",
+        class {
+          observe() {}
+          unobserve() {}
+          disconnect() {}
+        },
+      );
+      const header = new ArticleHeader(
+        h.view.containerEl.createDiv(),
+        h.settings,
+        "Title",
+        null,
+        null,
+        new Set(),
+        new Set(),
+        "OR",
+        {} as ConstructorParameters<typeof ArticleHeader>[8],
+      );
+      header.render();
+      const button = container.querySelector(
+        ".rss-dashboard-viewing-filter-open-btn",
+      ) as HTMLElement;
+
+      button.click();
+
+      expect(button.getAttribute("aria-expanded")).toBe("true");
+      expect(
+        document.querySelector(".rss-dashboard-filter-menu-portal"),
+      ).not.toBeNull();
+
+      document.body.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+
+      expect(button.getAttribute("aria-expanded")).toBe("false");
+      expect(document.activeElement).toBe(button);
+      header.destroy();
+      vi.unstubAllGlobals();
+    });
   });
 
   it("attaches the keyword filter tooltip to the content only when there is one", () => {
