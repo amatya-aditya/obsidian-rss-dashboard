@@ -66,10 +66,7 @@ async function fetchThroughProxy(
     proxyUrl.includes("allorigins.win/get") || proxyUrl.includes("rss2json");
   const responseText = await robustFetch(requestUrlParam, {
     method: "GET",
-    headers: {
-      Accept:
-        "application/feed+json, application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
-    },
+    headers: feedRequestHeaders(),
     encodingOverride: isJsonEnvelope ? undefined : encodingOverride,
   });
 
@@ -145,10 +142,7 @@ export async function fetchThroughFallbackProxies(
     const proxyUrl = `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`;
     const proxyResponseText = await robustFetch(proxyUrl, {
       method: "GET",
-      headers: {
-        Accept:
-          "application/feed+json, application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
-      },
+      headers: feedRequestHeaders(),
       encodingOverride,
     });
 

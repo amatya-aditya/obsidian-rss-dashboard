@@ -56,9 +56,11 @@ blanket rules.
 that matches what they read — a feed, an HTML page, or a JSON API — and nothing
 else. Obsidian supplies its own `User-Agent`, which is what the server sees.
 
-**One module owns the request header sets.** Call sites spread the set for what
-they are fetching instead of writing their own header objects, so the policy has
-one home and one test. A production module that hard-codes a `User-Agent` again
+**One module owns the request header sets.** The feed, page and JSON requests
+audited here take the header set for what they are fetching from
+`src/utils/request-headers.ts` instead of writing their own `Accept` object, so
+the policy has one home and one test. The full-article fetch is the one
+exception, and it already carries the same policy (see Implementation notes). A production module that hard-codes a `User-Agent` again
 fails that test.
 
 **An explicit `User-Agent` returns only with evidence.** If a host is later shown
@@ -151,14 +153,20 @@ outright by some hosts, while a request carrying Obsidian's own is not.
 - The full-article fetch keeps its own `Accept` and `Accept-Language` and its own
   no-`User-Agent` policy from #1109; it was not folded into the shared module,
   because it was already correct and out of #1162's scope.
+- The five feed `Accept` variants the call sites used to write collapse into
+  `FEED_ACCEPT`, the superset that six of the eight feed sites already sent. Feed
+  discovery, preview, the WordPress fallback and the proxy paths therefore
+  advertise `application/feed+json` and `application/rdf+xml` where some
+  previously did not. `*/*;q=0.8` keeps the widening harmless, and each site's
+  `Accept` is pinned by its own test.
 - `docs/SECURITY.md` describes what leaves the device; the YouTube entry no
   longer claims a desktop browser `User-Agent`.
 
 ## Confirmation
 
 `test_files/unit/utils/request-headers.test.ts` asserts the header sets and walks
-`src/**/*.ts` for a hard-coded `User-Agent` key, failing on any. Per-call-site
-header assertions live beside each module's other tests.
+`main.ts` and `src/**/*.ts` for a hard-coded `User-Agent` key, failing on any.
+Per-call-site header assertions live beside each module's other tests.
 
 ## Related
 

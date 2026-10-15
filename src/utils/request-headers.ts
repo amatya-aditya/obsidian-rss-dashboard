@@ -13,7 +13,7 @@
  * policy for the same reason; it keeps its own `Accept` and
  * `Accept-Language`.
  *
- * These helpers are the one place the policy lives: a call site spreads the
+ * These helpers are the one place the policy lives: a call site uses the
  * header set for what it is fetching and adds nothing else.
  * `test_files/unit/utils/request-headers.test.ts` fails if a production module
  * hard-codes a User-Agent again.

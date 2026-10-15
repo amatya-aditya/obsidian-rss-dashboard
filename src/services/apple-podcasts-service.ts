@@ -1,4 +1,5 @@
 import { requestUrl } from "obsidian";
+import { jsonRequestHeaders } from "../utils/request-headers.js";
 import { normalizeUrlForComparison } from "../utils/url-utils";
 
 interface ItunesSearchResult {
@@ -47,7 +48,7 @@ export async function resolveApplePodcastsShowUrl(
     const response = await requestUrl({
       url: searchUrl,
       method: "GET",
-      headers: { Accept: "application/json" },
+      headers: jsonRequestHeaders(),
     });
     if (response.status !== 200) {
       return null;

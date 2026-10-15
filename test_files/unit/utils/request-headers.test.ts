@@ -31,9 +31,13 @@ const repoRoot = path.resolve(
   "..",
 );
 
-/** Every `src/**\/*.ts` file, as repository-relative slash-separated paths. */
+/**
+ * Every production module: `main.ts` and `src/**\/*.ts`, as
+ * repository-relative slash-separated paths. `main.ts` is a production module
+ * too, so the policy covers it.
+ */
 function productionFiles(): string[] {
-  const found: string[] = [];
+  const found: string[] = ["main.ts"];
   const walk = (dir: string): void => {
     for (const entry of readdirSync(dir)) {
       const full = path.join(dir, entry);
