@@ -88,6 +88,22 @@ describe("isInteractiveTarget with sidebar rows", () => {
     }
   });
 
+  it("lets the dashboard handle keys on the row that holds the Tab stop", () => {
+    // AC-014g: one row is tabindex="0" and the rest are "-1". Neither value
+    // turns a row into a control.
+    const rows = [
+      ...container.querySelectorAll<HTMLElement>(
+        ".rss-dashboard-all-feeds-button, .rss-dashboard-feed-folder-header, .rss-dashboard-feed",
+      ),
+    ];
+    expect(
+      rows.filter((row) => row.getAttribute("tabindex") === "0"),
+    ).toHaveLength(1);
+    for (const row of rows) {
+      expect(isInteractiveTarget(row)).toBe(false);
+    }
+  });
+
   it("lets the dashboard handle keys whose target is text inside a sidebar row", () => {
     const name = container.querySelector(".rss-dashboard-feed-name")!;
     expect(isInteractiveTarget(name)).toBe(false);

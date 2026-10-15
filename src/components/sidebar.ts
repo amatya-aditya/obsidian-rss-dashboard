@@ -54,6 +54,12 @@ import {
   syncFolderExpanded,
   syncSidebarRowName,
 } from "./sidebar-row-semantics";
+import {
+  attachSidebarFocusSync,
+  isSidebarRowReachable,
+  setSidebarTabStop,
+} from "./sidebar-focus-sync";
+import { markNamedLandmark } from "../utils/landmarks";
 import { clearMovedSelection, reportBatchMove } from "./sidebar-selection";
 import { renderSidebarHeader, type SidebarHeaderHost } from "./sidebar-header";
 import {
@@ -214,6 +220,8 @@ export class Sidebar {
   private openConfirmModal: Modal | null = null;
   private focusedSidebarTarget: SidebarFocusTarget | null = null;
   private isSidebarKeyboardFocused = false;
+  private detachFocusSync: (() => void) | null = null;
+  private isRestoringRowFocus = false;
   private refreshStatusDetailCleanups = new Map<HTMLElement, () => void>();
   /** The refresh and import state each rendered feed row was drawn with. */
   private feedRowStates = new WeakMap<HTMLElement, string>();
@@ -393,9 +401,15 @@ export class Sidebar {
     this.settings = settings;
     this.options = options;
     this.callbacks = callbacks;
+    this.detachFocusSync = attachSidebarFocusSync(container, {
+      onKeyboardFocus: (target) => this.syncKeyboardFocusFromDom(target),
+      onFocusLeaveSidebar: () => this.blurSidebarFocus(),
+    });
   }
 
   public destroy(): void {
+    this.detachFocusSync?.();
+    this.detachFocusSync = null;
     this.clearSearchTimeout();
     this.clearRefreshStatusDetails();
     if (this.resizeObserver) {
@@ -470,6 +484,7 @@ export class Sidebar {
     this.renderSearchDock(controlsSurface);
     this.renderFeedFolders();
     this.applySearchFilterFromState();
+    this.renderNavigationLandmark();
     this.syncFocusedSidebarTargetAfterRender();
     this.applySidebarFocusState();
 
@@ -1058,7 +1073,13 @@ export class Sidebar {
 
     const hadFocus = oldEl.contains(oldEl.ownerDocument.activeElement);
     oldEl.replaceWith(newEl);
-    if (hadFocus) newEl.focus({ preventScroll: true });
+    this.syncSidebarTabStop();
+    if (hadFocus) {
+      // Handing focus to the redrawn row is not a new keyboard arrival.
+      this.isRestoringRowFocus = true;
+      newEl.focus({ preventScroll: true });
+      this.isRestoringRowFocus = false;
+    }
   }
 
   private updateFolderUnreadBadges(): void {
@@ -1327,6 +1348,8 @@ export class Sidebar {
       folderHeader.classList.toggle("collapsed", isNowCollapsed);
       folderFeedsList.classList.toggle("collapsed", isNowCollapsed);
       syncFolderExpanded(folderHeader);
+      // Rows inside the folder may hold the Tab stop; move it if they are now hidden.
+      this.syncSidebarTabStop();
 
       setIcon(toggleButton, isNowCollapsed ? "chevron-right" : "chevron-down");
 
@@ -2554,7 +2577,65 @@ export class Sidebar {
     }
   }
 
-  private applySidebarFocusState(): void {
+  /**
+   * The sidebar is a `navigation` landmark named by a visually hidden "Feeds"
+   * label (WCAG 2.2 1.3.1, 2.4.1). The label is the last child so no
+   * first-child layout rule meets it, and it is rebuilt with every render.
+   */
+  private renderNavigationLandmark(): void {
+    const label = this.container.createSpan({
+      cls: "rss-dashboard-sidebar-landmark-label",
+      text: "Feeds",
+    });
+    markNamedLandmark(this.container, "navigation", label);
+  }
+
+  /**
+   * The row that holds the sidebar's single Tab stop: the remembered row, else
+   * the open feed or folder, else "All feeds". A row that is collapsed away
+   * or hidden by a search cannot hold it, so the next reachable row does.
+   */
+  private findTabStopRow(): SidebarRowDescriptor | null {
+    const candidates = [
+      this.getFocusedSidebarRow(),
+      this.findDefaultSidebarFocusRow(),
+      ...this.sidebarRows,
+    ];
+    return (
+      candidates.find(
+        (row): row is SidebarRowDescriptor =>
+          row !== null && isSidebarRowReachable(row.element),
+      ) ?? null
+    );
+  }
+
+  /** Puts `tabindex="0"` on one row and `-1` on the rest (WCAG 2.2 2.4.3). */
+  private syncSidebarTabStop(): void {
+    setSidebarTabStop(
+      this.sidebarRows.map((row) => row.element),
+      this.findTabStopRow()?.element ?? null,
+    );
+  }
+
+  /**
+   * A row reached with Tab (or any non-pointer focus) becomes the keyboard
+   * row, as if Shift+S had put focus there, so the arrow keys, Enter, Shift+X
+   * and Shift+F10 act on it. Focus on anything else in the sidebar, such as
+   * a button inside a row, changes nothing.
+   */
+  private syncKeyboardFocusFromDom(target: HTMLElement): void {
+    if (this.isRestoringRowFocus) return;
+    const row = this.sidebarRows.find((r) => r.element === target);
+    if (!row) return;
+    const focused = this.getFocusedSidebarRow();
+    if (this.isSidebarKeyboardFocused && focused?.key === row.key) return;
+
+    this.isSidebarKeyboardFocused = true;
+    this.focusedSidebarTarget = row.target;
+    this.applySidebarFocusClasses();
+  }
+
+  private applySidebarFocusClasses(): void {
     this.container.toggleClass(
       "rss-dashboard-sidebar-keyboard-focused",
       this.isSidebarKeyboardFocused,
@@ -2567,7 +2648,13 @@ export class Sidebar {
         this.isSidebarKeyboardFocused && row.key === focusedRow?.key,
       );
     });
+    this.syncSidebarTabStop();
+  }
 
+  private applySidebarFocusState(): void {
+    this.applySidebarFocusClasses();
+
+    const focusedRow = this.getFocusedSidebarRow();
     if (!this.isSidebarKeyboardFocused || !focusedRow) {
       return;
     }
@@ -4202,6 +4289,12 @@ export class Sidebar {
    * Supports scoped queries: feed:, folder:/path:, tag:
    */
   private filterFeedsAndFolders(query: string): void {
+    this.applyFeedsAndFoldersFilter(query);
+    // Rows the search hid or revealed change which row can hold the Tab stop.
+    this.syncSidebarTabStop();
+  }
+
+  private applyFeedsAndFoldersFilter(query: string): void {
     this.resetSidebarSearchPresentation();
 
     const parsedQuery = SidebarSearchService.parseQuery(query);
