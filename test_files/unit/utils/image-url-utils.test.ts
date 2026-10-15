@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  findFirstNonFormulaImage,
   hasLatexPhpQuery,
   isLatexFormulaImage,
   isTrackingPixel,
@@ -150,6 +151,60 @@ describe("isTrackingPixelTag", () => {
         '<img src="https://img.example.com/photo.jpg" width="640" height="360">',
       ),
     ).toBe(false);
+  });
+});
+
+describe("findFirstNonFormulaImage", () => {
+  function body(html: string): HTMLElement {
+    return new DOMParser().parseFromString(html, "text/html").body;
+  }
+
+  it("skips a 1 by 1 tracking counter and returns the next eligible image", () => {
+    const image = findFirstNonFormulaImage(
+      body(
+        `<img src="${COUNTER}" alt="The Conversation" width="1" height="1">` +
+          '<img src="https://img.example.com/photo.jpg" width="640">',
+      ),
+    );
+
+    expect(image?.getAttribute("src")).toBe(
+      "https://img.example.com/photo.jpg",
+    );
+  });
+
+  it("returns nothing when a 1 by 1 tracking counter is the only image", () => {
+    const image = findFirstNonFormulaImage(
+      body(
+        `<p>Article text.</p><img src="${COUNTER}" alt="The Conversation" width="1" height="1">`,
+      ),
+    );
+
+    expect(image).toBeNull();
+  });
+
+  it("keeps an image whose size appears only inside another attribute value", () => {
+    const image = findFirstNonFormulaImage(
+      body(
+        '<img src="https://img.example.com/photo.jpg" alt="shown width=1 wide">',
+      ),
+    );
+
+    expect(image?.getAttribute("src")).toBe(
+      "https://img.example.com/photo.jpg",
+    );
+  });
+
+  it("still skips a rendered formula image", () => {
+    const image = findFirstNonFormulaImage(
+      body(
+        '<img class="latex" src="https://s0.wp.com/latex.php?latex=x" alt="{x}">' +
+          '<img src="https://img.example.com/photo.jpg">',
+      ),
+    );
+
+    expect(image?.getAttribute("src")).toBe(
+      "https://img.example.com/photo.jpg",
+    );
   });
 });
 
