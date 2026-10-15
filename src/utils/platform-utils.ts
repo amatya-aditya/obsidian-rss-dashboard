@@ -159,8 +159,8 @@ export async function robustFetchDetailed(
   options: RobustFetchOptions = {},
 ): Promise<RobustFetchResult> {
   const { encodingOverride, ...requestOptions } = options;
-  // On desktop, Obsidian's requestUrl forwards `headers` (including a custom
-  // User-Agent) unmodified: the renderer sends them over IPC to the main
+  // On desktop, Obsidian's requestUrl forwards `headers` (including any custom
+  // User-Agent a caller sets) unmodified: the renderer sends them over IPC to the main
   // process, which applies each one via Electron's net.request().setHeader().
   // Verified by decompiling obsidian.asar (see GH issue #257) — a request
   // that still gets blocked by a remote server isn't losing its headers here.
