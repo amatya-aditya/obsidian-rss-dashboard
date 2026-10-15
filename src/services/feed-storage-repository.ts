@@ -116,9 +116,13 @@ function getFeedShardPath(storageFolder: string, feedId: string): string {
   return normalizePath(`${normalizeFolderPath(storageFolder)}/${feedId}.json`);
 }
 
+/** Keeps only entries usable as items: plain objects with a string guid. */
 function dropInvalidShardItems(items: unknown[]): FeedItem[] {
   return items.filter(
-    (item): item is FeedItem => item != null && typeof item === "object",
+    (item): item is FeedItem =>
+      item != null &&
+      typeof item === "object" &&
+      typeof (item as { guid?: unknown }).guid === "string",
   );
 }
 
@@ -292,6 +296,7 @@ export class FeedStorageRepository {
     const didAssignFeedIds = this.ensureFeedIds(settings);
     let shardCount = 0;
     let didDropInvalidItems = false;
+    const repairedFeedIds = new Set<string>();
 
     this.shardFolderHiddenFromSync = false;
     if (
@@ -347,7 +352,15 @@ export class FeedStorageRepository {
         // A hand-edited or damaged shard can hold nullish entries; drop them
         // before any `.guid` access and report the repair so the load saves it.
         const validItems = dropInvalidShardItems(parsed.items);
-        didDropInvalidItems ||= validItems.length !== parsed.items.length;
+        if (
+          this.noteDroppedShardItems(
+            feed,
+            parsed.items.length - validItems.length,
+            repairedFeedIds,
+          )
+        ) {
+          didDropInvalidItems = true;
+        }
         feed.items = validItems;
         if (feed.feedId) {
           this.feedShardHealthById.delete(feed.feedId);
@@ -398,6 +411,11 @@ export class FeedStorageRepository {
     }
 
     this.capturePersistedState(settings);
+    // The on-disk shard still holds the dropped entries; leave its baseline
+    // empty so the next save sees a difference and rewrites it.
+    for (const feedId of repairedFeedIds) {
+      this.lastPersistedShardJsonByFeedId.delete(feedId);
+    }
     return {
       didChange: didAssignFeedIds || didDropInvalidItems,
       shardCount,
@@ -770,7 +788,7 @@ export class FeedStorageRepository {
         await this.app.vault.adapter.read(shardPath),
       ) as Partial<FeedItemsShard>;
       return parsed.feedId === feedId && Array.isArray(parsed.items)
-        ? parsed.items.length
+        ? dropInvalidShardItems(parsed.items).length
         : null;
     } catch {
       return null;
@@ -1356,6 +1374,22 @@ export class FeedStorageRepository {
       return true;
     }
     return false;
+  }
+
+  /** Logs and records a shard repair; returns whether anything was dropped. */
+  private noteDroppedShardItems(
+    feed: Feed,
+    droppedCount: number,
+    repairedFeedIds: Set<string>,
+  ): boolean {
+    if (droppedCount === 0) return false;
+    if (feed.feedId) repairedFeedIds.add(feed.feedId);
+    storageLog("Dropped invalid items from feed shard", {
+      feedId: feed.feedId,
+      title: feed.title,
+      droppedCount,
+    });
+    return true;
   }
 
   private async getShardWriteDecision(

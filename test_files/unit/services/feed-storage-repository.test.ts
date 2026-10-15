@@ -195,6 +195,35 @@ describe("FeedStorageRepository", () => {
       "corrupt",
     );
     expect(result.didChange).toBe(true);
+
+    // The repaired shard must reach disk, not just memory.
+    await repository.persistSettings(settings, vi.fn());
+    const onDisk = JSON.parse(
+      await vaultAdapter(app).read("RSS Data/Feeds/feed-1.json"),
+    ) as { items: unknown[] };
+    expect(onDisk.items).toHaveLength(1);
+  });
+
+  it("drops non-object and guid-less shard items on hydrate (issue #1171)", async () => {
+    const settings = cloneSettings();
+    settings.storageMode = "vault-shards-v2";
+    settings.storageFolder = "RSS Data/Feeds";
+    settings.feeds = [makeFeed({ feedId: "feed-1", items: [] })];
+    await app.vault.adapter.mkdir("RSS Data/Feeds");
+    await vaultAdapter(app).write(
+      "RSS Data/Feeds/feed-1.json",
+      JSON.stringify({
+        version: 1,
+        feedId: "feed-1",
+        feedUrl: settings.feeds[0].url,
+        updatedAt: Date.now(),
+        items: [makeFeed().items[0], "text", 7, [], {}, { title: "x" }],
+      }),
+    );
+
+    await repository.hydrateSettings(settings);
+
+    expect(settings.feeds[0].items).toHaveLength(1);
   });
 
   it("writes only the changed feed shard for item-state updates", async () => {
