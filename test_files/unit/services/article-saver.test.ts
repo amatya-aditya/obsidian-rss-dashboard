@@ -2163,3 +2163,83 @@ describe("ArticleSaver - YouTube embeds in saved notes (#1168)", () => {
     },
   );
 });
+
+describe("ArticleSaver - static YouTube iframe in the fetched page (#1168)", () => {
+  const videoId = "z9TFdTqkbPk";
+  const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  const fetchedHtml = `<p>Fetched body.</p><iframe src="https://www.youtube-nocookie.com/embed/${videoId}"></iframe><p>More fetched body.</p>`;
+
+  function createSaver(app: App): ArticleSaver {
+    return new ArticleSaver(
+      app,
+      createSettings({
+        defaultTemplate: "{{content}}",
+        includeFrontmatter: false,
+        saveFullContent: true,
+      }),
+      "https://proxy/?url=",
+    );
+  }
+
+  // The Reader already shows a "Watch on YouTube" link for this iframe, so a save of
+  // the fetched version keeps the video the same way the page serves it.
+  it("keeps a recognized iframe that the fetched page itself serves", async () => {
+    const app = App.createMock();
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({ content: fetchedHtml, failureType: "none" });
+
+    const file =
+      await createSaver(app).saveArticleWithFullContent(createItem());
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+    expect(written).toContain(
+      `![](${watchUrl})\n\n[Watch on YouTube](${watchUrl})`,
+    );
+    expect(written).toContain("Fetched body.");
+    expect(written).toContain("More fetched body.");
+  });
+
+  it("keeps it when the Reader hands over the fetched HTML to save", async () => {
+    const app = App.createMock();
+
+    const file = await createSaver(app).saveArticleWithContentPolicy(
+      createItem(),
+      undefined,
+      undefined,
+      undefined,
+      { fetchAttempted: true, fetchedHtml },
+    );
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+    expect(written).toContain(`![](${watchUrl})`);
+    expect(written).toContain("[Watch on YouTube]");
+  });
+
+  it("drops a fetched-page iframe from another host", async () => {
+    const app = App.createMock();
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content:
+        '<p>Fetched body.</p><iframe src="https://evil.example/embed/AAAAAAAAAAA"></iframe>',
+      failureType: "none",
+    });
+
+    const file =
+      await createSaver(app).saveArticleWithFullContent(createItem());
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+    expect(written).toContain("Fetched body.");
+    expect(written).not.toContain("![](");
+    expect(written).not.toContain("Watch on YouTube");
+  });
+});

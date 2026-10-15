@@ -116,6 +116,24 @@ describe("YouTube embeds in a raw HTML note", () => {
     );
   });
 
+  // Known limit: the text goes after the top-level block, so an article wrapped in
+  // one block shows the video at its end.
+  it("places the embed after the single block that wraps the whole article", () => {
+    const html = noteHtml(
+      `<div class="post"><p>Intro</p><iframe src="https://www.youtube.com/embed/${VIDEO_ID}"></iframe><p>Outro</p></div>`,
+    );
+
+    expect(html).toBe(
+      `<div class="post"><p>Intro</p><p>Outro</p></div>
+
+${EMBED_LINE}
+
+${WATCH_LINK}
+
+`,
+    );
+  });
+
   it("replaces an iframe that is a direct child of the body in place", () => {
     const html = noteHtml(
       `<p>Intro</p><iframe src="https://www.youtube.com/embed/${VIDEO_ID}"></iframe><p>Outro</p>`,
