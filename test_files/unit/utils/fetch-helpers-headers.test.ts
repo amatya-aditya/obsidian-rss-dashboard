@@ -36,8 +36,10 @@ describe("article fetch headers (#1109)", () => {
       "https://example.com/a",
     );
     expect(result.failureType).toBe("none");
-    expect(sentHeaderNames(detailedMock.mock.calls[0])).not.toContain(
-      "user-agent",
+    const names = sentHeaderNames(detailedMock.mock.calls[0]);
+    expect(names).not.toContain("user-agent");
+    expect(names).toEqual(
+      expect.arrayContaining(["accept", "accept-language"]),
     );
   });
 
@@ -49,9 +51,15 @@ describe("article fetch headers (#1109)", () => {
       "https://example.com/a",
       "https://proxy.example/?url=",
     );
-    expect(detailedMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+    expect(detailedMock.mock.calls[0][0]).toBe("https://example.com/a");
+    const proxyCall = detailedMock.mock.calls.find((c) =>
+      String(c[0]).startsWith("https://proxy.example/"),
+    );
+    expect(proxyCall).toBeDefined();
     for (const call of detailedMock.mock.calls) {
-      expect(sentHeaderNames(call)).not.toContain("user-agent");
+      const names = sentHeaderNames(call);
+      expect(names).not.toContain("user-agent");
+      expect(names).toContain("accept");
     }
   });
 
