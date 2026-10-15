@@ -114,7 +114,7 @@ describe("discoverFeedUrl, reached after the WordPress fallback addresses fail",
   });
 
   describe("fetching the page", () => {
-    it("asks for the page again with a browser identity and an HTML Accept header", async () => {
+    it("asks for the page again with no User-Agent and an HTML Accept header", async () => {
       const served = serve({
         [SITE]: wpPage('<a href="/subscribe-feed">Feed</a>'),
         "https://example.com/subscribe-feed": feedXml("Discovered"),
@@ -123,8 +123,6 @@ describe("discoverFeedUrl, reached after the WordPress fallback addresses fail",
       const pageRequests = served.requests.filter((r) => r.url === SITE);
       expect(pageRequests).toHaveLength(2);
       expect(pageRequests[1].headers).toEqual({
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
         Accept:
           "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
       });
@@ -697,7 +695,7 @@ describe("discoverFeedUrl, reached after the WordPress fallback addresses fail",
       );
     });
 
-    it("sends the candidate request with a feed Accept header and a browser identity", async () => {
+    it("sends the candidate request with a feed Accept header and no User-Agent", async () => {
       const served = serve({
         [FEEDBURNER_SITE]: wpPage(""),
         "https://feeds.feedburner.com/show/feed": feedXml("Probed"),
@@ -707,8 +705,6 @@ describe("discoverFeedUrl, reached after the WordPress fallback addresses fail",
         (r) => r.url === "https://feeds.feedburner.com/show/feed",
       )[0];
       expect(probe.headers).toEqual({
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
         Accept:
           "application/feed+json, application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
       });
@@ -911,7 +907,7 @@ describe("discoverFeedUrl, reached after the proxy chain fails", () => {
     );
   });
 
-  it("asks for the discovered address with a feed-reader identity", async () => {
+  it("asks for the discovered address with no User-Agent", async () => {
     const served = serve({
       [PAGE]: plainPage(
         '<link rel="alternate" type="application/rss+xml" href="/discovered.xml">',
@@ -922,7 +918,8 @@ describe("discoverFeedUrl, reached after the proxy chain fails", () => {
     const request = served.requests.filter(
       (r) => r.url === "https://example.com/discovered.xml",
     )[0];
-    expect(request.headers["User-Agent"]).toContain("Feedbro/4.0");
+    expect(request.headers["User-Agent"]).toBeUndefined();
+    expect(request.headers.Accept).toContain("application/rss+xml");
   });
 
   it("follows an anchor when the page has no link tag", async () => {

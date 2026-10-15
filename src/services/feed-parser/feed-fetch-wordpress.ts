@@ -1,4 +1,5 @@
 import { robustFetch } from "../../utils/platform-utils.js";
+import { feedRequestHeaders } from "../../utils/request-headers.js";
 import { hostMatches } from "../../utils/url-host.js";
 import type { FeedEncoding } from "../../types/types.js";
 import { discoverFeedUrl } from "./feed-discovery.js";
@@ -44,12 +45,7 @@ async function fetchAlternativeUrls(
     try {
       const altResponseText = await robustFetch(altUrl, {
         method: "GET",
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
-          Accept:
-            "application/feed+json, application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
-        },
+        headers: feedRequestHeaders(),
         encodingOverride,
       });
 
@@ -82,12 +78,7 @@ async function fetchDiscoveredFeed(
     try {
       const discoveredResponseText = await robustFetch(discoveredUrl, {
         method: "GET",
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
-          Accept:
-            "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
-        },
+        headers: feedRequestHeaders(),
         encodingOverride,
       });
 

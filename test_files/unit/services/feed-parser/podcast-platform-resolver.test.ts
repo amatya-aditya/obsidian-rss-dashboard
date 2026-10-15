@@ -35,7 +35,9 @@ describe("resolvePodcastPlatformUrl", () => {
     );
     expect(result).toBe("https://feeds.example.com/podcast.rss");
     const call = requestUrlSpy.mock.calls[0]?.[0] as
-      { url?: string } | undefined;
+      { url?: string; headers?: Record<string, string> } | undefined;
     expect(call?.url).toContain("itunes.apple.com/lookup");
+    // #1162: the lookup identifies as Obsidian, not as a browser.
+    expect(call?.headers).toEqual({ Accept: "application/json" });
   });
 });

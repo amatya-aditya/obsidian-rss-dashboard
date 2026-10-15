@@ -1,4 +1,5 @@
 import { robustFetch } from "../../utils/platform-utils.js";
+import { feedRequestHeaders } from "../../utils/request-headers.js";
 import { hostMatches } from "../../utils/url-host.js";
 import { resolveAbsoluteHttpUrl } from "../../utils/url-utils.js";
 import type { FeedEncoding } from "../../types/types.js";
@@ -28,12 +29,7 @@ async function probeFeedBurner(
         try {
           const fbResponseText = await robustFetch(fbUrl, {
             method: "GET",
-            headers: {
-              "User-Agent":
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-              Accept:
-                "application/feed+json, application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8",
-            },
+            headers: feedRequestHeaders(),
             encodingOverride,
           });
           if (fbResponseText && isValidFeed(fbResponseText)) {
@@ -75,12 +71,7 @@ async function followArxivStub(
       try {
         const arxivText = await robustFetch(candidateUrl, {
           method: "GET",
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
-            Accept:
-              "application/feed+json, application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
-          },
+          headers: feedRequestHeaders(),
           encodingOverride,
         });
         if (arxivText && isValidFeed(arxivText)) {
@@ -111,12 +102,7 @@ async function fetchToggledScheme(
     try {
       const toggledText = await robustFetch(toggledUrl, {
         method: "GET",
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
-          Accept:
-            "application/feed+json, application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
-        },
+        headers: feedRequestHeaders(),
         encodingOverride,
       });
       if (toggledText && isValidFeed(toggledText)) {
@@ -139,12 +125,7 @@ async function fetchDirectFeed(
   const secureUrl = targetUrl; // try original URL as-is first (don't force https)
   const responseText = await robustFetch(secureUrl, {
     method: "GET",
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
-      Accept:
-        "application/feed+json, application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
-    },
+    headers: feedRequestHeaders(),
     encodingOverride,
   });
 
