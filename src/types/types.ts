@@ -319,13 +319,20 @@ export interface SavedTemplate {
   filenamePattern?: string;
 }
 
+/**
+ * Which version of an article a save writes: the feed item's own content
+ * (`rss`) or the fetched article page (`fetched`).
+ */
+export type SaveVersion = "rss" | "fetched";
+
 export interface ArticleSavingSettings {
   addSavedTag: boolean;
   defaultFolder: string;
   defaultTemplate: string;
   includeFrontmatter: boolean;
   frontmatterTemplate: string;
-  saveFullContent: boolean;
+  /** Default save version; replaces the boolean `saveFullContent` (see `migrateSaveVersionSetting`). */
+  saveVersion: SaveVersion;
   fetchTimeout: number;
   savedTemplates: SavedTemplate[];
   /** Saved template used when the feed has no template assignment. */
@@ -843,7 +850,7 @@ feedTitle: "{{feedTitle}}"
 summary: "{{summary}}"
 guid: "{{guid}}"
 ---`,
-    saveFullContent: true,
+    saveVersion: "fetched",
     fetchTimeout: 10,
     savedTemplates: [],
     globalDefaultTemplateId: undefined,

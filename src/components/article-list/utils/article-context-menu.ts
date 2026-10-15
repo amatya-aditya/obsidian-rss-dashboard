@@ -1,5 +1,5 @@
 import { Menu, MenuItem, Notice } from "obsidian";
-import type { FeedItem } from "../../../types/types";
+import type { FeedItem, SaveVersion } from "../../../types/types";
 import { addSaveOptionItems, type CustomSaveHooks } from "./save-options-menu";
 
 export interface ArticleContext {
@@ -20,7 +20,7 @@ export interface ArticleContext {
   };
   settings: {
     articleSaving: {
-      saveFullContent: boolean;
+      saveVersion: SaveVersion;
     };
   };
 }

@@ -22,7 +22,7 @@ function buildContext(
     };
     settings?: {
       articleSaving?: {
-        saveFullContent: boolean;
+        saveVersion: "rss" | "fetched";
       };
     };
   } = {},
@@ -31,7 +31,7 @@ function buildContext(
     callbacks: overrides.callbacks ?? {},
     settings: {
       articleSaving: {
-        saveFullContent: true,
+        saveVersion: "fetched" as const,
         ...overrides.settings?.articleSaving,
       },
     },

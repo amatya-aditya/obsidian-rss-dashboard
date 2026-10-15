@@ -92,7 +92,7 @@ function cloneSettings(): RssDashboardSettings {
 /** Summary-mode settings keep the save path off the full-content fetch. */
 function summarySettings(): RssDashboardSettings {
   const settings = cloneSettings();
-  settings.articleSaving.saveFullContent = false;
+  settings.articleSaving.saveVersion = "rss";
   return settings;
 }
 
@@ -165,7 +165,7 @@ async function makeView(settings: RssDashboardSettings) {
       template?: string,
       savedTemplate?: SavedTemplate,
     ) =>
-      settings.articleSaving.saveFullContent
+      settings.articleSaving.saveVersion === "fetched"
         ? saver.saveArticleWithFullContent(
             item,
             folder,

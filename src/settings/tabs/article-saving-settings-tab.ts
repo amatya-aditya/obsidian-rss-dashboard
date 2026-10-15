@@ -7,7 +7,16 @@
  */
 import { Notice, Setting, normalizePath } from "obsidian";
 import type { App } from "obsidian";
-import { DEFAULT_SETTINGS, type SavedTemplate } from "../../types/types";
+import {
+  DEFAULT_SETTINGS,
+  type SavedTemplate,
+  type SaveVersion,
+} from "../../types/types";
+import {
+  isSaveVersion,
+  resolveSaveVersion,
+  SAVE_VERSION_OPTIONS,
+} from "../../utils/save-version";
 import { VaultFolderSuggest } from "../../components/folder-suggest";
 import {
   ConfirmActionModal,
@@ -25,7 +34,7 @@ export interface ArticleSavingPluginLike {
     articleSaving: {
       defaultFolder: string;
       addSavedTag: boolean;
-      saveFullContent: boolean;
+      saveVersion: SaveVersion;
       fetchTimeout: number | undefined;
       defaultTemplate: string;
       savedTemplates?: SavedTemplate[] | undefined;
@@ -83,18 +92,22 @@ export function renderArticleSavingSettingsTab(
     );
 
   new Setting(containerEl)
-    .setName("Save full content")
+    .setName("Default save version")
     .setDesc(
-      "Choose what {{content}} saves: the fetched article when on, or the feed item's content when off. The feed item's content falls back to the feed description, then the summary. If fetching fails, that feed content is marked as a fallback. {{content}} controls placement in the template; {{summary}} keeps its existing output.",
+      "Choose what {{content}} saves. RSS content is the feed item's content, falling back to the feed description, then the summary. Fetched content is the article page; if fetching fails, the RSS content is saved and marked as a fallback. {{content}} controls placement in the template; {{summary}} keeps its existing output.",
     )
-    .addToggle((toggle) =>
-      toggle
-        .setValue(plugin.settings.articleSaving.saveFullContent)
+    .addDropdown((dropdown) => {
+      for (const option of SAVE_VERSION_OPTIONS) {
+        dropdown.addOption(option.value, option.label);
+      }
+      dropdown
+        .setValue(resolveSaveVersion(plugin.settings.articleSaving))
         .onChange(async (value) => {
-          plugin.settings.articleSaving.saveFullContent = value;
+          if (!isSaveVersion(value)) return;
+          plugin.settings.articleSaving.saveVersion = value;
           await plugin.saveSettings();
-        }),
-    );
+        });
+    });
 
   new Setting(containerEl)
     .setName("Fetch timeout")
@@ -129,7 +142,7 @@ function renderDefaultTemplateSection(
   new Setting(containerEl).setName("Default template").setHeading();
   containerEl.createEl("p", {
     cls: "rss-dashboard-settings-note",
-    text: "Article saves use a feed-assigned template first, then the global default saved template, then the standalone fallback below. Save full content and the saved tag remain global options.",
+    text: "Article saves use a feed-assigned template first, then the global default saved template, then the standalone fallback below. The default save version and the saved tag remain global options.",
   });
 
   const templateContainer = containerEl.createDiv();
