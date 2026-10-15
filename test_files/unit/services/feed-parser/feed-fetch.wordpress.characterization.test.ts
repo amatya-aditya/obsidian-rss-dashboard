@@ -26,7 +26,6 @@ const ALL_FAILED =
   "All alternative feed URLs failed, received PHP file instead of RSS feed";
 const NOT_A_FEED = "Not a valid RSS/Atom feed";
 
-// BUG: pinned, see #1115 (`rss.xml` is in the list twice, so it is requested twice)
 const ALTERNATIVES = [
   `${BASE}/feed/rss/`,
   `${BASE}/feed/rss2/`,
@@ -45,7 +44,6 @@ const ALTERNATIVES = [
   `${BASE}/?feed=rss&paged=1`,
   `${BASE}/feed`,
   `${BASE}/rss`,
-  `${BASE}/rss.xml`,
   `${BASE}/index.rss`,
   `${BASE}/index.xml`,
   `${BASE}/index.php?feed=rss2`,
@@ -93,7 +91,7 @@ describe("the WordPress fallback in fetchFeedXml", () => {
   });
 
   describe("the alternative addresses", () => {
-    it("asks for 23 alternatives in a fixed order after the page and its other scheme", async () => {
+    it("asks for 22 alternatives in a fixed order after the page and its other scheme", async () => {
       const served = serve({ [SITE]: wpPage() });
       await expect(fetchFeedXml(SITE, DIRECT)).rejects.toMatchObject({
         message: ALL_FAILED,
@@ -175,7 +173,7 @@ describe("the WordPress fallback in fetchFeedXml", () => {
     });
 
     it("reaches the last alternative when none before it is a feed", async () => {
-      serve({ [SITE]: wpPage(), [ALTERNATIVES[22]]: feedXml("Last") });
+      serve({ [SITE]: wpPage(), [ALTERNATIVES[21]]: feedXml("Last") });
       expect(await fetchFeedXml(SITE, DIRECT)).toBe(feedXml("Last"));
     });
 
@@ -204,12 +202,12 @@ describe("the WordPress fallback in fetchFeedXml", () => {
       const controller = new AbortController();
       const served = serve(
         { [SITE]: wpPage() },
-        cancelOn(controller, ALTERNATIVES[22]),
+        cancelOn(controller, ALTERNATIVES[21]),
       );
       await expect(
         fetchFeedXml(SITE, DIRECT, controller.signal),
       ).rejects.toMatchObject({ message: "Timed out" });
-      expect(last(served.requested)).toBe(ALTERNATIVES[22]);
+      expect(last(served.requested)).toBe(ALTERNATIVES[21]);
     });
   });
 
