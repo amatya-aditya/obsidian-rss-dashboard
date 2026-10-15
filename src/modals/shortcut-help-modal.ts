@@ -78,7 +78,7 @@ export const SHORTCUT_SECTIONS: ShortcutSection[] = [
       { key: "f", desc: "Star/Unstar article" },
       { key: "Shift + f", desc: "Toggle YouTube focus mode" },
       { key: "t", desc: "Add tags to article" },
-      { key: "s", desc: "Save full content to notes" },
+      { key: "s", desc: "Save to notes" },
     ],
   },
   {

@@ -6,10 +6,16 @@ import {
 } from "../../../src/types/types";
 import type { DeepPartial } from "../../../src/types/deep-partial";
 import {
+  FALLBACK_BEFORE_SAVE_NOTICE,
   isSaveVersion,
   migrateSaveVersionSetting,
   resolveSaveVersion,
+  SAVED_ARTICLE_TOOLTIP,
+  SAVE_FALLBACK_NOTICE,
   SAVE_VERSION_OPTIONS,
+  savedArticleNotice,
+  saveVersionLabel,
+  saveVersionTooltip,
 } from "../../../src/utils/save-version";
 import {
   loadAndNormalizeSettings,
@@ -186,5 +192,50 @@ describe("Default save version setting", () => {
       const result = importOldShape({ saveVersion: "rss" });
       expect(result.articleSaving.saveVersion).toBe("rss");
     });
+  });
+});
+
+describe("Save surface labels (#1184)", () => {
+  it("names the version a save will write, in the save tooltip", () => {
+    expect(saveVersionTooltip("rss")).toBe("Save RSS content to notes");
+    expect(saveVersionTooltip("fetched")).toBe("Save fetched content to notes");
+  });
+
+  it("keeps the labels the settings dropdown shows", () => {
+    expect(saveVersionLabel("rss")).toBe("RSS content");
+    expect(saveVersionLabel("fetched")).toBe("Fetched content");
+    expect(SAVE_VERSION_OPTIONS.map((option) => option.label)).toEqual([
+      saveVersionLabel("rss"),
+      saveVersionLabel("fetched"),
+    ]);
+  });
+
+  it("names the version a save wrote, in the post-save notice", () => {
+    const tail = "Click/tap the icon again to open the article in your vault.";
+    expect(savedArticleNotice("rss")).toBe(
+      `Article saved with RSS content. ${tail}`,
+    );
+    expect(savedArticleNotice("fetched")).toBe(
+      `Article saved with fetched content. ${tail}`,
+    );
+  });
+
+  it("names the fallback when a Fetched content save wrote RSS content", () => {
+    expect(SAVE_FALLBACK_NOTICE.fetch).toBe(
+      "Fetch failed; saved RSS content instead.",
+    );
+    expect(SAVE_FALLBACK_NOTICE.save).toBe(
+      "Save failed; saved RSS content instead.",
+    );
+  });
+
+  it("names both versions while a Fetched content save falls back", () => {
+    expect(FALLBACK_BEFORE_SAVE_NOTICE).toBe(
+      "Fetched content is unavailable; saving RSS content.",
+    );
+  });
+
+  it("keeps the saved-article tooltip for an article that is already saved", () => {
+    expect(SAVED_ARTICLE_TOOLTIP).toBe("Click to open saved article");
   });
 });

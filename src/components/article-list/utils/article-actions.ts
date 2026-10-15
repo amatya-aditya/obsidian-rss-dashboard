@@ -1,11 +1,16 @@
 import { Notice, setIcon, setTooltip } from "obsidian";
 import { onActivate } from "../../../utils/keyboard-activation";
-import { resolveSaveVersion } from "../../../utils/save-version";
+import {
+  resolveSaveVersion,
+  SAVED_ARTICLE_TOOLTIP,
+  saveVersionTooltip,
+} from "../../../utils/save-version";
 import { showSaveOptionsMenu, type CustomSaveHooks } from "./save-options-menu";
 import type {
   ArticleSavingSettings,
   DisplaySettings,
   FeedItem,
+  SavedTemplate,
 } from "../../../types/types";
 
 export interface ActionDependencies {
@@ -16,6 +21,11 @@ export type CreateActionButtonArgs = {
   article: FeedItem;
   actionToolbar: HTMLElement;
   mode: "full" | "minimal-read";
+  /**
+   * The saved template the article's save will use, so the save tooltip can
+   * name the version that save writes (#1184).
+   */
+  savedTemplate?: SavedTemplate;
   settings: {
     articleSaving?: Partial<ArticleSavingSettings>;
     display?: Partial<DisplaySettings>;
@@ -73,7 +83,7 @@ export function createReadToggle(
 export function createSaveButton(
   arg: Pick<
     CreateActionButtonArgs,
-    "article" | "actionToolbar" | "settings" | "callbacks"
+    "article" | "actionToolbar" | "savedTemplate" | "settings" | "callbacks"
   >,
 ): HTMLElement {
   const saveButton = arg.actionToolbar.createDiv({
@@ -82,10 +92,13 @@ export function createSaveButton(
       role: "button",
       tabindex: "0",
       "aria-label": arg.article.saved
-        ? "Click to open saved article"
-        : resolveSaveVersion(arg.settings.articleSaving ?? {}) === "fetched"
-          ? "Save full article content to notes"
-          : "Save article summary to notes",
+        ? SAVED_ARTICLE_TOOLTIP
+        : saveVersionTooltip(
+            resolveSaveVersion(
+              arg.settings.articleSaving ?? {},
+              arg.savedTemplate,
+            ),
+          ),
     },
   });
   setIcon(saveButton, "save");
@@ -109,7 +122,7 @@ export function createSaveButton(
     if (!saveButton.querySelector("svg")) {
       saveButton.textContent = "S";
     }
-    setTooltip(saveButton, "Click to open saved article");
+    setTooltip(saveButton, SAVED_ARTICLE_TOOLTIP);
   };
 
   const defaultSave = async () => {

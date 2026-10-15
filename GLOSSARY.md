@@ -4,6 +4,10 @@ This context covers reusable article-saving templates, saved-note associations, 
 
 ## Language
 
+**Save version**:
+Which version of an article a save writes, and so what the saved note holds. The [Default save version](CONTEXT.md#saving-articles) setting decides it.
+_Avoid_: Full content (the retired toggle), summary mode
+
 **Saved template**:
 A named reusable article-note body with per-template save options such as a folder and filename pattern.
 

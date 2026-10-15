@@ -42,7 +42,12 @@ import { firstNonFormulaImageUrl } from "../utils/image-url-utils";
 import { escapeYamlDoubleQuoted } from "../utils/yaml-escape";
 import { ensureVaultFolder } from "../utils/vault-files";
 import { ONE_SAVE_OVERRIDE_TEMPLATE_ID } from "../utils/saved-template-utils";
-import { resolveSaveVersion } from "../utils/save-version";
+import {
+  FALLBACK_BEFORE_SAVE_NOTICE,
+  resolveSaveVersion,
+  SAVE_FALLBACK_NOTICE,
+  savedArticleNotice,
+} from "../utils/save-version";
 
 const MAX_FILENAME_LENGTH = 100;
 const RSS_FALLBACK_MARKER =
@@ -464,6 +469,7 @@ guid: "{{guid}}"
           customTemplate,
           markdown,
           savedTemplate,
+          savedArticleNotice("fetched"),
         );
       }
       return this.saveWithRssFallback(
@@ -487,6 +493,7 @@ guid: "{{guid}}"
     customFolder?: string,
     customTemplate?: string,
     savedTemplate?: SavedTemplate,
+    notice: string = SAVE_FALLBACK_NOTICE.fetch,
   ): Promise<TFile | null> {
     const feedContent = this.getPreferredFeedHtml(item);
     const fallbackMarkdown = feedContent
@@ -504,6 +511,7 @@ guid: "{{guid}}"
       customTemplate,
       markedFallback,
       savedTemplate,
+      notice,
     );
   }
 
@@ -538,20 +546,22 @@ guid: "{{guid}}"
 
       if (!fetchResult.content) {
         loadingNotice.hide();
-        if (fetchResult.failureType === "restricted") {
+        const restricted = fetchResult.failureType === "restricted";
+        if (restricted) {
           new Notice(RESTRICTED_ARTICLE_NOTICE);
           // Mark the item for inline banner
           item.restrictedReason = RESTRICTED_ARTICLE_REASON;
         } else {
-          new Notice(
-            "Could not fetch full content. Saving with available content.",
-          );
+          new Notice(FALLBACK_BEFORE_SAVE_NOTICE);
         }
         return await this.saveWithRssFallback(
           item,
           customFolder,
           customTemplate,
           savedTemplate,
+          // The restriction notice already explains why, so that save reports
+          // the version it wrote without a fallback suffix.
+          restricted ? savedArticleNotice("rss") : SAVE_FALLBACK_NOTICE.fetch,
         );
       }
 
@@ -561,9 +571,7 @@ guid: "{{guid}}"
       );
       if (!markdownContent.trim()) {
         loadingNotice.hide();
-        new Notice(
-          "Could not fetch full content. Saving with available content.",
-        );
+        new Notice(FALLBACK_BEFORE_SAVE_NOTICE);
         return await this.saveWithRssFallback(
           item,
           customFolder,
@@ -588,16 +596,18 @@ guid: "{{guid}}"
         customTemplate,
         markdownContent,
         savedTemplate,
+        savedArticleNotice("fetched"),
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      new Notice(`Error saving article with full content: ${message}`);
+      new Notice(`Could not save fetched content: ${message}`);
       return await this.saveArticle(
         item,
         customFolder,
         customTemplate,
         undefined,
         savedTemplate,
+        SAVE_FALLBACK_NOTICE.save,
       );
     }
   }
@@ -623,6 +633,7 @@ guid: "{{guid}}"
     customTemplate?: string,
     rawContent?: string,
     savedTemplate?: SavedTemplate,
+    notice: string = savedArticleNotice("rss"),
   ): Promise<TFile | null> {
     try {
       const folder = await this.resolveSaveFolder(customFolder, savedTemplate);
@@ -648,9 +659,7 @@ guid: "{{guid}}"
       item.saved = true;
       item.savedFilePath = filePath;
 
-      new Notice(
-        "Article saved. Click/tap the icon again to open the article in your vault.",
-      );
+      new Notice(notice);
       return file;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
