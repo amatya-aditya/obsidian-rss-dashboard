@@ -1,4 +1,8 @@
 import { robustFetch } from "../../utils/platform-utils.js";
+import {
+  feedRequestHeaders,
+  pageRequestHeaders,
+} from "../../utils/request-headers.js";
 import { resolveAbsoluteHttpUrl } from "../../utils/url-utils.js";
 import { hostMatches } from "../../utils/url-host.js";
 import { decodeHtmlEntities } from "./xml-parser/xml-html-utils.js";
@@ -28,11 +32,7 @@ async function fetchDiscoveryPage(
 ): Promise<string | null> {
   const responseText = await robustFetch(baseUrl, {
     method: "GET",
-    headers: {
-      "User-Agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    },
+    headers: pageRequestHeaders(),
   });
 
   if (signal?.aborted) return null;
@@ -69,12 +69,7 @@ async function probeFeedBurnerCandidates(
         try {
           const feedResponseText = await robustFetch(feedUrl, {
             method: "GET",
-            headers: {
-              "User-Agent":
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-              Accept:
-                "application/feed+json, application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
-            },
+            headers: feedRequestHeaders(),
             encodingOverride,
           });
 

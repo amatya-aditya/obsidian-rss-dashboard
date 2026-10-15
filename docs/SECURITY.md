@@ -95,7 +95,7 @@ RSS feeds are hosted on external servers — the plugin must fetch feed content 
 ### Data Sent to External Domains:
 
 - Feed subscription URLs (required to fetch content). If a direct fetch fails and the CORS proxy is on, the feed URL is also sent to the proxy services listed below
-- Minimal HTTP metadata (User-Agent header, standard HTTP headers)
+- Minimal HTTP metadata (standard HTTP headers, including the User-Agent Obsidian sends)
 - **No user credentials** are transmitted
 - **No vault content** is sent to external servers
 
@@ -123,7 +123,7 @@ Beyond the feeds you subscribe to, RSS Dashboard makes these requests. None of t
 - **iTunes Search and Lookup.** Podcast links are resolved through `itunes.apple.com`, sending the podcast name or ID (`src/services/feed-parser/podcast-platform-resolver.ts`, `src/services/apple-podcasts-service.ts`)
 - **Kagi Smallweb.** The Smallweb view loads its list from `kagi.com`, and looks for a blog's feed with HEAD and GET requests to that blog (`src/views/kagi-smallweb-view.ts`)
 - **Mastodon profiles.** Adding a Mastodon profile fetches the profile page from its server to find the feed (`src/services/mastodon-service.ts`)
-- **YouTube.** Video thumbnails come from `img.youtube.com`. Adding a channel by handle or custom name fetches the channel page from `www.youtube.com` using a desktop browser User-Agent to read the channel ID. Playback uses the `www.youtube-nocookie.com` iframe (`src/services/media-service.ts`)
+- **YouTube.** Video thumbnails come from `img.youtube.com`. Adding a channel by handle or custom name fetches the channel page from `www.youtube.com` to read the channel ID, with no `User-Agent` override (see [ADR 0025](adr/0025-identify-outbound-requests-as-obsidian.md)). Playback uses the `www.youtube-nocookie.com` iframe (`src/services/media-service.ts`, `src/services/youtube-rss-resolver.ts`)
 - **Publisher-hosted images and audio.** Article images, podcast audio and artwork are loaded from the publisher's servers. Preview images are cached under the plugin folder (`src/services/preview-image-cache.ts`)
 - **What's New images.** The What's New popup loads its images from `raw.githubusercontent.com` (see **Release Images** below)
 

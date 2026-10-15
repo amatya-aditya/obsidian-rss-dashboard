@@ -1,5 +1,6 @@
 import { requestUrl } from "obsidian";
 import { robustFetch } from "../../utils/platform-utils.js";
+import { feedRequestHeaders } from "../../utils/request-headers.js";
 import type { FeedEncoding } from "../../types/types.js";
 import { isValidFeed } from "./feed-validation.js";
 import { CustomXMLParser } from "./xml-parser/custom-xml-parser.js";
@@ -39,12 +40,7 @@ export async function loadFeedForPreview(
   try {
     const responseText = await robustFetch(feedUrl, {
       method: "GET",
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Accept:
-          "application/feed+json, application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
-      },
+      headers: feedRequestHeaders(),
       encodingOverride:
         feedEncoding === "windows-1251" ? feedEncoding : undefined,
     });

@@ -1,5 +1,6 @@
 import { requestUrl } from "obsidian";
 import { robustFetch } from "../../utils/platform-utils.js";
+import { feedRequestHeaders } from "../../utils/request-headers.js";
 import { escapeCdata, escapeXml } from "../../utils/xml-escape.js";
 import type { FeedEncoding } from "../../types/types.js";
 import { discoverFeedUrl } from "./feed-discovery.js";
@@ -309,12 +310,7 @@ async function fetchDiscoveredViaProxy(
     if (discoveredUrl && discoveredUrl !== targetUrl) {
       const discoveredResponseText = await robustFetch(discoveredUrl, {
         method: "GET",
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0",
-          Accept:
-            "application/feed+json, application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8",
-        },
+        headers: feedRequestHeaders(),
         encodingOverride,
       });
       if (discoveredResponseText && isValidFeed(discoveredResponseText)) {

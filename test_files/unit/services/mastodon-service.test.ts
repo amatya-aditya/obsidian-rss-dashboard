@@ -126,6 +126,25 @@ describe("MastodonService", () => {
         MastodonService.resolveProfileFeed("https://mastodon.social/@Gargron"),
       ).resolves.toBeNull();
     });
+
+    it("fetches the profile page with no User-Agent, so Obsidian identifies itself", async () => {
+      // #1162: a Chrome User-Agent without its client hints is a bot signal,
+      // and the profile fetch is one of the call sites that carried one.
+      const requestUrlSpy = vi
+        .spyOn(Obsidian, "requestUrl")
+        .mockResolvedValue(htmlResponse("<html><head></head></html>"));
+
+      await MastodonService.resolveProfileFeed(
+        "https://mastodon.social/@Gargron",
+      );
+
+      const call = requestUrlSpy.mock.calls[0]?.[0] as
+        { headers?: Record<string, string> } | undefined;
+      expect(call?.headers).toEqual({
+        Accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      });
+    });
   });
 
   describe("isResolvedFeedUrl", () => {
