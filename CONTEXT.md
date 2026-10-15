@@ -260,6 +260,10 @@ _Avoid_: Source tracking, metadata source
 The resolver's precedence chain for the `description` field of [[Resolved article metadata]] — `meta[name=description]` → `og:description` → `twitter:description` → guarded feed-supplied description — with every candidate filtered through the [[Degenerate description value]] guard before acceptance. Distinct from the [[Excerpt tier]], which the resolver only reaches once every [[Description tier]] candidate has been rejected.
 _Avoid_: Description hierarchy, description precedence
 
+**Page image**:
+The lead image an article's page declares for itself in its [[Page metadata]]: the first usable of `og:image`, `twitter:image`, then JSON-LD `image` (the order Obsidian Web Clipper uses), as an absolute `http(s)` URL. Distinct from the item's feed-supplied cover image, and from the first image in the page body. It is the hero of the [[Fetched content]] version and is kept on the item (`pageImage`) so saves and cards can reuse it. It ranks first in the hero of the [[Fetched content]] version, but last among the card's stored images, so a card never changes when the feed already supplied one. The [[RSS content]] version never takes it as its hero.
+_Avoid_: Cover image (the feed-supplied one), og image, hero image (the displayed slot, not the source)
+
 **Excerpt tier**:
 The resolver's fallback chain for the `excerpt` field, reached only once the [[Description tier]] is exhausted: Readability's own `excerpt` (when it did not come from a page meta tag already tried), then the feed-supplied description, then truncated article text. Fills `excerpt`, never `description`, on [[Resolved article metadata]].
 _Avoid_: Fallback tier, summary tier
