@@ -1,6 +1,9 @@
 import type { ParsedFeed } from "../types.js";
 import { debugLog } from "../../../utils/debug-logger.js";
-import { isLatexFormulaImage } from "../../../utils/image-url-utils.js";
+import {
+  isLatexFormulaImage,
+  isTrackingPixelTag,
+} from "../../../utils/image-url-utils.js";
 import { hostMatches } from "../../../utils/url-host.js";
 import {
   decodeHtmlEntities as decodeHtmlEntitiesUtil,
@@ -429,7 +432,13 @@ export class CustomXMLParser {
       for (const imageTag of imageTags) {
         const imageUrl = imageTag.match(/\bsrc=["']([^"']+)["']/i)?.[1] ?? "";
         const className = imageTag.match(/\bclass=["']([^"']*)["']/i)?.[1];
-        if (!imageUrl || isLatexFormulaImage(imageUrl, className)) continue;
+        if (
+          !imageUrl ||
+          isLatexFormulaImage(imageUrl, className) ||
+          isTrackingPixelTag(imageTag)
+        ) {
+          continue;
+        }
 
         // Debug: log image URL extraction for troubleshooting
         if (imageUrl.includes("%25")) {

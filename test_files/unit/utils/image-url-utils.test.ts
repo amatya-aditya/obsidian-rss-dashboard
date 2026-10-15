@@ -4,6 +4,7 @@ import {
   isLatexFormulaImage,
   isTrackingPixel,
   isTrackingPixelElement,
+  isTrackingPixelTag,
   optimizeImageUrl,
 } from "../../../src/utils/image-url-utils.js";
 
@@ -101,6 +102,44 @@ describe("isTrackingPixelElement", () => {
     expect(
       isTrackingPixelElement(
         parseImage('<img src="https://img.example.com/photo.jpg">'),
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("isTrackingPixelTag", () => {
+  it("reads a quoted declared size from the tag text", () => {
+    expect(
+      isTrackingPixelTag(`<img src="${COUNTER}" width="1" height="1">`),
+    ).toBe(true);
+  });
+
+  it("reads a bare declared size from the tag text", () => {
+    expect(
+      isTrackingPixelTag(`<img src="${COUNTER}" width=0 height=640>`),
+    ).toBe(true);
+  });
+
+  it("rejects a tracking url even when the tag declares no size", () => {
+    expect(
+      isTrackingPixelTag(
+        '<img src="https://img.example.com/tracking/a.png" alt="">',
+      ),
+    ).toBe(true);
+  });
+
+  it("does not read a data attribute as the declared size", () => {
+    expect(
+      isTrackingPixelTag(
+        `<img data-width="1" data-height="1" src="${COUNTER}">`,
+      ),
+    ).toBe(false);
+  });
+
+  it("accepts a photo the tag declares larger than 1 by 1", () => {
+    expect(
+      isTrackingPixelTag(
+        '<img src="https://img.example.com/photo.jpg" width="640" height="360">',
       ),
     ).toBe(false);
   });
