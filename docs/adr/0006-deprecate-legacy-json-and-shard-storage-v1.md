@@ -26,7 +26,7 @@ Legacy JSON and Shard storage v1 are deprecated together. Shard storage v2 is th
 
 Both deprecated modes become read-only when 3.0 ships. A vault still on either mode continues to open and display its articles, but stops writing: no feed refresh, no starring, tagging, or saving to vault, and no retention auto-delete. Portable bundle export stays available, so a deprecated vault is never a trap. Read state may still be marked during a session but is discarded on quit, and the migration prompt says so.
 
-At 3.0 the v1 and legacy write paths, storage repair, revert-to-legacy, and their entries in the storage-mode selector are removed. What remains is a frozen one-way importer that reads a legacy or v1 vault and writes v2. It is tested once and then does not change, so migration stays possible indefinitely while live code converges on a single mode.
+At 3.0 the v1 and legacy write paths, storage repair, revert-to-legacy, and their entries in the storage-mode selector are removed. What remains is a frozen one-way importer that reads a legacy or v1 vault and writes v2. It is tested once and then does not change, so migration stays possible indefinitely while live code converges on a single mode. _(Corrected 2026-10-14: storage repair is removed only for the deprecated modes. Repair of Shard storage v2 survives, because the repair tool is not mode-specific machinery and the cutoff gives no reason to remove it. See [ADR 0024](0024-enforce-the-read-only-cutoff-at-the-persistence-choke-point.md).)_
 
 Warnings begin in 2.7.0 and are staged. Dismissing the prompt defers it to the next minor rather than silencing it, and after a third dismissal the permanent dismissal option is withdrawn — the prompt stays visible until the user acts, though it can still be deferred. The existing permanent-dismissal flag is replaced by a version-aware deferral, and that replacement must ship in 2.7.0: it is what re-reaches users who permanently dismissed the optional v2 upsell under the old flag and would otherwise meet the cutoff as unexplained breakage.
 
@@ -47,7 +47,7 @@ Because 3.0 is cut when its contents are ready, the cutoff has no date. The stag
 - **Before 3.0:** vaults on Legacy JSON or Shard storage v1 keep working normally. From 2.7.0, users see the staged migration prompt described above.
 - **At 3.0:** a deprecated vault opens read-only. Its stored data is not modified or deleted; the plugin simply stops writing to it. Read state marked during a session is discarded on quit.
 - **Migration path:** migration is one-way, from Legacy JSON or Shard storage v1 to Shard storage v2. The frozen importer keeps it available after the cutoff, and portable bundle export remains available throughout.
-- **Compatibility intentionally removed at 3.0:** writing in the deprecated modes, storage repair, revert-to-legacy, and selecting a deprecated mode.
+- **Compatibility intentionally removed at 3.0:** writing in the deprecated modes, storage repair, revert-to-legacy, and selecting a deprecated mode. _(Corrected 2026-10-14: repair of Shard storage v2 survives; only repair of the deprecated modes is removed. See [ADR 0024](0024-enforce-the-read-only-cutoff-at-the-persistence-choke-point.md).)_
 - Users who dismissed the old prompt permanently are deliberately re-prompted. That flag was set against an optional upgrade offer; the deprecation is a different proposition, and honoring the old dismissal through the cutoff would silently strand exactly the users least aware of the change.
 - The experimental `replicated-v3` work on `feat/sync-v3` is unaffected. It remains opt-in and is not a migration target; deprecated vaults migrate to v2, not to v3.
 
@@ -86,6 +86,7 @@ The existing `storageMigrationDismissedPermanently` boolean is replaced by a ver
 ## Related
 
 - [ADR 0023 — Set the 3.0 support floor at Obsidian 1.11.5](0023-set-the-3-0-support-floor-at-obsidian-1-11-5.md) — the floor raise cut with this deprecation
+- [ADR 0024 — Enforce the 3.0 read-only cutoff at the persistence choke point](0024-enforce-the-read-only-cutoff-at-the-persistence-choke-point.md) — how the cutoff is enforced, and the frozen importer's exemption
 - [ADR 0004 — Split article state from feed content in Shard storage v2](0004-split-article-state-from-feed-content-in-shard-storage-v2.md)
 - [Vault Shards storage guide](../user/storage-vault-shards-guide.md) — user documentation for the storage modes
 - [Glossary: Storage](../../CONTEXT.md#storage) — defines _Deprecated storage mode_
