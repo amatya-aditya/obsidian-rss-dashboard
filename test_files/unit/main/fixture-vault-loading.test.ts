@@ -14,6 +14,8 @@ import RssDashboardPlugin from "../../../main";
 import type { FeedItem, Folder } from "../../../src/types/types";
 import { MastodonService } from "../../../src/services/mastodon-service";
 import { MediaService } from "../../../src/services/media-service";
+import { extractCoverImage } from "../../../src/services/feed-parser/feed-cover-image";
+import { resolveArticlePreviewImage } from "../../../src/utils/article-preview-utils";
 import {
   PLUGIN_DATA_PATH,
   TEMPLATE_DIR,
@@ -32,7 +34,7 @@ const SHARD_FOLDER = "rss-dashboard-data/feeds";
 // The seeded scenario counts documented in docs/development/fixture-vault.md.
 const EXPECTED = {
   feeds: 12,
-  articles: 155,
+  articles: 159,
   read: 48,
   starred: 9,
   tagged: 9,
@@ -266,6 +268,60 @@ describe("Fixture vault template", () => {
     expect(readdirSync(join(TEMPLATE_DIR, "saved-articles"))).toContain(
       saved?.savedFilePath?.split("/").pop(),
     );
+  });
+
+  it("seeds the #1169 tracking-counter cases with the stored image each one keeps", async () => {
+    const { plugin } = await loadVault(TEMPLATE_DIR);
+    const articles = allArticles(plugin);
+    const article = (title: string): FeedItem => {
+      const found = articles.find((item) => item.title === title);
+      if (!found) throw new Error(`Seeded article not found: ${title}`);
+      return found;
+    };
+
+    // The seed stores the image the parser keeps from each item's own content,
+    // so a parse regression would change the committed shard.
+    const parserCover = (item: FeedItem) =>
+      extractCoverImage(item.content ?? "", "", (relative) => relative);
+
+    // Card View and Feed View pass the stored fields in different orders; both
+    // must resolve the same image.
+    const cardImage = (item: FeedItem) =>
+      resolveArticlePreviewImage(item, ["coverImage", "image"]);
+    const feedImage = (item: FeedItem) =>
+      resolveArticlePreviewImage(item, ["image", "coverImage"]);
+
+    // Case 1: the only image is a 1x1 counter, so nothing is stored or shown.
+    const counterOnly = article("1x1 counter as the only image");
+    expect(counterOnly.coverImage).toBe("");
+    expect(counterOnly.image).toBe("");
+    expect(parserCover(counterOnly)).toBe("");
+    expect(cardImage(counterOnly)).toBeUndefined();
+    expect(feedImage(counterOnly)).toBeUndefined();
+
+    // Case 4: the only image is a URL-pattern pixel, rejected by address alone.
+    const pixelOnly = article("URL-pattern pixel as the only image");
+    expect(pixelOnly.coverImage).toBe("");
+    expect(pixelOnly.image).toBe("");
+    expect(parserCover(pixelOnly)).toBe("");
+    expect(cardImage(pixelOnly)).toBeUndefined();
+    expect(feedImage(pixelOnly)).toBeUndefined();
+
+    // Case 2: a counter ahead of a real photo leaves the photo as the image.
+    const counterThenPhoto = article("1x1 counter before a real photo");
+    expect(counterThenPhoto.coverImage).toContain("picsum.photos");
+    expect(counterThenPhoto.image).toBe(counterThenPhoto.coverImage);
+    expect(parserCover(counterThenPhoto)).toBe(counterThenPhoto.coverImage);
+    expect(cardImage(counterThenPhoto)).toBe(counterThenPhoto.coverImage);
+    expect(feedImage(counterThenPhoto)).toBe(counterThenPhoto.coverImage);
+
+    // Case 3: a photo that declares a size is still accepted as the image.
+    const sizedPhoto = article("Photo with a declared size");
+    expect(sizedPhoto.coverImage).toContain("picsum.photos");
+    expect(sizedPhoto.image).toBe(sizedPhoto.coverImage);
+    expect(parserCover(sizedPhoto)).toBe(sizedPhoto.coverImage);
+    expect(cardImage(sizedPhoto)).toBe(sizedPhoto.coverImage);
+    expect(feedImage(sizedPhoto)).toBe(sizedPhoto.coverImage);
   });
 
   it("does not rewrite its article shards when the plugin loads it", async () => {

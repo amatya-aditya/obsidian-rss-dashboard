@@ -204,6 +204,7 @@
 
 ### Developer
 
+- The fixture vault seeds the #1169 tracking-counter cases, so a reset reproduces them: an article whose only image is a 1x1 counter, one with a counter before a real photo, one whose photo declares its size, and one whose only image is a URL-pattern pixel. The fixture server now also serves the counter and pixel images from `test_files/fixture-pages/`, so they genuinely load instead of taking a card's error path. [GH Issue #1175](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1175)
 - The lint rule against a `title` attribute now also catches one inside a conditional or logical `attr` value, without flagging an unrelated nested object, and has a test of its own. [GH Issue #587](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/587), [GH Issue #591](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/591)
 
 ## 2.7.1 - October 3, 2026
