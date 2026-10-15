@@ -170,7 +170,22 @@ export interface Feed {
    * next load; cleared once the fetch succeeds or fails.
    */
   importPending?: boolean;
+  /**
+   * Status of this feed's most recent background import. Written to the feed
+   * the UI renders so a failed or timed-out import can be surfaced per-feed
+   * (the queued import entry is a throwaway copy, see GH #1140).
+   */
+  importStatus?: FeedImportStatus;
+  /**
+   * User-readable error message from the most recent failed background
+   * import. Preserved for diagnostics and shown in the sidebar; cleared when
+   * a later fetch succeeds.
+   */
+  importError?: string;
 }
+
+export type FeedImportStatus =
+  "pending" | "processing" | "completed" | "failed" | "timed_out";
 
 export type FeedRefreshStatus =
   "pending" | "processing" | "timed_out" | "failed";
@@ -206,8 +221,7 @@ export interface FeedMetadata {
   scanInterval?: number;
   excludeFromRefresh?: boolean;
   lastRefreshAttemptCompletedAt?: number;
-  importStatus?:
-    "pending" | "processing" | "completed" | "failed" | "timed_out";
+  importStatus?: FeedImportStatus;
   importError?: string;
 }
 

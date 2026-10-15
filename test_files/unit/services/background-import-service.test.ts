@@ -92,6 +92,16 @@ describe("BackgroundImportService", () => {
     };
   }
 
+  /** A completion callback that resolves once the import queue drains. */
+  function drained(): {
+    promise: Promise<void>;
+    onImportQueueDrained: () => void;
+  } {
+    let resolve: () => void = () => {};
+    const promise = new Promise<void>((r) => (resolve = r));
+    return { promise, onImportQueueDrained: () => resolve() };
+  }
+
   beforeEach(() => {
     installObsidianDomPolyfills();
     vi.clearAllMocks();
@@ -586,6 +596,83 @@ describe("BackgroundImportService", () => {
     });
   });
 
+  // ── background import failure surfacing ─────────────────────────────────────
+  //
+  // GH #1140: startBackgroundImport queues a *copy* of each feed, and
+  // importBackgroundFeed records importStatus/importError on that copy.
+  // The copy is shifted off the queue and discarded, so the feed the sidebar
+  // renders keeps no failure state and looks like an ordinary empty feed.
+
+  describe("background import failure surfacing", () => {
+    function placeholder(overrides: Partial<Feed> = {}): Feed {
+      return {
+        title: "Local fail",
+        url: "http://127.0.0.1:8791/fail",
+        folder: "Inbox",
+        items: [],
+        lastUpdated: 0,
+        mediaType: "article",
+        importPending: true,
+        ...overrides,
+      };
+    }
+
+    it("records a failed import on the feed the sidebar renders, not only the queued copy", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const feed = placeholder();
+      const deps = makeDeps({ feeds: [feed] });
+      deps.feedParser.parseFeed = vi
+        .fn()
+        .mockRejectedValue(new Error("Request failed, status 500"));
+      const done = drained();
+      const service = new BackgroundImportService({ ...deps, ...done });
+
+      service.startBackgroundImport([feed]);
+      await done.promise;
+
+      const rendered = deps._settings.feeds[0];
+      expect(rendered.importPending).toBeUndefined();
+      expect(rendered.importStatus).toBe("failed");
+      expect(rendered.importError).toContain("status 500");
+    });
+
+    it("records a timed-out import on the feed the sidebar renders", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const feed = placeholder({ url: "http://127.0.0.1:8791/slow" });
+      const deps = makeDeps({ feeds: [feed] });
+      deps.feedParser.parseFeed = vi
+        .fn()
+        .mockRejectedValue(new Error("Timed out"));
+      const done = drained();
+      const service = new BackgroundImportService({ ...deps, ...done });
+
+      service.startBackgroundImport([feed]);
+      await done.promise;
+
+      const rendered = deps._settings.feeds[0];
+      expect(rendered.importStatus).toBe("timed_out");
+      expect(rendered.importError).toBe("Timed out");
+    });
+
+    it("clears a previous import failure when a later import succeeds", async () => {
+      const feed = placeholder({
+        importStatus: "failed",
+        importError: "Request failed, status 500",
+      });
+      const deps = makeDeps({ feeds: [feed] });
+      deps.feedParser.parseFeed = vi.fn().mockResolvedValue({ ...feed });
+      const done = drained();
+      const service = new BackgroundImportService({ ...deps, ...done });
+
+      service.startBackgroundImport([feed]);
+      await done.promise;
+
+      const rendered = deps._settings.feeds[0];
+      expect(rendered.importStatus).toBeUndefined();
+      expect(rendered.importError).toBeUndefined();
+    });
+  });
+
   // ── processBackgroundImportQueue completion signaling ───────────────────────
 
   describe("processBackgroundImportQueue", () => {
@@ -822,15 +909,6 @@ describe("BackgroundImportService", () => {
         },
       ],
     });
-
-    function drained(): {
-      promise: Promise<void>;
-      onImportQueueDrained: () => void;
-    } {
-      let resolve: () => void = () => {};
-      const promise = new Promise<void>((r) => (resolve = r));
-      return { promise, onImportQueueDrained: () => resolve() };
-    }
 
     it("marks new placeholders as pending until their first fetch succeeds", async () => {
       const deps = makeDeps({ feeds: [] });

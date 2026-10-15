@@ -523,6 +523,10 @@ export class FeedParser {
       ]);
       // Clear any previous error on successful refresh
       refreshedFeed.lastFetchError = undefined;
+      // A successful fetch also resolves a failed background import, so drop
+      // its warning state as well (GH #1140).
+      delete refreshedFeed.importError;
+      delete refreshedFeed.importStatus;
       return refreshedFeed;
     } catch (error) {
       console.error(

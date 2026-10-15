@@ -119,6 +119,17 @@ export function renderFeedIcon(
   }
 }
 
+function renderFeedWarningBadge(
+  feedNameContainer: HTMLElement,
+  label: string,
+): void {
+  const badge = feedNameContainer.createDiv({
+    cls: "rss-dashboard-feed-error-badge",
+    attr: { "aria-label": label },
+  });
+  setIcon(badge, "alert-circle");
+}
+
 export function renderFeedBadges(
   feedNameContainer: HTMLElement,
   feed: Feed,
@@ -149,13 +160,25 @@ export function renderFeedBadges(
   }
 
   if (!settings.display.hideFeedFetchErrorBadges && feed.lastFetchError) {
-    const errorBadge = feedNameContainer.createDiv({
-      cls: "rss-dashboard-feed-error-badge",
-      attr: {
-        "aria-label": `Feed error: ${feed.lastFetchError}`,
-      },
-    });
-    setIcon(errorBadge, "alert-circle");
+    renderFeedWarningBadge(
+      feedNameContainer,
+      `Feed error: ${feed.lastFetchError}`,
+    );
+  }
+
+  // GH #1140: a feed whose first (background) import failed or timed out must
+  // be distinguishable from one that simply has no articles yet.
+  const importFailed =
+    feed.importStatus === "failed" || feed.importStatus === "timed_out";
+  if (
+    !settings.display.hideFeedFetchErrorBadges &&
+    importFailed &&
+    !feed.lastFetchError
+  ) {
+    renderFeedWarningBadge(
+      feedNameContainer,
+      `Import failed: ${feed.importError ?? "Background import failed"}`,
+    );
   }
 
   if (shardHealth) {

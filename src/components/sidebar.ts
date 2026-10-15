@@ -1042,6 +1042,8 @@ export class Sidebar {
       this.processingImportFeedUrls.has(feed.url),
       this.pendingImportFeedUrls.has(feed.url),
       this.getReportedShardHealth(feed) !== null,
+      feed.importStatus ?? "",
+      feed.importError ?? "",
     ].join("|");
   }
 
