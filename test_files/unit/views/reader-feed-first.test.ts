@@ -421,7 +421,7 @@ describe("feed-first Reader saving", () => {
     const app = App.createMock();
     const settings = structuredClone(DEFAULT_SETTINGS);
     settings.useWebViewer = true;
-    settings.articleSaving.saveFullContent = true;
+    settings.articleSaving.saveVersion = "fetched";
     const save = vi.fn().mockResolvedValue(null);
     const view = new ReaderView(
       { app, detach: vi.fn() } as never,

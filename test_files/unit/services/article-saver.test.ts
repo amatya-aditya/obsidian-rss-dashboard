@@ -17,7 +17,7 @@ function createSettings(
     defaultTemplate: "",
     includeFrontmatter: false,
     frontmatterTemplate: "",
-    saveFullContent: false,
+    saveVersion: "rss",
     fetchTimeout: 30_000,
     savedTemplates: [],
     ...overrides,
@@ -1233,7 +1233,7 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     const settings = createSettings({
       defaultTemplate: "{{content}}",
       includeFrontmatter: false,
-      saveFullContent: true,
+      saveVersion: "fetched",
     });
     const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
     vi.spyOn(
@@ -1261,7 +1261,7 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     const settings = createSettings({
       defaultTemplate: "{{summary}}\n{{content}}\n{{content}}",
       includeFrontmatter: false,
-      saveFullContent: true,
+      saveVersion: "fetched",
     });
     const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
     vi.spyOn(
@@ -1294,7 +1294,7 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     const settings = createSettings({
       defaultTemplate: "{{content}}",
       includeFrontmatter: false,
-      saveFullContent: true,
+      saveVersion: "fetched",
     });
     const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
     vi.spyOn(
@@ -1318,7 +1318,7 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     const settings = createSettings({
       defaultTemplate: "{{content}}",
       includeFrontmatter: false,
-      saveFullContent: true,
+      saveVersion: "fetched",
     });
     const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
     vi.spyOn(
@@ -1340,7 +1340,7 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     const settings = createSettings({
       defaultTemplate: "{{content}}",
       includeFrontmatter: false,
-      saveFullContent: true,
+      saveVersion: "fetched",
     });
     const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
     const imageUrl = "https://example.com/article-image.png";

@@ -18,6 +18,7 @@ import {
   migrateMediaDefaultTagArrays,
   removeObsoleteSettingsKeys,
 } from "./settings-migration";
+import { migrateSaveVersionSetting } from "./save-version";
 import { normalizeTagChipRadius, repairTagChipRadius } from "./tag-chip-radius";
 import { canonicalizeItemIdentityUrl } from "./url-utils";
 import { normalizeRefreshIntervalMinutes } from "./validation";
@@ -166,10 +167,16 @@ function normalizeReaderLocations(
  * @param {RssDashboardSettings} settings Settings being normalized
  */
 function normalizeSettingGroups(settings: RssDashboardSettings): void {
+  // Copy first so the raw data is not changed, and migrate before the merge:
+  // the default `saveVersion` would otherwise hide an old `saveFullContent: false`.
+  const rawArticleSaving: Record<string, unknown> = {
+    ...settings.articleSaving,
+  };
+  migrateSaveVersionSetting(rawArticleSaving);
   settings.articleSaving = Object.assign(
     {},
     DEFAULT_SETTINGS.articleSaving,
-    settings.articleSaving ?? {},
+    rawArticleSaving,
   );
 
   settings.media = Object.assign(
@@ -549,6 +556,13 @@ export function migrateSettings(settings: RssDashboardSettings): boolean {
   const settingsUnknown = settings as unknown as Record<string, unknown>;
 
   didChange = runSettingsMigrations(settingsUnknown) || didChange;
+  // Before the legacy-field step, which merges defaults into the group.
+  if (settings.articleSaving) {
+    didChange =
+      migrateSaveVersionSetting(
+        settings.articleSaving as unknown as Record<string, unknown>,
+      ) || didChange;
+  }
   didChange =
     migrateLegacyArticleSavingFields(settings, settingsUnknown) || didChange;
   didChange = migrateNestedArticleSavingTemplate(settings) || didChange;

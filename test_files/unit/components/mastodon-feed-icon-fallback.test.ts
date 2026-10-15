@@ -201,7 +201,7 @@ describe("Mastodon Feed Icon — ArticleList renderFeedIcon", () => {
       },
       articleSaving: {
         ...DEFAULT_SETTINGS.articleSaving,
-        saveFullContent: false,
+        saveVersion: "rss",
       },
       media: {
         ...DEFAULT_SETTINGS.media,

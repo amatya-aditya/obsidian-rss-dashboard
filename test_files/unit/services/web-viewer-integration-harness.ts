@@ -42,7 +42,7 @@ function cloneDefaultSettings(): ArticleSavingSettings {
     defaultTemplate: "---\ntitle: {{title}}\n---\n\n{{content}}",
     includeFrontmatter: true,
     frontmatterTemplate: "",
-    saveFullContent: true,
+    saveVersion: "fetched",
     fetchTimeout: 30_000,
     savedTemplates: [],
     globalDefaultTemplateId: undefined,

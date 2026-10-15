@@ -1,5 +1,6 @@
 import { Notice, setIcon, setTooltip } from "obsidian";
 import { onActivate } from "../../../utils/keyboard-activation";
+import { resolveSaveVersion } from "../../../utils/save-version";
 import { showSaveOptionsMenu, type CustomSaveHooks } from "./save-options-menu";
 import type {
   ArticleSavingSettings,
@@ -82,7 +83,7 @@ export function createSaveButton(
       tabindex: "0",
       "aria-label": arg.article.saved
         ? "Click to open saved article"
-        : arg.settings.articleSaving?.saveFullContent
+        : resolveSaveVersion(arg.settings.articleSaving ?? {}) === "fetched"
           ? "Save full article content to notes"
           : "Save article summary to notes",
     },

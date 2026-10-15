@@ -66,7 +66,7 @@ function saverSettings(
     defaultTemplate: "",
     includeFrontmatter: false,
     frontmatterTemplate: "",
-    saveFullContent: false,
+    saveVersion: "rss",
     fetchTimeout: 30_000,
     savedTemplates: [],
     ...overrides,

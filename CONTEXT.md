@@ -141,7 +141,7 @@ _Avoid_: Label (reserved for imported Inoreader labels; see [[Label-derived tag]
 ## Saving articles
 
 **Default save**:
-Saving an article to a note with the resolved folder and template and no per-save overrides. On the dashboard, the "save full content" setting decides whether the note holds the full article or its summary.
+Saving an article to a note with the resolved folder and template and no per-save overrides. The **Default save version** setting decides whether the note holds RSS content (the feed item's content, falling back to the feed description, then the summary) or Fetched content (the article page, falling back to RSS content when the fetch fails).
 _Avoid_: Quick save, simple save
 
 **Custom save**:

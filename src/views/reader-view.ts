@@ -86,6 +86,7 @@ import { MediaService } from "../services/media-service";
 import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
 import { resolveItemExternalUrl } from "../utils/item-url-utils";
 import { resolveSavedTemplateForArticle } from "../utils/saved-template-utils";
+import { resolveSaveVersion } from "../utils/save-version";
 import { resolvePodcastOpenDestinations } from "../utils/podcast-open-destinations";
 import { resolveApplePodcastsShowUrl } from "../services/apple-podcasts-service";
 import { createReaderFormatPortal } from "../utils/reader-format-portal";
@@ -773,7 +774,10 @@ export class ReaderView extends ItemView {
     savedTemplate?: SavedTemplate,
   ): Promise<TFile | null> {
     const identity = this.displayIdentity;
-    if (this.settings.articleSaving.saveFullContent)
+    if (
+      resolveSaveVersion(this.settings.articleSaving, savedTemplate) ===
+      "fetched"
+    )
       await this.currentArticleFetch;
     if (identity !== this.displayIdentity) {
       return this.articleSaver.saveArticleWithContentPolicy(

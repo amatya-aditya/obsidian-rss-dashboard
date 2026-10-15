@@ -2,6 +2,8 @@
 
 ### Features
 
+- **Save full content** is now **Default save version**, a dropdown under **Settings → Article Saving** with two choices: **RSS content** (the feed item's content, falling back to the feed description, then the summary) and **Fetched content** (the article page, falling back to marked RSS content when the fetch fails). Your current choice carries over: on becomes Fetched content and off becomes RSS content, including from an exported settings file made before this change. New installs start on Fetched content, as before. Saves write the same content as before. [GH Issue #1183](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1183)
+
 - Both readers show RSS content immediately while content from the article page loads. Switch between cached RSS content and fetched content explicitly, keeping a separate reading position for each. Successful short fetched bodies are available through the toggle without being announced as failures. Page metadata still persists once to its own article if fetching finishes after navigation or close. Fetching and failure states are announced, and the direct request, sequential proxies, and article fallback share one Fetch timeout budget. [GH Issue #954](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/954)
 
 - Card and feed views show a muted, accessible "No description" placeholder when summaries are on and neither text nor a displayed image is present. [GH Issue #964](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/964)

@@ -144,7 +144,7 @@ export function createDefaultSettings(): RssDashboardSettings {
       defaultTemplate: "",
       includeFrontmatter: true,
       frontmatterTemplate: "",
-      saveFullContent: false,
+      saveVersion: "rss",
       fetchTimeout: 10,
       savedTemplates: [],
     },

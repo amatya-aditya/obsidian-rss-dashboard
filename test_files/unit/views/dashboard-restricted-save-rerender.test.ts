@@ -137,7 +137,7 @@ describe("Dashboard restricted save rerender", () => {
 
   it("rerenders the inline reader when a saved article becomes restricted", async () => {
     const settings = cloneSettings();
-    settings.articleSaving.saveFullContent = true;
+    settings.articleSaving.saveVersion = "fetched";
 
     const feed = makeFeed("https://example.com/feed", [
       { title: "Restricted article" },

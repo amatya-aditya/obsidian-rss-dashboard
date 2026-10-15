@@ -812,7 +812,7 @@ function buildSettings(feedConfigs) {
       addSavedTag: true,
       defaultFolder: "saved-articles/",
       includeFrontmatter: true,
-      saveFullContent: true,
+      saveVersion: "fetched",
       fetchTimeout: 10,
       savedTemplates: [],
     },

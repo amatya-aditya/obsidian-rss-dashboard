@@ -34,11 +34,11 @@ type DashboardInternals = {
   markArticleSaved: ReturnType<typeof vi.fn>;
 };
 
-function settings(saveFullContent: boolean): RssDashboardSettings {
+function settings(fetched: boolean): RssDashboardSettings {
   const result = JSON.parse(
     JSON.stringify(DEFAULT_SETTINGS),
   ) as RssDashboardSettings;
-  result.articleSaving.saveFullContent = saveFullContent;
+  result.articleSaving.saveVersion = fetched ? "fetched" : "rss";
   result.articleSaving.defaultTemplate =
     "{{summary}}\n{{content}}\n{{content}}";
   result.articleSaving.includeFrontmatter = false;
