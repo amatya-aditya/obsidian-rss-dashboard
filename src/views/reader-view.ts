@@ -111,6 +111,10 @@ import {
 import { ShortcutHelpModal } from "../modals/shortcut-help-modal";
 import { openWebViewerSaveModal } from "../modals/web-viewer-save-modal";
 import { setupReaderHotkeys } from "../hotkeys/reader-hotkeys";
+import {
+  addYouTubeEmbedTurndownRule,
+  protectYouTubeEmbedsForMarkdown,
+} from "../utils/youtube-embed";
 
 const VIDEO_ARTICLE_BANNER =
   "This item appears to be a video. Open the source page to watch.";
@@ -268,6 +272,7 @@ export class ReaderView extends ItemView {
     this.onArticleUpdate = onArticleUpdate;
     this.onPlaybackProgress = options?.onPlaybackProgress;
     addMathTurndownRule(this.turndownService);
+    addYouTubeEmbedTurndownRule(this.turndownService);
 
     this.scope = new Scope(this.app.scope);
     this.setupScope();
@@ -762,7 +767,9 @@ export class ReaderView extends ItemView {
     const normalizedSaveHtml =
       this.normalizeBlockLinksForSavedMarkdown(htmlWithHero);
     return this.turndownService.turndown(
-      protectMathForMarkdown(normalizedSaveHtml),
+      protectMathForMarkdown(
+        protectYouTubeEmbedsForMarkdown(normalizedSaveHtml),
+      ),
     );
   }
 

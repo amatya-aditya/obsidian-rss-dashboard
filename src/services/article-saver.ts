@@ -16,6 +16,11 @@ import { ensureUtf8Meta } from "../utils/platform-utils";
 import { withSavedTagName } from "../utils/tag-utils";
 import { isLikelyVideoItem } from "../utils/video-detection";
 import { stripNonContentHtmlNodes } from "../utils/html-text";
+import {
+  addYouTubeEmbedTurndownRule,
+  protectYouTubeEmbedsForMarkdown,
+  replaceYouTubeEmbedsInHtmlNote,
+} from "../utils/youtube-embed";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
 import { resolveDisplayDate } from "./feed-parser/feed-retention";
 import {
@@ -142,6 +147,7 @@ export class ArticleSaver {
     this.getFeeds = getFeeds;
     this.turndownService = new TurndownService();
     addMathTurndownRule(this.turndownService);
+    addYouTubeEmbedTurndownRule(this.turndownService);
   }
 
   private cleanHtml(html: string): string {
@@ -149,6 +155,8 @@ export class ArticleSaver {
       const htmlWithMeta = ensureUtf8Meta(html);
       const parser = new DOMParser();
       const doc = parser.parseFromString(htmlWithMeta, "text/html");
+
+      replaceYouTubeEmbedsInHtmlNote(doc);
 
       const elementsToRemove = doc.querySelectorAll(
         "script, style, iframe, noscript, template, svg, link, meta, base, object, embed, .ad, .ads, .advertisement, " +
@@ -292,7 +300,9 @@ export class ArticleSaver {
   }
 
   private htmlToMarkdown(html: string): string {
-    const cleaned = stripNonContentHtmlNodes(html);
+    const cleaned = stripNonContentHtmlNodes(
+      protectYouTubeEmbedsForMarkdown(html),
+    );
     const normalized = this.normalizeBlockLinksForMarkdown(cleaned);
     return this.turndownService.turndown(protectMathForMarkdown(normalized));
   }
