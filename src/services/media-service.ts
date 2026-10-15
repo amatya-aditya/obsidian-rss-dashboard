@@ -418,7 +418,7 @@ export class MediaService {
       feed,
       availableTags,
       mediaSettings,
-      (url) => this.isYouTubeFeed(url),
+      (url) => MediaService.isYouTubeFeed(url),
     );
   }
 

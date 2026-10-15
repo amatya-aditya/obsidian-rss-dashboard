@@ -55,7 +55,8 @@ export async function getYouTubeRssFeed(input: string): Promise<string | null> {
 /**
  * The `@handle` branch of `getYouTubeRssFeed`: derives the handle from `input`,
  * fetches the channel page, and reads the channel id from its HTML. The
- * doubled empty-text guard and the Notice are kept verbatim from the original.
+ * empty-text guard is duplicated in the original (the second check is
+ * unreachable); it and the Notice are preserved verbatim and are not deduped.
  */
 async function resolveHandleChannelId(input: string): Promise<string> {
   let handle = "";
@@ -102,8 +103,8 @@ async function resolveHandleChannelId(input: string): Promise<string> {
 /**
  * The `youtube.com/c/` branch of `getYouTubeRssFeed`. Separate from
  * `resolveHandleChannelId` on purpose: the two branches are pinned behavior,
- * so they are not deduped. The doubled empty-text guard and the Notice are
- * kept verbatim from the original.
+ * so they are not deduped. The empty-text guard is duplicated in the original
+ * (the second check is unreachable); it and the Notice are preserved verbatim.
  */
 async function resolveCustomChannelId(input: string): Promise<string> {
   const match = input.match(/youtube\.com\/c\/([^/?#]+)/);

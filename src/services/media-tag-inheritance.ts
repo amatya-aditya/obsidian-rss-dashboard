@@ -24,8 +24,10 @@ type MediaTagCategory = "video" | "podcast" | "mastodon" | "smallweb" | "rss";
 /**
  * Resolves the auto-tags a feed inherits from the media settings and the feed's
  * media type, plus the category they came from. Extracted verbatim from
- * `MediaService.getInheritedTagsAndCategory` (#1155). The caller supplies the
- * YouTube-URL predicate so this module never imports `media-service`.
+ * `MediaService.getInheritedTagsAndCategory` (#1155): the media-type chain
+ * stays here and each branch body moves to the `resolve*Tags` helper below.
+ * The caller supplies the YouTube-URL predicate so this module never imports
+ * `media-service`.
  */
 export function getInheritedTagsAndCategory(
   feed: Pick<Feed, "url" | "folder" | "mediaType">,
@@ -44,99 +46,103 @@ export function getInheritedTagsAndCategory(
     return { tags: [] };
   }
 
-  const category = resolveCategory(feed, isMastodon, isSmallweb);
-  const mediaTags = resolveMediaTags(
-    category,
-    feed,
-    availableTags,
-    mediaSettings,
-    isYouTubeFeed,
-  );
+  let tagCategory: MediaTagCategory | undefined;
+  let mediaTags: Tag[] = [];
 
-  return { tags: mediaTags, category };
-}
-
-/**
- * The media-type chain of `getInheritedTagsAndCategory`, in its original order:
- * video, podcast, mastodon, smallweb, rss.
- */
-function resolveCategory(
-  feed: Pick<Feed, "url" | "folder" | "mediaType">,
-  isMastodon: boolean,
-  isSmallweb: string | boolean,
-): MediaTagCategory | undefined {
   if (feed.mediaType === "video") {
-    return "video";
+    tagCategory = "video";
+    mediaTags = resolveVideoTags(
+      feed,
+      availableTags,
+      mediaSettings,
+      isYouTubeFeed,
+    );
   } else if (feed.mediaType === "podcast") {
-    return "podcast";
+    tagCategory = "podcast";
+    mediaTags = resolvePodcastTags(availableTags, mediaSettings);
   } else if (isMastodon) {
-    return "mastodon";
+    tagCategory = "mastodon";
+    mediaTags = resolveMastodonTags(availableTags, mediaSettings);
   } else if (isSmallweb) {
-    return "smallweb";
+    tagCategory = "smallweb";
+    mediaTags = resolveSmallwebTags(availableTags, mediaSettings);
   } else if (!feed.mediaType || feed.mediaType === "article") {
-    return "rss";
+    tagCategory = "rss";
+    mediaTags = resolveRssTags(availableTags, mediaSettings);
   }
 
-  return undefined;
+  return { tags: mediaTags, category: tagCategory };
 }
 
-/**
- * One branch per category, each calling `getConfiguredTagNames` with the same
- * alias and fallback names the original used.
- */
-function resolveMediaTags(
-  category: MediaTagCategory | undefined,
+/** The video branch body: YouTube vs non-YouTube settings. */
+function resolveVideoTags(
   feed: Pick<Feed, "url" | "folder" | "mediaType">,
   availableTags: Tag[],
   mediaSettings: MediaTagSettings | undefined,
   isYouTubeFeed: (url: string) => boolean,
 ): Tag[] {
-  if (category === "video") {
-    if (isYouTubeFeed(feed.url)) {
-      return getConfiguredTagNames(
-        availableTags,
-        mediaSettings?.defaultYouTubeTags,
-        mediaSettings?.defaultYouTubeTag,
-        ["Video", "Videos"],
-        ["Video", "Videos"],
-      );
-    } else {
-      return getConfiguredTagNames(
-        availableTags,
-        mediaSettings?.defaultVideoTags,
-        mediaSettings?.defaultVideoTag,
-        ["Video", "Videos"],
-      );
-    }
-  } else if (category === "podcast") {
+  if (isYouTubeFeed(feed.url)) {
     return getConfiguredTagNames(
       availableTags,
-      mediaSettings?.defaultPodcastTags,
-      undefined,
-      ["Podcast", "Podcasts"],
-      ["Podcast", "Podcasts"],
+      mediaSettings?.defaultYouTubeTags,
+      mediaSettings?.defaultYouTubeTag,
+      ["Video", "Videos"],
+      ["Video", "Videos"],
     );
-  } else if (category === "mastodon") {
+  } else {
     return getConfiguredTagNames(
       availableTags,
-      mediaSettings?.defaultMastodonTags,
-      mediaSettings?.defaultMastodonTag,
-    );
-  } else if (category === "smallweb") {
-    return getConfiguredTagNames(
-      availableTags,
-      mediaSettings?.defaultSmallwebTags,
-      mediaSettings?.defaultSmallwebTag,
-    );
-  } else if (category === "rss") {
-    return getConfiguredTagNames(
-      availableTags,
-      mediaSettings?.defaultRssTags,
-      mediaSettings?.defaultRssTag,
+      mediaSettings?.defaultVideoTags,
+      mediaSettings?.defaultVideoTag,
+      ["Video", "Videos"],
     );
   }
+}
 
-  return [];
+function resolvePodcastTags(
+  availableTags: Tag[],
+  mediaSettings: MediaTagSettings | undefined,
+): Tag[] {
+  return getConfiguredTagNames(
+    availableTags,
+    mediaSettings?.defaultPodcastTags,
+    undefined,
+    ["Podcast", "Podcasts"],
+    ["Podcast", "Podcasts"],
+  );
+}
+
+function resolveMastodonTags(
+  availableTags: Tag[],
+  mediaSettings: MediaTagSettings | undefined,
+): Tag[] {
+  return getConfiguredTagNames(
+    availableTags,
+    mediaSettings?.defaultMastodonTags,
+    mediaSettings?.defaultMastodonTag,
+  );
+}
+
+function resolveSmallwebTags(
+  availableTags: Tag[],
+  mediaSettings: MediaTagSettings | undefined,
+): Tag[] {
+  return getConfiguredTagNames(
+    availableTags,
+    mediaSettings?.defaultSmallwebTags,
+    mediaSettings?.defaultSmallwebTag,
+  );
+}
+
+function resolveRssTags(
+  availableTags: Tag[],
+  mediaSettings: MediaTagSettings | undefined,
+): Tag[] {
+  return getConfiguredTagNames(
+    availableTags,
+    mediaSettings?.defaultRssTags,
+    mediaSettings?.defaultRssTag,
+  );
 }
 
 function resolveConfiguredTagNames(
