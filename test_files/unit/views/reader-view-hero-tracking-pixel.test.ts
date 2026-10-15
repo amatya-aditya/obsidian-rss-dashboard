@@ -6,7 +6,7 @@
  * it as the hero. Only the URL pattern can reject it here; a stored URL
  * carries no declared width or height.
  */
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ReaderView } from "../../../src/views/reader-view";
 import {
   FeedItem,
@@ -97,6 +97,11 @@ describe("ReaderView hero image ignores a stored tracking pixel", () => {
     getInternals(readerView).fetchFullArticleContent = vi
       .fn()
       .mockResolvedValue({ content: "", failureType: "none" });
+  });
+
+  afterEach(() => {
+    document.body.empty();
+    vi.clearAllMocks();
   });
 
   const heroImg = () =>

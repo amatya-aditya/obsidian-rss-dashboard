@@ -877,6 +877,32 @@ title: "{{title}}"
     expect(file?.path).toBe(`${sanitizeFilename(normalizedImage)}.md`);
   });
 
+  // #1182: the filename pattern resolves through the same stored-url hero
+  // resolution, so a tracking pixel leaves it empty and the title is used.
+  it("does not use a stored tracking pixel in filename patterns", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(app, createSettings());
+    const item = createItem({
+      title: "Pixel Filename",
+      coverImage: "https://img.example.com/pixel.gif",
+    });
+
+    const file = await saver.saveArticle(
+      item,
+      undefined,
+      undefined,
+      undefined,
+      {
+        id: "image",
+        name: "Image",
+        template: "# {{title}}",
+        filenamePattern: "{{image}}",
+      },
+    );
+
+    expect(file?.path).toBe(`${sanitizeFilename("Pixel Filename")}.md`);
+  });
+
   it("updates an identified saved note at its recorded path after pattern changes", async () => {
     const app = App.createMock();
     const saver = new ArticleSaver(app, createSettings());
