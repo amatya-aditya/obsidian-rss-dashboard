@@ -1170,6 +1170,40 @@ describe("ArticleSaver - Math Rendering", () => {
     expect(written).not.toContain(formulaUrl);
   });
 
+  // #1182: a stored tracking pixel is a bare url, so the pattern check is what
+  // rejects it; before the fix it became the saved note's hero.
+  it("does not prepend a tracking-pixel hero to saved Markdown", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+    const pixelUrl = "https://img.example.com/pixel.gif";
+
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content: "<p>Article body without an image.</p>",
+      failureType: "none",
+    });
+
+    const item = createItem({
+      title: "Stale Pixel Hero",
+      coverImage: pixelUrl,
+      image: pixelUrl,
+    });
+    const file = await saver.saveArticleWithFullContent(item);
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+
+    expect(written).toContain("Article body without an image.");
+    expect(written).not.toContain(pixelUrl);
+  });
+
   it("preserves unescaped mathjax when saving html to markdown if data-math is present", async () => {
     const app = App.createMock();
     const settings = createSettings({
@@ -1993,6 +2027,28 @@ describe("ArticleSaver.{{image}} template variable", () => {
 
     const item = createItem({
       title: "No Image Test",
+    });
+
+    const file = await saver.saveArticle(item);
+    expect(file).toBeInstanceOf(TFile);
+    if (!file) return;
+    const written = await app.vault.read(file);
+    expect(written).toBe("cover: ");
+  });
+
+  // #1182: the variable resolves through the same stored-url hero resolution,
+  // so a tracking pixel must leave it empty.
+  it("falls back to empty string when the stored image is a tracking pixel", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "cover: {{image}}",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const item = createItem({
+      title: "Pixel Image Test",
+      coverImage: "https://img.example.com/pixel.gif",
     });
 
     const file = await saver.saveArticle(item);

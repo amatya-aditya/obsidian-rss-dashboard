@@ -506,6 +506,19 @@ ${htmlParagraphs("rss-tech-11", 1)}
       summary: paragraphs("rss-tech-13", 1)[0],
       extra: { image: "" },
     }),
+    item(feed, {
+      // The stored-field counterpart of the cases above (#1182). A feed that
+      // declared the counter in `itunes:image`, `media:content` or an image
+      // `enclosure` — or an item stored before #1174 — keeps a tracking pixel
+      // in `coverImage` while the body has no usable image. The card, the
+      // Reader hero, the inline reader and a saved note must all show none.
+      title: "Stored tracking pixel as the preview image",
+      link: link(14),
+      pubDate: at(11),
+      coverImage: URL_PATTERN_PIXEL_URL,
+      author: "Fixture Author",
+      ...articleText("rss-tech-14", 2),
+    }),
   ];
 }
 

@@ -2,6 +2,7 @@ import { debugLog } from "../../utils/debug-logger.js";
 import {
   isLatexFormulaImage,
   isLatexFormulaImageElement,
+  isTrackingPixel,
   isTrackingPixelElement,
   optimizeImageUrl,
 } from "../../utils/image-url-utils.js";
@@ -65,7 +66,8 @@ function warnDoubleEncoded(label: string, value: string | null): void {
 
 /**
  * The cover from an `og:image` meta tag. Returns undefined to keep looking,
- * and a string (possibly empty) to stop.
+ * and a string (possibly empty) to stop. A tracking pixel in the tag is
+ * rejected here because the tag carries no declared size to read (#1182).
  */
 function coverFromOgImage(
   doc: Document,
@@ -80,7 +82,11 @@ function coverFromOgImage(
   const resolvedContent = content
     ? resolveUsableImageUrl(content, baseUrl, toAbsoluteUrl)
     : undefined;
-  if (resolvedContent && !isLatexFormulaImage(resolvedContent)) {
+  if (
+    resolvedContent &&
+    !isLatexFormulaImage(resolvedContent) &&
+    !isTrackingPixel(resolvedContent)
+  ) {
     return resolvedContent;
   }
   return undefined;
