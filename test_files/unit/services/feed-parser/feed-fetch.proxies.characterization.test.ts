@@ -3,7 +3,6 @@ import { fetchFeedXml } from "../../../../src/services/feed-parser/feed-fetch.js
 import {
   ACCEPT_ALL,
   ENCODED_TARGET,
-  FEEDBRO_UA,
   TARGET,
   cancelOn,
   feedXml,
@@ -269,7 +268,7 @@ describe("the public proxy chain in fetchFeedXml", () => {
       expect(await fetchFeedXml(TARGET)).toBe(feedXml("Found"));
     });
 
-    it("asks for the discovered address with a feed-reader identity and a feed Accept header", async () => {
+    it("asks for the discovered address with a feed Accept header and no User-Agent", async () => {
       const found = "https://example.com/found.xml";
       const served = serve({
         [TARGET]: [
@@ -283,9 +282,7 @@ describe("the public proxy chain in fetchFeedXml", () => {
         url: found,
         method: "GET",
         headers: {
-          "User-Agent": FEEDBRO_UA,
-          Accept:
-            "application/feed+json, application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8",
+          Accept: ACCEPT_ALL,
         },
       });
     });

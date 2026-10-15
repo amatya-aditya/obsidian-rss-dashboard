@@ -10,8 +10,8 @@ export const TARGET = "https://example.com/feed.xml";
 export const ENCODED_TARGET = encodeURIComponent(TARGET);
 export const DIRECT = { enabled: false, url: "" };
 
-export const FEEDBRO_UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Feedbro/4.0";
+// The one header every feed request carries since #1162: the feed Accept, and
+// no User-Agent, so Obsidian sends its own.
 export const ACCEPT_ALL =
   "application/feed+json, application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8";
 

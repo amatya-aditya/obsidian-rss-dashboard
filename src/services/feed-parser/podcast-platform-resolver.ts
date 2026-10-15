@@ -1,5 +1,6 @@
 import { requestUrl } from "obsidian";
 import { debugLog } from "../../utils/debug-logger.js";
+import { jsonRequestHeaders } from "../../utils/request-headers.js";
 import {
   detectPodcastPlatform,
   APPLE_PODCASTS,
@@ -328,11 +329,7 @@ async function resolveApplePodcastUrl(
     const response = await requestUrl({
       url: lookupUrl,
       method: "GET",
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        Accept: "application/json",
-      },
+      headers: jsonRequestHeaders(),
     });
 
     const data = JSON.parse(response.text) as ItunesLookupResponse;

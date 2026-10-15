@@ -15,9 +15,11 @@ import type { Feed, Tag } from "../../../src/types/types";
 
 const CHANNEL_ID = "UCsBjURrPoezykLs9EqgamOA";
 const CHANNEL_ID_URL = `https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID}`;
-// The User-Agent the resolver sends when it fetches a channel page.
-const YOUTUBE_USER_AGENT =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36";
+// Since #1162 the resolver sends the page Accept and no User-Agent when it
+// fetches a channel page, so Obsidian identifies itself.
+const CHANNEL_PAGE_HEADERS = {
+  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+};
 
 /** HTML whose meta itemprop is the third probe `extractChannelIdFromHtml` tries. */
 const CHANNEL_PAGE_HTML = `<meta itemprop="channelId" content="${CHANNEL_ID}">`;
@@ -90,7 +92,7 @@ describe("MediaService.getYouTubeRssFeed (characterization)", () => {
     expect(requestUrlSpy).toHaveBeenCalledWith({
       url: "https://www.youtube.com/@Fireship",
       method: "GET",
-      headers: { "User-Agent": YOUTUBE_USER_AGENT },
+      headers: CHANNEL_PAGE_HEADERS,
     });
   });
 
@@ -101,7 +103,7 @@ describe("MediaService.getYouTubeRssFeed (characterization)", () => {
     expect(requestUrlSpy).toHaveBeenCalledWith({
       url: "https://www.youtube.com/@Fireship",
       method: "GET",
-      headers: { "User-Agent": YOUTUBE_USER_AGENT },
+      headers: CHANNEL_PAGE_HEADERS,
     });
   });
 
@@ -124,7 +126,7 @@ describe("MediaService.getYouTubeRssFeed (characterization)", () => {
     expect(requestUrlSpy).toHaveBeenCalledWith({
       url: "https://www.youtube.com/c/Fireship",
       method: "GET",
-      headers: { "User-Agent": YOUTUBE_USER_AGENT },
+      headers: CHANNEL_PAGE_HEADERS,
     });
   });
 

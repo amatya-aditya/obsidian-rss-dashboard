@@ -3,7 +3,6 @@ import { fetchFeedXml } from "../../../../src/services/feed-parser/feed-fetch.js
 import {
   ACCEPT_ALL,
   DIRECT,
-  FEEDBRO_UA,
   TARGET,
   after,
   cancelOn,
@@ -21,10 +20,6 @@ import {
 // what the direct attempt throws.
 
 const FB = "https://feeds.feedburner.com/show";
-const FB_PROBE_UA =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-const FB_PROBE_ACCEPT =
-  "application/feed+json, application/rss+xml, application/xml, application/atom+xml, text/xml;q=0.9, */*;q=0.8";
 const FB_PROBES = [`${FB}?format=xml`, `${FB}?fmt=xml`, `${FB}?type=xml`, FB];
 const NOT_A_FEED = "Not a valid RSS/Atom feed";
 
@@ -68,13 +63,13 @@ describe("the direct attempt in fetchFeedXml", () => {
       expect(served.requested).toEqual([FB_PROBES[0], FB_PROBES[1]]);
     });
 
-    it("sends a browser identity and a feed Accept header with each candidate", async () => {
+    it("sends no User-Agent and a feed Accept header with each candidate", async () => {
       const served = serve({ [FB_PROBES[0]]: feedXml("First") });
       await fetchFeedXml(FB, DIRECT);
       expect(served.requests[0]).toEqual({
         url: FB_PROBES[0],
         method: "GET",
-        headers: { "User-Agent": FB_PROBE_UA, Accept: FB_PROBE_ACCEPT },
+        headers: { Accept: ACCEPT_ALL },
       });
     });
 
@@ -88,14 +83,13 @@ describe("the direct attempt in fetchFeedXml", () => {
       expect(served.requested).toEqual(FB_PROBES.slice(0, 3));
     });
 
-    it("goes on to the address itself with the direct-fetch identity when no candidate is a feed", async () => {
+    it("goes on to the address itself with the direct-fetch headers when no candidate is a feed", async () => {
       // The trailing slash keeps the address distinct from the fourth candidate.
       const served = serve({ [`${FB}/`]: feedXml("Plain") });
       expect(await fetchFeedXml(`${FB}/`, DIRECT)).toBe(feedXml("Plain"));
       const direct = served.requests[4];
       expect(direct.url).toBe(`${FB}/`);
       expect(direct.headers).toEqual({
-        "User-Agent": FEEDBRO_UA,
         Accept: ACCEPT_ALL,
       });
     });
@@ -157,14 +151,14 @@ describe("the direct attempt in fetchFeedXml", () => {
   });
 
   describe("the plain fetch", () => {
-    it("asks once, with a feed-reader identity and a feed Accept header, and returns a feed as is", async () => {
+    it("asks once, with no User-Agent and a feed Accept header, and returns a feed as is", async () => {
       const served = serve({ [TARGET]: feedXml("Plain") });
       expect(await fetchFeedXml(TARGET, DIRECT)).toBe(feedXml("Plain"));
       expect(served.requests).toEqual([
         {
           url: TARGET,
           method: "GET",
-          headers: { "User-Agent": FEEDBRO_UA, Accept: ACCEPT_ALL },
+          headers: { Accept: ACCEPT_ALL },
         },
       ]);
     });
@@ -220,7 +214,7 @@ describe("the direct attempt in fetchFeedXml", () => {
       expect(served.requests[1]).toEqual({
         url: HTTP,
         method: "GET",
-        headers: { "User-Agent": FEEDBRO_UA, Accept: ACCEPT_ALL },
+        headers: { Accept: ACCEPT_ALL },
       });
     });
 
@@ -336,7 +330,7 @@ describe("the direct attempt in fetchFeedXml", () => {
     const STUB_URL = "https://example.com/stub.xml";
     const ARXIV = "https://rss.arxiv.org/atom/cs";
 
-    it("asks for the named arXiv feed with the feed-reader identity and returns it", async () => {
+    it("asks for the named arXiv feed without a User-Agent and returns it", async () => {
       const served = serve({
         [STUB_URL]: stubWithAtomLink(ARXIV),
         [ARXIV]: feedXml("arXiv"),
@@ -345,7 +339,7 @@ describe("the direct attempt in fetchFeedXml", () => {
       expect(served.requests[1]).toEqual({
         url: ARXIV,
         method: "GET",
-        headers: { "User-Agent": FEEDBRO_UA, Accept: ACCEPT_ALL },
+        headers: { Accept: ACCEPT_ALL },
       });
     });
 

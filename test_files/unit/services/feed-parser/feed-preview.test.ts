@@ -60,9 +60,9 @@ describe("feed preview parsing", () => {
   });
 
   it("loads title and latest entry from a JSON Feed", async () => {
-    vi.spyOn(obsidian, "requestUrl").mockResolvedValueOnce(
-      mockRequestUrlResponse(JSON_FEED_BASIC),
-    );
+    const requestUrlSpy = vi
+      .spyOn(obsidian, "requestUrl")
+      .mockResolvedValueOnce(mockRequestUrlResponse(JSON_FEED_BASIC));
 
     const preview = await loadFeedForPreview("https://example.com/feed.json");
 
@@ -79,6 +79,10 @@ describe("feed preview parsing", () => {
         }),
       }),
     );
+    // #1162: the preview fetch identifies as Obsidian, not as a browser.
+    const sent = requestUrlSpy.mock.calls[0]?.[0] as
+      { headers?: Record<string, string> } | undefined;
+    expect(Object.keys(sent?.headers ?? {})).toEqual(["Accept"]);
   });
 
   it("falls back to RSS2JSON when the direct request fails", async () => {

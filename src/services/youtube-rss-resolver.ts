@@ -1,4 +1,5 @@
 import { Notice, requestUrl } from "obsidian";
+import { pageRequestHeaders } from "../utils/request-headers.js";
 
 /**
  * Resolves a YouTube channel page URL (`@handle`, `youtube.com/@handle`,
@@ -71,10 +72,7 @@ async function resolveHandleChannelId(input: string): Promise<string> {
       const response = await requestUrl({
         url: `https://www.youtube.com/@${handle}`,
         method: "GET",
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        },
+        headers: pageRequestHeaders(),
       });
 
       if (!response.text) {
@@ -113,10 +111,7 @@ async function resolveCustomChannelId(input: string): Promise<string> {
       const response = await requestUrl({
         url: `https://www.youtube.com/c/${match[1]}`,
         method: "GET",
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        },
+        headers: pageRequestHeaders(),
       });
 
       if (!response.text) {

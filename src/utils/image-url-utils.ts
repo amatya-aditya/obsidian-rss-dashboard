@@ -242,13 +242,19 @@ export function firstNonFormulaImageUrl(
   return undefined;
 }
 
-/** Returns the first image element that is eligible for an article-media role. */
+/**
+ * Returns the first image element that is eligible for an article-media role:
+ * neither a rendered formula nor a tracking pixel, beacon or spacer. The size
+ * check is what rejects a counter such as `count.gif` (#1170), whose URL names
+ * no known fragment.
+ */
 export function findFirstNonFormulaImage(
   root: ParentNode,
 ): HTMLImageElement | null {
   return (
     Array.from(root.querySelectorAll<HTMLImageElement>("img")).find(
-      (image) => !isLatexFormulaImageElement(image),
+      (image) =>
+        !isLatexFormulaImageElement(image) && !isTrackingPixelElement(image),
     ) ?? null
   );
 }

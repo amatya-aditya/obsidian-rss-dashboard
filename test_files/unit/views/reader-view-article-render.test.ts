@@ -1450,6 +1450,40 @@ describe("ReaderView article rendering (characterization)", () => {
       expect(heroImg()).toBeNull();
     });
 
+    it("does not use a 1 by 1 tracking counter from the body as the hero", async () => {
+      await view.displayItem(
+        makeItem({
+          content: `<p>${LONG_TEXT}</p><img src="https://counter.example.com/content/293076/count.gif" alt="The Conversation" width="1" height="1">`,
+        }),
+      );
+
+      expect(heroImg()).toBeNull();
+    });
+
+    it("uses the photo after a 1 by 1 tracking counter as the hero", async () => {
+      await view.displayItem(
+        makeItem({
+          content: `<img src="https://counter.example.com/content/293076/count.gif" alt="The Conversation" width="1" height="1"><p><img src="https://img.example.com/photo.jpg"></p>`,
+        }),
+      );
+
+      expect(heroImg()?.getAttribute("src")).toBe(
+        "https://img.example.com/photo.jpg",
+      );
+    });
+
+    it("keeps a body image whose alt text mentions a pixel size", async () => {
+      await view.displayItem(
+        makeItem({
+          content: `<img src="https://img.example.com/photo.jpg" alt="shown width=1 wide"><p>${LONG_TEXT}</p>`,
+        }),
+      );
+
+      expect(heroImg()?.getAttribute("src")).toBe(
+        "https://img.example.com/photo.jpg",
+      );
+    });
+
     it("has no hero when there is no image anywhere", async () => {
       await view.displayItem(makeItem({ content: LONG_HTML }));
 

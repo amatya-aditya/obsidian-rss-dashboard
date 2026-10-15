@@ -3,7 +3,6 @@ import { fetchFeedXml } from "../../../../src/services/feed-parser/feed-fetch.js
 import {
   ACCEPT_ALL,
   DIRECT,
-  FEEDBRO_UA,
   cancelOn,
   feedXml,
   last,
@@ -136,13 +135,13 @@ describe("the WordPress fallback in fetchFeedXml", () => {
       expect(served.requested[2]).toBe(`${page}/feed/rss/`);
     });
 
-    it("asks for each alternative with the feed-reader identity", async () => {
+    it("asks for each alternative with the feed Accept header and no User-Agent", async () => {
       const served = serve({ [SITE]: wpPage() });
       await fetchFeedXml(SITE, DIRECT).catch(() => undefined);
       expect(served.requests[2]).toEqual({
         url: ALTERNATIVES[0],
         method: "GET",
-        headers: { "User-Agent": FEEDBRO_UA, Accept: ACCEPT_ALL },
+        headers: { Accept: ACCEPT_ALL },
       });
     });
 
@@ -232,9 +231,7 @@ describe("the WordPress fallback in fetchFeedXml", () => {
         url: FOUND,
         method: "GET",
         headers: {
-          "User-Agent": FEEDBRO_UA,
-          Accept:
-            "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
+          Accept: ACCEPT_ALL,
         },
       });
       expect(served.requested.slice(-2)).toEqual([BASE, FOUND]);
@@ -322,9 +319,7 @@ describe("the WordPress fallback in fetchFeedXml", () => {
         url: RSS,
         method: "GET",
         headers: {
-          "User-Agent": FEEDBRO_UA,
-          Accept:
-            "application/rss+xml, application/atom+xml, application/rdf+xml, application/xml, text/xml;q=0.9, */*;q=0.8",
+          Accept: ACCEPT_ALL,
         },
       });
     });
