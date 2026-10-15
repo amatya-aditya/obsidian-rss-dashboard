@@ -142,7 +142,7 @@ function renderDefaultTemplateSection(
   new Setting(containerEl).setName("Default template").setHeading();
   containerEl.createEl("p", {
     cls: "rss-dashboard-settings-note",
-    text: "Article saves use a feed-assigned template first, then the global default saved template, then the standalone fallback below. Save full content and the saved tag remain global options.",
+    text: "Article saves use a feed-assigned template first, then the global default saved template, then the standalone fallback below. The default save version and the saved tag remain global options.",
   });
 
   const templateContainer = containerEl.createDiv();

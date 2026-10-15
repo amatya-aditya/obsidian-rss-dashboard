@@ -141,7 +141,7 @@ export const TEMPLATE_VARIABLE_HELP_GROUPS: readonly TemplateVariableHelpGroup[]
         {
           name: "content",
           description:
-            "The content selected for this save. The “Save full content” setting chooses whether RSS Dashboard fetches the full article or uses the feed item’s content, which falls back to the feed description, then the summary. {{content}} only controls where that content is placed in the template.",
+            "The content selected for this save. The “Default save version” setting chooses between Fetched content (the full article) and RSS content (the feed item’s content, which falls back to the feed description, then the summary). {{content}} only controls where that content is placed in the template.",
         },
       ],
     },

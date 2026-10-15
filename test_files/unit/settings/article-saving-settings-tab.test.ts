@@ -231,6 +231,15 @@ describe("renderArticleSavingSettingsTab()", () => {
     expect(plugin.mocks.saveSettings).toHaveBeenCalledTimes(2);
   });
 
+  it("names the Default save version in the template precedence note", () => {
+    const containerEl = createDiv();
+    renderArticleSavingSettingsTab(containerEl, createPlugin(), vi.fn());
+
+    expect(containerEl.textContent).toContain(
+      "The default save version and the saved tag remain global options.",
+    );
+    expect(containerEl.textContent).not.toContain("Save full content");
+  });
   it("defaults fetchTimeout to 10 and persists slider changes", async () => {
     const containerEl = createDiv();
     const plugin = createPlugin({ fetchTimeout: undefined });
