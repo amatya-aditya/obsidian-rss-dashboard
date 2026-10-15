@@ -7,6 +7,7 @@ import {
   FEED_REQUEST_TIMEOUT_MS,
   FEED_SOFT_TIMEOUT_MS,
   MAX_CONCURRENT_FETCHES,
+  TIMED_OUT_MESSAGE,
 } from "./feed-timeout";
 import { globalFetchSemaphore } from "./feed-parser/fetch-semaphore";
 import type { PreviewImageCache } from "./preview-image-cache";
@@ -591,7 +592,7 @@ export class FeedRefreshRunner {
         })),
         timeout.promise,
       ]);
-      if (winner === "timeout") throw new Error("Timed out");
+      if (winner === "timeout") throw new Error(TIMED_OUT_MESSAGE);
       if (winner === "cancelled") throw new Error("Refresh stopped");
       return winner.value;
     } finally {

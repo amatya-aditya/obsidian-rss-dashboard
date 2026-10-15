@@ -23,6 +23,7 @@ import {
   BACKGROUND_IMPORT_TIMEOUT_RETRY_COUNT,
   FEED_SOFT_TIMEOUT_MS,
   MAX_CONCURRENT_FETCHES,
+  TIMED_OUT_MESSAGE,
 } from "./feed-timeout";
 import { globalFetchSemaphore } from "./feed-parser/fetch-semaphore";
 import { setCssProps } from "../utils/platform-utils";
@@ -717,7 +718,7 @@ export class BackgroundImportService {
         lastError = normalizedError;
 
         const shouldRetry =
-          normalizedError.message === "Timed out" &&
+          normalizedError.message === TIMED_OUT_MESSAGE &&
           attempt < BACKGROUND_IMPORT_TIMEOUT_RETRY_COUNT;
 
         if (!shouldRetry) {
@@ -726,7 +727,7 @@ export class BackgroundImportService {
       }
     }
 
-    throw lastError ?? new Error("Timed out");
+    throw lastError ?? new Error(TIMED_OUT_MESSAGE);
   }
 
   /**
@@ -759,7 +760,7 @@ export class BackgroundImportService {
         new Promise<Feed>((_, reject) => {
           timeoutId = window.setTimeout(() => {
             abortController.abort();
-            reject(new Error("Timed out"));
+            reject(new Error(TIMED_OUT_MESSAGE));
           }, BACKGROUND_IMPORT_FEED_REQUEST_TIMEOUT_MS);
         }),
       ]);

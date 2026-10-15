@@ -3,6 +3,7 @@ import { hostMatches } from "../../utils/url-host.js";
 import type { FeedEncoding } from "../../types/types.js";
 import { discoverFeedUrl } from "./feed-discovery.js";
 import { isValidFeed } from "./feed-validation.js";
+import { throwIfAborted } from "../feed-timeout.js";
 
 async function fetchAlternativeUrls(
   baseUrl: string,
@@ -40,7 +41,7 @@ async function fetchAlternativeUrls(
   ];
 
   for (const altUrl of alternativeUrls) {
-    if (signal?.aborted) throw new Error("Timed out");
+    throwIfAborted(signal);
     try {
       const altResponseText = await robustFetch(altUrl, {
         method: "GET",
@@ -63,6 +64,7 @@ async function fetchAlternativeUrls(
     }
   }
 
+  throwIfAborted(signal);
   return null;
 }
 
@@ -77,7 +79,7 @@ async function fetchDiscoveredFeed(
       ? baseUrl.replace("export.arxiv.org", "rss.arxiv.org")
       : null);
   if (discoveredUrl) {
-    if (signal?.aborted) throw new Error("Timed out");
+    throwIfAborted(signal);
     try {
       const discoveredResponseText = await robustFetch(discoveredUrl, {
         method: "GET",
@@ -130,6 +132,8 @@ export async function fetchWordPressFallback(
     encodingOverride,
   );
   if (discoveredText !== null) return discoveredText;
+
+  throwIfAborted(signal);
 
   throw new Error(
     "All alternative feed URLs failed, received PHP file instead of RSS feed",

@@ -812,9 +812,11 @@ describe("discoverFeedUrl, reached after the WordPress fallback addresses fail",
           if (url === `${SITE}/index.php?feed=atom`) controller.abort();
         },
       );
+      // #1116: the cancel lands on the final fallback address, so the
+      // WordPress step re-checks before reporting that discovery mattered.
       await expect(
         fetchFeedXml(SITE, DIRECT, controller.signal),
-      ).rejects.toThrow(ALL_FAILED);
+      ).rejects.toThrow("Timed out");
       expect(served.requested.filter((u) => u === SITE)).toHaveLength(1);
       expect(served.requested).not.toContain(
         "https://example.com/subscribe-feed",
@@ -832,9 +834,11 @@ describe("discoverFeedUrl, reached after the WordPress fallback addresses fail",
           if (url === SITE && count === 2) controller.abort();
         },
       );
+      // #1116: the cancel lands while discovery reads the page, so discovery
+      // finds nothing and the WordPress step re-checks before giving up.
       await expect(
         fetchFeedXml(SITE, DIRECT, controller.signal),
-      ).rejects.toThrow(ALL_FAILED);
+      ).rejects.toThrow("Timed out");
       expect(served.requested).not.toContain(
         "https://example.com/subscribe-feed",
       );
@@ -855,9 +859,11 @@ describe("discoverFeedUrl, reached after the WordPress fallback addresses fail",
           }
         },
       );
+      // #1116: the cancel lands between discovery's candidates, so discovery
+      // finds nothing and the WordPress step re-checks before giving up.
       await expect(
         fetchFeedXml(FEEDBURNER_SITE, DIRECT, controller.signal),
-      ).rejects.toThrow(ALL_FAILED);
+      ).rejects.toThrow("Timed out");
       expect(after(served.requested, FEEDBURNER_SITE, 2)).toEqual(
         FEEDBURNER_PROBES.slice(0, 4),
       );

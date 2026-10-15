@@ -44,6 +44,7 @@
 
 ### Fixes
 
+- Cancelling a feed refresh now reports that it timed out instead of the error of whichever request was in flight. [GH Issue #1116](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1116)
 - Feed discovery now resolves a feed address the way a browser does, so protocol-relative, relative, and HTML-encoded `<link rel="alternate">` and anchor addresses point at the right feed, and an address that does not resolve to http(s) is ignored instead of fetched. [GH Issue #1098](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1098)
 - Reader star, read, and tag updates no longer put keyword-excluded articles back into the dashboard or leave them displayed with conflicting filter counts. Global and per-feed rules retain their existing override and bypass behavior. [GH Issue #1083](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1083)
 - Every plugin dialog (Add feed, Manage feeds, folder and tag dialogs, Import OPML and starred import, confirmations, Keyboard shortcuts, What's new, and the phone navigation and filter sheets) is now announced as a modal dialog with a name taken from its heading, so assistive technology no longer sees an unlabeled region (WCAG 4.1.2). Tab and Shift+Tab now stay inside an open dialog instead of leaking into the dashboard behind it (WCAG 2.4.11), and closing a dialog returns focus to the control that opened it when that control is still on screen. Layout, Esc and Enter are unchanged. [GH Issue #826](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/826)

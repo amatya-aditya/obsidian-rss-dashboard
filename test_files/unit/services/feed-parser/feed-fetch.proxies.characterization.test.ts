@@ -498,13 +498,13 @@ describe("the public proxy chain in fetchFeedXml", () => {
       },
     );
 
-    it("still reports the chain's error when cancelled during the last request", async () => {
-      // BUG: pinned, see #1116 (a cancel is reported as a failure)
+    it("throws that it timed out when cancelled during the rss2json request", async () => {
+      // #1116: the abort lands during the final request of the tail.
       const controller = new AbortController();
       const served = serve({}, cancelOn(controller, RSS2JSON));
       await expect(
         fetchFeedXml(TARGET, true, controller.signal),
-      ).rejects.toMatchObject({ message: COULD_NOT });
+      ).rejects.toMatchObject({ message: "Timed out" });
       expect(served.requested).toEqual(EVERYTHING_FAILS);
     });
 
@@ -536,14 +536,15 @@ describe("the public proxy chain in fetchFeedXml", () => {
       expect(served.requested).toEqual([TARGET, GET]);
     });
 
-    it("on Android reports the chain's error when cancelled during AllOrigins raw", async () => {
-      // BUG: pinned, see #1116 (a cancel is reported as a failure)
+    it("on Android throws that it timed out when cancelled during AllOrigins raw", async () => {
+      // #1116: on Android the tail is not reached, so the raw request is the
+      // final one of the chain and needs its own re-check.
       useAndroid();
       const controller = new AbortController();
       const served = serve({}, cancelOn(controller, RAW));
       await expect(
         fetchFeedXml(TARGET, true, controller.signal),
-      ).rejects.toMatchObject({ message: COULD_NOT });
+      ).rejects.toMatchObject({ message: "Timed out" });
       expect(served.requested).toEqual([TARGET, GET, RAW]);
     });
   });
@@ -719,12 +720,16 @@ describe("a configured proxy in fetchFeedXml", () => {
       expect(served.requested).toEqual([TARGET, AUTO_PROXIES[0]]);
     });
 
-    it("discards the answer and reports the direct error when cancelled during the only proxy", async () => {
+    it("throws that it timed out when cancelled during the only proxy", async () => {
+      // #1116: the abort lands during the configured proxy's request, and with
+      // no further proxy to run the first pre-request check of the next
+      // iteration never arrives. The loop re-checks before reporting the
+      // direct attempt's error.
       const controller = new AbortController();
       serve({ [CUSTOM]: feedXml("Custom") }, cancelOn(controller, CUSTOM));
       await expect(
         fetchFeedXml(TARGET, CONFIGURED, controller.signal),
-      ).rejects.toMatchObject({ message: "not found" });
+      ).rejects.toMatchObject({ message: "Timed out" });
     });
 
     it("counts requests for the page through the direct attempt only", async () => {

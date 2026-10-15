@@ -5,6 +5,7 @@ import type { FeedEncoding } from "../../types/types.js";
 import { isValidFeed } from "./feed-validation.js";
 import { fetchThroughPublicProxies } from "./feed-fetch-proxies.js";
 import { fetchWordPressFallback } from "./feed-fetch-wordpress.js";
+import { throwIfAborted } from "../feed-timeout.js";
 
 async function probeFeedBurner(
   targetUrl: string,
@@ -23,7 +24,7 @@ async function probeFeedBurner(
         `https://feeds.feedburner.com/${feedName}`,
       ];
       for (const fbUrl of feedBurnerUrls) {
-        if (signal?.aborted) throw new Error("Timed out");
+        throwIfAborted(signal);
         try {
           const fbResponseText = await robustFetch(fbUrl, {
             method: "GET",
@@ -70,7 +71,7 @@ async function followArxivStub(
       targetUrl,
     );
     if (candidateUrl && hostMatches(candidateUrl, "arxiv.org")) {
-      if (signal?.aborted) throw new Error("Timed out");
+      throwIfAborted(signal);
       try {
         const arxivText = await robustFetch(candidateUrl, {
           method: "GET",
@@ -106,7 +107,7 @@ async function fetchToggledScheme(
       ? targetUrl.replace(/^https:\/\//i, "http://")
       : "";
   if (toggledUrl) {
-    if (signal?.aborted) throw new Error("Timed out");
+    throwIfAborted(signal);
     try {
       const toggledText = await robustFetch(toggledUrl, {
         method: "GET",
@@ -126,6 +127,7 @@ async function fetchToggledScheme(
     }
   }
 
+  throwIfAborted(signal);
   return null;
 }
 
@@ -191,7 +193,7 @@ export async function tryFetch(
   encodingOverride: FeedEncoding | undefined,
   isAndroid: boolean,
 ): Promise<string> {
-  if (signal?.aborted) throw new Error("Timed out");
+  throwIfAborted(signal);
 
   const feedBurnerText = await probeFeedBurner(
     targetUrl,
@@ -199,7 +201,7 @@ export async function tryFetch(
     encodingOverride,
   );
   if (feedBurnerText !== null) return feedBurnerText;
-  if (signal?.aborted) throw new Error("Timed out");
+  throwIfAborted(signal);
   try {
     return await fetchDirectFeed(targetUrl, signal, encodingOverride);
   } catch (error) {

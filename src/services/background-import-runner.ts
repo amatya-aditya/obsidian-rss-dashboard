@@ -1,6 +1,7 @@
 import { setIcon } from "obsidian";
 import type { Feed, FeedMetadata } from "../types/types";
 import { getFeedErrorMessage } from "./feed-parser";
+import { TIMED_OUT_MESSAGE } from "./feed-timeout";
 
 // ── Cadence ──────────────────────────────────────────────────────────────────
 
@@ -133,7 +134,7 @@ export async function importBackgroundFeed(
     if (hooks.isCancelled()) {
       feedMetadata.importStatus = "pending";
       delete feedMetadata.importError;
-    } else if (error instanceof Error && error.message === "Timed out") {
+    } else if (error instanceof Error && error.message === TIMED_OUT_MESSAGE) {
       feedMetadata.importStatus = "timed_out";
     } else {
       feedMetadata.importStatus = "failed";
