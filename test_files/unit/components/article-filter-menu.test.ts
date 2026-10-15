@@ -188,4 +188,103 @@ describe("ArticleFilterMenu Component", () => {
       expect(toggleBtn.classList.contains("active")).toBe(false);
     });
   });
+
+  describe("opener state", () => {
+    const newMenu = () =>
+      new ArticleFilterMenu(
+        settings,
+        new Set(),
+        new Set(),
+        "AND",
+        mockCallbacks,
+      );
+    const pressEscape = () =>
+      document.body.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+    let opener: HTMLElement;
+
+    beforeEach(() => {
+      opener = createDiv();
+      opener.setAttribute("role", "button");
+      opener.setAttribute("tabindex", "0");
+      opener.setAttribute("aria-expanded", "false");
+      document.body.appendChild(opener);
+    });
+
+    it("keeps aria-expanded in step on the trigger through open, Escape and a second click", () => {
+      const filterMenu = newMenu();
+
+      filterMenu.show(toggleBtn);
+      expect(toggleBtn.getAttribute("aria-expanded")).toBe("true");
+
+      pressEscape();
+      expect(toggleBtn.getAttribute("aria-expanded")).toBe("false");
+
+      filterMenu.show(toggleBtn);
+      expect(toggleBtn.getAttribute("aria-expanded")).toBe("true");
+      filterMenu.show(toggleBtn);
+      expect(toggleBtn.getAttribute("aria-expanded")).toBe("false");
+    });
+
+    it("resets aria-expanded when Apply closes the menu", () => {
+      newMenu().show(toggleBtn);
+
+      document
+        .querySelector<HTMLElement>(".rss-dashboard-filter-apply-btn")
+        ?.click();
+
+      expect(toggleBtn.getAttribute("aria-expanded")).toBe("false");
+    });
+
+    it("marks the opener expanded as well as the trigger, and clears both on close", () => {
+      newMenu().show(toggleBtn, opener);
+      expect(opener.getAttribute("aria-expanded")).toBe("true");
+      expect(toggleBtn.getAttribute("aria-expanded")).toBe("true");
+
+      pressEscape();
+
+      expect(opener.getAttribute("aria-expanded")).toBe("false");
+      expect(toggleBtn.getAttribute("aria-expanded")).toBe("false");
+    });
+
+    it("returns Escape focus to the opener, not the trigger", () => {
+      newMenu().show(toggleBtn, opener);
+
+      pressEscape();
+
+      expect(document.activeElement).toBe(opener);
+    });
+
+    it("returns Escape focus to the trigger when no separate opener is given", () => {
+      newMenu().show(toggleBtn);
+
+      pressEscape();
+
+      expect(document.activeElement).toBe(toggleBtn);
+    });
+
+    it("clears the opener when the same trigger is clicked to close", () => {
+      const filterMenu = newMenu();
+      filterMenu.show(toggleBtn, opener);
+      filterMenu.show(toggleBtn, opener);
+
+      expect(opener.getAttribute("aria-expanded")).toBe("false");
+    });
+
+    it("survives an opener that left the document", () => {
+      newMenu().show(toggleBtn, opener);
+      opener.remove();
+
+      expect(() => pressEscape()).not.toThrow();
+      expect(opener.getAttribute("aria-expanded")).toBe("false");
+    });
+
+    it("does not add popup attributes to a trigger that did not declare them", () => {
+      newMenu().show(toggleBtn);
+      pressEscape();
+
+      expect(toggleBtn.hasAttribute("aria-haspopup")).toBe(false);
+    });
+  });
 });

@@ -1,4 +1,5 @@
-import { Modal, App, Setting, Notice } from "obsidian";
+import { App, Setting, Notice } from "obsidian";
+import { AccessibleModal } from "../utils/accessible-modal";
 import type RssDashboardPlugin from "../../main";
 import {
   DEPRECATION_TRIGGER_RELEASE,
@@ -14,7 +15,7 @@ import {
  * prompt can always be postponed to the next load but can never be silenced
  * for good ahead of a cutoff the user would otherwise meet as breakage.
  */
-export class StorageMigrationModal extends Modal {
+export class StorageMigrationModal extends AccessibleModal {
   private plugin: RssDashboardPlugin;
 
   constructor(app: App, plugin: RssDashboardPlugin) {

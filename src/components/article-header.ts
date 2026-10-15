@@ -1,7 +1,11 @@
 import { setIcon, setTooltip } from "obsidian";
 import { ArticleGroupByOption, RssDashboardSettings } from "../types/types";
 import { TABLET_LAYOUT_MAX_WIDTH } from "../utils/platform-utils";
-import { ArticleFilterMenu, FilterChangeEvent } from "./article-filter-menu";
+import {
+  ArticleFilterMenu,
+  FilterChangeEvent,
+  takePendingFilterMenuOpener,
+} from "./article-filter-menu";
 import { ArticleHeaderMenu } from "./article-header-menu";
 import { renderHeaderFeedIcon } from "./article-list/utils/feed-icon";
 interface ArticleHeaderMenuController {
@@ -49,6 +53,7 @@ export class ArticleHeader {
   private resizeObserver: ResizeObserver | null = null;
   private articleSearchQuery: string = "";
   private headerMenu: ArticleHeaderMenuController | null = null;
+  private filterMenu: ArticleFilterMenu | null = null;
 
   private statusFilters: Set<string>;
   private tagFilters: Set<string>;
@@ -170,16 +175,26 @@ export class ArticleHeader {
 
     const mobileFilterBtn = rightSection.createEl("button", {
       cls: "rss-dashboard-mobile-filter-button rss-dashboard-filter-trigger clickable-icon",
-      attr: { type: "button", "aria-label": "Filters" },
+      attr: {
+        type: "button",
+        "aria-label": "Filters",
+        "aria-haspopup": "dialog",
+        "aria-expanded": "false",
+      },
     });
     setIcon(
       mobileFilterBtn.createDiv({ cls: "rss-dashboard-mobile-filter-icon" }),
       "filter",
     );
     this.updateFilterBadge(mobileFilterBtn);
+    // A menu left open across this re-render now belongs to the new button.
+    this.filterMenu?.retarget(mobileFilterBtn);
     mobileFilterBtn.addEventListener("click", (e) => {
       e.stopPropagation();
-      this.showFiltersMenu(mobileFilterBtn);
+      this.showFiltersMenu(
+        mobileFilterBtn,
+        takePendingFilterMenuOpener(mobileFilterBtn),
+      );
     });
 
     const existingHeaderMenu: ArticleHeaderMenuController | null =
@@ -251,7 +266,7 @@ export class ArticleHeader {
     });
   }
 
-  private showFiltersMenu(btn: HTMLElement) {
+  private showFiltersMenu(btn: HTMLElement, opener?: HTMLElement) {
     const menu = new ArticleFilterMenu(
       this.settings,
       this.statusFilters,
@@ -261,6 +276,7 @@ export class ArticleHeader {
         onFilterChange: (f) => this.callbacks.onFilterChange(f),
       },
     );
-    menu.show(btn);
+    this.filterMenu = menu;
+    menu.show(btn, opener);
   }
 }

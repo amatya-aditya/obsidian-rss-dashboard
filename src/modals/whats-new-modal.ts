@@ -1,4 +1,5 @@
-import { App, Component, MarkdownRenderer, Modal } from "obsidian";
+import { App, Component, MarkdownRenderer } from "obsidian";
+import { AccessibleModal } from "../utils/accessible-modal";
 import { ReaderLightbox } from "../components/reader-lightbox";
 
 const FULL_CHANGELOG_URL =
@@ -8,7 +9,7 @@ const FULL_CHANGELOG_URL =
  * Renders one curated release note. Opened automatically when its release
  * policy says it is due, and reopenable any time from the About settings tab.
  */
-export class WhatsNewModal extends Modal {
+export class WhatsNewModal extends AccessibleModal {
   private readonly version: string;
   private readonly note: string;
   // Modal is not a Component, so the markdown renderer gets a component whose
@@ -19,6 +20,12 @@ export class WhatsNewModal extends Modal {
     super(app);
     this.version = version;
     this.note = note;
+  }
+
+  // The note's own first heading names the dialog once it has rendered; this
+  // covers the moment before that and a note with no heading.
+  protected getDialogLabel(): string {
+    return "What's new";
   }
 
   onOpen(): void {

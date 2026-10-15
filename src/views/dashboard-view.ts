@@ -32,6 +32,7 @@ import type {
 } from "../../main";
 import { Sidebar, type SidebarOptions } from "../components/sidebar";
 import { ArticleList } from "../components/article-list";
+import { openFilterMenuFrom } from "../components/article-filter-menu";
 import { ArticleSaver } from "../services/article-saver";
 import { CustomSaveModal } from "../modals/custom-save-modal";
 import {
@@ -70,6 +71,8 @@ import { getArticlePreviewSummaryText } from "../utils/article-preview-utils";
 import { removeFolderByPath } from "../utils/folder-tree";
 import { createIconButton, getIconButtonAction } from "../utils/icon-button";
 import { createLiveRegion } from "../utils/live-region";
+import { markMainLandmark, markNamedLandmark } from "../utils/landmarks";
+import { SIDEBAR_ROW_SELECTOR } from "../utils/sidebar-row-interactions";
 import { clearViewReady, markViewReady } from "../utils/view-ready";
 import { REFRESH_ANNOUNCEMENT_EVENT } from "../services/refresh-announcements";
 import { attachRovingToolbar } from "../utils/roving-toolbar";
@@ -836,7 +839,9 @@ export class RssDashboardView extends ItemView {
       const interactive = target.closest(
         'input, button, select, textarea, a, [tabindex]:not([tabindex="-1"])',
       );
-      if (!interactive) {
+      // The sidebar row holding the Tab stop (tabindex="0") is not a control
+      // here: a click on it still hands focus to the view, as for any other row.
+      if (!interactive || interactive.matches(SIDEBAR_ROW_SELECTOR)) {
         this.containerEl.focus({ preventScroll: true });
       }
     });
@@ -1110,6 +1115,8 @@ export class RssDashboardView extends ItemView {
         inlineToolbarFocus = this.captureInlineToolbarFocus(contentContainer);
         contentContainer.empty();
       }
+      // The content area is the dashboard's one `main` landmark (#826).
+      markMainLandmark(contentContainer);
 
       const feedsByUrl = this.buildFeedUrlIndex();
       const scopedArticles = this.getUnfilteredArticles(feedsByUrl);
@@ -1209,8 +1216,8 @@ export class RssDashboardView extends ItemView {
       onSearch: (_q: string) => {
         // State is handled by ArticleList locally, but we could sync it here if needed
       },
-      onOpenViewFilters: () => {
-        this.openViewingFiltersMenu();
+      onOpenViewFilters: (opener) => {
+        this.openViewingFiltersMenu(opener);
       },
       onOpenPerFeedSettings: () => {
         if (this.currentFeed) {
@@ -1535,13 +1542,15 @@ export class RssDashboardView extends ItemView {
         role: "button",
         tabindex: "0",
         "aria-label": "Open viewing filters",
+        "aria-haspopup": "dialog",
+        "aria-expanded": "false",
       },
     });
     setIcon(viewFiltersBtn, "filter");
 
     const openFiltersMenu = (e?: Event) => {
       e?.stopPropagation();
-      this.openViewingFiltersMenu();
+      this.openViewingFiltersMenu(viewFiltersBtn);
     };
 
     viewFiltersBtn.addEventListener("click", openFiltersMenu);
@@ -3341,7 +3350,7 @@ export class RssDashboardView extends ItemView {
     return null;
   }
 
-  private openViewingFiltersMenu(): void {
+  private openViewingFiltersMenu(opener?: HTMLElement): void {
     const root = this.containerEl ?? activeDocument.body;
 
     const trigger =
@@ -3353,7 +3362,11 @@ export class RssDashboardView extends ItemView {
       ) ??
       root.querySelector<HTMLElement>(".rss-dashboard-filter-trigger");
 
-    trigger?.click();
+    if (trigger && opener) {
+      openFilterMenuFrom(trigger, opener);
+    } else {
+      trigger?.click();
+    }
   }
 
   private getViewFilterReasonLabel(): string | null {
@@ -4248,7 +4261,7 @@ export class RssDashboardView extends ItemView {
       },
     });
 
-    header.createDiv({
+    const titleEl = header.createDiv({
       cls: "rss-reader-title",
       text: this.inlineArticle?.title || "Article",
     });
@@ -4345,6 +4358,7 @@ export class RssDashboardView extends ItemView {
     const body = container.createDiv({
       cls: "rss-reader-content inline-reader-content",
     });
+    markNamedLandmark(body, "region", titleEl);
 
     if (this.articleRenderer && this.inlineArticle) {
       const related = this.getRelatedItems(this.inlineArticle);

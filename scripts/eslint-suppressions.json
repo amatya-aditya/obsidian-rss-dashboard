@@ -74,16 +74,6 @@
       "count": 1
     }
   },
-  "src/services/image-cache-service.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
-  "src/services/media-service.ts": {
-    "complexity": {
-      "count": 2
-    }
-  },
   "src/services/sidebar-ordering-controller.ts": {
     "complexity": {
       "count": 1

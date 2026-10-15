@@ -95,6 +95,7 @@ import {
 } from "../utils/substack-image-url";
 import { firstNonFormulaImageUrl } from "../utils/image-url-utils";
 import { applyReaderImageLoading } from "../utils/reader-image-loading";
+import { markNamedLandmark } from "../utils/landmarks";
 import { ReaderLightbox } from "../components/reader-lightbox";
 import {
   isLightboxEligibleImage,
@@ -1023,6 +1024,9 @@ export class ReaderView extends ItemView {
     this.readingContainer = this.contentEl.createDiv({
       cls: "rss-reader-content",
     });
+    // A region named by the article title, not a second `main`: the Reader
+    // opens beside the dashboard, which already has one (#826).
+    markNamedLandmark(this.readingContainer, "region", this.titleElement);
     this.register(
       trackReaderMathSelection(this.containerEl, () => this.readingContainer),
     );

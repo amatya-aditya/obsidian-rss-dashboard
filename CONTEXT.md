@@ -302,8 +302,16 @@ A feed storage mode that persists one file per feed in a vault folder instead of
 _Avoid_: Vault Shards, vault storage
 
 **Deprecated storage mode**:
-A feed storage mode the plugin still reads but will stop writing to when 3.0 ships: Legacy JSON and Shard storage v1. A vault on one of these still opens and displays its articles, but no longer refreshes feeds, records stars, tags, or saves, or auto-deletes by retention rule. Export remains available, and migrating to Shard storage v2 remains possible after the cutoff. See [ADR 0006](docs/adr/0006-deprecate-legacy-json-and-shard-storage-v1.md).
+A feed storage mode the plugin still reads but will stop writing to when 3.0 ships: Legacy JSON and Shard storage v1. Its arrival at 3.0 is the [[Storage cutoff]], after which a vault on one of these is a [[Read-only vault]]: it opens and displays its articles, but refreshes nothing and records nothing — not stars, tags, saves, retention auto-deletes, or any other setting. Export remains available, and migrating to Shard storage v2 remains possible through the [[Frozen importer]]. See [ADR 0006](docs/adr/0006-deprecate-legacy-json-and-shard-storage-v1.md).
 _Avoid_: Unsupported mode, legacy mode, read-only mode
+
+**Storage cutoff**:
+The release that turns the [[deprecated storage mode]]s read-only: 3.0. It is keyed to the release rather than a date, because a major release ships when its contents are ready. Users below the [[declared floor]] never receive it and keep writable deprecated modes. See [ADR 0006](docs/adr/0006-deprecate-legacy-json-and-shard-storage-v1.md).
+_Avoid_: Cutoff date, sunset, deprecation release
+
+**Read-only vault**:
+A vault whose feed storage is a [[deprecated storage mode]] on a release carrying the [[storage cutoff]]. It displays its articles, marks read state in memory for the session, exports a [[portable data bundle]], and can migrate to Shard storage v2. It writes nothing else; preference changes made while read-only are lost on quit, exactly like read marks. The state is enforced at the persistence choke point and is distinct from a failed settings load. See [ADR 0024](docs/adr/0024-enforce-the-read-only-cutoff-at-the-persistence-choke-point.md).
+_Avoid_: Read-only mode (that names a [[deprecated storage mode]], not a vault), frozen vault, locked vault
 
 **Feed content**:
 The article or episode data (title, body, media, publish date) written into a feed's shard file under Shard storage v2. Distinct from that feed's article state, which v2 stores separately.
@@ -353,12 +361,16 @@ _Avoid_: Import preview (reserved for the feed-selection preview of OPML imports
 Moving feed content from its current feed storage mode into shard files for the first time, or upgrading from Shard storage v1 to v2. Distinct from storage repair and storage revert.
 _Avoid_: Migrate, storage change
 
+**Frozen importer**:
+The one-way path that reads a Legacy JSON or Shard storage v1 vault and writes Shard storage v2. It is exempt from the [[read-only vault]] invariant, is tested once against committed samples of both deprecated shapes, and is then not changed, so migration stays possible after the [[storage cutoff]] without keeping the deprecated write paths. The exemption is enforced by an import allowlist rather than convention. See [ADR 0024](docs/adr/0024-enforce-the-read-only-cutoff-at-the-persistence-choke-point.md).
+_Avoid_: Converter, upgrader, migration tool
+
 **Storage repair**:
-Force-regenerating the shard files of every feed whose articles are loaded in memory, skipping feeds with none, without changing feed storage mode, used to recover from an out-of-sync or incomplete shard folder. Distinct from storage migration and storage revert.
+Force-regenerating the shard files of every feed whose articles are loaded in memory, skipping feeds with none, without changing feed storage mode, used to recover from an out-of-sync or incomplete shard folder. Applies to Shard storage v2 only: repair writes, so a [[read-only vault]] is never repaired. Distinct from storage migration and storage revert.
 _Avoid_: Rebuild, resync
 
 **Storage revert**:
-Switching feed storage back to Legacy JSON, writing all feed content back into `data.json` and optionally deleting the shard folder. Distinct from storage migration and storage repair.
+Switching feed storage back to Legacy JSON, writing all feed content back into `data.json` and optionally deleting the shard folder. Removed at the [[storage cutoff]], so a [[read-only vault]] cannot be returned to a writable deprecated mode. Distinct from storage migration and storage repair.
 _Avoid_: Rollback, downgrade
 
 **Metadata cleanup**:

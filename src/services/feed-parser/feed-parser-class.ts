@@ -17,6 +17,7 @@ import { assertParsedFeedHasEntries } from "./parsed-feed-assert.js";
 import {
   FEED_REQUEST_TIMEOUT_MS,
   FEED_SOFT_TIMEOUT_MS,
+  TIMED_OUT_MESSAGE,
 } from "../feed-timeout.js";
 import { globalFetchSemaphore } from "./fetch-semaphore.js";
 import {
@@ -516,7 +517,7 @@ export class FeedParser {
         new Promise<Feed>((_, reject) => {
           timeoutId = window.setTimeout(() => {
             abortController.abort();
-            reject(new Error("Timed out"));
+            reject(new Error(TIMED_OUT_MESSAGE));
           }, FEED_REQUEST_TIMEOUT_MS);
         }),
       ]);

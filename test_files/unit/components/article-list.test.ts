@@ -141,5 +141,44 @@ describe("ArticleList Component", () => {
     button.click();
 
     expect(mockCallbacks.onOpenViewFilters).toHaveBeenCalledTimes(1);
+    expect(mockCallbacks.onOpenViewFilters).toHaveBeenCalledWith(button);
+  });
+
+  it("marks the view-filter CTA as a popup opener but not the per-feed one", () => {
+    const articleList = createArticleListInstance(
+      container,
+      settings,
+      [],
+      mockCallbacks,
+      null,
+      0,
+    );
+
+    articleList.setEmptyStateContext({
+      type: "AllArticlesFiltered",
+      unfilteredCount: 3,
+      filterReason: "view-filter",
+      actionTarget: "view-filter",
+    });
+    articleList.render();
+    const viewFilter = container.querySelector(
+      ".rss-dashboard-empty-state-button",
+    ) as HTMLElement;
+    expect(viewFilter.getAttribute("aria-haspopup")).toBe("dialog");
+    expect(viewFilter.getAttribute("aria-expanded")).toBe("false");
+
+    articleList.setEmptyStateContext({
+      type: "AllArticlesPrunedByRetention",
+      unfilteredCount: 3,
+      prunedCount: 3,
+      retentionLabel: "30 day",
+      actionTarget: "per-feed-settings",
+    });
+    articleList.render();
+    const perFeed = container.querySelector(
+      ".rss-dashboard-empty-state-button",
+    ) as HTMLElement;
+    expect(perFeed.hasAttribute("aria-haspopup")).toBe(false);
+    expect(perFeed.hasAttribute("aria-expanded")).toBe(false);
   });
 });

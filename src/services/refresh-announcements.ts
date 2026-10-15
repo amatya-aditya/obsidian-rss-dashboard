@@ -1,3 +1,5 @@
+import { TIMED_OUT_MESSAGE } from "./feed-timeout.js";
+
 /**
  * What a feed refresh says to a screen reader (#842, WCAG 2.2 4.1.3).
  *
@@ -11,9 +13,6 @@
 
 /** Workspace event carrying one announcement string. */
 export const REFRESH_ANNOUNCEMENT_EVENT = "rss-dashboard:refresh-announcement";
-
-/** The error text `FeedRefreshRunner` throws and the parser reports on timeout. */
-const TIMED_OUT_MESSAGE = "Timed out";
 
 export interface RefreshRunSummary {
   newArticles: number;

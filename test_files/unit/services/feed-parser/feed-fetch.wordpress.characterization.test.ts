@@ -198,9 +198,9 @@ describe("the WordPress fallback in fetchFeedXml", () => {
       expect(served.requested.slice(2)).toEqual(ALTERNATIVES.slice(0, 3));
     });
 
-    it("reports that every alternative failed when cancelled during the last one", async () => {
-      // BUG: pinned, see #1116 (a cancel is reported as a failure)
-      // The abort is seen by discovery, which then finds nothing.
+    it("throws that it timed out when cancelled during the last alternative", async () => {
+      // #1116: the abort lands during the final request, after the last
+      // pre-request check, so the sequence re-checks before giving up.
       const controller = new AbortController();
       const served = serve(
         { [SITE]: wpPage() },
@@ -208,7 +208,7 @@ describe("the WordPress fallback in fetchFeedXml", () => {
       );
       await expect(
         fetchFeedXml(SITE, DIRECT, controller.signal),
-      ).rejects.toMatchObject({ message: ALL_FAILED });
+      ).rejects.toMatchObject({ message: "Timed out" });
       expect(last(served.requested)).toBe(ALTERNATIVES[22]);
     });
   });
@@ -298,6 +298,18 @@ describe("the WordPress fallback in fetchFeedXml", () => {
         fetchFeedXml(page, DIRECT, controller.signal),
       ).rejects.toMatchObject({ message: "Timed out" });
       expect(requestsFor(served, probe)).toHaveLength(2);
+    });
+
+    it("throws that it timed out when cancelled during the discovery page", async () => {
+      // #1116: the abort lands during the discovery page, so discovery finds
+      // nothing. The WordPress step re-checks before reporting that every
+      // alternative failed.
+      const controller = new AbortController();
+      const served = serve({ [SITE]: wpPage() }, cancelOn(controller, BASE));
+      await expect(
+        fetchFeedXml(SITE, DIRECT, controller.signal),
+      ).rejects.toMatchObject({ message: "Timed out" });
+      expect(last(served.requested)).toBe(BASE);
     });
   });
 

@@ -1,4 +1,5 @@
-import { App, Modal, Notice, Setting } from "obsidian";
+import { App, Notice, Setting } from "obsidian";
+import { AccessibleModal } from "../utils/accessible-modal";
 import type { RssDashboardSettings, Tag } from "../types/types";
 import { updateTagInSettings } from "../utils/tag-settings";
 import { addInputClearButton } from "../utils/input-clear-button";
@@ -10,7 +11,7 @@ export interface EditTagModalOptions {
   submitLabel?: string;
 }
 
-export class EditTagModal extends Modal {
+export class EditTagModal extends AccessibleModal {
   private readonly opts: EditTagModalOptions;
 
   constructor(app: App, opts: EditTagModalOptions) {

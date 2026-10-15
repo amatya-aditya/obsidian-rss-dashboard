@@ -1,4 +1,5 @@
-import { Modal, App, Setting, Notice, setIcon, setTooltip } from "obsidian";
+import { App, Setting, Notice, setIcon, setTooltip } from "obsidian";
+import { AccessibleModal } from "../utils/accessible-modal";
 import type RssDashboardPlugin from "../../main";
 import type { Feed, Folder } from "../types/types";
 import { OpmlManager } from "../services/opml-manager";
@@ -17,7 +18,7 @@ import { addInputClearButton } from "../utils/input-clear-button";
  * Import OPML Modal - Provides a preview-based import experience
  * Allows users to select, validate, preview, and import OPML files
  */
-export class ImportOpmlModal extends Modal {
+export class ImportOpmlModal extends AccessibleModal {
   plugin: RssDashboardPlugin;
   private readonly onImportStarted?: () => void;
 

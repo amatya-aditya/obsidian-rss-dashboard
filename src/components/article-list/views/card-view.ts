@@ -294,7 +294,9 @@ export function renderCardView(
     }
 
     if (ctx.showCardToolbar) {
-      const cardFooter = card.createEl("footer", {
+      // A div, not a <footer>: a footer outside an article or main is exposed
+      // as a `contentinfo` landmark, one per card (WCAG 2.2 1.3.1).
+      const cardFooter = card.createDiv({
         cls: "rss-dashboard-card-footer",
       });
       const actionToolbar = cardFooter.createDiv({

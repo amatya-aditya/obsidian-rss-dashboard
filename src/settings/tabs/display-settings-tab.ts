@@ -5,7 +5,8 @@
  * Exports:
  *   - renderDisplaySettingsTab(containerEl, plugin, onRefresh) — main render fn
  */
-import { Modal, Notice, Setting, setIcon, setTooltip } from "obsidian";
+import { Notice, Setting, setIcon, setTooltip } from "obsidian";
+import { AccessibleModal } from "../../utils/accessible-modal";
 import RssDashboardPlugin from "../../../main";
 import {
   DEFAULT_SETTINGS,
@@ -32,7 +33,7 @@ const ABSOLUTE_DATE_EXAMPLE = formatDateWithRelative(
 // Re-export pure helpers from sidebar-settings-tab for backward compatibility
 export { moveIconOrder, normalizeHexColor } from "./sidebar-settings-tab";
 
-class ClearImageCacheConfirmModal extends Modal {
+class ClearImageCacheConfirmModal extends AccessibleModal {
   private confirmed = false;
   private resolvePromise: ((value: boolean) => void) | null = null;
 

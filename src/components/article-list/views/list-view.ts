@@ -149,7 +149,8 @@ export function renderListView(
         }
       }
 
-      const listFooter = contentEl.createEl("footer", {
+      // A div, not a <footer>: see the card footer (WCAG 2.2 1.3.1).
+      const listFooter = contentEl.createDiv({
         cls: "rss-dashboard-list-footer",
       });
       const footerToolbar = listFooter.createDiv(
