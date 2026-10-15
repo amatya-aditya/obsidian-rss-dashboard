@@ -136,6 +136,14 @@ describe("isTrackingPixelTag", () => {
     ).toBe(false);
   });
 
+  it("does not read a size mentioned inside another attribute value", () => {
+    expect(
+      isTrackingPixelTag(
+        '<img src="https://img.example.com/photo.jpg" alt="shown width=1 wide" class="a b">',
+      ),
+    ).toBe(false);
+  });
+
   it("accepts a photo the tag declares larger than 1 by 1", () => {
     expect(
       isTrackingPixelTag(

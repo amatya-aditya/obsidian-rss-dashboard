@@ -194,16 +194,41 @@ export function isTrackingPixelElement(image: Element): boolean {
 }
 
 /**
+ * One attribute of an HTML tag: its lowercase name and its value, quoted or
+ * bare. A global pattern is safe to reuse with `matchAll`, which clones it.
+ */
+const TAG_ATTRIBUTE_PATTERN =
+  /(?:^|\s)([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g;
+
+/**
+ * The attributes of one HTML tag, keyed by lowercase name. Reading name/value
+ * pairs, rather than probing the raw text for `width=`, keeps a size mentioned
+ * inside another attribute's value (`alt="shown width=1 wide"`) or in a
+ * `data-` attribute from reading as a declared size.
+ */
+function readTagAttributes(tag: string): Map<string, string> {
+  const attributes = new Map<string, string>();
+
+  for (const match of tag.matchAll(TAG_ATTRIBUTE_PATTERN)) {
+    const name = match[1]?.toLowerCase();
+    if (name) attributes.set(name, match[2] ?? match[3] ?? match[4] ?? "");
+  }
+
+  return attributes;
+}
+
+/**
  * Text convenience wrapper for {@link isTrackingPixel}: reads one `<img>` tag's
  * `src` and its declared `width`/`height`, for the callers that scan feed HTML
- * with a regex instead of the DOM. The leading boundary on each size attribute
- * keeps `data-width`/`data-height` from reading as a declared size.
+ * with a regex instead of the DOM.
  */
 export function isTrackingPixelTag(tag: string): boolean {
-  const src = tag.match(/\bsrc=["']([^"']+)["']/i)?.[1] ?? "";
-  const width = tag.match(/(?:^|\s)width\s*=\s*["']?([^"'\s>]+)/i)?.[1];
-  const height = tag.match(/(?:^|\s)height\s*=\s*["']?([^"'\s>]+)/i)?.[1];
-  return isTrackingPixel(src, width, height);
+  const attributes = readTagAttributes(tag);
+  return isTrackingPixel(
+    attributes.get("src") ?? "",
+    attributes.get("width"),
+    attributes.get("height"),
+  );
 }
 
 /** Returns the first non-empty URL that is not a rendered formula image. */
