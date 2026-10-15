@@ -22,6 +22,7 @@ import {
   trackReaderMathSelection,
 } from "../utils/math-copy";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
+import { enhanceYouTubeEmbeds } from "../utils/youtube-inline-embed";
 import {
   type FullArticleFetchFailureType,
   type FullArticleFetchResult,
@@ -2097,6 +2098,13 @@ export class ReaderView extends ItemView {
       highlightService.highlightElement(container);
     } else {
       sanitizeAndAppendHtml(container, html, { mode: "rich" });
+    }
+
+    // Only the RSS version and the feed description get the inline player. The
+    // fetched full-article body keeps the sanitizer's plain watch link; the
+    // fetched version is faithful to its source and #1176 upgrades it there.
+    if (!stripTopHeadline) {
+      enhanceYouTubeEmbeds(container, { title });
     }
 
     // Add classes to images for styling

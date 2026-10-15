@@ -16,6 +16,18 @@ const YOUTUBE_EMBED_HOSTS = new Set([
 
 const VIDEO_ID_PATTERN = /^[A-Za-z0-9_-]{11}$/;
 
+/**
+ * Marks a link the reader's post-render step upgrades into a playable video
+ * placeholder, carrying the validated video ID. The sanitizer writes it; only
+ * `youtube-inline-embed.ts` reads it.
+ */
+export const YOUTUBE_VIDEO_ID_ATTRIBUTE = "data-youtube-video-id";
+
+/** Whether `value` is an 11-character, URL-safe YouTube video ID. */
+export function isYouTubeVideoId(value: string): boolean {
+  return VIDEO_ID_PATTERN.test(value);
+}
+
 /** Stands in for a recognized iframe while the HTML waits for Turndown. */
 const EMBED_MARKER_TAG = "rss-youtube-embed";
 

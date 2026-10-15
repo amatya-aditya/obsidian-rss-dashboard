@@ -519,6 +519,19 @@ ${htmlParagraphs("rss-tech-11", 1)}
       author: "Fixture Author",
       ...articleText("rss-tech-14", 2),
     }),
+    item(feed, {
+      // A recognized YouTube embed in the feed body (#1173). Invented text and
+      // a placeholder video ID; the Reader should play it inline on click.
+      title: "Article with an inline YouTube video",
+      link: link(15),
+      pubDate: at(12),
+      author: "Fixture Author",
+      description: htmlParagraphs("rss-tech-15", 1),
+      content: `${htmlParagraphs("rss-tech-15", 2)}
+<p><iframe src="https://www.youtube.com/embed/z9TFdTqkbPk" width="560" height="315" frameborder="0" allowfullscreen></iframe></p>
+${htmlParagraphs("rss-tech-15-outro", 1)}`,
+      summary: paragraphs("rss-tech-15", 1)[0],
+    }),
   ];
 }
 

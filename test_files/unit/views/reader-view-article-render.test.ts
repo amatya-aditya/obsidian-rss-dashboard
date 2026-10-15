@@ -1870,6 +1870,36 @@ describe("ReaderView article rendering (characterization)", () => {
       expect(container.textContent).toBe("safe");
     });
 
+    it("upgrades a recognized YouTube embed in the RSS body to a video placeholder", () => {
+      const container = populate(
+        `<p>intro</p><iframe src="https://www.youtube.com/embed/z9TFdTqkbPk?rel=0"></iframe><p>outro</p>`,
+        "https://example.com/",
+        { title: "Feed Item Title" },
+      );
+
+      const placeholder = container.querySelector(".rss-youtube-embed");
+      expect(placeholder).not.toBeNull();
+      expect(container.querySelector("iframe")).toBeNull();
+      expect(
+        placeholder
+          ?.querySelector<HTMLButtonElement>(".rss-youtube-embed-play")
+          ?.getAttribute("aria-label"),
+      ).toBe("Play video: Feed Item Title");
+      expect(
+        placeholder?.querySelector(".rss-youtube-embed-watch")?.textContent,
+      ).toContain("Watch on YouTube");
+    });
+
+    it("leaves an iframe from another host dropped, with no placeholder", () => {
+      const container = populate(
+        `<p>intro</p><iframe src="https://evil.example/embed/z9TFdTqkbPk"></iframe>`,
+        "https://example.com/",
+      );
+
+      expect(container.querySelector("iframe")).toBeNull();
+      expect(container.querySelector(".rss-youtube-embed")).toBeNull();
+    });
+
     it("gives every image the responsive class and a zoomable class when eligible", () => {
       const container = populate(
         '<img src="https://img.example.com/a.jpg"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7">',
@@ -2298,6 +2328,26 @@ describe("ReaderView article rendering (characterization)", () => {
       );
 
       expect(q(".rss-reader-article-content h1")).not.toBeNull();
+    });
+
+    it("keeps the plain watch link in the fetched full-article body (#1173)", async () => {
+      fetchMock().mockResolvedValue({
+        content: `<p>${LONG_TEXT}</p><iframe src="https://www.youtube.com/embed/z9TFdTqkbPk"></iframe>`,
+        failureType: "none",
+      });
+
+      await view.displayItem(makeItem({ content: "<p>feed teaser</p>" }));
+      reading()
+        .querySelector<HTMLButtonElement>(".rss-reader-content-toggle")
+        ?.click();
+
+      expect(internals(view).currentContentIsFullArticle).toBe(true);
+      expect(q(".rss-reader-article-content .rss-youtube-embed")).toBeNull();
+      expect(
+        q(".rss-reader-article-content a[data-youtube-video-id]")?.getAttribute(
+          "href",
+        ),
+      ).toBe("https://www.youtube.com/watch?v=z9TFdTqkbPk");
     });
   });
 });

@@ -491,7 +491,7 @@ result must come from a known build and a clean vault.
 
 ## Seeded scenarios
 
-12 feeds, 160 articles: 48 read, 9 starred, 9 tagged, 1 saved, 2 with playback
+12 feeds, 161 articles: 48 read, 9 starred, 9 tagged, 1 saved, 2 with playback
 progress. The automated test in
 `test_files/unit/main/fixture-vault-loading.test.ts` checks these counts.
 
@@ -528,6 +528,7 @@ progress. The automated test in
 | Undated articles                               | GitHub Blog: two undated articles, one with a first-seen date and one without                                                                                                                                                                                                                           |
 | Imported starred article                       | JSON Feed: "Starred article imported from starred.json" (cached preview banner)                                                                                                                                                                                                                         |
 | Video with playback progress                   | Google for Developers: "Placeholder video two, half watched"                                                                                                                                                                                                                                            |
+| YouTube embed in an article                    | GitHub Blog: "Article with an inline YouTube video" (#1173): the Reader and the dashboard inline reader show a click-to-play placeholder; playing loads the video and the **Watch on YouTube** link stays beneath it                                                                                    |
 | Podcast with playback progress                 | The Changelog: "Fixture episode 4", about 40% played                                                                                                                                                                                                                                                    |
 | Tags                                           | Important, Read later, Video, Podcast, Research, Reference, RSS (all used, in different colors) and Unused (defined, never applied)                                                                                                                                                                     |
 

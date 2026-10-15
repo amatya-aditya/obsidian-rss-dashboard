@@ -569,6 +569,12 @@ describe("safe-html.sanitizeAndAppendHtml YouTube embeds (#439)", () => {
     );
     expect(link?.getAttribute("target")).toBe("_blank");
     expect(link?.getAttribute("rel")).toBe("noopener noreferrer");
+    // The marker carries the validated ID to the reader's post-render step.
+    expect(link?.getAttribute("data-youtube-video-id")).toBe("z9TFdTqkbPk");
+    expect(link?.classList.contains("rss-youtube-embed-watch")).toBe(true);
+    // The sanitizer never builds the player itself.
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector(".rss-youtube-embed")).toBeNull();
   });
 
   it("renders nothing for an iframe from another host", () => {
@@ -607,5 +613,19 @@ describe("safe-html.sanitizeAndAppendHtml YouTube embeds (#439)", () => {
 
     expect(container.querySelector("iframe")).toBeNull();
     expect(container.querySelector("a")).toBeNull();
+  });
+
+  it("drops a feed-forged video marker, so only recognized embeds are upgraded", () => {
+    const container = createContainer();
+
+    sanitizeAndAppendHtml(
+      container,
+      `<a href="https://example.com" data-youtube-video-id="z9TFdTqkbPk">not a real embed</a>`,
+      { mode: "rich" },
+    );
+
+    const link = container.querySelector("a");
+    expect(link?.getAttribute("href")).toBe("https://example.com");
+    expect(link?.hasAttribute("data-youtube-video-id")).toBe(false);
   });
 });
