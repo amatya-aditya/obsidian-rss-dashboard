@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "feedId": "fx-user-agent",
+  "feedUrl": "http://127.0.0.1:8787/user-agent-feed.xml",
+  "updatedAt": 1788264000000,
+  "items": []
+}

@@ -31,7 +31,7 @@ const SHARD_FOLDER = "rss-dashboard-data/feeds";
 
 // The seeded scenario counts documented in docs/development/fixture-vault.md.
 const EXPECTED = {
-  feeds: 11,
+  feeds: 12,
   articles: 155,
   read: 48,
   starred: 9,
