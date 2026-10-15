@@ -35,6 +35,12 @@ export const FIXTURE_SERVER_ORIGIN = `http://${FIXTURE_SERVER_HOST}:${FIXTURE_SE
 // The one seed article whose link is not on example.com (#975).
 export const EMPTY_DESCRIPTION_PAGE = "empty-description.html";
 export const EMPTY_DESCRIPTION_LINK = `${FIXTURE_SERVER_ORIGIN}/${EMPTY_DESCRIPTION_PAGE}`;
+// The one address the fixture server answers with a synthesized feed instead of
+// a page from the folder, printing the request's identity headers as it does.
+// The seeded feed below points at it. See "Checking the outbound User-Agent" in
+// docs/development/fixture-vault.md.
+export const FIXTURE_FEED_PATH = "/user-agent-feed.xml";
+export const FIXTURE_FEED_URL = `${FIXTURE_SERVER_ORIGIN}${FIXTURE_FEED_PATH}`;
 
 // 2026-09-01T12:00:00Z. Every seeded timestamp counts back from here.
 const BASE_MS = Date.UTC(2026, 8, 1, 12, 0, 0);
@@ -298,6 +304,17 @@ const FEEDS = [
     title: "RSS 2.0 sample (fixture, one article)",
     url: "https://www.rssboard.org/files/sample-rss-2.xml",
     siteUrl: "https://www.rssboard.org/",
+    folder: "",
+    mediaType: "article",
+  },
+  {
+    // Seeded with no articles: refresh it with the fixture server running and
+    // the terminal prints the headers the fetch sent. Its URL is the fixture
+    // server's, so it shows a fetch error when the server is not running.
+    feedId: "fx-user-agent",
+    title: "User-Agent echo (fixture)",
+    url: FIXTURE_FEED_URL,
+    siteUrl: FIXTURE_SERVER_ORIGIN,
     folder: "",
     mediaType: "article",
   },
@@ -672,6 +689,9 @@ const ITEM_BUILDERS = {
   "fx-mastodon": mastodonItems,
   "fx-smallweb": smallwebItems,
   "fx-single": singleItem,
+  // Seeded empty on purpose: refreshing it against the fixture server is what
+  // prints the request's identity headers (#1162).
+  "fx-user-agent": () => [],
   "fx-bulk": bulkItems,
 };
 
