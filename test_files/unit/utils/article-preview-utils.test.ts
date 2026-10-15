@@ -3,6 +3,7 @@ import type { FeedItem } from "../../../src/types/types";
 import {
   extractFirstImageSrc,
   getArticlePreviewSummaryText,
+  resolveArticlePreviewImage,
   CARD_PREVIEW_SUMMARY_MAX_CHARS,
   looksLikeStylesheetText,
 } from "../../../src/utils/article-preview-utils";
@@ -55,6 +56,86 @@ describe("article-preview-utils", () => {
         <figure><img src="https://example.com/article-photo.jpg" /></figure>
       `;
       expect(extractFirstImageSrc(html)).toBe(
+        "https://example.com/article-photo.jpg",
+      );
+    });
+
+    // #1169: a counter image carries no recognizable URL pattern, so the
+    // tag's own declared size is what marks it as a tracking pixel.
+    it.each([
+      ["a 1 by 1 size", "1", "1"],
+      ["a zero width", "0", "640"],
+      ["a zero height", "640", "0"],
+      ["a size written with a unit", "1px", "1px"],
+      ["a fractional size", "1.5", "1.5"],
+    ])("returns null for an image with %s", (_label, width, height) => {
+      const html = `<img src="https://counter.example.com/content/123456/count.gif" width="${width}" height="${height}">`;
+      expect(extractFirstImageSrc(html)).toBeNull();
+    });
+
+    it("returns null for a counter whose declared size is written without quotes", () => {
+      const html =
+        "<img src='https://counter.example.com/content/123456/count.gif' width=1 height=1>";
+      expect(extractFirstImageSrc(html)).toBeNull();
+    });
+
+    it.each([
+      ["a larger declared size", 'width="640" height="360"'],
+      ["an unparseable declared size", 'width="100%" height="auto"'],
+      ["no declared size", ""],
+    ])("keeps an image with %s", (_label, attributes) => {
+      const html = `<img src="https://example.com/article-photo.jpg" ${attributes}>`;
+      expect(extractFirstImageSrc(html)).toBe(
+        "https://example.com/article-photo.jpg",
+      );
+    });
+
+    it("does not let a counter with a declared size hide a later photo", () => {
+      const html = `
+        <img src="https://counter.example.com/content/123456/count.gif" width="1" height="1">
+        <figure><img src="https://example.com/article-photo.jpg" /></figure>
+      `;
+      expect(extractFirstImageSrc(html)).toBe(
+        "https://example.com/article-photo.jpg",
+      );
+    });
+  });
+
+  describe("resolveArticlePreviewImage (#1169)", () => {
+    const COUNTER = "https://counter.example.com/content/123456/count.gif";
+
+    function item(overrides: Partial<FeedItem>): FeedItem {
+      return { coverImage: "", image: "", ...overrides } as FeedItem;
+    }
+
+    it("returns undefined when the only content image is a 1 by 1 counter", () => {
+      const article = item({
+        content: `<p>An invented description of an invented discovery.</p><img src="${COUNTER}" width="1" height="1">`,
+      });
+
+      expect(
+        resolveArticlePreviewImage(article, ["coverImage", "image"]),
+      ).toBeUndefined();
+    });
+
+    it("still takes a stored image when the content holds only a counter", () => {
+      const article = item({
+        image: "https://example.com/article-photo.jpg",
+        content: `<img src="${COUNTER}" width="1" height="1">`,
+      });
+
+      expect(resolveArticlePreviewImage(article, ["coverImage", "image"])).toBe(
+        "https://example.com/article-photo.jpg",
+      );
+    });
+
+    it("still takes a content image the tag declares larger than 1 by 1", () => {
+      const article = item({
+        content:
+          '<img src="https://example.com/article-photo.jpg" width="640" height="360">',
+      });
+
+      expect(resolveArticlePreviewImage(article, ["coverImage", "image"])).toBe(
         "https://example.com/article-photo.jpg",
       );
     });

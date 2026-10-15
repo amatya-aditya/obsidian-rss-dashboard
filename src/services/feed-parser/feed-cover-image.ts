@@ -2,6 +2,7 @@ import { debugLog } from "../../utils/debug-logger.js";
 import {
   isLatexFormulaImage,
   isLatexFormulaImageElement,
+  isTrackingPixelElement,
   optimizeImageUrl,
 } from "../../utils/image-url-utils.js";
 
@@ -13,19 +14,6 @@ export type AbsoluteUrlResolver = (
   relativeUrl: string,
   baseUrl: string,
 ) => string;
-
-const TRACKING_PIXEL_PATTERNS = [
-  "tracking/",
-  "pixel.gif",
-  "beacon.",
-  "1x1",
-  "/track/",
-  "rss-pixel",
-];
-
-function isTrackingPixel(url: string): boolean {
-  return TRACKING_PIXEL_PATTERNS.some((p) => url.includes(p));
-}
 
 function isHttpUrl(url: string): boolean {
   return /^https?:\/\//i.test(url);
@@ -98,7 +86,7 @@ function coverFromOgImage(
   return undefined;
 }
 
-/** The cover from the first non-formula `<img>`, unless its src is junk or a tracking pixel. */
+/** The cover from the first non-formula `<img>`, unless its src is junk or the tag declares a tracking pixel. */
 function coverFromFirstImage(
   doc: Document,
   baseUrl: string,
@@ -113,7 +101,7 @@ function coverFromFirstImage(
   warnDoubleEncoded("first img src", src);
   if (isJunkSrc(src)) return undefined;
 
-  if (src && !isTrackingPixel(src)) {
+  if (src && !isTrackingPixelElement(firstImg)) {
     return resolveUsableImageUrl(src, baseUrl, toAbsoluteUrl);
   }
   return undefined;
@@ -129,7 +117,7 @@ function coverFromScannedImage(
   warnDoubleEncoded("img src", src);
   if (isJunkSrc(src) || isLatexFormulaImageElement(img)) return undefined;
 
-  if (src && hasImageLikeSrc(src) && !isTrackingPixel(src)) {
+  if (src && hasImageLikeSrc(src) && !isTrackingPixelElement(img)) {
     return resolveUsableImageUrl(src, baseUrl, toAbsoluteUrl);
   }
   return undefined;

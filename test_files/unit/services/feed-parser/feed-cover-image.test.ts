@@ -249,6 +249,41 @@ describe("extractCoverImage", () => {
       ).toBe("https://t.example.com/pixel.png");
     });
 
+    // #1169: a counter image's URL holds no known pattern, so its declared size is what rejects it.
+    it.each([
+      ["a 1 by 1 size", 'width="1" height="1"'],
+      ["a declared zero width", 'width="0" height="640"'],
+      ["a declared zero height", 'width="640" height="0"'],
+    ])(
+      "skips an image the tag declares with %s for the next image",
+      (_label, attrs) => {
+        const counter = "https://counter.example.com/content/123456/count.gif";
+
+        expect(
+          extract(`<img src="${counter}" ${attrs}><img src="${REAL}">`).cover,
+        ).toBe(REAL);
+      },
+    );
+
+    it("takes an image the tag declares larger than 1 by 1 or declares no size", () => {
+      expect(
+        extract(
+          '<img src="https://img.example.com/photo.jpg" width="640" height="360">',
+        ).cover,
+      ).toBe("https://img.example.com/photo.jpg");
+      expect(
+        extract('<img src="https://img.example.com/photo.jpg">').cover,
+      ).toBe("https://img.example.com/photo.jpg");
+    });
+
+    it("finds no cover when the only image is a sized counter", () => {
+      expect(
+        extract(
+          '<img src="https://counter.example.com/content/123456/count.gif" width="1" height="1">',
+        ).cover,
+      ).toBe("");
+    });
+
     it("takes a relative src when there is no base url only if it is absolute", () => {
       const { cover, resolver } = extract(
         `<img src="a.png"><img src="${REAL}">`,
@@ -335,6 +370,12 @@ describe("extractCoverImage", () => {
       expect(
         extract(afterPixel("https://img.example.com/a%2520b.png")).cover,
       ).toBe("https://img.example.com/a%2520b.png");
+    });
+
+    it("skips a sized counter and takes the first qualifying image after it", () => {
+      const html = `<img class="latex" src="https://img.example.com/f.png"><img src="https://counter.example.com/content/123456/count.gif" width="1" height="1"><img src="${REAL}">`;
+
+      expect(extract(html).cover).toBe(REAL);
     });
 
     it("skips later tracking pixels, junk and formula images, then takes the first qualifying image", () => {

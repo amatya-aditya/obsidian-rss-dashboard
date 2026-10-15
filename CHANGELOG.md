@@ -191,6 +191,7 @@
 - A malformed feed whose channel omits its own title, description, or link no longer shows the first article's values as the feed's own. The fallback reader now keeps channel metadata out of article markup, matching the normal parser, so such a feed reads **Unknown feed** with an empty link and description. [GH Issue #1122](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1122)
 - Every filter checkbox in Discover (types, categories, and tags) is now announced by screen readers with its visible label, such as "AI" or "Podcast", instead of as an unnamed checkbox. Nothing changes on screen or when you click. [GH Issue #826](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/826)
 - Clearing the Kagi Small Web search no longer brings back the text you just typed when you clear it within the search's short delay: the pending search is cancelled, so the list stays unfiltered and the box stays empty. [GH Issue #358](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/358)
+- An article whose only image is a tracking counter (a 1x1 pixel such as `count.gif`) no longer shows a gray cover block with its description laid over it. A card or feed row now shows the description alone. An image is also treated as a tracking pixel when its tag declares a width or height of 0 or 1, whichever the address, and such an image is no longer stored as a feed's cover image. [GH Issue #1169](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1169)
 
 ### Developer
 

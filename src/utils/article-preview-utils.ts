@@ -1,23 +1,10 @@
 import { FeedItem } from "../types/types";
 import { guardFeedBlurb } from "./article-metadata";
 import { htmlToReadableText } from "./html-text";
-import { isLatexFormulaImage } from "./image-url-utils";
+import { isLatexFormulaImage, isTrackingPixel } from "./image-url-utils";
 
 export const CARD_PREVIEW_SUMMARY_MAX_CHARS = 420;
 export const CARD_PREVIEW_HIGHLIGHT_MAX_CHARS = 900;
-
-const TRACKING_PIXEL_PATTERNS = [
-  "tracking/",
-  "pixel.gif",
-  "beacon.",
-  "1x1",
-  "/track/",
-  "rss-pixel",
-];
-
-export function isTrackingPixel(url: string): boolean {
-  return TRACKING_PIXEL_PATTERNS.some((p) => url.includes(p));
-}
 
 export function extractFirstImageSrc(html: string): string | null {
   if (!html) return null;
@@ -30,6 +17,11 @@ export function extractFirstImageSrc(html: string): string | null {
 
     const src = srcMatch[1]?.trim() ?? "";
     const className = imageTag.match(/\bclass=["']([^"']*)["']/i)?.[1];
+    // The leading boundary keeps `data-width`/`data-height` from reading as a size.
+    const width = imageTag.match(/(?:^|\s)width\s*=\s*["']?([^"'\s>]+)/i)?.[1];
+    const height = imageTag.match(
+      /(?:^|\s)height\s*=\s*["']?([^"'\s>]+)/i,
+    )?.[1];
 
     // Reject literal placeholder values that some feeds (e.g. NPR CDATA) emit.
     if (
@@ -51,7 +43,12 @@ export function extractFirstImageSrc(html: string): string | null {
       continue;
     }
 
-    if (isLatexFormulaImage(src, className) || isTrackingPixel(src)) continue;
+    if (
+      isLatexFormulaImage(src, className) ||
+      isTrackingPixel(src, width, height)
+    ) {
+      continue;
+    }
 
     return src;
   }

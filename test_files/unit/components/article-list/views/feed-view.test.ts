@@ -265,6 +265,27 @@ describe("feed-view", () => {
     expect(container.querySelector(".rss-dashboard-feed-summary")).toBeTruthy();
   });
 
+  it("does not render a hero when the only content image is a 1 by 1 counter", () => {
+    renderFeedView(
+      container,
+      [
+        makeArticle({
+          image: "",
+          coverImage: "",
+          content:
+            '<img src="https://counter.example.com/content/123456/count.gif" width="1" height="1">',
+        }),
+      ],
+      baseViewContext(),
+      baseViewDeps(),
+    );
+
+    expect(
+      container.querySelector(".rss-dashboard-feed-hero-image"),
+    ).toBeFalsy();
+    expect(container.querySelector(".rss-dashboard-feed-summary")).toBeTruthy();
+  });
+
   it("renders feed source meta when showFeedSource is true", () => {
     const deps = baseViewDeps();
     renderFeedView(

@@ -145,6 +145,54 @@ export function isLatexFormulaImageElement(image: Element): boolean {
   );
 }
 
+/** URL fragments a feed uses for a tracking pixel, beacon or spacer image. */
+const TRACKING_PIXEL_URL_PATTERNS = [
+  "tracking/",
+  "pixel.gif",
+  "beacon.",
+  "1x1",
+  "/track/",
+  "rss-pixel",
+];
+
+/**
+ * A declared `width` or `height` below 2 pixels marks a hidden counter or
+ * spacer, so 0, 1 and fractional sizes are hidden. A value with no leading
+ * number (`auto`) declares no pixel size, while a percentage reads as its
+ * leading number.
+ */
+function isHiddenImageSize(value: string | null | undefined): boolean {
+  const size = parseInt(value?.trim() ?? "", 10);
+  return !Number.isNaN(size) && size <= 1;
+}
+
+/**
+ * Returns whether an image is an unusable tracking pixel, beacon or spacer: its
+ * URL holds a known fragment, or the tag declares a width or height of 0 or 1.
+ * A counter such as `count.gif` names no known fragment, so its declared size
+ * is what rejects it (#1169).
+ */
+export function isTrackingPixel(
+  url: string,
+  width?: string | null,
+  height?: string | null,
+): boolean {
+  return (
+    TRACKING_PIXEL_URL_PATTERNS.some((pattern) => url.includes(pattern)) ||
+    isHiddenImageSize(width) ||
+    isHiddenImageSize(height)
+  );
+}
+
+/** DOM convenience wrapper for {@link isTrackingPixel}. */
+export function isTrackingPixelElement(image: Element): boolean {
+  return isTrackingPixel(
+    image.getAttribute("src") ?? "",
+    image.getAttribute("width"),
+    image.getAttribute("height"),
+  );
+}
+
 /** Returns the first non-empty URL that is not a rendered formula image. */
 export function firstNonFormulaImageUrl(
   candidates: readonly (string | null | undefined)[],

@@ -589,4 +589,28 @@ describe("card-view", () => {
       container.querySelector(".rss-dashboard-cover-summary-only")?.textContent,
     ).toBe("U.S. launches a second-round of strikes against Iran.");
   });
+
+  it("shows summary-only when the only content image is a 1 by 1 counter", () => {
+    renderCardView(
+      container,
+      [
+        makeArticle({
+          coverImage: "",
+          content:
+            '<p>An invented description of an invented discovery.</p><img src="https://counter.example.com/content/123456/count.gif" width="1" height="1">',
+          description: "An invented description of an invented discovery.",
+        }),
+      ],
+      {
+        ...baseViewContext(),
+        showCardToolbar: true,
+      },
+      baseViewDeps(),
+    );
+
+    expect(container.querySelector(".rss-dashboard-cover-image")).toBeFalsy();
+    expect(
+      container.querySelector(".rss-dashboard-cover-summary-only")?.textContent,
+    ).toBe("An invented description of an invented discovery.");
+  });
 });
