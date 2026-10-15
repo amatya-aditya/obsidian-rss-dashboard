@@ -1,4 +1,3 @@
-import { requestUrl, Notice } from "obsidian";
 import {
   Feed,
   Folder,
@@ -8,6 +7,8 @@ import {
 } from "../types/types";
 import { isKnownVideoUrl } from "../utils/video-detection";
 import { MastodonService } from "./mastodon-service";
+import { getYouTubeRssFeed as resolveYouTubeRssFeed } from "./youtube-rss-resolver";
+import { getInheritedTagsAndCategory as resolveInheritedTagsAndCategory } from "./media-tag-inheritance";
 import { resolveArticleTags } from "../utils/tag-utils";
 import { resolveTagObjects } from "../utils/tag-resolver";
 import {
@@ -24,67 +25,6 @@ export interface YouTubeEmbedConfig {
 }
 
 export class MediaService {
-  private static resolveConfiguredTagNames(
-    availableTags: Tag[],
-    names: Array<string | undefined>,
-  ): Tag[] {
-    const seen = new Set<string>();
-    const normalizedNames = names
-      .map((name) => name?.trim())
-      .filter((name): name is string => !!name);
-
-    return availableTags.filter((tag) => {
-      if (!normalizedNames.includes(tag.name)) {
-        return false;
-      }
-
-      if (seen.has(tag.name)) {
-        return false;
-      }
-
-      seen.add(tag.name);
-      return true;
-    });
-  }
-
-  private static getConfiguredTagNames(
-    availableTags: Tag[],
-    arrayTags: string[] | undefined,
-    legacyTag: string | undefined,
-    legacyAliasNames: string[] = [],
-    fallbackNamesWhenUnset: string[] = [],
-  ): Tag[] {
-    if (!Array.isArray(availableTags) || availableTags.length === 0) {
-      return [];
-    }
-
-    // A stored array, even an empty one, is the user's choice. An empty array
-    // means "no default tag"; only a missing array falls back to the legacy
-    // single-tag field or the built-in names.
-    if (Array.isArray(arrayTags)) {
-      const normalizedArrayTags = arrayTags
-        .map((name) => name.trim())
-        .filter(
-          (name, index, names) =>
-            name.length > 0 && names.indexOf(name) === index,
-        );
-      return this.resolveConfiguredTagNames(availableTags, normalizedArrayTags);
-    }
-
-    const normalizedLegacyTag = legacyTag?.trim();
-    if (normalizedLegacyTag) {
-      return this.resolveConfiguredTagNames(availableTags, [
-        normalizedLegacyTag,
-        ...legacyAliasNames,
-      ]);
-    }
-
-    return this.resolveConfiguredTagNames(
-      availableTags,
-      fallbackNamesWhenUnset,
-    );
-  }
-
   static readonly YOUTUBE_EMBED_REFERRER_POLICY =
     "strict-origin-when-cross-origin";
   static readonly YOUTUBE_EMBED_ALLOW =
@@ -168,163 +108,8 @@ export class MediaService {
     }
   }
 
-  private static extractChannelIdFromHtml(html: string): string | null {
-    if (!html) return null;
-
-    // 1. Try RSS feed link
-    const rssMatch = html.match(
-      /href="https:\/\/www\.youtube\.com\/feeds\/videos\.xml\?channel_id=(UC[\w-]{22})"/,
-    );
-    if (rssMatch?.[1]) return rssMatch[1];
-
-    // 2. Try canonical link
-    const canonicalMatch = html.match(
-      /<link rel="canonical" href="https:\/\/www\.youtube\.com\/channel\/(UC[\w-]{22})"/,
-    );
-    if (canonicalMatch?.[1]) return canonicalMatch[1];
-
-    // 3. Try meta itemprop
-    const metaMatch = html.match(
-      /<meta itemprop="channelId" content="(UC[\w-]{22})"/,
-    );
-    if (metaMatch?.[1]) return metaMatch[1];
-
-    // 4. Try other common metadata
-    const ogMatch = html.match(
-      /<meta property="og:url" content="https:\/\/www\.youtube\.com\/channel\/(UC[\w-]{22})"/,
-    );
-    if (ogMatch?.[1]) return ogMatch[1];
-
-    // 5. Fallback to existing broad patterns
-    const patterns = [
-      /channelId"?\s*:\s*"(UC[\w-]{22})"/,
-      /"externalId"\s*:\s*"(UC[\w-]{22})"/,
-      /"id"\s*:\s*"(UC[\w-]{22})"/,
-      /data-channel-external-id="(UC[\w-]{22})"/,
-      /"channelId"\s*:\s*"(UC[\w-]{22})"/,
-      /channelId=(UC[\w-]{22})/,
-      /"ucid"\s*:\s*"(UC[\w-]{22})"/,
-    ];
-
-    for (const pattern of patterns) {
-      const match = html.match(pattern);
-      if (match?.[1]) {
-        return match[1];
-      }
-    }
-
-    return null;
-  }
-
   static async getYouTubeRssFeed(input: string): Promise<string | null> {
-    if (!input) {
-      return null;
-    }
-
-    let channelId = "";
-    let username = "";
-
-    try {
-      if (/^UC[\w-]{22}$/.test(input)) {
-        return `https://www.youtube.com/feeds/videos.xml?channel_id=${input}`;
-      } else if (input.includes("youtube.com/channel/")) {
-        const match = input.match(/youtube\.com\/channel\/(UC[\w-]{22})/);
-        if (match?.[1]) {
-          channelId = match[1];
-        }
-      } else if (input.includes("@")) {
-        let handle = "";
-        if (input.includes("youtube.com/@")) {
-          handle = input.split("youtube.com/@")[1]?.split(/[?#/]/)[0] ?? "";
-        } else if (input.startsWith("@")) {
-          handle = input.substring(1);
-        }
-
-        if (handle) {
-          try {
-            const response = await requestUrl({
-              url: `https://www.youtube.com/@${handle}`,
-              method: "GET",
-              headers: {
-                "User-Agent":
-                  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-              },
-            });
-
-            if (!response.text) {
-              throw new Error("Empty response from YouTube");
-            }
-
-            if (!response.text) {
-              throw new Error("Empty response from YouTube");
-            }
-
-            const extractedId = this.extractChannelIdFromHtml(response.text);
-            if (extractedId) {
-              channelId = extractedId;
-            }
-          } catch (error) {
-            console.error(`[YouTube] Error fetching channel:`, error);
-            new Notice(
-              `Error fetching YouTube channel: ${error instanceof Error ? error.message : "Unknown error"}`,
-            );
-          }
-        }
-      } else if (input.includes("youtube.com/user/")) {
-        const match = input.match(/youtube\.com\/user\/([^/?#]+)/);
-        if (match?.[1]) {
-          username = match[1];
-        }
-      } else if (input.includes("youtube.com/c/")) {
-        const match = input.match(/youtube\.com\/c\/([^/?#]+)/);
-        if (match?.[1]) {
-          try {
-            const response = await requestUrl({
-              url: `https://www.youtube.com/c/${match[1]}`,
-              method: "GET",
-              headers: {
-                "User-Agent":
-                  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-              },
-            });
-
-            if (!response.text) {
-              throw new Error("Empty response from YouTube");
-            }
-
-            if (!response.text) {
-              throw new Error("Empty response from YouTube");
-            }
-
-            const extractedId = this.extractChannelIdFromHtml(response.text);
-            if (extractedId) {
-              channelId = extractedId;
-            }
-          } catch (error) {
-            console.error(`[YouTube] Error fetching channel:`, error);
-            new Notice(
-              `Error fetching YouTube channel: ${error instanceof Error ? error.message : "Unknown error"}`,
-            );
-          }
-        }
-      } else if (!/\s/.test(input) && !input.includes("/")) {
-        if (!/^UC[\w-]{22}$/.test(input)) {
-          username = input;
-        }
-      }
-
-      if (channelId) {
-        return `https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`;
-      } else if (username) {
-        return `https://www.youtube.com/feeds/videos.xml?user=${username}`;
-      }
-    } catch (error) {
-      new Notice(
-        `Error processing YouTube feed: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    }
-
-    return null;
+    return resolveYouTubeRssFeed(input);
   }
 
   static isPodcastFeed(feed: Feed): boolean {
@@ -629,69 +414,12 @@ export class MediaService {
     tags: Tag[];
     category?: "video" | "podcast" | "mastodon" | "smallweb" | "rss";
   } {
-    const isMastodon = MastodonService.isResolvedFeedUrl(feed.url);
-    const smallwebFolder = mediaSettings?.defaultSmallwebFolder?.trim() || "";
-    const isSmallweb = smallwebFolder && feed.folder === smallwebFolder;
-
-    if (!Array.isArray(availableTags) || availableTags.length === 0) {
-      return { tags: [] };
-    }
-
-    let tagCategory:
-      "video" | "podcast" | "mastodon" | "smallweb" | "rss" | undefined;
-    let mediaTags: Tag[] = [];
-
-    if (feed.mediaType === "video") {
-      tagCategory = "video";
-      if (MediaService.isYouTubeFeed(feed.url)) {
-        mediaTags = this.getConfiguredTagNames(
-          availableTags,
-          mediaSettings?.defaultYouTubeTags,
-          mediaSettings?.defaultYouTubeTag,
-          ["Video", "Videos"],
-          ["Video", "Videos"],
-        );
-      } else {
-        mediaTags = this.getConfiguredTagNames(
-          availableTags,
-          mediaSettings?.defaultVideoTags,
-          mediaSettings?.defaultVideoTag,
-          ["Video", "Videos"],
-        );
-      }
-    } else if (feed.mediaType === "podcast") {
-      tagCategory = "podcast";
-      mediaTags = this.getConfiguredTagNames(
-        availableTags,
-        mediaSettings?.defaultPodcastTags,
-        undefined,
-        ["Podcast", "Podcasts"],
-        ["Podcast", "Podcasts"],
-      );
-    } else if (isMastodon) {
-      tagCategory = "mastodon";
-      mediaTags = this.getConfiguredTagNames(
-        availableTags,
-        mediaSettings?.defaultMastodonTags,
-        mediaSettings?.defaultMastodonTag,
-      );
-    } else if (isSmallweb) {
-      tagCategory = "smallweb";
-      mediaTags = this.getConfiguredTagNames(
-        availableTags,
-        mediaSettings?.defaultSmallwebTags,
-        mediaSettings?.defaultSmallwebTag,
-      );
-    } else if (!feed.mediaType || feed.mediaType === "article") {
-      tagCategory = "rss";
-      mediaTags = this.getConfiguredTagNames(
-        availableTags,
-        mediaSettings?.defaultRssTags,
-        mediaSettings?.defaultRssTag,
-      );
-    }
-
-    return { tags: mediaTags, category: tagCategory };
+    return resolveInheritedTagsAndCategory(
+      feed,
+      availableTags,
+      mediaSettings,
+      (url) => this.isYouTubeFeed(url),
+    );
   }
 
   static applyMediaTags(
