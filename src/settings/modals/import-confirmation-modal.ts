@@ -1,4 +1,5 @@
-import { App, Modal, Notice, Setting } from "obsidian";
+import { App, Notice, Setting } from "obsidian";
+import { AccessibleModal } from "../../utils/accessible-modal";
 import type {
   FeedDataCounts,
   ImportConfirmation,
@@ -32,7 +33,7 @@ const FEED_STORAGE_MODE_LABELS: Record<string, string> = {
  * anything (issue #377). Resolves to confirm only from the Replace or
  * Overwrite button; every other way out is a cancel.
  */
-export class ImportConfirmationModal extends Modal {
+export class ImportConfirmationModal extends AccessibleModal {
   private readonly options: ImportConfirmationModalOptions;
   private decision: ImportDecision = "cancel";
   private exporting = false;

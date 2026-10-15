@@ -4,6 +4,7 @@ import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { RssDashboardView } from "../../../src/views/dashboard-view";
 import { DEFAULT_SETTINGS } from "../../../src/types/types";
 import { ReaderView } from "../../../src/views/reader-view";
+import { AccessibleModal } from "../../../src/utils/accessible-modal";
 import type RssDashboardPlugin from "../../../main";
 import { renderCardView } from "../../../src/components/article-list/views/card-view";
 import {
@@ -330,6 +331,46 @@ describe("DashboardView Hotkeys", () => {
     expect(fromButton.defaultPrevented).toBe(false);
 
     modalContainer.remove();
+    keydownHandler!(new KeyboardEvent("keydown", { key: "L", shiftKey: true }));
+    expect(moveSpy).toHaveBeenCalledTimes(1);
+  });
+
+  // AccessibleModal puts role="dialog" on the modal container (#826
+  // AC-014d). Neither the role nor its Tab handling may change which keys the
+  // dashboard handles, while the modal is open or after it closes.
+  it("ignores dashboard hotkeys while a dialog-role plugin modal is open and resumes after it closes", () => {
+    const { view, spy } = makeViewWithRegisterSpy(leaf, plugin);
+    (leaf as unknown as { view: unknown }).view = view;
+    const keydownHandler = getKeydownHandler(spy);
+    const moveSpy = vi
+      .spyOn(view, "actionSidebarMoveNext")
+      .mockImplementation(() => {});
+
+    const modal = new AccessibleModal(new App());
+    modal.contentEl.createEl("h2", { text: "Confirm" });
+    const okButton = modal.contentEl.createEl("button", { text: "OK" });
+    modal.open();
+    okButton.focus();
+    expect(modal.containerEl.getAttribute("role")).toBe("dialog");
+
+    const fromDialog = new KeyboardEvent("keydown", {
+      key: "L",
+      shiftKey: true,
+    });
+    Object.defineProperty(fromDialog, "target", { value: okButton });
+    keydownHandler!(fromDialog);
+    const fromDialogBody = new KeyboardEvent("keydown", {
+      key: "L",
+      shiftKey: true,
+    });
+    Object.defineProperty(fromDialogBody, "target", {
+      value: modal.contentEl,
+    });
+    keydownHandler!(fromDialogBody);
+
+    expect(moveSpy).not.toHaveBeenCalled();
+
+    modal.close();
     keydownHandler!(new KeyboardEvent("keydown", { key: "L", shiftKey: true }));
     expect(moveSpy).toHaveBeenCalledTimes(1);
   });

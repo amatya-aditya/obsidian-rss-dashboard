@@ -1,4 +1,5 @@
-import { Modal, App, Setting, Notice, setIcon } from "obsidian";
+import { App, Setting, Notice, setIcon } from "obsidian";
+import { AccessibleModal } from "../utils/accessible-modal";
 import type RssDashboardPlugin from "../../main";
 import type { Feed, Tag } from "../types/types";
 import {
@@ -91,7 +92,7 @@ export const DEFAULT_NEW_FEED_FOLDER = "Starred imports";
  * mapping — so a later ad hoc per-article tagging ticket (234-12) can feed
  * the same section without restructuring it.
  */
-export class ImportStarredModal extends Modal {
+export class ImportStarredModal extends AccessibleModal {
   plugin: RssDashboardPlugin;
   private readonly onImportStarted?: () => void;
 

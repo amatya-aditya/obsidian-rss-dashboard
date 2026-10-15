@@ -5,7 +5,8 @@
  * Exports:
  *   - renderImportExportSettingsTab(containerEl, plugin)
  */
-import { App, Modal, Notice, Setting } from "obsidian";
+import { App, Notice, Setting } from "obsidian";
+import { AccessibleModal } from "../../utils/accessible-modal";
 import type RssDashboardPlugin from "../../../main";
 import { ImportOpmlModal } from "../../modals/import-opml-modal";
 import { ImportStarredModal } from "../../modals/import-starred-modal";
@@ -14,7 +15,7 @@ import { AutoBackupSettings, RssDashboardSettings } from "../../types/types";
 import type { DeepPartial } from "../../types/deep-partial";
 import { settingsUiCompatibility } from "../settings-ui-compat";
 
-export class FactoryResetConfirmModal extends Modal {
+export class FactoryResetConfirmModal extends AccessibleModal {
   private confirmed = false;
   private resolvePromise: ((value: boolean) => void) | null = null;
 

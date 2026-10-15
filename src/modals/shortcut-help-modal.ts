@@ -1,4 +1,5 @@
-import { Modal, App, setIcon, Notice } from "obsidian";
+import { App, setIcon, Notice } from "obsidian";
+import { AccessibleModal } from "../utils/accessible-modal";
 import type { RssDashboardSettings } from "../types/types";
 import { ensureVaultFolder } from "../utils/vault-files";
 import { removeNativeModalCloseButton } from "../utils/modal-close-button";
@@ -95,7 +96,7 @@ export const SHORTCUT_SECTIONS: ShortcutSection[] = [
   },
 ];
 
-export class ShortcutHelpModal extends Modal {
+export class ShortcutHelpModal extends AccessibleModal {
   private settings: RssDashboardSettings;
 
   constructor(app: App, settings: RssDashboardSettings) {
@@ -119,6 +120,7 @@ export class ShortcutHelpModal extends Modal {
     header.createDiv({
       cls: "rss-dashboard-header-title",
       text: "Keyboard shortcuts",
+      attr: { role: "heading", "aria-level": "2" },
     });
 
     // Add save link below title

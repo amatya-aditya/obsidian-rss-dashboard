@@ -241,3 +241,21 @@ when the view closes, so a reopened dashboard starts absent again. A harness
 waits for `.workspace-leaf-content[data-type="rss-dashboard-view"][data-rss-ready]`
 (the tab header carries the same `data-type`, so name the content class)
 instead of a timeout. It is a convenience signal; it never replaces role and name queries.
+
+## 12. Plugin dialogs
+
+Every plugin modal extends `AccessibleModal` (`src/utils/accessible-modal.ts`), never
+Obsidian's bare `Modal`; a unit test fails if a production file does. Obsidian's
+`Modal` supplies initial focus and Esc only (checked on 1.14.4). `AccessibleModal`
+adds the rest on `containerEl` (the `.modal-container` under `<body>`, which also
+holds the portal menus a modal mounts beside `.modal`):
+
+- `role="dialog"` and `aria-modal="true"`.
+- The name, from the modal's visible heading through `aria-labelledby` (the modal
+  title, else the first heading or `setHeading()` row). A modal with no visible
+  heading overrides `getDialogLabel()`, which becomes an `aria-label`. Find a dialog
+  by `role=dialog` and its name, for example `Add feed`.
+- Tab and Shift+Tab wrap inside the container. The listener is on the container, not
+  the document, and ignores a Tab a widget already handled (`defaultPrevented`).
+- On close, focus returns to the element that was focused when the modal opened, if
+  it is still connected and no other modal holds focus.

@@ -1,4 +1,5 @@
-import { App, Modal, Setting } from "obsidian";
+import { App, Setting } from "obsidian";
+import { AccessibleModal } from "../../utils/accessible-modal";
 import type { FeedStorageMode } from "../../types/types";
 import type { RepairPreview } from "../../services/feed-storage-repository";
 import { settingsUiCompatibility } from "../settings-ui-compat";
@@ -27,7 +28,7 @@ export interface MetadataLocationClearOptions {
   currentLocationLabel: string;
 }
 
-export class StorageTransitionModal extends Modal {
+export class StorageTransitionModal extends AccessibleModal {
   private readonly currentMode: FeedStorageMode;
   private readonly targetMode: FeedStorageMode;
   private readonly storageFolder: string;
@@ -166,7 +167,7 @@ export class StorageTransitionModal extends Modal {
   }
 }
 
-export class ShardDeletionFailureModal extends Modal {
+export class ShardDeletionFailureModal extends AccessibleModal {
   private readonly storageFolder: string;
   private action: ShardDeletionFailureAction = "cancel";
   private resolvePromise: ((value: ShardDeletionFailureAction) => void) | null =
@@ -230,7 +231,7 @@ export class ShardDeletionFailureModal extends Modal {
   }
 }
 
-export class MetadataCleanupModal extends Modal {
+export class MetadataCleanupModal extends AccessibleModal {
   private readonly previousLocationLabel: string;
   private action: MetadataCleanupAction = "keep";
   private resolvePromise: ((value: MetadataCleanupAction) => void) | null =
@@ -295,7 +296,7 @@ export class MetadataCleanupModal extends Modal {
  * Confirms clearing the Metadata location. Clearing it moves the vault
  * `data.json` to the trash, so this asks before anything is moved.
  */
-export class MetadataLocationClearModal extends Modal {
+export class MetadataLocationClearModal extends AccessibleModal {
   private readonly currentLocationLabel: string;
   private action: MetadataLocationClearAction = "cancel";
   private resolvePromise:
@@ -357,7 +358,7 @@ export type RepairPreviewAction = "cancel" | "repair";
 
 const REPAIR_PREVIEW_LIST_LIMIT = 10;
 
-export class RepairPreviewModal extends Modal {
+export class RepairPreviewModal extends AccessibleModal {
   private readonly preview: RepairPreview;
   private action: RepairPreviewAction = "cancel";
   private resolvePromise: ((value: RepairPreviewAction) => void) | null = null;
@@ -458,7 +459,7 @@ export interface UnloadedFeedsFolderChangeOptions {
  * articles for some feeds. The folder setting reaches every synced device, so
  * the change would point them all at a folder without those articles.
  */
-export class UnloadedFeedsFolderChangeModal extends Modal {
+export class UnloadedFeedsFolderChangeModal extends AccessibleModal {
   private readonly options: UnloadedFeedsFolderChangeOptions;
   private action: UnloadedFeedsFolderChangeAction = "cancel";
   private resolvePromise:

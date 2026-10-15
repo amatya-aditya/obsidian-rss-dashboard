@@ -100,4 +100,27 @@ describe("MobileDiscoverFiltersModal", () => {
     lastDiscoverSidebarInstance?.callbacks.onFilterChange();
     expect(onFilterChange).toHaveBeenCalledTimes(1);
   });
+
+  // The sheet shows the Discover sidebar and no heading, so it names itself.
+  it("is a named modal dialog (#826 AC-014d)", async () => {
+    const { MobileDiscoverFiltersModal } =
+      await import("../../../src/modals/mobile-discover-filters-modal");
+    const modal = new MobileDiscoverFiltersModal(
+      obsidian.App.createMock() as unknown as obsidian.App,
+      {} as unknown as import("../../../main").default,
+      {} as unknown as import("../../../src/types/discover-types").DiscoverFilters,
+      [],
+      "types",
+      vi.fn(),
+    );
+
+    modal.open();
+
+    expect(modal.containerEl.getAttribute("role")).toBe("dialog");
+    expect(modal.containerEl.getAttribute("aria-modal")).toBe("true");
+    expect(modal.containerEl.getAttribute("aria-label")).toBe(
+      "Discover filters",
+    );
+    modal.close();
+  });
 });

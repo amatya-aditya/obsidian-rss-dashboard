@@ -75,6 +75,24 @@ describe("WhatsNewModal", () => {
     ).toEqual(["One thing", "Another thing"]);
   });
 
+  it("is a modal dialog named from the note's own heading (#826 AC-014d)", async () => {
+    const modal = await openModal();
+
+    expect(modal.containerEl.getAttribute("role")).toBe("dialog");
+    expect(modal.containerEl.getAttribute("aria-modal")).toBe("true");
+    const labelledBy = modal.containerEl.getAttribute("aria-labelledby");
+    expect(document.getElementById(labelledBy ?? "")?.textContent).toBe(
+      "RSS Dashboard 2.7.0",
+    );
+  });
+
+  it("names the dialog before the note has rendered a heading (#826 AC-014d)", () => {
+    const whatsNew = new WhatsNewModal(new obsidian.App(), "2.7.0", "");
+    whatsNew.open();
+
+    expect(whatsNew.containerEl.getAttribute("aria-label")).toBe("What's new");
+  });
+
   it("renders the image with its alt text, HTTPS source, and screenshot frame", async () => {
     const modal = await openModal();
     const img = modal.contentEl.querySelector("img");

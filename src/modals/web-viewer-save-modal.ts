@@ -1,11 +1,12 @@
-import { App, Modal, Notice, Setting } from "obsidian";
+import { App, Notice, Setting } from "obsidian";
+import { AccessibleModal } from "../utils/accessible-modal";
 import type {
   OpenWebViewerSaveDialog,
   WebViewerSaveDialogOptions,
 } from "../services/web-viewer-integration";
 import { addInputClearButton } from "../utils/input-clear-button";
 
-export class WebViewerSaveModal extends Modal {
+export class WebViewerSaveModal extends AccessibleModal {
   private readonly opts: WebViewerSaveDialogOptions;
 
   constructor(app: App, opts: WebViewerSaveDialogOptions) {

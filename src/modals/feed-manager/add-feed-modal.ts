@@ -1,4 +1,5 @@
-import { Modal, App, Setting, Notice } from "obsidian";
+import { App, Setting, Notice } from "obsidian";
+import { AccessibleModal } from "../../utils/accessible-modal";
 import type RssDashboardPlugin from "../../../main";
 import type {
   FeedKeywordRulesSettings,
@@ -49,7 +50,7 @@ export interface AddFeedRequest {
   feedEncoding?: FeedEncoding;
 }
 
-export class AddFeedModal extends Modal {
+export class AddFeedModal extends AccessibleModal {
   folders: Folder[];
   onAdd: (request: AddFeedRequest) => Promise<boolean | void>;
   onSave: () => void;

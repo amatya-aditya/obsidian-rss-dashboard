@@ -1,4 +1,5 @@
-import { App, Modal, Setting } from "obsidian";
+import { App, Setting } from "obsidian";
+import { AccessibleModal } from "../../utils/accessible-modal";
 
 export type TagApplicationChoice =
   "apply_existing" | "future_only" | "cancel_save";
@@ -11,7 +12,7 @@ export type TagApplicationChoice =
  * - `future_only`:    persist new tag selection but leave existing items alone
  * - `cancel_save`:    abort saving, revert selection
  */
-export class TagApplicationConfirmModal extends Modal {
+export class TagApplicationConfirmModal extends AccessibleModal {
   private _resolve: ((choice: TagApplicationChoice) => void) | null = null;
   private _settled = false;
 

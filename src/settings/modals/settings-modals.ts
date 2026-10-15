@@ -4,7 +4,8 @@
  * Extracted from settings-tab.ts to break the monolith.
  * Imports are kept minimal — only Obsidian core + platform utils.
  */
-import { App, Modal, Notice, Setting, TextComponent } from "obsidian";
+import { App, Notice, Setting, TextComponent } from "obsidian";
+import { AccessibleModal } from "../../utils/accessible-modal";
 import { VaultFolderSuggest } from "../../components/folder-suggest";
 import { addActionButtonContent } from "../../utils/action-button-content";
 import type { SavedTemplate } from "../../types/types";
@@ -17,7 +18,7 @@ import { addInputClearButton } from "../../utils/input-clear-button";
 
 // ── TemplateNameModal ───────────────────────────────────────────────────────
 
-export class TemplateNameModal extends Modal {
+export class TemplateNameModal extends AccessibleModal {
   private result: string | null = null;
   private resolvePromise: ((value: string | null) => void) | null = null;
 
@@ -85,7 +86,7 @@ export class TemplateNameModal extends Modal {
   }
 }
 
-export class ConfirmTemplateAssignmentModal extends Modal {
+export class ConfirmTemplateAssignmentModal extends AccessibleModal {
   private confirmed = false;
   private resolvePromise: ((value: boolean) => void) | null = null;
 
@@ -142,7 +143,7 @@ export interface SavedTemplateEditorResult {
   makeGlobalDefault: boolean;
 }
 
-export class SavedTemplateEditorModal extends Modal {
+export class SavedTemplateEditorModal extends AccessibleModal {
   private result: SavedTemplateEditorResult | null = null;
   private resolvePromise:
     ((value: SavedTemplateEditorResult | null) => void) | null = null;
@@ -305,7 +306,7 @@ export class SavedTemplateEditorModal extends Modal {
   }
 }
 
-export class ConfirmTemplateReplacementModal extends Modal {
+export class ConfirmTemplateReplacementModal extends AccessibleModal {
   private confirmed = false;
   private resolvePromise: ((value: boolean) => void) | null = null;
 
@@ -365,7 +366,7 @@ export class ConfirmTemplateReplacementModal extends Modal {
 
 // ── HighlightWordEditModal ──────────────────────────────────────────────────
 
-export class HighlightWordEditModal extends Modal {
+export class HighlightWordEditModal extends AccessibleModal {
   private value: string;
   private result: string | null = null;
   private resolvePromise: ((value: string | null) => void) | null = null;
@@ -449,7 +450,7 @@ export interface ConfirmActionModalOptions {
  * Resolves `true` only when the confirming button is pressed; Cancel, Escape,
  * or closing the dialog resolves `false`, so callers leave state untouched.
  */
-export class ConfirmActionModal extends Modal {
+export class ConfirmActionModal extends AccessibleModal {
   private confirmed = false;
   private resolvePromise: ((value: boolean) => void) | null = null;
   private readonly options: ConfirmActionModalOptions;
@@ -515,7 +516,7 @@ export class ConfirmDeleteModal extends ConfirmActionModal {
 
 // ── FactoryResetConfirmModal ────────────────────────────────────────────────
 
-export class FactoryResetConfirmModal extends Modal {
+export class FactoryResetConfirmModal extends AccessibleModal {
   private confirmed = false;
   private resolvePromise: ((value: boolean) => void) | null = null;
 
@@ -582,7 +583,7 @@ export type ApplyMaxItemsAction = "cancel" | "apply" | "apply-refresh";
 export type RetentionChangeAction =
   "apply-now" | "apply-on-next-refresh" | "cancel";
 
-export class RetentionChangeConfirmModal extends Modal {
+export class RetentionChangeConfirmModal extends AccessibleModal {
   private action: RetentionChangeAction = "cancel";
   private resolvePromise: ((value: RetentionChangeAction) => void) | null =
     null;
@@ -651,7 +652,7 @@ export class RetentionChangeConfirmModal extends Modal {
   }
 }
 
-export class ApplyMaxItemsToExistingFeedsModal extends Modal {
+export class ApplyMaxItemsToExistingFeedsModal extends AccessibleModal {
   private readonly newLimit: number;
   private readonly increased: boolean;
   private action: ApplyMaxItemsAction = "cancel";

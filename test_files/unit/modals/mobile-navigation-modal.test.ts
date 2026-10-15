@@ -154,6 +154,28 @@ describe("MobileNavigationModal", () => {
     expect(settings.sidebarWidth).toBe(310);
   });
 
+  // The drawer shows the sidebar and no heading, so the modal names itself.
+  it("is a named modal dialog (#826 AC-014d)", async () => {
+    const { MobileNavigationModal } =
+      await import("../../../src/modals/mobile-navigation-modal");
+    const modal = new MobileNavigationModal(
+      obsidian.App.createMock() as unknown as obsidian.App,
+      { saveSettings: vi.fn(async () => {}) } as unknown as RssDashboardPlugin,
+      { sidebarWidth: 310 } as unknown as RssDashboardSettings,
+      { selectedTags: [] } as unknown as SidebarOptions,
+      {} as unknown as SidebarCallbacks,
+    );
+
+    modal.open();
+
+    expect(modal.containerEl.getAttribute("role")).toBe("dialog");
+    expect(modal.containerEl.getAttribute("aria-modal")).toBe("true");
+    expect(modal.containerEl.getAttribute("aria-label")).toBe(
+      "Dashboard navigation",
+    );
+    modal.close();
+  });
+
   // #664: document-level listeners kept every closed drawer (and its sidebar
   // rows) reachable from the document. The drawer needs none (#670).
   it("adds no listeners to the document", async () => {

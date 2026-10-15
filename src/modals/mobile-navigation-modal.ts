@@ -1,4 +1,5 @@
-import { App, Modal, Platform } from "obsidian";
+import { App, Platform } from "obsidian";
+import { AccessibleModal } from "../utils/accessible-modal";
 import {
   Sidebar,
   SidebarOptions,
@@ -7,7 +8,7 @@ import {
 import type RssDashboardPlugin from "../../main";
 import { RssDashboardSettings } from "../types/types";
 
-export class MobileNavigationModal extends Modal {
+export class MobileNavigationModal extends AccessibleModal {
   private sidebar!: Sidebar;
   private sidebarWrapper!: HTMLElement;
 
@@ -19,6 +20,11 @@ export class MobileNavigationModal extends Modal {
     private callbacks: SidebarCallbacks,
   ) {
     super(app);
+  }
+
+  // The sheet shows the sidebar and no heading of its own.
+  protected getDialogLabel(): string {
+    return "Dashboard navigation";
   }
 
   onOpen() {
