@@ -4,6 +4,7 @@ import { escapeCdata, escapeXml } from "../../utils/xml-escape.js";
 import type { FeedEncoding } from "../../types/types.js";
 import { discoverFeedUrl } from "./feed-discovery.js";
 import { isValidFeed } from "./feed-validation.js";
+import { throwIfAborted } from "../feed-timeout.js";
 import type {
   AllOriginsResponse,
   Rss2JsonFeedItem,
@@ -58,7 +59,7 @@ async function fetchThroughProxy(
   signal?: AbortSignal,
   encodingOverride?: FeedEncoding,
 ): Promise<string> {
-  if (signal?.aborted) throw new Error("Timed out");
+  throwIfAborted(signal);
   const requestUrlParam = `${proxyUrl}${encodeURIComponent(targetUrl)}`;
   const isJsonEnvelope =
     proxyUrl.includes("allorigins.win/get") || proxyUrl.includes("rss2json");
@@ -71,7 +72,7 @@ async function fetchThroughProxy(
     encodingOverride: isJsonEnvelope ? undefined : encodingOverride,
   });
 
-  if (signal?.aborted) throw new Error("Timed out");
+  throwIfAborted(signal);
 
   if (proxyUrl.includes("allorigins.win/get")) {
     const data = JSON.parse(responseText) as AllOriginsResponse;
@@ -107,7 +108,7 @@ export async function fetchThroughConfiguredProxies(
   encodingOverride?: FeedEncoding,
 ): Promise<string | null> {
   for (const proxyUrl of proxyUrls) {
-    if (signal?.aborted) throw new Error("Timed out");
+    throwIfAborted(signal);
     try {
       const proxyText = await fetchThroughProxy(
         url,
@@ -124,7 +125,7 @@ export async function fetchThroughConfiguredProxies(
     }
   }
 
-  if (signal?.aborted) throw new Error("Timed out");
+  throwIfAborted(signal);
   return null;
 }
 
@@ -138,7 +139,7 @@ export async function fetchThroughFallbackProxies(
   signal?: AbortSignal,
   encodingOverride?: FeedEncoding,
 ): Promise<string | null> {
-  if (signal?.aborted) throw new Error("Timed out");
+  throwIfAborted(signal);
   try {
     const proxyUrl = `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`;
     const proxyResponseText = await robustFetch(proxyUrl, {
@@ -156,7 +157,7 @@ export async function fetchThroughFallbackProxies(
       throw new Error("First proxy blocked by Cloudflare");
     }
   } catch {
-    if (signal?.aborted) throw new Error("Timed out");
+    throwIfAborted(signal);
     try {
       const rss2jsonUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`;
       const proxyResponse = await requestUrl({
@@ -173,7 +174,7 @@ export async function fetchThroughFallbackProxies(
         );
       }
     } catch {
-      if (signal?.aborted) throw new Error("Timed out");
+      throwIfAborted(signal);
       return null;
     }
   }
@@ -335,21 +336,28 @@ async function fetchThroughDesktopProxies(
   signal?: AbortSignal,
   encodingOverride?: FeedEncoding,
 ): Promise<string | null> {
-  if (signal?.aborted) throw new Error("Timed out");
+  throwIfAborted(signal);
   const codetabsText = await fetchCodetabs(targetUrl, encodingOverride);
   if (codetabsText !== null) return codetabsText;
 
   // isomorphic-git CORS proxy (raw)
-  if (signal?.aborted) throw new Error("Timed out");
+  throwIfAborted(signal);
   const isoText = await fetchIsomorphicGit(targetUrl, encodingOverride);
   if (isoText !== null) return isoText;
 
-  if (signal?.aborted) throw new Error("Timed out");
+  throwIfAborted(signal);
   const thingproxyText = await fetchThingProxy(targetUrl, encodingOverride);
   if (thingproxyText !== null) return thingproxyText;
 
-  if (signal?.aborted) throw new Error("Timed out");
-  return await fetchDiscoveredViaProxy(targetUrl, signal, encodingOverride);
+  throwIfAborted(signal);
+  const discoveredText = await fetchDiscoveredViaProxy(
+    targetUrl,
+    signal,
+    encodingOverride,
+  );
+  if (discoveredText !== null) return discoveredText;
+  throwIfAborted(signal);
+  return null;
 }
 
 /**
@@ -365,15 +373,15 @@ export async function fetchThroughPublicProxies(
 ): Promise<string> {
   // [RSS Dashboard] direct fetch failed for ${targetUrl}, trying AllOrigins proxy...
 
-  if (signal?.aborted) throw new Error("Timed out");
+  throwIfAborted(signal);
   const allOriginsText = await fetchAllOriginsGet(targetUrl);
   if (allOriginsText !== null) return allOriginsText;
 
   // Try allOrigins raw endpoint
-  if (signal?.aborted) throw new Error("Timed out");
+  throwIfAborted(signal);
   const rawText = await fetchAllOriginsRaw(targetUrl, encodingOverride);
   if (rawText !== null) return rawText;
-  if (signal?.aborted) throw new Error("Timed out");
+  throwIfAborted(signal);
 
   if (!isAndroid) {
     const desktopText = await fetchThroughDesktopProxies(
@@ -383,5 +391,6 @@ export async function fetchThroughPublicProxies(
     );
     if (desktopText !== null) return desktopText;
   }
+  throwIfAborted(signal);
   throw new Error(`Could not fetch a valid RSS/Atom feed from ${targetUrl}`);
 }
