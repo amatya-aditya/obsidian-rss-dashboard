@@ -44,6 +44,7 @@
 
 ### Fixes
 
+- The Reader and the dashboard inline reader no longer use an invisible 1x1 tracking counter as an article's hero image when the feed body has no other picture; a real photo later in the body still becomes the hero. This fixes feeds such as The Conversation, whose article content ends with a `count.gif` pixel. [GH Issue #1170](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1170)
 - Articles from sites with an anti-bot filter (for example 1000-Word Philosophy) no longer show "Fetched content is restricted" while they load normally in a browser. The full-article fetch now sends Obsidian's own User-Agent instead of an incomplete Chrome one that those filters reject with a 403. [GH Issue #1109](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1109)
 - The WordPress/PHP feed fallback no longer requests a blog's `rss.xml` address twice, so a refresh that reaches the fallback sends one fewer request. [GH Issue #1115](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1115)
 - A feed whose first (background) import fails or times out now shows a warning badge on its sidebar row, with the reason in its tooltip, instead of appearing as an ordinary feed with no articles. The badge clears once the feed imports or refreshes successfully. [GH Issue #1140](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1140)
