@@ -74,11 +74,6 @@
       "count": 1
     }
   },
-  "src/services/sidebar-ordering-controller.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
   "src/settings/tabs/display-settings-tab.ts": {
     "max-lines-per-function": {
       "count": 3
