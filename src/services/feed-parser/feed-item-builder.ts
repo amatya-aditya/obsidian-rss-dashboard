@@ -6,6 +6,7 @@ import type {
 import { canonicalizeItemIdentityUrl } from "../../utils/url-utils.js";
 import {
   isLatexFormulaImage,
+  isTrackingPixel,
   optimizeImageUrl,
   sanitizeImageUrl,
 } from "../../utils/image-url-utils.js";
@@ -63,7 +64,12 @@ interface ItemWork {
 
 function sanitizeArticleImageUrl(raw: unknown): string {
   const sanitized = sanitizeImageUrl(raw);
-  return isLatexFormulaImage(sanitized) ? "" : sanitized;
+  if (!sanitized) return "";
+  // A candidate from an itunes/media/enclosure field carries no tag size, so
+  // only the URL patterns can reject it here (#1169).
+  return isLatexFormulaImage(sanitized) || isTrackingPixel(sanitized)
+    ? ""
+    : sanitized;
 }
 
 function firstSanitizedArticleImageUrl(candidates: unknown[]): string {

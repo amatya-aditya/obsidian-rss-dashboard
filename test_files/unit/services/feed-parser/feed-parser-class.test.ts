@@ -1174,4 +1174,105 @@ describe("FeedParser.parseFeed", () => {
 
     requestUrlSpy.mockRestore();
   });
+
+  // #1169: the parser must not store a counter as the item's cover or card
+  // image. A counter such as count.gif matches no URL pattern, so the tag's
+  // own declared size is what rejects it.
+  describe("counter images (#1169)", () => {
+    const EMPTY = "https://counter.example.com/invented/empty";
+    const PHOTO = "https://counter.example.com/invented/photo.jpg";
+    const COUNTER = "https://counter.example.com/content/123456/count.gif";
+
+    function rssWithContent(content: string, extraItemXml = ""): string {
+      return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Invented counter feed</title>
+    <link>https://counter.example.com/</link>
+    <description>Invented feed with no real article text.</description>
+    <item>
+      <title>Invented item</title>
+      <link>${EMPTY}</link>
+      <guid isPermaLink="false">invented-item</guid>
+      <pubDate>Wed, 15 Oct 2026 08:40:00 GMT</pubDate>
+      <description>An invented description.</description>
+      <content:encoded><![CDATA[${content}]]></content:encoded>
+      ${extraItemXml}
+    </item>
+  </channel>
+</rss>`;
+    }
+
+    async function parseContent(content: string, extraItemXml = "") {
+      const feedUrl = "https://counter.example.com/rss.xml";
+      const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+      requestUrlSpy.mockResolvedValueOnce(
+        mockResponse(200, rssWithContent(content, extraItemXml)),
+      );
+
+      const parser = new FeedParser(
+        DEFAULT_SETTINGS.display,
+        [],
+        mediaSettings,
+      );
+      const parsed = await parser.parseFeed(feedUrl, null);
+
+      requestUrlSpy.mockRestore();
+      return parsed.items[0];
+    }
+
+    it("stores no cover or card image when the only image is a 1x1 counter", async () => {
+      const item = await parseContent(
+        `<p>An invented description.</p><img src="${COUNTER}" width="1" height="1" alt="">`,
+      );
+
+      expect(item.coverImage).toBe("");
+      expect(item.image).toBe("");
+    });
+
+    it("stores no cover or card image when the only image is a 0-sized counter", async () => {
+      const item = await parseContent(
+        `<img src="${COUNTER}" width="0" height="640" alt="">`,
+      );
+
+      expect(item.coverImage).toBe("");
+      expect(item.image).toBe("");
+    });
+
+    it("stores no cover or card image when the only image is a tracking url", async () => {
+      const item = await parseContent(
+        '<img src="https://counter.example.com/include/images/tracking/npr-rss-pixel.png?invented=1" alt="">',
+      );
+
+      expect(item.coverImage).toBe("");
+      expect(item.image).toBe("");
+    });
+
+    it("stores no cover when the item's only declared image is a tracking url", async () => {
+      const item = await parseContent(
+        "<p>An invented description.</p>",
+        `<enclosure url="https://counter.example.com/images/tracking/hero.png" type="image/png" length="1" />`,
+      );
+
+      expect(item.coverImage).toBe("");
+    });
+
+    it("still takes a photo the tag declares larger than 1 by 1", async () => {
+      const item = await parseContent(
+        `<p>An invented description.</p><img src="${PHOTO}" width="640" height="360" alt="">`,
+      );
+
+      expect(item.coverImage).toBe(PHOTO);
+      expect(item.image).toBe(PHOTO);
+    });
+
+    it("skips a counter and takes a later photo for the cover and the card image", async () => {
+      const item = await parseContent(
+        `<img src="${COUNTER}" width="1" height="1" alt=""><p>More invented text.</p><img src="${PHOTO}" width="1024" height="640" alt="">`,
+      );
+
+      expect(item.coverImage).toBe(PHOTO);
+      expect(item.image).toBe(PHOTO);
+    });
+  });
 });

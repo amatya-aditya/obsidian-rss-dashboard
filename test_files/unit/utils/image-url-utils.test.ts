@@ -2,8 +2,13 @@ import { describe, it, expect } from "vitest";
 import {
   hasLatexPhpQuery,
   isLatexFormulaImage,
+  isTrackingPixel,
+  isTrackingPixelElement,
+  isTrackingPixelTag,
   optimizeImageUrl,
 } from "../../../src/utils/image-url-utils.js";
+
+const COUNTER = "https://counter.example.com/content/123456/count.gif";
 
 describe("isLatexFormulaImage", () => {
   it("recognizes WordPress LaTeX images by class", () => {
@@ -28,6 +33,121 @@ describe("isLatexFormulaImage", () => {
       isLatexFormulaImage(
         "https://i0.wp.com/example.com/wp-content/uploads/photo.jpg?w=600",
         "wp-post-image",
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("isTrackingPixel", () => {
+  it.each([
+    ["tracking/", "https://img.example.com/tracking/a.png"],
+    ["pixel.gif", "https://img.example.com/pixel.gif"],
+    ["beacon.", "https://beacon.example.com/a.png"],
+    ["1x1", "https://img.example.com/1x1.png"],
+    ["/track/", "https://img.example.com/track/a.png"],
+    ["rss-pixel", "https://img.example.com/rss-pixel.png"],
+  ])("recognizes the url pattern %s anywhere in the url", (_pattern, url) => {
+    expect(isTrackingPixel(url)).toBe(true);
+  });
+
+  it("does not treat a near miss as a tracking pixel", () => {
+    expect(isTrackingPixel("https://t.example.com/pixel.png")).toBe(false);
+  });
+
+  it.each([
+    ["a 1 by 1 counter", "1", "1"],
+    ["a declared zero width", "0", "640"],
+    ["a declared zero height", "640", "0"],
+    ["a fractional size", "1.5", "1.5"],
+  ])("rejects %s whatever its url", (_label, width, height) => {
+    expect(isTrackingPixel(COUNTER, width, height)).toBe(true);
+  });
+
+  it("rejects a declared size written with a unit", () => {
+    expect(isTrackingPixel(COUNTER, "1px", "1px")).toBe(true);
+  });
+
+  it.each(["2", "640"])("accepts a declared size of %s", (size) => {
+    expect(isTrackingPixel(COUNTER, size, size)).toBe(false);
+  });
+
+  it("accepts an undeclared or unparseable size", () => {
+    expect(isTrackingPixel(COUNTER)).toBe(false);
+    expect(isTrackingPixel(COUNTER, null, null)).toBe(false);
+    expect(isTrackingPixel(COUNTER, "100%", "auto")).toBe(false);
+    expect(isTrackingPixel(COUNTER, "", "  ")).toBe(false);
+  });
+});
+
+describe("isTrackingPixelElement", () => {
+  function parseImage(html: string): HTMLImageElement {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    return doc.querySelector("img") as HTMLImageElement;
+  }
+
+  it("reads the declared size from the element", () => {
+    expect(
+      isTrackingPixelElement(
+        parseImage(`<img src="${COUNTER}" width="1" height="1">`),
+      ),
+    ).toBe(true);
+  });
+
+  it("accepts an element with a usable declared size or none at all", () => {
+    expect(
+      isTrackingPixelElement(
+        parseImage('<img src="https://img.example.com/photo.jpg" width="640">'),
+      ),
+    ).toBe(false);
+    expect(
+      isTrackingPixelElement(
+        parseImage('<img src="https://img.example.com/photo.jpg">'),
+      ),
+    ).toBe(false);
+  });
+});
+
+describe("isTrackingPixelTag", () => {
+  it("reads a quoted declared size from the tag text", () => {
+    expect(
+      isTrackingPixelTag(`<img src="${COUNTER}" width="1" height="1">`),
+    ).toBe(true);
+  });
+
+  it("reads a bare declared size from the tag text", () => {
+    expect(
+      isTrackingPixelTag(`<img src="${COUNTER}" width=0 height=640>`),
+    ).toBe(true);
+  });
+
+  it("rejects a tracking url even when the tag declares no size", () => {
+    expect(
+      isTrackingPixelTag(
+        '<img src="https://img.example.com/tracking/a.png" alt="">',
+      ),
+    ).toBe(true);
+  });
+
+  it("does not read a data attribute as the declared size", () => {
+    expect(
+      isTrackingPixelTag(
+        `<img data-width="1" data-height="1" src="${COUNTER}">`,
+      ),
+    ).toBe(false);
+  });
+
+  it("does not read a size mentioned inside another attribute value", () => {
+    expect(
+      isTrackingPixelTag(
+        '<img src="https://img.example.com/photo.jpg" alt="shown width=1 wide" class="a b">',
+      ),
+    ).toBe(false);
+  });
+
+  it("accepts a photo the tag declares larger than 1 by 1", () => {
+    expect(
+      isTrackingPixelTag(
+        '<img src="https://img.example.com/photo.jpg" width="640" height="360">',
       ),
     ).toBe(false);
   });

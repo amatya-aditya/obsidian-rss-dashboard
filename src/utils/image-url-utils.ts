@@ -145,6 +145,92 @@ export function isLatexFormulaImageElement(image: Element): boolean {
   );
 }
 
+/** URL fragments a feed uses for a tracking pixel, beacon or spacer image. */
+const TRACKING_PIXEL_URL_PATTERNS = [
+  "tracking/",
+  "pixel.gif",
+  "beacon.",
+  "1x1",
+  "/track/",
+  "rss-pixel",
+];
+
+/**
+ * A declared `width` or `height` below 2 pixels marks a hidden counter or
+ * spacer, so 0, 1 and fractional sizes are hidden. A value with no leading
+ * number (`auto`) declares no pixel size, while a percentage reads as its
+ * leading number.
+ */
+function isHiddenImageSize(value: string | null | undefined): boolean {
+  const size = parseInt(value?.trim() ?? "", 10);
+  return !Number.isNaN(size) && size <= 1;
+}
+
+/**
+ * Returns whether an image is an unusable tracking pixel, beacon or spacer: its
+ * URL holds a known fragment, or the tag declares a width or height of 0 or 1.
+ * A counter such as `count.gif` names no known fragment, so its declared size
+ * is what rejects it (#1169).
+ */
+export function isTrackingPixel(
+  url: string,
+  width?: string | null,
+  height?: string | null,
+): boolean {
+  return (
+    TRACKING_PIXEL_URL_PATTERNS.some((pattern) => url.includes(pattern)) ||
+    isHiddenImageSize(width) ||
+    isHiddenImageSize(height)
+  );
+}
+
+/** DOM convenience wrapper for {@link isTrackingPixel}. */
+export function isTrackingPixelElement(image: Element): boolean {
+  return isTrackingPixel(
+    image.getAttribute("src") ?? "",
+    image.getAttribute("width"),
+    image.getAttribute("height"),
+  );
+}
+
+/**
+ * One attribute of an HTML tag: its lowercase name and its value, quoted or
+ * bare. A global pattern is safe to reuse with `matchAll`, which clones it.
+ */
+const TAG_ATTRIBUTE_PATTERN =
+  /(?:^|\s)([a-zA-Z_:][-a-zA-Z0-9_:.]*)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/g;
+
+/**
+ * The attributes of one HTML tag, keyed by lowercase name. Reading name/value
+ * pairs, rather than probing the raw text for `width=`, keeps a size mentioned
+ * inside another attribute's value (`alt="shown width=1 wide"`) or in a
+ * `data-` attribute from reading as a declared size.
+ */
+function readTagAttributes(tag: string): Map<string, string> {
+  const attributes = new Map<string, string>();
+
+  for (const match of tag.matchAll(TAG_ATTRIBUTE_PATTERN)) {
+    const name = match[1]?.toLowerCase();
+    if (name) attributes.set(name, match[2] ?? match[3] ?? match[4] ?? "");
+  }
+
+  return attributes;
+}
+
+/**
+ * Text convenience wrapper for {@link isTrackingPixel}: reads one `<img>` tag's
+ * `src` and its declared `width`/`height`, for the callers that scan feed HTML
+ * with a regex instead of the DOM.
+ */
+export function isTrackingPixelTag(tag: string): boolean {
+  const attributes = readTagAttributes(tag);
+  return isTrackingPixel(
+    attributes.get("src") ?? "",
+    attributes.get("width"),
+    attributes.get("height"),
+  );
+}
+
 /** Returns the first non-empty URL that is not a rendered formula image. */
 export function firstNonFormulaImageUrl(
   candidates: readonly (string | null | undefined)[],
