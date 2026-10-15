@@ -146,6 +146,14 @@ describe("Empty-description fixture scenario (#975)", () => {
     expect(resolveFixturePage("/")).toBeNull();
   });
 
+  it("refuses encoded traversal and names outside the folder listing", () => {
+    expect(resolveFixturePage("/%2e%2e%2fpackage.json")).toBeNull();
+    expect(resolveFixturePage("/..%2F..%2Fsecret.html")).toBeNull();
+    expect(resolveFixturePage("/..%5Csecret.html")).toBeNull();
+    expect(resolveFixturePage("/..html")).toBeNull();
+    expect(resolveFixturePage("/%E0%A4%A.html")).toBeNull();
+  });
+
   it("serves the page over HTTP and 404s anything else", async () => {
     const port = await listeningPort();
 

@@ -11,7 +11,7 @@
 // .html files directly inside the pages folder, plus the one feed address the
 // seed data points at, on the host and port that data uses.
 
-import { existsSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -39,8 +39,9 @@ const IDENTITY_HEADERS = [
 
 /**
  * Maps a request path to a committed fixture page, or null when it names no
- * page in the folder. Only a bare `<name>.html` at the folder root is served,
- * so a path with slashes or `..` can never escape it.
+ * page in the folder. Only a bare `<name>.html` at the folder root is served:
+ * the request is matched against the folder's own listing, and the file path is
+ * built from that listing, so no part of the request ever reaches the path.
  */
 export function resolveFixturePage(requestPath) {
   const [pathname = ""] = requestPath.split(/[?#]/);
@@ -52,9 +53,20 @@ export function resolveFixturePage(requestPath) {
   }
   if (!/^\/[A-Za-z0-9._-]+\.html$/.test(decoded)) return null;
 
-  const name = decoded.slice(1);
-  const file = join(FIXTURE_PAGES_DIR, name);
-  return existsSync(file) ? { name, file } : null;
+  const requested = decoded.slice(1);
+  const name = listFixturePages().find((page) => page === requested);
+  return name ? { name, file: join(FIXTURE_PAGES_DIR, name) } : null;
+}
+
+/** The `.html` files directly inside the pages folder, read per request. */
+function listFixturePages() {
+  try {
+    return readdirSync(FIXTURE_PAGES_DIR, { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.endsWith(".html"))
+      .map((entry) => entry.name);
+  } catch {
+    return [];
+  }
 }
 
 /** Whether a request path names the synthesized feed. A query is ignored. */
