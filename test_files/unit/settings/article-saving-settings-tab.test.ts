@@ -158,15 +158,26 @@ describe("renderArticleSavingSettingsTab()", () => {
     expect(description?.textContent).toBe(expectedDefaultHint);
   });
 
-  it("persists save path via normalizePath() and saveSettings()", async () => {
+  it.each([
+    { name: "an emptied path", value: "", expected: "" },
+    { name: "whitespace only", value: " \t  ", expected: "" },
+    { name: "the root separator", value: "/", expected: "" },
+    {
+      name: "a non-empty path",
+      value: "New//Path\\Saved/",
+      expected: "New/Path/Saved",
+    },
+    {
+      name: "a padded path with internal spaces",
+      value: "  /My Folder//Saved\\Articles/  ",
+      expected: "My Folder/Saved/Articles",
+    },
+  ])("persists and reopens $name", async ({ value, expected }) => {
     const containerEl = createDiv();
     const plugin = createPlugin({ defaultFolder: "Old" });
     const onRefresh = vi.fn<() => void>();
 
-    vi.spyOn(obsidian, "normalizePath").mockImplementation(
-      (p: string) => `norm:${p}`,
-    );
-
+    // Keep the shared Obsidian stub: normalizePath("") returns "/".
     renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
 
     const settingEl = getSettingByName(containerEl, "Save path");
@@ -175,12 +186,50 @@ describe("renderArticleSavingSettingsTab()", () => {
     ) as HTMLInputElement;
     expect(input.value).toBe("Old");
 
-    input.value = "New/Path";
+    input.value = value;
     input.dispatchEvent(new Event("input"));
+    input.dispatchEvent(new Event("change"));
     await flushPromises();
 
-    expect(plugin.settings.articleSaving.defaultFolder).toBe("norm:New/Path");
+    expect(plugin.settings.articleSaving.defaultFolder).toBe(expected);
     expect(plugin.mocks.saveSettings).toHaveBeenCalledTimes(1);
+
+    const reopenedEl = createDiv();
+    renderArticleSavingSettingsTab(reopenedEl, plugin, onRefresh);
+    expect(
+      getSettingByName(reopenedEl, "Save path").querySelector<HTMLInputElement>(
+        'input[type="text"]',
+      )?.value,
+    ).toBe(expected);
+  });
+
+  it("persists an empty save path when Clear folder is clicked", async () => {
+    const containerEl = createDiv();
+    const plugin = createPlugin({ defaultFolder: "Old" });
+    const onRefresh = vi.fn<() => void>();
+    renderArticleSavingSettingsTab(containerEl, plugin, onRefresh);
+
+    const settingEl = getSettingByName(containerEl, "Save path");
+    const clearButton = settingEl.querySelector<HTMLButtonElement>(
+      'button[aria-label="Clear folder"]',
+    );
+    expect(clearButton).not.toBeNull();
+    clearButton?.click();
+    await flushPromises();
+
+    expect(
+      settingEl.querySelector<HTMLInputElement>('input[type="text"]')?.value,
+    ).toBe("");
+    expect(plugin.settings.articleSaving.defaultFolder).toBe("");
+    expect(plugin.mocks.saveSettings).toHaveBeenCalledTimes(1);
+
+    const reopenedEl = createDiv();
+    renderArticleSavingSettingsTab(reopenedEl, plugin, onRefresh);
+    expect(
+      getSettingByName(reopenedEl, "Save path").querySelector<HTMLInputElement>(
+        'input[type="text"]',
+      )?.value,
+    ).toBe("");
   });
 
   it("persists the saved-tag toggle and the Default save version", async () => {
