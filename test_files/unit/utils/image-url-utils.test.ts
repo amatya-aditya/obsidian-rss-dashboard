@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   findFirstNonFormulaImage,
+  firstNonFormulaImageUrl,
   hasLatexPhpQuery,
   isLatexFormulaImage,
   isTrackingPixel,
@@ -205,6 +206,36 @@ describe("findFirstNonFormulaImage", () => {
     expect(image?.getAttribute("src")).toBe(
       "https://img.example.com/photo.jpg",
     );
+  });
+});
+
+describe("firstNonFormulaImageUrl", () => {
+  const PIXEL = "https://img.example.com/pixel.gif";
+  const PHOTO = "https://img.example.com/photo.jpg";
+
+  it("skips a tracking pixel and returns the next candidate", () => {
+    expect(firstNonFormulaImageUrl([PIXEL, PHOTO])).toBe(PHOTO);
+  });
+
+  it("returns nothing when every candidate is a tracking pixel", () => {
+    expect(firstNonFormulaImageUrl([PIXEL, ""])).toBeUndefined();
+  });
+
+  it("still skips a rendered formula image", () => {
+    expect(
+      firstNonFormulaImageUrl(["https://s0.wp.com/latex.php?latex=x", PHOTO]),
+    ).toBe(PHOTO);
+  });
+
+  it("keeps the first usable url when nothing rejects it", () => {
+    expect(firstNonFormulaImageUrl([PHOTO, PIXEL])).toBe(PHOTO);
+  });
+
+  // #1182 residual: a size-only counter (here The Conversation's count.gif)
+  // carries no declared size in a bare stored url, so a url-only check cannot
+  // reject it offline. Out of scope for this issue; see its "Out of scope".
+  it("cannot reject a size-only counter from a bare url", () => {
+    expect(firstNonFormulaImageUrl([COUNTER])).toBe(COUNTER);
   });
 });
 

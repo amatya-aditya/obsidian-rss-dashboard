@@ -506,6 +506,32 @@ ${htmlParagraphs("rss-tech-11", 1)}
       summary: paragraphs("rss-tech-13", 1)[0],
       extra: { image: "" },
     }),
+    item(feed, {
+      // The stored-field counterpart of the cases above (#1182). A feed that
+      // declared the counter in `itunes:image`, `media:content` or an image
+      // `enclosure` — or an item stored before #1174 — keeps a tracking pixel
+      // in `coverImage` while the body has no usable image. The card, the
+      // Reader hero, the inline reader and a saved note must all show none.
+      title: "Stored tracking pixel as the preview image",
+      link: link(14),
+      pubDate: at(11),
+      coverImage: URL_PATTERN_PIXEL_URL,
+      author: "Fixture Author",
+      ...articleText("rss-tech-14", 2),
+    }),
+    item(feed, {
+      // A recognized YouTube embed in the feed body (#1173). Invented text and
+      // a placeholder video ID; the Reader should play it inline on click.
+      title: "Article with an inline YouTube video",
+      link: link(15),
+      pubDate: at(12),
+      author: "Fixture Author",
+      description: htmlParagraphs("rss-tech-15", 1),
+      content: `${htmlParagraphs("rss-tech-15", 2)}
+<p><iframe src="https://www.youtube.com/embed/z9TFdTqkbPk" width="560" height="315" frameborder="0" allowfullscreen></iframe></p>
+${htmlParagraphs("rss-tech-15-outro", 1)}`,
+      summary: paragraphs("rss-tech-15", 1)[0],
+    }),
   ];
 }
 

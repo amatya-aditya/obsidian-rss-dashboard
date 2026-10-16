@@ -2,6 +2,11 @@ import {
   normalizeSubstackImageSrcset,
   normalizeSubstackImageUrl,
 } from "./substack-image-url";
+import {
+  YOUTUBE_VIDEO_ID_ATTRIBUTE,
+  parseYouTubeEmbedId,
+  youTubeWatchUrl,
+} from "./youtube-embed";
 
 const BLOCKED_TAGS = new Set([
   "script",
@@ -243,6 +248,12 @@ function copySafeAttributes(fromEl: HTMLElement, toEl: HTMLElement): void {
       return;
     }
 
+    // The YouTube marker is the sanitizer's own contract with the reader's
+    // post-render step; a feed must not be able to forge it.
+    if (name === YOUTUBE_VIDEO_ID_ATTRIBUTE) {
+      return;
+    }
+
     if (name === "href") {
       const normalizedHref = normalizeSubstackImageUrl(value);
       if (isSafeHref(normalizedHref) || isSafeFragmentHref(normalizedHref)) {
@@ -311,31 +322,11 @@ function copyStrictAttributes(fromEl: HTMLElement, toEl: HTMLElement): void {
   toEl.setAttribute("rel", "noopener noreferrer");
 }
 
-const YOUTUBE_EMBED_HOSTS = new Set([
-  "www.youtube.com",
-  "youtube.com",
-  "www.youtube-nocookie.com",
-  "youtube-nocookie.com",
-]);
-
-/** Returns the video ID of a YouTube embed `src`, or null for anything else. */
-function parseYouTubeEmbedId(src: string): string | null {
-  try {
-    const url = new URL(src.trim(), "https://invalid.example/");
-    if (url.protocol !== "https:" || !YOUTUBE_EMBED_HOSTS.has(url.hostname)) {
-      return null;
-    }
-    const match = /^\/embed\/([A-Za-z0-9_-]{11})$/.exec(url.pathname);
-    return match?.[1] ?? null;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Rich mode drops iframes, which leaves an empty box where a feed embedded a
- * YouTube player. Replace a recognized embed with a link built from the
- * validated video ID; the original `src` is never copied through.
+ * YouTube player. Replace a recognized embed with a marked link built from the
+ * validated video ID; the original `src` is never copied through. The marker
+ * lets the reader's post-render step upgrade the link into a playable video.
  */
 function appendYouTubeEmbedLink(
   ownerDoc: Document,
@@ -345,10 +336,11 @@ function appendYouTubeEmbedLink(
   const videoId = parseYouTubeEmbedId(iframe.getAttribute("src") || "");
   if (!videoId) return;
 
-  const link = ownerDoc.win.createEl("a");
-  link.setAttribute("href", `https://www.youtube.com/watch?v=${videoId}`);
+  const link = ownerDoc.win.createEl("a", { cls: "rss-youtube-embed-watch" });
+  link.setAttribute("href", youTubeWatchUrl(videoId));
   link.setAttribute("target", "_blank");
   link.setAttribute("rel", "noopener noreferrer");
+  link.setAttribute(YOUTUBE_VIDEO_ID_ATTRIBUTE, videoId);
   link.textContent = "Watch on YouTube";
   parent.appendChild(link);
 }

@@ -2,6 +2,7 @@ import { ReaderContentVersions } from "./reader-content-versions";
 import { App, type Component, TFile } from "obsidian";
 import { renderReaderTagChips } from "../utils/reader-tag-chips";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
+import { enhanceYouTubeEmbeds } from "../utils/youtube-inline-embed";
 import { scheduleProcessMathElements } from "../utils/math-rendering";
 import { FeedItem, RssDashboardSettings, Tag } from "../types/types";
 import { HighlightService } from "../services/highlight-service";
@@ -597,6 +598,10 @@ export class ArticleRenderer {
       highlightService.highlightElement(container);
     } else {
       sanitizeAndAppendHtml(container, html, { mode: "rich" });
+    }
+
+    if (!stripTopHeadline) {
+      enhanceYouTubeEmbeds(container, { title });
     }
 
     container.querySelectorAll("img").forEach((img) => {

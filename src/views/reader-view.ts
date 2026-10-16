@@ -22,6 +22,7 @@ import {
   trackReaderMathSelection,
 } from "../utils/math-copy";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
+import { enhanceYouTubeEmbeds } from "../utils/youtube-inline-embed";
 import {
   type FullArticleFetchFailureType,
   type FullArticleFetchResult,
@@ -116,6 +117,10 @@ import {
 import { ShortcutHelpModal } from "../modals/shortcut-help-modal";
 import { openWebViewerSaveModal } from "../modals/web-viewer-save-modal";
 import { setupReaderHotkeys } from "../hotkeys/reader-hotkeys";
+import {
+  addYouTubeEmbedTurndownRule,
+  protectYouTubeEmbedsForMarkdown,
+} from "../utils/youtube-embed";
 
 const VIDEO_ARTICLE_BANNER =
   "This item appears to be a video. Open the source page to watch.";
@@ -273,6 +278,7 @@ export class ReaderView extends ItemView {
     this.onArticleUpdate = onArticleUpdate;
     this.onPlaybackProgress = options?.onPlaybackProgress;
     addMathTurndownRule(this.turndownService);
+    addYouTubeEmbedTurndownRule(this.turndownService);
 
     this.scope = new Scope(this.app.scope);
     this.setupScope();
@@ -767,7 +773,9 @@ export class ReaderView extends ItemView {
     const normalizedSaveHtml =
       this.normalizeBlockLinksForSavedMarkdown(htmlWithHero);
     return this.turndownService.turndown(
-      protectMathForMarkdown(normalizedSaveHtml),
+      protectMathForMarkdown(
+        protectYouTubeEmbedsForMarkdown(normalizedSaveHtml),
+      ),
     );
   }
 
@@ -2094,6 +2102,13 @@ export class ReaderView extends ItemView {
       highlightService.highlightElement(container);
     } else {
       sanitizeAndAppendHtml(container, html, { mode: "rich" });
+    }
+
+    // Only the RSS version and the feed description get the inline player. The
+    // fetched full-article body keeps the sanitizer's plain watch link; the
+    // fetched version is faithful to its source and #1176 upgrades it there.
+    if (!stripTopHeadline) {
+      enhanceYouTubeEmbeds(container, { title });
     }
 
     // Add classes to images for styling

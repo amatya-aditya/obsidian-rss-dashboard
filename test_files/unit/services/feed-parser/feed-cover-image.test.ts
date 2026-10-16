@@ -112,6 +112,15 @@ describe("extractCoverImage", () => {
       ).toBe(REAL);
     });
 
+    // #1182: a stored og:image pixel used to be taken as the item's cover.
+    it("falls through to the images when it is a tracking pixel", () => {
+      expect(extract(`${og(PIXEL)}<img src="${REAL}">`).cover).toBe(REAL);
+    });
+
+    it("returns no cover when the only og:image is a tracking pixel", () => {
+      expect(extract(og(PIXEL)).cover).toBe("");
+    });
+
     it("falls through to the images when a relative url has no base url to resolve against", () => {
       const { cover, resolver } = extract(
         `${og("og/a.png")}<img src="${REAL}">`,

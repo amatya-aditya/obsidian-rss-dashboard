@@ -221,3 +221,95 @@
   margin-top: 0.5rem;
   text-align: center;
 }
+
+/* --- Inline YouTube video placeholder in article content (#1173) ------------
+   A low-key block: a play control, the title, and a button-styled watch link.
+   Only the small glyphs take the YouTube accent, never the whole control. */
+.rss-youtube-embed {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 1em 0;
+}
+.rss-youtube-embed-play {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 50%;
+  background-color: var(--background-secondary);
+  color: var(--text-normal);
+  cursor: pointer;
+}
+.rss-youtube-embed-play:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+.rss-youtube-embed-play:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+.rss-youtube-embed-play-icon {
+  display: flex;
+  color: var(--rss-color-youtube-badge, #ff0000);
+}
+.rss-youtube-embed-title {
+  color: var(--text-normal);
+  font-weight: 500;
+}
+.rss-youtube-embed-watch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background-color: var(--background-secondary);
+  color: var(--text-normal);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+}
+.rss-youtube-embed-watch:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+.rss-youtube-embed-watch:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+.rss-youtube-embed-watch-icon {
+  display: flex;
+  color: var(--rss-color-youtube-badge, #ff0000);
+}
+.rss-youtube-embed-player {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background-color: #000;
+}
+.rss-youtube-embed-player iframe {
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+.rss-youtube-embed-notice {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  .rss-youtube-embed-play {
+    width: 44px;
+    height: 44px;
+  }
+  .rss-youtube-embed-watch {
+    padding: 8px 12px;
+  }
+}
