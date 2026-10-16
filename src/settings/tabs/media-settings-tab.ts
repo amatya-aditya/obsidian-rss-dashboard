@@ -171,4 +171,8 @@ export function renderMediaSettingsTab(
     href: "https://www.youtube.com/t/terms",
     attr: { target: "_blank", rel: "noopener noreferrer" },
   });
+
+  youtubeTosSetting.descEl.createSpan({
+    text: ". Playing a video in the Reader also contacts Obsidian's embed host (releases.obsidian.md) with the video ID.",
+  });
 }

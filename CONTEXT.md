@@ -126,6 +126,14 @@ _Avoid_: Thumbnail, cached preview, compressed version
 A third-party image resource that the host application cannot load. By itself, this does not mean the plugin failed; the host may report the resource failure independently.
 _Avoid_: Plugin image error
 
+**Video placeholder**:
+The click-to-play block the Reader shows in place of a recognized YouTube embed before the reader plays it: a play control, the video's title, and a [[Video embed|Watch on YouTube]] button-styled link. Nothing is requested from YouTube or Obsidian's embed host until the reader chooses to play. Also the reusable unit the fetched version can place when a page names a video.
+_Avoid_: Video thumbnail, preview card, embedded player
+
+**Video embed**:
+A recognized YouTube video played inline in article content, built only from the validated 11-character video ID through Obsidian's embed host; the feed's own iframe markup is never copied. Shown in the Reader's [[RSS content]] and in [[Reader view (inline)]]. The "Watch on YouTube" link sits beneath the player as the always-working fallback. Distinct from the plugin's full-view video player, and unchanged in [[Fetched content]] and saved notes.
+_Avoid_: YouTube player (the full-view player), iframe passthrough, inline iframe
+
 ## Article state
 
 Saved-note and template vocabulary lives in the [Article Saving glossary](GLOSSARY.md).
