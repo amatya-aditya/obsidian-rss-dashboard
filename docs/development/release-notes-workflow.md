@@ -43,10 +43,6 @@ whichever fit, rather than inventing new ones.
    `N/A` for internal-only refactors, tests, documentation, and tooling.
 6. Apply labels for type and area.
 7. Do not edit `docs/releases/` for an individual issue or feature.
-8. After implementation and required validation succeed, close any matching
-   active plan using [Plan Lifecycle and Archive](./README.md#plan-lifecycle-and-archive).
-   Move an implemented plan to `docs/archive/plans/unreleased/`, update its
-   metadata and links, and add it to the archive catalog.
 
 ## Release Branch Workflow
 
@@ -80,10 +76,12 @@ whichever fit, rather than inventing new ones.
 8. Preserve granular issue URLs in `CHANGELOG.md`. Include issue links in the
    public release summary only when they add useful context.
 9. Exclude internal-only refactors unless they have direct user impact.
-10. Move release-bound implemented plans from
-    `docs/archive/plans/unreleased/` to
-    `docs/archive/plans/v<version>/`; update `released_in`, repository links,
-    and `docs/archive/README.md`.
+10. Move any plan still in `docs/archive/plans/unreleased/` into
+    `docs/archive/plans/v<version>/`, updating `released_in`, repository links,
+    and `docs/archive/README.md`. The archive is frozen history and plans are no
+    longer written as files
+    ([ADR 0028](../adr/0028-plan-lives-in-its-issue-body.md)), so this step
+    retires with the last unarchived plan.
 
 ## Useful Commands
 
@@ -111,8 +109,9 @@ git diff --name-only 2.3.0-beta.1..HEAD
   consolidated public narrative.
 - Final grouping, consolidation, and public wording polish happens at release
   cut time.
-- Treat `docs/plans/` as active work, `docs/archive/README.md` as the historical
-  catalog, and the development README as the plan-lifecycle source of truth.
+- Treat `docs/planning/` as supporting material rather than plans: a plan lives
+  in its issue body, and `docs/archive/README.md` is the catalog of plans
+  written under the retired convention.
 
 ## LLM Prompt Pack for Commit and PR Drafts
 

@@ -1,14 +1,5 @@
 ---
-status: idea
 created: 2026-08-16
-issue: ""
-milestone: ""
-owner: unassigned
-workstream: "media"
-sequence: null
-depends_on: []
-release_requirement: ""
-implementation: ""
 ---
 
 # Media Notes Feature — Podcast & Video Player

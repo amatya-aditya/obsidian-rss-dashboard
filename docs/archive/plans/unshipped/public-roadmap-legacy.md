@@ -1,6 +1,6 @@
 # Public Roadmap (Superseded)
 
-This roadmap was superseded by [`docs/plans/public-roadmap.md`](../../../plans/public-roadmap.md).
+This roadmap was superseded by [`docs/planning/public-roadmap.md`](../../../planning/public-roadmap.md).
 
 ## Future Feature Ideas
 

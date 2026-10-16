@@ -1,18 +1,15 @@
 ---
-status: in-progress
 created: 2026-10-06
-issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/826"
-milestone: ""
-owner: unassigned
-workstream: accessibility
-sequence: null
-depends_on:
-  - "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/681"
-release_requirement: ""
-implementation: ""
+issues:
+  - https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/826
+  - https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/681
 ---
 
 # Agent Testability Quick Wins
+
+This directory holds the program's supporting documents: its spec, its slice
+audit and drafts, and ticket material. The program's plan lives in
+[#826](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/826).
 
 ## Summary
 
@@ -45,7 +42,7 @@ These paid for themselves while this program was built (every live check used th
 
 - About two thirds of the added lines are tests (roughly 3,400 of 5,000), because the tests drive the real runner, view and toolbar rather than fake DOM. That is deliberate; the one time a test built a fake DOM it missed a real bug.
 - The ids and hooks above are contracts to keep stable.
-- Menus, dialogs and landmarks (Slice 4) are not done; the audit in `826-agent-testability-quick-wins/slice-4-audit.md` maps what remains. `Copy diagnostics` was dropped on purpose (see DEC-012 in the spec).
+- Menus, dialogs and landmarks (Slice 4) are not done; the audit in `slice-4-audit.md` maps what remains. `Copy diagnostics` was dropped on purpose (see DEC-012 in the spec).
 
 ### Removing a part later
 
@@ -56,7 +53,7 @@ Each slice is a separate commit and is independent: the palette commands live in
 This plan was drafted in a remote session with no GitHub write access and no running Obsidian. Facts below come from grepping `src/` and `main.ts`; verify before relying on them.
 
 - Start from `AGENTS.md`: branch off `origin/dev`, read the mandatory files (`.instructions.md`, `eslint.config.mjs`, testing guide, branch naming), and run the architecture preflight in `docs/development/architecture.md` before touching `main.ts`.
-- Create the GitHub issue(s) first, store the URL in `issue:`, and rename the draft per `docs/development/README.md` (Plan Lifecycle).
+- Create the GitHub issue(s) first and keep the plan in the issue body; delete a draft once its content has moved there, per `docs/planning/README.md`.
 - One slice per issue and PR, targeting `dev`.
 - Verify in the fixture vault (`docs/development/fixture-vault.md`), not only jsdom.
 
@@ -133,9 +130,9 @@ Put registration in a new module (for example `src/commands/`), called from `onl
 ### Slice 4: Menus, dialogs, landmarks
 
 Superseded by an audit on 2026-10-13: findings, labels and order of work are in
-[`slice-4-audit.md`](826-agent-testability-quick-wins/slice-4-audit.md), and the
+[`slice-4-audit.md`](slice-4-audit.md), and the
 replacement criteria and ticket list are in
-[`slice-4-drafts.md`](826-agent-testability-quick-wins/slice-4-drafts.md). The
+[`slice-4-drafts.md`](slice-4-drafts.md). The
 outline below is kept as the original intent. Two of its items changed: cards
 do not get `role="article"`, and selects stay `listbox`/`option` rather than
 `menu`.
@@ -168,7 +165,7 @@ do not get `role="article"`, and selects stay `listbox`/`option` rather than
 ## Related
 
 - [681 — Accessibility Rollout](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/681)
-- [Accessibility declaration](../../ACCESSIBILITY.md)
-- [Keyboard shortcuts](../user/keyboard-shortcuts.md)
+- [Accessibility declaration](../../../ACCESSIBILITY.md)
+- [Keyboard shortcuts](../../user/keyboard-shortcuts.md)
 - [Issue #502 — Native icon buttons](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/502)
 - [Issue #803](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/803) and [PR #816](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/816) — version status bar (shipped)
