@@ -51,7 +51,7 @@ interface AllItemControls {
   filterCheckboxes: Map<string, HTMLInputElement>;
 }
 
-export const formatStartupFiltersButton = (
+const formatStartupFiltersButton = (
   plugin: StartupFiltersPlugin,
 ): {
   text: string;

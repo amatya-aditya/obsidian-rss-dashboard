@@ -228,9 +228,8 @@ describe("renderDisplaySettingsTab() characterization", () => {
   });
 
   it("restores the saved image cache limit when the blur value is invalid", async () => {
-    const { plugin, raw } = createPlugin({
-      setImageCacheLimit: vi.fn(async () => {}),
-    });
+    const setImageCacheLimit = vi.fn(async () => {});
+    const { plugin, raw } = createPlugin({ setImageCacheLimit });
     const { containerEl } = renderTab(plugin);
     const input = getSettingByName(
       containerEl,
@@ -242,13 +241,13 @@ describe("renderDisplaySettingsTab() characterization", () => {
     await vi.runAllTimersAsync();
 
     expect(input.value).toBe(String(raw.settings.display.imageCacheLimitMiB));
-    expect(raw.setImageCacheLimit).not.toHaveBeenCalled();
+    expect(setImageCacheLimit).not.toHaveBeenCalled();
 
     input.value = "250";
     input.dispatchEvent(new Event("blur"));
     await vi.runAllTimersAsync();
 
-    expect(raw.setImageCacheLimit).toHaveBeenCalledWith(250, false);
+    expect(setImageCacheLimit).toHaveBeenCalledWith(250, false);
   });
 
   it("returns a disposer that unregisters the cache listener and cancels the pending size refresh", async () => {
