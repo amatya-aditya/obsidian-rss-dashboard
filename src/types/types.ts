@@ -317,6 +317,11 @@ export interface SavedTemplate {
   defaultFolder?: string;
   /** Optional filename stem pattern; the `.md` extension is added automatically. */
   filenamePattern?: string;
+  /**
+   * Which version this template's saves write; absent on older templates and
+   * on templates that follow the Default save version setting (#1185).
+   */
+  saveVersion?: SaveVersion;
 }
 
 /**

@@ -17,6 +17,7 @@ type ReaderInternals = {
   currentFullContent?: string;
   currentContentIsFullArticle: boolean;
   currentFullContentFetchAttempted: boolean;
+  currentArticleFetch?: Promise<void>;
   getCustomSaveModalContext(): {
     saveArticle(
       item: FeedItem,
@@ -71,6 +72,22 @@ function feed(article: FeedItem): Feed {
     folder: "",
     items: [article],
     lastUpdated: 0,
+  };
+}
+
+function feedWithTemplate(article: FeedItem, templateId: string): Feed {
+  return { ...feed(article), customTemplate: templateId };
+}
+
+function savedTemplate(
+  id: string,
+  saveVersion: SavedTemplate["saveVersion"],
+): SavedTemplate {
+  return {
+    id,
+    name: id,
+    template: "{{summary}}\n{{content}}\n{{content}}",
+    ...(saveVersion ? { saveVersion } : {}),
   };
 }
 
@@ -236,5 +253,141 @@ describe("saved content source policy", () => {
     expect(written).toContain("Short fetched Reader body.");
     expect(written).not.toContain("Long RSS feed body.");
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+});
+
+describe("a saved template's save version (#1185)", () => {
+  it("saves the fetched page from the Dashboard when the feed's template asks for it", async () => {
+    const app = App.createMock();
+    const article = item();
+    const settingsValue = settings(false); // Default save version: RSS content
+    const template = savedTemplate("fetch-template", "fetched");
+    settingsValue.articleSaving.savedTemplates = [template];
+    settingsValue.feeds = [feedWithTemplate(article, template.id)];
+    const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+    const plugin = {
+      settings: settingsValue,
+      saveSettings: vi.fn(async () => {}),
+      updateArticle: vi.fn(async () => {}),
+    };
+    const view = new RssDashboardView({ app } as never, plugin as never);
+    const internal = view as unknown as DashboardInternals;
+    internal.selectedArticle = article;
+    internal.markArticleSaved = vi.fn(
+      async (savedArticle: FeedItem, path: string) => {
+        savedArticle.savedFilePath = path;
+      },
+    );
+    const fetchMock = vi
+      .spyOn(fetchHelpers, "fetchWithProxyFallbackDetailed")
+      .mockResolvedValueOnce({
+        content: "<p>Fetched article body.</p>",
+        failureType: "none",
+      });
+
+    await view.actionSaveSelectedArticle();
+
+    const saved = app.vault.getAbstractFileByPath(article.savedFilePath ?? "");
+    if (!(saved instanceof TFile)) throw new Error("expected saved TFile");
+    const written = await app.vault.read(saved);
+    expect(written).toContain("Fetched article body.");
+    expect(written).not.toContain("RSS item body.");
+    expect(fetchMock).toHaveBeenCalledOnce();
+    // The notice names the version the template's override resolved to.
+    expect(logSpy).toHaveBeenCalledWith(
+      "[Stub Notice]",
+      expect.stringContaining("Article saved with fetched content."),
+    );
+  });
+
+  it("saves RSS content from the Reader when the feed's template asks for it, without fetching", async () => {
+    const app = App.createMock();
+    const settingsValue = settings(true); // Default save version: Fetched content
+    const template = savedTemplate("rss-template", "rss");
+    settingsValue.articleSaving.savedTemplates = [template];
+    const article = item();
+    settingsValue.feeds = [feedWithTemplate(article, template.id)];
+    const saver = new ArticleSaver(app, settingsValue.articleSaving);
+    const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
+    const view = new ReaderView(
+      { app } as never,
+      settingsValue,
+      saver,
+      vi.fn(),
+      vi.fn(),
+    );
+    setReaderArticle(view, article);
+    const fetchMock = vi.spyOn(fetchHelpers, "fetchWithProxyFallbackDetailed");
+
+    await view.actionSaveCurrentArticle();
+
+    const saved = app.vault.getAbstractFileByPath(article.savedFilePath ?? "");
+    if (!(saved instanceof TFile)) throw new Error("expected saved TFile");
+    const written = await app.vault.read(saved);
+    expect(written).toContain("RSS item body.");
+    expect(written).not.toContain("Reader fetched article body.");
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(logSpy).toHaveBeenCalledWith(
+      "[Stub Notice]",
+      expect.stringContaining("Article saved with RSS content."),
+    );
+  });
+
+  it("waits for the in-flight Reader fetch when the feed's template asks for the fetched version", async () => {
+    const app = App.createMock();
+    const settingsValue = settings(false); // Default save version: RSS content
+    const template = savedTemplate("fetch-template", "fetched");
+    settingsValue.articleSaving.savedTemplates = [template];
+    const article = item();
+    settingsValue.feeds = [feedWithTemplate(article, template.id)];
+    const saver = new ArticleSaver(app, settingsValue.articleSaving);
+    const view = new ReaderView(
+      { app } as never,
+      settingsValue,
+      saver,
+      vi.fn(),
+      vi.fn(),
+    );
+    setReaderArticle(view, article);
+    const internal = view as unknown as ReaderInternals;
+    let releaseFetch: () => void = () => {};
+    internal.currentArticleFetch = new Promise<void>((resolve) => {
+      releaseFetch = resolve;
+    });
+
+    const savePromise = view.actionSaveCurrentArticle();
+    await Promise.resolve();
+    await Promise.resolve();
+    // The save must still be waiting on the fetch the template asked for.
+    expect(article.savedFilePath).toBeUndefined();
+
+    releaseFetch();
+    await savePromise;
+    expect(article.savedFilePath).toBeDefined();
+  });
+
+  it("does not wait for the in-flight Reader fetch when the template asks for RSS content", async () => {
+    const app = App.createMock();
+    const settingsValue = settings(true); // Default save version: Fetched content
+    const template = savedTemplate("rss-template", "rss");
+    settingsValue.articleSaving.savedTemplates = [template];
+    const article = item();
+    settingsValue.feeds = [feedWithTemplate(article, template.id)];
+    const saver = new ArticleSaver(app, settingsValue.articleSaving);
+    const view = new ReaderView(
+      { app } as never,
+      settingsValue,
+      saver,
+      vi.fn(),
+      vi.fn(),
+    );
+    setReaderArticle(view, article);
+    const internal = view as unknown as ReaderInternals;
+    // Never resolved: a save that waited on it would never finish.
+    internal.currentArticleFetch = new Promise<void>(() => {});
+
+    void view.actionSaveCurrentArticle();
+
+    await vi.waitFor(() => expect(article.savedFilePath).toBeDefined());
   });
 });

@@ -8,7 +8,16 @@ import { App, Notice, Setting, TextComponent } from "obsidian";
 import { AccessibleModal } from "../../utils/accessible-modal";
 import { VaultFolderSuggest } from "../../components/folder-suggest";
 import { addActionButtonContent } from "../../utils/action-button-content";
-import type { SavedTemplate } from "../../types/types";
+import {
+  DEFAULT_SETTINGS,
+  type SavedTemplate,
+  type SaveVersion,
+} from "../../types/types";
+import {
+  isSaveVersion,
+  TEMPLATE_SAVE_VERSION_INHERIT,
+  templateSaveVersionOptions,
+} from "../../utils/save-version";
 import {
   setCssProps,
   shouldUseMobileSidebarLayout,
@@ -141,6 +150,42 @@ export interface SavedTemplateEditorResult {
   defaultFolder: string;
   filenamePattern: string;
   makeGlobalDefault: boolean;
+  /** The version this template's saves write; absent follows the Default save version setting. */
+  saveVersion?: SaveVersion;
+}
+
+/**
+ * The Save version dropdown's field: a label above its control, like the form's
+ * other fields. The first option follows the Default save version setting and
+ * is stored as an absent field (#1185).
+ */
+function createSaveVersionField(
+  form: HTMLElement,
+  initialSaveVersion: SaveVersion | undefined,
+  defaultSaveVersion: SaveVersion,
+): HTMLSelectElement {
+  const field = form.createDiv({ cls: "rss-template-field" });
+  field.createEl("label", {
+    text: "Save version",
+    attr: { for: "rss-saved-template-save-version" },
+  });
+  const select = field.createEl("select", {
+    cls: "dropdown",
+    attr: {
+      id: "rss-saved-template-save-version",
+      "aria-describedby": "rss-saved-template-save-version-help",
+    },
+  });
+  for (const option of templateSaveVersionOptions(defaultSaveVersion)) {
+    select.createEl("option", { text: option.label, value: option.value });
+  }
+  select.value = initialSaveVersion ?? TEMPLATE_SAVE_VERSION_INHERIT;
+  field.createDiv({
+    cls: "setting-item-description rss-template-field-description",
+    attr: { id: "rss-saved-template-save-version-help" },
+    text: "Applies to every save that uses this template, including the global default template.",
+  });
+  return select;
 }
 
 export class SavedTemplateEditorModal extends AccessibleModal {
@@ -150,17 +195,21 @@ export class SavedTemplateEditorModal extends AccessibleModal {
   private readonly initial: SavedTemplateEditorResult;
   private readonly existingTemplates: readonly SavedTemplate[];
   private readonly editingId: string | undefined;
+  private readonly defaultSaveVersion: SaveVersion;
 
   constructor(
     app: App,
     initial: SavedTemplateEditorResult,
     existingTemplates: readonly SavedTemplate[],
     editingId?: string,
+    defaultSaveVersion: SaveVersion = DEFAULT_SETTINGS.articleSaving
+      .saveVersion,
   ) {
     super(app);
     this.initial = initial;
     this.existingTemplates = existingTemplates;
     this.editingId = editingId;
+    this.defaultSaveVersion = defaultSaveVersion;
   }
 
   onOpen() {
@@ -240,6 +289,11 @@ export class SavedTemplateEditorModal extends AccessibleModal {
         text: "Leave blank to use the article title. The .md extension is added automatically.",
       },
     ) as HTMLInputElement;
+    const versionSelect = createSaveVersionField(
+      form,
+      this.initial.saveVersion,
+      this.defaultSaveVersion,
+    );
 
     const defaultLabel = form.createEl("label", {
       cls: "rss-template-global-default",
@@ -286,6 +340,9 @@ export class SavedTemplateEditorModal extends AccessibleModal {
             defaultFolder: folderInput.value.trim(),
             filenamePattern: filenameInput.value.trim(),
             makeGlobalDefault: defaultCheckbox.checked,
+            saveVersion: isSaveVersion(versionSelect.value)
+              ? versionSelect.value
+              : undefined,
           };
           this.close();
         });

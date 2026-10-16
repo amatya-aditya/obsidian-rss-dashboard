@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_SETTINGS,
+  type FeedItem,
   type RssDashboardSettings,
   type SavedTemplate,
 } from "../../../src/types/types";
@@ -17,6 +18,12 @@ import {
   saveVersionLabel,
   saveVersionTooltip,
 } from "../../../src/utils/save-version";
+import {
+  ONE_SAVE_OVERRIDE_TEMPLATE_ID,
+  resolveSavedTemplateForArticle,
+} from "../../../src/utils/saved-template-utils";
+import { parseSettingsBundle } from "../../../src/services/storage-bundle-parsers";
+import { SHARD_VERSION } from "../../../src/services/storage-json";
 import {
   loadAndNormalizeSettings,
   migrateSettings,
@@ -59,13 +66,132 @@ describe("Default save version setting", () => {
       ).toBe("fetched");
     });
 
-    it("gives the same answer with or without a saved template today", () => {
+    it("lets a saved template set the version its saves write (#1185)", () => {
+      const rssTemplate: SavedTemplate = {
+        id: "t1",
+        name: "RSS template",
+        template: "{{content}}",
+        saveVersion: "rss",
+      };
+      expect(resolveSaveVersion({ saveVersion: "fetched" }, rssTemplate)).toBe(
+        "rss",
+      );
+      expect(
+        resolveSaveVersion(
+          { saveVersion: "rss" },
+          { ...rssTemplate, saveVersion: "fetched" },
+        ),
+      ).toBe("fetched");
+    });
+
+    it("falls back to the Default save version when the template leaves it unset (#1185)", () => {
       const template: SavedTemplate = {
         id: "t1",
         name: "Template",
         template: "{{content}}",
       };
       expect(resolveSaveVersion({ saveVersion: "rss" }, template)).toBe("rss");
+      expect(resolveSaveVersion({ saveVersion: "fetched" }, template)).toBe(
+        "fetched",
+      );
+    });
+
+    it("ignores an unknown version on the template (#1185)", () => {
+      const template = {
+        id: "t1",
+        name: "Template",
+        template: "{{content}}",
+        saveVersion: "both",
+      } as unknown as SavedTemplate;
+      expect(resolveSaveVersion({ saveVersion: "rss" }, template)).toBe("rss");
+    });
+  });
+
+  describe("the template applied to an article (#1185)", () => {
+    function template(
+      id: string,
+      saveVersion?: SavedTemplate["saveVersion"],
+    ): SavedTemplate {
+      return {
+        id,
+        name: id,
+        template: "{{content}}",
+        ...(saveVersion ? { saveVersion } : {}),
+      };
+    }
+
+    const feed = {
+      url: "https://example.com/feed.xml",
+      customTemplate: "feed",
+    };
+
+    it("uses the feed-assigned template's version over the Default save version", () => {
+      const applied = resolveSavedTemplateForArticle(
+        { feedUrl: feed.url } as FeedItem,
+        [feed],
+        [template("feed", "rss")],
+        "global",
+      );
+      expect(resolveSaveVersion({ saveVersion: "fetched" }, applied)).toBe(
+        "rss",
+      );
+    });
+
+    it("uses the global default template's version when the feed has none", () => {
+      const applied = resolveSavedTemplateForArticle(
+        { feedUrl: "https://example.com/other.xml" } as FeedItem,
+        [feed],
+        [template("feed", "rss"), template("global", "fetched")],
+        "global",
+      );
+      expect(resolveSaveVersion({ saveVersion: "rss" }, applied)).toBe(
+        "fetched",
+      );
+    });
+
+    it("does not cascade the global default template's version to a feed template that leaves it unset", () => {
+      const applied = resolveSavedTemplateForArticle(
+        { feedUrl: feed.url } as FeedItem,
+        [feed],
+        [template("feed"), template("global", "fetched")],
+        "global",
+      );
+      // The feed's template is the one applied, and it sets no version.
+      expect(applied?.id).toBe("feed");
+      expect(resolveSaveVersion({ saveVersion: "rss" }, applied)).toBe("rss");
+    });
+
+    it("uses the default save version when no template applies", () => {
+      const applied = resolveSavedTemplateForArticle(
+        { feedUrl: "https://example.com/other.xml" } as FeedItem,
+        [feed],
+        [template("feed", "rss")],
+        undefined,
+      );
+      expect(applied).toBeUndefined();
+      expect(resolveSaveVersion({ saveVersion: "rss" }, applied)).toBe("rss");
+    });
+
+    it("keeps the chosen version when the dialog overrides only the filename", () => {
+      const chosen = template("feed", "rss");
+      const oneSaveOverride = { ...chosen, filenamePattern: "{{title}}-copy" };
+      expect(
+        resolveSaveVersion({ saveVersion: "fetched" }, oneSaveOverride),
+      ).toBe("rss");
+    });
+
+    it("falls back to the Default save version for the dialog's synthetic template", () => {
+      const synthetic: SavedTemplate = {
+        id: ONE_SAVE_OVERRIDE_TEMPLATE_ID,
+        name: "One-save filename override",
+        template: "{{content}}",
+        defaultFolder: "",
+        filenamePattern: "{{title}}-copy",
+      };
+      expect(resolveSaveVersion({ saveVersion: "fetched" }, synthetic)).toBe(
+        "fetched",
+      );
+      expect(resolveSaveVersion({ saveVersion: "rss" }, synthetic)).toBe("rss");
     });
   });
 
@@ -191,6 +317,77 @@ describe("Default save version setting", () => {
     it("imports a new-shape export unchanged", () => {
       const result = importOldShape({ saveVersion: "rss" });
       expect(result.articleSaving.saveVersion).toBe("rss");
+    });
+  });
+
+  describe("settings export and import carry a template's save version (#1185)", () => {
+    // The settings bundle stores the whole `articleSaving` group as JSON, and
+    // the import applier merges it over the current settings before migrating.
+    function roundTrip(
+      templates: SavedTemplate[],
+    ): RssDashboardSettings["articleSaving"] {
+      const exported = JSON.parse(
+        JSON.stringify({ articleSaving: { savedTemplates: templates } }),
+      ) as { articleSaving: { savedTemplates: SavedTemplate[] } };
+      const merged = Object.assign(
+        {},
+        DEFAULT_SETTINGS,
+        loadAndNormalizeSettings({}),
+        exported,
+      ) as unknown as RssDashboardSettings;
+      migrateSettings(merged);
+      return merged.articleSaving;
+    }
+
+    it("round-trips the save version a template sets", () => {
+      const imported = roundTrip([
+        {
+          id: "t1",
+          name: "GitHub releases",
+          template: "{{content}}",
+          saveVersion: "fetched",
+        },
+      ]);
+      const template = imported.savedTemplates[0];
+      expect(template.saveVersion).toBe("fetched");
+      expect(resolveSaveVersion({ saveVersion: "rss" }, template)).toBe(
+        "fetched",
+      );
+    });
+
+    it("imports a template from an export made before the field existed", () => {
+      const imported = roundTrip([
+        { id: "t1", name: "Older template", template: "{{content}}" },
+      ]);
+      const template = imported.savedTemplates[0];
+      expect(template).not.toHaveProperty("saveVersion");
+      expect(resolveSaveVersion({ saveVersion: "rss" }, template)).toBe("rss");
+    });
+
+    it("keeps the field through the settings bundle parser", () => {
+      const bundle = parseSettingsBundle({
+        version: SHARD_VERSION,
+        exportedAt: Date.now(),
+        settings: {
+          storageMode: "vault-shards-v2",
+          articleSaving: {
+            savedTemplates: [
+              {
+                id: "t1",
+                name: "Releases",
+                template: "{{content}}",
+                saveVersion: "fetched",
+              },
+            ],
+          },
+        },
+      });
+      const template = (
+        bundle.settings.articleSaving as {
+          savedTemplates: SavedTemplate[];
+        }
+      ).savedTemplates[0];
+      expect(template.saveVersion).toBe("fetched");
     });
   });
 });

@@ -260,6 +260,24 @@ describe("ReaderView toolbar icon buttons", () => {
       expect(save.getAttribute("aria-label")).toBe("Save RSS content to notes");
     });
 
+    it("names the version the article's saved template sets (#1185)", async () => {
+      const save = byAction("save");
+      settings.articleSaving.savedTemplates = [
+        {
+          id: "releases",
+          name: "Releases",
+          template: "{{content}}",
+          saveVersion: "rss",
+        },
+      ];
+      settings.articleSaving.globalDefaultTemplateId = "releases";
+      settings.articleSaving.saveVersion = "fetched";
+
+      await openArticle();
+
+      expect(save.getAttribute("aria-label")).toBe("Save RSS content to notes");
+    });
+
     it("reports the star as a toggle through aria-pressed", async () => {
       const star = byName("Star/unstar article");
       expect(star.getAttribute("aria-pressed")).toBe("false");

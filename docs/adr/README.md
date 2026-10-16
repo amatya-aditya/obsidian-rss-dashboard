@@ -63,6 +63,7 @@ See the [ADR Policy](POLICY.md) for the complete lifecycle, authoring, and maint
 | [0023](0023-set-the-3-0-support-floor-at-obsidian-1-11-5.md)                   | Set the 3.0 Support Floor at Obsidian 1.11.5                            | proposed | Declare Obsidian 1.11.5 as the 3.0 support floor so SecretStorage needs no version guards, and hold 1.13.0 for a later release.                           |
 | [0024](0024-enforce-the-read-only-cutoff-at-the-persistence-choke-point.md)    | Enforce the 3.0 Read-Only Cutoff at the Persistence Choke Point         | accepted | Freeze a deprecated vault entirely at the persistence choke point, exempt the frozen importer, and keep the read-only predicate after the write paths go. |
 | [0025](0025-identify-outbound-requests-as-obsidian.md)                         | Identify Outbound Requests as Obsidian, Not as a Browser                | accepted | Send no User-Agent override on any request, so a 403 from an anti-bot filter is never caused by an incomplete claim to be Chrome.                         |
+| [0026](0026-let-a-saved-template-override-the-save-version.md)                 | Let a Saved Template Override the Default Save Version                  | accepted | Give a saved template an optional Save version, so a feed assigned that template writes its own version and the rest follow the Default save version.     |
 
 ## Creating a new ADR
 

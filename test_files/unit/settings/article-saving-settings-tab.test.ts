@@ -236,7 +236,7 @@ describe("renderArticleSavingSettingsTab()", () => {
     renderArticleSavingSettingsTab(containerEl, createPlugin(), vi.fn());
 
     expect(containerEl.textContent).toContain(
-      "The default save version and the saved tag remain global options.",
+      "The saved tag remains a global option; a saved template can set its own save version.",
     );
     expect(containerEl.textContent).not.toContain("Save full content");
   });
@@ -444,6 +444,95 @@ describe("renderArticleSavingSettingsTab()", () => {
       "[Stub Notice]",
       'Template "Renamed" deleted',
     );
+  });
+
+  it("stores the Save version a new template sets (#1185)", async () => {
+    const containerEl = createDiv();
+    const plugin = createPlugin({
+      defaultTemplate: "CURR",
+      saveVersion: "rss",
+    });
+    vi.spyOn(console, "debug").mockImplementation(() => {});
+    vi.spyOn(SavedTemplateEditorModal.prototype, "open").mockImplementation(
+      () => {},
+    );
+    vi.spyOn(
+      SavedTemplateEditorModal.prototype,
+      "waitForClose",
+    ).mockResolvedValue({
+      name: "Releases",
+      template: "CURR",
+      defaultFolder: "",
+      filenamePattern: "",
+      makeGlobalDefault: false,
+      saveVersion: "fetched",
+    });
+
+    renderArticleSavingSettingsTab(containerEl, plugin, vi.fn<() => void>());
+    const saveAsBtn = Array.from(containerEl.querySelectorAll("button")).find(
+      (button) => button.textContent === "Save as template",
+    ) as HTMLButtonElement;
+    saveAsBtn.click();
+    await flushPromises();
+
+    expect(plugin.settings.articleSaving.savedTemplates?.[0]?.saveVersion).toBe(
+      "fetched",
+    );
+  });
+
+  it("updates a template's Save version, and clears it back to the setting (#1185)", async () => {
+    const containerEl = createDiv();
+    const plugin = createPlugin({
+      saveVersion: "fetched",
+      savedTemplates: [
+        {
+          id: "t1",
+          name: "One",
+          template: "SAVED",
+          saveVersion: "rss",
+        },
+      ],
+    });
+    vi.spyOn(console, "debug").mockImplementation(() => {});
+    vi.spyOn(SavedTemplateEditorModal.prototype, "open").mockImplementation(
+      () => {},
+    );
+    const waitForClose = vi.spyOn(
+      SavedTemplateEditorModal.prototype,
+      "waitForClose",
+    );
+
+    renderArticleSavingSettingsTab(containerEl, plugin, vi.fn<() => void>());
+    const editButton = Array.from(
+      getSettingByName(containerEl, "One").querySelectorAll("button"),
+    ).find((button) => button.textContent === "Edit") as HTMLButtonElement;
+
+    waitForClose.mockResolvedValueOnce({
+      name: "One",
+      template: "SAVED",
+      defaultFolder: "",
+      filenamePattern: "",
+      makeGlobalDefault: false,
+      saveVersion: "fetched",
+    });
+    editButton.click();
+    await flushPromises();
+    expect(plugin.settings.articleSaving.savedTemplates?.[0]?.saveVersion).toBe(
+      "fetched",
+    );
+
+    waitForClose.mockResolvedValueOnce({
+      name: "One",
+      template: "SAVED",
+      defaultFolder: "",
+      filenamePattern: "",
+      makeGlobalDefault: false,
+    });
+    editButton.click();
+    await flushPromises();
+    expect(
+      plugin.settings.articleSaving.savedTemplates?.[0]?.saveVersion,
+    ).toBeUndefined();
   });
 
   it("clears feed assignments that referenced the deleted template", async () => {
