@@ -39,6 +39,19 @@ including Atom and JSON Feed) and **Fetched content** (the extracted article
 page). Either source may contain the complete article; these names distinguish
 origin, not completeness. See the [reader-source ADR](../adr/0022-rss-first-reader-content-selection.md).
 
+The two versions can also disagree about **media**, and the most visible case is
+video. A feed entry that embeds a YouTube video shows a click-to-play placeholder
+in RSS content; the fetched version of the same article shows nothing, because
+these pages build their player with script after load, leaving no iframe for the
+sanitizer to recognize and no page-declared video the plugin will trust. That
+commitment is deliberate, not an oversight: the fetched version mirrors what its
+source serves ([#1168](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1168)),
+and the measurement behind it, including which page-side video signals were
+rejected and why, is recorded in
+[fetched-page video signals](../archive/investigations/2026/fetched-page-video-signals.md).
+The user-facing half of this is the FAQ entry in
+[troubleshooting](../user/troubleshooting.md#the-video-disappears-when-you-switch-to-the-fetched-version).
+
 Both readers render RSS content immediately while the page fetch runs. A
 successful fetch offers **Show fetched content** instead of replacing text under
 the reader; **Show RSS content** switches back. Each version keeps its DOM and
