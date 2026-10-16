@@ -403,7 +403,7 @@ export default class RssDashboardPlugin extends Plugin {
     );
     this.articleSaver = new ArticleSaver(
       this.app,
-      this.settings.articleSaving,
+      () => this.settings.articleSaving,
       undefined,
       () => this.settings.useFirstSeenDateFallback,
       () => this.settings.feeds,
