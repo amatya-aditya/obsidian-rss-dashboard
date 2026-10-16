@@ -395,16 +395,20 @@ An export containing app preferences, including storage settings (display, reten
 _Avoid_: usersettings bundle, preferences export
 
 **Replacing import**:
-An import that discards the current feeds, folders, tags, articles, and article state and puts the file's in their place: a [[Portable data bundle]], a [[Feed bundle]], or a user preferences file that carries feeds, folders, or tags. An OPML import in **Replace** mode is also a Replacing import: it replaces every feed and folder with the file's, though it brings no articles or article state. What the user had before and did not export is gone once it completes.
+An import that discards the current feeds, folders, tags, articles, and article state and puts the file's in their place: a [[Portable data bundle]], a [[Feed bundle]], or a user preferences file that carries feeds, folders, or tags. An OPML import in **Replace** mode is also a Replacing import: it replaces every feed and folder with the file's, though it brings no articles or article state. What the user had before and did not export is gone once it completes. Its preferences still merge rather than replace: each preference the file carries is applied and every [[Omitted key]] keeps its current value, exactly as for an [[Overwriting import]].
 _Avoid_: Restore, overwrite (reserved for [[Overwriting import]])
 
 **Overwriting import**:
-An import that sets each app preference present in the file to the file's value and leaves every preference the file omits unchanged: a [[Settings bundle]], or a user preferences file with no feeds, folders, or tags. Never touches feeds, articles, or article state.
+An import that sets each app preference present in the file to the file's value and leaves every [[Omitted key]] unchanged: a [[Settings bundle]], or a user preferences file with no feeds, folders, or tags. Never touches feeds, articles, or article state.
 _Avoid_: Replace, settings restore
 
 **Merging import**:
 An import that adds to the current feeds or articles without removing any: an OPML import in **Update** mode and starred-article imports.
 _Avoid_: Append, sync
+
+**Omitted key**:
+A preference key an import file does not carry. It keeps its current value, so only the keys the file carries change; a settings group the file omits keeps its current value whole.
+_Avoid_: Missing setting, skipped setting, defaulted setting
 
 **Import confirmation**:
 The last-chance prompt shown after an import file has been read and validated, and before anything is written, for every [[Replacing import]] and [[Overwriting import]]. It compares what the user has now with what the file brings, names any change to the storage location, and lets the user cancel or export a [[Portable data bundle]] first. Cancelling leaves every setting, shard file, and article state exactly as it was.
