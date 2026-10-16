@@ -295,10 +295,17 @@ async function fetchDiscoveredViaProxy(
   signal?: AbortSignal,
   encodingOverride?: FeedEncoding,
 ): Promise<string | null> {
-  const candidates = (
-    await discoverFeedUrls(targetUrl, signal, encodingOverride)
-  ).filter((candidate) => candidate !== targetUrl);
-  return fetchFirstValidFeed(candidates, signal, encodingOverride);
+  try {
+    const candidates = (
+      await discoverFeedUrls(targetUrl, signal, encodingOverride)
+    ).filter((candidate) => candidate !== targetUrl);
+    return await fetchFirstValidFeed(candidates, signal, encodingOverride);
+  } catch (e) {
+    void e;
+    // [RSS dashboard] discoverFeedUrls proxy fetch failed (expected - falls through to next proxy)
+  }
+
+  return null;
 }
 
 async function fetchThroughDesktopProxies(

@@ -3,9 +3,9 @@ import type { RequestUrlResponse } from "obsidian";
 import * as obsidian from "obsidian";
 import { fetchFeedXml } from "../../../../src/services/feed-parser/feed-fetch.js";
 
-// `discoverFeedUrl` is not exported. It runs inside `fetchFeedXml` after a
-// WordPress or PHP page answered and every WordPress fallback address failed,
-// and again after the proxy chain gave up, so these tests drive it from there.
+// `discoverFeedUrls` and `fetchFirstValidFeed` run inside `fetchFeedXml` after
+// a WordPress or PHP page answered and every WordPress fallback address failed,
+// and again after the proxy chain gave up, so these tests drive them from there.
 
 const DIRECT = { enabled: false, url: "" };
 const SITE = "https://example.com/blog";
@@ -104,7 +104,7 @@ function after(requested: string[], url: string, n: number): string[] {
   return index === -1 ? [] : requested.slice(index + 1);
 }
 
-describe("discoverFeedUrl, reached after the WordPress fallback addresses fail", () => {
+describe("feed discovery, reached after the WordPress fallback addresses fail", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
@@ -890,6 +890,28 @@ describe("discoverFeedUrl, reached after the WordPress fallback addresses fail",
       expect(served.requested).not.toContain("https://example.net/other.xml");
     });
 
+    it("stops fetching discovered addresses when cancelled after the first one", async () => {
+      const controller = new AbortController();
+      const served = serve(
+        {
+          [SITE]: wpPage(
+            '<link rel="alternate" type="application/rss+xml" href="https://example.net/comments.xml">' +
+              '<link rel="alternate" type="application/rss+xml" href="https://example.net/posts.xml">',
+          ),
+          "https://example.net/posts.xml": feedXml("Posts"),
+        },
+        (url) => {
+          if (url === "https://example.net/comments.xml") controller.abort();
+        },
+      );
+      await expect(
+        fetchFeedXml(SITE, DIRECT, controller.signal),
+      ).rejects.toThrow("Timed out");
+      expect(after(served.requested, SITE, 2)).toEqual([
+        "https://example.net/comments.xml",
+      ]);
+    });
+
     it("keeps going to the link tags when no candidate answered and nothing was cancelled", async () => {
       const served = serve({
         [FEEDBURNER_SITE]: wpPage(
@@ -903,7 +925,7 @@ describe("discoverFeedUrl, reached after the WordPress fallback addresses fail",
   });
 });
 
-describe("discoverFeedUrl, reached after the proxy chain fails", () => {
+describe("feed discovery, reached after the proxy chain fails", () => {
   const PAGE = "https://example.com/news";
 
   beforeEach(() => {

@@ -69,9 +69,8 @@ async function fetchDiscoveredFeed(
   encodingOverride?: FeedEncoding,
 ): Promise<string | null> {
   const candidates = await discoverFeedUrls(baseUrl, signal, encodingOverride);
-  if (hostMatches(baseUrl, "arxiv.org")) {
-    const arxivUrl = baseUrl.replace("export.arxiv.org", "rss.arxiv.org");
-    if (!candidates.includes(arxivUrl)) candidates.push(arxivUrl);
+  if (candidates.length === 0 && hostMatches(baseUrl, "arxiv.org")) {
+    candidates.push(baseUrl.replace("export.arxiv.org", "rss.arxiv.org"));
   }
   if (candidates.length === 0) return null;
   throwIfAborted(signal);
