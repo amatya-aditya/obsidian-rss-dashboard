@@ -212,6 +212,25 @@ function longArticleHtml(seedText) {
   return sections.join("\n");
 }
 
+/**
+ * A body whose table stresses the HTML-to-Markdown degradation (#1193): a
+ * colspan header cell, an alignment, and nested block content in cells. The
+ * long article above already covers a plain table.
+ */
+function tableArticleHtml(seedText) {
+  return [
+    htmlParagraphs(`${seedText}-intro`, 1),
+    "<table>",
+    '<thead><tr><th colspan="2">Quarterly figures</th><th align="right">Total</th></tr></thead>',
+    "<tbody>",
+    "<tr><td>North</td><td>Notes with a | pipe</td><td>12</td></tr>",
+    "<tr><td>South<ul><li>Alpha</li><li>Beta</li></ul></td><td><p>Two</p><p>paragraphs</p></td><td>34</td></tr>",
+    "</tbody>",
+    "</table>",
+    htmlParagraphs(`${seedText}-outro`, 1),
+  ].join("\n");
+}
+
 // ---------------------------------------------------------------------------
 // Items and feeds
 // ---------------------------------------------------------------------------
@@ -428,6 +447,19 @@ function rssTechItems() {
       content: longArticleHtml("rss-tech-5"),
       summary: paragraphs("rss-tech-5-intro", 1)[0],
       state: { tags: [TAGS.reference, TAGS.research, TAGS.rss] },
+    }),
+    item(feed, {
+      // A table that stresses the GFM conversion (#1193): colspan, alignment,
+      // and nested content in cells. Saving the article must write a pipe
+      // table rather than flattened cell text.
+      title: "Article with a table for Markdown checks",
+      link: link(16),
+      pubDate: at(62),
+      coverImage: previewImage("rss-tech-16"),
+      author: "Fixture Author",
+      description: htmlParagraphs("rss-tech-16-intro", 1),
+      content: tableArticleHtml("rss-tech-16"),
+      summary: paragraphs("rss-tech-16-intro", 1)[0],
     }),
     item(feed, {
       title: "Paywalled article showing only an excerpt",

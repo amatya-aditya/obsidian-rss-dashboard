@@ -501,7 +501,7 @@ result must come from a known build and a clean vault.
 
 ## Seeded scenarios
 
-12 feeds, 161 articles: 48 read, 9 starred, 9 tagged, 1 saved, 2 with playback
+12 feeds, 162 articles: 48 read, 9 starred, 9 tagged, 1 saved, 2 with playback
 progress. The automated test in
 `test_files/unit/main/fixture-vault-loading.test.ts` checks these counts.
 
@@ -528,6 +528,7 @@ progress. The automated test in
 | Starred, several tags                          | GitHub Blog: "Starred article with two tags" (Important, Research)                                                                                                                                                                                                                                      |
 | Saved article                                  | GitHub Blog: "Fixture guide to offline reading", saved to `saved-articles/`                                                                                                                                                                                                                             |
 | Long article                                   | GitHub Blog: "A very long article for reader layout checks": headings, figure, list, quote, code, table                                                                                                                                                                                                 |
+| Table for Markdown checks                      | GitHub Blog: "Article with a table for Markdown checks" (#1193): a colspan header, an alignment, and nested list/paragraph content in cells; a saved note should hold a pipe table rather than flattened cell text                                                                                      |
 | Resized CDN image                              | GitHub Blog: "CDN image resizing": an inline Cloudinary demo image with `w_300,c_scale` in its URL; the lightbox should load the original (`.../image/upload/sample.jpg`)                                                                                                                               |
 | Counter as the only image                      | GitHub Blog: "1x1 counter as the only image" (#1169): the card shows its description with no cover, and the shard stores `coverImage: ""` and `image: ""`; run `npm run fixture:serve` so the counter genuinely loads (a 404 would hide the defect on a build without the fix)                          |
 | Counter before a photo                         | GitHub Blog: "1x1 counter before a real photo" (#1169): the counter comes first, so both the cover and the card image are the later photo                                                                                                                                                               |
