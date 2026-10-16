@@ -244,6 +244,11 @@ export class VideoPlayer {
     }
   }
 
+  /**
+   * Listens for the YouTube IFrame API's `postMessage` events. The embed host
+   * nests the player in its own iframe, so on the live player these never
+   * arrive and nothing is saved; re-engineering this is #1236.
+   */
   private setupMessageListener(): void {
     this.messageHandler = (event: MessageEvent) => {
       if (
