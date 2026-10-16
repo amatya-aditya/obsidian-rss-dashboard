@@ -131,7 +131,7 @@ The click-to-play block the Reader shows in place of a recognized YouTube embed 
 _Avoid_: Video thumbnail, preview card, embedded player
 
 **Video embed**:
-A recognized YouTube video played inline in article content, built only from the validated 11-character video ID through Obsidian's embed host; the feed's own iframe markup is never copied. Shown in the Reader's [[RSS content]] and in [[Reader view (inline)]]. The "Watch on YouTube" link sits beneath the player as the always-working fallback. Distinct from the plugin's full-view video player, and unchanged in [[Fetched content]] and saved notes.
+A recognized YouTube video played inline in article content, built only from the validated 11-character video ID through Obsidian's embed host; the feed's own iframe markup is never copied. Shown in the Reader's [[RSS content]] and in [[Reader view (inline)]]. The "Watch on YouTube" link sits beneath the player as the always-working fallback. Distinct from the plugin's full-view video player. Unchanged in [[Fetched content]]. A [[Saved note]] does not hold this unit: the save writes a native Markdown video embed that Obsidian renders itself, with the watch link beside it.
 _Avoid_: YouTube player (the full-view player), iframe passthrough, inline iframe
 
 ## Article state
