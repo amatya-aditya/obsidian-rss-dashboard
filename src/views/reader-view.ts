@@ -31,11 +31,12 @@ import {
   type FullArticleFetchFailureType,
   type FullArticleFetchResult,
 } from "../utils/fetch-helpers";
-import { type RawArticleMetadata } from "../utils/article-metadata";
 import {
-  applyArticleMetadata,
-  feedLanguageFor,
-} from "../utils/article-metadata-persistence";
+  persistFetchedMetadata,
+  renderRestrictedBanner,
+  renderVideoSourceBanner,
+  shouldRenderVideoSourceBanner,
+} from "../utils/reader-article-fetch";
 import {
   RssDashboardSettings,
   FeedItem,
@@ -52,12 +53,7 @@ import { ArticleSaver } from "../services/article-saver";
 import { setCssProps } from "../utils/platform-utils";
 import { createIconButton } from "../utils/icon-button";
 import { attachRovingToolbar } from "../utils/roving-toolbar";
-import {
-  fetchFullArticleContentWithOutcome,
-  RESTRICTED_ARTICLE_BANNER,
-  RESTRICTED_ARTICLE_LINK_TEXT,
-  RESTRICTED_ARTICLE_REASON,
-} from "../utils/full-article-fetch";
+import { fetchFullArticleContentWithOutcome } from "../utils/full-article-fetch";
 import {
   applyFetchOutcome,
   type FullContentFetchFailure,
@@ -134,10 +130,6 @@ import {
   protectYouTubeEmbedsForMarkdown,
 } from "../utils/youtube-embed";
 import { addTableTurndownRule } from "../utils/table-markdown";
-
-const VIDEO_ARTICLE_BANNER =
-  "This item appears to be a video. Open the source page to watch.";
-const VIDEO_ARTICLE_LINK_TEXT = "Open video at source";
 
 const STARRED_IMPORT_UNFETCHED_BANNER_TEXT =
   "This is a cached preview from the starred.json import";
@@ -1437,7 +1429,13 @@ export class ReaderView extends ItemView {
         }
       },
       persistMetadata: (result) =>
-        this.persistFetchedMetadata(item, result.content, result.pageMetadata),
+        persistFetchedMetadata(
+          item,
+          result.content,
+          result.pageMetadata,
+          this.settings.feeds,
+          (update) => this.persistBackgroundUpdate(item, update, false),
+        ),
       // The failure belongs to the item too: remember it even after
       // navigation so the next open does not stall on the same fetch (#1110).
       rememberOutcome: (result) =>
@@ -1451,7 +1449,8 @@ export class ReaderView extends ItemView {
           ? fetchedContent
           : undefined;
       },
-      renderRestrictedBanner: () => this.renderRestrictedBanner(item),
+      renderRestrictedBanner: () =>
+        renderRestrictedBanner(this.readingContainer, item),
       renderFetchFailureBanner: () => this.renderFetchFailureBanner(item),
     });
     if (!versions) return;
@@ -1876,9 +1875,9 @@ export class ReaderView extends ItemView {
     }
 
     if (item.restrictedReason) {
-      this.renderRestrictedBanner(item, container);
-    } else if (this.shouldRenderVideoSourceBanner(item)) {
-      this.renderVideoSourceBanner(item, container);
+      renderRestrictedBanner(container, item);
+    } else if (shouldRenderVideoSourceBanner(item)) {
+      renderVideoSourceBanner(container, item);
     } else if (this.isStarredImportCachedPreview(item)) {
       this.renderStarredImportBanner(item, container);
     }
@@ -2051,65 +2050,6 @@ export class ReaderView extends ItemView {
       this.readingContainer.empty();
     }
     await this.displayArticle(item, this.currentFullContent);
-  }
-
-  private renderRestrictedBanner(
-    item: FeedItem,
-    container = this.readingContainer,
-  ): void {
-    const banner = container.createDiv({
-      cls: "rss-reader-inline-banner rss-reader-paywall-banner",
-    });
-    const message = banner.createDiv({
-      cls: "rss-reader-paywall-banner-text",
-    });
-    message.setText(
-      item.restrictedReason === RESTRICTED_ARTICLE_REASON
-        ? RESTRICTED_ARTICLE_BANNER
-        : (item.restrictedReason ?? RESTRICTED_ARTICLE_BANNER),
-    );
-
-    if (!item.link) {
-      return;
-    }
-
-    const link = banner.createEl("a", {
-      cls: "rss-reader-paywall-banner-link",
-      text: RESTRICTED_ARTICLE_LINK_TEXT,
-      href: item.link,
-    });
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-  }
-
-  private shouldRenderVideoSourceBanner(item: FeedItem): boolean {
-    return isLikelyVideoItem(item) && !item.videoId && !item.videoUrl;
-  }
-
-  private renderVideoSourceBanner(
-    item: FeedItem,
-    container = this.readingContainer,
-  ): void {
-    const banner = container.createDiv({
-      cls: "rss-reader-inline-banner rss-reader-video-banner",
-    });
-    const message = banner.createDiv({
-      cls: "rss-reader-video-banner-text",
-      text: VIDEO_ARTICLE_BANNER,
-    });
-    message.setAttr("role", "note");
-
-    if (!item.link) {
-      return;
-    }
-
-    const link = banner.createEl("a", {
-      cls: "rss-reader-video-banner-link",
-      text: VIDEO_ARTICLE_LINK_TEXT,
-      href: item.link,
-    });
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
   }
 
   private populateArticleHtml(
@@ -2353,22 +2293,6 @@ export class ReaderView extends ItemView {
       this.settings.articleSaving.fetchTimeout,
     );
     return result;
-  }
-
-  /** Writes the fetched page's resolved metadata once (#247 slice 4). */
-  private persistFetchedMetadata(
-    item: FeedItem,
-    articleHtml: string,
-    pageMetadata: RawArticleMetadata | undefined,
-  ): void {
-    const update = applyArticleMetadata(
-      item,
-      pageMetadata,
-      articleHtml,
-      undefined,
-      feedLanguageFor(this.settings.feeds, item),
-    );
-    if (update) this.persistBackgroundUpdate(item, update, false);
   }
 
   private lastFullArticleFetchWasRestricted(): boolean {
