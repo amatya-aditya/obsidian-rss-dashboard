@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fixture page that advertises a feed</title>
+    <link
+      rel="alternate"
+      type="application/rss+xml"
+      href="/user-agent-feed.xml"
+    />
+  </head>
+  <body>
+    <main>
+      <h1>Fixture page that advertises a feed</h1>
+      <p>
+        This page is not a feed. It stands in for a site's landing page, served
+        from this repository so the Add feed and Edit feed dialogs' Load can be
+        checked against a page address whose feed the plugin has to discover.
+      </p>
+      <p>
+        Powered by WordPress, so the Save path reaches the same feed through the
+        plugin's WordPress fallback as well, and Load and Save agree on the
+        address.
+      </p>
+      <p>
+        The advertised feed is the fixture server's synthesized
+        <code>/user-agent-feed.xml</code>, linked above as a relative address so
+        it resolves to whichever host and port serves this page.
+      </p>
+    </main>
+  </body>
+</html>

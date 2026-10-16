@@ -42,6 +42,11 @@ export const EMPTY_DESCRIPTION_LINK = `${FIXTURE_SERVER_ORIGIN}/${EMPTY_DESCRIPT
 // docs/development/fixture-vault.md.
 export const FIXTURE_FEED_PATH = "/user-agent-feed.xml";
 export const FIXTURE_FEED_URL = `${FIXTURE_SERVER_ORIGIN}${FIXTURE_FEED_PATH}`;
+// #1201: a page that is not a feed but advertises the synthesized feed above, so
+// the Add feed dialog's Load can be checked against a page address owned by the
+// repository. It names WordPress, so the Save path reaches the same discovery
+// through the plugin's WordPress fallback too.
+export const FEED_ADVERTISING_PAGE = "feed-advertising-page.html";
 
 // The tracking-counter scenarios (#1169) point their counters at images the
 // fixture server also serves, so the counter genuinely loads: a 404 would take
