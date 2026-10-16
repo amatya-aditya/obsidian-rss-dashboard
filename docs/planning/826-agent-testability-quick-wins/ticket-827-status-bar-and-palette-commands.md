@@ -1,6 +1,6 @@
 # Ticket AGTEST-T1: Version status bar accessibility and palette commands
 
-Namespace / source revision / canonical source: AGTEST / r1 / `docs/plans/826-agent-testability-quick-wins/spec.md`, derived from `docs/plans/826-agent-testability-quick-wins.md`, base `bc639d6ec41f84c6a695afef198120dbe9b79159`
+Namespace / source revision / canonical source: AGTEST / r1 / `docs/planning/826-agent-testability-quick-wins/spec.md`, derived from `docs/planning/826-agent-testability-quick-wins/README.md`, base `bc639d6ec41f84c6a695afef198120dbe9b79159`
 Readiness: **ready**, with the two excluded commands listed under Non-goals. See "Findings at drafting time" for one scoping note.
 Dependencies: none
 

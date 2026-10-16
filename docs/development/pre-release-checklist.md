@@ -2,8 +2,9 @@
 
 Run this before CONTRIBUTING.md's Release Process
 [Step 2 — Cut the Release Branch](../../CONTRIBUTING.md#step-2--cut-the-release-branch).
-It catches repo-hygiene drift that `npm run build` does not: stray files and
-plans that never got a status or never got archived.
+It catches repo-hygiene drift that `npm run build` does not: stray files,
+archived plans missing from the catalog, and documents left in the planning
+folder under the retired plan-file convention.
 
 ## Automated
 
@@ -31,15 +32,14 @@ it is safe to run in CI and on a normal dev machine mid-feature:
   `release-v<x.y.z>-roadmap.md`) are exempt: `docs/archive/document-inventory.md`
   records them as living documents rather than archived implementation
   records.
-- Every file under `docs/plans/` whose name matches the Plan Filename
-  Convention (`<issue-number>-<slug>.md` or `draft-YYYYMMDD-<slug>.md`, see
-  [docs/development/README.md](README.md#plan-filename-convention)) has a
-  `status` in frontmatter, and that status is one of `idea`, `proposed`,
-  `accepted`, `blocked`, `in-progress` — i.e. still active work. A plan with
-  `status: implemented` (or `rejected`/`superseded`) should already have moved
-  to `docs/archive/plans/` per the
-  [Plan Lifecycle and Archive](README.md#plan-lifecycle-and-archive) policy;
-  the script flags one left behind instead.
+- Every tracked document under `docs/planning/` is a draft
+  (`draft-YYYYMMDD-<slug>.md`), a coordination roadmap, the folder's own
+  `README.md`, or a document declaring `issues:` frontmatter that names the
+  issues it serves. A program directory declares them in its `README.md`
+  instead, and its documents inherit that claim. No document under the folder
+  carries a `status:` field: status belongs to the issue, and a plan lives in
+  its issue body. See [docs/planning/README.md](../planning/README.md) and
+  [ADR 0028](../adr/0028-plan-lives-in-its-issue-body.md).
 - Every curated What's New note under `src/release-notes/notes/` has a
   valid `major.minor.md` or non-zero `major.minor.patch.md` filename, a
   top-level heading, and only HTTPS images with alt text.
@@ -69,9 +69,6 @@ tagged commit is the version actually shipping, so a release cannot publish
 with an empty popup. `check:release-ready` covers the same ground locally
 before the bump, against the version you are about to ship.
 
-Non-lifecycle documents in `docs/plans/` (for example `public-roadmap.md`,
-which carries no frontmatter by design) are left alone.
-
 ## At the release cut
 
 ```bash
@@ -88,9 +85,13 @@ it takes the target version as an argument rather than reading `manifest.json`
 It fails when the changelog heading has not been renamed, entries are still
 stranded under `Unreleased`, `docs/releases/<version>.md` is missing, the
 release line has no curated What's New note, `versions.json` already lists the
-target version, the working tree is dirty, or a release-bound plan is still in
-`docs/archive/plans/unreleased/`. A prerelease bump skips the public-summary
-check, since `docs/releases/` only carries stable versions.
+target version, the working tree is dirty, or a plan is still in
+`docs/archive/plans/unreleased/`. That last rule retires with the last
+unarchived plan: `docs/archive/plans/` is frozen history and plans are no
+longer written as files
+([ADR 0028](../adr/0028-plan-lives-in-its-issue-body.md)). A prerelease bump
+skips the public-summary check, since `docs/releases/` only carries stable
+versions.
 
 ## Manual
 

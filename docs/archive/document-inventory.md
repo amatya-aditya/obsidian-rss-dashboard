@@ -21,7 +21,11 @@ validation and publication are complete.
 
 ## Active and future work
 
-Keep these implementation plans and coordination documents in `docs/plans/`:
+At the time of this migration, implementation plans and coordination documents
+lived in `docs/plans/`. That folder is now `docs/planning/`, holds supporting
+documents only, and a plan lives in its issue body
+([ADR 0028](../adr/0028-plan-lives-in-its-issue-body.md)). The list below is the
+record of where those documents stood then:
 
 - `812-cover-image-fallback.md` - proposed future work (issue #812).
 - `deprecate-feed-manager-modal.md` - proposed 3.0 work.

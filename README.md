@@ -90,7 +90,7 @@ Complete guides, workflows, and reference: [Read the Docs](docs/)
 
 ## Roadmap
 
-Feature direction and what's being explored: [Public Roadmap](docs/plans/public-roadmap.md)
+Feature direction and what's being explored: [Public Roadmap](docs/planning/public-roadmap.md)
 
 ## Support & Community
 

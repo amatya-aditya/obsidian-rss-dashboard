@@ -76,11 +76,12 @@ Before a change that adds a responsibility, crosses a module seam, touches
 `main.ts`, or changes dependencies, read
 `docs/development/architecture.md` and run its architecture preflight.
 
-Before completing work driven by a file under `docs/plans/`, or cutting a
-release that contains archived plans, read **Plan Lifecycle and Archive** in
-`docs/development/README.md`. That section is the source of truth for plan
-draft and issue-number naming, metadata, GitHub intake, archival destinations,
-catalog updates, and release-time moves.
+**A plan lives in its issue body.** Read
+[docs/planning/README.md](docs/planning/README.md) before adding anything to
+`docs/planning/`, and before cutting a release that contains archived plans.
+That README is the source of truth for what may live in the folder, the
+`issues:` provenance rule, and the draft rule. `docs/archive/plans/` is frozen
+history and takes no new entries.
 
 `eslint.config.mjs` is the authoritative source for implementation and platform-compatibility rules. Do not knowingly introduce, retain, or suppress a violation. Refactor the code to comply; do not add an `eslint-disable` or weaken a rule unless the user explicitly authorizes that policy change.
 

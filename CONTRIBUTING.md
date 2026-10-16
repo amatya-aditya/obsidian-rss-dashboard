@@ -15,7 +15,7 @@ We are committed to providing a welcoming and inspiring community for all. Pleas
 - **Report bugs** — Found something broken? [Open an issue](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues) with details and steps to reproduce.
 - **Suggest features** — Have an idea? [Start a discussion](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues) or chat on [Discord](https://discord.gg/9bu7V9BBbs).
 - **Fix bugs** — Pick an open issue labeled `bug` or `good first issue`, and [claim it first](#claim-an-issue-before-you-start). [Issue Labels and Milestones](docs/development/labels.md) explains what each label means.
-- **Add features** — Check the [public roadmap](docs/plans/public-roadmap.md) and coordinate before starting large work.
+- **Add features** — Check the [public roadmap](docs/planning/public-roadmap.md) and coordinate before starting large work.
 - **Improve docs** — Clarify guides, add examples, fix typos. Documentation PRs are always welcome.
 - **Write tests** — Help increase test coverage and prevent regressions.
 
@@ -575,7 +575,7 @@ git push origin refs/tags/2.3.0
 - 💬 **[Discord Community](https://discord.gg/9bu7V9BBbs)** — Ask questions and connect with other contributors.
 - 📖 **[Development Docs](docs/development/README.md)** — Architecture, design patterns, and internal guides.
 - 🐛 **[GitHub Issues](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues)** — Report issues or browse ongoing work.
-- 📋 **[Public Roadmap](docs/plans/public-roadmap.md)** — See what's being planned.
+- 📋 **[Public Roadmap](docs/planning/public-roadmap.md)** — See what's being planned.
 
 ---
 

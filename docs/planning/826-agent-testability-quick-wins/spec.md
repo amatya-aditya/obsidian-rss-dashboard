@@ -2,7 +2,7 @@
 
 Source requirements and decision record:
 
-- `docs/plans/826-agent-testability-quick-wins.md` (renamed from the draft; r1 snapshot taken at base commit `bc639d6ec41f84c6a695afef198120dbe9b79159`)
+- `docs/planning/826-agent-testability-quick-wins/README.md` (renamed from the draft; r1 snapshot taken at base commit `bc639d6ec41f84c6a695afef198120dbe9b79159`)
 - Shipped prior work: issue #803, PR #816 (commit `ea0d6a48`), `src/settings/version-status-bar.ts`
 - Parent program: [issue #681](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/681) (Rollout plan, step 4); related #502
 

@@ -1,6 +1,6 @@
 // Measures the contributor loop (checks, lint, type-check, bundle, tests, the
 // full build, and the git hooks) so changes to it can be compared against a
-// recorded baseline. See docs/plans/370-performance-program.md for the rules.
+// recorded baseline. See docs/planning/370-performance-program.md for the rules.
 //
 //   node scripts/benchmark-dev-loop.mjs run --cwd <checkout> --label before --out before.json [--runs 3]
 //   node scripts/benchmark-dev-loop.mjs compare before.json after.json

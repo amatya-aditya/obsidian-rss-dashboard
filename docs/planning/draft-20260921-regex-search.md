@@ -1,15 +1,5 @@
 ---
-status: idea
 created: 2026-09-21
-issue: ""
-milestone: ""
-owner: unassigned
-workstream: search
-sequence: 2
-depends_on:
-  - draft-20260921-search-scope-and-global-search.md
-release_requirement: ""
-implementation: ""
 ---
 
 # Regex Search Support

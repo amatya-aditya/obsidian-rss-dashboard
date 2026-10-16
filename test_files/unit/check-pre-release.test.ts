@@ -4,11 +4,10 @@ import {
   isReleaseMode,
   findHostileFilenames,
   findMissingNoteIssue,
+  findPlanningDocumentIssues,
   findReleaseNoteFilenameIssues,
   findNoteIssues,
-  findPlanStatusIssues,
   findStrayFiles,
-  isLifecyclePlanFilename,
   isMajorMinorRelease,
   releaseLineOf,
 } from "../../scripts/check-pre-release.mjs";
@@ -30,89 +29,135 @@ describe("findStrayFiles", () => {
   it("does not flag ordinary tracked files", () => {
     const files = [
       "src/utils/date.ts",
-      "docs/plans/262-pre-release-checklist.md",
+      "docs/planning/370-performance-program.md",
     ];
 
     expect(findStrayFiles(files)).toEqual([]);
   });
 });
 
-describe("isLifecyclePlanFilename", () => {
-  it("matches issue-numbered plan filenames", () => {
-    expect(isLifecyclePlanFilename("262-pre-release-checklist.md")).toBe(true);
+describe("findPlanningDocumentIssues", () => {
+  const ISSUE_URL =
+    "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/";
+
+  it("accepts a supporting document that names its issues", () => {
+    expect(
+      findPlanningDocumentIssues([
+        {
+          filePath: "docs/planning/370-performance-program.md",
+          source: `---\ncreated: 2026-09-24\nissues:\n  - ${ISSUE_URL}370\n---\n\n# Program\n`,
+        },
+      ]),
+    ).toEqual([]);
   });
 
-  it("matches dated draft plan filenames", () => {
-    expect(isLifecyclePlanFilename("draft-20260914-some-idea.md")).toBe(true);
-  });
-
-  it("does not match non-lifecycle documents like roadmaps", () => {
-    expect(isLifecyclePlanFilename("public-roadmap.md")).toBe(false);
-    expect(isLifecyclePlanFilename("release-vnext-roadmap.md")).toBe(false);
-  });
-});
-
-describe("findPlanStatusIssues", () => {
-  it("flags a lifecycle plan with no frontmatter status", () => {
-    const planFiles = [
+  it("flags a document that declares no issues", () => {
+    const issues = findPlanningDocumentIssues([
       {
-        fileName: "300-missing-status.md",
-        filePath: "docs/plans/300-missing-status.md",
-        source: "# No frontmatter here\n",
+        filePath: "docs/planning/new-single-issue-document.md",
+        source: "# Opt-In Cover Image Fallback Plan\n\nProse only.\n",
       },
-    ];
+    ]);
 
-    expect(findPlanStatusIssues(planFiles)).toEqual([
+    expect(issues).toEqual([
       expect.objectContaining({
-        filePath: "docs/plans/300-missing-status.md",
-        reason: expect.stringContaining("missing"),
+        filePath: "docs/planning/new-single-issue-document.md",
+        reason: expect.stringContaining("`issues:`"),
       }),
     ]);
   });
 
-  it("flags a status that belongs in the archive instead of docs/plans", () => {
-    const planFiles = [
+  it("flags the retired status field, even when the document names issues", () => {
+    const issues = findPlanningDocumentIssues([
       {
-        fileName: "301-should-be-archived.md",
-        filePath: "docs/plans/301-should-be-archived.md",
-        source: "---\nstatus: implemented\n---\n",
+        filePath: "docs/planning/new-status-carrying-document.md",
+        source: `---\nstatus: in-progress\nissues:\n  - ${ISSUE_URL}9999\n---\n`,
       },
-    ];
+    ]);
 
-    expect(findPlanStatusIssues(planFiles)).toEqual([
+    expect(issues).toEqual([
       expect.objectContaining({
-        filePath: "docs/plans/301-should-be-archived.md",
-        reason: expect.stringContaining("implemented"),
+        filePath: "docs/planning/new-status-carrying-document.md",
+        reason: expect.stringContaining("status:"),
       }),
     ]);
   });
 
-  it("accepts every valid active-plan status", () => {
-    const planFiles = [
-      "idea",
-      "proposed",
-      "accepted",
-      "blocked",
-      "in-progress",
-    ].map((status, index) => ({
-      fileName: `${400 + index}-ok.md`,
-      filePath: `docs/plans/${400 + index}-ok.md`,
-      source: `---\nstatus: ${status}\n---\n`,
-    }));
-
-    expect(findPlanStatusIssues(planFiles)).toEqual([]);
+  it("reads status only in frontmatter, never in prose", () => {
+    expect(
+      findPlanningDocumentIssues([
+        {
+          filePath: "docs/planning/370-performance-program.md",
+          source: `---\nissues:\n  - ${ISSUE_URL}370\n---\n\nstatus: mentioned in prose\n`,
+        },
+      ]),
+    ).toEqual([]);
   });
 
-  it("skips non-lifecycle documents such as the public roadmap", () => {
-    const planFiles = [
-      {
-        fileName: "public-roadmap.md",
-        filePath: "docs/plans/public-roadmap.md",
-        source: "# Public Roadmap\n\nNo frontmatter, and that's fine.\n",
-      },
-    ];
+  it("accepts drafts, roadmaps, and the folder's own rule file", () => {
+    expect(
+      findPlanningDocumentIssues([
+        {
+          filePath: "docs/planning/draft-20260921-regex-search.md",
+          source: "---\ncreated: 2026-09-21\n---\n",
+        },
+        {
+          filePath: "docs/planning/public-roadmap.md",
+          source: "# Public Roadmap\n",
+        },
+        {
+          filePath: "docs/planning/README.md",
+          source: "# Planning Documents\n",
+        },
+      ]),
+    ).toEqual([]);
+  });
 
-    expect(findPlanStatusIssues(planFiles)).toEqual([]);
+  it("accepts a program directory whose README names its issues", () => {
+    expect(
+      findPlanningDocumentIssues([
+        {
+          filePath: "docs/planning/826-agent-testability-quick-wins/README.md",
+          source: `---\nissues:\n  - ${ISSUE_URL}826\n---\n`,
+        },
+        {
+          filePath: "docs/planning/826-agent-testability-quick-wins/spec.md",
+          source: "# Spec\n",
+        },
+      ]),
+    ).toEqual([]);
+  });
+
+  it("flags a program directory with no README", () => {
+    const issues = findPlanningDocumentIssues([
+      { filePath: "docs/planning/program/spec.md", source: "# Spec\n" },
+    ]);
+
+    expect(issues).toEqual([
+      expect.objectContaining({ filePath: "docs/planning/program" }),
+    ]);
+  });
+
+  it("flags a program README that names no issues", () => {
+    const issues = findPlanningDocumentIssues([
+      { filePath: "docs/planning/program/README.md", source: "# Program\n" },
+      { filePath: "docs/planning/program/spec.md", source: "# Spec\n" },
+    ]);
+
+    expect(issues).toEqual([
+      expect.objectContaining({ filePath: "docs/planning/program/README.md" }),
+    ]);
+  });
+
+  it("lets a plan awaiting migration keep the retired convention's schema", () => {
+    expect(
+      findPlanningDocumentIssues([
+        {
+          filePath: "docs/planning/437-reader-image-log-noise.md",
+          source: "---\nstatus: in-progress\nissue: ''\n---\n",
+        },
+      ]),
+    ).toEqual([]);
   });
 });
 

@@ -65,6 +65,7 @@ See the [ADR Policy](POLICY.md) for the complete lifecycle, authoring, and maint
 | [0025](0025-identify-outbound-requests-as-obsidian.md)                         | Identify Outbound Requests as Obsidian, Not as a Browser                | accepted | Send no User-Agent override on any request, so a 403 from an anti-bot filter is never caused by an incomplete claim to be Chrome.                           |
 | [0026](0026-let-a-saved-template-override-the-save-version.md)                 | Let a Saved Template Override the Default Save Version                  | accepted | Give a saved template an optional Save version, so a feed assigned that template writes its own version and the rest follow the Default save version.       |
 | [0027](0027-merge-imported-settings-one-group-deep.md)                         | Merge Imported Settings One Group Deep                                  | accepted | Merge each affected nested settings group one level deep on import, so a file that carries only some of a group's keys keeps the rest of the user's values. |
+| [0028](0028-plan-lives-in-its-issue-body.md)                                   | A Plan Lives in Its Issue Body                                          | accepted | Keep the plan in its issue body, so the ticket a reader arrives at carries the answer and there is no second copy to drift.                                 |
 
 ## Creating a new ADR
 

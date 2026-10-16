@@ -4,15 +4,15 @@ Welcome to RSS Dashboard's documentation. Find guides, workflows, references, an
 
 ## How this folder is organized
 
-| Folder                                    | What's in it                                                        |
-| ----------------------------------------- | ------------------------------------------------------------------- |
-| [`user/`](./user/)                        | Guides for people using the plugin                                  |
-| [`development/`](./development/README.md) | How the plugin is built, tested, designed, and released             |
-| [`adr/`](./adr/)                          | Architecture decision records: why the code is shaped the way it is |
-| [`plans/`](./plans/)                      | Active feature plans and the public roadmap                         |
-| [`releases/`](./releases/)                | Release notes, announcements, and their templates                   |
-| [`agents/`](./agents/)                    | Conventions for AI coding agents working in this repo               |
-| [`archive/`](./archive/README.md)         | Finished plans and past investigations, kept for history            |
+| Folder                                    | What's in it                                                           |
+| ----------------------------------------- | ---------------------------------------------------------------------- |
+| [`user/`](./user/)                        | Guides for people using the plugin                                     |
+| [`development/`](./development/README.md) | How the plugin is built, tested, designed, and released                |
+| [`adr/`](./adr/)                          | Architecture decision records: why the code is shaped the way it is    |
+| [`planning/`](./planning/)                | Supporting documents that serve several issues, and the public roadmap |
+| [`releases/`](./releases/)                | Release notes, announcements, and their templates                      |
+| [`agents/`](./agents/)                    | Conventions for AI coding agents working in this repo                  |
+| [`archive/`](./archive/README.md)         | Finished plans and past investigations, kept for history               |
 
 [`SECURITY.md`](./SECURITY.md) covers privacy, security, and how to verify a release.
 
@@ -85,7 +85,7 @@ Want to contribute or understand how the plugin works internally?
 
 - 💬 **[Discord Community](https://discord.gg/9bu7V9BBbs)** — Join the community for discussions, questions, and real-time help.
 - 🐛 **[GitHub Issues](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues)** — Report bugs or request features.
-- 📋 **[Public Roadmap](./plans/public-roadmap.md)** — See what's being planned and what we're exploring.
+- 📋 **[Public Roadmap](./planning/public-roadmap.md)** — See what's being planned and what we're exploring.
 
 ---
 

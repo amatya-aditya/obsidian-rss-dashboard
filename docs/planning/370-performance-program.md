@@ -1,14 +1,9 @@
 ---
-status: in-progress
 created: 2026-09-24
-issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/370"
-milestone: "vNext"
-owner: unassigned
-workstream: performance
-sequence: null
-depends_on: []
-release_requirement: ""
-implementation: ""
+issues:
+  - https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/370
+  - https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/371
+  - https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/749
 ---
 
 # Performance program: measured baselines and before/after results
