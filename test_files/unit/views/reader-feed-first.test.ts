@@ -116,6 +116,15 @@ describe.each(["ReaderView", "ArticleRenderer"])(
             (
               view as unknown as { applyReaderHeadlineFont(font: string): void }
             ).applyReaderHeadlineFont("serif"),
+          setFormatFont: () => {
+            settings.readerFormat = {
+              ...DEFAULT_SETTINGS.readerFormat,
+              fontFamily: "serif",
+            };
+            (
+              view as unknown as { applyReaderFormat(): void }
+            ).applyReaderFormat();
+          },
           scroll: () =>
             container.querySelector<HTMLElement>(".rss-reader-content")!,
         };
@@ -141,6 +150,7 @@ describe.each(["ReaderView", "ArticleRenderer"])(
           renderer.setVideoTags(tags);
         },
         setFont: undefined,
+        setFormatFont: undefined,
         scroll: () => container,
       };
     }
@@ -325,6 +335,26 @@ describe.each(["ReaderView", "ArticleRenderer"])(
             ?.style.fontFamily,
         ).toBe("serif");
       }
+    });
+
+    it("applies the configured headline font to fetched content created after the font was set", async () => {
+      const harness = await setup();
+      if (!harness.setFormatFont) return;
+      harness.setFormatFont();
+      fetchMock.mockResolvedValueOnce(result("A"));
+      await harness.render(item("A"));
+      const font = () =>
+        harness.container.querySelector<HTMLElement>(".rss-reader-item-title")
+          ?.style.fontFamily;
+      const rssFont = font();
+      expect(rssFont).toContain("serif");
+      const toggle = findContentToggle(harness.container)!;
+      toggle.click();
+      expect(font()).toBe(rssFont);
+      toggle.click();
+      expect(font()).toBe(rssFont);
+      toggle.click();
+      expect(font()).toBe(rssFont);
     });
 
     it("clears a previous restricted notice after successful fetch without replacing RSS", async () => {
