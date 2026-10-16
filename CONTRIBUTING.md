@@ -197,6 +197,7 @@ npm run lint                   # Check for style violations
 npx tsc -noEmit               # Type check without emitting files
 npm run check:platform        # Platform compatibility check
 npm run check:important       # CSS !important declarations check
+npm run check:icons           # Every icon id in src is carried by the test stub
 npm run check:test-types      # Type check the tests against the Obsidian stub
 npm run check:doc-links       # Relative links in Markdown resolve
 npm run format:check          # Prettier formatting of the whole repository
