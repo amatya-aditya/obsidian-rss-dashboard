@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App, TFile } from "obsidian";
-import type { ArticleSavingSettings, FeedItem } from "../../../src/types/types";
+import type {
+  ArticleSavingSettings,
+  FeedItem,
+  SaveVersion,
+} from "../../../src/types/types";
 import {
   ArticleSaver,
   sanitizeFilename,
@@ -2022,5 +2026,224 @@ describe("ArticleSaver.{{image}} template variable", () => {
     if (!file) return;
     const written = await app.vault.read(file);
     expect(written).toBe(coverImageUrl);
+  });
+});
+
+describe("ArticleSaver - YouTube embeds in saved notes (#1168)", () => {
+  const videoId = "z9TFdTqkbPk";
+  const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  const embedLine = `![](${watchUrl})`;
+  const watchLink = `[Watch on YouTube](${watchUrl})`;
+  const feedHtml = (src: string) =>
+    `<p>Before the video.</p><div class="video-wrap"><iframe src="${src}" allowfullscreen></iframe></div><p>After the video.</p>`;
+  const youtubeSrc = `https://www.youtube.com/embed/${videoId}`;
+
+  async function readSaved(
+    app: App,
+    file: TFile | null | undefined,
+  ): Promise<string> {
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    return app.vault.read(file);
+  }
+
+  function createSaver(app: App, saveVersion: SaveVersion): ArticleSaver {
+    return new ArticleSaver(
+      app,
+      createSettings({
+        defaultTemplate: "{{content}}",
+        includeFrontmatter: false,
+        saveVersion,
+      }),
+      "https://proxy/?url=",
+    );
+  }
+
+  it("saves the RSS version with the native embed and the plain watch link", async () => {
+    const app = App.createMock();
+    const saver = createSaver(app, "fetched");
+    const item = createItem({ content: feedHtml(youtubeSrc) });
+
+    const file = await saver.saveArticleWithContentPolicy(
+      item,
+      undefined,
+      undefined,
+      undefined,
+      { fetchAttempted: true },
+    );
+
+    const written = await readSaved(app, file);
+    expect(written).toContain(`\n\n${embedLine}\n\n${watchLink}\n\n`);
+    expect(written).toContain("Before the video.");
+    expect(written).toContain("After the video.");
+    expect(written).not.toContain("<iframe");
+  });
+
+  it("saves the embed when the Default save version is RSS content and the note keeps the feed HTML", async () => {
+    const app = App.createMock();
+    const saver = createSaver(app, "rss");
+    const item = createItem({ content: feedHtml(youtubeSrc) });
+
+    const written = await readSaved(app, await saver.saveArticle(item));
+
+    expect(written).toContain(`\n\n${embedLine}\n\n${watchLink}\n\n`);
+    expect(written).not.toContain("<iframe");
+    // The embed sits outside the HTML wrapper so Obsidian renders it as Markdown.
+    expect(written.indexOf("</div>")).toBeLessThan(written.indexOf(embedLine));
+  });
+
+  it("saves the embed with Fetched content selected when the page cannot be fetched", async () => {
+    const app = App.createMock();
+    const saver = createSaver(app, "fetched");
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({ content: "", failureType: "network" });
+    const item = createItem({ content: feedHtml(youtubeSrc) });
+
+    const written = await readSaved(
+      app,
+      await saver.saveArticleWithFullContent(item),
+    );
+
+    expect(written).toContain(`${embedLine}\n\n${watchLink}`);
+  });
+
+  it("does not carry a feed-only embed into a note saved from the fetched page", async () => {
+    const app = App.createMock();
+    const saver = createSaver(app, "fetched");
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content: "<p>Fetched article body with no player markup.</p>",
+      failureType: "none",
+    });
+    const item = createItem({ content: feedHtml(youtubeSrc) });
+
+    const written = await readSaved(
+      app,
+      await saver.saveArticleWithFullContent(item),
+    );
+
+    expect(written).toContain("Fetched article body with no player markup.");
+    expect(written).not.toContain("youtube.com");
+    expect(written).not.toContain("Watch on YouTube");
+  });
+
+  it.each([
+    ["another host", "https://evil.example/embed/AAAAAAAAAAA"],
+    ["a malformed ID", "https://www.youtube.com/embed/short"],
+    ["a non-https source", `http://www.youtube.com/embed/${videoId}`],
+  ])(
+    "still drops an iframe with %s in the RSS and HTML-note saves",
+    async (_name, src) => {
+      const app = App.createMock();
+      const item = createItem({ content: feedHtml(src) });
+
+      const rssWritten = await readSaved(
+        app,
+        await createSaver(app, "fetched").saveArticleWithContentPolicy(
+          item,
+          undefined,
+          undefined,
+          undefined,
+          { fetchAttempted: true },
+        ),
+      );
+      const noteWritten = await readSaved(
+        app,
+        await createSaver(app, "rss").saveArticle(
+          createItem({ content: feedHtml(src), guid: "guid-2" }),
+        ),
+      );
+
+      for (const written of [rssWritten, noteWritten]) {
+        expect(written).toContain("Before the video.");
+        expect(written).not.toContain("<iframe");
+        expect(written).not.toContain("Watch on YouTube");
+        expect(written).not.toContain("![](");
+      }
+    },
+  );
+});
+
+describe("ArticleSaver - static YouTube iframe in the fetched page (#1168)", () => {
+  const videoId = "z9TFdTqkbPk";
+  const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  const fetchedHtml = `<p>Fetched body.</p><iframe src="https://www.youtube-nocookie.com/embed/${videoId}"></iframe><p>More fetched body.</p>`;
+
+  function createSaver(app: App): ArticleSaver {
+    return new ArticleSaver(
+      app,
+      createSettings({
+        defaultTemplate: "{{content}}",
+        includeFrontmatter: false,
+        saveVersion: "fetched",
+      }),
+      "https://proxy/?url=",
+    );
+  }
+
+  // The Reader already shows a "Watch on YouTube" link for this iframe, so a save of
+  // the fetched version keeps the video the same way the page serves it.
+  it("keeps a recognized iframe that the fetched page itself serves", async () => {
+    const app = App.createMock();
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({ content: fetchedHtml, failureType: "none" });
+
+    const file =
+      await createSaver(app).saveArticleWithFullContent(createItem());
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+    expect(written).toContain(
+      `![](${watchUrl})\n\n[Watch on YouTube](${watchUrl})`,
+    );
+    expect(written).toContain("Fetched body.");
+    expect(written).toContain("More fetched body.");
+  });
+
+  it("keeps it when the Reader hands over the fetched HTML to save", async () => {
+    const app = App.createMock();
+
+    const file = await createSaver(app).saveArticleWithContentPolicy(
+      createItem(),
+      undefined,
+      undefined,
+      undefined,
+      { fetchAttempted: true, fetchedHtml },
+    );
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+    expect(written).toContain(`![](${watchUrl})`);
+    expect(written).toContain("[Watch on YouTube]");
+  });
+
+  it("drops a fetched-page iframe from another host", async () => {
+    const app = App.createMock();
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content:
+        '<p>Fetched body.</p><iframe src="https://evil.example/embed/AAAAAAAAAAA"></iframe>',
+      failureType: "none",
+    });
+
+    const file =
+      await createSaver(app).saveArticleWithFullContent(createItem());
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+    expect(written).toContain("Fetched body.");
+    expect(written).not.toContain("![](");
+    expect(written).not.toContain("Watch on YouTube");
   });
 });
