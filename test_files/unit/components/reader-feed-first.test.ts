@@ -31,9 +31,11 @@ function setup(
     onVersions: vi.fn(),
     fetch: () => Promise.resolve(result),
     persistMetadata: vi.fn(),
+    rememberOutcome: vi.fn(() => false),
     isCurrent: () => true,
     onSettled: vi.fn(),
     renderRestrictedBanner: vi.fn(),
+    renderFetchFailureBanner: vi.fn(),
     ...overrides,
   };
   return { parent, container, item, options };
@@ -98,6 +100,37 @@ describe("runFeedFirstDisplay", () => {
     expect(options.persistMetadata).toHaveBeenCalledTimes(1);
     expect(options.onSettled).not.toHaveBeenCalled();
     expect(findContentToggle(container)).toBeNull();
+  });
+
+  it("remembers a stale failure but shows no banner for it (#1110)", async () => {
+    const { options } = setup(
+      { content: "", failureType: "network", failureReason: "timeout" },
+      { isCurrent: () => false, rememberOutcome: vi.fn(() => true) },
+    );
+
+    await runFeedFirstDisplay(options);
+
+    expect(options.rememberOutcome).toHaveBeenCalledTimes(1);
+    expect(options.renderFetchFailureBanner).not.toHaveBeenCalled();
+  });
+
+  it("shows the failure banner only for a remembered failure (#1110)", async () => {
+    const network: FullArticleFetchResult = {
+      content: "",
+      failureType: "network",
+    };
+    const remembered = setup(network, {
+      rememberOutcome: vi.fn(() => true),
+    });
+    const forgotten = setup(network);
+
+    await runFeedFirstDisplay(remembered.options);
+    await runFeedFirstDisplay(forgotten.options);
+
+    expect(remembered.options.renderFetchFailureBanner).toHaveBeenCalledTimes(
+      1,
+    );
+    expect(forgotten.options.renderFetchFailureBanner).not.toHaveBeenCalled();
   });
 });
 

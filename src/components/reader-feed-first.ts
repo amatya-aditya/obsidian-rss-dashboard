@@ -27,10 +27,17 @@ export interface FeedFirstDisplayOptions {
   fetch: () => Promise<FullArticleFetchResult>;
   /** Runs for every settled fetch, even when the display went stale. */
   persistMetadata: (result: FullArticleFetchResult) => void;
+  /**
+   * Runs for every settled fetch, even when the display went stale, so a
+   * failure is remembered on its own item (#1110). True when one was recorded.
+   */
+  rememberOutcome: (result: FullArticleFetchResult) => boolean;
   isCurrent: () => boolean;
   /** Runs once the result is known to belong to the live display. */
   onSettled: (result: FullArticleFetchResult) => void;
   renderRestrictedBanner: () => void;
+  /** Shows the remembered-failure banner with Try again (#1110). */
+  renderFetchFailureBanner: () => void;
 }
 
 /**
@@ -62,6 +69,7 @@ export async function runFeedFirstDisplay(
   if (options.hasMeaningfulContent(result.content)) {
     options.persistMetadata(result);
   }
+  const remembered = options.rememberOutcome(result);
   if (!options.isCurrent() || !versions.isActive()) return null;
   fetchedContent = result.content;
   options.onSettled(result);
@@ -73,6 +81,8 @@ export async function runFeedFirstDisplay(
       item.restrictedReason = RESTRICTED_ARTICLE_REASON;
       if (!container.querySelector(".rss-reader-paywall-banner"))
         options.renderRestrictedBanner();
+    } else if (remembered) {
+      options.renderFetchFailureBanner();
     }
     versions.failed(result);
   }

@@ -30,6 +30,13 @@ import {
   RESTRICTED_ARTICLE_LINK_TEXT,
   RESTRICTED_ARTICLE_REASON,
 } from "../utils/full-article-fetch";
+import {
+  applyFetchOutcome,
+  type FullContentFetchFailure,
+  clearFetchFailure,
+  hasActiveFetchFailure,
+  renderFetchFailureBanner,
+} from "../utils/full-article-fetch-failure";
 import { isLikelyVideoItem } from "../utils/video-detection";
 import {
   normalizeSubstackImageUrl,
@@ -104,6 +111,7 @@ export class ArticleRenderer {
   private currentDisplayTitle?: string;
   private currentReaderTitle?: string;
   private currentContentIsFullArticle = false;
+  private renderRoot: HTMLElement | null = null;
   private currentFullContentFailureType: FullArticleFetchFailureType = "none";
 
   constructor(options: ArticleRendererOptions) {
@@ -130,6 +138,7 @@ export class ArticleRenderer {
     this.cancelPendingDisplay();
     const identity = this.displayIdentity;
     container.empty();
+    this.renderRoot = container;
     this.currentItem = item;
     this.relatedItems = relatedItems;
     this.currentDisplayTitle = undefined;
@@ -189,12 +198,18 @@ export class ArticleRenderer {
             result.content,
             result.pageMetadata,
           ),
+        // The failure belongs to the item too: remember it even after
+        // navigation so the next open does not stall on the same fetch (#1110).
+        rememberOutcome: (result) =>
+          this.rememberFetchOutcome(item, result) !== undefined,
         isCurrent: () => identity === this.displayIdentity,
         onSettled: (result) => {
           this.currentFullContentFailureType = result.failureType;
         },
         renderRestrictedBanner: () =>
           this.renderRestrictedBanner(container, item),
+        renderFetchFailureBanner: () =>
+          this.renderFetchFailureBanner(container, item),
       });
     }
   }
@@ -412,11 +427,46 @@ export class ArticleRenderer {
       );
     }
 
+    this.renderArticleBanners(container, item);
+  }
+
+  private renderArticleBanners(container: HTMLElement, item: FeedItem): void {
     if (item.restrictedReason) {
       this.renderRestrictedBanner(container, item);
     } else if (this.shouldRenderVideoSourceBanner(item)) {
       this.renderVideoSourceBanner(container, item);
     }
+    // Independent of the banners above: the fetch is skipped while a failure
+    // is remembered, so Try again must stay reachable (#1110).
+    if (hasActiveFetchFailure(item)) {
+      this.renderFetchFailureBanner(container, item);
+    }
+  }
+
+  /** Records or clears the item's remembered fetch failure (#1110). */
+  private rememberFetchOutcome(
+    item: FeedItem,
+    result: FullArticleFetchResult,
+  ): FullContentFetchFailure | undefined {
+    return applyFetchOutcome(item, result, (patch) =>
+      this.onArticleUpdate(item, patch, false),
+    );
+  }
+
+  /** Banner for an article whose full-content fetch failed earlier (#1110). */
+  private renderFetchFailureBanner(
+    container: HTMLElement,
+    item: FeedItem,
+  ): void {
+    // Captured now so a click on a stale banner cannot re-render another view.
+    const root = this.renderRoot;
+    renderFetchFailureBanner(container, item, () => {
+      if (!root?.isConnected || this.currentItem !== item) return;
+      clearFetchFailure(item, (patch) =>
+        this.onArticleUpdate(item, patch, false),
+      );
+      void this.render(root, item, this.relatedItems);
+    });
   }
 
   private renderRestrictedBanner(container: HTMLElement, item: FeedItem): void {
@@ -701,7 +751,11 @@ export class ArticleRenderer {
       );
       return result;
     } catch {
-      return { content: "", failureType: "network" };
+      return {
+        content: "",
+        failureType: "network",
+        failureReason: "unexpected",
+      };
     }
   }
 
@@ -735,6 +789,8 @@ export class ArticleRenderer {
   }
 
   private shouldSkipFullArticleFetch(item: FeedItem): boolean {
+    // A fetch that failed earlier waits for an explicit "Try again" (#1110).
+    if (hasActiveFetchFailure(item)) return true;
     if (this.isVideoMediaItem(item)) return true;
     return this.prefersFeedContent(item);
   }

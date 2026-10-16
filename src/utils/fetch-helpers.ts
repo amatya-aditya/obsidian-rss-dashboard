@@ -54,8 +54,11 @@ export type FullArticleFetchFailureType = "none" | "restricted" | "network";
 export interface FullArticleFetchResult {
   content: string;
   failureType: FullArticleFetchFailureType;
-  /** The shared direct-and-proxy deadline expired. */
-  failureReason?: "timeout";
+  /**
+   * "timeout": the shared direct-and-proxy deadline expired. "unexpected": the
+   * fetch threw, so the failure says nothing about the page (#1110).
+   */
+  failureReason?: "timeout" | "unexpected";
   /**
    * Raw signals from the fetched page (#247). Unresolved: callers resolve it
    * against their own feed context. Absent when no page was fetched or the

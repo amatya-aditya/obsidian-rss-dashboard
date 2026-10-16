@@ -85,7 +85,17 @@ describe.each(["ReaderView", "ArticleRenderer"])(
   (surface) => {
     async function setup() {
       const app = App.createMock();
+      // Metadata writes only: the remembered fetch failure (#1110) is asserted
+      // in the reader-view and article-renderer fetch-failure tests.
       const updates = vi.fn();
+      const recordMetadataUpdate = (
+        entry: FeedItem,
+        patch: Partial<FeedItem>,
+        rerender?: boolean,
+      ) => {
+        if (!("fullContentFetchFailure" in patch))
+          updates(entry, patch, rerender);
+      };
       const settings = {
         ...DEFAULT_SETTINGS,
         useWebViewer: false,
@@ -101,7 +111,7 @@ describe.each(["ReaderView", "ArticleRenderer"])(
             checkSavedFileExists: vi.fn().mockReturnValue(true),
           } as never,
           vi.fn(),
-          updates,
+          recordMetadataUpdate,
         );
         const container = createDiv();
         (view as unknown as { contentEl: HTMLElement }).contentEl = container;
@@ -117,7 +127,7 @@ describe.each(["ReaderView", "ArticleRenderer"])(
         component: new Component() as never,
         settings,
         onArticleSave: vi.fn(),
-        onArticleUpdate: updates,
+        onArticleUpdate: recordMetadataUpdate,
       });
       const container = createDiv();
       document.body.append(container);
@@ -403,6 +413,8 @@ describe.each(["ReaderView", "ArticleRenderer"])(
           false,
         );
         // A failed or metadata-free fetch must leave a later valid fetch able to write.
+        // A remembered network failure waits for "Try again" (#1110).
+        delete a.fullContentFetchFailure;
         fetchMock.mockResolvedValueOnce(result("A"));
         await harness.render(a);
         expect(a).toMatchObject(expectedMetadata("A"));

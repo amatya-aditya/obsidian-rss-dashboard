@@ -58,6 +58,13 @@ import {
   RESTRICTED_ARTICLE_LINK_TEXT,
   RESTRICTED_ARTICLE_REASON,
 } from "../utils/full-article-fetch";
+import {
+  applyFetchOutcome,
+  type FullContentFetchFailure,
+  clearFetchFailure,
+  hasActiveFetchFailure,
+  renderFetchFailureBanner,
+} from "../utils/full-article-fetch-failure";
 import { isLikelyVideoItem } from "../utils/video-detection";
 import {
   buildReaderImageTooltipText,
@@ -1420,11 +1427,19 @@ export class ReaderView extends ItemView {
         try {
           return await this.fetchFullArticleContent(link);
         } catch {
-          return { content: "", failureType: "network" };
+          return {
+            content: "",
+            failureType: "network",
+            failureReason: "unexpected",
+          };
         }
       },
       persistMetadata: (result) =>
         this.persistFetchedMetadata(item, result.content, result.pageMetadata),
+      // The failure belongs to the item too: remember it even after
+      // navigation so the next open does not stall on the same fetch (#1110).
+      rememberOutcome: (result) =>
+        this.rememberFetchOutcome(item, result) !== undefined,
       isCurrent: () => identity === this.displayIdentity,
       onSettled: (result) => {
         fetchedContent = result.content;
@@ -1435,6 +1450,7 @@ export class ReaderView extends ItemView {
           : undefined;
       },
       renderRestrictedBanner: () => this.renderRestrictedBanner(item),
+      renderFetchFailureBanner: () => this.renderFetchFailureBanner(item),
     });
     if (!versions) return;
     if (
@@ -1675,6 +1691,11 @@ export class ReaderView extends ItemView {
       return true;
     }
 
+    // A fetch that failed earlier waits for an explicit "Try again" (#1110).
+    if (hasActiveFetchFailure(item)) {
+      return true;
+    }
+
     if (this.isVideoMediaItem(item)) {
       return true;
     }
@@ -1859,6 +1880,42 @@ export class ReaderView extends ItemView {
     } else if (this.isStarredImportCachedPreview(item)) {
       this.renderStarredImportBanner(item, container);
     }
+    // Independent of the banners above: the fetch is skipped while a failure
+    // is remembered, so Try again must stay reachable (#1110).
+    if (hasActiveFetchFailure(item)) {
+      this.renderFetchFailureBanner(item, container);
+    }
+  }
+
+  /** Records or clears the item's remembered fetch failure (#1110). */
+  private rememberFetchOutcome(
+    item: FeedItem,
+    result: FullArticleFetchResult,
+  ): FullContentFetchFailure | undefined {
+    return applyFetchOutcome(item, result, (patch) =>
+      this.persistBackgroundUpdate(item, patch, false),
+    );
+  }
+
+  /** Banner for an article whose full-content fetch failed earlier (#1110). */
+  private renderFetchFailureBanner(
+    item: FeedItem,
+    container = this.readingContainer,
+  ): void {
+    renderFetchFailureBanner(container, item, () => {
+      void this.retryFullArticleFetch(item);
+    });
+  }
+
+  /** "Try again": forget the failure, then fetch the article again (#1110). */
+  private async retryFullArticleFetch(item: FeedItem): Promise<void> {
+    // Compare feed and guid: two feeds can carry the same guid.
+    const current = this.currentItem;
+    if (current?.guid !== item.guid || current.feedUrl !== item.feedUrl) return;
+    clearFetchFailure(item, (patch) =>
+      this.persistBackgroundUpdate(item, patch, false),
+    );
+    await this.displayItem(item, this.relatedItems);
   }
 
   /**
@@ -1945,6 +2002,11 @@ export class ReaderView extends ItemView {
     const shouldPersist = Boolean(item.starred || item.saved);
 
     if (result.content) {
+      if (item.fullContentFetchFailure) {
+        clearFetchFailure(item, (patch) =>
+          this.persistBackgroundUpdate(item, patch, false),
+        );
+      }
       item.content = result.content;
       item.starredImportContentState = undefined;
       if (shouldPersist) {
