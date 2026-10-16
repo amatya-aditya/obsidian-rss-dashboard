@@ -15,6 +15,7 @@ const MUTATION_TEST_FILES = new Set([
   "test_files/unit/main/feed-operation.characterization.test.ts",
   "test_files/unit/services/feed-refresh-scheduler.test.ts",
   "test_files/unit/services/feed-refresh-scheduler-pending.test.ts",
+  "test_files/unit/services/feed-operation-tracker.test.ts",
   "test_files/unit/services/article-saver.test.ts",
   "test_files/unit/services/article-saver.characterization.test.ts",
 ]);

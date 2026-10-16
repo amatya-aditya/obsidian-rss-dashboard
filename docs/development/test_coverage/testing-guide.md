@@ -130,7 +130,7 @@ the shared/isolated split match a normal test run:
 - Mutated: `src/services/feed-refresh-runner.ts`,
   `src/services/feed-refresh-scheduler.ts`,
   `src/services/feed-operation-tracker.ts`, and `src/services/article-saver.ts`.
-- Tests: the seven files selected in `vitest.mutation.config.mjs`.
+- Tests: the eight files selected in `vitest.mutation.config.mjs`.
 
 On a 16 GB / 16-core developer machine the full run takes roughly 45 minutes at
 `--concurrency 3`; raise or lower `--concurrency` to suit the machine. Treat the

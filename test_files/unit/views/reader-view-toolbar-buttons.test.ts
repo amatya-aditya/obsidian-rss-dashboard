@@ -120,7 +120,14 @@ describe("ReaderView toolbar icon buttons", () => {
       },
       vault: { getAbstractFileByPath: vi.fn() },
     };
-    settings = { ...DEFAULT_SETTINGS, useWebViewer: false };
+    // Own articleSaving: a bare spread shares the nested object, so the
+    // saveVersion switch below would leak into every later file in this
+    // worker and flip the module-wide default (#1184 regression).
+    settings = {
+      ...DEFAULT_SETTINGS,
+      useWebViewer: false,
+      articleSaving: { ...DEFAULT_SETTINGS.articleSaving },
+    };
     onArticleUpdate = vi.fn();
     view = new ReaderView(
       new MockLeaf(app) as never,
