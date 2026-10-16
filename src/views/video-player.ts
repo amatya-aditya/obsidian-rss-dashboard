@@ -1,7 +1,12 @@
-import { Notice, Setting } from "obsidian";
+import { Notice, Setting, setIcon } from "obsidian";
 import { renderReaderTagChips } from "../utils/reader-tag-chips";
 import { FeedItem, Tag } from "../types/types";
-import { MediaService } from "../services/media-service";
+import { youTubeWatchUrl } from "../utils/youtube-embed";
+import {
+  YOUTUBE_PLAYER_ALLOW,
+  YOUTUBE_PLAYER_REFERRER_POLICY,
+  youTubePlayerSourceUrl,
+} from "../utils/youtube-player-source";
 import { resolveDisplayDate } from "../services/feed-parser/feed-retention";
 
 interface YouTubeMessagePayload {
@@ -82,7 +87,6 @@ export class VideoPlayer {
 
   private render(): void {
     if (!this.currentItem || !this.currentItem.videoId) return;
-    const embed = MediaService.buildYouTubeEmbed(this.currentItem.videoId);
 
     this.container.empty();
     this.playerEl = this.container.createDiv({ cls: "rss-video-player" });
@@ -94,18 +98,56 @@ export class VideoPlayer {
 
     this.iframeEl = videoContainer.win.createEl("iframe");
     this.iframeEl.id = iframeId;
-    this.iframeEl.src = `${embed.embedUrl}&id=${iframeId}`;
-    this.iframeEl.setAttribute("allow", embed.allow);
-    this.iframeEl.setAttribute("referrerpolicy", embed.referrerPolicy);
+    // Obsidian's embed host from a non-https origin, the plain nocookie embed
+    // otherwise. The host is what makes desktop and iOS play; a direct embed
+    // from Obsidian's `app://` origin is refused by YouTube (#1173, #1178).
+    this.iframeEl.src = youTubePlayerSourceUrl(this.currentItem.videoId, {
+      autoplay: true,
+      startSeconds: this.resumeSeconds(),
+    });
+    this.iframeEl.setAttribute("allow", YOUTUBE_PLAYER_ALLOW);
+    this.iframeEl.setAttribute(
+      "referrerpolicy",
+      YOUTUBE_PLAYER_REFERRER_POLICY,
+    );
     this.iframeEl.allowFullscreen = true;
 
     videoContainer.appendChild(this.iframeEl);
+    this.renderWatchLink();
 
     this.initPlayer(iframeId);
 
     this.tags = this.currentItem.tags;
     this.renderDetails();
     this.renderRelatedVideos();
+  }
+
+  /**
+   * The saved resume position in seconds, or undefined when progress tracking
+   * is off or nothing was saved. Live progress events cannot reach the host
+   * player, so `start` is the only resume channel on that path.
+   */
+  private resumeSeconds(): number | undefined {
+    if (!this.progressTrackingEnabled) return undefined;
+    const position = this.currentItem?.playbackProgress?.position;
+    return position && position > 0 ? position : undefined;
+  }
+
+  /**
+   * The always-visible fallback, shown whether or not the player loads. The
+   * host is undocumented, so the link must work on its own.
+   */
+  private renderWatchLink(): void {
+    if (!this.playerEl || !this.currentItem?.videoId) return;
+    const link = this.playerEl.createEl("a", { cls: "rss-video-watch" });
+    link.href = youTubeWatchUrl(this.currentItem.videoId);
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    const icon = link.createSpan({ cls: "rss-video-watch-icon" });
+    setIcon(icon, "play");
+    link.appendChild(
+      this.playerEl.ownerDocument.createTextNode("Watch on YouTube"),
+    );
   }
 
   /**
@@ -202,6 +244,11 @@ export class VideoPlayer {
     }
   }
 
+  /**
+   * Listens for the YouTube IFrame API's `postMessage` events. The embed host
+   * nests the player in its own iframe, so on the live player these never
+   * arrive and nothing is saved; re-engineering this is #1236.
+   */
   private setupMessageListener(): void {
     this.messageHandler = (event: MessageEvent) => {
       if (
