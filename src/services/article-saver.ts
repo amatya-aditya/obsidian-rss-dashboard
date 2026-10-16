@@ -35,6 +35,7 @@ import {
   ARTICLE_SAVER_NOTE_STEPS,
 } from "./article-template/call-site-steps";
 import { firstNonFormulaImageUrl } from "../utils/image-url-utils";
+import { resolveAbsoluteHttpUrl } from "../utils/url-utils";
 import { escapeYamlDoubleQuoted } from "../utils/yaml-escape";
 import { ensureVaultFolder } from "../utils/vault-files";
 import { ONE_SAVE_OVERRIDE_TEMPLATE_ID } from "../utils/saved-template-utils";
@@ -176,18 +177,21 @@ export class ArticleSaver {
       .forEach((el) => el.remove());
   }
 
-  /** Makes a root-relative image source absolute so it still resolves in the vault. */
-  private absolutizeImageSources(doc: Document): void {
+  /**
+   * Makes a non-absolute image source absolute against the article URL, so it
+   * still resolves in the vault. The article URL, not Obsidian's own
+   * `app://…` origin, is the base a relative source belongs to (#1195).
+   */
+  private absolutizeImageSources(doc: Document, baseUrl: string): void {
+    if (!baseUrl) return;
+
     doc.querySelectorAll("img").forEach((img) => {
       const src = img.getAttribute("src");
-      if (
-        src &&
-        !src.startsWith("http") &&
-        !src.startsWith("data:") &&
-        src.startsWith("/")
-      ) {
-        const baseUrl = new URL(location.href);
-        img.setAttribute("src", `${baseUrl.origin}${src}`);
+      if (!src) return;
+
+      const resolved = resolveAbsoluteHttpUrl(src, baseUrl);
+      if (resolved && resolved !== src) {
+        img.setAttribute("src", resolved);
       }
     });
   }
@@ -198,13 +202,13 @@ export class ArticleSaver {
    * becomes the embed text and every other iframe is dropped, so the kept HTML
    * never carries one; the Markdown path handles that through the converter.
    */
-  private cleanHtml(html: string): string {
+  private cleanHtml(html: string, baseUrl: string): string {
     const doc = this.parseHtmlBody(html);
     if (!doc) return html;
 
     replaceYouTubeEmbedsInHtmlNote(doc);
     this.stripAdsAndNonContentNodes(doc);
-    this.absolutizeImageSources(doc);
+    this.absolutizeImageSources(doc, baseUrl);
 
     doc.querySelectorAll("img").forEach((img) => {
       if (!img.hasAttribute("alt")) {
@@ -229,12 +233,12 @@ export class ArticleSaver {
    * and relative-image fix-up as {@link cleanHtml}, but iframes stay for the
    * converter and the HTML-note-only link and table decorations are skipped.
    */
-  private sanitizeFeedHtmlForMarkdown(html: string): string {
+  private sanitizeFeedHtmlForMarkdown(html: string, baseUrl: string): string {
     const doc = this.parseHtmlBody(html);
     if (!doc) return html;
 
     this.stripAdsAndNonContentNodes(doc);
-    this.absolutizeImageSources(doc);
+    this.absolutizeImageSources(doc, baseUrl);
 
     return doc.body.innerHTML;
   }
@@ -387,7 +391,7 @@ guid: "{{guid}}"
    */
   private feedHtmlAsMarkdown(item: FeedItem): string {
     const feedHtml = this.getPreferredFeedHtml(item);
-    const sanitizedHtml = this.sanitizeFeedHtmlForMarkdown(feedHtml);
+    const sanitizedHtml = this.sanitizeFeedHtmlForMarkdown(feedHtml, item.link);
     const markdown = this.prependFallbackHeroMarkdown(
       item,
       articleHtmlToMarkdown(sanitizedHtml),
@@ -398,7 +402,10 @@ guid: "{{guid}}"
       return markdown;
     }
 
-    return this.prependFallbackHeroHtml(item, this.cleanHtml(feedHtml));
+    return this.prependFallbackHeroHtml(
+      item,
+      this.cleanHtml(feedHtml, item.link),
+    );
   }
 
   private normalizePath(path: string): string {
@@ -515,14 +522,18 @@ guid: "{{guid}}"
     savedTemplate?: SavedTemplate,
     notice: string = SAVE_FALLBACK_NOTICE.fetch,
   ): Promise<TFile | null> {
-    // Converted without the RSS-content path's ad stripping and relative-image
-    // fix-up; #1195 tracks closing that gap on this and the fetched path.
+    // Same ad stripping and relative-image fix-up as the RSS-content path, so
+    // the fallback and a fetched save match it (#1195).
     const feedContent = this.getPreferredFeedHtml(item);
+    const sanitizedHtml = this.sanitizeFeedHtmlForMarkdown(
+      feedContent,
+      item.link,
+    );
     const fallbackMarkdown = feedContent
-      ? articleHtmlToMarkdown(feedContent)
+      ? articleHtmlToMarkdown(sanitizedHtml)
       : "";
     const fallbackWithHero = fallbackMarkdown
-      ? this.prependFallbackHeroMarkdown(item, fallbackMarkdown, feedContent)
+      ? this.prependFallbackHeroMarkdown(item, fallbackMarkdown, sanitizedHtml)
       : "";
     const markedFallback = fallbackWithHero.trim()
       ? `${RSS_FALLBACK_MARKER}\n\n${fallbackWithHero}`
@@ -538,10 +549,11 @@ guid: "{{guid}}"
   }
 
   private convertFetchedHtmlToMarkdown(item: FeedItem, html: string): string {
+    const sanitizedHtml = this.sanitizeFeedHtmlForMarkdown(html, item.link);
     return this.prependFallbackHeroMarkdown(
       item,
-      articleHtmlToMarkdown(html),
-      html,
+      articleHtmlToMarkdown(sanitizedHtml),
+      sanitizedHtml,
     );
   }
 
