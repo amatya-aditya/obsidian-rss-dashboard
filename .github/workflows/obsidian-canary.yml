@@ -10,6 +10,12 @@ name: Obsidian stub drift canary
 # npm run build, or any pull-request check. It runs weekly and on demand, files
 # or updates a single `obsidian-update` issue when a pinned fact is gone
 # (DEC-006), and leaves ordinary pull-request checks untouched.
+#
+# Only drift files. A fact the release has gained, or one the baseline no
+# longer certifies, is informational in drift.md and files nothing, so a clean
+# weekly run opens no issue. A run that fails without a report means the check
+# never produced a finding, so nothing is filed and the run fails on its own
+# log instead — a download or tooling failure is never reported as drift.
 
 on:
   schedule:

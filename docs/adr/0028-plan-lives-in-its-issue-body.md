@@ -147,9 +147,8 @@ surfaces, and it buries the plan beneath whatever discussion follows.
 - `scripts/check-pre-release.mjs` fails a `status:` field under
   `docs/planning/`, requires `issues:` on every supporting document, and
   requires a program directory's `README.md` to declare the issues it serves.
-  The handful of documents awaiting migration are listed in
-  `PENDING_MIGRATION_PLANS`; that set must never grow, and each entry leaves with
-  its file.
+  The `PENDING_MIGRATION_PLANS` exemption this rule started with retired with
+  the last file it named (#1234), so the rule now has no exemption at all.
 - Where a plan's parent is a file, its derived tickets keep the base-commit pin
   they already carry. Where the parent is an issue body, the created ticket's
   own body is the record of what it was cut from, so no new pin mechanism is

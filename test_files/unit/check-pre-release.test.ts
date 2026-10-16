@@ -148,17 +148,6 @@ describe("findPlanningDocumentIssues", () => {
       expect.objectContaining({ filePath: "docs/planning/program/README.md" }),
     ]);
   });
-
-  it("lets a plan awaiting migration keep the retired convention's schema", () => {
-    expect(
-      findPlanningDocumentIssues([
-        {
-          filePath: "docs/planning/1063-stub-drift-check.md",
-          source: "---\nstatus: in-progress\nissue: ''\n---\n",
-        },
-      ]),
-    ).toEqual([]);
-  });
 });
 
 describe("releaseLineOf", () => {

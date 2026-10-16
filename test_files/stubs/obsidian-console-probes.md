@@ -36,6 +36,11 @@ install, and a weekly canary will run it and file one `obsidian-update` issue.
 The contract test (`obsidian.contract.test.ts`) is also app-free: it fails when
 the stub stops matching the recorded expectations.
 
+To confirm the check still detects drift, run it against a release older than
+the pin: one that still contains every certified fact exits 0, while one that
+predates a fact exits non-zero and names it (the recorded probe was `0.11.1`,
+which lacked four of them at the time).
+
 The **device-required** half is this step: it re-runs the whole probe library
 and diffs each driver's output against the records below, observing real
 Obsidian desktop, which CI has no way to run. The app-free half only proves the
