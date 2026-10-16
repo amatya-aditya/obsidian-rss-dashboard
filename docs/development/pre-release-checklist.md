@@ -116,7 +116,10 @@ which would false-positive on ordinary WIP if automated into
       `OBSIDIAN_REFERENCE_VERSION` in `test_files/stubs/obsidian.ts`, update the
       baseline (`npm run check:stub-drift -- --update-baseline`), and record the
       outcome on the issue. The behavioral probe needs a device; the app-free
-      `check:stub-drift` does not.
+      `check:stub-drift` does not. This rule stays manual deliberately:
+      asserting it in `check:pre-release` would need a network call to the
+      GitHub issues API, which the offline compliance gate does not make
+      (#1063).
 - [ ] The build also passes in a copy with no `.git` folder, which is how the
       community directory scanner builds: `git archive HEAD | tar -x -C <empty
 folder>`, then `npm ci && npm run build` there. Compliance scripts that

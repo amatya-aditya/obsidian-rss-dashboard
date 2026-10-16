@@ -40,14 +40,6 @@ const PLANNING_EXEMPT_FILENAME =
   /^(README\.md|public-roadmap\.md|release-v[\d.]+-roadmap\.md)$/;
 const PLANNING_DRAFT_FILENAME = /^draft-\d{8}-[a-z0-9-]+\.md$/;
 
-// Plans written under the retired convention, still carrying its `status:`
-// field. Each one leaves this set with its file, once the content it alone
-// holds has moved into the issue body (see the migration issues on #1156).
-// This set must never grow: an addition is a regression, not an exemption.
-const PENDING_MIGRATION_PLANS = new Set([
-  "docs/planning/1063-stub-drift-check.md",
-]);
-
 export function findStrayFiles(filePaths) {
   return filePaths.filter((filePath) =>
     STRAY_FILE_PATTERNS.some((pattern) => pattern.test(basename(filePath))),
@@ -153,10 +145,6 @@ export function findPlanningDocumentIssues(planningFiles) {
   const programDirectories = new Set();
 
   for (const { filePath, source } of planningFiles) {
-    if (PENDING_MIGRATION_PLANS.has(filePath)) {
-      continue;
-    }
-
     if (/^status:/m.test(extractFrontmatter(source))) {
       issues.push({
         filePath,

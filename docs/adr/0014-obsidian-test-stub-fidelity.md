@@ -11,8 +11,10 @@ accepted
 ## Date
 
 2026-09-25. Amended 2026-10-12: the behavioral drift check is a local, manual
-step; 2026-10-13: an app-free canary complements it (see _Amendments,
-2026-10-12_ and _2026-10-13_).
+step; 2026-10-13: an app-free canary complements it; 2026-10-16: the canary's
+design record moved out of a plan file and into the script header, this ADR,
+and the probe ledger (see _Amendments, 2026-10-12_, _2026-10-13_ and
+_2026-10-16_).
 
 ## Context and problem
 
@@ -102,6 +104,41 @@ It detects a _removed_ string only, so it never re-observes behavior, and the
 probe library above stays the check that confirms what the stub imitates. The
 reference pin and the baseline still move only after a probe session and a green
 contract test.
+
+### Amendment, 2026-10-16
+
+The canary's plan file retired
+([#1234](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1234)):
+a document that serves exactly one issue does not earn a file, and this one's
+issue closed before its own verification ran. Its design record now lives in
+`scripts/check-stub-drift.mjs`'s header, in this amendment, and in the probe
+ledger, per [ADR 0028](0028-plan-lives-in-its-issue-body.md). What moves here is
+what no other record held:
+
+- **The baseline is the single record of the certified release** (DEC-005).
+  `test_files/stubs/obsidian-baseline.json` carries the release and its facts;
+  nothing else asserts which release the stub's pinned strings were confirmed
+  against.
+- **The `ENOENT`/`EPERM` message shapes stay out of the catalog, on evidence.**
+  Node builds those messages from `fs` at run time, so a full-file scan of the
+  1.14.4 asar finds `no such file or directory` and `operation not permitted`
+  zero times: no release artifact can confirm them, and they remain with the
+  contract test and the device probe.
+- **No Obsidian-derived source enters the repository.** The baseline carries
+  fact ids, match strings, and source file names only; nothing under
+  `test_files/` or `scripts/` reproduces Obsidian's own code. This is a review
+  obligation, not an automated check.
+- **The one dependency is read-only and app-free.** `@electron/asar` (MIT) reads
+  the archive, and it is a devDependency, so `THIRD-PARTY.md` needs no entry and
+  `npm audit --audit-level=high` reports no new advisory. Its `glob@13`
+  dependency sets an `engines` floor of Node >= 22.12, above the repository's
+  `engines.node` (>= 20.19); `.nvmrc` (22) and CI satisfy it, and only
+  `check:stub-drift` needs the package. `@electron/asar@3.x` avoids that floor
+  only by pulling the deprecated `glob@7`.
+
+The release-cut rule that acts on the canary's findings stays manual, and the
+reason is recorded with the rule in
+`docs/development/pre-release-checklist.md`.
 
 ## Consequences
 
