@@ -11,6 +11,7 @@ import {
   ensureUtf8Meta,
 } from "./platform-utils";
 import { resolveProxyPrefixes } from "./proxy-utils";
+import { stripAdContainers } from "./ad-containers";
 
 /** Markers that indicate the page is a WAF/bot-challenge block rather than real content. */
 const BLOCKED_MARKERS = [
@@ -227,6 +228,10 @@ function parsePageDocument(html: string, pageUrl: string): Document {
     "text/html",
   );
 
+  // Readability strips class attributes, so its output no longer carries the
+  // classes the ad selectors match. Drop the containers while the raw page
+  // still has them (#1195).
+  stripAdContainers(doc);
   resolveRelativeUrlsForReadability(doc, pageUrl);
 
   return doc;
