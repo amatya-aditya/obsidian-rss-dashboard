@@ -30,8 +30,8 @@ group.
 
 ## Decision
 
-On a preferences import — both the [Replacing import](../../GLOSSARY.md#import-and-export)
-and the [Overwriting import](../../GLOSSARY.md#import-and-export) — merge each
+On a preferences import — both the [Replacing import](../../CONTEXT.md#storage)
+and the [Overwriting import](../../CONTEXT.md#storage) — merge each
 affected nested settings group one level deep: the current group's keys first,
 then the imported group's keys. A key the file omits keeps its current value; an
 array the file carries replaces the current array wholesale. The affected groups
@@ -40,7 +40,7 @@ are `articleSaving`, `media`, `readerFormat`, `highlights` and `articleFilter`.
 Each group's legacy migration runs on the _imported_ group before the merge, so
 an imported legacy key is not masked by the current group's modern value — for
 example an imported `articleSaving.saveFullContent: false` still means
-[RSS content](../../GLOSSARY.md#language) even when the current setting is
+[RSS content](../../CONTEXT.md#reader-view) even when the current setting is
 Fetched content.
 
 The four groups already repaired after import keep that behaviour for now. The
@@ -106,4 +106,4 @@ where both sides are available, and is one rule across the affected groups.
 
 - [GitHub Issue #1191](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1191) — the reported defect
 - [GitHub Issue #1214](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1214) — the settings bundle import has the same shallow merge and needs its own decision
-- [Domain glossary](../../GLOSSARY.md#import-and-export)
+- [Domain glossary](../../CONTEXT.md#storage)
