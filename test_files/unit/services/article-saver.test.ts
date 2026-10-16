@@ -2796,3 +2796,107 @@ describe("ArticleSaver RSS-content saves write Markdown (#1190)", () => {
     );
   });
 });
+
+describe("ArticleSaver mixed image and caption anchors (#1200)", () => {
+  const target = "https://example.com/story";
+  const imageUrl = "https://example.com/photo.png";
+  const anchor = `<p><a href="${target}"><img src="${imageUrl}" alt="Photo" />Caption</a></p>`;
+  const expected = `[![Photo](${imageUrl})](${target}) Caption`;
+
+  async function readWritten(file: TFile | null, app: App): Promise<string> {
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    return app.vault.read(file);
+  }
+
+  it("keeps the image and the caption on the fetched-content save path", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(
+      app,
+      createSettings({
+        defaultTemplate: "{{content}}",
+        includeFrontmatter: false,
+        saveVersion: "fetched",
+      }),
+      "https://proxy/?url=",
+    );
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({ content: anchor, failureType: "none" });
+
+    const file = await saver.saveArticleWithFullContent(createItem());
+
+    expect(await readWritten(file, app)).toContain(expected);
+  });
+
+  it("keeps the image and the caption on the fetch-failure RSS fallback path", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(
+      app,
+      createSettings({
+        defaultTemplate: "{{content}}",
+        includeFrontmatter: false,
+        saveVersion: "fetched",
+      }),
+      "https://proxy/?url=",
+    );
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({ content: "", failureType: "network" });
+
+    const file = await saver.saveArticleWithFullContent(
+      createItem({ content: anchor }),
+    );
+
+    const written = await readWritten(file, app);
+    expect(written).toContain(expected);
+  });
+
+  it("keeps the image and the caption on the RSS-content save path", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(
+      app,
+      createSettings({
+        defaultTemplate: "{{content}}",
+        includeFrontmatter: false,
+        saveVersion: "rss",
+      }),
+    );
+
+    const file = await saver.saveArticle(createItem({ content: anchor }));
+
+    expect(await readWritten(file, app)).toContain(expected);
+  });
+
+  it("decodes a Substack image-fetch href on an anchor that wraps an image and a caption", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(
+      app,
+      createSettings({
+        defaultTemplate: "{{content}}",
+        includeFrontmatter: false,
+        saveVersion: "fetched",
+      }),
+      "https://proxy/?url=",
+    );
+    const rawSubstackLink =
+      "https://substackcdn.com/image/fetch/$s_!GtED!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F108fc67d-1f88-4d55-bb47-e44613e67b2a_1632x656.png";
+    const decodedImageUrl =
+      "https://substack-post-media.s3.amazonaws.com/public/images/108fc67d-1f88-4d55-bb47-e44613e67b2a_1632x656.png";
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content: `<figure><a href="${rawSubstackLink}"><img src="${decodedImageUrl}" alt="Photo" />Caption</a></figure>`,
+      failureType: "none",
+    });
+
+    const file = await saver.saveArticleWithFullContent(createItem());
+
+    expect(await readWritten(file, app)).toContain(
+      `[![Photo](${decodedImageUrl})](${decodedImageUrl}) Caption`,
+    );
+  });
+});
