@@ -239,7 +239,7 @@ export class PodcastPlayer {
 
     this.renderAudioElement(podcastContainer);
 
-    // --- NEW TWO-ROW LAYOUT STRUCTURE ---
+    // Two-row layout: main controls row, then progress area
     this.playerEl = podcastContainer.createDiv({
       cls: "podcast-player-main-layout",
     });
@@ -293,7 +293,7 @@ export class PodcastPlayer {
 
   private renderInfoSection(mainControlsRow: HTMLElement): void {
     if (!this.currentItem) return;
-    // 1.1 Left: Thumbnail & Info
+    // Left: thumbnail and info
     const infoSection = mainControlsRow.createDiv({
       cls: "podcast-info-section",
     });
@@ -326,7 +326,7 @@ export class PodcastPlayer {
       text: `${this.currentItem.feedTitle}${itemAuthorText(this.currentItem) ? " - " + itemAuthorText(this.currentItem) : ""}`,
     });
 
-    // 1.1.5 Tags Section
+    // Tags section
     this.renderTagStrip(infoSection, this.currentItem.tags);
   }
 
@@ -334,7 +334,7 @@ export class PodcastPlayer {
     mainControlsRow: HTMLElement,
     podcastContainer: HTMLElement,
   ): void {
-    // 1.2 Center: Transport Controls
+    // Center: transport controls
     const transportSection = mainControlsRow.createDiv({
       cls: "podcast-transport-section",
     });
@@ -472,7 +472,7 @@ export class PodcastPlayer {
   }
 
   private renderToolsSection(mainControlsRow: HTMLElement): void {
-    // 1.3 Right: Tools (Speed & Volume)
+    // Right: tools (speed and volume)
     const toolsSection = mainControlsRow.createDiv({
       cls: "podcast-tools-section",
     });
@@ -621,7 +621,7 @@ export class PodcastPlayer {
 
   private renderProgressArea(): void {
     if (!this.playerEl) return;
-    // ROW 2: Progress Area
+    // Row 2: progress area
     const progressArea = this.playerEl.createDiv({
       cls: "podcast-progress-area",
     });
