@@ -176,6 +176,20 @@
       "mediaType": "article"
     },
     {
+      "title": "Article with a table for Markdown checks",
+      "link": "https://example.com/rss-dashboard-fixture/rss-tech/16",
+      "description": "<p>Cipher shows rapid finds amber useful sample ribbon draft mirror careful orbit tests. Fixture quarry checks gentle folder careful gentle fixture shows binder reader reader checks. Crescent tangent amber thread metric pebble engine shows. Meadow marks pixel tangent field garden reads reads draft granite copper notebook cipher field compass.</p>",
+      "content": "<p>Cipher shows rapid finds amber useful sample ribbon draft mirror careful orbit tests. Fixture quarry checks gentle folder careful gentle fixture shows binder reader reader checks. Crescent tangent amber thread metric pebble engine shows. Meadow marks pixel tangent field garden reads reads draft granite copper notebook cipher field compass.</p>\n<table>\n<thead><tr><th colspan=\"2\">Quarterly figures</th><th align=\"right\">Total</th></tr></thead>\n<tbody>\n<tr><td>North</td><td>Notes with a | pipe</td><td>12</td></tr>\n<tr><td>South<ul><li>Alpha</li><li>Beta</li></ul></td><td><p>Two</p><p>paragraphs</p></td><td>34</td></tr>\n</tbody>\n</table>\n<p>Archive tangent clover tests index radar outline gentle tangent. Zephyr sorts tangent gentle patient curious sorts tangent. Rapid shows metric notebook meadow brief keeps harbor opens pilot clover. Mirror tests channel sketch quill field window fixture radar garden builds finds moves bramble river.</p>",
+      "pubDate": "Sat, 29 Aug 2026 22:00:00 GMT",
+      "guid": "https://example.com/rss-dashboard-fixture/rss-tech/16",
+      "feedTitle": "GitHub Blog (fixture)",
+      "feedUrl": "https://github.blog/feed/",
+      "coverImage": "https://picsum.photos/seed/rss-fixture-rss-tech-16/800/450",
+      "summary": "Cipher shows rapid finds amber useful sample ribbon draft mirror careful orbit tests. Fixture quarry checks gentle folder careful gentle fixture shows binder reader reader checks. Crescent tangent amber thread metric pebble engine shows. Meadow marks pixel tangent field garden reads reads draft granite copper notebook cipher field compass.",
+      "author": "Fixture Author",
+      "mediaType": "article"
+    },
+    {
       "title": "Paywalled article showing only an excerpt",
       "link": "https://example.com/rss-dashboard-fixture/rss-tech/6",
       "description": "<p>Thread tests plain yarrow useful brief radar radar vector river reader cipher pixel. Index clover compass draft zephyr plain zephyr meadow archive table linen. Keeps sample cipher atlas atlas pixel simple marks binder notebook. Thread signal zephyr plain zephyr curious stanza tests opens marble copper keeps sample.</p>",

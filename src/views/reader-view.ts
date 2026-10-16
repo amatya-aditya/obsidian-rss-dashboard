@@ -133,6 +133,7 @@ import {
   addYouTubeEmbedTurndownRule,
   protectYouTubeEmbedsForMarkdown,
 } from "../utils/youtube-embed";
+import { addTableTurndownRule } from "../utils/table-markdown";
 
 const VIDEO_ARTICLE_BANNER =
   "This item appears to be a video. Open the source page to watch.";
@@ -290,6 +291,7 @@ export class ReaderView extends ItemView {
     this.onArticleUpdate = onArticleUpdate;
     this.onPlaybackProgress = options?.onPlaybackProgress;
     addMathTurndownRule(this.turndownService);
+    addTableTurndownRule(this.turndownService);
     addYouTubeEmbedTurndownRule(this.turndownService);
 
     this.scope = new Scope(this.app.scope);

@@ -21,6 +21,7 @@ import {
   TEMPLATE_DIR,
 } from "../../../scripts/generate-fixture-vault.mjs";
 import { convertStorage } from "../../../scripts/setup-fixture-vault.mjs";
+import { articleHtmlToMarkdown } from "../../../src/utils/article-markdown";
 
 // Loads the committed fixture vault through the plugin's real startup path
 // (loadSettings: bootstrap pointer, vault metadata, shard hydration, and
@@ -34,7 +35,7 @@ const SHARD_FOLDER = "rss-dashboard-data/feeds";
 // The seeded scenario counts documented in docs/development/fixture-vault.md.
 const EXPECTED = {
   feeds: 12,
-  articles: 161,
+  articles: 162,
   read: 48,
   starred: 9,
   tagged: 9,
@@ -322,6 +323,24 @@ describe("Fixture vault template", () => {
     expect(parserCover(sizedPhoto)).toBe(sizedPhoto.coverImage);
     expect(cardImage(sizedPhoto)).toBe(sizedPhoto.coverImage);
     expect(feedImage(sizedPhoto)).toBe(sizedPhoto.coverImage);
+  });
+
+  it("seeds the #1193 table article, whose body converts to a pipe table", async () => {
+    const { plugin } = await loadVault(TEMPLATE_DIR);
+    const article = allArticles(plugin).find(
+      (item) => item.title === "Article with a table for Markdown checks",
+    );
+    if (!article) throw new Error("Seeded table article not found");
+
+    const markdown = articleHtmlToMarkdown(article.content ?? "");
+
+    expect(markdown).toContain(
+      "| Quarterly figures |  | Total |\n| --- | --- | ---: |",
+    );
+    expect(markdown).toContain("| North | Notes with a \\| pipe | 12 |");
+    expect(markdown).toContain(
+      "| South<br>*   Alpha<br>*   Beta | Two<br>paragraphs | 34 |",
+    );
   });
 
   it("does not rewrite its article shards when the plugin loads it", async () => {
