@@ -13,6 +13,29 @@ import {
 } from "./youtube-embed";
 
 /**
+ * Keeps an anchor's image(s) as its content and moves the text label after the
+ * anchor, so a link that wraps an image and a caption converts to
+ * `[![alt](src)](href) Caption` rather than flattening to `[Caption](href)` and
+ * dropping the image (#1200). `finalHref` is already normalized.
+ */
+function keepLinkedImageWithCaption(
+  link: Element,
+  doc: Document,
+  label: string,
+  finalHref: string,
+): void {
+  const images = Array.from(link.querySelectorAll("img"));
+  link.textContent = "";
+  images.forEach((image) => link.appendChild(image));
+
+  if (finalHref) {
+    link.setAttribute("href", finalHref);
+  }
+
+  link.after(doc.createTextNode(` ${label}`));
+}
+
+/**
  * Rewrites a link that wraps block content or an image so Turndown renders its
  * label (or unwraps the image) instead of collapsing the whole link.
  */
@@ -35,6 +58,16 @@ function normalizeBlockLinksForMarkdown(html: string): string {
 
       const label = (link.textContent || "").replace(/\s+/g, " ").trim();
       if (label) {
+        if (hasInlineImage) {
+          keepLinkedImageWithCaption(
+            link,
+            doc,
+            label,
+            href ? normalizeSubstackImageUrl(href) : "",
+          );
+          return;
+        }
+
         link.textContent = label;
         return;
       }
