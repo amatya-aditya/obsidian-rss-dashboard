@@ -229,7 +229,10 @@ export class RssDashboardView extends ItemView {
     }
     this.saver = new ArticleSaver(
       this.app,
-      this.settings.articleSaving,
+      // Read the live group at each save: a settings reload replaces
+      // `plugin.settings` (and its `articleSaving` group), and this view's own
+      // `settings` snapshot only follows it on refresh.
+      () => this.plugin.settings.articleSaving,
       this.settings.corsProxyEnabled ? this.settings.corsProxyUrl : undefined,
       () => this.settings.useFirstSeenDateFallback,
       () => this.settings.feeds,

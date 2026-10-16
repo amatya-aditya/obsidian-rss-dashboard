@@ -123,7 +123,12 @@ export function findAvailableArticlePath(
 
 export class ArticleSaver {
   private app: App;
-  private settings: ArticleSavingSettings;
+  /**
+   * Resolves the Article Saving group at each read, so replacing the group (a
+   * settings reload, import, or reset) reaches this saver instead of leaving
+   * it on a snapshot of the group from when it was constructed.
+   */
+  private readonly settingsProvider: () => ArticleSavingSettings;
   private corsProxyUrl: string | undefined;
   private getUseFirstSeenDateFallback: () => boolean;
   /** The feeds, for an item's feed-level language (#246). */
@@ -131,16 +136,21 @@ export class ArticleSaver {
 
   constructor(
     app: App,
-    settings: ArticleSavingSettings,
+    settings: ArticleSavingSettings | (() => ArticleSavingSettings),
     corsProxyUrl?: string,
     getUseFirstSeenDateFallback: () => boolean = () => false,
     getFeeds: () => readonly Feed[] = () => [],
   ) {
     this.app = app;
-    this.settings = settings;
+    this.settingsProvider =
+      typeof settings === "function" ? settings : () => settings;
     this.corsProxyUrl = corsProxyUrl;
     this.getUseFirstSeenDateFallback = getUseFirstSeenDateFallback;
     this.getFeeds = getFeeds;
+  }
+
+  private get settings(): ArticleSavingSettings {
+    return this.settingsProvider();
   }
 
   private parseHtmlBody(html: string): Document | null {
