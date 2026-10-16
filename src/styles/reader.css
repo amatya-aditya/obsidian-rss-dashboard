@@ -521,6 +521,36 @@
   background-color: transparent;
   font-size: inherit;
 }
+/* A feed keeps its `<table>` markup through rich sanitizing, but the Reader's
+   content container is not Obsidian's markdown-rendered surface, so Obsidian's
+   table styles never reached it: no borders and no padding, which left the
+   columns reading as loose runs of text. Give feed tables the same shape a
+   saved note's Reading view gets. */
+.rss-reader-article-content table,
+.rss-reader-description-body table {
+  border-collapse: collapse;
+  max-width: 100%;
+  margin: 1em 0;
+  /* The container inherits the justify setting; justifying a cell stretches it
+     into uneven gaps, so table text stays left-aligned. Set on the table only:
+     a cell's own `align` attribute is a presentational hint, which loses to a
+     declaration here but still beats an inherited value, so a feed's
+     `align="right"` cell keeps its alignment. */
+  text-align: left;
+}
+.rss-reader-article-content th,
+.rss-reader-article-content td,
+.rss-reader-description-body th,
+.rss-reader-description-body td {
+  border: 1px solid var(--background-modifier-border);
+  padding: 0.4em 0.75em;
+  vertical-align: top;
+}
+.rss-reader-article-content thead th,
+.rss-reader-description-body thead th {
+  background-color: var(--background-secondary);
+  font-weight: 600;
+}
 
 .rss-reader-responsive-img {
   max-width: 100%;
