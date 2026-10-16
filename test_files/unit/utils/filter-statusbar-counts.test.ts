@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import {
   DEFAULT_SETTINGS,
+  type Feed,
   type FeedItem,
   type RssDashboardSettings,
 } from "../../../src/types/types";
@@ -108,7 +109,7 @@ interface TestView {
     total: number;
   };
   renderFilterSubheader?: (container: HTMLElement) => void;
-  syncArticleListAfterUpdate?: (article: FeedItem) => void;
+  syncArticleListAfterUpdate?: (article: FeedItem, feed: Feed) => void;
 }
 
 function makeItem(overrides: Partial<FeedItem>): FeedItem {
@@ -312,13 +313,20 @@ describe("Filter Status Bar counts (TDD)", () => {
     };
 
     const article = makeItem({ read: false, guid: "sync-1" });
+    const feed: Feed = {
+      title: "Fixture",
+      url: article.feedUrl,
+      folder: "",
+      items: [article],
+      lastUpdated: 0,
+    };
 
-    view.syncArticleListAfterUpdate!(article);
+    view.syncArticleListAfterUpdate!(article, feed);
     expect(view.articleList.updateArticleInPlace).toHaveBeenCalledTimes(1);
     expect(view.refreshFilterStatusBarOnly).toHaveBeenCalledTimes(1);
 
     article.read = true;
-    view.syncArticleListAfterUpdate!(article);
+    view.syncArticleListAfterUpdate!(article, feed);
     expect(view.articleList.removeArticleInPlace).toHaveBeenCalledWith(
       "sync-1",
       article.feedUrl,
