@@ -19,17 +19,13 @@ import {
   type FullArticleFetchFailureType,
   type FullArticleFetchResult,
 } from "../utils/fetch-helpers";
-import { type RawArticleMetadata } from "../utils/article-metadata";
 import {
-  applyArticleMetadata,
-  feedLanguageFor,
-} from "../utils/article-metadata-persistence";
-import {
-  fetchFullArticleContentWithOutcome,
-  RESTRICTED_ARTICLE_BANNER,
-  RESTRICTED_ARTICLE_LINK_TEXT,
-  RESTRICTED_ARTICLE_REASON,
-} from "../utils/full-article-fetch";
+  persistFetchedMetadata,
+  renderRestrictedBanner,
+  renderVideoSourceBanner,
+  shouldRenderVideoSourceBanner,
+} from "../utils/reader-article-fetch";
+import { fetchFullArticleContentWithOutcome } from "../utils/full-article-fetch";
 import {
   applyFetchOutcome,
   type FullContentFetchFailure,
@@ -65,10 +61,6 @@ import {
 import { applyReaderImageLoading } from "../utils/reader-image-loading";
 import { PodcastPlayer } from "../views/podcast-player";
 import { VideoPlayer } from "../views/video-player";
-
-const VIDEO_ARTICLE_BANNER =
-  "This item appears to be a video. Open the source page to watch.";
-const VIDEO_ARTICLE_LINK_TEXT = "Open video at source";
 
 export interface ArticleRendererOptions {
   app: App;
@@ -202,10 +194,12 @@ export class ArticleRenderer {
         },
         fetch: () => this.fetchFullArticleContent(item.link),
         persistMetadata: (result) =>
-          this.persistFetchedMetadata(
+          persistFetchedMetadata(
             item,
             result.content,
             result.pageMetadata,
+            this.settings.feeds,
+            (update) => this.onArticleUpdate(item, update, false),
           ),
         // The failure belongs to the item too: remember it even after
         // navigation so the next open does not stall on the same fetch (#1110).
@@ -215,8 +209,7 @@ export class ArticleRenderer {
         onSettled: (result) => {
           this.currentFullContentFailureType = result.failureType;
         },
-        renderRestrictedBanner: () =>
-          this.renderRestrictedBanner(container, item),
+        renderRestrictedBanner: () => renderRestrictedBanner(container, item),
         renderFetchFailureBanner: () =>
           this.renderFetchFailureBanner(container, item),
       });
@@ -441,9 +434,9 @@ export class ArticleRenderer {
 
   private renderArticleBanners(container: HTMLElement, item: FeedItem): void {
     if (item.restrictedReason) {
-      this.renderRestrictedBanner(container, item);
-    } else if (this.shouldRenderVideoSourceBanner(item)) {
-      this.renderVideoSourceBanner(container, item);
+      renderRestrictedBanner(container, item);
+    } else if (shouldRenderVideoSourceBanner(item)) {
+      renderVideoSourceBanner(container, item);
     }
     // Independent of the banners above: the fetch is skipped while a failure
     // is remembered, so Try again must stay reachable (#1110).
@@ -476,62 +469,6 @@ export class ArticleRenderer {
       );
       void this.render(root, item, this.relatedItems);
     });
-  }
-
-  private renderRestrictedBanner(container: HTMLElement, item: FeedItem): void {
-    const banner = container.createDiv({
-      cls: "rss-reader-inline-banner rss-reader-paywall-banner",
-    });
-    const message = banner.createDiv({
-      cls: "rss-reader-paywall-banner-text",
-    });
-    message.setText(
-      item.restrictedReason === RESTRICTED_ARTICLE_REASON
-        ? RESTRICTED_ARTICLE_BANNER
-        : (item.restrictedReason ?? RESTRICTED_ARTICLE_BANNER),
-    );
-
-    if (!item.link) {
-      return;
-    }
-
-    const link = banner.createEl("a", {
-      cls: "rss-reader-paywall-banner-link",
-      text: RESTRICTED_ARTICLE_LINK_TEXT,
-      href: item.link,
-    });
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-  }
-
-  private shouldRenderVideoSourceBanner(item: FeedItem): boolean {
-    return isLikelyVideoItem(item) && !item.videoId && !item.videoUrl;
-  }
-
-  private renderVideoSourceBanner(
-    container: HTMLElement,
-    item: FeedItem,
-  ): void {
-    const banner = container.createDiv({
-      cls: "rss-reader-inline-banner rss-reader-video-banner",
-    });
-    const message = banner.createDiv({
-      cls: "rss-reader-video-banner-text",
-      text: VIDEO_ARTICLE_BANNER,
-    });
-    message.setAttr("role", "note");
-
-    if (!item.link) {
-      return;
-    }
-
-    const link = banner.createEl("a", {
-      cls: "rss-reader-video-banner-link",
-      text: VIDEO_ARTICLE_LINK_TEXT,
-      href: item.link,
-    });
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
   }
 
   private populateArticleHtml(
@@ -752,22 +689,6 @@ export class ArticleRenderer {
         failureReason: "unexpected",
       };
     }
-  }
-
-  /** Writes the fetched page's resolved metadata once (#247 slice 4). */
-  private persistFetchedMetadata(
-    item: FeedItem,
-    articleHtml: string,
-    pageMetadata: RawArticleMetadata | undefined,
-  ): void {
-    const update = applyArticleMetadata(
-      item,
-      pageMetadata,
-      articleHtml,
-      undefined,
-      feedLanguageFor(this.settings.feeds, item),
-    );
-    if (update) this.onArticleUpdate(item, update, false);
   }
 
   private lastFullArticleFetchWasRestricted(): boolean {
