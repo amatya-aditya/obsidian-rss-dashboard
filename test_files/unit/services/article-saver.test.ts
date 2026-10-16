@@ -2333,7 +2333,7 @@ describe("ArticleSaver - YouTube embeds in saved notes (#1168)", () => {
     expect(written).not.toContain("<iframe");
   });
 
-  it("saves the embed when the Default save version is RSS content and the note keeps the feed HTML", async () => {
+  it("saves the embed when the Default save version is RSS content", async () => {
     const app = App.createMock();
     const saver = createSaver(app, "rss");
     const item = createItem({ content: feedHtml(youtubeSrc) });
@@ -2342,8 +2342,8 @@ describe("ArticleSaver - YouTube embeds in saved notes (#1168)", () => {
 
     expect(written).toContain(`\n\n${embedLine}\n\n${watchLink}\n\n`);
     expect(written).not.toContain("<iframe");
-    // The embed sits outside the HTML wrapper so Obsidian renders it as Markdown.
-    expect(written.indexOf("</div>")).toBeLessThan(written.indexOf(embedLine));
+    // The feed HTML becomes Markdown (#1190), so there is no wrapper left.
+    expect(written).not.toContain("<div");
   });
 
   it("saves the embed with Fetched content selected when the page cannot be fetched", async () => {
@@ -2690,6 +2690,109 @@ describe("ArticleSaver save notices (#1184)", () => {
     expect(notices()).toContain("Fetch failed; saved RSS content instead.");
     expect(notices()).not.toContain(
       `Article saved with fetched content. ${SAVED_TAIL}`,
+    );
+  });
+});
+
+describe("ArticleSaver RSS-content saves write Markdown (#1190)", () => {
+  const HERO = "https://img.example/hero.png";
+
+  function rssSaver(app: App): ArticleSaver {
+    return new ArticleSaver(
+      app,
+      createSettings({
+        defaultTemplate: "{{content}}",
+        includeFrontmatter: false,
+        saveVersion: "rss",
+      }),
+    );
+  }
+
+  async function saveRss(item: FeedItem): Promise<string> {
+    const app = App.createMock();
+    const file = await rssSaver(app).saveArticle(item);
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    return app.vault.read(file);
+  }
+
+  it("writes feed paragraphs as Markdown instead of the feed's HTML", async () => {
+    const written = await saveRss(
+      createItem({
+        content: "<p>Channel pilot ember anchor.</p><p>Second paragraph.</p>",
+      }),
+    );
+
+    expect(written).toBe("Channel pilot ember anchor.\n\nSecond paragraph.");
+    expect(written).not.toContain("<p>");
+  });
+
+  it("prepends the fallback hero as Markdown when the feed HTML has no image", async () => {
+    const written = await saveRss(
+      createItem({
+        content: "<p>Body without an image.</p>",
+        coverImage: HERO,
+      }),
+    );
+
+    expect(written).toBe(`![Hero image](${HERO})\n\nBody without an image.`);
+  });
+
+  it("keeps the feed HTML when a non-empty body would convert to nothing", async () => {
+    const written = await saveRss(
+      createItem({
+        content: '<video src="https://example.com/clip.mp4"></video>',
+      }),
+    );
+
+    expect(written).toContain('<video src="https://example.com/clip.mp4">');
+  });
+
+  it("keeps the legacy HTML hero with the feed HTML when conversion would be empty", async () => {
+    const written = await saveRss(
+      createItem({
+        content: '<video src="https://example.com/clip.mp4"></video>',
+        coverImage: HERO,
+      }),
+    );
+
+    expect(written).toContain(
+      `<p><img src="${HERO}" alt="Hero image" /></p><video src="https://example.com/clip.mp4">`,
+    );
+  });
+
+  it("matches the fetch-failure fallback's Markdown for the same feed HTML", async () => {
+    // Clean feed HTML: the RSS-content path also strips ad containers and
+    // absolutises relative image sources, a gap #1195 tracks for the fallback.
+    const content =
+      "<p>Channel pilot ember anchor.</p><p>Second paragraph.</p>";
+    const rssWritten = await saveRss(createItem({ content, guid: "guid-rss" }));
+
+    const app = App.createMock();
+    const saver = new ArticleSaver(
+      app,
+      createSettings({
+        defaultTemplate: "{{content}}",
+        includeFrontmatter: false,
+        saveVersion: "fetched",
+      }),
+      "https://proxy/?url=",
+    );
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({ content: "", failureType: "network" });
+
+    const file = await saver.saveArticleWithFullContent(
+      createItem({ content, guid: "guid-fallback" }),
+    );
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const fallbackWritten = await app.vault.read(file);
+
+    expect(fallbackWritten).toBe(
+      "> RSS feed content shown because the full article could not be fetched.\n\n" +
+        rssWritten,
     );
   });
 });

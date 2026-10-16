@@ -1,5 +1,4 @@
 import { App, Notice, TFile } from "obsidian";
-import TurndownService from "turndown";
 import {
   ArticleSavingSettings,
   Feed,
@@ -15,12 +14,8 @@ import {
 import { ensureUtf8Meta } from "../utils/platform-utils";
 import { withSavedTagName } from "../utils/tag-utils";
 import { isLikelyVideoItem } from "../utils/video-detection";
-import { stripNonContentHtmlNodes } from "../utils/html-text";
-import {
-  addYouTubeEmbedTurndownRule,
-  protectYouTubeEmbedsForMarkdown,
-  replaceYouTubeEmbedsInHtmlNote,
-} from "../utils/youtube-embed";
+import { articleHtmlToMarkdown } from "../utils/article-markdown";
+import { replaceYouTubeEmbedsInHtmlNote } from "../utils/youtube-embed";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
 import { resolveDisplayDate } from "./feed-parser/feed-retention";
 import {
@@ -39,10 +34,6 @@ import {
   ARTICLE_FILENAME_STEPS,
   ARTICLE_SAVER_NOTE_STEPS,
 } from "./article-template/call-site-steps";
-import {
-  addMathTurndownRule,
-  protectMathForMarkdown,
-} from "../utils/math-rendering";
 import { firstNonFormulaImageUrl } from "../utils/image-url-utils";
 import { escapeYamlDoubleQuoted } from "../utils/yaml-escape";
 import { ensureVaultFolder } from "../utils/vault-files";
@@ -133,7 +124,6 @@ export function findAvailableArticlePath(
 export class ArticleSaver {
   private app: App;
   private settings: ArticleSavingSettings;
-  private turndownService: TurndownService;
   private corsProxyUrl: string | undefined;
   private getUseFirstSeenDateFallback: () => boolean;
   /** The feeds, for an item's feed-level language (#246). */
@@ -151,104 +141,96 @@ export class ArticleSaver {
     this.corsProxyUrl = corsProxyUrl;
     this.getUseFirstSeenDateFallback = getUseFirstSeenDateFallback;
     this.getFeeds = getFeeds;
-    this.turndownService = new TurndownService();
-    addMathTurndownRule(this.turndownService);
-    addYouTubeEmbedTurndownRule(this.turndownService);
   }
 
-  private cleanHtml(html: string): string {
+  private parseHtmlBody(html: string): Document | null {
     try {
-      const htmlWithMeta = ensureUtf8Meta(html);
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlWithMeta, "text/html");
-
-      replaceYouTubeEmbedsInHtmlNote(doc);
-
-      const elementsToRemove = doc.querySelectorAll(
-        "script, style, iframe, noscript, template, svg, link, meta, base, object, embed, .ad, .ads, .advertisement, " +
-          "div[class*='ad-'], div[id*='ad-'], div[class*='ads-'], div[id*='ads-']",
-      );
-      elementsToRemove.forEach((el) => el.remove());
-
-      doc.querySelectorAll("img").forEach((img) => {
-        const src = img.getAttribute("src");
-        if (src && !src.startsWith("http") && !src.startsWith("data:")) {
-          if (src.startsWith("/")) {
-            const baseUrl = new URL(location.href);
-            img.setAttribute("src", `${baseUrl.origin}${src}`);
-          }
-        }
-
-        if (!img.hasAttribute("alt")) {
-          img.setAttribute("alt", "Image");
-        }
-      });
-
-      doc.querySelectorAll("a").forEach((link) => {
-        link.setAttribute("target", "_blank");
-        link.setAttribute("rel", "noopener noreferrer");
-      });
-
-      doc.querySelectorAll("table").forEach((table) => {
-        table.classList.add("markdown-compatible-table");
-      });
-
-      return doc.body.innerHTML;
+      return new DOMParser().parseFromString(ensureUtf8Meta(html), "text/html");
     } catch {
-      return html;
+      return null;
     }
+  }
+
+  /**
+   * Removes ad containers, scripts, and the other non-content nodes. A
+   * YouTube iframe is not removed here: the HTML-note path converts it first
+   * ({@link replaceYouTubeEmbedsInHtmlNote}) and the Markdown path leaves it
+   * for the shared converter, which turns a recognised embed into note text.
+   */
+  private stripAdsAndNonContentNodes(doc: Document): void {
+    doc
+      .querySelectorAll(
+        "script, style, noscript, template, svg, link, meta, base, object, embed, .ad, .ads, .advertisement, " +
+          "div[class*='ad-'], div[id*='ad-'], div[class*='ads-'], div[id*='ads-']",
+      )
+      .forEach((el) => el.remove());
+  }
+
+  /** Makes a root-relative image source absolute so it still resolves in the vault. */
+  private absolutizeImageSources(doc: Document): void {
+    doc.querySelectorAll("img").forEach((img) => {
+      const src = img.getAttribute("src");
+      if (
+        src &&
+        !src.startsWith("http") &&
+        !src.startsWith("data:") &&
+        src.startsWith("/")
+      ) {
+        const baseUrl = new URL(location.href);
+        img.setAttribute("src", `${baseUrl.origin}${src}`);
+      }
+    });
+  }
+
+  /**
+   * Feed HTML for the HTML-note fallback that {@link feedHtmlAsMarkdown} keeps
+   * when a non-empty body would convert to nothing. A recognised YouTube iframe
+   * becomes the embed text and every other iframe is dropped, so the kept HTML
+   * never carries one; the Markdown path handles that through the converter.
+   */
+  private cleanHtml(html: string): string {
+    const doc = this.parseHtmlBody(html);
+    if (!doc) return html;
+
+    replaceYouTubeEmbedsInHtmlNote(doc);
+    this.stripAdsAndNonContentNodes(doc);
+    this.absolutizeImageSources(doc);
+
+    doc.querySelectorAll("img").forEach((img) => {
+      if (!img.hasAttribute("alt")) {
+        img.setAttribute("alt", "Image");
+      }
+    });
+
+    doc.querySelectorAll("a").forEach((link) => {
+      link.setAttribute("target", "_blank");
+      link.setAttribute("rel", "noopener noreferrer");
+    });
+
+    doc.querySelectorAll("table").forEach((table) => {
+      table.classList.add("markdown-compatible-table");
+    });
+
+    return doc.body.innerHTML;
+  }
+
+  /**
+   * Feed HTML for the shared Markdown conversion (#1190). The same ad stripping
+   * and relative-image fix-up as {@link cleanHtml}, but iframes stay for the
+   * converter and the HTML-note-only link and table decorations are skipped.
+   */
+  private sanitizeFeedHtmlForMarkdown(html: string): string {
+    const doc = this.parseHtmlBody(html);
+    if (!doc) return html;
+
+    this.stripAdsAndNonContentNodes(doc);
+    this.absolutizeImageSources(doc);
+
+    return doc.body.innerHTML;
   }
 
   private getPreferredFeedHtml(item: FeedItem): string {
     return item.content || item.description || item.summary || "";
-  }
-
-  private normalizeBlockLinksForMarkdown(html: string): string {
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, "text/html");
-
-      doc.querySelectorAll("a").forEach((link) => {
-        const href = link.getAttribute("href") || "";
-        const hasInlineImage = !!link.querySelector("img, picture img");
-        const hasBlockContent = !!link.querySelector(
-          "address, article, aside, blockquote, br, dd, div, dl, dt, figcaption, figure, footer, h1, h2, h3, h4, h5, h6, header, hr, li, main, nav, ol, p, pre, section, table, ul",
-        );
-        if (!hasBlockContent && !hasInlineImage) return;
-
-        link.querySelectorAll("br").forEach((br) => {
-          br.replaceWith(doc.createTextNode(" "));
-        });
-
-        const label = (link.textContent || "").replace(/\s+/g, " ").trim();
-        if (label) {
-          link.textContent = label;
-          return;
-        }
-
-        if (hasInlineImage && hasBlockContent) {
-          // A label-less block link does not survive the Markdown conversion as
-          // a link, so unwrap it and keep its contents (the image), as before.
-          const fragment = doc.win.createFragment();
-          while (link.firstChild) {
-            fragment.appendChild(link.firstChild);
-          }
-
-          link.replaceWith(fragment);
-          return;
-        }
-
-        // An image-only link keeps its anchor, so the image stays a link in the
-        // saved note (#1194). Only labelled anchors are flattened to text above.
-        if (hasInlineImage && href) {
-          link.setAttribute("href", normalizeSubstackImageUrl(href));
-        }
-      });
-
-      return doc.body.innerHTML;
-    } catch {
-      return html;
-    }
   }
 
   private getFallbackHeroUrl(item: FeedItem): string {
@@ -308,14 +290,6 @@ export class ArticleSaver {
     }
 
     return `![Hero image](${heroUrl})\n\n${markdown}`;
-  }
-
-  private htmlToMarkdown(html: string): string {
-    const cleaned = stripNonContentHtmlNodes(
-      protectYouTubeEmbedsForMarkdown(html),
-    );
-    const normalized = this.normalizeBlockLinksForMarkdown(cleaned);
-    return this.turndownService.turndown(protectMathForMarkdown(normalized));
   }
 
   /** The values this saver's templates fill, built separately for each template render to preserve clock timing. */
@@ -381,12 +355,7 @@ guid: "{{guid}}"
     template: string,
     rawContent?: string,
   ): string {
-    const content = rawContent
-      ? rawContent
-      : this.prependFallbackHeroHtml(
-          item,
-          this.cleanHtml(this.getPreferredFeedHtml(item)),
-        );
+    const content = rawContent ? rawContent : this.feedHtmlAsMarkdown(item);
 
     return renderArticleTemplate(
       template,
@@ -394,6 +363,32 @@ guid: "{{guid}}"
       this.buildTemplateValues(item),
       content,
     );
+  }
+
+  /**
+   * The note body for a save that uses the feed item's own content (#1190).
+   * The feed HTML becomes Markdown, the same conversion the fetch-failure
+   * fallback and the fetched-article path use; ad stripping and the
+   * relative-image fix-up run first, and the hero check sees that same HTML.
+   * The converter keeps a recognised YouTube embed, so iframes reach it
+   * intact. Turndown drops `<video>` and `<audio>` outright, so a non-empty
+   * feed body that would convert to nothing keeps the HTML the old path wrote,
+   * legacy hero markup included, rather than saving an empty note.
+   */
+  private feedHtmlAsMarkdown(item: FeedItem): string {
+    const feedHtml = this.getPreferredFeedHtml(item);
+    const sanitizedHtml = this.sanitizeFeedHtmlForMarkdown(feedHtml);
+    const markdown = this.prependFallbackHeroMarkdown(
+      item,
+      articleHtmlToMarkdown(sanitizedHtml),
+      sanitizedHtml,
+    );
+
+    if (markdown.trim()) {
+      return markdown;
+    }
+
+    return this.prependFallbackHeroHtml(item, this.cleanHtml(feedHtml));
   }
 
   private normalizePath(path: string): string {
@@ -510,9 +505,11 @@ guid: "{{guid}}"
     savedTemplate?: SavedTemplate,
     notice: string = SAVE_FALLBACK_NOTICE.fetch,
   ): Promise<TFile | null> {
+    // Converted without the RSS-content path's ad stripping and relative-image
+    // fix-up; #1195 tracks closing that gap on this and the fetched path.
     const feedContent = this.getPreferredFeedHtml(item);
     const fallbackMarkdown = feedContent
-      ? this.htmlToMarkdown(feedContent)
+      ? articleHtmlToMarkdown(feedContent)
       : "";
     const fallbackWithHero = fallbackMarkdown
       ? this.prependFallbackHeroMarkdown(item, fallbackMarkdown, feedContent)
@@ -533,7 +530,7 @@ guid: "{{guid}}"
   private convertFetchedHtmlToMarkdown(item: FeedItem, html: string): string {
     return this.prependFallbackHeroMarkdown(
       item,
-      this.htmlToMarkdown(html),
+      articleHtmlToMarkdown(html),
       html,
     );
   }

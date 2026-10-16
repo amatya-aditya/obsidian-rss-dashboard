@@ -503,7 +503,7 @@ author: "{{author}}"
       expect(out).toContain(
         `${expectedSaveDate}|${expectedSaveTime12}|${expectedSaveTime24}|`,
       );
-      expect(out).toContain("https://example.com/a|A|F|S|<p>C</p>");
+      expect(out).toContain("https://example.com/a|A|F|S|C");
 
       h.cleanup();
     });

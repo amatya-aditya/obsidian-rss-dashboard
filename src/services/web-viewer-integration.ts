@@ -6,6 +6,7 @@ import {
 } from "./article-saver";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
 import { ensureVaultFolder } from "../utils/vault-files";
+import { articleHtmlToMarkdown } from "../utils/article-markdown";
 import {
   buildArticleTemplateValues,
   itemTagNames,
@@ -297,11 +298,16 @@ guid: "{{guid}}"
   }
 
   protected applyTemplate(item: FeedItem, template: string): string {
+    const html = item.description || "";
+    const markdown = articleHtmlToMarkdown(html);
+
     return renderArticleTemplate(
       template,
       WEB_VIEWER_NOTE_STEPS,
       this.buildTemplateValues(item, true),
-      item.description,
+      // Turndown drops video/audio/iframe outright, so a non-empty page body
+      // keeps its HTML rather than saving an empty note (#1190).
+      markdown.trim() ? markdown : html,
     );
   }
 

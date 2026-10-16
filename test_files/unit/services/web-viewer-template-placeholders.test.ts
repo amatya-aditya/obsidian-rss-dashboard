@@ -112,7 +112,8 @@ describe("web viewer saves with the templates it already filled", () => {
       false,
     );
 
-    expect(note).toBe('---\ntitle: Say "hi"\n---\n\n<p>Feed blurb</p>');
+    // {{content}} is Markdown since #1190, so the feed HTML's `<p>` is gone.
+    expect(note).toBe('---\ntitle: Say "hi"\n---\n\nFeed blurb');
   });
 
   it("writes a note template that uses only the filled placeholders unchanged", async () => {
@@ -178,5 +179,19 @@ describe("web viewer frontmatter template placeholders (#932)", () => {
     expect(note).not.toContain("{{");
     expect(note).toContain('summary: ""');
     expect(note).not.toContain("language:");
+  });
+});
+
+describe("web viewer note content (#1190)", () => {
+  it("keeps the page HTML when a non-empty body would convert to nothing", async () => {
+    const note = await save(
+      createItem({
+        description: '<video src="https://example.com/clip.mp4"></video>',
+      }),
+      "{{content}}",
+      false,
+    );
+
+    expect(note).toBe('<video src="https://example.com/clip.mp4"></video>');
   });
 });
