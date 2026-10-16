@@ -1,11 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { VideoPlayer } from "../../../src/views/video-player";
-import {
-  MediaService,
-  type YouTubeEmbedConfig,
-} from "../../../src/services/media-service";
+import { youTubeWatchUrl } from "../../../src/utils/youtube-embed";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import type { FeedItem, Tag } from "../../../src/types/types";
+
+const VIDEO_ID = "abcdefghijk";
 
 type ObsidianBody = HTMLElement & {
   empty: () => void;
@@ -41,18 +40,8 @@ describe("VideoPlayer", () => {
       feedUrl: "https://example.com/feed.xml",
       coverImage: "",
       mediaType: "video" as const,
-      videoId: "abc123",
+      videoId: VIDEO_ID,
       ...overrides,
-    };
-  }
-
-  function fixedEmbed(): YouTubeEmbedConfig {
-    return {
-      videoId: "abc123",
-      embedUrl: "https://example.com/embed/abc123",
-      watchUrl: "https://example.com/watch?v=abc123",
-      referrerPolicy: "strict-origin-when-cross-origin",
-      allow: "accelerometer; encrypted-media",
     };
   }
 
@@ -72,22 +61,52 @@ describe("VideoPlayer", () => {
     expect(container.textContent).toContain("keep");
   });
 
-  it("renders iframe attributes using MediaService.buildYouTubeEmbed", () => {
+  it("plays through Obsidian's embed host so desktop and iOS can load it", () => {
     const container = createContainer();
     const player = new VideoPlayer(container);
-
-    const embed = fixedEmbed();
-    vi.spyOn(MediaService, "buildYouTubeEmbed").mockReturnValue(embed);
 
     player.loadVideo(baseItem());
 
     const iframe = container.querySelector<HTMLIFrameElement>("iframe");
     expect(iframe).not.toBeNull();
-    // src has &id=<iframeId> appended for postMessage routing, so check prefix
-    expect(iframe?.getAttribute("src")).toContain(embed.embedUrl);
-    expect(iframe?.getAttribute("allow")).toBe(embed.allow);
-    expect(iframe?.getAttribute("referrerpolicy")).toBe(embed.referrerPolicy);
+    expect(iframe?.getAttribute("src")).toBe(
+      `https://releases.obsidian.md/youtube?v=${VIDEO_ID}&autoplay=1`,
+    );
+    expect(iframe?.getAttribute("allow")).toContain("autoplay");
+    expect(iframe?.getAttribute("referrerpolicy")).toBe(
+      "strict-origin-when-cross-origin",
+    );
     expect(iframe?.allowFullscreen).toBe(true);
+  });
+
+  it("resumes from the saved position through the host's start parameter", () => {
+    const container = createContainer();
+    const player = new VideoPlayer(container, undefined, undefined, true);
+
+    player.loadVideo(
+      baseItem({
+        playbackProgress: { position: 42.7, duration: 300, lastUpdated: 0 },
+      }),
+    );
+
+    const iframe = container.querySelector<HTMLIFrameElement>("iframe");
+    expect(iframe?.getAttribute("src")).toBe(
+      `https://releases.obsidian.md/youtube?v=${VIDEO_ID}&autoplay=1&start=42`,
+    );
+  });
+
+  it("does not request a resume position when progress tracking is off", () => {
+    const container = createContainer();
+    const player = new VideoPlayer(container, undefined, undefined, false);
+
+    player.loadVideo(
+      baseItem({
+        playbackProgress: { position: 42, duration: 300, lastUpdated: 0 },
+      }),
+    );
+
+    const iframe = container.querySelector<HTMLIFrameElement>("iframe");
+    expect(iframe?.getAttribute("src")).not.toContain("start=");
   });
 
   it("renders title, channel, and date metadata", () => {
@@ -153,16 +172,22 @@ describe("VideoPlayer", () => {
     expect(description?.innerHTML).toContain('rel="noopener noreferrer"');
   });
 
-  it("does not render the Watch on YouTube button or the terms link box", () => {
+  it("shows a Watch on YouTube link beside the player", () => {
     const container = createContainer();
     const player = new VideoPlayer(container);
 
     player.loadVideo(baseItem());
 
+    const link = container.querySelector<HTMLAnchorElement>(".rss-video-watch");
+    expect(link).not.toBeNull();
+    expect(link?.getAttribute("href")).toBe(youTubeWatchUrl(VIDEO_ID));
+    expect(link?.target).toBe("_blank");
+    expect(link?.rel).toContain("noopener");
+    expect(link?.textContent).toContain("Watch on YouTube");
+
     expect(container.querySelector(".rss-video-links")).toBeNull();
     expect(container.querySelector(".rss-video-youtube-button")).toBeNull();
     expect(container.querySelector(".rss-video-tos-link")).toBeNull();
-    expect(container.textContent).not.toContain("Watch on YouTube");
     expect(container.textContent).not.toContain("YouTube terms of service");
   });
 
@@ -273,8 +298,6 @@ describe("VideoPlayer", () => {
 
     const player = new VideoPlayer(container, undefined, onPlaybackProgress);
 
-    vi.spyOn(MediaService, "buildYouTubeEmbed").mockReturnValue(fixedEmbed());
-
     player.loadVideo(item);
 
     const iframe = container.querySelector<HTMLIFrameElement>("iframe");
@@ -346,8 +369,6 @@ describe("VideoPlayer", () => {
       false,
     );
 
-    vi.spyOn(MediaService, "buildYouTubeEmbed").mockReturnValue(fixedEmbed());
-
     player.loadVideo(item);
 
     const iframe = container.querySelector<HTMLIFrameElement>("iframe");
@@ -400,9 +421,6 @@ describe("VideoPlayer", () => {
     const container = createContainer();
     const player = new VideoPlayer(container);
 
-    const embed = fixedEmbed();
-    vi.spyOn(MediaService, "buildYouTubeEmbed").mockReturnValue(embed);
-
     player.loadVideo(baseItem());
 
     const iframe = container.querySelector<HTMLIFrameElement>("iframe");
@@ -418,8 +436,6 @@ describe("VideoPlayer", () => {
     const onPlaybackProgress = vi.fn();
     const player = new VideoPlayer(container, undefined, onPlaybackProgress);
     const item = baseItem();
-
-    vi.spyOn(MediaService, "buildYouTubeEmbed").mockReturnValue(fixedEmbed());
 
     player.loadVideo(item);
 
@@ -442,21 +458,17 @@ describe("VideoPlayer", () => {
     expect(onPlaybackProgress).toHaveBeenCalledWith(item, 42, 120, true);
   });
 
-  it("emits a Notice when render throws (loadVideo catch path)", () => {
+  it("emits a Notice when the video id is invalid (loadVideo catch path)", () => {
     const container = createContainer();
     const player = new VideoPlayer(container);
 
-    vi.spyOn(MediaService, "buildYouTubeEmbed").mockImplementation(() => {
-      throw new Error("boom");
-    });
-
     const logSpy = vi.spyOn(console, "debug").mockImplementation(() => {});
 
-    player.loadVideo(baseItem());
+    player.loadVideo(baseItem({ videoId: "short" }));
 
     expect(logSpy).toHaveBeenCalledWith(
       "[Stub Notice]",
-      "Error loading video: boom",
+      expect.stringContaining("Error loading video:"),
     );
   });
 

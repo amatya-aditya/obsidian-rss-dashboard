@@ -43,7 +43,7 @@ function makeItem(overrides: Partial<FeedItem> = {}): FeedItem {
     feedUrl: "https://example.com/rss.xml",
     coverImage: "",
     mediaType: "video",
-    videoId: "abc123",
+    videoId: "abcdefghijk",
     saved: false,
     ...overrides,
   };
