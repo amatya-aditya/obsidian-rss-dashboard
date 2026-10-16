@@ -15,10 +15,7 @@ import {
   resolveDisplayDate,
 } from "../services/feed-parser/feed-retention";
 import { MediaService } from "../services/media-service";
-import {
-  type FullArticleFetchFailureType,
-  type FullArticleFetchResult,
-} from "../utils/fetch-helpers";
+import { type FullArticleFetchResult } from "../utils/fetch-helpers";
 import {
   persistFetchedMetadata,
   renderRestrictedBanner,
@@ -113,7 +110,6 @@ export class ArticleRenderer {
   private currentReaderTitle?: string;
   private currentContentIsFullArticle = false;
   private renderRoot: HTMLElement | null = null;
-  private currentFullContentFailureType: FullArticleFetchFailureType = "none";
 
   constructor(options: ArticleRendererOptions) {
     this.app = options.app;
@@ -145,7 +141,6 @@ export class ArticleRenderer {
     this.currentDisplayTitle = undefined;
     this.currentReaderTitle = undefined;
     this.currentContentIsFullArticle = false;
-    this.currentFullContentFailureType = "none";
 
     if (item.mediaType === "video" && !item.videoId && item.link) {
       const vid = MediaService.extractYouTubeVideoId(item.link);
@@ -206,9 +201,6 @@ export class ArticleRenderer {
         rememberOutcome: (result) =>
           this.rememberFetchOutcome(item, result) !== undefined,
         isCurrent: () => identity === this.displayIdentity,
-        onSettled: (result) => {
-          this.currentFullContentFailureType = result.failureType;
-        },
         renderRestrictedBanner: () => renderRestrictedBanner(container, item),
         renderFetchFailureBanner: () =>
           this.renderFetchFailureBanner(container, item),
@@ -689,10 +681,6 @@ export class ArticleRenderer {
         failureReason: "unexpected",
       };
     }
-  }
-
-  private lastFullArticleFetchWasRestricted(): boolean {
-    return this.currentFullContentFailureType === "restricted";
   }
 
   private hasMeaningfulArticleContent(html: string): boolean {

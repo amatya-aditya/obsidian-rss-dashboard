@@ -34,7 +34,7 @@ export interface FeedFirstDisplayOptions {
   rememberOutcome: (result: FullArticleFetchResult) => boolean;
   isCurrent: () => boolean;
   /** Runs once the result is known to belong to the live display. */
-  onSettled: (result: FullArticleFetchResult) => void;
+  onSettled?: (result: FullArticleFetchResult) => void;
   renderRestrictedBanner: () => void;
   /** Shows the remembered-failure banner with Try again (#1110). */
   renderFetchFailureBanner: () => void;
@@ -72,7 +72,7 @@ export async function runFeedFirstDisplay(
   const remembered = options.rememberOutcome(result);
   if (!options.isCurrent() || !versions.isActive()) return null;
   fetchedContent = result.content;
-  options.onSettled(result);
+  options.onSettled?.(result);
   if (result.failureType === "none" && fetchedContent.trim().length > 0) {
     item.restrictedReason = undefined;
     versions.ready();

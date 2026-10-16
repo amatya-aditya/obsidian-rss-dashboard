@@ -27,10 +27,7 @@ import {
 } from "../utils/math-copy";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { enhanceYouTubeEmbeds } from "../utils/youtube-inline-embed";
-import {
-  type FullArticleFetchFailureType,
-  type FullArticleFetchResult,
-} from "../utils/fetch-helpers";
+import { type FullArticleFetchResult } from "../utils/fetch-helpers";
 import {
   persistFetchedMetadata,
   renderRestrictedBanner,
@@ -183,7 +180,6 @@ export class ReaderView extends ItemView {
   private saveButton: HTMLElement | null = null;
   private returnLeaf: WorkspaceLeaf | null = null;
   private tagsDropdownCleanup: (() => void) | null = null;
-  private currentFullContentFailureType: FullArticleFetchFailureType = "none";
 
   private readerFormatPortal: { close: (flushSave: boolean) => void } | null =
     null;
@@ -1355,7 +1351,6 @@ export class ReaderView extends ItemView {
     this.currentContentIsFullArticle = false;
     this.currentFetchedArticleContent = undefined;
     this.currentFullContentFetchAttempted = false;
-    this.currentFullContentFailureType = "none";
     this.syncReaderTitle();
 
     // Update toggle button states
@@ -1444,7 +1439,6 @@ export class ReaderView extends ItemView {
       onSettled: (result) => {
         fetchedContent = result.content;
         this.currentFullContentFetchAttempted = true;
-        this.currentFullContentFailureType = result.failureType;
         this.currentFetchedArticleContent = fetchedContent.trim()
           ? fetchedContent
           : undefined;
@@ -2293,10 +2287,6 @@ export class ReaderView extends ItemView {
       this.settings.articleSaving.fetchTimeout,
     );
     return result;
-  }
-
-  private lastFullArticleFetchWasRestricted(): boolean {
-    return this.currentFullContentFailureType === "restricted";
   }
 
   private toggleReadStatus(): void {
