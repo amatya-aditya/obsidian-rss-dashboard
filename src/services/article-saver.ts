@@ -36,6 +36,7 @@ import {
 } from "./article-template/call-site-steps";
 import { firstNonFormulaImageUrl } from "../utils/image-url-utils";
 import { resolveAbsoluteHttpUrl } from "../utils/url-utils";
+import { AD_CONTAINER_SELECTOR } from "../utils/ad-containers";
 import { escapeYamlDoubleQuoted } from "../utils/yaml-escape";
 import { ensureVaultFolder } from "../utils/vault-files";
 import { ONE_SAVE_OVERRIDE_TEMPLATE_ID } from "../utils/saved-template-utils";
@@ -171,8 +172,8 @@ export class ArticleSaver {
   private stripAdsAndNonContentNodes(doc: Document): void {
     doc
       .querySelectorAll(
-        "script, style, noscript, template, svg, link, meta, base, object, embed, .ad, .ads, .advertisement, " +
-          "div[class*='ad-'], div[id*='ad-'], div[class*='ads-'], div[id*='ads-']",
+        "script, style, noscript, template, svg, link, meta, base, object, embed, " +
+          AD_CONTAINER_SELECTOR,
       )
       .forEach((el) => el.remove());
   }
