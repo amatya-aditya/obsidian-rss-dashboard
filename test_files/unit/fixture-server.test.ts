@@ -9,6 +9,7 @@ import {
   COUNTER_IMAGE_FILE,
   EMPTY_DESCRIPTION_LINK,
   EMPTY_DESCRIPTION_PAGE,
+  FEED_ADVERTISING_PAGE,
   FIXTURE_FEED_PATH,
   FIXTURE_FEED_URL,
   FIXTURE_PAGES_DIR,
@@ -27,6 +28,7 @@ import {
 } from "../../src/utils/article-metadata";
 import { applyArticleMetadata } from "../../src/utils/article-metadata-persistence";
 import { hasMeaningfulArticleContent } from "../../src/utils/reader-html-cleanup";
+import { isValidFeed } from "../../src/services/feed-parser/feed-validation";
 import type { FeedItem } from "../../src/types/types";
 
 // The seeded "Article with no feed description" scenario (#975): the feed ships
@@ -256,10 +258,42 @@ describe("User-Agent echo fixture (#1162)", () => {
   });
 });
 
+// The feed-advertising page (#1201): the Add feed and Edit feed dialogs' Load
+// must resolve a page address to the feed it advertises, the same one Save adds.
+// These tests keep the committed page, its advertised address, and the served
+// feed in step, so the dialog can be checked without a hand-rolled server.
+describe("Feed-advertising fixture page (#1201)", () => {
+  it("is served as a page that is not a feed", async () => {
+    const port = await listeningPort();
+    const page = await get(port, `/${FEED_ADVERTISING_PAGE}`);
+
+    expect(page.status).toBe(200);
+    expect(page.contentType).toContain("text/html");
+    expect(page.body).toContain("WordPress");
+    expect(isValidFeed(page.body)).toBe(false);
+  });
+
+  it("advertises the feed the fixture server serves", async () => {
+    const port = await listeningPort();
+    const page = await get(port, `/${FEED_ADVERTISING_PAGE}`);
+
+    // Discovery reads the link's href and fetches it, so a rename of the feed
+    // path must fail here rather than silently unlink the page from its feed.
+    expect(page.body).toContain(`href="${FIXTURE_FEED_PATH}"`);
+
+    const feed = await get(port, FIXTURE_FEED_PATH);
+    expect(isValidFeed(feed.body)).toBe(true);
+  });
+});
+
 describe("Fixture server file mapping (#1169)", () => {
   it("maps only committed pages and images in the pages folder", () => {
     expect(resolveFixtureFile(`/${EMPTY_DESCRIPTION_PAGE}`)).toMatchObject({
       name: EMPTY_DESCRIPTION_PAGE,
+      contentType: "text/html; charset=utf-8",
+    });
+    expect(resolveFixtureFile(`/${FEED_ADVERTISING_PAGE}`)).toMatchObject({
+      name: FEED_ADVERTISING_PAGE,
       contentType: "text/html; charset=utf-8",
     });
     expect(resolveFixtureFile(`/${COUNTER_IMAGE_FILE}`)).toMatchObject({

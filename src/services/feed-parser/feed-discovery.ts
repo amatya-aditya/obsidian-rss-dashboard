@@ -184,6 +184,42 @@ export async function discoverFeedUrls(
   return [];
 }
 
+/** A feed body together with the candidate address it came from. */
+export interface DiscoveredFeed {
+  /** The candidate address that returned a feed body. */
+  feedUrl: string;
+  /** The feed body itself. */
+  text: string;
+}
+
+/**
+ * Fetch each candidate in order and return the first that is a feed together
+ * with the address it came from, or null when none is. A failed or non-feed
+ * candidate moves on to the next. Callers that report the resolved address
+ * (feed discovery in the add-feed preview) use this; `fetchFirstValidFeed`
+ * wraps it for callers that only need the body.
+ */
+export async function fetchFirstValidFeedWithUrl(
+  candidates: string[],
+  signal?: AbortSignal,
+  encodingOverride?: FeedEncoding,
+): Promise<DiscoveredFeed | null> {
+  for (const candidate of candidates) {
+    if (signal?.aborted) return null;
+    try {
+      const text = await robustFetch(candidate, {
+        method: "GET",
+        headers: feedRequestHeaders(),
+        encodingOverride,
+      });
+      if (text && isValidFeed(text)) return { feedUrl: candidate, text };
+    } catch {
+      // Candidate fetch failed; try the next one
+    }
+  }
+  return null;
+}
+
 /**
  * Fetch each candidate in order and return the first body that is a feed, or
  * null when none is. A failed or non-feed candidate moves on to the next.
@@ -193,18 +229,10 @@ export async function fetchFirstValidFeed(
   signal?: AbortSignal,
   encodingOverride?: FeedEncoding,
 ): Promise<string | null> {
-  for (const candidate of candidates) {
-    if (signal?.aborted) return null;
-    try {
-      const text = await robustFetch(candidate, {
-        method: "GET",
-        headers: feedRequestHeaders(),
-        encodingOverride,
-      });
-      if (text && isValidFeed(text)) return text;
-    } catch {
-      // Candidate fetch failed; try the next one
-    }
-  }
-  return null;
+  const discovered = await fetchFirstValidFeedWithUrl(
+    candidates,
+    signal,
+    encodingOverride,
+  );
+  return discovered ? discovered.text : null;
 }

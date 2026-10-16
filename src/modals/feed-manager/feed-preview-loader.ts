@@ -194,7 +194,10 @@ export async function resolveAndLoadPreview(
   return {
     detectedType,
     inputUrl,
-    finalUrl,
+    // Discovery may land on a different address than the one typed, such as a
+    // page that advertises its feed. Report that address so the modal rewrites
+    // the URL field to the feed Save would add.
+    finalUrl: feedData.feedUrl || finalUrl,
     isMastodonConversion,
     title: feedData.title,
     latestPubDate: feedData.latestPubDate,
