@@ -213,6 +213,7 @@ Closed 87% of 77 issues. 3 contributors active in the past year.
 ## Documentation & Governance
 
 - **[CONTRIBUTING.md](../../CONTRIBUTING.md)** — Canonical source of truth for compliance declarations, audit guardrails, and zero-`!important` CSS policy
+- **[Obsidian alignment audit](obsidian-alignment-audit.md)** — Itemized upstream plugin-guidelines, developer-policy, and submission-requirement verdicts with evidence
 - **[Compliance patterns](compliance-patterns.md)** — Approved implementation patterns and anti-patterns for audit-sensitive code
 - **[Test-lint backlog tracker](../archive/investigations/2026/test-lint-backlog-tracker.md)** — Historical record of all compliance remediation passes
 - **[2.3.0 remediation working checklist](../archive/investigations/2026/audit-remediation-2.3.0.md)** — Historical audit record
