@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { findContentToggle } from "../test-reader-toggle-helpers";
 import { ReaderView } from "../../../src/views/reader-view";
 import { stripNavigationChromeFromHtml } from "../../../src/utils/reader-html-cleanup";
 import {
@@ -97,9 +98,9 @@ describe("ReaderView full-article nav/breadcrumb stripping", () => {
       .mockResolvedValue({ content: html, failureType: "none" });
 
     await readerView.displayItem(makeItem());
-    const fullArticleToggle = getInternals(
-      readerView,
-    ).contentEl.querySelector<HTMLButtonElement>(".rss-reader-content-toggle");
+    const fullArticleToggle = findContentToggle(
+      getInternals(readerView).contentEl,
+    );
     expect(fullArticleToggle?.textContent).toBe("Show fetched content");
     fullArticleToggle?.click();
 
@@ -131,9 +132,9 @@ describe("ReaderView full-article nav/breadcrumb stripping", () => {
       .mockResolvedValue({ content: html, failureType: "none" });
 
     await readerView.displayItem(makeItem());
-    const fullArticleToggle = getInternals(
-      readerView,
-    ).contentEl.querySelector<HTMLButtonElement>(".rss-reader-content-toggle");
+    const fullArticleToggle = findContentToggle(
+      getInternals(readerView).contentEl,
+    );
     expect(fullArticleToggle?.textContent).toBe("Show fetched content");
     fullArticleToggle?.click();
 

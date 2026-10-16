@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { findContentToggle } from "../test-reader-toggle-helpers";
 import { ReaderView } from "../../../src/views/reader-view";
 import { App } from "../../stubs/obsidian";
 import { DEFAULT_SETTINGS, type FeedItem } from "../../../src/types/types";
@@ -67,9 +68,7 @@ describe("Reader save strips ad containers from fetched content (#1195)", () => 
     const article = item();
     await view.displayItem(article);
     // The Reader only saves its own Markdown once the fetched version is shown.
-    const toggle = container.querySelector<HTMLButtonElement>(
-      ".rss-reader-content-toggle",
-    );
+    const toggle = findContentToggle(container);
     if (!toggle) throw new Error("Missing content toggle");
     toggle.click();
     await view.actionSaveCurrentArticle();

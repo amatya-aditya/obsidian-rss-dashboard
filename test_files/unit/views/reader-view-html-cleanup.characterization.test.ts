@@ -3,6 +3,7 @@
 // remaining ReaderView delegates are removed in #621. The full-article tests
 // still go through `displayItem` to pin the wiring of that path.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { findContentToggle } from "../test-reader-toggle-helpers";
 import * as cleanup from "../../../src/utils/reader-html-cleanup";
 import { ReaderView } from "../../../src/views/reader-view";
 import { DEFAULT_SETTINGS, FeedItem } from "../../../src/types/types";
@@ -1560,10 +1561,7 @@ describe("Reader HTML cleanup utilities (characterization)", () => {
         .mockResolvedValue({ content: html, failureType: "none" });
 
       await view.displayItem(makeItem({ description }));
-      const fullArticleToggle =
-        viewHarness.readingContainer.querySelector<HTMLButtonElement>(
-          ".rss-reader-content-toggle",
-        );
+      const fullArticleToggle = findContentToggle(viewHarness.readingContainer);
       expect(fullArticleToggle?.textContent).toBe("Show fetched content");
       fullArticleToggle?.click();
 
@@ -1594,10 +1592,7 @@ describe("Reader HTML cleanup utilities (characterization)", () => {
       });
 
       await view.displayItem(makeItem({ coverImage: hero }));
-      const fullArticleToggle =
-        viewHarness.readingContainer.querySelector<HTMLButtonElement>(
-          ".rss-reader-content-toggle",
-        );
+      const fullArticleToggle = findContentToggle(viewHarness.readingContainer);
       expect(fullArticleToggle?.textContent).toBe("Show fetched content");
       fullArticleToggle?.click();
 

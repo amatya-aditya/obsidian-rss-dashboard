@@ -1,6 +1,10 @@
-import { ReaderContentVersions } from "./reader-content-versions";
+import type { ReaderContentVersions } from "./reader-content-versions";
+import { runFeedFirstDisplay } from "./reader-feed-first";
 import { App, type Component, TFile } from "obsidian";
-import { renderReaderTagChips } from "../utils/reader-tag-chips";
+import {
+  refreshReaderHeaderTags,
+  renderReaderTagChips,
+} from "../utils/reader-tag-chips";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { enhanceYouTubeEmbeds } from "../utils/youtube-inline-embed";
 import { scheduleProcessMathElements } from "../utils/math-rendering";
@@ -159,16 +163,13 @@ export class ArticleRenderer {
         return;
       }
       this.cleanupPlayers();
-      let fetchedContent = "";
-      const versions = new ReaderContentVersions(
+      await runFeedFirstDisplay({
         container,
-        (parent, version) =>
-          this.renderArticle(
-            parent,
-            item,
-            version === "rss" ? feedContent : fetchedContent,
-          ),
-        (version) => {
+        item,
+        feedContent,
+        renderVersion: (parent, _version, content) =>
+          this.renderArticle(parent, item, content),
+        onSelectVersion: (version, fetchedContent) => {
           this.currentContentIsFullArticle = version === "full";
           this.currentFullContent =
             version === "full" ? fetchedContent : feedContent;
@@ -177,36 +178,24 @@ export class ArticleRenderer {
               ? this.extractDisplayTitleFromHtml(fetchedContent) || undefined
               : undefined;
         },
-        !this.hasMeaningfulArticleContent(feedContent),
-      );
-      this.contentVersions = versions;
-      const fetchResult = await this.fetchFullArticleContent(item.link);
-      // Metadata belongs to the fetched item even after navigation or close.
-      // Keep the substantial-body gate: a short extraction must not lock metadata.
-      if (this.hasMeaningfulArticleContent(fetchResult.content)) {
-        this.persistFetchedMetadata(
-          item,
-          fetchResult.content,
-          fetchResult.pageMetadata,
-        );
-      }
-      if (identity !== this.displayIdentity || !versions.isActive()) return;
-      this.currentFullContentFailureType = fetchResult.failureType;
-      fetchedContent = fetchResult.content;
-      if (
-        fetchResult.failureType === "none" &&
-        fetchedContent.trim().length > 0
-      ) {
-        item.restrictedReason = undefined;
-        versions.ready();
-      } else {
-        if (fetchResult.failureType === "restricted") {
-          item.restrictedReason = RESTRICTED_ARTICLE_REASON;
-          if (!container.querySelector(".rss-reader-paywall-banner"))
-            this.renderRestrictedBanner(container, item);
-        }
-        versions.failed(fetchResult);
-      }
+        hasMeaningfulContent: (html) => this.hasMeaningfulArticleContent(html),
+        onVersions: (versions) => {
+          this.contentVersions = versions;
+        },
+        fetch: () => this.fetchFullArticleContent(item.link),
+        persistMetadata: (result) =>
+          this.persistFetchedMetadata(
+            item,
+            result.content,
+            result.pageMetadata,
+          ),
+        isCurrent: () => identity === this.displayIdentity,
+        onSettled: (result) => {
+          this.currentFullContentFailureType = result.failureType;
+        },
+        renderRestrictedBanner: () =>
+          this.renderRestrictedBanner(container, item),
+      });
     }
   }
 
@@ -675,12 +664,9 @@ export class ArticleRenderer {
   }
 
   public setVideoTags(tags: Tag[] | undefined): void {
-    this.contentVersions?.visitVersions((container) => {
-      const header = container.querySelector<HTMLElement>(
-        ".rss-reader-article-header",
-      );
-      if (header) renderReaderTagChips(header, tags);
-    });
+    this.contentVersions?.visitVersions((container) =>
+      refreshReaderHeaderTags(container, tags),
+    );
     this.videoPlayer?.setTags(tags);
   }
 

@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import { findContentToggle } from "../test-reader-toggle-helpers";
 import { ReaderView } from "../../../src/views/reader-view";
 import {
   FeedItem,
@@ -87,9 +88,9 @@ describe("ReaderView headline de-dupe", () => {
 
     const item = makeBaseItem({ title: "Feed Title Should Not Show" });
     await readerView.displayItem(item);
-    const fullArticleToggle = getInternals(
-      readerView,
-    ).contentEl.querySelector<HTMLButtonElement>(".rss-reader-content-toggle");
+    const fullArticleToggle = findContentToggle(
+      getInternals(readerView).contentEl,
+    );
     expect(fullArticleToggle?.textContent).toBe("Show fetched content");
     fullArticleToggle?.click();
 
@@ -131,9 +132,9 @@ describe("ReaderView headline de-dupe", () => {
 
     const item = makeBaseItem({ title: "Feed Title Here" });
     await readerView.displayItem(item);
-    const fullArticleToggle = getInternals(
-      readerView,
-    ).contentEl.querySelector<HTMLButtonElement>(".rss-reader-content-toggle");
+    const fullArticleToggle = findContentToggle(
+      getInternals(readerView).contentEl,
+    );
     expect(fullArticleToggle?.textContent).toBe("Show fetched content");
     fullArticleToggle?.click();
 
