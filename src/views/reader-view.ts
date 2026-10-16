@@ -1,4 +1,8 @@
-import { ReaderContentVersions } from "../components/reader-content-versions";
+import type { ReaderContentVersions } from "../components/reader-content-versions";
+import {
+  runFeedFirstDisplay,
+  visitReaderContent,
+} from "../components/reader-feed-first";
 import {
   ItemView,
   WorkspaceLeaf,
@@ -10,7 +14,7 @@ import {
   Notice,
   setTooltip,
 } from "obsidian";
-import { renderReaderTagChips } from "../utils/reader-tag-chips";
+import { refreshReaderHeaderTags } from "../utils/reader-tag-chips";
 import { setIcon, Scope } from "obsidian";
 import {
   addMathTurndownRule,
@@ -54,6 +58,13 @@ import {
   RESTRICTED_ARTICLE_LINK_TEXT,
   RESTRICTED_ARTICLE_REASON,
 } from "../utils/full-article-fetch";
+import {
+  applyFetchOutcome,
+  type FullContentFetchFailure,
+  clearFetchFailure,
+  hasActiveFetchFailure,
+  renderFetchFailureBanner,
+} from "../utils/full-article-fetch-failure";
 import { isLikelyVideoItem } from "../utils/video-detection";
 import {
   buildReaderImageTooltipText,
@@ -1393,57 +1404,57 @@ export class ReaderView extends ItemView {
     this.podcastPlayer = null;
     this.videoPlayer?.destroy();
     this.videoPlayer = null;
+    const link = item.link;
     let fetchedContent = "";
-    const versions = new ReaderContentVersions(
-      this.readingContainer,
-      (parent, version) =>
-        this.renderArticle(
-          item,
-          version === "rss" ? feedContent : fetchedContent,
-          parent,
-        ),
-      (version) => {
+    const versions = await runFeedFirstDisplay({
+      container: this.readingContainer,
+      item,
+      feedContent,
+      renderVersion: (parent, _version, content) =>
+        this.renderArticle(item, content, parent),
+      onSelectVersion: (version, fetched) => {
         this.currentContentIsFullArticle = version === "full";
-        this.currentFullContent =
-          version === "full" ? fetchedContent : feedContent;
+        this.currentFullContent = version === "full" ? fetched : feedContent;
         this.currentDisplayTitle =
           version === "full"
-            ? extractDisplayTitleFromHtml(fetchedContent) || undefined
+            ? extractDisplayTitleFromHtml(fetched) || undefined
             : undefined;
         this.syncReaderTitle();
       },
-      !hasMeaningfulArticleContent(feedContent),
-    );
-    this.contentVersions = versions;
-    let result: FullArticleFetchResult;
-    try {
-      result = await this.fetchFullArticleContent(item.link);
-    } catch {
-      result = { content: "", failureType: "network" };
-    }
-    // Metadata belongs to the fetched item even after navigation or close.
-    // Keep the substantial-body gate: a short extraction must not lock metadata.
-    if (hasMeaningfulArticleContent(result.content)) {
-      this.persistFetchedMetadata(item, result.content, result.pageMetadata);
-    }
-    if (identity !== this.displayIdentity || !versions.isActive()) return;
-    this.currentFullContentFetchAttempted = true;
-    this.currentFullContentFailureType = result.failureType;
-    fetchedContent = result.content;
-    this.currentFetchedArticleContent = fetchedContent.trim()
-      ? fetchedContent
-      : undefined;
-    if (this.isSuccessfulArticleFetch(result)) {
-      item.restrictedReason = undefined;
-      versions.ready();
-    } else {
-      if (result.failureType === "restricted") {
-        item.restrictedReason = RESTRICTED_ARTICLE_REASON;
-        if (!this.readingContainer.querySelector(".rss-reader-paywall-banner"))
-          this.renderRestrictedBanner(item);
-      }
-      versions.failed(result);
-    }
+      hasMeaningfulContent: hasMeaningfulArticleContent,
+      onVersions: (created) => {
+        this.contentVersions = created;
+      },
+      fetch: async () => {
+        try {
+          return await this.fetchFullArticleContent(link);
+        } catch {
+          return {
+            content: "",
+            failureType: "network",
+            failureReason: "unexpected",
+          };
+        }
+      },
+      persistMetadata: (result) =>
+        this.persistFetchedMetadata(item, result.content, result.pageMetadata),
+      // The failure belongs to the item too: remember it even after
+      // navigation so the next open does not stall on the same fetch (#1110).
+      rememberOutcome: (result) =>
+        this.rememberFetchOutcome(item, result) !== undefined,
+      isCurrent: () => identity === this.displayIdentity,
+      onSettled: (result) => {
+        fetchedContent = result.content;
+        this.currentFullContentFetchAttempted = true;
+        this.currentFullContentFailureType = result.failureType;
+        this.currentFetchedArticleContent = fetchedContent.trim()
+          ? fetchedContent
+          : undefined;
+      },
+      renderRestrictedBanner: () => this.renderRestrictedBanner(item),
+      renderFetchFailureBanner: () => this.renderFetchFailureBanner(item),
+    });
+    if (!versions) return;
     if (
       this.settings.useWebViewer &&
       this.webViewerIntegration &&
@@ -1460,10 +1471,6 @@ export class ReaderView extends ItemView {
           // The RSS version and the optional full-article button remain usable.
         });
     }
-  }
-
-  private isSuccessfulArticleFetch(result: FullArticleFetchResult): boolean {
-    return result.failureType === "none" && result.content.trim().length > 0;
   }
 
   private async displayVideo(item: FeedItem): Promise<void> {
@@ -1686,6 +1693,11 @@ export class ReaderView extends ItemView {
       return true;
     }
 
+    // A fetch that failed earlier waits for an explicit "Try again" (#1110).
+    if (hasActiveFetchFailure(item)) {
+      return true;
+    }
+
     if (this.isVideoMediaItem(item)) {
       return true;
     }
@@ -1870,6 +1882,42 @@ export class ReaderView extends ItemView {
     } else if (this.isStarredImportCachedPreview(item)) {
       this.renderStarredImportBanner(item, container);
     }
+    // Independent of the banners above: the fetch is skipped while a failure
+    // is remembered, so Try again must stay reachable (#1110).
+    if (hasActiveFetchFailure(item)) {
+      this.renderFetchFailureBanner(item, container);
+    }
+  }
+
+  /** Records or clears the item's remembered fetch failure (#1110). */
+  private rememberFetchOutcome(
+    item: FeedItem,
+    result: FullArticleFetchResult,
+  ): FullContentFetchFailure | undefined {
+    return applyFetchOutcome(item, result, (patch) =>
+      this.persistBackgroundUpdate(item, patch, false),
+    );
+  }
+
+  /** Banner for an article whose full-content fetch failed earlier (#1110). */
+  private renderFetchFailureBanner(
+    item: FeedItem,
+    container = this.readingContainer,
+  ): void {
+    renderFetchFailureBanner(container, item, () => {
+      void this.retryFullArticleFetch(item);
+    });
+  }
+
+  /** "Try again": forget the failure, then fetch the article again (#1110). */
+  private async retryFullArticleFetch(item: FeedItem): Promise<void> {
+    // Compare feed and guid: two feeds can carry the same guid.
+    const current = this.currentItem;
+    if (current?.guid !== item.guid || current.feedUrl !== item.feedUrl) return;
+    clearFetchFailure(item, (patch) =>
+      this.persistBackgroundUpdate(item, patch, false),
+    );
+    await this.displayItem(item, this.relatedItems);
   }
 
   /**
@@ -1956,6 +2004,11 @@ export class ReaderView extends ItemView {
     const shouldPersist = Boolean(item.starred || item.saved);
 
     if (result.content) {
+      if (item.fullContentFetchFailure) {
+        clearFetchFailure(item, (patch) =>
+          this.persistBackgroundUpdate(item, patch, false),
+        );
+      }
       item.content = result.content;
       item.starredImportContentState = undefined;
       if (shouldPersist) {
@@ -2555,14 +2608,11 @@ export class ReaderView extends ItemView {
       return;
     }
 
-    const refresh = (container: HTMLElement) => {
-      const header = container.querySelector<HTMLElement>(
-        ".rss-reader-article-header",
-      );
-      if (header) renderReaderTagChips(header, this.currentItem?.tags);
-    };
-    if (this.contentVersions) this.contentVersions.visitVersions(refresh);
-    else if (this.readingContainer) refresh(this.readingContainer);
+    visitReaderContent(
+      this.contentVersions,
+      this.readingContainer,
+      (container) => refreshReaderHeaderTags(container, this.currentItem?.tags),
+    );
   }
 
   private syncTagColorsWithSettings(tags: FeedItem["tags"]): Tag[] {
@@ -2599,15 +2649,17 @@ export class ReaderView extends ItemView {
   }
 
   private applyReaderHeadlineFont(fontFamily: string): void {
-    const refresh = (container: HTMLElement) => {
-      container
-        .querySelectorAll<HTMLElement>(".rss-reader-item-title")
-        .forEach((headline) => {
-          headline.style.fontFamily = fontFamily;
-        });
-    };
-    if (this.contentVersions) this.contentVersions.visitVersions(refresh);
-    else if (this.readingContainer) refresh(this.readingContainer);
+    visitReaderContent(
+      this.contentVersions,
+      this.readingContainer,
+      (container) => {
+        container
+          .querySelectorAll<HTMLElement>(".rss-reader-item-title")
+          .forEach((headline) => {
+            headline.style.fontFamily = fontFamily;
+          });
+      },
+    );
   }
 
   private getReaderFormat(): ReaderFormatSettings {

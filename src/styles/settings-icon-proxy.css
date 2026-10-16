@@ -56,12 +56,17 @@
   border-radius: 4px;
 }
 
-.rss-dashboard-icon-drag-handle:hover {
+.rss-dashboard-icon-drag-handle:hover:not(:disabled) {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
 }
 
-.rss-dashboard-icon-drag-handle:active {
+.rss-dashboard-icon-drag-handle:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.rss-dashboard-icon-drag-handle:active:not(:disabled) {
   cursor: grabbing;
 }
 

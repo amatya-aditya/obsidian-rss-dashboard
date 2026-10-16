@@ -365,7 +365,8 @@
   outline-offset: 2px;
 }
 
-.rss-reader-starred-import-banner {
+.rss-reader-starred-import-banner,
+.rss-reader-fetch-failure-banner {
   background: color-mix(
     in srgb,
     var(--interactive-accent, #2f80ed) 10%,
@@ -379,7 +380,8 @@
     );
 }
 
-.rss-reader-starred-import-banner-text {
+.rss-reader-starred-import-banner-text,
+.rss-reader-fetch-failure-banner-text {
   flex: 1 1 260px;
   font-size: 13px;
   line-height: 1.45;
@@ -387,20 +389,23 @@
   color: var(--text-normal);
 }
 
-.rss-reader-starred-import-banner-actions {
+.rss-reader-starred-import-banner-actions,
+.rss-reader-fetch-failure-banner-actions {
   display: flex;
   align-items: center;
   gap: 10px;
   flex: 0 0 auto;
 }
 
-.rss-reader-starred-import-fetch-now {
+.rss-reader-starred-import-fetch-now,
+.rss-reader-fetch-failure-try-again {
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
 }
 
-.rss-reader-starred-import-open-link {
+.rss-reader-starred-import-open-link,
+.rss-reader-fetch-failure-open-link {
   color: var(--text-normal);
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -409,12 +414,14 @@
   white-space: nowrap;
 }
 
-.rss-reader-starred-import-open-link:hover {
+.rss-reader-starred-import-open-link:hover,
+.rss-reader-fetch-failure-open-link:hover {
   color: var(--text-normal);
   text-decoration: underline;
 }
 
-.rss-reader-starred-import-open-link:focus-visible {
+.rss-reader-starred-import-open-link:focus-visible,
+.rss-reader-fetch-failure-open-link:focus-visible {
   outline: 2px solid var(--background-modifier-border);
   outline-offset: 2px;
 }
@@ -930,7 +937,9 @@ mark.rss-highlight {
   }
 
   .rss-reader-starred-import-fetch-now,
-  .rss-reader-starred-import-open-link {
+  .rss-reader-starred-import-open-link,
+  .rss-reader-fetch-failure-try-again,
+  .rss-reader-fetch-failure-open-link {
     min-height: 40px;
   }
 }

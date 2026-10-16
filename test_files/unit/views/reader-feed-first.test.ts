@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { findContentToggle } from "../test-reader-toggle-helpers";
 import { ReaderView } from "../../../src/views/reader-view";
 import { ArticleRenderer } from "../../../src/components/article-renderer";
 import { App, Component } from "../../stubs/obsidian";
@@ -115,6 +116,15 @@ describe.each(["ReaderView", "ArticleRenderer"])(
             (
               view as unknown as { applyReaderHeadlineFont(font: string): void }
             ).applyReaderHeadlineFont("serif"),
+          setFormatFont: () => {
+            settings.readerFormat = {
+              ...DEFAULT_SETTINGS.readerFormat,
+              fontFamily: "serif",
+            };
+            (
+              view as unknown as { applyReaderFormat(): void }
+            ).applyReaderFormat();
+          },
           scroll: () =>
             container.querySelector<HTMLElement>(".rss-reader-content")!,
         };
@@ -140,6 +150,7 @@ describe.each(["ReaderView", "ArticleRenderer"])(
           renderer.setVideoTags(tags);
         },
         setFont: undefined,
+        setFormatFont: undefined,
         scroll: () => container,
       };
     }
@@ -158,9 +169,7 @@ describe.each(["ReaderView", "ArticleRenderer"])(
       expect(harness.container.textContent).not.toContain(
         "A substantial opening paragraph",
       );
-      const toggle = harness.container.querySelector<HTMLButtonElement>(
-        ".rss-reader-content-toggle",
-      )!;
+      const toggle = findContentToggle(harness.container)!;
       expect(toggle.textContent).toBe("Show fetched content");
       expect(
         harness.container.querySelector('[role="status"]')?.textContent,
@@ -206,9 +215,7 @@ describe.each(["ReaderView", "ArticleRenderer"])(
       expect(
         harness.container.querySelector(".rss-reader-paywall-banner"),
       ).toBeNull();
-      const toggle = harness.container.querySelector<HTMLButtonElement>(
-        "button.rss-reader-content-toggle",
-      )!;
+      const toggle = findContentToggle(harness.container)!;
       expect(toggle.textContent).toBe("Show fetched content");
       expect(harness.container.textContent).toContain("Short feed blurb");
       toggle.click();
@@ -246,9 +253,7 @@ describe.each(["ReaderView", "ArticleRenderer"])(
         expect(
           harness.container.querySelector('[role="status"]')?.textContent,
         ).not.toContain("Fetching");
-        expect(
-          harness.container.querySelector(".rss-reader-content-toggle"),
-        ).toBeNull();
+        expect(findContentToggle(harness.container)).toBeNull();
       },
     );
 
@@ -293,9 +298,7 @@ describe.each(["ReaderView", "ArticleRenderer"])(
         tags: [{ name: "Old tag", color: "#f00" }],
       };
       await harness.render(article);
-      const toggle = harness.container.querySelector<HTMLButtonElement>(
-        ".rss-reader-content-toggle",
-      )!;
+      const toggle = findContentToggle(harness.container)!;
       toggle.click();
       harness.setTags(article, [{ name: "New tag", color: "#00f" }]);
       expect(harness.container.textContent).toContain("New tag");
@@ -311,9 +314,7 @@ describe.each(["ReaderView", "ArticleRenderer"])(
       const harness = await setup();
       fetchMock.mockResolvedValueOnce(result("A"));
       await harness.render(item("A"));
-      const toggle = harness.container.querySelector<HTMLButtonElement>(
-        ".rss-reader-content-toggle",
-      )!;
+      const toggle = findContentToggle(harness.container)!;
       expect(toggle.type).toBe("button");
       expect(
         harness.container
@@ -334,6 +335,26 @@ describe.each(["ReaderView", "ArticleRenderer"])(
             ?.style.fontFamily,
         ).toBe("serif");
       }
+    });
+
+    it("applies the configured headline font to fetched content created after the font was set", async () => {
+      const harness = await setup();
+      if (!harness.setFormatFont) return;
+      harness.setFormatFont();
+      fetchMock.mockResolvedValueOnce(result("A"));
+      await harness.render(item("A"));
+      const font = () =>
+        harness.container.querySelector<HTMLElement>(".rss-reader-item-title")
+          ?.style.fontFamily;
+      const rssFont = font();
+      expect(rssFont).toContain("serif");
+      const toggle = findContentToggle(harness.container)!;
+      toggle.click();
+      expect(font()).toBe(rssFont);
+      toggle.click();
+      expect(font()).toBe(rssFont);
+      toggle.click();
+      expect(font()).toBe(rssFont);
     });
 
     it("clears a previous restricted notice after successful fetch without replacing RSS", async () => {
@@ -365,9 +386,7 @@ describe.each(["ReaderView", "ArticleRenderer"])(
       await firstOpen;
       expect(article).toMatchObject(expectedMetadata("old"));
       const firstWrite = article.metadataFetchedAt;
-      expect(
-        harness.container.querySelector(".rss-reader-content-toggle"),
-      ).toBeNull();
+      expect(findContentToggle(harness.container)).toBeNull();
       second.resolve(result("new"));
       await secondOpen;
       expect(article).toMatchObject(expectedMetadata("old"));
@@ -409,9 +428,7 @@ describe.each(["ReaderView", "ArticleRenderer"])(
         expectedMetadata("A"),
         false,
       );
-      expect(
-        harness.container.querySelector(".rss-reader-content-toggle"),
-      ).toBeNull();
+      expect(findContentToggle(harness.container)).toBeNull();
     });
   },
 );

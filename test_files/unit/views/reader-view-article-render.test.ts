@@ -11,6 +11,7 @@ import {
   vi,
   type Mock,
 } from "vitest";
+import { findContentToggle } from "../test-reader-toggle-helpers";
 import { ReaderView } from "../../../src/views/reader-view";
 import type { FullArticleFetchResult } from "../../../src/utils/fetch-helpers";
 import {
@@ -625,9 +626,7 @@ describe("ReaderView article rendering (characterization)", () => {
 
       await view.displayItem(item);
       expect(internals(view).currentContentIsFullArticle).toBe(false);
-      const fullArticleToggle = reading().querySelector<HTMLButtonElement>(
-        ".rss-reader-content-toggle",
-      );
+      const fullArticleToggle = findContentToggle(reading());
       expect(fullArticleToggle?.textContent).toBe("Show fetched content");
       fullArticleToggle?.click();
 
@@ -668,9 +667,7 @@ describe("ReaderView article rendering (characterization)", () => {
 
       await view.displayItem(makeItem({ content: "<p>feed content</p>" }));
       expect(internals(view).currentContentIsFullArticle).toBe(false);
-      const fullArticleToggle = reading().querySelector<HTMLButtonElement>(
-        ".rss-reader-content-toggle",
-      );
+      const fullArticleToggle = findContentToggle(reading());
       expect(fullArticleToggle?.textContent).toBe("Show fetched content");
       fullArticleToggle?.click();
 
@@ -720,9 +717,7 @@ describe("ReaderView article rendering (characterization)", () => {
 
       await view.displayItem(makeItem());
       expect(internals(view).currentContentIsFullArticle).toBe(false);
-      const fullArticleToggle = reading().querySelector<HTMLButtonElement>(
-        ".rss-reader-content-toggle",
-      );
+      const fullArticleToggle = findContentToggle(reading());
       expect(fullArticleToggle?.textContent).toBe("Show fetched content");
       fullArticleToggle?.click();
 
@@ -739,9 +734,7 @@ describe("ReaderView article rendering (characterization)", () => {
 
       await view.displayItem(makeItem());
       expect(internals(view).currentContentIsFullArticle).toBe(false);
-      const fullArticleToggle = reading().querySelector<HTMLButtonElement>(
-        ".rss-reader-content-toggle",
-      );
+      const fullArticleToggle = findContentToggle(reading());
       expect(fullArticleToggle?.textContent).toBe("Show fetched content");
       fullArticleToggle?.click();
 
@@ -781,7 +774,7 @@ describe("ReaderView article rendering (characterization)", () => {
       expect(q(".rss-reader-paywall-banner-text")?.textContent).toBe(
         RESTRICTED_ARTICLE_BANNER,
       );
-      expect(q(".rss-reader-content-toggle")).toBeNull();
+      expect(findContentToggle(reading())).toBeNull();
     });
 
     it("leaves an earlier restricted reason in place when the fetch merely failed", async () => {
@@ -1282,9 +1275,7 @@ describe("ReaderView article rendering (characterization)", () => {
         }),
       );
       expect(internals(view).currentContentIsFullArticle).toBe(false);
-      const fullArticleToggle = reading().querySelector<HTMLButtonElement>(
-        ".rss-reader-content-toggle",
-      );
+      const fullArticleToggle = findContentToggle(reading());
       expect(fullArticleToggle?.textContent).toBe("Show fetched content");
       fullArticleToggle?.click();
 
@@ -2337,9 +2328,7 @@ describe("ReaderView article rendering (characterization)", () => {
       });
 
       await view.displayItem(makeItem({ content: "<p>feed teaser</p>" }));
-      reading()
-        .querySelector<HTMLButtonElement>(".rss-reader-content-toggle")
-        ?.click();
+      findContentToggle(reading())?.click();
 
       expect(internals(view).currentContentIsFullArticle).toBe(true);
       expect(q(".rss-reader-article-content .rss-youtube-embed")).toBeNull();

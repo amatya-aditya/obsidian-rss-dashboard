@@ -81,6 +81,17 @@ export interface FeedItem {
   restrictedReason?: string;
 
   /**
+   * Set when the reader's full-article fetch failed on a network error or
+   * timeout (#1110). While present the reader does not auto-fetch this article
+   * on open; it shows a banner with "Try again". Cleared by a retry.
+   */
+  fullContentFetchFailure?: {
+    reason: "timeout" | "network";
+    /** Epoch milliseconds of the failed attempt. */
+    at: number;
+  };
+
+  /**
    * Full-content fetch state for an article imported from a starred.json
    * export (234-09). Set to "unfetched" at import time for every imported
    * article; "failed" once a fetch (either the opt-in import-time fetch from

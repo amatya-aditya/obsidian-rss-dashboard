@@ -266,6 +266,11 @@ export function renderSidebarSettingsTab(
   }
 
   const iconToggleSettings: Setting[] = [];
+  // The arrows and drag handle are plain buttons, not Setting components, so
+  // setDisabled does not reach them; each row registers an updater instead.
+  const iconOrderControlUpdaters: Array<(hidden: boolean) => void> = [];
+  const isToolbarHidden = (): boolean =>
+    plugin.settings.display.hideToolbarEntirely ?? false;
 
   new Setting(containerEl)
     .setName("Hide toolbar entirely")
@@ -278,6 +283,9 @@ export function renderSidebarSettingsTab(
           await plugin.saveSettings();
           iconToggleSettings.forEach((s) => {
             s.setDisabled(value);
+          });
+          iconOrderControlUpdaters.forEach((update) => {
+            update(value);
           });
           const view = await plugin.getActiveDashboardView();
           if (view?.sidebar) {
@@ -311,6 +319,7 @@ export function renderSidebarSettingsTab(
   const renderIconRows = () => {
     iconRowsContainer.empty();
     iconToggleSettings.length = 0;
+    iconOrderControlUpdaters.length = 0;
     const order: string[] = plugin.settings.display.iconOrder?.length
       ? plugin.settings.display.iconOrder
       : [...SIDEBAR_ICON_IDS];
@@ -362,8 +371,8 @@ export function renderSidebarSettingsTab(
       upBtn.addClass("rss-dashboard-icon-order-btn");
       upBtn.setAttribute("aria-label", `Move ${icon.label} up`);
       upBtn.textContent = "↑";
-      upBtn.disabled = i === 0;
       upBtn.addEventListener("click", () => {
+        if (isToolbarHidden()) return;
         const currentOrder = plugin.settings.display.iconOrder || [
           ...SIDEBAR_ICON_IDS,
         ];
@@ -388,8 +397,8 @@ export function renderSidebarSettingsTab(
       downBtn.addClass("rss-dashboard-icon-order-btn");
       downBtn.setAttribute("aria-label", `Move ${icon.label} down`);
       downBtn.textContent = "↓";
-      downBtn.disabled = i === order.length - 1;
       downBtn.addEventListener("click", () => {
+        if (isToolbarHidden()) return;
         const currentOrder = plugin.settings.display.iconOrder || [
           ...SIDEBAR_ICON_IDS,
         ];
@@ -414,7 +423,20 @@ export function renderSidebarSettingsTab(
       iconSetting.controlEl.prepend(upBtn);
       iconToggleSettings.push(iconSetting);
 
+      const applyToolbarHidden = (hidden: boolean): void => {
+        dragHandle.disabled = hidden;
+        dragHandle.setAttribute("draggable", hidden ? "false" : "true");
+        upBtn.disabled = hidden || i === 0;
+        downBtn.disabled = hidden || i === order.length - 1;
+      };
+      applyToolbarHidden(hideToolbar);
+      iconOrderControlUpdaters.push(applyToolbarHidden);
+
       dragHandle.addEventListener("dragstart", (e: DragEvent) => {
+        if (isToolbarHidden()) {
+          e.preventDefault();
+          return;
+        }
         clearIconRowDragState();
         draggedIconId = id;
         iconSetting.settingEl.classList.add("rss-dashboard-icon-row-dragging");
@@ -426,7 +448,7 @@ export function renderSidebarSettingsTab(
       });
 
       iconSetting.settingEl.addEventListener("dragover", (e: DragEvent) => {
-        if (!draggedIconId || draggedIconId === id) return;
+        if (isToolbarHidden() || !draggedIconId || draggedIconId === id) return;
         e.preventDefault();
         if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
 
@@ -468,6 +490,10 @@ export function renderSidebarSettingsTab(
 
       iconSetting.settingEl.addEventListener("drop", (e: DragEvent) => {
         e.preventDefault();
+        if (isToolbarHidden()) {
+          clearIconRowDragState();
+          return;
+        }
         const fromId =
           draggedIconId ?? e.dataTransfer?.getData("rss-dashboard-icon-id");
         clearIconRowDragState();

@@ -136,14 +136,12 @@ _Avoid_: YouTube player (the full-view player), iframe passthrough, inline ifram
 
 ## Article state
 
-Saved-note and template vocabulary lives in the [Article Saving glossary](GLOSSARY.md).
-
 **Starred state**:
 A per-article boolean, independent of tags, toggled solely by the star action. The filled star is its only visual indicator. Never derived from, or used to derive, any tag. See [ADR 0011](docs/adr/0011-decouple-starred-state-from-tags.md).
 _Avoid_: Favorite, bookmarked, pinned
 
 **Article tag**:
-A user-assigned classification on an article, normally added or removed through a tag action; the [Saved tag](GLOSSARY.md#language) is an exception cleared with Saved state. A tag named "Favorite" or "Starred" carries no reserved meaning and behaves like any other ordinary tag. See [ADR 0011](docs/adr/0011-decouple-starred-state-from-tags.md).
+A user-assigned classification on an article, normally added or removed through a tag action; the [[Saved tag]] is an exception cleared with Saved state. A tag named "Favorite" or "Starred" carries no reserved meaning and behaves like any other ordinary tag. See [ADR 0011](docs/adr/0011-decouple-starred-state-from-tags.md).
 _Avoid_: Label (reserved for imported Inoreader labels; see [[Label-derived tag]])
 
 ## Saving articles
@@ -153,12 +151,55 @@ Saving an article to a note with the resolved folder and template and no per-sav
 _Avoid_: Quick save, simple save
 
 **Default save version**:
-The setting that decides which version a save writes: [[RSS content]] (the feed item's content, falling back to the feed description, then the summary) or [[Fetched content]] (the article page, falling back to RSS content when the fetch fails). A save surface names the version its save will write; the version is switched in this setting or in a saved template's [Save version](GLOSSARY.md#language) field, never per save. See [ADR 0022](docs/adr/0022-rss-first-reader-content-selection.md).
+The setting that decides which version a save writes: [[RSS content]] (the feed item's content, falling back to the feed description, then the summary) or [[Fetched content]] (the article page, falling back to RSS content when the fetch fails). A save surface names the version its save will write; the version is switched in this setting or in a saved template's [[Save version]] field, never per save. See [ADR 0022](docs/adr/0022-rss-first-reader-content-selection.md).
 _Avoid_: Save full content (the retired toggle), full content
 
 **Custom save**:
 A one-time save where the user chooses the folder, template, and filename pattern in the save dialog. It may also change the feed's template assignment. Offered on every Save button beside [[Default save]]; the keyboard save action is always a Default save.
 _Avoid_: Advanced save, save as
+
+**Save version**:
+Which version of an article a save writes, and so what the saved note holds. The [[Default save version]] setting decides it.
+_Avoid_: Full content (the retired toggle), summary mode
+
+**Saved template**:
+A named reusable article-note body with per-template save options such as a folder and filename pattern.
+
+**Global default template**:
+The saved template selected for article saves that have no feed-specific template assignment.
+
+**Default article template**:
+The editable fallback note template used for article saves that have no feed-assigned or global default saved template.
+_Avoid_: global template (when referring to this fallback rather than a saved template).
+
+**Feed-assigned template**:
+A saved template selected for future article saves from one configured feed. It takes precedence over the global default for that feed.
+
+**Filename pattern**:
+An optional saved-template expression that produces the filename stem for an article note, using supported article metadata placeholders but not the article body.
+
+**Filename stem**:
+The sanitized filename portion before the automatically added `.md` extension.
+
+**Filename pattern override**:
+A one-save replacement for the selected saved template's filename pattern. It changes the name used for that saved note without changing the saved template.
+
+**Saved note**:
+A vault note associated with a feed article through the article's save action.
+_Avoid_: Saved article (when referring to the note rather than the feed article), article backup
+
+**Saved-note association**:
+The recorded relationship between a feed article and its current saved note. An observed rename or move preserves that relationship; opening a saved note does not establish a different association by matching its filename.
+_Avoid_: Filename match, recovered article
+
+**Saved state**:
+The article state recording its association with a saved note. A missing association, observed note deletion, or confirmed absence during an explicit saved-note open clears it; unobserved changes can leave it stale.
+_Avoid_: Backed up, protected forever
+
+**Saved tag**:
+The case-insensitive Saved article-tag assignment used as a convenience indicator for saved articles. It is cleared with Saved state, including manually assigned variants, because assignment provenance is not distinguished.
+_Avoid_: Saved state (the tag is a separate indicator), starred tag
+
 **Tag definition**:
 A named tag in the available-tag collection, with a color and which can be assigned to articles. Deleting a tag definition from a tag-management control also removes its [[Tag assignment|assignments]] from every article. See [ADR 0020](docs/adr/0020-keep-tag-changes-consistent-across-reader-views.md).
 _Avoid_: Tag palette entry (when discussing the tag itself rather than its color)
@@ -354,16 +395,20 @@ An export containing app preferences, including storage settings (display, reten
 _Avoid_: usersettings bundle, preferences export
 
 **Replacing import**:
-An import that discards the current feeds, folders, tags, articles, and article state and puts the file's in their place: a [[Portable data bundle]], a [[Feed bundle]], or a user preferences file that carries feeds, folders, or tags. An OPML import in **Replace** mode is also a Replacing import: it replaces every feed and folder with the file's, though it brings no articles or article state. What the user had before and did not export is gone once it completes.
+An import that discards the current feeds, folders, tags, articles, and article state and puts the file's in their place: a [[Portable data bundle]], a [[Feed bundle]], or a user preferences file that carries feeds, folders, or tags. An OPML import in **Replace** mode is also a Replacing import: it replaces every feed and folder with the file's, though it brings no articles or article state. What the user had before and did not export is gone once it completes. Its preferences still merge rather than replace: each preference the file carries is applied and every [[Omitted key]] keeps its current value, exactly as for an [[Overwriting import]].
 _Avoid_: Restore, overwrite (reserved for [[Overwriting import]])
 
 **Overwriting import**:
-An import that sets each app preference present in the file to the file's value and leaves every preference the file omits unchanged: a [[Settings bundle]], or a user preferences file with no feeds, folders, or tags. Never touches feeds, articles, or article state.
+An import that sets each app preference present in the file to the file's value and leaves every [[Omitted key]] unchanged: a [[Settings bundle]], or a user preferences file with no feeds, folders, or tags. Never touches feeds, articles, or article state.
 _Avoid_: Replace, settings restore
 
 **Merging import**:
 An import that adds to the current feeds or articles without removing any: an OPML import in **Update** mode and starred-article imports.
 _Avoid_: Append, sync
+
+**Omitted key**:
+A preference key an import file does not carry. It keeps its current value, so only the keys the file carries change; a settings group the file omits keeps its current value whole.
+_Avoid_: Missing setting, skipped setting, defaulted setting
 
 **Import confirmation**:
 The last-chance prompt shown after an import file has been read and validated, and before anything is written, for every [[Replacing import]] and [[Overwriting import]]. It compares what the user has now with what the file brings, names any change to the storage location, and lets the user cancel or export a [[Portable data bundle]] first. Cancelling leaves every setting, shard file, and article state exactly as it was.
