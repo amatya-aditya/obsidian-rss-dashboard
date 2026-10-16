@@ -1,9 +1,13 @@
 # Documentation Archive
 
-Searchable catalog for completed plans and historical investigations. The
-[Plan Lifecycle and Archive](../development/README.md#plan-lifecycle-and-archive)
-policy governs new moves. The [migration inventory](document-inventory.md)
-records the documentation classification.
+Searchable catalog for plans and investigations written under the retired
+plan-file convention. `docs/archive/plans/` is frozen history and takes no new
+entries: a plan now lives in its issue body, and `docs/planning/` holds only
+supporting documents that serve several issues. See
+[ADR 0028](../adr/0028-plan-lives-in-its-issue-body.md) and
+[docs/planning/README.md](../planning/README.md). The
+[migration inventory](document-inventory.md) records the documentation
+classification.
 
 ## Versioned plans
 
@@ -94,7 +98,7 @@ records the documentation classification.
 | Plan                                                                        | Status                | Decision                                                                                                                                                                                            |
 | --------------------------------------------------------------------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [Accessibility rollout plan](plans/unshipped/681-accessibility-rollout.md)  | Superseded 2026-10-14 | Moved into [issue #681](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/681), which now holds the plan, exit criteria and sub-issue index.                                           |
-| [Legacy public roadmap](plans/unshipped/public-roadmap-legacy.md)           | Superseded 2026-09-21 | Replaced by [`docs/plans/public-roadmap.md`](../plans/public-roadmap.md).                                                                                                                           |
+| [Legacy public roadmap](plans/unshipped/public-roadmap-legacy.md)           | Superseded 2026-09-21 | Replaced by [`docs/planning/public-roadmap.md`](../planning/public-roadmap.md).                                                                                                                     |
 | [MP4 hero images](plans/unshipped/mp4-hero-images.md)                       | Deferred 2026-03-27   | The original attempt was reverted because video URL parsing needed more investigation.                                                                                                              |
 | [Shard storage v2 sync mitigations](plans/unshipped/v2-sync-mitigations.md) | Deferred 2026-09-27   | A conditional fallback: do it only if Sync V3 ([#274](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/274)) slips so far that v2 stays the only sync mode for another release cycle. |
 

@@ -73,4 +73,4 @@ The categories reflect different levels of certainty:
 
 A feature appearing here should not be interpreted as a guarantee that it will ship, or that it will ship in its currently described form.
 
-Implementation discussion, feature requests, and detailed technical planning continue to live in GitHub issues and `docs/plans`.
+Implementation discussion, feature requests, and detailed technical planning continue to live in GitHub issues; the supporting documents for that work live under `docs/planning/`.

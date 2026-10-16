@@ -20,6 +20,7 @@ import {
 } from "./storage-bundle-parsers";
 import { UserStateStore } from "./user-state-store";
 import { trimSurroundingSlashes } from "../utils/folder-paths";
+import { mergeImportedSettingsGroups } from "../utils/settings-group-merge";
 
 export interface FeedStorageStatus {
   mode: RssDashboardSettings["storageMode"];
@@ -1077,7 +1078,12 @@ export class FeedStorageRepository {
     });
 
     try {
-      Object.assign(settings, cloneJson(bundle.settings));
+      // Merge nested groups while the current settings are still intact, so a
+      // group the bundle carries only in part keeps its omitted keys.
+      Object.assign(
+        settings,
+        mergeImportedSettingsGroups(settings, cloneJson(bundle.settings)),
+      );
       settings.storageFolder = normalizeFolderPath(settings.storageFolder);
       settings.metadataStorageMode =
         bundle.metadataStorageMode ?? settings.metadataStorageMode;

@@ -18,5 +18,13 @@ A clear and concise description of what you want to happen.
 **Describe alternatives you've considered**
 A clear and concise description of any alternative solutions or features you've considered.
 
+**Acceptance criteria**
+What must be true for this to be done. Keep it observable — a reader should be
+able to tell from the behavior, not from the diff.
+
+**Out of scope**
+What this deliberately does not cover, so a later reader does not read the
+boundary as an oversight.
+
 **Additional context**
 Add any other context or screenshots about the feature request here.

@@ -10,8 +10,8 @@ import {
 } from "./git-repository.mjs";
 
 const ROOT_DIR = join(import.meta.dirname, "..");
-const PLANS_DIR = join(ROOT_DIR, "docs", "plans");
 const RELEASE_NOTES_DIR = join(ROOT_DIR, "src", "release-notes", "notes");
+const PLANNING_PREFIX = "docs/planning/";
 
 const RELEASE_LINE_PATTERN = /^(\d+)\.(\d+)(?:\.|$)/;
 const RELEASE_NOTE_FILENAME_PATTERN = /^(\d+)\.(\d+)(?:\.(\d+))?\.md$/;
@@ -27,17 +27,6 @@ const STRAY_FILE_PATTERNS = [
   /^Thumbs\.db$/i,
 ];
 
-// Statuses valid for a plan still sitting under docs/plans/. "implemented",
-// "rejected", and "superseded" plans belong under docs/archive/plans/ per
-// the Plan Lifecycle policy in docs/development/README.md.
-const VALID_ACTIVE_PLAN_STATUSES = new Set([
-  "idea",
-  "proposed",
-  "accepted",
-  "blocked",
-  "in-progress",
-]);
-
 // eslint-disable-next-line no-control-regex -- control characters in a path are exactly what this flags
 const HOSTILE_NAME_PATTERN = /[ [\]`:*?"<>|–—\u0000-\u001f]/g;
 const CATALOG_LINK_PATTERN = /\(([^)]+\.md)\)/g;
@@ -45,8 +34,23 @@ const CATALOG_EXEMPT_FILENAMES =
   /^(public-roadmap|release-v[\d.]+-roadmap)\.md$/;
 const ARCHIVED_PLANS_PREFIX = "docs/archive/plans/";
 
-const ISSUE_PLAN_FILENAME = /^\d+-[a-z0-9-]+\.md$/;
-const DRAFT_PLAN_FILENAME = /^draft-\d{8}-[a-z0-9-]+\.md$/;
+// Names under docs/planning/ that need no `issues:` claim of their own: the
+// folder's rule file, coordination roadmaps, and pre-issue drafts.
+const PLANNING_EXEMPT_FILENAME =
+  /^(README\.md|public-roadmap\.md|release-v[\d.]+-roadmap\.md)$/;
+const PLANNING_DRAFT_FILENAME = /^draft-\d{8}-[a-z0-9-]+\.md$/;
+
+// Plans written under the retired convention, still carrying its `status:`
+// field. Each one leaves this set with its file, once the content it alone
+// holds has moved into the issue body (see the migration issues on #1156).
+// This set must never grow: an addition is a regression, not an exemption.
+const PENDING_MIGRATION_PLANS = new Set([
+  "docs/planning/1063-stub-drift-check.md",
+  "docs/planning/437-reader-image-log-noise.md",
+  "docs/planning/646-adopt-prettier-enforcement.md",
+  "docs/planning/663-tag-chip-shape-setting.md",
+  "docs/planning/812-cover-image-fallback.md",
+]);
 
 export function findStrayFiles(filePaths) {
   return filePaths.filter((filePath) =>
@@ -124,55 +128,91 @@ export function isReleaseMode(args) {
   return args.includes("--release");
 }
 
-export function isLifecyclePlanFilename(fileName) {
-  return (
-    ISSUE_PLAN_FILENAME.test(fileName) || DRAFT_PLAN_FILENAME.test(fileName)
-  );
-}
-
-function extractFrontmatterStatus(source) {
+/**
+ * The frontmatter block alone, so prose that happens to contain "status:" is
+ * never read as a field.
+ */
+function extractFrontmatter(source) {
   const match = source.match(/^---\r?\n([\s\S]*?)\r?\n---/);
-  if (!match) {
-    return undefined;
-  }
-
-  const statusLine = match[1]
-    .split(/\r?\n/)
-    .find((line) => /^status:/.test(line.trim()));
-  if (!statusLine) {
-    return undefined;
-  }
-
-  return statusLine
-    .slice(statusLine.indexOf(":") + 1)
-    .trim()
-    .replace(/^["']|["']$/g, "");
+  return match ? match[1] : "";
 }
 
-export function findPlanStatusIssues(planFiles) {
-  const issues = [];
+function declaresIssues(source) {
+  return /^issues:/m.test(extractFrontmatter(source));
+}
 
-  for (const { fileName, filePath, source } of planFiles) {
-    if (!isLifecyclePlanFilename(fileName)) {
+/**
+ * docs/planning/ holds no plan. A plan lives in its issue body, so a document
+ * here must either serve several issues — declared as `issues:` frontmatter —
+ * or be one of the two shapes that need no such claim: a dated draft with no
+ * issue yet, and a coordination roadmap. A program directory carries the claim
+ * in its README, and its documents inherit it.
+ *
+ * `status:` is the marker of the retired plan-file convention, so a file here
+ * carrying one is a plan left behind — the old active-plan check, inverted.
+ */
+export function findPlanningDocumentIssues(planningFiles) {
+  const issues = [];
+  const byPath = new Map(planningFiles.map((file) => [file.filePath, file]));
+  const programDirectories = new Set();
+
+  for (const { filePath, source } of planningFiles) {
+    if (PENDING_MIGRATION_PLANS.has(filePath)) {
       continue;
     }
 
-    const status = extractFrontmatterStatus(source);
-    if (!status) {
+    if (/^status:/m.test(extractFrontmatter(source))) {
       issues.push({
         filePath,
-        reason: "missing `status` frontmatter field",
+        reason:
+          "carries `status:` frontmatter, a marker of the retired plan-file " +
+          "convention; the plan lives in its issue body (see docs/planning/README.md)",
+      });
+    }
+
+    const relativePath = filePath.slice(PLANNING_PREFIX.length);
+    const [head, ...rest] = relativePath.split("/");
+
+    if (rest.length > 0) {
+      programDirectories.add(head);
+      continue;
+    }
+
+    if (
+      PLANNING_DRAFT_FILENAME.test(head) ||
+      PLANNING_EXEMPT_FILENAME.test(head)
+    ) {
+      continue;
+    }
+
+    if (!declaresIssues(source)) {
+      issues.push({
+        filePath,
+        reason:
+          "declares no `issues:` frontmatter; a document under docs/planning/ must " +
+          "name the issues it serves, or be a draft or a coordination roadmap " +
+          "(see docs/planning/README.md)",
+      });
+    }
+  }
+
+  for (const directory of programDirectories) {
+    const readme = byPath.get(`${PLANNING_PREFIX}${directory}/README.md`);
+
+    if (!readme) {
+      issues.push({
+        filePath: `${PLANNING_PREFIX}${directory}`,
+        reason:
+          "program directory has no README.md naming the issues it serves",
       });
       continue;
     }
 
-    if (!VALID_ACTIVE_PLAN_STATUSES.has(status)) {
+    if (!declaresIssues(readme.source)) {
       issues.push({
-        filePath,
+        filePath: readme.filePath,
         reason:
-          `status "${status}" is not valid for an active plan under docs/plans/ ` +
-          `(expected one of: ${[...VALID_ACTIVE_PLAN_STATUSES].join(", ")}; ` +
-          'an "implemented"/"rejected"/"superseded" plan belongs under docs/archive/plans/)',
+          "program README declares no `issues:` frontmatter (see docs/planning/README.md)",
       });
     }
   }
@@ -323,24 +363,21 @@ function getTrackedButIgnoredFiles() {
   }
 }
 
-function listActivePlanFiles() {
-  let entries;
-  try {
-    entries = readdirSync(PLANS_DIR, { withFileTypes: true });
-  } catch {
-    return [];
-  }
-
-  return entries
-    .filter((entry) => entry.isFile())
-    .map((entry) => {
-      const absolutePath = join(PLANS_DIR, entry.name);
-      return {
-        fileName: entry.name,
-        filePath: relative(ROOT_DIR, absolutePath).replace(/\\/g, "/"),
-        source: readFileSync(absolutePath, "utf8"),
-      };
-    });
+/**
+ * Every tracked Markdown document under docs/planning/, with its source.
+ * Tracked-only: a machine-local scratch file sitting beside them must not fail
+ * a build, which is what the directory listing this replaced could not avoid.
+ */
+function readPlanningFiles(trackedFiles) {
+  return trackedFiles
+    .filter(
+      (filePath) =>
+        filePath.startsWith(PLANNING_PREFIX) && filePath.endsWith(".md"),
+    )
+    .map((filePath) => ({
+      filePath,
+      source: readFileOrEmpty(join(ROOT_DIR, filePath)),
+    }));
 }
 
 function listReleaseNoteFiles() {
@@ -402,8 +439,10 @@ function main() {
     readFileOrEmpty(join(ROOT_DIR, "docs", "archive", "README.md")),
     archivedPlanPaths,
   );
-  const activePlanFiles = listActivePlanFiles();
-  const planStatusIssues = findPlanStatusIssues(activePlanFiles);
+  const planningFiles = trackedFileChecksAvailable
+    ? readPlanningFiles(knownTrackedFiles)
+    : [];
+  const planningDocumentIssues = findPlanningDocumentIssues(planningFiles);
   const releaseNoteFiles = listReleaseNoteFiles();
   const noteFilenameIssues = findReleaseNoteFilenameIssues(releaseNoteFiles);
   const noteIssues = findNoteIssues(releaseNoteFiles);
@@ -469,13 +508,13 @@ function main() {
     }
   }
 
-  if (planStatusIssues.length > 0) {
+  if (planningDocumentIssues.length > 0) {
     failed = true;
     console.error(
-      `Pre-release check failed: ${planStatusIssues.length} plan(s) under docs/plans/ ` +
-        "have a missing or invalid status.",
+      `Pre-release check failed: ${planningDocumentIssues.length} issue(s) in ` +
+        "docs/planning/.",
     );
-    for (const issue of planStatusIssues) {
+    for (const issue of planningDocumentIssues) {
       console.error(`- ${issue.filePath}: ${issue.reason}`);
     }
   }
@@ -520,13 +559,12 @@ function main() {
   if (trackedFileChecksAvailable) {
     console.log(
       `Pre-release check passed (${knownTrackedFiles.length} tracked file(s) scanned, ` +
-        `${activePlanFiles.length} active plan(s) validated, ` +
+        `${planningFiles.length} planning document(s) validated, ` +
         `${releaseNoteFiles.length} What's New note(s) validated).`,
     );
   } else {
     console.log(
       "Pre-release check completed with Git-dependent tracked-file checks skipped; " +
-        `${activePlanFiles.length} active plan(s) and ` +
         `${releaseNoteFiles.length} What's New note(s) were still validated.`,
     );
   }

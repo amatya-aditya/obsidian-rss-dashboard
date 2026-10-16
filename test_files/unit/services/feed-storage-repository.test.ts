@@ -1339,6 +1339,68 @@ describe("FeedStorageRepository", () => {
       expect(settings.feeds[0].feedId).toBe("kept-feed");
     });
 
+    it("keeps the keys a partial settings group omits (#1214)", async () => {
+      const settings = cloneSettings();
+      settings.articleSaving = {
+        ...settings.articleSaving,
+        fetchTimeout: 42,
+        saveVersion: "fetched",
+      };
+      const previousTemplates = settings.articleSaving.savedTemplates;
+      const previousDefaultTemplate = settings.articleSaving.defaultTemplate;
+
+      const bundleSettings = { ...cloneSettings() } as unknown as Record<
+        string,
+        unknown
+      >;
+      delete bundleSettings.feeds;
+      delete bundleSettings.folders;
+      delete bundleSettings.availableTags;
+      bundleSettings.articleSaving = { defaultFolder: "saved-articles/" };
+      delete bundleSettings.media;
+
+      await repository.importSettingsBundle(
+        { version: 1, exportedAt: Date.now(), settings: bundleSettings },
+        settings,
+        saveData,
+      );
+
+      expect(settings.articleSaving.defaultFolder).toBe("saved-articles/");
+      expect(settings.articleSaving.fetchTimeout).toBe(42);
+      expect(settings.articleSaving.saveVersion).toBe("fetched");
+      expect(settings.articleSaving.defaultTemplate).toBe(
+        previousDefaultTemplate,
+      );
+      expect(settings.articleSaving.savedTemplates).toEqual(previousTemplates);
+      expect(settings.media).toEqual(cloneSettings().media);
+    });
+
+    it("restores whole nested groups when persistence fails after a partial-group merge (#1214)", async () => {
+      const settings = cloneSettings();
+      settings.articleSaving = { ...settings.articleSaving, fetchTimeout: 42 };
+      const bundleSettings = { ...cloneSettings() } as unknown as Record<
+        string,
+        unknown
+      >;
+      bundleSettings.articleSaving = { defaultFolder: "saved-articles/" };
+      saveData
+        .mockRejectedValueOnce(new Error("save failed"))
+        .mockResolvedValue(undefined);
+
+      await expect(
+        repository.importSettingsBundle(
+          { version: 1, exportedAt: Date.now(), settings: bundleSettings },
+          settings,
+          saveData,
+        ),
+      ).rejects.toThrow("save failed");
+
+      expect(settings.articleSaving.fetchTimeout).toBe(42);
+      expect(settings.articleSaving.defaultFolder).toBe(
+        cloneSettings().articleSaving.defaultFolder,
+      );
+    });
+
     it("round-trips a settings bundle exported via buildSettingsBundle with no data loss", async () => {
       const settings = cloneSettings();
       settings.storageMode = "vault-shards";

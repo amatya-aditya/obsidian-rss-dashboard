@@ -260,6 +260,23 @@ describe("applying a confirmed settings import (issue #535)", () => {
       },
     );
 
+    it("keeps the group's omitted keys when the file carries a partial articleSaving group (issue #1191)", async () => {
+      plugin.settings.articleSaving.fetchTimeout = 25;
+      await importFile(
+        "preferences",
+        jsonFile(PREFERENCES_FILE, {
+          articleSaving: { defaultFolder: "saved-articles/" },
+          feeds: [persistedFeed("feed-a")],
+        }),
+        "Replace",
+      );
+
+      expect(plugin.settings.articleSaving.defaultFolder).toBe(
+        "saved-articles/",
+      );
+      expect(plugin.settings.articleSaving.fetchTimeout).toBe(25);
+    });
+
     it("replaces the folders and tags the file carries", async () => {
       await importFile(
         "preferences",
@@ -577,6 +594,22 @@ describe("applying a confirmed settings import (issue #535)", () => {
       expect(plugin.settings.availableTags).toEqual(
         expect.arrayContaining([{ name: "kept", color: "#111111" }]),
       );
+    });
+
+    it("keeps the group's omitted keys when the file carries a partial articleSaving group (issue #1191)", async () => {
+      plugin.settings.articleSaving.fetchTimeout = 25;
+      await importFile(
+        "preferences",
+        jsonFile(PREFERENCES_FILE, {
+          articleSaving: { defaultFolder: "saved-articles/" },
+        }),
+        "Overwrite",
+      );
+
+      expect(plugin.settings.articleSaving.defaultFolder).toBe(
+        "saved-articles/",
+      );
+      expect(plugin.settings.articleSaving.fetchTimeout).toBe(25);
     });
 
     it("does not tell the repository the feed list was replaced", async () => {

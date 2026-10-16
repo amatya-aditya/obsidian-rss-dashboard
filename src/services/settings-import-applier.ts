@@ -12,6 +12,7 @@ import type {
   PersistSettingsOptions,
 } from "./feed-storage-repository";
 import type { ImportKind } from "./import-export-service";
+import { mergeImportedSettingsGroups } from "../utils/settings-group-merge";
 
 function storageLog(_message: string, _details?: unknown): void {}
 
@@ -68,7 +69,12 @@ export class SettingsImportApplier {
     if (kind === "replacing") {
       const { folders, availableTags } = this.settings;
       this.options.setSettings(
-        Object.assign({}, DEFAULT_SETTINGS, this.settings, parsed),
+        Object.assign(
+          {},
+          DEFAULT_SETTINGS,
+          this.settings,
+          mergeImportedSettingsGroups(this.settings, parsed),
+        ),
       );
       // A file without a feed list keeps the current feeds, as it keeps
       // the current folders and tags (issue #386).
@@ -158,7 +164,12 @@ export class SettingsImportApplier {
     void _availableTags;
 
     this.options.setSettings(
-      Object.assign({}, DEFAULT_SETTINGS, this.settings, settingsOnly),
+      Object.assign(
+        {},
+        DEFAULT_SETTINGS,
+        this.settings,
+        mergeImportedSettingsGroups(this.settings, settingsOnly),
+      ),
     );
 
     // Keep legacy keys and nested defaults normalized after import.

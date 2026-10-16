@@ -10,7 +10,7 @@ Replace the line `- [ ] **Slice 4** — menus, dialogs, landmarks (criteria not 
 
 ```md
 - [ ] **Slice 4** — menus, dialogs, landmarks. Criteria split after an audit
-      (`docs/plans/826-agent-testability-quick-wins/slice-4-audit.md`).
+      (`docs/planning/826-agent-testability-quick-wins/slice-4-audit.md`).
       Already shipped without a Slice 4 ticket: article header selects
       (#850, #891), Filter menu Esc and focus return (#895), Reader tag menu
       (#892, #906), click-only `role=button` controls (#848, #858), #696,

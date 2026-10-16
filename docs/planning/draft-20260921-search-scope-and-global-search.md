@@ -1,14 +1,5 @@
 ---
-status: idea
 created: 2026-09-21
-issue: ""
-milestone: ""
-owner: unassigned
-workstream: search
-sequence: 1
-depends_on: []
-release_requirement: ""
-implementation: ""
 ---
 
 # Search Scope & Global Article Search
