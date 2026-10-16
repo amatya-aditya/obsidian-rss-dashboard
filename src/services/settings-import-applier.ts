@@ -13,6 +13,50 @@ import type {
 } from "./feed-storage-repository";
 import type { ImportKind } from "./import-export-service";
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Layers defaults, the current settings, then the imported keys. Nested
+ * setting groups (`articleSaving`, `media`, `display`, ...) merge one level
+ * deep, so a file holding only some of a group's keys keeps the rest from the
+ * current group (issue #1191). Empty-default maps such as
+ * `folderFeedSortOrders` have no fixed keys and are replaced whole.
+ */
+function mergeImportedSettings(
+  current: RssDashboardSettings,
+  imported: DeepPartial<RssDashboardSettings>,
+): RssDashboardSettings {
+  const merged: Record<string, unknown> = {
+    ...DEFAULT_SETTINGS,
+    ...current,
+    ...imported,
+  };
+  const defaults = DEFAULT_SETTINGS as unknown as Record<string, unknown>;
+  const currentRecord = current as unknown as Record<string, unknown>;
+  const importedRecord = imported as Record<string, unknown>;
+  for (const key of Object.keys(importedRecord)) {
+    const defaultGroup = defaults[key];
+    const importedGroup = importedRecord[key];
+    if (
+      !isPlainObject(defaultGroup) ||
+      Object.keys(defaultGroup).length === 0 ||
+      !isPlainObject(importedGroup)
+    ) {
+      continue;
+    }
+    const currentGroup = currentRecord[key];
+    merged[key] = Object.assign(
+      {},
+      defaultGroup,
+      isPlainObject(currentGroup) ? currentGroup : {},
+      importedGroup,
+    );
+  }
+  return merged as unknown as RssDashboardSettings;
+}
+
 function storageLog(_message: string, _details?: unknown): void {}
 
 function storageError(
@@ -67,9 +111,7 @@ export class SettingsImportApplier {
 
     if (kind === "replacing") {
       const { folders, availableTags } = this.settings;
-      this.options.setSettings(
-        Object.assign({}, DEFAULT_SETTINGS, this.settings, parsed),
-      );
+      this.options.setSettings(mergeImportedSettings(this.settings, parsed));
       // A file without a feed list keeps the current feeds, as it keeps
       // the current folders and tags (issue #386).
       const importedFeeds = parsedWithCollections.feeds;
@@ -158,7 +200,7 @@ export class SettingsImportApplier {
     void _availableTags;
 
     this.options.setSettings(
-      Object.assign({}, DEFAULT_SETTINGS, this.settings, settingsOnly),
+      mergeImportedSettings(this.settings, settingsOnly),
     );
 
     // Keep legacy keys and nested defaults normalized after import.

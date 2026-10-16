@@ -560,6 +560,76 @@ describe("applying a confirmed settings import (issue #535)", () => {
     });
   });
 
+  describe("a preferences file with a partial nested group (issue #1191)", () => {
+    it.each([
+      ["Overwrite", { refreshInterval: 45 }],
+      ["Replace", { feeds: [persistedFeed("feed-c")] }],
+    ] as const)(
+      "keeps the other article-saving settings when %s imports some of the group",
+      async (confirmLabel, extra) => {
+        plugin.settings.articleSaving.fetchTimeout = 42;
+        plugin.settings.articleSaving.defaultTemplate = "kept template";
+
+        await importFile(
+          "preferences",
+          jsonFile(PREFERENCES_FILE, {
+            ...extra,
+            articleSaving: { defaultFolder: "saved-articles/" },
+          }),
+          confirmLabel,
+        );
+
+        expect(plugin.settings.articleSaving.defaultFolder).toBe(
+          "saved-articles/",
+        );
+        expect(plugin.settings.articleSaving.fetchTimeout).toBe(42);
+        expect(plugin.settings.articleSaving.defaultTemplate).toBe(
+          "kept template",
+        );
+        expect(plugin.settings.articleSaving.savedTemplates).toEqual(
+          DEFAULT_SETTINGS.articleSaving.savedTemplates,
+        );
+      },
+    );
+
+    it("keeps the other media and display settings when the file holds some of each group", async () => {
+      plugin.settings.display.imageCacheLimitMiB = 77;
+
+      await importFile(
+        "preferences",
+        jsonFile(PREFERENCES_FILE, {
+          media: { rememberPlaybackProgress: false },
+          display: { imageCacheUnlimited: true },
+        }),
+        "Overwrite",
+      );
+
+      expect(plugin.settings.media.rememberPlaybackProgress).toBe(false);
+      expect(plugin.settings.media.defaultYouTubeFolder).toBe(
+        DEFAULT_SETTINGS.media.defaultYouTubeFolder,
+      );
+      expect(plugin.settings.display.imageCacheUnlimited).toBe(true);
+      expect(plugin.settings.display.imageCacheLimitMiB).toBe(77);
+    });
+
+    it("replaces an array inside a group instead of joining it with the current one", async () => {
+      plugin.settings.highlights.words = [
+        { id: "w1", text: "old", enabled: true, createdAt: 0 },
+      ];
+
+      await importFile(
+        "preferences",
+        jsonFile(PREFERENCES_FILE, { highlights: { words: [] } }),
+        "Overwrite",
+      );
+
+      expect(plugin.settings.highlights.words).toEqual([]);
+      expect(plugin.settings.highlights.defaultColor).toBe(
+        DEFAULT_SETTINGS.highlights.defaultColor,
+      );
+    });
+  });
+
   describe("a preferences file without collections (Overwriting)", () => {
     it("overwrites the settings and leaves the feeds, folders and tags alone", async () => {
       const result = await importFile(
