@@ -3,7 +3,7 @@ import { robustFetch } from "../../utils/platform-utils.js";
 import { feedRequestHeaders } from "../../utils/request-headers.js";
 import { escapeCdata, escapeXml } from "../../utils/xml-escape.js";
 import type { FeedEncoding } from "../../types/types.js";
-import { discoverFeedUrl } from "./feed-discovery.js";
+import { discoverFeedUrls, fetchFirstValidFeed } from "./feed-discovery.js";
 import { isValidFeed } from "./feed-validation.js";
 import { throwIfAborted } from "../feed-timeout.js";
 import type {
@@ -295,30 +295,10 @@ async function fetchDiscoveredViaProxy(
   signal?: AbortSignal,
   encodingOverride?: FeedEncoding,
 ): Promise<string | null> {
-  try {
-    const discoveredUrl = await discoverFeedUrl(
-      targetUrl,
-      signal,
-      encodingOverride,
-    );
-    if (discoveredUrl && discoveredUrl !== targetUrl) {
-      const discoveredResponseText = await robustFetch(discoveredUrl, {
-        method: "GET",
-        headers: feedRequestHeaders(),
-        encodingOverride,
-      });
-      if (discoveredResponseText && isValidFeed(discoveredResponseText)) {
-        return discoveredResponseText;
-      } else {
-        throw new Error("Not a valid RSS/Atom feed");
-      }
-    }
-  } catch (e) {
-    void e;
-    // [RSS dashboard] discoverFeedUrl proxy fetch failed (expected - falls through to next proxy)
-  }
-
-  return null;
+  const candidates = (
+    await discoverFeedUrls(targetUrl, signal, encodingOverride)
+  ).filter((candidate) => candidate !== targetUrl);
+  return fetchFirstValidFeed(candidates, signal, encodingOverride);
 }
 
 async function fetchThroughDesktopProxies(

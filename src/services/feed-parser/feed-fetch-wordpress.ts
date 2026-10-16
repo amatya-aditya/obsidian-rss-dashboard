@@ -2,7 +2,7 @@ import { robustFetch } from "../../utils/platform-utils.js";
 import { feedRequestHeaders } from "../../utils/request-headers.js";
 import { hostMatches } from "../../utils/url-host.js";
 import type { FeedEncoding } from "../../types/types.js";
-import { discoverFeedUrl } from "./feed-discovery.js";
+import { discoverFeedUrls, fetchFirstValidFeed } from "./feed-discovery.js";
 import { isValidFeed } from "./feed-validation.js";
 import { throwIfAborted } from "../feed-timeout.js";
 
@@ -68,31 +68,14 @@ async function fetchDiscoveredFeed(
   signal?: AbortSignal,
   encodingOverride?: FeedEncoding,
 ): Promise<string | null> {
-  const discoveredUrl =
-    (await discoverFeedUrl(baseUrl, signal, encodingOverride)) ||
-    (hostMatches(baseUrl, "arxiv.org")
-      ? baseUrl.replace("export.arxiv.org", "rss.arxiv.org")
-      : null);
-  if (discoveredUrl) {
-    throwIfAborted(signal);
-    try {
-      const discoveredResponseText = await robustFetch(discoveredUrl, {
-        method: "GET",
-        headers: feedRequestHeaders(),
-        encodingOverride,
-      });
-
-      if (discoveredResponseText && isValidFeed(discoveredResponseText)) {
-        return discoveredResponseText;
-      } else {
-        throw new Error("Not a valid RSS/Atom feed");
-      }
-    } catch {
-      // Discovered url fetch failed, continue
-    }
+  const candidates = await discoverFeedUrls(baseUrl, signal, encodingOverride);
+  if (hostMatches(baseUrl, "arxiv.org")) {
+    const arxivUrl = baseUrl.replace("export.arxiv.org", "rss.arxiv.org");
+    if (!candidates.includes(arxivUrl)) candidates.push(arxivUrl);
   }
-
-  return null;
+  if (candidates.length === 0) return null;
+  throwIfAborted(signal);
+  return fetchFirstValidFeed(candidates, signal, encodingOverride);
 }
 
 /**

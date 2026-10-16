@@ -5,6 +5,7 @@ import {
 } from "../../utils/request-headers.js";
 import { resolveAbsoluteHttpUrl } from "../../utils/url-utils.js";
 import { hostMatches } from "../../utils/url-host.js";
+import { isValidFeed } from "./feed-validation.js";
 import { decodeHtmlEntities } from "./xml-parser/xml-html-utils.js";
 import type { FeedEncoding } from "../../types/types.js";
 
@@ -90,84 +91,120 @@ async function probeFeedBurnerCandidates(
   return { status: "none" };
 }
 
-function findLinkTagFeedUrl(
+/** Most discovered addresses fetched for one page. */
+export const MAX_DISCOVERY_CANDIDATES = 5;
+
+function withoutFragment(url: string): string {
+  const hash = url.indexOf("#");
+  return hash === -1 ? url : url.slice(0, hash);
+}
+
+/**
+ * Keeps a candidate that can be a feed address: http(s), not a fragment-only
+ * link, and not the page itself.
+ */
+function acceptCandidate(
+  href: string,
+  baseUrl: string,
+  candidates: string[],
+): void {
+  if (href.trim().startsWith("#")) return;
+  const feedUrl = resolveFeedHref(href, baseUrl);
+  if (!feedUrl) return;
+  if (withoutFragment(feedUrl) === withoutFragment(baseUrl)) return;
+  if (!candidates.includes(feedUrl)) candidates.push(feedUrl);
+}
+
+function collectLinkTagCandidates(
   responseText: string,
   baseUrl: string,
-): string | null {
+  candidates: string[],
+): void {
   const feedLinkMatches = responseText.match(
     /<link[^>]+(?:type="application\/rss\+xml"|type="application\/atom\+xml"|type="application\/rdf\+xml"|type="application\/xml")[^>]+href="([^"]+)"/gi,
   );
 
-  if (feedLinkMatches) {
-    for (const match of feedLinkMatches) {
-      const hrefMatch = match.match(/href="([^"]+)"/);
-      const href = hrefMatch?.[1];
-      if (href) {
-        // The first candidate with an address decides, as before; a non-http(s)
-        // address yields nothing rather than a mangled one. Trying a later
-        // candidate after one fails is #1099, not this fix.
-        return resolveFeedHref(href, baseUrl);
-      }
-    }
+  for (const match of feedLinkMatches ?? []) {
+    const href = match.match(/href="([^"]+)"/)?.[1];
+    if (href) acceptCandidate(href, baseUrl, candidates);
   }
-  return null;
 }
 
-function findAnchorFeedUrl(
+function collectAnchorCandidates(
   responseText: string,
   baseUrl: string,
-): string | null {
+  candidates: string[],
+): void {
   const altFeedPatterns = [
-    /<a[^>]+href="([^"]*feed[^"]*)"[^>]*>/gi,
-    /<a[^>]+href="([^"]*rss[^"]*)"[^>]*>/gi,
-    /<a[^>]+href="([^"]*atom[^"]*)"[^>]*>/gi,
-    /<a[^>]+href="([^"]*rdf[^"]*)"[^>]*>/gi,
-    /<a[^>]+href="([^"]*xml[^"]*)"[^>]*>/gi,
+    /<a\b[^>]+href="([^"]*feed[^"]*)"[^>]*>/gi,
+    /<a\b[^>]+href="([^"]*rss[^"]*)"[^>]*>/gi,
+    /<a\b[^>]+href="([^"]*atom[^"]*)"[^>]*>/gi,
+    /<a\b[^>]+href="([^"]*rdf[^"]*)"[^>]*>/gi,
+    /<a\b[^>]+href="([^"]*xml[^"]*)"[^>]*>/gi,
   ];
 
   for (const pattern of altFeedPatterns) {
-    const matches = responseText.match(pattern);
-    if (matches) {
-      for (const match of matches) {
-        const hrefMatch = match.match(/href="([^"]+)"/);
-        const href = hrefMatch?.[1];
-        if (href) {
-          const feedUrl = resolveFeedHref(href, baseUrl);
-          if (feedUrl === baseUrl) continue;
-
-          return feedUrl;
-        }
-      }
+    for (const match of responseText.match(pattern) ?? []) {
+      const href = match.match(/href="([^"]+)"/)?.[1];
+      if (href) acceptCandidate(href, baseUrl, candidates);
     }
   }
-  return null;
 }
 
-export async function discoverFeedUrl(
+/**
+ * Feed addresses a page advertises, best first: a FeedBurner probe hit alone,
+ * otherwise link tags, then anchors, capped at MAX_DISCOVERY_CANDIDATES. The
+ * caller validates each. Empty when nothing is found or the request aborts.
+ */
+export async function discoverFeedUrls(
   baseUrl: string,
   signal?: AbortSignal,
   encodingOverride?: FeedEncoding,
-): Promise<string | null> {
-  if (signal?.aborted) return null;
+): Promise<string[]> {
+  if (signal?.aborted) return [];
   try {
     const responseText = await fetchDiscoveryPage(baseUrl, signal);
-    if (!responseText) return null;
+    if (!responseText) return [];
 
     const probe = await probeFeedBurnerCandidates(
       baseUrl,
       signal,
       encodingOverride,
     );
-    if (probe.status === "found") return probe.feedUrl;
-    if (probe.status === "aborted") return null;
+    if (probe.status === "found") return [probe.feedUrl];
+    if (probe.status === "aborted") return [];
 
-    const linkTagFeedUrl = findLinkTagFeedUrl(responseText, baseUrl);
-    if (linkTagFeedUrl) return linkTagFeedUrl;
-
-    const anchorFeedUrl = findAnchorFeedUrl(responseText, baseUrl);
-    if (anchorFeedUrl) return anchorFeedUrl;
+    const candidates: string[] = [];
+    collectLinkTagCandidates(responseText, baseUrl, candidates);
+    collectAnchorCandidates(responseText, baseUrl, candidates);
+    return candidates.slice(0, MAX_DISCOVERY_CANDIDATES);
   } catch {
-    // Feed discovery failed, return null
+    // Feed discovery failed, return no candidates
+  }
+  return [];
+}
+
+/**
+ * Fetch each candidate in order and return the first body that is a feed, or
+ * null when none is. A failed or non-feed candidate moves on to the next.
+ */
+export async function fetchFirstValidFeed(
+  candidates: string[],
+  signal?: AbortSignal,
+  encodingOverride?: FeedEncoding,
+): Promise<string | null> {
+  for (const candidate of candidates) {
+    if (signal?.aborted) return null;
+    try {
+      const text = await robustFetch(candidate, {
+        method: "GET",
+        headers: feedRequestHeaders(),
+        encodingOverride,
+      });
+      if (text && isValidFeed(text)) return text;
+    } catch {
+      // Candidate fetch failed; try the next one
+    }
   }
   return null;
 }

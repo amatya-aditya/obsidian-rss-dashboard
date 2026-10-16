@@ -47,6 +47,7 @@
 
 ### Fixes
 
+- Adding a feed by a page address no longer fails when the first feed link on the page is not a feed. Discovery now tries up to five candidates in order (link tags, then anchors) until one is a valid feed, and skips `mailto:` and other non-http(s) links, fragment links, `<area>` tags, and the page's own address. [GH Issue #1099](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1099)
 - Save controls now say which version a save writes instead of "full content" and "summary": the Save tooltip on an article card, in the Reader toolbar, and in the dashboard's inline reader names the resolved version (`Save RSS content to notes`, `Save fetched content to notes`), and the post-save notice names the version written, including when a fetched save fell back to RSS content. The keyboard-shortcut help row is now **Save to notes**, because a static row cannot know the resolved version. [GH Issue #1184](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1184)
 
 - Saving an article whose feed embeds a YouTube video now keeps the video in the note: the note gets the video embed on its own line, followed by a plain "Watch on YouTube" link, instead of silently dropping it. Applies to saves that write the RSS content (Default save version set to RSS content, or a fetch that falls back to it) and to a fetched page that serves the video itself. [GH Issue #1168](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1168)

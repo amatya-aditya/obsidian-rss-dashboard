@@ -297,9 +297,7 @@ describe("discoverFeedUrl, reached after the WordPress fallback addresses fail",
       expect(after(served.requested, SITE, 2)).toEqual([]);
     });
 
-    it("does not try a later link tag when the first cannot resolve to http(s)", async () => {
-      // #1098 corrects the address each candidate yields but leaves candidate
-      // iteration to #1099, so the first link tag still decides.
+    it("uses a later link tag when the first cannot resolve to http(s)", async () => {
       const served = serve({
         [SITE]: wpPage(
           '<link rel="alternate" type="application/rss+xml" href="ftp://cdn.example.net/first.xml">' +
@@ -307,8 +305,12 @@ describe("discoverFeedUrl, reached after the WordPress fallback addresses fail",
         ),
         "https://example.com/discovered.xml": feedXml("Discovered"),
       });
-      await expect(fetchFeedXml(SITE, DIRECT)).rejects.toThrow(ALL_FAILED);
-      expect(after(served.requested, SITE, 2)).toEqual([]);
+      await expect(fetchFeedXml(SITE, DIRECT)).resolves.toContain(
+        "<title>Discovered</title>",
+      );
+      expect(after(served.requested, SITE, 2)).toEqual([
+        "https://example.com/discovered.xml",
+      ]);
     });
 
     it("finds nothing when the page address cannot resolve a root-relative candidate", async () => {
@@ -325,8 +327,7 @@ describe("discoverFeedUrl, reached after the WordPress fallback addresses fail",
       expect(after(served.requested, site, 2)).toEqual([]);
     });
 
-    it("stops at the first link tag even when it is not a feed", async () => {
-      // BUG: pinned, see #1099
+    it("moves to the next link tag when the first is not a feed", async () => {
       const served = serve({
         [SITE]: wpPage(
           '<link rel="alternate" type="application/rss+xml" href="https://example.net/comments.xml">' +
@@ -334,21 +335,23 @@ describe("discoverFeedUrl, reached after the WordPress fallback addresses fail",
         ),
         "https://example.net/posts.xml": feedXml("Posts"),
       });
-      await expect(fetchFeedXml(SITE, DIRECT)).rejects.toThrow(ALL_FAILED);
+      await expect(fetchFeedXml(SITE, DIRECT)).resolves.toContain(
+        "<title>Posts</title>",
+      );
       expect(after(served.requested, SITE, 2)).toEqual([
         "https://example.net/comments.xml",
+        "https://example.net/posts.xml",
       ]);
     });
 
-    it("fetches the page's own address again when a link tag names it", async () => {
-      // BUG: pinned, see #1099
+    it("does not fetch the page's own address again when a link tag names it", async () => {
       const served = serve({
         [SITE]: wpPage(
           `<link rel="alternate" type="application/rss+xml" href="${SITE}">`,
         ),
       });
       await expect(fetchFeedXml(SITE, DIRECT)).rejects.toThrow(ALL_FAILED);
-      expect(served.requested.filter((u) => u === SITE)).toHaveLength(3);
+      expect(served.requested.filter((u) => u === SITE)).toHaveLength(2);
     });
 
     it("prefers a link tag over an anchor", async () => {
@@ -549,17 +552,19 @@ describe("discoverFeedUrl, reached after the WordPress fallback addresses fail",
       ]);
     });
 
-    it("follows an anchor that only mentions feed in its name and not a feed", async () => {
-      // BUG: pinned, see #1099
+    it("moves past an anchor that only mentions feed in its name", async () => {
       const served = serve({
         [SITE]: wpPage(
           '<a href="/feedback">Send feedback</a><a href="/news.rss">RSS</a>',
         ),
         "https://example.com/news.rss": feedXml("Discovered"),
       });
-      await expect(fetchFeedXml(SITE, DIRECT)).rejects.toThrow(ALL_FAILED);
+      await expect(fetchFeedXml(SITE, DIRECT)).resolves.toContain(
+        "<title>Discovered</title>",
+      );
       expect(after(served.requested, SITE, 2)).toEqual([
         "https://example.com/feedback",
+        "https://example.com/news.rss",
       ]);
     });
 
@@ -574,32 +579,51 @@ describe("discoverFeedUrl, reached after the WordPress fallback addresses fail",
       expect(after(served.requested, SITE, 2)).toEqual([]);
     });
 
-    it("does not try a later anchor when the first cannot resolve to http(s)", async () => {
-      // #1098 corrects the address each candidate yields but leaves candidate
-      // iteration to #1099, so the first matching anchor still decides.
+    it("uses a later anchor when the first cannot resolve to http(s)", async () => {
       const served = serve({
         [SITE]: wpPage(
           '<a href="mailto:feedback@example.com">Mail</a><a href="/news.rss">RSS</a>',
         ),
         "https://example.com/news.rss": feedXml("Discovered"),
       });
-      await expect(fetchFeedXml(SITE, DIRECT)).rejects.toThrow(ALL_FAILED);
-      expect(after(served.requested, SITE, 2)).toEqual([]);
-    });
-
-    it("also follows a tag whose name merely starts with a", async () => {
-      // BUG: pinned, see #1099
-      // `<a[^>]+href=` matches `<area href=...>`, which is not an anchor.
-      const served = serve({
-        [SITE]: wpPage('<area href="/subscribe-feed"><img src="/x-feed.png">'),
-        "https://example.com/subscribe-feed": feedXml("Discovered"),
-      });
       await expect(fetchFeedXml(SITE, DIRECT)).resolves.toContain(
         "<title>Discovered</title>",
       );
       expect(after(served.requested, SITE, 2)).toEqual([
-        "https://example.com/subscribe-feed",
+        "https://example.com/news.rss",
       ]);
+    });
+
+    it("does not follow a tag whose name merely starts with a", async () => {
+      // `<area href=...>` is not an anchor.
+      const served = serve({
+        [SITE]: wpPage('<area href="/subscribe-feed"><img src="/x-feed.png">'),
+        "https://example.com/subscribe-feed": feedXml("Discovered"),
+      });
+      await expect(fetchFeedXml(SITE, DIRECT)).rejects.toThrow(ALL_FAILED);
+      expect(after(served.requested, SITE, 2)).toEqual([]);
+    });
+
+    it("drops a fragment-only anchor", async () => {
+      const served = serve({
+        [SITE]: wpPage('<a href="#feed">Feed</a>'),
+      });
+      await expect(fetchFeedXml(SITE, DIRECT)).rejects.toThrow(ALL_FAILED);
+      expect(after(served.requested, SITE, 2)).toEqual([]);
+    });
+
+    it("fetches at most five candidates", async () => {
+      const links = [1, 2, 3, 4, 5, 6, 7]
+        .map((n) => `<a href="/f${n}-feed">F</a>`)
+        .join("");
+      const served = serve({
+        [SITE]: wpPage(links),
+        "https://example.com/f6-feed": feedXml("Late"),
+      });
+      await expect(fetchFeedXml(SITE, DIRECT)).rejects.toThrow(ALL_FAILED);
+      expect(after(served.requested, SITE, 2)).toEqual(
+        [1, 2, 3, 4, 5].map((n) => `https://example.com/f${n}-feed`),
+      );
     });
 
     it("does not look inside tags that do not start with a", async () => {
