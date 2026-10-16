@@ -12,7 +12,7 @@ function stripWhitespace(input: string): string {
   return (input || "").replace(/\s+/g, "");
 }
 
-export function selectEpisodeNotesHtml(item: FeedItem): string {
+function selectEpisodeNotesHtml(item: FeedItem): string {
   const content = (item.content || "").trim();
   const description = (item.description || "").trim();
   const itunesSummary = (item.itunes?.summary || "").trim();
@@ -30,7 +30,7 @@ export function selectEpisodeNotesHtml(item: FeedItem): string {
   return description || itunesSummary || summary || "";
 }
 
-export function formatBytes(bytes: number): string {
+function formatBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return "";
   const units = ["B", "KB", "MB", "GB", "TB"];
   let value = bytes;
