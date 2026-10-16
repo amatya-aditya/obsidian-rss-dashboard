@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { ReaderView } from "../../../src/views/reader-view";
 import {
   FeedItem,
@@ -55,6 +55,9 @@ function makeItem(overrides: Partial<FeedItem> = {}): FeedItem {
 
 describe("ReaderView restricted-content handling", () => {
   let readerView: ReaderView;
+  let onArticleUpdate: Mock<
+    (item: FeedItem, updates: Partial<FeedItem>, rerender?: boolean) => void
+  >;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -76,6 +79,10 @@ describe("ReaderView restricted-content handling", () => {
       },
     };
 
+    onArticleUpdate =
+      vi.fn<
+        (item: FeedItem, updates: Partial<FeedItem>, rerender?: boolean) => void
+      >();
     readerView = new ReaderView(
       new MockLeaf(mockApp) as never,
       {
@@ -88,7 +95,7 @@ describe("ReaderView restricted-content handling", () => {
         checkSavedFileExists: vi.fn().mockReturnValue(true),
       } as never,
       vi.fn(),
-      vi.fn(),
+      onArticleUpdate,
     );
 
     (readerView as unknown as { contentEl: HTMLElement }).contentEl =
@@ -126,6 +133,38 @@ describe("ReaderView restricted-content handling", () => {
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(content?.textContent).toContain("Reader fallback excerpt.");
+  });
+
+  it("persists restrictedReason on the article when the full-article fetch is restricted", async () => {
+    const item = makeItem();
+
+    await readerView.onOpen();
+    await readerView.displayItem(item);
+
+    expect(item.restrictedReason).toBe(RESTRICTED_ARTICLE_REASON);
+    expect(onArticleUpdate).toHaveBeenCalledWith(
+      item,
+      { restrictedReason: RESTRICTED_ARTICLE_REASON },
+      false,
+    );
+  });
+
+  it("persists clearing restrictedReason when a later fetch succeeds", async () => {
+    fetchFullArticleContentWithOutcomeMock.mockResolvedValue({
+      content: `<p>${"Fetched article body. ".repeat(30)}</p>`,
+      failureType: "none",
+    });
+    const item = makeItem({ restrictedReason: RESTRICTED_ARTICLE_REASON });
+
+    await readerView.onOpen();
+    await readerView.displayItem(item);
+
+    expect(item.restrictedReason).toBeUndefined();
+    expect(onArticleUpdate).toHaveBeenCalledWith(
+      item,
+      { restrictedReason: undefined },
+      false,
+    );
   });
 
   it("skips restricted full-article fetch for media:content video items", async () => {
