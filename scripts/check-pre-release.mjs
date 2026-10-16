@@ -49,7 +49,6 @@ const PENDING_MIGRATION_PLANS = new Set([
   "docs/planning/437-reader-image-log-noise.md",
   "docs/planning/646-adopt-prettier-enforcement.md",
   "docs/planning/663-tag-chip-shape-setting.md",
-  "docs/planning/812-cover-image-fallback.md",
 ]);
 
 export function findStrayFiles(filePaths) {

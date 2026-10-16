@@ -154,7 +154,6 @@ parses it and pins those facts. It is public publisher data, committed as-is.
 - [ADR 0007: Article-metadata pipeline seam](../adr/0007-article-metadata-pipeline-seam.md)
 - [Feed Data Lifecycle](./data-flow.md)
 - [Fixture Vault for Manual Testing](./fixture-vault.md)
-- [Cover-image fallback plan](../planning/812-cover-image-fallback.md)
 - [#964](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/964) — placeholder for preview-less cards
 - [#812](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/812) — use the article page's image when the feed has none
 - [#1030](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1030) — opt-in page enrichment at refresh
