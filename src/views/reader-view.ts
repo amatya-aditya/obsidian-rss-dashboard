@@ -1446,17 +1446,13 @@ export class ReaderView extends ItemView {
       // Opening another pane must not keep the fetched-content cache pending.
       void this.webViewerIntegration
         .openInWebViewer(
-          link,
+          item.link,
           extractDisplayTitleFromHtml(fetchedContent) || item.title,
         )
         .catch(() => {
           // The RSS version and the optional full-article button remain usable.
         });
     }
-  }
-
-  private isSuccessfulArticleFetch(result: FullArticleFetchResult): boolean {
-    return result.failureType === "none" && result.content.trim().length > 0;
   }
 
   private async displayVideo(item: FeedItem): Promise<void> {

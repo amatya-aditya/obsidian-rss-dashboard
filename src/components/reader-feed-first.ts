@@ -36,7 +36,8 @@ export interface FeedFirstDisplayOptions {
 /**
  * Feed-first display shared by the inline and dedicated readers: show the
  * RSS version at once, fetch the article, then offer or fail the fetched one.
- * Returns the live versions, or null when the display went stale.
+ * Returns the live versions whatever the fetch outcome (failed fetches
+ * included), or null when the display went stale.
  */
 export async function runFeedFirstDisplay(
   options: FeedFirstDisplayOptions,
