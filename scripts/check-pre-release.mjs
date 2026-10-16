@@ -46,9 +46,6 @@ const PLANNING_DRAFT_FILENAME = /^draft-\d{8}-[a-z0-9-]+\.md$/;
 // This set must never grow: an addition is a regression, not an exemption.
 const PENDING_MIGRATION_PLANS = new Set([
   "docs/planning/1063-stub-drift-check.md",
-  "docs/planning/437-reader-image-log-noise.md",
-  "docs/planning/646-adopt-prettier-enforcement.md",
-  "docs/planning/663-tag-chip-shape-setting.md",
 ]);
 
 export function findStrayFiles(filePaths) {

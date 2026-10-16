@@ -153,7 +153,7 @@ describe("findPlanningDocumentIssues", () => {
     expect(
       findPlanningDocumentIssues([
         {
-          filePath: "docs/planning/437-reader-image-log-noise.md",
+          filePath: "docs/planning/1063-stub-drift-check.md",
           source: "---\nstatus: in-progress\nissue: ''\n---\n",
         },
       ]),
