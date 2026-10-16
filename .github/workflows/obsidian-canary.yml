@@ -84,8 +84,14 @@ jobs:
           fi
           node scripts/upsert-obsidian-update-issue.mjs --report drift.md
 
+      # The check writes drift.md only once it has found missing facts, so the
+      # file's presence tells drift apart from a check that could not run.
       - name: Fail when a pinned fact is gone
         if: steps.check.outcome == 'failure'
         run: |
-          echo "::error title=Stub drift::Obsidian dropped a pinned stub fact; see the obsidian-update issue."
+          if [[ -s drift.md ]]; then
+            echo "::error title=Stub drift::Obsidian dropped a pinned stub fact; see the obsidian-update issue."
+          else
+            echo "::error title=Stub check failed::The check could not run; see the check step log. No drift was reported."
+          fi
           exit 1
