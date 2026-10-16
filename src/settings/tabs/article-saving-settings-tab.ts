@@ -72,7 +72,9 @@ export function renderArticleSavingSettingsTab(
       text
         .setValue(plugin.settings.articleSaving.defaultFolder)
         .onChange(async (value) => {
-          plugin.settings.articleSaving.defaultFolder = normalizePath(value);
+          const normalized = normalizePath(value.trim());
+          plugin.settings.articleSaving.defaultFolder =
+            normalized === "/" ? "" : normalized;
           await plugin.saveSettings();
         });
       new VaultFolderSuggest(plugin.app, text.inputEl);

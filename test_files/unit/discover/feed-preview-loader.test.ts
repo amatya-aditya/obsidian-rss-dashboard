@@ -54,6 +54,24 @@ describe("resolveAndLoadPreview()", () => {
     );
   });
 
+  it("adopts the discovered feed address as the resolved URL", async () => {
+    const { resolveAndLoadPreview } =
+      await import("../../../src/modals/feed-manager/feed-preview-loader");
+
+    detectPodcastPlatformMock.mockReturnValue(null);
+    loadFeedForPreviewMock.mockResolvedValue({
+      title: "Example Feed",
+      latestPubDate: "2026-03-20T00:00:00.000Z",
+      hasEntries: true,
+      feedUrl: "https://example.com/posts.xml",
+    });
+
+    const result = await resolveAndLoadPreview("https://example.com/blog");
+
+    expect(result.inputUrl).toBe("https://example.com/blog");
+    expect(result.finalUrl).toBe("https://example.com/posts.xml");
+  });
+
   it("passes a manual feed encoding to preview loading", async () => {
     const { resolveAndLoadPreview } =
       await import("../../../src/modals/feed-manager/feed-preview-loader");

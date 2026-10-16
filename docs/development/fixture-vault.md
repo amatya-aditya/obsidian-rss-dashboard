@@ -108,6 +108,16 @@ takes the card's error path and hides it. Run the server to check that the
 defect still reproduces on a build without the fix. With the fix, no counter is
 requested, so the expected view is the same either way.
 
+The **feed-advertising page** (`feed-advertising-page.html`) is not a feed but
+announces one, and names WordPress so the Save path reaches the same feed
+through the plugin's WordPress fallback. No seeded article links it: it is the
+page address to type into **Add feed** (or **Edit feed**) when checking that
+**Load** resolves a page to the feed **Save** would add (#1201). With **Enable
+CORS proxy** off, load
+`http://127.0.0.1:8787/feed-advertising-page.html`: **Title** and **Latest
+entry** fill from the synthesized feed, and the URL field rewrites to
+`http://127.0.0.1:8787/user-agent-feed.xml`.
+
 Serve the files in a second terminal before opening the article, and when
 checking that a counter really loads:
 
@@ -575,7 +585,9 @@ file with the plugin's own parsers and validators.
 Edit `scripts/generate-fixture-vault.mjs` for feeds, articles, settings, and
 the JSON import fixtures, then run `npm run fixture:vault:generate`. Edit the
 notes, `feeds.opml`, `starred.json`, and the `.obsidian` files by hand. Add a
-page or image for a seed article to link to in `test_files/fixture-pages/`; the
+page or image to `test_files/fixture-pages/` — for a seed article to link to, or
+for a dialog to be pointed at, as the feed-advertising page is — and name it in
+`scripts/generate-fixture-vault.mjs` when a test or the seed data needs it. The
 fixture server serves each `.html`, `.gif`, and `.png` file there by its
 filename.
 `test_files/unit/setup-fixture-vault.test.ts` fails if the committed files no

@@ -3,6 +3,10 @@ import { robustFetch } from "../../utils/platform-utils.js";
 import { feedRequestHeaders } from "../../utils/request-headers.js";
 import type { FeedEncoding } from "../../types/types.js";
 import { isValidFeed } from "./feed-validation.js";
+import {
+  discoverFeedUrls,
+  fetchFirstValidFeedWithUrl,
+} from "./feed-discovery.js";
 import { CustomXMLParser } from "./xml-parser/custom-xml-parser.js";
 import type { FeedPreviewData, Rss2JsonResponse } from "./types.js";
 
@@ -31,29 +35,65 @@ export interface FeedPreviewLoadOptions {
   allowRss2JsonFallback?: boolean;
 }
 
+/**
+ * Run the same page discovery the save path uses and return the feed it finds,
+ * or null. The discovered address becomes the preview's `feedUrl` so callers
+ * can rewrite the URL field to the feed Save would add.
+ */
+async function discoverFeedPreview(
+  pageUrl: string,
+  encodingOverride?: FeedEncoding,
+): Promise<FeedPreviewData | null> {
+  const candidates = await discoverFeedUrls(
+    pageUrl,
+    undefined,
+    encodingOverride,
+  );
+  const discovered = await fetchFirstValidFeedWithUrl(
+    candidates,
+    undefined,
+    encodingOverride,
+  );
+  if (!discovered) return null;
+  return parseFeedPreviewResponse(discovered.text, discovered.feedUrl);
+}
+
 export async function loadFeedForPreview(
   feedUrl: string,
   feedEncoding?: FeedEncoding,
   options: FeedPreviewLoadOptions = {},
 ): Promise<FeedPreviewData> {
-  // Try direct request first
+  const encodingOverride =
+    feedEncoding === "windows-1251" ? feedEncoding : undefined;
+
+  // Try direct request first. A body that is not a feed is not a failure: the
+  // address may be a page that advertises one, as the save path allows.
+  let isPageNotFeed = false;
   try {
     const responseText = await robustFetch(feedUrl, {
       method: "GET",
       headers: feedRequestHeaders(),
-      encodingOverride:
-        feedEncoding === "windows-1251" ? feedEncoding : undefined,
+      encodingOverride,
     });
 
     const preview = parseFeedPreviewResponse(responseText, feedUrl);
     if (preview) return preview;
+
+    isPageNotFeed = true;
   } catch {
-    // Fall through to rss2json
+    // The request failed outright; discovery cannot succeed either.
+  }
+
+  if (isPageNotFeed) {
+    const discovered = await discoverFeedPreview(feedUrl, encodingOverride);
+    if (discovered) return discovered;
   }
 
   if (options.allowRss2JsonFallback === false) {
     throw new Error(
-      "Failed to load feed: the direct request failed and the CORS proxy is disabled.",
+      isPageNotFeed
+        ? "Failed to load feed: the address is a page with no feed we could find and the CORS proxy is disabled."
+        : "Failed to load feed: the direct request failed and the CORS proxy is disabled.",
     );
   }
 

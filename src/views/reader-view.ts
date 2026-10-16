@@ -887,6 +887,23 @@ export class ReaderView extends ItemView {
 
         const label = (link.textContent || "").replace(/\s+/g, " ").trim();
         if (label) {
+          if (hasInlineImage) {
+            // Keep the image as the anchor's content and move the caption just
+            // after it, so a link that wraps an image and a caption converts to
+            // `[![alt](src)](href) Caption` instead of dropping the image
+            // (#1200).
+            const images = Array.from(link.querySelectorAll("img"));
+            link.textContent = "";
+            images.forEach((image) => link.appendChild(image));
+
+            if (href) {
+              link.setAttribute("href", href);
+            }
+
+            link.after(doc.createTextNode(` ${label}`));
+            return;
+          }
+
           link.textContent = label;
           return;
         }
