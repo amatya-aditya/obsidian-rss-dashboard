@@ -98,32 +98,42 @@ export function resolveSaveVersion(
 }
 
 /**
+ * Turns only the retired boolean `saveFullContent` into `saveVersion` on a raw
+ * `articleSaving` group (a truthy value is Fetched content, a falsy one is RSS
+ * content, as the old code tested it) and removes the old key. A valid
+ * `saveVersion` already present wins. It fills no default, so a partial
+ * imported group does not mask the current value it omits.
+ * @param {Record<string, unknown>} articleSaving Raw `articleSaving` group, changed in place
+ * @returns {boolean} true if the group changed
+ */
+export function migrateLegacySaveFullContent(
+  articleSaving: Record<string, unknown>,
+): boolean {
+  if (!("saveFullContent" in articleSaving)) return false;
+  const legacy = articleSaving.saveFullContent;
+  delete articleSaving.saveFullContent;
+  if (legacy !== undefined && !isSaveVersion(articleSaving.saveVersion)) {
+    // The old code tested truthiness, so a hand-edited "false" or 0 keeps its meaning.
+    articleSaving.saveVersion = legacy ? "fetched" : "rss";
+  }
+  return true;
+}
+
+/**
  * Turns the retired boolean `saveFullContent` into `saveVersion` on a raw
- * `articleSaving` group (a truthy value is Fetched content, a falsy one is RSS content, as the old code tested it),
- * removes the old key, and repairs a missing or unknown `saveVersion`. A
- * `saveVersion` already present wins over the old key. Run it on the raw
- * group before defaults are merged in, or the default would hide an old
- * `false`.
+ * `articleSaving` group, removes the old key, and repairs a missing or unknown
+ * `saveVersion`. A `saveVersion` already present wins over the old key. Run it
+ * on the raw group before defaults are merged in, or the default would hide an
+ * old `false`.
  * @param {Record<string, unknown>} articleSaving Raw `articleSaving` group, changed in place
  * @returns {boolean} true if the group changed
  */
 export function migrateSaveVersionSetting(
   articleSaving: Record<string, unknown>,
 ): boolean {
-  let didChange = false;
-  const legacy = articleSaving.saveFullContent;
-  if ("saveFullContent" in articleSaving) {
-    delete articleSaving.saveFullContent;
-    didChange = true;
-  }
+  let didChange = migrateLegacySaveFullContent(articleSaving);
   if (!isSaveVersion(articleSaving.saveVersion)) {
-    articleSaving.saveVersion =
-      legacy === undefined
-        ? DEFAULT_SETTINGS.articleSaving.saveVersion
-        : // The old code tested truthiness, so a hand-edited "false" or 0 keeps its meaning.
-          legacy
-          ? "fetched"
-          : "rss";
+    articleSaving.saveVersion = DEFAULT_SETTINGS.articleSaving.saveVersion;
     didChange = true;
   }
   return didChange;
