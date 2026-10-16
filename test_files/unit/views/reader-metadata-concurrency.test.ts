@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { findContentToggle } from "../test-reader-toggle-helpers";
 import { ReaderView } from "../../../src/views/reader-view";
 import { ArticleRenderer } from "../../../src/components/article-renderer";
 import { App, Component, TFile } from "../../stubs/obsidian";
@@ -206,10 +207,7 @@ describe.each(["ReaderView", "ArticleRenderer"])(
             expect(harness.container.textContent).not.toContain(
               "A substantial opening paragraph",
             );
-            expect(
-              harness.container.querySelector(".rss-reader-content-toggle")
-                ?.textContent,
-            ).toBe(
+            expect(findContentToggle(harness.container)?.textContent).toBe(
               restrictedId === "A" &&
                 otherResult.content &&
                 otherResult.failureType === "none"

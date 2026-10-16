@@ -27,7 +27,7 @@
   },
   "src/components/article-renderer.ts": {
     "complexity": {
-      "count": 2
+      "count": 1
     }
   },
   "src/components/folder-selector-popup.ts": {

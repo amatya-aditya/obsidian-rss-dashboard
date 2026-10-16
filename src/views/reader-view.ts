@@ -1,4 +1,8 @@
-import { ReaderContentVersions } from "../components/reader-content-versions";
+import type { ReaderContentVersions } from "../components/reader-content-versions";
+import {
+  runFeedFirstDisplay,
+  visitReaderContent,
+} from "../components/reader-feed-first";
 import {
   ItemView,
   WorkspaceLeaf,
@@ -10,7 +14,7 @@ import {
   Notice,
   setTooltip,
 } from "obsidian";
-import { renderReaderTagChips } from "../utils/reader-tag-chips";
+import { refreshReaderHeaderTags } from "../utils/reader-tag-chips";
 import { setIcon, Scope } from "obsidian";
 import {
   addMathTurndownRule,
@@ -1391,57 +1395,48 @@ export class ReaderView extends ItemView {
     this.podcastPlayer = null;
     this.videoPlayer?.destroy();
     this.videoPlayer = null;
+    const link = item.link;
     let fetchedContent = "";
-    const versions = new ReaderContentVersions(
-      this.readingContainer,
-      (parent, version) =>
-        this.renderArticle(
-          item,
-          version === "rss" ? feedContent : fetchedContent,
-          parent,
-        ),
-      (version) => {
+    const versions = await runFeedFirstDisplay({
+      container: this.readingContainer,
+      item,
+      feedContent,
+      renderVersion: (parent, _version, content) =>
+        this.renderArticle(item, content, parent),
+      onSelectVersion: (version, fetched) => {
         this.currentContentIsFullArticle = version === "full";
-        this.currentFullContent =
-          version === "full" ? fetchedContent : feedContent;
+        this.currentFullContent = version === "full" ? fetched : feedContent;
         this.currentDisplayTitle =
           version === "full"
-            ? extractDisplayTitleFromHtml(fetchedContent) || undefined
+            ? extractDisplayTitleFromHtml(fetched) || undefined
             : undefined;
         this.syncReaderTitle();
       },
-      !hasMeaningfulArticleContent(feedContent),
-    );
-    this.contentVersions = versions;
-    let result: FullArticleFetchResult;
-    try {
-      result = await this.fetchFullArticleContent(item.link);
-    } catch {
-      result = { content: "", failureType: "network" };
-    }
-    // Metadata belongs to the fetched item even after navigation or close.
-    // Keep the substantial-body gate: a short extraction must not lock metadata.
-    if (hasMeaningfulArticleContent(result.content)) {
-      this.persistFetchedMetadata(item, result.content, result.pageMetadata);
-    }
-    if (identity !== this.displayIdentity || !versions.isActive()) return;
-    this.currentFullContentFetchAttempted = true;
-    this.currentFullContentFailureType = result.failureType;
-    fetchedContent = result.content;
-    this.currentFetchedArticleContent = fetchedContent.trim()
-      ? fetchedContent
-      : undefined;
-    if (this.isSuccessfulArticleFetch(result)) {
-      item.restrictedReason = undefined;
-      versions.ready();
-    } else {
-      if (result.failureType === "restricted") {
-        item.restrictedReason = RESTRICTED_ARTICLE_REASON;
-        if (!this.readingContainer.querySelector(".rss-reader-paywall-banner"))
-          this.renderRestrictedBanner(item);
-      }
-      versions.failed(result);
-    }
+      hasMeaningfulContent: hasMeaningfulArticleContent,
+      onVersions: (created) => {
+        this.contentVersions = created;
+      },
+      fetch: async () => {
+        try {
+          return await this.fetchFullArticleContent(link);
+        } catch {
+          return { content: "", failureType: "network" };
+        }
+      },
+      persistMetadata: (result) =>
+        this.persistFetchedMetadata(item, result.content, result.pageMetadata),
+      isCurrent: () => identity === this.displayIdentity,
+      onSettled: (result) => {
+        fetchedContent = result.content;
+        this.currentFullContentFetchAttempted = true;
+        this.currentFullContentFailureType = result.failureType;
+        this.currentFetchedArticleContent = fetchedContent.trim()
+          ? fetchedContent
+          : undefined;
+      },
+      renderRestrictedBanner: () => this.renderRestrictedBanner(item),
+    });
+    if (!versions) return;
     if (
       this.settings.useWebViewer &&
       this.webViewerIntegration &&
@@ -1458,10 +1453,6 @@ export class ReaderView extends ItemView {
           // The RSS version and the optional full-article button remain usable.
         });
     }
-  }
-
-  private isSuccessfulArticleFetch(result: FullArticleFetchResult): boolean {
-    return result.failureType === "none" && result.content.trim().length > 0;
   }
 
   private async displayVideo(item: FeedItem): Promise<void> {
@@ -2553,14 +2544,11 @@ export class ReaderView extends ItemView {
       return;
     }
 
-    const refresh = (container: HTMLElement) => {
-      const header = container.querySelector<HTMLElement>(
-        ".rss-reader-article-header",
-      );
-      if (header) renderReaderTagChips(header, this.currentItem?.tags);
-    };
-    if (this.contentVersions) this.contentVersions.visitVersions(refresh);
-    else if (this.readingContainer) refresh(this.readingContainer);
+    visitReaderContent(
+      this.contentVersions,
+      this.readingContainer,
+      (container) => refreshReaderHeaderTags(container, this.currentItem?.tags),
+    );
   }
 
   private syncTagColorsWithSettings(tags: FeedItem["tags"]): Tag[] {
@@ -2597,15 +2585,17 @@ export class ReaderView extends ItemView {
   }
 
   private applyReaderHeadlineFont(fontFamily: string): void {
-    const refresh = (container: HTMLElement) => {
-      container
-        .querySelectorAll<HTMLElement>(".rss-reader-item-title")
-        .forEach((headline) => {
-          headline.style.fontFamily = fontFamily;
-        });
-    };
-    if (this.contentVersions) this.contentVersions.visitVersions(refresh);
-    else if (this.readingContainer) refresh(this.readingContainer);
+    visitReaderContent(
+      this.contentVersions,
+      this.readingContainer,
+      (container) => {
+        container
+          .querySelectorAll<HTMLElement>(".rss-reader-item-title")
+          .forEach((headline) => {
+            headline.style.fontFamily = fontFamily;
+          });
+      },
+    );
   }
 
   private getReaderFormat(): ReaderFormatSettings {

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { findContentToggle } from "../test-reader-toggle-helpers";
 import { ReaderView } from "../../../src/views/reader-view";
 import {
   DEFAULT_SETTINGS,
@@ -125,9 +126,9 @@ describe("ReaderView tab title sync", () => {
 
     expect(readerView.getDisplayText()).toBe("Feed Title");
     expect(mockLeaf.updateHeader).toHaveBeenCalledTimes(1);
-    const fullArticleToggle = getInternals(
-      readerView,
-    ).contentEl.querySelector<HTMLButtonElement>(".rss-reader-content-toggle");
+    const fullArticleToggle = findContentToggle(
+      getInternals(readerView).contentEl,
+    );
     expect(fullArticleToggle?.textContent).toBe("Show fetched content");
     fullArticleToggle?.click();
 

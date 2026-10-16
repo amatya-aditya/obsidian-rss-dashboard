@@ -28,3 +28,14 @@ export function renderReaderTagChips(
     tagElement.style.setProperty("--tag-color", tag.color);
   }
 }
+
+/** Re-renders the tag chips in the Reader header inside `container`, if any. */
+export function refreshReaderHeaderTags(
+  container: HTMLElement,
+  tags: readonly Tag[] | undefined,
+): void {
+  const header = container.querySelector<HTMLElement>(
+    ".rss-reader-article-header",
+  );
+  if (header) renderReaderTagChips(header, tags);
+}
