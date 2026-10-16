@@ -62,6 +62,21 @@ Common issues and solutions for RSS Dashboard.
 3. Try clicking the "Watch on YouTube" link to open in your browser
 4. Some older videos may have restricted embedding—these must be opened in YouTube directly
 
+### The video disappears when you switch to the fetched version
+
+**Problem:** An article shows a video in **RSS content**, but switching to **Show fetched content** loses it.
+
+**Why this happens:** The video arrives inside the feed itself. The article's own page
+builds its player with JavaScript after the page loads, so the copy RSS Dashboard
+fetches holds no video it can see. The fetched version shows a video only when the
+page states one in its own markup, and the plugin never guesses at a video, because
+showing the wrong one is worse than showing none.
+
+**Solutions:**
+
+1. Switch back with **Show RSS content** to keep the video
+2. Open the article's source page to watch the video there
+
 ## Podcasts & Media
 
 ### Podcast audio not playing
