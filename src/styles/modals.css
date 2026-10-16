@@ -461,6 +461,11 @@ body .modal.rss-dashboard-template-editor-dialog {
   min-height: 160px;
   resize: vertical;
 }
+.rss-dashboard-template-editor-dialog .rss-template-field select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
 .rss-dashboard-template-editor-dialog .rss-template-path-fields {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));

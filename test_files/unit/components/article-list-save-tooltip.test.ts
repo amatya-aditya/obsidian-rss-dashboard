@@ -89,6 +89,41 @@ describe("card save tooltip names the version a save will write (#1184)", () => 
     expect(saveTooltip(h.container, "1")).toBe("Save fetched content to notes");
   });
 
+  it("names the version a feed-assigned template sets, over the setting (#1185)", () => {
+    const template: SavedTemplate = {
+      id: "github-releases",
+      name: "GitHub releases",
+      template: "{{content}}",
+      saveVersion: "fetched",
+    };
+    const h = createArticleListHarness({
+      settings: settingsWith("rss", [template], template.id),
+      articles: [buildArticle({ guid: "1", feedUrl: FEED_URL })],
+    });
+
+    h.list.render();
+
+    expect(saveTooltip(h.container, "1")).toBe("Save fetched content to notes");
+  });
+
+  it("names the version the global default template sets (#1185)", () => {
+    const template: SavedTemplate = {
+      id: "global-template",
+      name: "Global template",
+      template: "{{content}}",
+      saveVersion: "rss",
+    };
+    const h = createArticleListHarness({
+      settings: settingsWith("fetched", [template]),
+      articles: [buildArticle({ guid: "1", feedUrl: FEED_URL })],
+    });
+    h.settings.articleSaving.globalDefaultTemplateId = template.id;
+
+    h.list.render();
+
+    expect(saveTooltip(h.container, "1")).toBe("Save RSS content to notes");
+  });
+
   it("keeps the setting's version while a saved template sets none", () => {
     const template: SavedTemplate = {
       id: "github-releases",
@@ -102,8 +137,6 @@ describe("card save tooltip names the version a save will write (#1184)", () => 
 
     h.list.render();
 
-    // #1185 gives the template its own version; until then the resolver, the
-    // one place the tooltip reads, still answers with the setting.
     expect(saveTooltip(h.container, "1")).toBe("Save RSS content to notes");
   });
 

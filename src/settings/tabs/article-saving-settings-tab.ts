@@ -142,7 +142,7 @@ function renderDefaultTemplateSection(
   new Setting(containerEl).setName("Default template").setHeading();
   containerEl.createEl("p", {
     cls: "rss-dashboard-settings-note",
-    text: "Article saves use a feed-assigned template first, then the global default saved template, then the standalone fallback below. The default save version and the saved tag remain global options.",
+    text: "Article saves use a feed-assigned template first, then the global default saved template, then the standalone fallback below. The saved tag remains a global option; a saved template can set its own save version.",
   });
 
   const templateContainer = containerEl.createDiv();
@@ -317,6 +317,8 @@ async function saveBoxAsTemplate(
       makeGlobalDefault: false,
     },
     plugin.settings.articleSaving.savedTemplates || [],
+    undefined,
+    resolveSaveVersion(plugin.settings.articleSaving),
   );
   modal.open();
   const result = await modal.waitForClose();
@@ -327,6 +329,7 @@ async function saveBoxAsTemplate(
     template: result.template,
     defaultFolder: result.defaultFolder,
     filenamePattern: result.filenamePattern,
+    ...(result.saveVersion ? { saveVersion: result.saveVersion } : {}),
   };
   const savedTemplates = (plugin.settings.articleSaving.savedTemplates ??= []);
   savedTemplates.push(newTemplate);
@@ -381,9 +384,11 @@ function renderSavedTemplatesList(
                 makeGlobalDefault:
                   current.id ===
                   plugin.settings.articleSaving.globalDefaultTemplateId,
+                saveVersion: current.saveVersion,
               },
               plugin.settings.articleSaving.savedTemplates || [],
               current.id,
+              resolveSaveVersion(plugin.settings.articleSaving),
             );
             editor.open();
             const result = await editor.waitForClose();
@@ -392,6 +397,7 @@ function renderSavedTemplatesList(
             current.template = result.template;
             current.defaultFolder = result.defaultFolder;
             current.filenamePattern = result.filenamePattern;
+            current.saveVersion = result.saveVersion;
             if (result.makeGlobalDefault) {
               plugin.settings.articleSaving.globalDefaultTemplateId =
                 current.id;

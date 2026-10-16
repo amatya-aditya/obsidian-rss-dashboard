@@ -13,6 +13,7 @@ import {
   type CustomSaveModalContext,
 } from "../../../src/modals/custom-save-modal";
 import { ConfirmTemplateReplacementModal } from "../../../src/settings/modals/settings-modals";
+import { ONE_SAVE_OVERRIDE_TEMPLATE_ID } from "../../../src/utils/saved-template-utils";
 import { lucideIconId } from "../test-icon-helpers";
 
 vi.mock("../../../src/components/folder-suggest", () => ({
@@ -152,6 +153,134 @@ function modal(): HTMLElement {
 afterEach(() => {
   activeDocument.body.replaceChildren();
   vi.restoreAllMocks();
+});
+
+describe("Save version in the custom save dialog (#1185)", () => {
+  function versionLine(): string | undefined {
+    return (
+      modal().querySelector<HTMLElement>("#rss-dashboard-save-version")
+        ?.textContent ?? undefined
+    );
+  }
+
+  it("names the version the Default save version setting writes", () => {
+    const harness = createHarness();
+    harness.settings.articleSaving.saveVersion = "rss";
+    harness.open();
+    expect(versionLine()).toBe("Version this save writes: RSS content");
+  });
+
+  it("names the version a selected template overrides it with", () => {
+    const harness = createHarness({
+      savedTemplates: [
+        {
+          id: "releases",
+          name: "Releases",
+          template: "Body",
+          saveVersion: "fetched",
+        },
+      ],
+      globalDefaultTemplateId: "releases",
+    });
+    harness.settings.articleSaving.saveVersion = "rss";
+    harness.open();
+    expect(versionLine()).toBe("Version this save writes: Fetched content");
+  });
+
+  it("falls back to the setting when the selected template sets no version", () => {
+    const harness = createHarness({
+      savedTemplates: [{ id: "plain", name: "Plain", template: "Body" }],
+      globalDefaultTemplateId: "plain",
+    });
+    harness.settings.articleSaving.saveVersion = "fetched";
+    harness.open();
+    expect(versionLine()).toBe("Version this save writes: Fetched content");
+  });
+
+  it("keeps the template's version in the template a one-save filename override produces (#1185)", async () => {
+    const harness = createHarness({
+      savedTemplates: [
+        {
+          id: "releases",
+          name: "Releases",
+          template: "Body {{content}}",
+          saveVersion: "fetched",
+        },
+      ],
+      globalDefaultTemplateId: "releases",
+    });
+    harness.open();
+    const patternInput = modal().querySelector<HTMLInputElement>(
+      "#rss-dashboard-filename-pattern",
+    );
+    if (!patternInput) throw new Error("Filename override was not rendered");
+    patternInput.value = "{{title}}-copy";
+    patternInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+    modal()
+      .querySelector<HTMLButtonElement>(
+        ".rss-dashboard-custom-save-confirm-button",
+      )
+      ?.click();
+    await vi.waitFor(() => expect(harness.saveArticle).toHaveBeenCalledOnce());
+
+    expect(harness.saveArticle.mock.calls[0]?.[4]).toMatchObject({
+      id: "releases",
+      saveVersion: "fetched",
+      filenamePattern: "{{title}}-copy",
+    });
+  });
+
+  it("gives the dialog's synthetic override no version, so the setting decides (#1185)", async () => {
+    const harness = createHarness();
+    harness.settings.articleSaving.saveVersion = "rss";
+    harness.open();
+    const patternInput = modal().querySelector<HTMLInputElement>(
+      "#rss-dashboard-filename-pattern",
+    );
+    if (!patternInput) throw new Error("Filename override was not rendered");
+    patternInput.value = "{{title}}-copy";
+    patternInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+    modal()
+      .querySelector<HTMLButtonElement>(
+        ".rss-dashboard-custom-save-confirm-button",
+      )
+      ?.click();
+    await vi.waitFor(() => expect(harness.saveArticle).toHaveBeenCalledOnce());
+
+    const savedTemplate = harness.saveArticle.mock.calls[0]?.[4] as {
+      id: string;
+      saveVersion?: string;
+    };
+    expect(savedTemplate.id).toBe(ONE_SAVE_OVERRIDE_TEMPLATE_ID);
+    expect(savedTemplate.saveVersion).toBeUndefined();
+  });
+
+  it("follows the template picked in the dialog", () => {
+    const harness = createHarness({
+      savedTemplates: [
+        { id: "plain", name: "Plain", template: "Plain body" },
+        {
+          id: "releases",
+          name: "Releases",
+          template: "Release body",
+          saveVersion: "rss",
+        },
+      ],
+    });
+    harness.settings.articleSaving.saveVersion = "fetched";
+    harness.open();
+    expect(versionLine()).toBe("Version this save writes: Fetched content");
+
+    const select = modal().querySelector<HTMLSelectElement>(
+      "#rss-dashboard-saved-template",
+    );
+    if (!select) throw new Error("Template selector was not rendered");
+    select.value = "releases";
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(versionLine()).toBe("Version this save writes: RSS content");
+  });
 });
 
 describe("CustomSaveModal", () => {

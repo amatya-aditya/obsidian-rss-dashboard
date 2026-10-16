@@ -7,6 +7,7 @@ import postcss from "postcss";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "obsidian";
 import { SavedTemplateEditorModal } from "../../../src/settings/modals/settings-modals";
+import type { SaveVersion } from "../../../src/types/types";
 import { lucideIconId } from "../test-icon-helpers";
 
 const folderSuggestInputs = vi.hoisted(() => [] as HTMLInputElement[]);
@@ -182,6 +183,12 @@ describe("saved template editor styles", () => {
     expect(body.get("box-sizing")).toBe("border-box");
     expect(body.get("min-height")).toBe("160px");
     expect(body.get("resize")).toBe("vertical");
+
+    const version = declarationsFor(
+      ".rss-dashboard-template-editor-dialog .rss-template-field select",
+    );
+    expect(version.get("width")).toBe("100%");
+    expect(version.get("box-sizing")).toBe("border-box");
   });
 
   it("lays the path fields out as a grid that collapses to one column", () => {
@@ -219,6 +226,103 @@ describe("saved template editor styles", () => {
         ".rss-dashboard-template-editor-dialog .rss-template-field-description",
       ).get("overflow-wrap"),
     ).toBe("anywhere");
+  });
+});
+
+describe("Save version on a saved template (#1185)", () => {
+  function open(
+    initialSaveVersion: SaveVersion | undefined,
+    defaultVersion: SaveVersion,
+  ) {
+    const modal = new SavedTemplateEditorModal(
+      new App(),
+      {
+        name: "Gamma",
+        template: "{{content}}",
+        defaultFolder: "",
+        filenamePattern: "",
+        makeGlobalDefault: false,
+        saveVersion: initialSaveVersion,
+      },
+      [],
+      undefined,
+      defaultVersion,
+    );
+    const closed = vi.fn();
+    void modal.waitForClose().then(closed);
+    modal.open();
+    const select = modal.contentEl.querySelector(
+      "#rss-saved-template-save-version",
+    ) as HTMLSelectElement;
+    return { modal, select, closed };
+  }
+
+  function clickSave(modal: SavedTemplateEditorModal): void {
+    const save = Array.from(modal.contentEl.querySelectorAll("button")).find(
+      (button) => button.textContent?.trim() === "Save",
+    );
+    if (!save) throw new Error("Save button was not rendered");
+    save.click();
+  }
+
+  it("offers Use Default save version first, naming the current default", () => {
+    const { select } = open(undefined, "rss");
+    expect(
+      Array.from(select.options).map((option) => [
+        option.value,
+        option.textContent,
+      ]),
+    ).toEqual([
+      ["", "Use Default save version (RSS content)"],
+      ["rss", "RSS content"],
+      ["fetched", "Fetched content"],
+    ]);
+  });
+
+  it("names the other current default value in the first option", () => {
+    const { select } = open(undefined, "fetched");
+    expect(select.options[0]?.textContent).toBe(
+      "Use Default save version (Fetched content)",
+    );
+  });
+
+  it("opens an existing template on the first option when it sets no version", () => {
+    expect(open(undefined, "rss").select.value).toBe("");
+  });
+
+  it("opens on the version an existing template sets", () => {
+    expect(open("fetched", "rss").select.value).toBe("fetched");
+  });
+
+  it("wraps the dropdown in a label-above-control field like the other fields", () => {
+    const { modal, select } = open(undefined, "rss");
+    const field = select.closest(".rss-template-field");
+    expect(field).not.toBeNull();
+    expect(
+      modal.contentEl.querySelector(".rss-template-form")?.contains(field),
+    ).toBe(true);
+    expect(
+      field?.querySelector('label[for="rss-saved-template-save-version"]')
+        ?.textContent,
+    ).toBe("Save version");
+  });
+
+  it("saves the chosen version", async () => {
+    const { modal, select, closed } = open(undefined, "rss");
+    select.value = "rss";
+    clickSave(modal);
+    await vi.waitFor(() => expect(closed).toHaveBeenCalledOnce());
+    expect(closed.mock.calls[0]?.[0]).toMatchObject({ saveVersion: "rss" });
+  });
+
+  it("stores the first option as an absent field", async () => {
+    const { modal, select, closed } = open("fetched", "rss");
+    select.value = "";
+    clickSave(modal);
+    await vi.waitFor(() => expect(closed).toHaveBeenCalledOnce());
+    expect(
+      (closed.mock.calls[0]?.[0] as { saveVersion?: SaveVersion })?.saveVersion,
+    ).toBeUndefined();
   });
 });
 

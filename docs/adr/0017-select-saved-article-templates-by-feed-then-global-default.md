@@ -73,6 +73,11 @@ trimming whitespace and ignoring case. Global save settings such as adding the
 saved tag and fetching full content remain global rather than becoming
 per-template options.
 
+**Later development:** [ADR 0026](0026-let-a-saved-template-override-the-save-version.md)
+gives a saved template an optional **Save version**, so the version a save
+writes can differ per feed. The saved tag stays global; this is the one global
+save option a template now overrides.
+
 ## Consequences
 
 ### Benefits

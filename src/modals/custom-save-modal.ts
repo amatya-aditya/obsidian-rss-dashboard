@@ -5,6 +5,7 @@ import {
   type FeedItem,
   type RssDashboardSettings,
   type SavedTemplate,
+  type SaveVersion,
 } from "../types/types";
 import { ArticleSaver } from "../services/article-saver";
 import { VaultFolderSuggest } from "../components/folder-suggest";
@@ -16,6 +17,7 @@ import {
   SavedTemplateEditorModal,
 } from "../settings/modals/settings-modals";
 import { addInputClearButton } from "../utils/input-clear-button";
+import { resolveSaveVersion, saveVersionLabel } from "../utils/save-version";
 
 interface PendingTemplate {
   id: string;
@@ -26,6 +28,7 @@ interface PendingTemplate {
   makeGlobalDefault: boolean;
   assignToFeed: boolean;
   previousSelectedTemplateId: string;
+  saveVersion?: SaveVersion;
 }
 
 /** What the user chose in the dialog for this one save. */
@@ -277,6 +280,8 @@ async function createPendingTemplate(options: {
       makeGlobalDefault: false,
     },
     context.getSettings().articleSaving.savedTemplates,
+    undefined,
+    resolveSaveVersion(context.getSettings().articleSaving),
   );
   editor.open();
   const result = await editor.waitForClose();
@@ -315,7 +320,67 @@ async function createPendingTemplate(options: {
     makeGlobalDefault: result.makeGlobalDefault,
     assignToFeed,
     previousSelectedTemplateId,
+    saveVersion: result.saveVersion,
   };
+}
+
+function createSaveVersionLine(
+  content: HTMLElement,
+  select: HTMLSelectElement,
+  getSettings: () => RssDashboardSettings,
+  getPending: () => PendingTemplate | null,
+): { refresh: () => void } {
+  const line = content.createEl("p", {
+    cls: "setting-item-description rss-dashboard-save-version",
+    attr: { id: "rss-dashboard-save-version", "aria-live": "polite" },
+  });
+  /** Names the version this one save writes, so a template's override is visible (#1185). */
+  const refresh = () => {
+    const template =
+      getPending() ??
+      getSettings().articleSaving.savedTemplates.find(
+        (candidate) => candidate.id === select.value,
+      );
+    line.textContent = `Version this save writes: ${saveVersionLabel(
+      resolveSaveVersion(getSettings().articleSaving, template),
+    )}`;
+  };
+  return { refresh };
+}
+
+/** The saved template a pending one becomes, carrying only the fields it sets. */
+function pendingTemplateToSavedTemplate(
+  pending: PendingTemplate,
+): SavedTemplate {
+  return {
+    id: pending.id,
+    name: pending.name,
+    template: pending.template,
+    defaultFolder: pending.defaultFolder,
+    ...(pending.filenamePattern
+      ? { filenamePattern: pending.filenamePattern }
+      : {}),
+    ...(pending.saveVersion ? { saveVersion: pending.saveVersion } : {}),
+  };
+}
+
+/** The template for one save: the chosen one with the typed filename override, or a one-save stand-in. */
+function templateForOneSave(
+  savedTemplate: SavedTemplate | undefined,
+  filenamePattern: string | undefined,
+  template: string | undefined,
+  folder: string,
+): SavedTemplate | undefined {
+  if (!filenamePattern) return savedTemplate;
+  return savedTemplate
+    ? { ...savedTemplate, filenamePattern }
+    : {
+        id: ONE_SAVE_OVERRIDE_TEMPLATE_ID,
+        name: "One-save filename override",
+        template: template || "",
+        defaultFolder: folder,
+        filenamePattern,
+      };
 }
 
 function createTemplateControls(
@@ -327,6 +392,12 @@ function createTemplateControls(
 ): TemplateControls & { getPending: () => PendingTemplate | null } {
   const settings = context.getSettings();
   const select = createSavedTemplateSelect(content, item, settings);
+  const versionLine = createSaveVersionLine(
+    content,
+    select,
+    context.getSettings,
+    () => pending,
+  );
   content.createEl("label", {
     text: "Use template:",
     attr: { for: "rss-dashboard-save-template" },
@@ -368,14 +439,11 @@ function createTemplateControls(
           (template) => template.id === select.value,
         )?.filenamePattern,
   );
-  const setPending = (value: PendingTemplate | null) => {
-    pending = value;
-  };
-  const setSelectedId = (value: string) => {
-    selectedId = value;
-  };
+  const setPending = (value: PendingTemplate | null) => (pending = value);
+  const setSelectedId = (value: string) => (selectedId = value);
   const discardPending = () =>
     discardPendingTemplate(select, getPending, setPending, setSelectedId);
+  const { refresh: refreshVersionLine } = versionLine;
   const saveAsButton = content.createEl("button", {
     cls: "rss-dashboard-custom-save-template-button",
     attr: { type: "button" },
@@ -417,8 +485,14 @@ function createTemplateControls(
     });
     refresh();
     filenameControls.refresh();
+    refreshVersionLine();
   });
-  input.addEventListener("input", refresh);
+  input.addEventListener("input", () => {
+    // Editing the body can discard a pending template, which reverts the
+    // selected one; the version line must follow it back.
+    refresh();
+    refreshVersionLine();
+  });
   saveAsButton.addEventListener("click", () => {
     void (async () => {
       const pendingTemplate = await createPendingTemplate({
@@ -441,8 +515,10 @@ function createTemplateControls(
       baseline = pendingTemplate.template;
       refresh();
       filenameControls.refresh();
+      refreshVersionLine();
     })();
   });
+  refreshVersionLine();
   return {
     select,
     input,
@@ -509,28 +585,15 @@ function createActionButtons(
       const template = templateControls.input.value.trim() || undefined;
       const pendingTemplate = templateControls.getPending();
       const savedTemplate = pendingTemplate
-        ? {
-            id: pendingTemplate.id,
-            name: pendingTemplate.name,
-            template: pendingTemplate.template,
-            defaultFolder: pendingTemplate.defaultFolder,
-            ...(pendingTemplate.filenamePattern
-              ? { filenamePattern: pendingTemplate.filenamePattern }
-              : {}),
-          }
+        ? pendingTemplateToSavedTemplate(pendingTemplate)
         : templateControls.getSelectedTemplate();
       const filenamePattern = templateControls.getFilenamePattern();
-      const templateForSave = filenamePattern
-        ? savedTemplate
-          ? { ...savedTemplate, filenamePattern }
-          : {
-              id: ONE_SAVE_OVERRIDE_TEMPLATE_ID,
-              name: "One-save filename override",
-              template: template || "",
-              defaultFolder: folder,
-              filenamePattern,
-            }
-        : savedTemplate;
+      const templateForSave = templateForOneSave(
+        savedTemplate,
+        filenamePattern,
+        template,
+        folder,
+      );
       let file: { path: string } | null;
       try {
         file = await context.saveArticle(item, {
@@ -549,15 +612,7 @@ function createActionButtons(
         const feed = settings.feeds.find((entry) => entry.url === item.feedUrl);
         const pending = pendingTemplate;
         if (pending) {
-          const newTemplate = {
-            id: pending.id,
-            name: pending.name,
-            template: pending.template,
-            defaultFolder: pending.defaultFolder,
-            ...(pending.filenamePattern
-              ? { filenamePattern: pending.filenamePattern }
-              : {}),
-          };
+          const newTemplate = pendingTemplateToSavedTemplate(pending);
           settings.articleSaving.savedTemplates.push(newTemplate);
           if (pending.makeGlobalDefault) {
             settings.articleSaving.globalDefaultTemplateId = newTemplate.id;

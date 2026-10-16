@@ -55,19 +55,43 @@ export const SAVE_FALLBACK_NOTICE: Record<"fetch" | "save", string> = {
   save: "Save failed; saved RSS content instead.",
 };
 
+/**
+ * The stored value of a template's Save version that follows the Default save
+ * version setting. It is an absent field on the template; the editor maps its
+ * dropdown's first option to this value (#1185).
+ */
+export const TEMPLATE_SAVE_VERSION_INHERIT = "";
+
+/** The choices of a template's Save version dropdown, first option first. */
+export function templateSaveVersionOptions(
+  defaultVersion: SaveVersion,
+): readonly { value: string; label: string }[] {
+  return [
+    {
+      value: TEMPLATE_SAVE_VERSION_INHERIT,
+      label: `Use Default save version (${saveVersionLabel(defaultVersion)})`,
+    },
+    ...SAVE_VERSION_OPTIONS,
+  ];
+}
+
 export function isSaveVersion(value: unknown): value is SaveVersion {
   return SAVE_VERSION_OPTIONS.some((option) => option.value === value);
 }
 
 /**
- * Decides which version of an article a save writes. Today that is the
- * Default save version; the saved template is accepted so a per-template
- * override can change this one place (#1185).
+ * Decides which version of an article a save writes: the template applied to
+ * the article when it sets one, otherwise the Default save version. A template
+ * that leaves the field unset does not inherit the global default template's
+ * version; precedence stops at the one template applied to the article (#1185).
  */
 export function resolveSaveVersion(
   settings: Pick<Partial<ArticleSavingSettings>, "saveVersion">,
-  _savedTemplate?: SavedTemplate,
+  savedTemplate?: SavedTemplate,
 ): SaveVersion {
+  if (isSaveVersion(savedTemplate?.saveVersion)) {
+    return savedTemplate.saveVersion;
+  }
   return isSaveVersion(settings.saveVersion)
     ? settings.saveVersion
     : DEFAULT_SETTINGS.articleSaving.saveVersion;

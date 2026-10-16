@@ -240,6 +240,64 @@ describe("Phase 8 - WebViewerIntegration", () => {
       h.cleanup();
     });
 
+    it("ignores a template's Save version and shows no version control (#1185)", async () => {
+      const rafSpy = vi
+        .spyOn(window, "requestAnimationFrame")
+        .mockImplementation((cb: FrameRequestCallback) => {
+          cb(0);
+          return 0;
+        });
+      const h = createWebViewerIntegrationHarness({
+        settings: {
+          includeFrontmatter: false,
+          savedTemplates: [
+            {
+              id: "releases",
+              name: "Releases",
+              template: "PFX\n{{content}}",
+              defaultFolder: "Web/",
+              saveVersion: "rss",
+            },
+          ],
+          globalDefaultTemplateId: "releases",
+        },
+      });
+
+      h.integration.showSaveDialog();
+
+      const modal = document.querySelector<HTMLElement>(
+        ".rss-dashboard-web-viewer-save-modal",
+      );
+      expect(modal).not.toBeNull();
+      // The web viewer saves a page, not a feed item, so it offers and applies
+      // no version choice even when the global default template sets one.
+      expect(modal?.textContent).not.toContain("Save version");
+      expect(
+        modal?.querySelector("#rss-saved-template-save-version"),
+      ).toBeNull();
+      expect(modal?.querySelector<HTMLTextAreaElement>("textarea")?.value).toBe(
+        "PFX\n{{content}}",
+      );
+      expect(
+        modal?.querySelector<HTMLInputElement>('input[type="text"]')?.value,
+      ).toBe("Web/");
+
+      const saveButton = Array.from(
+        modal?.querySelectorAll<HTMLButtonElement>("button") ?? [],
+      ).find((button) => button.textContent === "Save");
+      saveButton?.click();
+
+      await vi.waitFor(() =>
+        expect(h.getFile("Web/Web Title.md")).not.toBeNull(),
+      );
+      const file = h.getFile("Web/Web Title.md");
+      if (!file) throw new Error("expected the saved file");
+      expect(await h.app.vault.read(file)).toContain("clean");
+
+      rafSpy.mockRestore();
+      h.cleanup();
+    });
+
     it("save calls saveArticle() and removes the modal", async () => {
       const rafSpy = vi
         .spyOn(window, "requestAnimationFrame")

@@ -17,6 +17,7 @@ import {
 const editorChoices = vi.hoisted(() => ({
   makeGlobalDefault: false,
   assignToFeed: false,
+  saveVersion: undefined as "rss" | "fetched" | undefined,
 }));
 
 // The template editor and the assignment prompts resolve at once, so the
@@ -34,6 +35,7 @@ vi.mock(
           defaultFolder: "",
           filenamePattern: "",
           makeGlobalDefault: editorChoices.makeGlobalDefault,
+          saveVersion: editorChoices.saveVersion,
         });
       }
     },
@@ -180,6 +182,7 @@ function modal(): HTMLElement {
 afterEach(() => {
   editorChoices.makeGlobalDefault = false;
   editorChoices.assignToFeed = false;
+  editorChoices.saveVersion = undefined;
   activeDocument.body.replaceChildren();
   vi.restoreAllMocks();
 });
@@ -264,6 +267,51 @@ describe("CustomSaveModal after Save as new template (#817)", () => {
 
     expect(select.value).toBe("t1");
     expect(select.options).toHaveLength(saved.length + 1);
+  });
+
+  it("follows the template back when editing the body discards a pending version (#1185)", async () => {
+    editorChoices.saveVersion = "rss";
+    const harness = createHarness({
+      savedTemplates: [
+        {
+          id: "plain",
+          name: "Plain",
+          template: "Plain body",
+          saveVersion: "fetched",
+        },
+      ],
+      feedTemplate: "plain",
+    });
+    harness.settings.articleSaving.saveVersion = "rss";
+    harness.open();
+
+    const root = modal();
+    const line = () =>
+      root.querySelector<HTMLElement>("#rss-dashboard-save-version")
+        ?.textContent;
+    const editor = root.querySelector<HTMLTextAreaElement>("textarea");
+    const saveAs = root.querySelector<HTMLButtonElement>(
+      ".rss-dashboard-custom-save-template-button",
+    );
+    const select = root.querySelector<HTMLSelectElement>(
+      "#rss-dashboard-saved-template",
+    );
+    if (!editor || !saveAs || !select) throw new Error("Dialog not rendered");
+    // The feed's template overrides the setting.
+    expect(line()).toBe("Version this save writes: Fetched content");
+
+    editor.value = "Edited: {{title}}";
+    editor.dispatchEvent(new Event("input"));
+    saveAs.click();
+    await vi.waitFor(() => expect(select.options).toHaveLength(3));
+    expect(line()).toBe("Version this save writes: RSS content");
+
+    // Editing the body drops the pending template and reverts the selection.
+    editor.value = "Edited again";
+    editor.dispatchEvent(new Event("input"));
+
+    expect(select.value).toBe("plain");
+    expect(line()).toBe("Version this save writes: Fetched content");
   });
 });
 
