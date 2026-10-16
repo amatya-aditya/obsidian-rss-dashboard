@@ -226,17 +226,22 @@ export class ArticleSaver {
           return;
         }
 
-        if (hasInlineImage) {
+        if (hasInlineImage && hasBlockContent) {
+          // A label-less block link does not survive the Markdown conversion as
+          // a link, so unwrap it and keep its contents (the image), as before.
           const fragment = doc.win.createFragment();
           while (link.firstChild) {
             fragment.appendChild(link.firstChild);
           }
 
-          if (href) {
-            link.setAttribute("href", normalizeSubstackImageUrl(href));
-          }
-
           link.replaceWith(fragment);
+          return;
+        }
+
+        // An image-only link keeps its anchor, so the image stays a link in the
+        // saved note (#1194). Only labelled anchors are flattened to text above.
+        if (hasInlineImage && href) {
+          link.setAttribute("href", normalizeSubstackImageUrl(href));
         }
       });
 
