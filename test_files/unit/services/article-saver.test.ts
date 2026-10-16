@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App, TFile } from "obsidian";
-import type { ArticleSavingSettings, FeedItem } from "../../../src/types/types";
+import type {
+  ArticleSavingSettings,
+  FeedItem,
+  SaveVersion,
+} from "../../../src/types/types";
 import {
   ArticleSaver,
   sanitizeFilename,
@@ -2043,13 +2047,13 @@ describe("ArticleSaver - YouTube embeds in saved notes (#1168)", () => {
     return app.vault.read(file);
   }
 
-  function createSaver(app: App, saveFullContent: boolean): ArticleSaver {
+  function createSaver(app: App, saveVersion: SaveVersion): ArticleSaver {
     return new ArticleSaver(
       app,
       createSettings({
         defaultTemplate: "{{content}}",
         includeFrontmatter: false,
-        saveFullContent,
+        saveVersion,
       }),
       "https://proxy/?url=",
     );
@@ -2057,7 +2061,7 @@ describe("ArticleSaver - YouTube embeds in saved notes (#1168)", () => {
 
   it("saves the RSS version with the native embed and the plain watch link", async () => {
     const app = App.createMock();
-    const saver = createSaver(app, true);
+    const saver = createSaver(app, "fetched");
     const item = createItem({ content: feedHtml(youtubeSrc) });
 
     const file = await saver.saveArticleWithContentPolicy(
@@ -2075,9 +2079,9 @@ describe("ArticleSaver - YouTube embeds in saved notes (#1168)", () => {
     expect(written).not.toContain("<iframe");
   });
 
-  it("saves the embed when full-content saving is off and the note keeps the feed HTML", async () => {
+  it("saves the embed when the Default save version is RSS content and the note keeps the feed HTML", async () => {
     const app = App.createMock();
-    const saver = createSaver(app, false);
+    const saver = createSaver(app, "rss");
     const item = createItem({ content: feedHtml(youtubeSrc) });
 
     const written = await readSaved(app, await saver.saveArticle(item));
@@ -2088,9 +2092,9 @@ describe("ArticleSaver - YouTube embeds in saved notes (#1168)", () => {
     expect(written.indexOf("</div>")).toBeLessThan(written.indexOf(embedLine));
   });
 
-  it("saves the embed from a card with full content on when the page cannot be fetched", async () => {
+  it("saves the embed with Fetched content selected when the page cannot be fetched", async () => {
     const app = App.createMock();
-    const saver = createSaver(app, true);
+    const saver = createSaver(app, "fetched");
     vi.spyOn(
       fetchHelpers,
       "fetchWithProxyFallbackDetailed",
@@ -2107,7 +2111,7 @@ describe("ArticleSaver - YouTube embeds in saved notes (#1168)", () => {
 
   it("does not carry a feed-only embed into a note saved from the fetched page", async () => {
     const app = App.createMock();
-    const saver = createSaver(app, true);
+    const saver = createSaver(app, "fetched");
     vi.spyOn(
       fetchHelpers,
       "fetchWithProxyFallbackDetailed",
@@ -2139,7 +2143,7 @@ describe("ArticleSaver - YouTube embeds in saved notes (#1168)", () => {
 
       const rssWritten = await readSaved(
         app,
-        await createSaver(app, true).saveArticleWithContentPolicy(
+        await createSaver(app, "fetched").saveArticleWithContentPolicy(
           item,
           undefined,
           undefined,
@@ -2149,7 +2153,7 @@ describe("ArticleSaver - YouTube embeds in saved notes (#1168)", () => {
       );
       const noteWritten = await readSaved(
         app,
-        await createSaver(app, false).saveArticle(
+        await createSaver(app, "rss").saveArticle(
           createItem({ content: feedHtml(src), guid: "guid-2" }),
         ),
       );
@@ -2175,7 +2179,7 @@ describe("ArticleSaver - static YouTube iframe in the fetched page (#1168)", () 
       createSettings({
         defaultTemplate: "{{content}}",
         includeFrontmatter: false,
-        saveFullContent: true,
+        saveVersion: "fetched",
       }),
       "https://proxy/?url=",
     );
