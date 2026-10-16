@@ -46,7 +46,7 @@ describe("PodcastPlayer characterization", () => {
   function mount(
     options: {
       progressTrackingEnabled?: boolean;
-      onEpisodeSelected?: ConstructorParameters<typeof PodcastPlayer>[3];
+      onEpisodeSelected?: ConstructorParameters<typeof PodcastPlayer>[4];
     } = {},
   ): { container: HTMLElement; player: PodcastPlayer } {
     const container: HTMLDivElement = createDiv();
@@ -56,7 +56,7 @@ describe("PodcastPlayer characterization", () => {
       new App(),
       "obsidian",
       undefined,
-      options.onEpisodeSelected as never,
+      options.onEpisodeSelected,
       undefined,
       options.progressTrackingEnabled ?? true,
     );
