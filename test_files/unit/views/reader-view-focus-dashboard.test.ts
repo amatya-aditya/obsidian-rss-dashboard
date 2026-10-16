@@ -348,6 +348,71 @@ describe("ReaderView dashboard refocus", () => {
     );
   });
 
+  // #1182: the saved-note hero resolves the same bare stored url, so a stored
+  // tracking pixel must not be prepended either.
+  it("does not prepend a stored tracking-pixel hero when saving from reader", async () => {
+    const { view, saveArticleSpy } = createReaderView([]);
+
+    (
+      view as unknown as {
+        currentItem: {
+          saved: boolean;
+          title: string;
+          link: string;
+          guid: string;
+          description: string;
+          content?: string;
+          pubDate: string;
+          read: boolean;
+          starred: boolean;
+          tags: [];
+          feedTitle: string;
+          feedUrl: string;
+          coverImage: string;
+        };
+        currentFullContent: string;
+        currentContentIsFullArticle: boolean;
+      }
+    ).currentItem = {
+      saved: false,
+      title: "Part-time owners, full-time debt",
+      link: "https://behzodsirjani.substack.com/p/part-time-owners-full-time-debt",
+      guid: "substack-guid-1",
+      description: "<p>Short summary.</p>",
+      content: "",
+      pubDate: new Date().toISOString(),
+      read: false,
+      starred: false,
+      tags: [],
+      feedTitle: "Behzod Notes",
+      feedUrl: "https://behzodsirjani.substack.com/feed",
+      coverImage: "https://img.example.com/pixel.gif",
+    };
+
+    (
+      view as unknown as {
+        currentFullContent: string;
+        currentContentIsFullArticle: boolean;
+      }
+    ).currentFullContent =
+      "<p>Organizations are accumulating a type of debt that no one has been hired to pay down.</p>";
+    (
+      view as unknown as {
+        currentContentIsFullArticle: boolean;
+      }
+    ).currentContentIsFullArticle = true;
+
+    await view.actionSaveCurrentArticle();
+
+    expect(saveArticleSpy).toHaveBeenCalled();
+    const markdownArg = getSavedMarkdownArg(saveArticleSpy);
+    expect(markdownArg).not.toContain("https://img.example.com/pixel.gif");
+    expect(markdownArg).not.toContain("![Hero image](");
+    expect(markdownArg).toContain(
+      "Organizations are accumulating a type of debt that no one has been hired to pay down.",
+    );
+  });
+
   it("preserves raw math when saving from reader content", async () => {
     const { view, saveArticleSpy } = createReaderView([]);
 

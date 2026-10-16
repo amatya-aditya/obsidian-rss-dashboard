@@ -29,6 +29,8 @@ installObsidianDomPolyfills();
 
 const COUNTER = "https://counter.example.com/content/293076/count.gif";
 const PHOTO = "https://img.example.com/photo.jpg";
+// A counter whose URL itself names a tracking pixel, unlike COUNTER.
+const STORED_PIXEL = "https://img.example.com/pixel.gif";
 
 function makeItem(overrides: Partial<FeedItem> = {}): FeedItem {
   return {
@@ -114,6 +116,30 @@ describe("ArticleRenderer – hero image tracking counter", () => {
   it("keeps a body image whose alt text mentions a pixel size", async () => {
     const item = makeItem({
       content: `<img src="${PHOTO}" alt="shown width=1 wide"><p>Body text of the article.</p>`,
+    });
+
+    await renderer.render(container, item);
+
+    expect(heroImg()?.getAttribute("src")).toBe(PHOTO);
+  });
+
+  // #1182: the stored fields are bare URLs, so only the URL pattern can reject
+  // them here. Before the fix this pixel was promoted to the hero.
+  it("does not use a stored coverImage tracking pixel as the hero", async () => {
+    const item = makeItem({
+      coverImage: STORED_PIXEL,
+      content: "<p>Body text of the article.</p>",
+    });
+
+    await renderer.render(container, item);
+
+    expect(heroImg()).toBeNull();
+  });
+
+  it("still uses a stored coverImage photo as the hero", async () => {
+    const item = makeItem({
+      coverImage: PHOTO,
+      content: "<p>Body text of the article.</p>",
     });
 
     await renderer.render(container, item);

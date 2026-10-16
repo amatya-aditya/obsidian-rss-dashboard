@@ -231,13 +231,19 @@ export function isTrackingPixelTag(tag: string): boolean {
   );
 }
 
-/** Returns the first non-empty URL that is not a rendered formula image. */
+/**
+ * Returns the first non-empty URL that is neither a rendered formula image nor
+ * a tracking pixel, beacon or spacer (#1182). The size-aware check cannot apply
+ * here: a bare stored URL carries no declared `width`/`height`.
+ */
 export function firstNonFormulaImageUrl(
   candidates: readonly (string | null | undefined)[],
 ): string | undefined {
   for (const candidate of candidates) {
     const trimmed = candidate?.trim();
-    if (trimmed && !isLatexFormulaImage(trimmed)) return trimmed;
+    if (trimmed && !isLatexFormulaImage(trimmed) && !isTrackingPixel(trimmed)) {
+      return trimmed;
+    }
   }
   return undefined;
 }
