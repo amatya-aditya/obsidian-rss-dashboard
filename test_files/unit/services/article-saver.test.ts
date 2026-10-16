@@ -2119,31 +2119,6 @@ describe("ArticleSaver.{{image}} template variable", () => {
   });
 });
 
-describe("ArticleSaver save notices (#1184)", () => {
-  const SAVED_TAIL =
-    "Click/tap the icon again to open the article in your vault.";
-
-  let noticeLog: MockInstance;
-
-  beforeEach(() => {
-    noticeLog = vi.spyOn(console, "debug");
-    noticeLog.mockClear();
-  });
-
-  /** The messages the Notice stub logged in this test, oldest first. */
-  function notices(): unknown[] {
-    return noticeLog.mock.calls
-      .filter((call) => call[0] === "[Stub Notice]")
-      .map((call) => call[1]);
-  }
-
-  function fetchedSaver(
-    fetchResult: Awaited<
-      ReturnType<typeof fetchHelpers.fetchWithProxyFallbackDetailed>
-    >,
-  ): { app: App; saver: ArticleSaver; item: FeedItem } {
-    const app = App.createMock();
-    const saver = new ArticleSaver(
 describe("ArticleSaver - YouTube embeds in saved notes (#1168)", () => {
   const videoId = "z9TFdTqkbPk";
   const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
@@ -2168,79 +2143,6 @@ describe("ArticleSaver - YouTube embeds in saved notes (#1168)", () => {
       createSettings({
         defaultTemplate: "{{content}}",
         includeFrontmatter: false,
-        saveVersion: "fetched",
-      }),
-      "https://proxy/?url=",
-    );
-    vi.spyOn(
-      fetchHelpers,
-      "fetchWithProxyFallbackDetailed",
-    ).mockResolvedValueOnce(fetchResult);
-    return { app, saver, item: createItem({ content: "<p>RSS body.</p>" }) };
-  }
-
-  it("names RSS content when the Default save version is RSS content", async () => {
-    const app = App.createMock();
-    const saver = new ArticleSaver(
-      app,
-      createSettings({ defaultTemplate: "{{content}}", saveVersion: "rss" }),
-    );
-    const item = createItem({ content: "<p>RSS body.</p>" });
-
-    await saver.saveArticleWithContentPolicy(item);
-
-    expect(notices()).toContain(
-      `Article saved with RSS content. ${SAVED_TAIL}`,
-    );
-  });
-
-  it("names fetched content when the save writes the fetched page", async () => {
-    const { saver, item } = fetchedSaver({
-      content: "<p>Fetched body.</p>",
-      failureType: "none",
-    });
-
-    await saver.saveArticleWithContentPolicy(item);
-
-    expect(notices()).toContain(
-      `Article saved with fetched content. ${SAVED_TAIL}`,
-    );
-  });
-
-  it("names the fallback when the page fetch fails", async () => {
-    const { saver, item } = fetchedSaver({
-      content: "",
-      failureType: "network",
-    });
-
-    await saver.saveArticleWithContentPolicy(item);
-
-    expect(notices()).toContain(
-      "Fetched content is unavailable; saving RSS content.",
-    );
-    expect(notices()).toContain("Fetch failed; saved RSS content instead.");
-    expect(notices()).not.toContain(
-      `Article saved with RSS content. ${SAVED_TAIL}`,
-    );
-  });
-
-  it("names the fallback when the fetched page has no usable Markdown", async () => {
-    const { saver, item } = fetchedSaver({
-      content: "<p></p>",
-      failureType: "none",
-    });
-
-    await saver.saveArticleWithContentPolicy(item);
-
-    expect(notices()).toContain("Fetch failed; saved RSS content instead.");
-    expect(notices()).not.toContain(
-      `Article saved with fetched content. ${SAVED_TAIL}`,
-    );
-  });
-
-  it("names the fallback when the fetched save itself fails", async () => {
-    const app = App.createMock();
-    const saver = new ArticleSaver(
         saveVersion,
       }),
       "https://proxy/?url=",
@@ -2371,6 +2273,181 @@ describe("ArticleSaver - static YouTube iframe in the fetched page (#1168)", () 
       }),
       "https://proxy/?url=",
     );
+  }
+
+  // The Reader already shows a "Watch on YouTube" link for this iframe, so a save of
+  // the fetched version keeps the video the same way the page serves it.
+  it("keeps a recognized iframe that the fetched page itself serves", async () => {
+    const app = App.createMock();
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({ content: fetchedHtml, failureType: "none" });
+
+    const file =
+      await createSaver(app).saveArticleWithFullContent(createItem());
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+    expect(written).toContain(
+      `![](${watchUrl})\n\n[Watch on YouTube](${watchUrl})`,
+    );
+    expect(written).toContain("Fetched body.");
+    expect(written).toContain("More fetched body.");
+  });
+
+  it("keeps it when the Reader hands over the fetched HTML to save", async () => {
+    const app = App.createMock();
+
+    const file = await createSaver(app).saveArticleWithContentPolicy(
+      createItem(),
+      undefined,
+      undefined,
+      undefined,
+      { fetchAttempted: true, fetchedHtml },
+    );
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+    expect(written).toContain(`![](${watchUrl})`);
+    expect(written).toContain("[Watch on YouTube]");
+  });
+
+  it("drops a fetched-page iframe from another host", async () => {
+    const app = App.createMock();
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content:
+        '<p>Fetched body.</p><iframe src="https://evil.example/embed/AAAAAAAAAAA"></iframe>',
+      failureType: "none",
+    });
+
+    const file =
+      await createSaver(app).saveArticleWithFullContent(createItem());
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+    expect(written).toContain("Fetched body.");
+    expect(written).not.toContain("![](");
+    expect(written).not.toContain("Watch on YouTube");
+  });
+});
+
+describe("ArticleSaver save notices (#1184)", () => {
+  const SAVED_TAIL =
+    "Click/tap the icon again to open the article in your vault.";
+
+  let noticeLog: MockInstance;
+
+  beforeEach(() => {
+    noticeLog = vi.spyOn(console, "debug");
+    noticeLog.mockClear();
+  });
+
+  /** The messages the Notice stub logged in this test, oldest first. */
+  function notices(): unknown[] {
+    return noticeLog.mock.calls
+      .filter((call) => call[0] === "[Stub Notice]")
+      .map((call) => call[1]);
+  }
+
+  function fetchedSaver(
+    fetchResult: Awaited<
+      ReturnType<typeof fetchHelpers.fetchWithProxyFallbackDetailed>
+    >,
+  ): { app: App; saver: ArticleSaver; item: FeedItem } {
+    const app = App.createMock();
+    const saver = new ArticleSaver(
+      app,
+      createSettings({
+        defaultTemplate: "{{content}}",
+        includeFrontmatter: false,
+        saveVersion: "fetched",
+      }),
+      "https://proxy/?url=",
+    );
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce(fetchResult);
+    return { app, saver, item: createItem({ content: "<p>RSS body.</p>" }) };
+  }
+
+  it("names RSS content when the Default save version is RSS content", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(
+      app,
+      createSettings({ defaultTemplate: "{{content}}", saveVersion: "rss" }),
+    );
+    const item = createItem({ content: "<p>RSS body.</p>" });
+
+    await saver.saveArticleWithContentPolicy(item);
+
+    expect(notices()).toContain(
+      `Article saved with RSS content. ${SAVED_TAIL}`,
+    );
+  });
+
+  it("names fetched content when the save writes the fetched page", async () => {
+    const { saver, item } = fetchedSaver({
+      content: "<p>Fetched body.</p>",
+      failureType: "none",
+    });
+
+    await saver.saveArticleWithContentPolicy(item);
+
+    expect(notices()).toContain(
+      `Article saved with fetched content. ${SAVED_TAIL}`,
+    );
+  });
+
+  it("names the fallback when the page fetch fails", async () => {
+    const { saver, item } = fetchedSaver({
+      content: "",
+      failureType: "network",
+    });
+
+    await saver.saveArticleWithContentPolicy(item);
+
+    expect(notices()).toContain(
+      "Fetched content is unavailable; saving RSS content.",
+    );
+    expect(notices()).toContain("Fetch failed; saved RSS content instead.");
+    expect(notices()).not.toContain(
+      `Article saved with RSS content. ${SAVED_TAIL}`,
+    );
+  });
+
+  it("names the fallback when the fetched page has no usable Markdown", async () => {
+    const { saver, item } = fetchedSaver({
+      content: "<p></p>",
+      failureType: "none",
+    });
+
+    await saver.saveArticleWithContentPolicy(item);
+
+    expect(notices()).toContain("Fetch failed; saved RSS content instead.");
+    expect(notices()).not.toContain(
+      `Article saved with fetched content. ${SAVED_TAIL}`,
+    );
+  });
+
+  it("names the fallback when the fetched save itself fails", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(
+      app,
+      createSettings({
+        defaultTemplate: "{{content}}",
+        includeFrontmatter: false,
+        saveVersion: "fetched",
+      }),
+      "https://proxy/?url=",
+    );
     vi.spyOn(
       fetchHelpers,
       "fetchWithProxyFallbackDetailed",
@@ -2450,67 +2527,5 @@ describe("ArticleSaver - static YouTube iframe in the fetched page (#1168)", () 
     expect(notices()).not.toContain(
       `Article saved with fetched content. ${SAVED_TAIL}`,
     );
-  }
-
-  // The Reader already shows a "Watch on YouTube" link for this iframe, so a save of
-  // the fetched version keeps the video the same way the page serves it.
-  it("keeps a recognized iframe that the fetched page itself serves", async () => {
-    const app = App.createMock();
-    vi.spyOn(
-      fetchHelpers,
-      "fetchWithProxyFallbackDetailed",
-    ).mockResolvedValueOnce({ content: fetchedHtml, failureType: "none" });
-
-    const file =
-      await createSaver(app).saveArticleWithFullContent(createItem());
-
-    expect(file).toBeInstanceOf(TFile);
-    if (!(file instanceof TFile)) throw new Error("expected TFile");
-    const written = await app.vault.read(file);
-    expect(written).toContain(
-      `![](${watchUrl})\n\n[Watch on YouTube](${watchUrl})`,
-    );
-    expect(written).toContain("Fetched body.");
-    expect(written).toContain("More fetched body.");
-  });
-
-  it("keeps it when the Reader hands over the fetched HTML to save", async () => {
-    const app = App.createMock();
-
-    const file = await createSaver(app).saveArticleWithContentPolicy(
-      createItem(),
-      undefined,
-      undefined,
-      undefined,
-      { fetchAttempted: true, fetchedHtml },
-    );
-
-    expect(file).toBeInstanceOf(TFile);
-    if (!(file instanceof TFile)) throw new Error("expected TFile");
-    const written = await app.vault.read(file);
-    expect(written).toContain(`![](${watchUrl})`);
-    expect(written).toContain("[Watch on YouTube]");
-  });
-
-  it("drops a fetched-page iframe from another host", async () => {
-    const app = App.createMock();
-    vi.spyOn(
-      fetchHelpers,
-      "fetchWithProxyFallbackDetailed",
-    ).mockResolvedValueOnce({
-      content:
-        '<p>Fetched body.</p><iframe src="https://evil.example/embed/AAAAAAAAAAA"></iframe>',
-      failureType: "none",
-    });
-
-    const file =
-      await createSaver(app).saveArticleWithFullContent(createItem());
-
-    expect(file).toBeInstanceOf(TFile);
-    if (!(file instanceof TFile)) throw new Error("expected TFile");
-    const written = await app.vault.read(file);
-    expect(written).toContain("Fetched body.");
-    expect(written).not.toContain("![](");
-    expect(written).not.toContain("Watch on YouTube");
   });
 });
