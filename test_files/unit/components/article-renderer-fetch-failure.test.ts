@@ -142,6 +142,28 @@ describe("ArticleRenderer remembers a failed full-article fetch (#1110)", () => 
     expect(banner()).not.toBeNull();
   });
 
+  it("shows only the failure banner, not the paywall banner, while a failure is remembered", async () => {
+    const paywall = () => container.querySelector(".rss-reader-paywall-banner");
+    const reopened = makeItem({
+      restrictedReason: "paywall or restricted",
+      fullContentFetchFailure: { reason: "network", at: Date.now() },
+    });
+    await renderer.render(container, reopened);
+
+    expect(banner()).not.toBeNull();
+    expect(paywall()).toBeNull();
+
+    const freshlyFailed = makeItem({
+      guid: "guid-failure-2",
+      restrictedReason: "paywall or restricted",
+    });
+    await renderer.render(container, freshlyFailed);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(banner()).not.toBeNull();
+    expect(paywall()).toBeNull();
+  });
+
   it("does not remember an error thrown by the fetch itself", async () => {
     fetchMock.mockRejectedValue(new Error("view closing"));
     const item = makeItem();

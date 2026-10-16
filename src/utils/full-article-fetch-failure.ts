@@ -100,6 +100,11 @@ export function renderFetchFailureBanner(
 ): void {
   const failure = item.fullContentFetchFailure;
   if (!failure || !hasActiveFetchFailure(item)) return;
+  // The remembered failure is newer than any stored paywall flag and is the
+  // one with an action, so it replaces the paywall banner (#1110).
+  container
+    .querySelectorAll(".rss-reader-paywall-banner")
+    .forEach((paywall) => paywall.remove());
   // One banner per view, however many render paths ask for it.
   if (container.querySelector(".rss-reader-fetch-failure-banner")) return;
   const banner = container.createDiv({
