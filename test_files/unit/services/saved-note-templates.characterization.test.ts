@@ -572,7 +572,8 @@ describe("WebViewerIntegration note template", () => {
         "TAGS=News, Saved",
         "G=g-1",
         `IMG=${COVER}`,
-        "C=<p>Feed blurb</p>",
+        // {{content}} is Markdown since #1190, so the feed HTML's `<p>` is gone.
+        "C=Feed blurb",
         "X={{unknown}}",
       ].join("\n"),
     );

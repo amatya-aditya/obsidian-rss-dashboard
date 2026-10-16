@@ -50,6 +50,8 @@ afterEach(() => {
 });
 
 describe("saved-note clock compatibility", () => {
+  // {{content}} from the feed is Markdown since #1190, so the pins below hold
+  // the converted text rather than the feed HTML's `<p>` wrapper.
   it.each(["", "not-a-date"])(
     "ArticleSaver resolves %j separately after body preparation",
     async (pubDate) => {
@@ -67,7 +69,7 @@ describe("saved-note clock compatibility", () => {
       expect(file).toBeInstanceOf(TFile);
       if (!file) throw new Error("Save failed");
       expect(await app.vault.read(file)).toBe(
-        `---\niso: "${START.toISOString()}"\ntime: "14:59"\n---\n${END.toISOString()}|15:00|<p>Body</p>`,
+        `---\niso: "${START.toISOString()}"\ntime: "14:59"\n---\n${END.toISOString()}|15:00|Body`,
       );
     },
   );
@@ -86,7 +88,7 @@ describe("saved-note clock compatibility", () => {
     );
     if (!file) throw new Error("Save failed");
     expect(await app.vault.read(file)).toBe(
-      '---\niso: "2024-01-01T00:00:00.000Z"\ntime: "14:59"\n---\n2024-01-01T00:00:00.000Z|15:00|<p>Body</p>',
+      '---\niso: "2024-01-01T00:00:00.000Z"\ntime: "14:59"\n---\n2024-01-01T00:00:00.000Z|15:00|Body',
     );
   });
 
@@ -111,7 +113,7 @@ describe("saved-note clock compatibility", () => {
         );
         if (!file) throw new Error("Save failed");
         expect(await h.app.vault.read(file)).toBe(
-          `---\niso: "${iso.call(START)}"\ntime: "15:00"\n---\n${iso.call(END)}|15:00|<p>Body</p>`,
+          `---\niso: "${iso.call(START)}"\ntime: "15:00"\n---\n${iso.call(END)}|15:00|Body`,
         );
       } finally {
         h.cleanup();
