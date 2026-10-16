@@ -1,4 +1,5 @@
 import type { RssDashboardSettings } from "../types/types";
+import type { DeepPartial } from "../types/deep-partial";
 import { migrateLegacySaveFullContent } from "./save-version";
 
 /**
@@ -67,7 +68,7 @@ function migrateImportedGroup(
  * @returns {Partial<RssDashboardSettings>} The imported settings with merged groups
  */
 export function mergeImportedSettingsGroups<
-  T extends Partial<RssDashboardSettings>,
+  T extends DeepPartial<RssDashboardSettings>,
 >(current: RssDashboardSettings, imported: T): T {
   const result: Record<string, unknown> = { ...imported };
   for (const group of MERGED_SETTINGS_GROUPS) {
