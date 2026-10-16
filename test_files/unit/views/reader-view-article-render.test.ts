@@ -103,7 +103,6 @@ type Internals = {
   currentDisplayTitle?: string;
   currentReaderTitle?: string;
   currentContentIsFullArticle: boolean;
-  currentFullContentFailureType: string;
   podcastPlayer: { destroy: () => void } | null;
   videoPlayer: { destroy: () => void } | null;
   webViewerIntegration: { openInWebViewer: ReturnType<typeof vi.fn> } | null;
@@ -256,12 +255,11 @@ describe("ReaderView article rendering (characterization)", () => {
       expect(internals(view).relatedItems).toEqual([]);
     });
 
-    it("clears the previous title, full-article flag and failure type before loading", async () => {
+    it("clears the previous title and full-article flag before loading", async () => {
       const state = internals(view);
       state.currentDisplayTitle = "stale display title";
       state.currentReaderTitle = "stale reader title";
       state.currentContentIsFullArticle = true;
-      state.currentFullContentFailureType = "restricted";
 
       await view.displayItem(
         makeItem({ mediaType: "video", videoId: "abcdefghijk" }),
@@ -270,7 +268,6 @@ describe("ReaderView article rendering (characterization)", () => {
       expect(state.currentDisplayTitle).toBeUndefined();
       expect(state.currentReaderTitle).toBeUndefined();
       expect(state.currentContentIsFullArticle).toBe(false);
-      expect(state.currentFullContentFailureType).toBe("none");
     });
 
     it("shows the item title in the reader header as soon as the item opens", async () => {
@@ -744,9 +741,9 @@ describe("ReaderView article rendering (characterization)", () => {
     });
 
     it("marks the item restricted when the fetch was blocked and nothing usable came back", async () => {
-      fetchMock().mockImplementation(() => {
-        internals(view).currentFullContentFailureType = "restricted";
-        return Promise.resolve({ content: "", failureType: "restricted" });
+      fetchMock().mockResolvedValue({
+        content: "",
+        failureType: "restricted",
       });
       const item = makeItem({ content: "<p>teaser</p>" });
 
@@ -759,12 +756,9 @@ describe("ReaderView article rendering (characterization)", () => {
     });
 
     it("honors a restricted fetch outcome even when it includes a substantial body", async () => {
-      fetchMock().mockImplementation(() => {
-        internals(view).currentFullContentFailureType = "restricted";
-        return Promise.resolve({
-          content: LONG_HTML,
-          failureType: "restricted",
-        });
+      fetchMock().mockResolvedValue({
+        content: LONG_HTML,
+        failureType: "restricted",
       });
       const item = makeItem({ content: "<p>teaser</p>" });
 
