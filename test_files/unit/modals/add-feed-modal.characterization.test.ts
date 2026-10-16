@@ -333,6 +333,9 @@ describe("AddFeedModal feed options (characterization)", () => {
       getSelect(custom.contentEl, "Auto delete articles duration").value,
     ).toBe("custom");
     expect(getSelect(custom.contentEl, "Max items limit").value).toBe("custom");
+    // BUG: pinned, see #1264 (Custom... selected but no number input rendered)
+    expect(getCustomInput(custom, "Auto delete articles duration")).toBeNull();
+    expect(getCustomInput(custom, "Max items limit")).toBeNull();
     custom.close();
     document.body.empty();
 
@@ -464,6 +467,7 @@ describe("AddFeedModal feed options (characterization)", () => {
     const input = getCustomInput(modal, "Max items limit")!;
     expect(input.placeholder).toBe("Enter number");
     expect(input.min).toBe("1");
+    // BUG: pinned, see #1265 (max items custom input is not prefilled)
     expect(input.value).toBe("");
     expect(input.hasClass("visible")).toBe(true);
 
@@ -535,6 +539,27 @@ describe("AddFeedModal feed options (characterization)", () => {
     await flushPromises();
     expect(onAdd).toHaveBeenCalledWith(
       expect.objectContaining({ customTemplate: "t2" }),
+    );
+  });
+
+  it("submits a negative custom auto delete value unclamped", async () => {
+    const onAdd: OnAddFn = vi.fn(async () => true);
+    const modal = createModal(onAdd);
+    changeSelect(
+      getSelect(modal.contentEl, "Auto delete articles duration"),
+      "custom",
+    );
+    const input = getCustomInput(modal, "Auto delete articles duration")!;
+    input.value = "-5";
+    input.dispatchEvent(new Event("change"));
+    typeUrl(modal, "https://example.com/feed.xml");
+
+    getButton(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    // BUG: pinned, see #1265 (min=1 is not enforced on change)
+    expect(onAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ autoDeleteDuration: -5 }),
     );
   });
 });
