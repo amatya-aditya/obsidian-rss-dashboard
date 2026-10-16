@@ -545,3 +545,171 @@ describe("renderSidebarSettingsTab() - disabled icon rows", () => {
     );
   });
 });
+
+describe("Sidebar icon reorder controls with the toolbar hidden", () => {
+  function renderIconRowsTab(hideToolbarEntirely: boolean) {
+    const containerEl = document.body.appendChild(createDiv());
+    const settings = cloneSettings();
+    settings.display.hideToolbarEntirely = hideToolbarEntirely;
+    const saveSettings = vi.fn(async () => {});
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings,
+      clearPlaybackProgress: vi.fn(async () => 0),
+      getActiveDashboardView: vi.fn(async () => null),
+    } as unknown as RssDashboardPlugin;
+
+    renderSidebarSettingsTab(containerEl, plugin, vi.fn());
+    return { containerEl, plugin, saveSettings };
+  }
+
+  function getOrderButtons(containerEl: HTMLElement): HTMLButtonElement[] {
+    return Array.from(
+      containerEl.querySelectorAll<HTMLButtonElement>(
+        ".rss-dashboard-icon-order-btn",
+      ),
+    );
+  }
+
+  function getDragHandles(containerEl: HTMLElement): HTMLButtonElement[] {
+    return Array.from(
+      containerEl.querySelectorAll<HTMLButtonElement>(
+        ".rss-dashboard-icon-drag-handle",
+      ),
+    );
+  }
+
+  function getOrderButton(
+    containerEl: HTMLElement,
+    label: string,
+  ): HTMLButtonElement {
+    const match = getOrderButtons(containerEl).find(
+      (btn) => btn.getAttribute("aria-label") === label,
+    );
+    if (!match) throw new Error(`Order button not found: ${label}`);
+    return match;
+  }
+
+  function dropOnRow(
+    containerEl: HTMLElement,
+    targetId: string,
+    fromId: string,
+  ): void {
+    const row = containerEl.querySelector(
+      `.rss-dashboard-icon-visibility-row[data-icon-id="${targetId}"]`,
+    );
+    if (!row) throw new Error(`Icon row not found: ${targetId}`);
+    const drop = new Event("drop", { bubbles: true, cancelable: true });
+    Object.defineProperty(drop, "dataTransfer", {
+      value: { getData: () => fromId },
+    });
+    row.dispatchEvent(drop);
+  }
+
+  function toggleHideToolbar(containerEl: HTMLElement, value: boolean): void {
+    const checkbox = getSettingByName(
+      containerEl,
+      "Hide toolbar entirely",
+    ).querySelector<HTMLInputElement>("input[type='checkbox']");
+    if (!checkbox) throw new Error("Hide toolbar toggle not found");
+    checkbox.checked = value;
+    checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  it("disables every arrow and drag handle when the toolbar is hidden at render time", () => {
+    const { containerEl } = renderIconRowsTab(true);
+
+    const buttons = getOrderButtons(containerEl);
+    const handles = getDragHandles(containerEl);
+    expect(buttons.length).toBeGreaterThan(0);
+    expect(handles.length).toBeGreaterThan(0);
+    expect(buttons.every((btn) => btn.disabled)).toBe(true);
+    expect(handles.every((handle) => handle.disabled)).toBe(true);
+    expect(
+      handles.every((handle) => handle.getAttribute("draggable") === "false"),
+    ).toBe(true);
+  });
+
+  it("does not reorder or save when a disabled arrow is clicked while the toolbar is hidden", () => {
+    const { containerEl, plugin, saveSettings } = renderIconRowsTab(true);
+    const orderBefore = [...(plugin.settings.display.iconOrder ?? [])];
+
+    const firstRow = containerEl.querySelector(
+      ".rss-dashboard-icon-visibility-row",
+    );
+    const label = firstRow
+      ?.querySelector(".setting-item-name")
+      ?.textContent?.trim();
+    const down = getOrderButton(containerEl, `Move ${label} down`);
+    down.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(plugin.settings.display.iconOrder).toEqual(orderBefore);
+    expect(saveSettings).not.toHaveBeenCalled();
+  });
+
+  it("does not reorder or save when a row is dropped onto another while the toolbar is hidden", () => {
+    const { containerEl, plugin, saveSettings } = renderIconRowsTab(true);
+    const orderBefore = [...(plugin.settings.display.iconOrder ?? [])];
+    const [firstId, secondId] = orderBefore;
+    if (!firstId || !secondId) throw new Error("Expected default icon order");
+
+    dropOnRow(containerEl, secondId, firstId);
+
+    expect(plugin.settings.display.iconOrder).toEqual(orderBefore);
+    expect(saveSettings).not.toHaveBeenCalled();
+  });
+
+  it("disables the controls when the parent toggle is switched on and restores them when it is switched off", async () => {
+    const { containerEl } = renderIconRowsTab(false);
+
+    toggleHideToolbar(containerEl, true);
+    await flushPromises();
+    expect(getOrderButtons(containerEl).every((btn) => btn.disabled)).toBe(
+      true,
+    );
+    expect(getDragHandles(containerEl).every((h) => h.disabled)).toBe(true);
+    expect(
+      getDragHandles(containerEl).every(
+        (h) => h.getAttribute("draggable") === "false",
+      ),
+    ).toBe(true);
+
+    toggleHideToolbar(containerEl, false);
+    await flushPromises();
+    const buttons = getOrderButtons(containerEl);
+    const handles = getDragHandles(containerEl);
+    expect(handles.every((h) => !h.disabled)).toBe(true);
+    expect(handles.every((h) => h.getAttribute("draggable") === "true")).toBe(
+      true,
+    );
+    // Arrows come in up/down pairs per row; the first row's up and the last
+    // row's down stay disabled, every other arrow is enabled.
+    const disabledCount = buttons.filter((btn) => btn.disabled).length;
+    expect(disabledCount).toBe(2);
+    expect(buttons[0]?.disabled).toBe(true);
+    expect(buttons[buttons.length - 1]?.disabled).toBe(true);
+  });
+
+  it("still reorders and saves when the toolbar is shown", () => {
+    const { containerEl, plugin, saveSettings } = renderIconRowsTab(false);
+    const orderBefore = [...(plugin.settings.display.iconOrder ?? [])];
+    const [firstId, secondId] = orderBefore;
+    if (!firstId || !secondId) throw new Error("Expected default icon order");
+
+    const firstRowLabel = containerEl
+      .querySelector(
+        `.rss-dashboard-icon-visibility-row[data-icon-id="${firstId}"] .setting-item-name`,
+      )
+      ?.textContent?.trim();
+    getOrderButton(containerEl, `Move ${firstRowLabel} down`).dispatchEvent(
+      new MouseEvent("click", { bubbles: true }),
+    );
+
+    expect(plugin.settings.display.iconOrder?.slice(0, 2)).toEqual([
+      secondId,
+      firstId,
+    ]);
+    expect(saveSettings).toHaveBeenCalledTimes(1);
+  });
+});
