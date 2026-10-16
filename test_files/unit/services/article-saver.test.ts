@@ -2762,11 +2762,16 @@ describe("ArticleSaver RSS-content saves write Markdown (#1190)", () => {
   });
 
   it("matches the fetch-failure fallback's Markdown for the same feed HTML", async () => {
-    // Clean feed HTML: the RSS-content path also strips ad containers and
-    // absolutises relative image sources, a gap #1195 tracks for the fallback.
+    // Ad containers and relative images are handled on every save path, so the
+    // RSS save and the fallback stay byte-identical (#1195).
     const content =
-      "<p>Channel pilot ember anchor.</p><p>Second paragraph.</p>";
+      '<div class="ad-300"><p>Sponsored placement</p></div>' +
+      "<p>Channel pilot ember anchor.</p>" +
+      '<img src="/img/x.png" alt="Pilot" />';
     const rssWritten = await saveRss(createItem({ content, guid: "guid-rss" }));
+
+    expect(rssWritten).not.toContain("Sponsored placement");
+    expect(rssWritten).toContain("![Pilot](https://example.com/img/x.png)");
 
     const app = App.createMock();
     const saver = new ArticleSaver(
@@ -2898,5 +2903,44 @@ describe("ArticleSaver mixed image and caption anchors (#1200)", () => {
     expect(await readWritten(file, app)).toContain(
       `[![Photo](${decodedImageUrl})](${decodedImageUrl}) Caption`,
     );
+  });
+});
+
+describe("ArticleSaver sanitises fetched-content saves (#1195)", () => {
+  function fetchedSaver(app: App): ArticleSaver {
+    return new ArticleSaver(
+      app,
+      createSettings({
+        defaultTemplate: "{{content}}",
+        includeFrontmatter: false,
+        saveVersion: "fetched",
+      }),
+      "https://proxy/?url=",
+    );
+  }
+
+  it("strips ad containers and resolves relative images from a fetched page", async () => {
+    const app = App.createMock();
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content:
+        '<div class="ad-300"><p>Sponsored placement</p></div>' +
+        "<p>Fetched body.</p>" +
+        '<img src="/img/y.png" alt="Fetched pic" />',
+      failureType: "none",
+    });
+
+    const file = await fetchedSaver(app).saveArticleWithFullContent(
+      createItem({ title: "Fetched Article" }),
+    );
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+
+    expect(written).toContain("Fetched body.");
+    expect(written).not.toContain("Sponsored placement");
+    expect(written).toContain("![Fetched pic](https://example.com/img/y.png)");
   });
 });

@@ -11,6 +11,7 @@ import {
   ensureUtf8Meta,
 } from "./platform-utils";
 import { resolveProxyPrefixes } from "./proxy-utils";
+import { stripAdContainers } from "./ad-containers";
 
 /** Markers that indicate the page is a WAF/bot-challenge block rather than real content. */
 const BLOCKED_MARKERS = [
@@ -148,6 +149,94 @@ const DEFAULT_HEADERS: Record<string, string> = {
   "Accept-Language": "en-US,en;q=0.5",
 };
 
+/** The relative attributes Readability would otherwise resolve against its own base. */
+const RELATIVE_URL_ATTRIBUTES: ReadonlyArray<readonly [string, string]> = [
+  ["a", "href"],
+  ["img", "src"],
+  ["source", "src"],
+  ["video", "src"],
+  ["audio", "src"],
+  ["video", "poster"],
+];
+
+/** Readability's own srcset pattern, mirrored so its resolution pass becomes a no-op. */
+const SRCSET_URL = /(\S+)(\s+[\d.]+[xw])?(\s*(?:,|$))/g;
+
+function resolveDocumentBase(declaredBase: string, pageUrl: string): string {
+  try {
+    return new URL(declaredBase || pageUrl, pageUrl || undefined).href;
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Resolves the fetched page's relative links and media against the page URL
+ * before Readability runs. Readability resolves them against the parsed
+ * document's base URI, which a DOMParser document inherits from Obsidian's own
+ * `app://…` origin, so `/img/x.png` would become an unusable `app://…/img/x.png`
+ * (#1195). A fragment-only href is left alone so the Reader keeps its in-page
+ * navigation, and a page that declares its own `<base href>` wins.
+ */
+function resolveRelativeUrlsForReadability(
+  doc: Document,
+  pageUrl: string,
+): void {
+  const declaredBase =
+    doc.querySelector("base[href]")?.getAttribute("href") ?? "";
+  const base = resolveDocumentBase(declaredBase, pageUrl);
+  if (!base) return;
+
+  const toAbsolute = (value: string): string => {
+    try {
+      return new URL(value, base).href;
+    } catch {
+      return value;
+    }
+  };
+
+  for (const [tag, attribute] of RELATIVE_URL_ATTRIBUTES) {
+    doc.querySelectorAll(`${tag}[${attribute}]`).forEach((el) => {
+      const value = el.getAttribute(attribute);
+      if (!value) return;
+      if (attribute === "href" && value.startsWith("#")) return;
+      el.setAttribute(attribute, toAbsolute(value));
+    });
+  }
+
+  doc.querySelectorAll("img[srcset], source[srcset]").forEach((el) => {
+    const srcset = el.getAttribute("srcset");
+    if (!srcset) return;
+    el.setAttribute(
+      "srcset",
+      srcset.replace(
+        SRCSET_URL,
+        (_match, url: string, descriptor = "", tail = "") =>
+          `${toAbsolute(url)}${descriptor}${tail}`,
+      ),
+    );
+  });
+}
+
+/**
+ * Parses fetched HTML and prepares it for Readability, resolving its relative
+ * URLs against the fetched page (#1195).
+ */
+function parsePageDocument(html: string, pageUrl: string): Document {
+  const doc = new DOMParser().parseFromString(
+    ensureUtf8Meta(html),
+    "text/html",
+  );
+
+  // Readability strips class attributes, so its output no longer carries the
+  // classes the ad selectors match. Drop the containers while the raw page
+  // still has them (#1195).
+  stripAdContainers(doc);
+  resolveRelativeUrlsForReadability(doc, pageUrl);
+
+  return doc;
+}
+
 /**
  * Fetch the HTML at `url`, parse it with Mozilla Readability, and return
  * the extracted article HTML.  Returns `""` on any error.
@@ -161,18 +250,19 @@ export async function fetchAndParse(
   });
   if (!html) return "";
 
-  const withMeta = ensureUtf8Meta(html);
-  const doc = new DOMParser().parseFromString(withMeta, "text/html");
+  const doc = parsePageDocument(html, url);
   const article = new Readability(doc).parse();
   return article?.content ?? "";
 }
 
-function parseArticleContent(html: string): {
+function parseArticleContent(
+  html: string,
+  pageUrl: string,
+): {
   content: string;
   pageMetadata: RawArticleMetadata;
 } {
-  const withMeta = ensureUtf8Meta(html);
-  const doc = new DOMParser().parseFromString(withMeta, "text/html");
+  const doc = parsePageDocument(html, pageUrl);
   // Readability.parse() mutates the document (it drops scripts, so JSON-LD
   // would be gone), so the page's metadata is read first.
   const pageMetadata = extractPageMetadata(doc);
@@ -264,7 +354,7 @@ export async function fetchWithProxyFallbackDetailed(
         debugLog(
           `[RSS Dashboard] Direct fetch succeeded for ${url} (${directHtml.length} chars).`,
         );
-        return { ...parseArticleContent(directHtml), failureType: "none" };
+        return { ...parseArticleContent(directHtml, url), failureType: "none" };
       }
 
       directMetadata = extractMetadataOfUnparsedResponse(directHtml);
@@ -337,7 +427,7 @@ export async function fetchWithProxyFallbackDetailed(
         debugLog(
           `[RSS Dashboard] Proxy fetch succeeded for ${url} (${proxyHtml.length} chars).`,
         );
-        return { ...parseArticleContent(proxyHtml), failureType: "none" };
+        return { ...parseArticleContent(proxyHtml, url), failureType: "none" };
       } catch (proxyError: unknown) {
         if (proxyError instanceof FetchTimeoutError) throw proxyError;
         directRestricted ||= describeFetchError(proxyError).restricted;

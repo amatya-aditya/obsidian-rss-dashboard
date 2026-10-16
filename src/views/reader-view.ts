@@ -81,6 +81,7 @@ import {
   stripTopHeadlineFromDocument,
   stripTopHeadlineFromHtml,
 } from "../utils/reader-html-cleanup";
+import { stripAdContainersFromHtml } from "../utils/ad-containers";
 import TurndownService from "turndown";
 import { WebViewerIntegration } from "../services/web-viewer-integration";
 import { MediaService } from "../services/media-service";
@@ -766,9 +767,10 @@ export class ReaderView extends ItemView {
             stripTopHeadlineFromHtml(this.currentFullContent),
           )
         : this.currentFullContent || item.description || "";
+    // Same ad stripping the saver applies on its own paths (#1195).
     const htmlWithHero = this.prependFallbackHeroForSavedMarkdown(
       item,
-      htmlToSave,
+      stripAdContainersFromHtml(htmlToSave),
     );
     const normalizedSaveHtml =
       this.normalizeBlockLinksForSavedMarkdown(htmlWithHero);
