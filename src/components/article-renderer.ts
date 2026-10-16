@@ -45,11 +45,20 @@ import {
 import { isDuplicateIntro } from "../utils/duplicate-intro-detection";
 import {
   descriptionToStripFromBody,
+  hasMeaningfulFeedDescription,
   selectCalloutDescription,
 } from "../utils/reader-article-render";
-import { removeLeadImageElement } from "../utils/reader-html-cleanup";
 import {
-  containsLatexFormulaImage,
+  isLikelySameImageSource,
+  removeLeadImageElement,
+  stripDuplicateLeadCaptionBlocks,
+  stripDuplicateLeadContentFromDocument,
+  stripDuplicateLeadMediaMatchingHero,
+  stripLeadMediaBeforeContent,
+  stripSkipLinksFromDocument,
+  stripTopHeadlineFromDocument,
+} from "../utils/reader-html-cleanup";
+import {
   findFirstNonFormulaImage,
   firstNonFormulaImageUrl,
 } from "../utils/image-url-utils";
@@ -371,7 +380,7 @@ export class ArticleRenderer {
     const { html: descriptionHtml, label: descriptionLabel } =
       selectCalloutDescription(item);
     const hasMeaningfulDescription =
-      this.hasMeaningfulFeedDescription(descriptionHtml);
+      hasMeaningfulFeedDescription(descriptionHtml);
     const mainHtml = (fullContent || item.content || "").trim();
     const fallbackHeroUrl = firstNonFormulaImageUrl([
       item.coverImage,
@@ -575,16 +584,16 @@ export class ArticleRenderer {
 
       if (stripTopHeadline) {
         this.stripNavigationChromeFromDocument(doc);
-        this.stripTopHeadlineFromDocument(doc);
-        this.stripDuplicateLeadContentFromDocument(doc, feedDescriptionHtml);
-        this.stripSkipLinksFromDocument(doc);
+        stripTopHeadlineFromDocument(doc);
+        stripDuplicateLeadContentFromDocument(doc, feedDescriptionHtml);
+        stripSkipLinksFromDocument(doc);
         // Strip inline SVGs from fetched articles — these are publisher UI
         // decorations (section icons, share buttons) never present in RSS payloads.
         doc.body.querySelectorAll("svg").forEach((el) => el.remove());
         if (fallbackHeroUrl) {
-          this.stripLeadMediaBeforeContent(doc);
-          this.stripDuplicateLeadMediaMatchingHero(doc, fallbackHeroUrl);
-          this.stripDuplicateLeadCaptionBlocks(doc);
+          stripLeadMediaBeforeContent(doc);
+          stripDuplicateLeadMediaMatchingHero(doc, fallbackHeroUrl);
+          stripDuplicateLeadCaptionBlocks(doc);
         }
       }
 
@@ -604,7 +613,7 @@ export class ArticleRenderer {
             if (
               firstImg &&
               firstImgSrc &&
-              this.isLikelySameImageSource(firstImgSrc, heroUrl)
+              isLikelySameImageSource(firstImgSrc, heroUrl)
             ) {
               removeLeadImageElement(firstImg);
             }
@@ -693,20 +702,6 @@ export class ArticleRenderer {
     replacement.setAttribute("src", recoverySrc);
     img.replaceWith(replacement);
     return true;
-  }
-
-  private hasMeaningfulFeedDescription(html: string): boolean {
-    if (!html) {
-      return false;
-    }
-
-    const doc = new DOMParser().parseFromString(html, "text/html");
-    const text = (doc.body.textContent || "").replace(/\s+/g, " ").trim();
-    if (!text) {
-      return false;
-    }
-
-    return !/^(?:\.{3,}|…+|\[\s*(?:\.{3,}|…+)\s*\])$/.test(text);
   }
 
   public setYouTubeFocusMode(hide: boolean): void {
@@ -836,226 +831,6 @@ export class ArticleRenderer {
     );
   }
 
-  private normalizeComparableText(html: string): string {
-    const doc = new DOMParser().parseFromString(html, "text/html");
-    return (doc.body.textContent || "")
-      .replace(/[\u2018\u2019]/g, "'")
-      .replace(/[\u201C\u201D]/g, '"')
-      .replace(/\s+/g, " ")
-      .toLowerCase()
-      .trim();
-  }
-
-  private stripDuplicateLeadContentFromDocument(
-    doc: Document,
-    feedDescriptionHtml?: string,
-  ): void {
-    if (!feedDescriptionHtml || !doc.body) return;
-
-    const blocks = Array.from(doc.body.children) as HTMLElement[];
-    const firstSubstantialIndex = blocks.findIndex(
-      (block) => this.getNormalizedBlockText(block).length >= 120,
-    );
-
-    if (firstSubstantialIndex > 0) {
-      // Fast path: description appears as a direct child before the first substantial block.
-      const duplicateIndex = blocks.findIndex((block, index) => {
-        if (index >= firstSubstantialIndex) return false;
-        return isDuplicateIntro(block.innerHTML, feedDescriptionHtml);
-      });
-      if (duplicateIndex !== -1) {
-        const duplicateBlock = blocks[duplicateIndex];
-        if (!duplicateBlock) return;
-        duplicateBlock.remove();
-        for (let index = duplicateIndex - 1; index >= 0; index--) {
-          const block = blocks[index];
-          if (!block) continue;
-          if (this.isShortLeadInBlock(block) || this.isLeadMediaBlock(block)) {
-            block.remove();
-            continue;
-          }
-          break;
-        }
-        return;
-      }
-    }
-
-    // Slow path: Readability wraps content in a single root div, so the
-    // description may be nested inside a <header> element inside the article.
-    // Scope the search to <header> descendants to avoid false positives in the
-    // article body.
-    doc.body
-      .querySelectorAll<HTMLElement>("header p, header div")
-      .forEach((el) => {
-        if (isDuplicateIntro(el.innerHTML, feedDescriptionHtml)) {
-          el.remove();
-        }
-      });
-  }
-
-  private stripLeadMediaBeforeContent(doc: Document): void {
-    if (!doc.body) return;
-    const blocks = Array.from(doc.body.children) as HTMLElement[];
-    const firstSubstantialIndex = blocks.findIndex(
-      (block) => this.getNormalizedBlockText(block).length >= 120,
-    );
-    if (firstSubstantialIndex <= 0) return;
-
-    for (let index = 0; index < firstSubstantialIndex; index++) {
-      const block = blocks[index];
-      if (!block) continue;
-      if (this.isLeadMediaBlock(block)) {
-        block.remove();
-      }
-    }
-  }
-
-  private getNormalizedBlockText(block: HTMLElement): string {
-    return this.normalizeComparableText(
-      block.innerHTML || block.textContent || "",
-    );
-  }
-
-  private isShortLeadInBlock(block: HTMLElement): boolean {
-    if (containsLatexFormulaImage(block)) return false;
-    if (this.isLeadMediaBlock(block)) return false;
-    const text = this.getNormalizedBlockText(block);
-    if (!text) return false;
-    return text.length < 80 && text.split(" ").filter(Boolean).length <= 12;
-  }
-
-  private isLeadMediaBlock(block: HTMLElement): boolean {
-    if (containsLatexFormulaImage(block)) return false;
-    const tag = block.tagName.toLowerCase();
-    if (["img", "figure", "picture"].includes(tag)) return true;
-    return (
-      !!block.querySelector("img, figure, picture") &&
-      this.getNormalizedBlockText(block).length < 40
-    );
-  }
-
-  private stripSkipLinksFromDocument(doc: Document): void {
-    if (!doc.body) return;
-
-    doc.body.querySelectorAll<HTMLAnchorElement>("a").forEach((anchor) => {
-      const href = (anchor.getAttribute("href") || "").trim().toLowerCase();
-      const text = (anchor.textContent || "")
-        .replace(/\s+/g, " ")
-        .trim()
-        .toLowerCase();
-      const aria = (anchor.getAttribute("aria-label") || "").toLowerCase();
-      const cls = (anchor.getAttribute("class") || "").toLowerCase();
-      const id = (anchor.getAttribute("id") || "").toLowerCase();
-
-      const looksLikeSkipLink =
-        text.includes("skip to content") ||
-        text.includes("skip to main content") ||
-        ((href.startsWith("#") || aria.includes("content")) &&
-          (text.startsWith("skip to") ||
-            aria.includes("skip") ||
-            cls.includes("skip") ||
-            id.includes("skip")));
-
-      if (looksLikeSkipLink) {
-        anchor.remove();
-      }
-    });
-  }
-
-  private stripDuplicateLeadMediaMatchingHero(
-    doc: Document,
-    heroUrl: string,
-  ): void {
-    if (!doc.body || !heroUrl) return;
-
-    const firstSubstantial = this.findFirstSubstantialParagraph(doc);
-    doc.body.querySelectorAll<HTMLImageElement>("img").forEach((img) => {
-      if (!this.isBeforeBoundary(img, firstSubstantial)) return;
-      const src = (img.getAttribute("src") || "").trim();
-      if (!src) return;
-
-      if (this.isLikelySameImageSource(src, heroUrl)) {
-        removeLeadImageElement(img);
-      }
-    });
-  }
-
-  private stripDuplicateLeadCaptionBlocks(doc: Document): void {
-    if (!doc.body) return;
-
-    const firstSubstantial = this.findFirstSubstantialParagraph(doc);
-    const removedCaptionTexts = new Set<string>();
-
-    doc.body
-      .querySelectorAll<HTMLElement>(
-        "figcaption, [id^='caption-'], [id*='caption-']",
-      )
-      .forEach((el) => {
-        if (!this.isBeforeBoundary(el, firstSubstantial)) return;
-        const raw = (el.textContent || "").replace(/\s+/g, " ").trim();
-        const normalized = this.normalizeComparableText(raw);
-        if (!normalized) return;
-
-        const looksLikeCredit = /(credit|photo|image|source)/i.test(raw);
-        if (!looksLikeCredit || normalized.length > 300) return;
-
-        removedCaptionTexts.add(normalized);
-        el.remove();
-      });
-
-    if (removedCaptionTexts.size === 0) return;
-
-    doc.body.querySelectorAll<HTMLElement>("p").forEach((p) => {
-      if (!this.isBeforeBoundary(p, firstSubstantial)) return;
-      const raw = (p.textContent || "").replace(/\s+/g, " ").trim();
-      if (!raw) return;
-
-      const normalized = this.normalizeComparableText(raw);
-      if (!removedCaptionTexts.has(normalized)) return;
-      if (!/(credit|photo|image|source)/i.test(raw)) return;
-
-      p.remove();
-    });
-  }
-
-  private findFirstSubstantialParagraph(doc: Document): HTMLElement | null {
-    return (
-      Array.from(doc.body.querySelectorAll<HTMLElement>("p")).find(
-        (p) => (p.textContent || "").replace(/\s+/g, " ").trim().length >= 120,
-      ) || null
-    );
-  }
-
-  private isBeforeBoundary(el: Element, boundary: HTMLElement | null): boolean {
-    if (!boundary) return true;
-    return !!(
-      el.compareDocumentPosition(boundary) & Node.DOCUMENT_POSITION_FOLLOWING
-    );
-  }
-
-  private isLikelySameImageSource(urlA: string, urlB: string): boolean {
-    const keyA = this.normalizeImageSourceKey(urlA);
-    const keyB = this.normalizeImageSourceKey(urlB);
-    if (!keyA || !keyB) return false;
-    return keyA === keyB;
-  }
-
-  private normalizeImageSourceKey(rawUrl: string): string {
-    const normalizedUrl = normalizeSubstackImageUrl(rawUrl);
-    const fallback = normalizedUrl.trim().toLowerCase();
-    if (!fallback) return "";
-
-    try {
-      const url = new URL(normalizedUrl, "https://example.invalid");
-      const normalizedPath = url.pathname
-        .toLowerCase()
-        .replace(/-\d+x\d+(?=\.[a-z0-9]+$)/, "");
-      return `${url.hostname.toLowerCase()}${normalizedPath}`;
-    } catch {
-      return fallback.replace(/-\d+x\d+(?=\.[a-z0-9]+$)/, "");
-    }
-  }
-
   private stripNavigationChromeFromDocument(doc: Document): void {
     const body = doc.body;
     if (!body) return;
@@ -1148,13 +923,6 @@ export class ArticleRenderer {
         return removeSet.has(el);
       })
       .forEach((el) => el.remove());
-  }
-
-  private stripTopHeadlineFromDocument(doc: Document): void {
-    const h1 = doc.body?.querySelector("h1");
-    if (!h1) return;
-    const idx = Array.from(doc.body.querySelectorAll("*")).indexOf(h1);
-    if (idx !== -1 && idx <= 9) h1.remove();
   }
 
   private extractDisplayTitleFromHtml(html: string): string | null {
