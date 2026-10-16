@@ -144,6 +144,7 @@ describe("ArticleRenderer fetched-article HTML cleanup", () => {
   });
 
   it("keeps a description nested in the article header (pinned)", async () => {
+    // BUG: pinned, see #1238 — the nested description should be removed.
     const full = await renderFetched(
       `<div><header><p>${DESCRIPTION}</p></header>
        <p>${LONG_A}</p><p>${LONG_B}</p></div>`,
@@ -175,7 +176,7 @@ describe("ArticleRenderer fetched-article HTML cleanup", () => {
       full.querySelector(".rss-reader-hero-slot img")?.getAttribute("src"),
     ).toBe("https://img.example.com/hero.jpg");
     expect(bodySrcs).toEqual(["https://img.example.com/body.jpg"]);
-    // Pinned: the caption figure goes, the matching paragraph stays.
+    // BUG: pinned, see #1238 — the caption figure goes, the matching paragraph stays.
     expect(body?.querySelector("figcaption")?.textContent).toBe(
       "Photo credit: later",
     );
