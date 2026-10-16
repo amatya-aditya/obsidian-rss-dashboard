@@ -1167,7 +1167,7 @@ plugin id the stub did not yet carry, all on 1.14.4: `ban` -> `lucide-ban`,
 `wand-2` -> `lucide-wand-2`, and `folders` -> `lucide-folders`. `minus-vertical`
 is **unknown** on 1.14.4, like `youtube`, so the sidebar divider now uses the
 shipped `separator-vertical` (`lucide-separator-vertical`). `lucide-icons.ts`
-carries all of them, and `test_files/unit/utils/used-icons.test.ts` fails when
+carries all of them, and `npm run check:icons` fails when
 the production code names an icon id the stub does not carry.
 
 ## Step 3: Scope
