@@ -87,7 +87,11 @@ import { MediaService } from "../services/media-service";
 import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
 import { resolveItemExternalUrl } from "../utils/item-url-utils";
 import { resolveSavedTemplateForArticle } from "../utils/saved-template-utils";
-import { resolveSaveVersion } from "../utils/save-version";
+import {
+  resolveSaveVersion,
+  SAVED_ARTICLE_TOOLTIP,
+  saveVersionTooltip,
+} from "../utils/save-version";
 import { resolvePodcastOpenDestinations } from "../utils/podcast-open-destinations";
 import { resolveApplePodcastsShowUrl } from "../services/apple-podcasts-service";
 import { createReaderFormatPortal } from "../utils/reader-format-portal";
@@ -2394,6 +2398,19 @@ export class ReaderView extends ItemView {
     this.updateToggleButtons();
   }
 
+  /**
+   * The tooltip of the Reader's save control, naming the version this article's
+   * save will write (#1184).
+   */
+  private getSaveTooltip(item: FeedItem): string {
+    return saveVersionTooltip(
+      resolveSaveVersion(
+        this.settings.articleSaving,
+        this.getCustomTemplateForArticle(item),
+      ),
+    );
+  }
+
   private updateSavedLabel(saved: boolean): void {
     if (!this.currentItem) return;
 
@@ -2403,7 +2420,7 @@ export class ReaderView extends ItemView {
       this.saveButton.toggleClass("saved", saved);
       setTooltip(
         this.saveButton,
-        saved ? "Click to open saved article" : "Save article",
+        saved ? SAVED_ARTICLE_TOOLTIP : this.getSaveTooltip(this.currentItem),
       );
     }
   }
@@ -2862,7 +2879,7 @@ export class ReaderView extends ItemView {
       this.saveButton.toggleClass("saved", isSaved);
       setTooltip(
         this.saveButton,
-        isSaved ? "Click to open saved article" : "Save article",
+        isSaved ? SAVED_ARTICLE_TOOLTIP : this.getSaveTooltip(this.currentItem),
       );
     }
   }

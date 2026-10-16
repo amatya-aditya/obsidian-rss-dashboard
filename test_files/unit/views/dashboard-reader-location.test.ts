@@ -657,7 +657,8 @@ describe("Dashboard reader location", () => {
     ];
 
     expect(toolbarButtons.map((b) => b.getAttribute("aria-label"))).toEqual([
-      "Save article",
+      // The save button names the version this article's save will write (#1184).
+      "Save fetched content to notes",
       "Mark as read/unread",
       "Star/unstar article",
       "Open in browser",

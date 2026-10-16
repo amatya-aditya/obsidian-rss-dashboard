@@ -3,12 +3,18 @@ import {
   ArticleGroupByOption,
   FeedItem,
   RssDashboardSettings,
+  SavedTemplate,
   Tag,
 } from "../types/types";
 import { ArticleHeader } from "./article-header";
 import { ArticleEmptyState } from "./article-empty-state";
 import { isNarrowViewport, setCssProps } from "../utils/platform-utils";
-import { resolveSaveVersion } from "../utils/save-version";
+import {
+  resolveSaveVersion,
+  SAVED_ARTICLE_TOOLTIP,
+  saveVersionTooltip,
+} from "../utils/save-version";
+import { resolveSavedTemplateForArticle } from "../utils/saved-template-utils";
 import type { FilterContext } from "../utils/filter-detection";
 import { HighlightService } from "../services/highlight-service";
 import { getEffectiveDateMs } from "../services/feed-parser/feed-retention";
@@ -1096,10 +1102,13 @@ export class ArticleList {
       setTooltip(
         saveToggle,
         article.saved
-          ? "Click to open saved article"
-          : resolveSaveVersion(this.settings.articleSaving) === "fetched"
-            ? "Save full article content to notes"
-            : "Save article summary to notes",
+          ? SAVED_ARTICLE_TOOLTIP
+          : saveVersionTooltip(
+              resolveSaveVersion(
+                this.settings.articleSaving,
+                this.getArticleSavedTemplate(article),
+              ),
+            ),
       );
     }
 
@@ -1551,6 +1560,22 @@ export class ArticleList {
     });
   }
 
+  /**
+   * The saved template this article's save will use, so the save tooltip can
+   * name the version that save writes (#1184).
+   */
+  private getArticleSavedTemplate(
+    article: FeedItem,
+  ): SavedTemplate | undefined {
+    const articleSaving = this.settings.articleSaving;
+    return resolveSavedTemplateForArticle(
+      article,
+      this.settings.feeds ?? [],
+      articleSaving.savedTemplates ?? [],
+      articleSaving.globalDefaultTemplateId,
+    );
+  }
+
   private createArticleActionButtons(
     actionToolbar: HTMLElement,
     article: FeedItem,
@@ -1560,6 +1585,7 @@ export class ArticleList {
       article,
       actionToolbar,
       mode,
+      savedTemplate: this.getArticleSavedTemplate(article),
       settings: this.settings,
       callbacks: this.callbacks,
       deps: {

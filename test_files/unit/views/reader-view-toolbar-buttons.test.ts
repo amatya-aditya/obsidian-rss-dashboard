@@ -238,6 +238,21 @@ describe("ReaderView toolbar icon buttons", () => {
       }
     });
 
+    it("names the version its save will write, following the setting (#1184)", async () => {
+      const save = byAction("save");
+      // No article is displayed yet, so the placeholder claims no version.
+      expect(save.getAttribute("aria-label")).toBe("Save article");
+
+      await openArticle();
+      expect(save.getAttribute("aria-label")).toBe(
+        "Save fetched content to notes",
+      );
+
+      settings.articleSaving.saveVersion = "rss";
+      await openArticle();
+      expect(save.getAttribute("aria-label")).toBe("Save RSS content to notes");
+    });
+
     it("reports the star as a toggle through aria-pressed", async () => {
       const star = byName("Star/unstar article");
       expect(star.getAttribute("aria-pressed")).toBe("false");
@@ -401,7 +416,7 @@ describe("ReaderView toolbar icon buttons", () => {
         "showAtMouseEvent",
       );
 
-      byName("Save article").click();
+      byAction("save").click();
 
       expect(showAtMouseEvent).toHaveBeenCalledTimes(1);
       expect(

@@ -346,9 +346,7 @@ describe("Dashboard Custom save", () => {
     const container = createDiv();
     view.renderInlineArticle(container);
 
-    container
-      .querySelector<HTMLElement>('[aria-label="Save article"]')
-      ?.click();
+    container.querySelector<HTMLElement>('[data-rss-action="save"]')?.click();
 
     const items = Menu.lastItems;
     expect(items.map((item) => item.title)).toEqual([

@@ -215,6 +215,34 @@ describe("ShortcutHelpModal", () => {
     });
   });
 
+  describe("save shortcut (#1184)", () => {
+    it("lists s as Save to notes in the modal and the guide, claiming no version", () => {
+      const modal = new ShortcutHelpModal(
+        createMockApp(),
+        structuredClone(DEFAULT_SETTINGS),
+      );
+      modal.onOpen();
+      const rows = new Map<string, string>();
+      modal.contentEl.querySelectorAll(".rss-shortcut-row").forEach((row) => {
+        rows.set(
+          row.querySelector("kbd")?.textContent ?? "",
+          row.querySelector(".rss-shortcut-desc")?.textContent ?? "",
+        );
+      });
+      modal.onClose();
+
+      // A static row cannot know an article's resolved save version, so it
+      // makes no version claim; the per-article surfaces name it instead.
+      expect(rows.get("s")).toBe("Save to notes");
+
+      const guide = readFileSync("docs/user/keyboard-shortcuts.md", "utf8");
+      const row = guide.split("\n").find((line) => line.startsWith("| s "));
+      expect(row, "guide row for s").toBeDefined();
+      expect(row).toContain("Save to notes");
+      expect(row).not.toContain("full content");
+    });
+  });
+
   it("has a compliant clickable-icon for the close button", () => {
     const app = createMockApp();
     const modal = new ShortcutHelpModal(app, structuredClone(DEFAULT_SETTINGS));

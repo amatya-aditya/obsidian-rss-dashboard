@@ -22,8 +22,9 @@ import type { ArticleSavingSettings, FeedItem } from "../../../src/types/types";
 import { ArticleSaver } from "../../../src/services/article-saver";
 import { ONE_SAVE_OVERRIDE_TEMPLATE_ID } from "../../../src/utils/saved-template-utils";
 
+// `saveArticle` is called directly here, so its default notice names RSS content (#1184).
 const SUCCESS_NOTICE =
-  "Article saved. Click/tap the icon again to open the article in your vault.";
+  "Article saved with RSS content. Click/tap the icon again to open the article in your vault.";
 
 function createSettings(
   overrides: Partial<ArticleSavingSettings> = {},

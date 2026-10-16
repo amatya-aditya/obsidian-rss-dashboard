@@ -5,14 +5,55 @@ import {
   type SaveVersion,
 } from "../types/types";
 
+/**
+ * The version names as they read inside a sentence, which is where a tooltip or
+ * a notice uses them. Only the RSS acronym keeps its capitals: Obsidian's
+ * sentence-case rule lowercases a word mid-sentence (see
+ * `obsidianmd/ui/sentence-case` in `eslint.config.mjs`), so one table serves
+ * every save surface (#1184).
+ */
+const SAVE_VERSION_SENTENCE_NAMES: Record<SaveVersion, string> = {
+  rss: "RSS content",
+  fetched: "fetched content",
+};
+
+/** The version name on its own, as a settings option or a docs row shows it. */
+export function saveVersionLabel(version: SaveVersion): string {
+  const name = SAVE_VERSION_SENTENCE_NAMES[version];
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
+
 /** The choices of the Default save version setting, in display order. */
 export const SAVE_VERSION_OPTIONS: readonly {
   value: SaveVersion;
   label: string;
-}[] = [
-  { value: "rss", label: "RSS content" },
-  { value: "fetched", label: "Fetched content" },
-];
+}[] = (["rss", "fetched"] as const).map((value) => ({
+  value,
+  label: saveVersionLabel(value),
+}));
+
+/** The tooltip, and accessible name, of the save control of an already-saved article. */
+export const SAVED_ARTICLE_TOOLTIP = "Click to open saved article";
+
+/** The tooltip of a save control, naming the version that article's save will write. */
+export function saveVersionTooltip(version: SaveVersion): string {
+  return `Save ${SAVE_VERSION_SENTENCE_NAMES[version]} to notes`;
+}
+
+/** The post-save notice, naming the version the save wrote. */
+export function savedArticleNotice(version: SaveVersion): string {
+  return `Article saved with ${SAVE_VERSION_SENTENCE_NAMES[version]}. Click/tap the icon again to open the article in your vault.`;
+}
+
+/** Shown while a Fetched content save falls back to RSS content. */
+export const FALLBACK_BEFORE_SAVE_NOTICE =
+  "Fetched content is unavailable; saving RSS content.";
+
+/** The post-save notice when a Fetched content save wrote RSS content instead. */
+export const SAVE_FALLBACK_NOTICE: Record<"fetch" | "save", string> = {
+  fetch: "Fetch failed; saved RSS content instead.",
+  save: "Save failed; saved RSS content instead.",
+};
 
 export function isSaveVersion(value: unknown): value is SaveVersion {
   return SAVE_VERSION_OPTIONS.some((option) => option.value === value);

@@ -140,7 +140,11 @@ describe("Reader save completion after navigation", () => {
         expect.soft(button.classList.contains("saved")).toBe(displayingA);
         expect
           .soft(button.getAttribute("aria-label"))
-          .toBe(displayingA ? "Click to open saved article" : "Save article");
+          .toBe(
+            displayingA
+              ? "Click to open saved article"
+              : "Save RSS content to notes",
+          );
       },
     );
   });

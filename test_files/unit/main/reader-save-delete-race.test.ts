@@ -266,7 +266,10 @@ describe("Reader save/delete continuations", () => {
       );
       expect(app.vault.getAbstractFileByPath(path)).toBeNull();
       expect(saveButton.classList.contains("saved")).toBe(false);
-      expect(saveButton.getAttribute("aria-label")).toBe("Save article");
+      // The unsaved label names the version this article's save would write (#1184).
+      expect(saveButton.getAttribute("aria-label")).toBe(
+        "Save fetched content to notes",
+      );
       expect(backingItem).toMatchObject({
         saved: false,
         savedFilePath: undefined,

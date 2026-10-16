@@ -149,8 +149,12 @@ _Avoid_: Label (reserved for imported Inoreader labels; see [[Label-derived tag]
 ## Saving articles
 
 **Default save**:
-Saving an article to a note with the resolved folder and template and no per-save overrides. The **Default save version** setting decides whether the note holds RSS content (the feed item's content, falling back to the feed description, then the summary) or Fetched content (the article page, falling back to RSS content when the fetch fails).
+Saving an article to a note with the resolved folder and template and no per-save overrides. [[Default save version]] decides which version the note holds.
 _Avoid_: Quick save, simple save
+
+**Default save version**:
+The setting that decides which version a save writes: [[RSS content]] (the feed item's content, falling back to the feed description, then the summary) or [[Fetched content]] (the article page, falling back to RSS content when the fetch fails). A save surface names the version its save will write; the version is switched in this setting or in a saved template's [Save version](GLOSSARY.md#language) field, never per save. See [ADR 0022](docs/adr/0022-rss-first-reader-content-selection.md).
+_Avoid_: Save full content (the retired toggle), full content
 
 **Custom save**:
 A one-time save where the user chooses the folder, template, and filename pattern in the save dialog. It may also change the feed's template assignment. Offered on every Save button beside [[Default save]]; the keyboard save action is always a Default save.

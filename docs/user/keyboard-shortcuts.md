@@ -60,7 +60,7 @@ The shortcut reference opens in several ways:
 | f                      | Star/Unstar article                                  |
 | Shift + f              | Toggle YouTube focus mode                            |
 | t                      | Add tags to article                                  |
-| s                      | Save full content to notes                           |
+| s                      | Save to notes                                        |
 
 `j`, `k`, and `l` work the same whether the dashboard or the Reader has focus.
 `j` and `l` open the previous or next article in the Reader, even when it was

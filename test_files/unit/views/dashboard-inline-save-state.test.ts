@@ -215,7 +215,9 @@ describe("Dashboard inline Reader save state", () => {
     const saveButton = openInline(view, article);
 
     expect(saveButton.classList.contains("saved")).toBe(false);
-    expect(saveButton.getAttribute("aria-label")).toBe("Save article");
+    expect(saveButton.getAttribute("aria-label")).toBe(
+      "Save RSS content to notes",
+    );
 
     saveButton.click();
     Menu.lastItems[0].trigger();
@@ -274,7 +276,9 @@ describe("Dashboard inline Reader save state", () => {
     });
 
     expect(saveButton.classList.contains("saved")).toBe(false);
-    expect(saveButton.getAttribute("aria-label")).toBe("Save article");
+    expect(saveButton.getAttribute("aria-label")).toBe(
+      "Save RSS content to notes",
+    );
   });
 
   it("shows the saved state and tooltip when an already-saved article opens inline", async () => {

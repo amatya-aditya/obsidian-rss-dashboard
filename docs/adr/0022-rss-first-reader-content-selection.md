@@ -80,6 +80,17 @@ and version switching never rewrite saved vault notes. It does not add a
 saving-source chooser, persist a new note-provenance contract, or decide how to
 upgrade an existing note. Those concerns require separate tickets and review.
 
+The saving side was settled separately, in [issue
+#1183](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1183)
+(2026-10-15): the version a save writes is the **Default save version** setting,
+optionally overridden by the saved template applied to the article ([issue
+#1185](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1185)).
+No saving-source chooser was added. A save surface reports the version it will
+write ([issue
+#1184](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1184))
+but does not offer a choice, so the version is switched in the setting or in a
+saved template and never per save.
+
 Accepted [ADR 0018](0018-generate-safe-article-filenames-from-template-patterns.md)
 and [ADR 0019](0019-saved-note-association-authority.md) continue to govern
 explicit Save and saved-note associations. In particular, this record does not

@@ -40,7 +40,11 @@ import {
   type CustomSaveHooks,
 } from "../components/article-list/utils/save-options-menu";
 import { resolveSavedTemplateForArticle } from "../utils/saved-template-utils";
-import { resolveSaveVersion } from "../utils/save-version";
+import {
+  resolveSaveVersion,
+  SAVED_ARTICLE_TOOLTIP,
+  saveVersionTooltip,
+} from "../utils/save-version";
 import { getEffectiveDateMs } from "../services/feed-parser/feed-retention.js";
 import {
   getFilteredArticleScope,
@@ -2870,7 +2874,7 @@ export class RssDashboardView extends ItemView {
   ): SavedTemplate | undefined {
     return resolveSavedTemplateForArticle(
       article,
-      this.settings.feeds,
+      this.settings.feeds ?? [],
       this.settings.articleSaving.savedTemplates || [],
       this.settings.articleSaving.globalDefaultTemplateId,
     );
@@ -3478,7 +3482,7 @@ export class RssDashboardView extends ItemView {
       const saveButton = articleEl.querySelector(".rss-dashboard-save-toggle");
       if (saveButton?.instanceOf(HTMLElement)) {
         saveButton.classList.add("saved");
-        setTooltip(saveButton, "Click to open saved article");
+        setTooltip(saveButton, SAVED_ARTICLE_TOOLTIP);
       }
     }
   }
@@ -3489,6 +3493,8 @@ export class RssDashboardView extends ItemView {
    * find it by its action hook rather than by its tooltip text.
    */
   private applyInlineReaderSaveState(saved: boolean): void {
+    const article = this.inlineArticle;
+    if (!article) return;
     const buttons = this.containerEl.querySelectorAll<HTMLButtonElement>(
       ".inline-reader-header [role='toolbar'] button",
     );
@@ -3500,7 +3506,17 @@ export class RssDashboardView extends ItemView {
     saveButton.classList.toggle("saved", saved);
     setTooltip(
       saveButton,
-      saved ? "Click to open saved article" : "Save article",
+      saved ? SAVED_ARTICLE_TOOLTIP : this.getInlineReaderSaveTooltip(article),
+    );
+  }
+
+  /** The inline Reader's save tooltip, naming the version its save will write (#1184). */
+  private getInlineReaderSaveTooltip(article: FeedItem): string {
+    return saveVersionTooltip(
+      resolveSaveVersion(
+        this.settings.articleSaving,
+        this.getSavedTemplateForArticle(article),
+      ),
     );
   }
 
@@ -4281,8 +4297,8 @@ export class RssDashboardView extends ItemView {
         parent: actions,
         cls: `rss-reader-action-button${this.inlineArticle.saved ? " saved" : ""}`,
         label: this.inlineArticle.saved
-          ? "Click to open saved article"
-          : "Save article",
+          ? SAVED_ARTICLE_TOOLTIP
+          : this.getInlineReaderSaveTooltip(this.inlineArticle),
         icon: "save",
         action: "save",
         region,

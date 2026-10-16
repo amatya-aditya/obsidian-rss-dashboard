@@ -1,4 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type MockInstance,
+} from "vitest";
 import { App, TFile } from "obsidian";
 import type {
   ArticleSavingSettings,
@@ -1741,6 +1748,7 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
       undefined,
       "> RSS feed content shown because the full article could not be fetched.\n\nFeed body wins.",
       undefined,
+      "Fetch failed; saved RSS content instead.",
     );
   });
 
@@ -2327,5 +2335,197 @@ describe("ArticleSaver - static YouTube iframe in the fetched page (#1168)", () 
     expect(written).toContain("Fetched body.");
     expect(written).not.toContain("![](");
     expect(written).not.toContain("Watch on YouTube");
+  });
+});
+
+describe("ArticleSaver save notices (#1184)", () => {
+  const SAVED_TAIL =
+    "Click/tap the icon again to open the article in your vault.";
+
+  let noticeLog: MockInstance;
+
+  beforeEach(() => {
+    noticeLog = vi.spyOn(console, "debug");
+    noticeLog.mockClear();
+  });
+
+  /** The messages the Notice stub logged in this test, oldest first. */
+  function notices(): unknown[] {
+    return noticeLog.mock.calls
+      .filter((call) => call[0] === "[Stub Notice]")
+      .map((call) => call[1]);
+  }
+
+  function fetchedSaver(
+    fetchResult: Awaited<
+      ReturnType<typeof fetchHelpers.fetchWithProxyFallbackDetailed>
+    >,
+  ): { app: App; saver: ArticleSaver; item: FeedItem } {
+    const app = App.createMock();
+    const saver = new ArticleSaver(
+      app,
+      createSettings({
+        defaultTemplate: "{{content}}",
+        includeFrontmatter: false,
+        saveVersion: "fetched",
+      }),
+      "https://proxy/?url=",
+    );
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce(fetchResult);
+    return { app, saver, item: createItem({ content: "<p>RSS body.</p>" }) };
+  }
+
+  it("names RSS content when the Default save version is RSS content", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(
+      app,
+      createSettings({ defaultTemplate: "{{content}}", saveVersion: "rss" }),
+    );
+    const item = createItem({ content: "<p>RSS body.</p>" });
+
+    await saver.saveArticleWithContentPolicy(item);
+
+    expect(notices()).toContain(
+      `Article saved with RSS content. ${SAVED_TAIL}`,
+    );
+  });
+
+  it("names fetched content when the save writes the fetched page", async () => {
+    const { saver, item } = fetchedSaver({
+      content: "<p>Fetched body.</p>",
+      failureType: "none",
+    });
+
+    await saver.saveArticleWithContentPolicy(item);
+
+    expect(notices()).toContain(
+      `Article saved with fetched content. ${SAVED_TAIL}`,
+    );
+  });
+
+  it("names the fallback when the page fetch fails", async () => {
+    const { saver, item } = fetchedSaver({
+      content: "",
+      failureType: "network",
+    });
+
+    await saver.saveArticleWithContentPolicy(item);
+
+    expect(notices()).toContain(
+      "Fetched content is unavailable; saving RSS content.",
+    );
+    expect(notices()).toContain("Fetch failed; saved RSS content instead.");
+    expect(notices()).not.toContain(
+      `Article saved with RSS content. ${SAVED_TAIL}`,
+    );
+  });
+
+  it("names the fallback when the fetched page has no usable Markdown", async () => {
+    const { saver, item } = fetchedSaver({
+      content: "<p></p>",
+      failureType: "none",
+    });
+
+    await saver.saveArticleWithContentPolicy(item);
+
+    expect(notices()).toContain("Fetch failed; saved RSS content instead.");
+    expect(notices()).not.toContain(
+      `Article saved with fetched content. ${SAVED_TAIL}`,
+    );
+  });
+
+  it("names the fallback when the fetched save itself fails", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(
+      app,
+      createSettings({
+        defaultTemplate: "{{content}}",
+        includeFrontmatter: false,
+        saveVersion: "fetched",
+      }),
+      "https://proxy/?url=",
+    );
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockRejectedValueOnce(new Error("boom"));
+    const item = createItem({ content: "<p>RSS body.</p>" });
+
+    await saver.saveArticleWithContentPolicy(item);
+
+    expect(notices()).toContain("Could not save fetched content: boom");
+    expect(notices()).toContain("Save failed; saved RSS content instead.");
+    expect(notices()).not.toContain(
+      `Article saved with RSS content. ${SAVED_TAIL}`,
+    );
+  });
+
+  it("names RSS content, and no fallback, when the fetch was restricted", async () => {
+    const { saver, item } = fetchedSaver({
+      content: "",
+      failureType: "restricted",
+    });
+
+    await saver.saveArticleWithContentPolicy(item);
+
+    expect(notices()).toContain(
+      "Fetched content is restricted. Showing available RSS content.",
+    );
+    expect(notices()).toContain(
+      `Article saved with RSS content. ${SAVED_TAIL}`,
+    );
+    expect(notices()).not.toContain("Fetch failed; saved RSS content instead.");
+  });
+
+  it("names fetched content for a save the Reader already fetched", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(
+      app,
+      createSettings({
+        defaultTemplate: "{{content}}",
+        saveVersion: "fetched",
+      }),
+    );
+    const item = createItem({ content: "<p>RSS body.</p>" });
+
+    await saver.saveArticleWithContentPolicy(
+      item,
+      undefined,
+      undefined,
+      undefined,
+      { fetchAttempted: true, markdown: "Fetched body." },
+    );
+
+    expect(notices()).toContain(
+      `Article saved with fetched content. ${SAVED_TAIL}`,
+    );
+  });
+
+  it("names the fallback when the Reader's fetch produced nothing", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(
+      app,
+      createSettings({
+        defaultTemplate: "{{content}}",
+        saveVersion: "fetched",
+      }),
+    );
+    const item = createItem({ content: "<p>RSS body.</p>" });
+
+    await saver.saveArticleWithContentPolicy(
+      item,
+      undefined,
+      undefined,
+      undefined,
+      { fetchAttempted: true },
+    );
+
+    expect(notices()).toContain("Fetch failed; saved RSS content instead.");
+    expect(notices()).not.toContain(
+      `Article saved with fetched content. ${SAVED_TAIL}`,
+    );
   });
 });
