@@ -1432,6 +1432,170 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     expect(written).not.toContain("RSS feed content shown");
   });
 
+  it("keeps the link when a fetched anchor wraps only an image", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+      saveVersion: "fetched",
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+    const target = "https://example.com/story";
+    const imageUrl = "https://example.com/photo.png";
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content: `<p><a href="${target}"><img src="${imageUrl}" alt="Photo" /></a></p>`,
+      failureType: "none",
+    });
+
+    const file = await saver.saveArticleWithFullContent(createItem());
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+    expect(written).toContain(`[![Photo](${imageUrl})](${target})`);
+  });
+
+  it("keeps the link when an RSS fallback anchor wraps only an image", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+      saveVersion: "fetched",
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+    const target = "https://example.com/story";
+    const imageUrl = "https://example.com/photo.png";
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({ content: "", failureType: "network" });
+    const item = createItem({
+      content: `<p><a href="${target}"><img src="${imageUrl}" alt="Photo" /></a></p>`,
+    });
+
+    const file = await saver.saveArticleWithFullContent(item);
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+    expect(written).toContain(`[![Photo](${imageUrl})](${target})`);
+  });
+
+  it("decodes a Substack image-fetch href on an image-only anchor", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+      saveVersion: "fetched",
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+    const rawSubstackLink =
+      "https://substackcdn.com/image/fetch/$s_!GtED!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F108fc67d-1f88-4d55-bb47-e44613e67b2a_1632x656.png";
+    const decodedImageUrl =
+      "https://substack-post-media.s3.amazonaws.com/public/images/108fc67d-1f88-4d55-bb47-e44613e67b2a_1632x656.png";
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content: `<figure><a href="${rawSubstackLink}"><img src="${decodedImageUrl}" alt="Photo" /></a></figure>`,
+      failureType: "none",
+    });
+
+    const file = await saver.saveArticleWithFullContent(createItem());
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+    expect(written).toContain(
+      `[![Photo](${decodedImageUrl})](${decodedImageUrl})`,
+    );
+  });
+
+  it("keeps every image when a label-less anchor wraps more than one", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+      saveVersion: "fetched",
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+    const target = "https://example.com/story";
+    const firstImage = "https://example.com/one.png";
+    const secondImage = "https://example.com/two.png";
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content: `<p><a href="${target}"><img src="${firstImage}" alt="One" /><img src="${secondImage}" alt="Two" /></a></p>`,
+      failureType: "none",
+    });
+
+    const file = await saver.saveArticleWithFullContent(createItem());
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+    expect(written).toContain(
+      `[![One](${firstImage})![Two](${secondImage})](${target})`,
+    );
+  });
+
+  it("leaves a labelled anchor and a plain anchor unchanged", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+      saveVersion: "fetched",
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content:
+        '<p><a href="https://example.com/read">Read more</a> and <a href="https://example.com/plain"><span>plain</span></a></p>',
+      failureType: "none",
+    });
+
+    const file = await saver.saveArticleWithFullContent(createItem());
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+    expect(written).toContain("[Read more](https://example.com/read)");
+    expect(written).toContain("[plain](https://example.com/plain)");
+  });
+
+  it("keeps the image without a link for a label-less block link", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+      saveVersion: "fetched",
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+    const target = "https://example.com/story";
+    const imageUrl = "https://example.com/photo.png";
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content: `<a href="${target}"><div><img src="${imageUrl}" alt="Photo" /></div></a>`,
+      failureType: "none",
+    });
+
+    const file = await saver.saveArticleWithFullContent(createItem());
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+    expect(written).toContain(`![Photo](${imageUrl})`);
+    expect(written).not.toContain(`](${target})`);
+  });
+
   it("prepends enclosure image when chosen feed HTML has no inline image", async () => {
     const app = App.createMock();
     const settings = createSettings({

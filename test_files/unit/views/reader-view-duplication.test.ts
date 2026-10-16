@@ -236,6 +236,60 @@ describe("ReaderView Image Duplication", () => {
     expect(markdown).not.toContain(formulaUrl);
   });
 
+  it("keeps the link when a save anchor wraps only an image", () => {
+    const target = "https://example.com/story";
+    const imageUrl = "https://example.com/photo.png";
+    const item: FeedItem = {
+      title: "Linked image save",
+      link: target,
+      description: `<p><a href="${target}"><img src="${imageUrl}" alt="Photo" /></a></p>`,
+      content: "",
+      pubDate: new Date().toISOString(),
+      guid: "linked-image-save",
+      read: false,
+      starred: false,
+      tags: [],
+      feedTitle: "Test feed",
+      feedUrl: "https://example.com/feed.rss",
+      coverImage: "",
+      mediaType: "article",
+      saved: false,
+    };
+
+    const markdown = getHarness(readerView).buildReaderSaveMarkdown(item);
+
+    expect(markdown).toContain(`[![Photo](${imageUrl})](${target})`);
+  });
+
+  it("decodes a Substack image-fetch href when building save Markdown", () => {
+    const rawSubstackLink =
+      "https://substackcdn.com/image/fetch/$s_!GtED!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F108fc67d-1f88-4d55-bb47-e44613e67b2a_1632x656.png";
+    const decodedImageUrl =
+      "https://substack-post-media.s3.amazonaws.com/public/images/108fc67d-1f88-4d55-bb47-e44613e67b2a_1632x656.png";
+    const item: FeedItem = {
+      title: "Substack linked image save",
+      link: "https://example.com/substack",
+      description: `<figure><a href="${rawSubstackLink}"><img src="${decodedImageUrl}" alt="Photo" /></a></figure>`,
+      content: "",
+      pubDate: new Date().toISOString(),
+      guid: "substack-linked-image-save",
+      read: false,
+      starred: false,
+      tags: [],
+      feedTitle: "Test feed",
+      feedUrl: "https://example.com/feed.rss",
+      coverImage: "",
+      mediaType: "article",
+      saved: false,
+    };
+
+    const markdown = getHarness(readerView).buildReaderSaveMarkdown(item);
+
+    expect(markdown).toContain(
+      `[![Photo](${decodedImageUrl})](${decodedImageUrl})`,
+    );
+  });
+
   it("should extract hero image and remove it from content (Reproduction)", async () => {
     const item: FeedItem = {
       title: "Test Article",

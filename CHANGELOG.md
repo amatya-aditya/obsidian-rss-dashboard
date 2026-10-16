@@ -47,6 +47,7 @@
 
 ### Fixes
 
+- A saved note keeps the link when an article wraps an image in a link with no text, instead of saving a plain image: the image stays clickable on the Markdown save paths (fetched content, the fetch-failure RSS fallback, and the Reader's save). A Substack image link is saved with its full image address as the target. [GH Issue #1194](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1194)
 - Adding a feed by a page address no longer fails when the first feed link on the page is not a feed. Discovery now tries up to five candidates in order (link tags, then anchors) until one is a valid feed, and skips `mailto:` and other non-http(s) links, fragment links, `<area>` tags, and the page's own address. [GH Issue #1099](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1099)
 - Save controls now say which version a save writes instead of "full content" and "summary": the Save tooltip on an article card, in the Reader toolbar, and in the dashboard's inline reader names the resolved version (`Save RSS content to notes`, `Save fetched content to notes`), and the post-save notice names the version written, including when a fetched save fell back to RSS content. The keyboard-shortcut help row is now **Save to notes**, because a static row cannot know the resolved version. [GH Issue #1184](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1184)
 
