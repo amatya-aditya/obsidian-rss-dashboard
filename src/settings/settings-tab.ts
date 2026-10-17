@@ -103,7 +103,8 @@ export class RssDashboardSettingTab extends PluginSettingTab {
 
     switch (this.currentTab) {
       case "General":
-        renderGeneralSettingsTab(tabContent, this.plugin);
+        this.displaySettingsCleanup =
+          renderGeneralSettingsTab(tabContent, this.plugin) ?? null;
         this.pendingSection = null;
         break;
       case "Storage":

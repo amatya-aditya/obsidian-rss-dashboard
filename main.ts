@@ -102,6 +102,7 @@ import {
 } from "./src/utils/settings-loader";
 import { snapshotArticleFields } from "./src/utils/article-update";
 import { applyAutomaticArticleTags } from "./src/utils/tag-utils";
+import { ProxyCheckStore } from "./src/utils/proxy-check";
 import { registerPaletteCommands } from "./src/commands/palette-commands";
 import { VersionStatusBarFeature } from "./src/settings/version-status-bar";
 import { SavedArticleAssociationService } from "./src/services/saved-article-association-service";
@@ -196,6 +197,12 @@ export default class RssDashboardPlugin extends Plugin {
   public activeRefreshState = new Map<string, FeedRefreshState>();
   public settingTab: RssDashboardSettingTab | null = null;
   public versionStatusBar: VersionStatusBarFeature | null = null;
+  /**
+   * The last on-demand proxy check, for this session only (#1298). Held here
+   * so the General tab can redraw it across a settings-tab switch; it is never
+   * persisted and nothing runs on its own.
+   */
+  public readonly proxyCheckStore = new ProxyCheckStore();
   private tagChipRadiusSync: TagChipRadiusSync | null = null;
   public vaultAbsolutePath = "";
   private hasShownStorageDeprecationPromptThisSession = false;

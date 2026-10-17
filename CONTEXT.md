@@ -438,6 +438,12 @@ _Avoid_: Rollback, downgrade
 The user's choice, offered right after a metadata storage move succeeds, to delete or keep the `data.json` copy left behind at the previous location. Clearing the Metadata location is a move back to the plugin folder: it first asks the user to confirm moving the vault `data.json` to the trash, and Metadata cleanup is offered afterward only for any other copy left behind, such as `user-state.json` under Shard storage v2.
 _Avoid_: Backup cleanup, orphan file
 
+## CORS proxy
+
+**Proxy check**:
+The on-demand diagnostic in **Settings → RSS Dashboard → General → Proxy** that asks each proxy to fetch one fixed neutral page (`https://example.com/`) and reports that proxy's response time. It answers "which proxy is slow, and does this one still work at all?" for the full-article fetch; feed refresh keeps its own hardcoded proxy list, so a green board says nothing about it. A result is **fast** under 2 s, **slow** up to the shared 5 s deadline, **timed out** past it, or **failed** with the reason, and the fastest is marked. Results last for the session only — the next run replaces them and a reload drops them — and nothing is scored, reordered, or persisted. No request is sent until a button is pressed.
+_Avoid_: Ping (the check times a complete response body, not time to first byte), proxy health, proxy benchmark
+
 ## Version support
 
 **Declared floor**:

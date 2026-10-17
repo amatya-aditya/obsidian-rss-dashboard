@@ -5,6 +5,7 @@ import {
   type GeneralSettingsPlugin,
 } from "../../../src/settings/tabs/general-settings-tab";
 import { RetentionChangeConfirmModal } from "../../../src/settings/modals/settings-modals";
+import { ProxyCheckStore } from "../../../src/utils/proxy-check";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { isToggleOn, setToggle } from "../test-toggle-helpers";
 
@@ -54,6 +55,7 @@ describe("renderGeneralSettingsTab() retention protections", () => {
       settings,
       saveSettings,
       getActiveDashboardView: vi.fn(async () => null),
+      proxyCheckStore: new ProxyCheckStore(),
       importPortableDataBundleFromFile: vi.fn(async () => {}),
       exportPortableDataBundle: vi.fn(async () => {}),
       applyFeedLimitsToAllFeeds: vi.fn(async () => {}),
@@ -97,6 +99,7 @@ describe("renderGeneralSettingsTab() retention protections", () => {
       settings,
       saveSettings,
       getActiveDashboardView: vi.fn(async () => null),
+      proxyCheckStore: new ProxyCheckStore(),
       importPortableDataBundleFromFile: vi.fn(async () => {}),
       exportPortableDataBundle: vi.fn(async () => {}),
       applyFeedLimitsToAllFeeds: vi.fn(async () => {}),
@@ -131,6 +134,7 @@ describe("renderGeneralSettingsTab() retention protections", () => {
       settings,
       saveSettings,
       getActiveDashboardView: vi.fn(async () => null),
+      proxyCheckStore: new ProxyCheckStore(),
       importPortableDataBundleFromFile: vi.fn(async () => {}),
       exportPortableDataBundle: vi.fn(async () => {}),
       applyFeedLimitsToAllFeeds,
@@ -172,6 +176,7 @@ describe("renderGeneralSettingsTab() retention protections", () => {
       settings,
       saveSettings,
       getActiveDashboardView: vi.fn(async () => null),
+      proxyCheckStore: new ProxyCheckStore(),
       importPortableDataBundleFromFile: vi.fn(async () => {}),
       exportPortableDataBundle: vi.fn(async () => {}),
       applyFeedLimitsToAllFeeds,
@@ -214,6 +219,7 @@ describe("renderGeneralSettingsTab() retention protections", () => {
       settings,
       saveSettings,
       getActiveDashboardView: vi.fn(async () => null),
+      proxyCheckStore: new ProxyCheckStore(),
       importPortableDataBundleFromFile: vi.fn(async () => {}),
       exportPortableDataBundle: vi.fn(async () => {}),
       applyFeedLimitsToAllFeeds,
@@ -255,6 +261,7 @@ describe("renderGeneralSettingsTab() retention protections", () => {
       settings,
       saveSettings,
       getActiveDashboardView: vi.fn(async () => null),
+      proxyCheckStore: new ProxyCheckStore(),
       importPortableDataBundleFromFile: vi.fn(async () => {}),
       exportPortableDataBundle: vi.fn(async () => {}),
       applyFeedLimitsToAllFeeds: vi.fn(async () => {}),
@@ -296,6 +303,7 @@ describe("renderGeneralSettingsTab() retention protections", () => {
       settings,
       saveSettings,
       getActiveDashboardView: vi.fn(async () => null),
+      proxyCheckStore: new ProxyCheckStore(),
       importPortableDataBundleFromFile: vi.fn(async () => {}),
       exportPortableDataBundle: vi.fn(async () => {}),
       applyFeedLimitsToAllFeeds: vi.fn(async () => {}),
@@ -341,6 +349,7 @@ describe("renderGeneralSettingsTab() reader view location", () => {
       settings: cloneSettings(),
       saveSettings: vi.fn(async () => {}),
       getActiveDashboardView: vi.fn(async () => null),
+      proxyCheckStore: new ProxyCheckStore(),
       importPortableDataBundleFromFile: vi.fn(async () => {}),
       exportPortableDataBundle: vi.fn(async () => {}),
       applyFeedLimitsToAllFeeds: vi.fn(async () => {}),
@@ -383,6 +392,7 @@ describe("renderGeneralSettingsTab() keyboard shortcuts", () => {
       settings: cloneSettings(),
       saveSettings: vi.fn(async () => {}),
       getActiveDashboardView: vi.fn(async () => null),
+      proxyCheckStore: new ProxyCheckStore(),
       importPortableDataBundleFromFile: vi.fn(async () => {}),
       exportPortableDataBundle: vi.fn(async () => {}),
       applyFeedLimitsToAllFeeds: vi.fn(async () => {}),
