@@ -16,6 +16,7 @@ export class PodcastPlayer {
   private hasAudioForCurrentItem = true;
   private playlist: FeedItem[] = [];
   private progressInterval: number | null = null;
+  private endSeekDrag: (() => void) | null = null;
   private progressData: Map<string, { position: number; duration: number }> =
     new Map();
   private currentPlaylistIndex = 0;
@@ -221,6 +222,7 @@ export class PodcastPlayer {
 
   private render(): void {
     if (!this.currentItem) return;
+    this.endSeekDrag?.();
     this.container.empty();
 
     const podcastContainer = this.container.createDiv({
@@ -651,7 +653,10 @@ export class PodcastPlayer {
           isDragging = false;
           activeWindow.removeEventListener("mousemove", moveHandler);
           activeWindow.removeEventListener("mouseup", upHandler);
+          if (this.endSeekDrag === upHandler) this.endSeekDrag = null;
         };
+        this.endSeekDrag?.();
+        this.endSeekDrag = upHandler;
         activeWindow.addEventListener("mousemove", moveHandler);
         activeWindow.addEventListener("mouseup", upHandler);
       });
@@ -670,7 +675,10 @@ export class PodcastPlayer {
           isDragging = false;
           activeWindow.removeEventListener("touchmove", moveHandler);
           activeWindow.removeEventListener("touchend", upHandler);
+          if (this.endSeekDrag === upHandler) this.endSeekDrag = null;
         };
+        this.endSeekDrag?.();
+        this.endSeekDrag = upHandler;
         activeWindow.addEventListener("touchmove", moveHandler);
         activeWindow.addEventListener("touchend", upHandler);
       });
@@ -1222,6 +1230,7 @@ export class PodcastPlayer {
   }
 
   destroy(): void {
+    this.endSeekDrag?.();
     this.stopProgressTracking();
     this.clearSleepTimer();
 
