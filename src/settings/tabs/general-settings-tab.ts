@@ -9,10 +9,15 @@
  *   - AUTO_DELETE_PRESETS, isPresetAutoDeleteDuration    — testable helpers
  */
 import { App, Notice, Setting, WorkspaceLeaf } from "obsidian";
-import { setCssProps } from "../../utils/platform-utils";
+import { robustFetchDetailed, setCssProps } from "../../utils/platform-utils";
 import { addInputClearButton } from "../../utils/input-clear-button";
-import { normalizeRefreshIntervalMinutes } from "../../utils/validation";
+import {
+  isValidUrl,
+  normalizeRefreshIntervalMinutes,
+} from "../../utils/validation";
 import { isPresetRefreshInterval } from "../../utils/refresh-intervals";
+import { pageRequestHeaders } from "../../utils/request-headers";
+import { renderProxyCheckControls } from "../proxy-check-controls";
 export {
   REFRESH_INTERVAL_PRESETS,
   isPresetRefreshInterval,
@@ -27,7 +32,9 @@ import {
 } from "../modals/settings-modals";
 import type { ImportResult } from "../../services/import-export-service";
 import type { RssDashboardSettings } from "../../types/types";
-import { PREDEFINED_PROXIES } from "../../utils/proxy-utils";
+import type { ProxyCheckStore } from "../../utils/proxy-check";
+import { CUSTOM_PROXY_OPTION } from "../../utils/proxy-check";
+import { AUTO_PROXY_URL, PREDEFINED_PROXIES } from "../../utils/proxy-utils";
 
 export interface GeneralSettingsPlugin {
   app: App;
@@ -43,6 +50,8 @@ export interface GeneralSettingsPlugin {
   applyFeedLimitsToAllFeeds(): Promise<void>;
   refreshFeeds(): Promise<void>;
   openShortcutHelp(): void;
+  /** Session-only holder for the last proxy check (#1298); never persisted. */
+  proxyCheckStore: ProxyCheckStore;
 }
 
 // ── Pure preset helpers (exported for testing) ───────────────────────────────
@@ -63,7 +72,7 @@ export function isPresetAutoDeleteDuration(value: number): boolean {
 export function renderGeneralSettingsTab(
   containerEl: HTMLElement,
   plugin: GeneralSettingsPlugin,
-): void {
+): (() => void) | undefined {
   new Setting(containerEl)
     .setName("Keyboard shortcuts")
     .setDesc("Open the reference of the plugin's keyboard shortcuts")
@@ -655,6 +664,8 @@ export function renderGeneralSettingsTab(
         });
     });
 
+  let disposeProxyCheck: (() => void) | undefined;
+
   if (plugin.settings.corsProxyEnabled) {
     const proxySetting = new Setting(containerEl)
       .setName("Proxy URL")
@@ -665,8 +676,52 @@ export function renderGeneralSettingsTab(
 
     let textComponent: import("obsidian").TextComponent;
     let saveButton: import("obsidian").ButtonComponent | null = null;
+    let dropdownComponent: import("obsidian").DropdownComponent | null = null;
     let lastSavedProxyUrl = (plugin.settings.corsProxyUrl || "").trim();
     let pendingProxyUrl = lastSavedProxyUrl;
+    // The dropdown's current value, which the check's availability follows:
+    // its empty option means nothing is selected, even though choosing it
+    // leaves the configured proxy in place.
+    let selectedProxyOption = "";
+    // The check controls are built below the dropdown and URL field they read,
+    // so the handlers above them only reach them through this callback.
+    let refreshProxyCheckSelection: () => void = () => {};
+
+    /**
+     * Whether the saved setting names an option the dropdown itself offers:
+     * auto, or a built-in proxy. Anything else is a custom URL, which the
+     * dropdown shows as the "add new proxy URL" option.
+     */
+    const isDropdownProxyOption = (url: string): boolean =>
+      url === AUTO_PROXY_URL ||
+      PREDEFINED_PROXIES.some((proxy) => proxy.url === url);
+
+    /** Shows the save button only for the custom URL field. */
+    const setSaveButtonVisible = (visible: boolean): void => {
+      if (!saveButton) return;
+      void import("../../utils/platform-utils").then(({ setCssProps }) =>
+        setCssProps(saveButton!.buttonEl, { display: visible ? "" : "none" }),
+      );
+    };
+
+    /**
+     * Brings the dropdown and the save button back in line with the saved
+     * setting, for the paths that change it without the dropdown: the URL
+     * field's commit and Clear. Choosing an option in the dropdown keeps the
+     * setting and the control in step on its own.
+     */
+    const syncProxyRowToSetting = (): void => {
+      const currentUrl = (plugin.settings.corsProxyUrl || "").trim();
+      const isOption = isDropdownProxyOption(currentUrl);
+      selectedProxyOption = isOption
+        ? currentUrl
+        : currentUrl
+          ? CUSTOM_PROXY_OPTION
+          : "";
+      dropdownComponent?.setValue(selectedProxyOption);
+      setSaveButtonVisible(!isOption && currentUrl !== "");
+      refreshProxyCheckSelection();
+    };
 
     const commitProxyUrl = async (rawValue: string): Promise<void> => {
       const value = rawValue.trim();
@@ -677,15 +732,16 @@ export function renderGeneralSettingsTab(
         lastSavedProxyUrl = "";
         pendingProxyUrl = "";
         await plugin.saveSettings();
+        syncProxyRowToSetting();
         return;
       }
 
-      const { isValidUrl } = await import("../../utils/validation");
       const validation = isValidUrl(value);
       if (!validation.valid) {
         pendingProxyUrl = lastSavedProxyUrl;
         textComponent.setValue(lastSavedProxyUrl);
         new Notice(validation.error || "Invalid URL");
+        refreshProxyCheckSelection();
         return;
       }
 
@@ -693,52 +749,45 @@ export function renderGeneralSettingsTab(
       lastSavedProxyUrl = value;
       pendingProxyUrl = value;
       await plugin.saveSettings();
+      syncProxyRowToSetting();
     };
 
     proxySetting
       .addDropdown((dropdown) => {
+        dropdownComponent = dropdown;
         dropdown.addOption("", "Select a proxy...");
-        dropdown.addOption("auto", "Auto-cycle (try all proxies on failure)");
+        dropdown.addOption(
+          AUTO_PROXY_URL,
+          "Auto-cycle (try all proxies on failure)",
+        );
         PREDEFINED_PROXIES.forEach((proxy) => {
           dropdown.addOption(proxy.url, proxy.label);
         });
-        dropdown.addOption("custom", "Add new proxy URL...");
+        dropdown.addOption(CUSTOM_PROXY_OPTION, "Add new proxy URL...");
 
-        const currentUrl = plugin.settings.corsProxyUrl || "";
-        const isPredefined = PREDEFINED_PROXIES.some(
-          (p) => p.url === currentUrl,
-        );
-        if (isPredefined) {
-          dropdown.setValue(currentUrl);
+        const currentUrl = (plugin.settings.corsProxyUrl || "").trim();
+        if (isDropdownProxyOption(currentUrl)) {
+          selectedProxyOption = currentUrl;
         } else if (currentUrl) {
-          dropdown.setValue("custom");
+          selectedProxyOption = CUSTOM_PROXY_OPTION;
         } else {
-          dropdown.setValue("");
+          selectedProxyOption = "";
         }
+        dropdown.setValue(selectedProxyOption);
 
         dropdown.onChange((value: string) => {
-          if (value === "custom") {
-            if (saveButton)
-              void import("../../utils/platform-utils").then(
-                ({ setCssProps }) =>
-                  setCssProps(saveButton!.buttonEl, { display: "" }),
-              );
-          } else {
-            if (saveButton)
-              void import("../../utils/platform-utils").then(
-                ({ setCssProps }) =>
-                  setCssProps(saveButton!.buttonEl, { display: "none" }),
-              );
-            if (value !== "") {
-              textComponent.setValue(value);
-              void (async () => {
-                plugin.settings.corsProxyUrl = value;
-                lastSavedProxyUrl = value;
-                pendingProxyUrl = value;
-                await plugin.saveSettings();
-              })();
-            }
+          selectedProxyOption = value;
+          setSaveButtonVisible(value === CUSTOM_PROXY_OPTION);
+          if (value !== CUSTOM_PROXY_OPTION && value !== "") {
+            textComponent.setValue(value);
+            void (async () => {
+              plugin.settings.corsProxyUrl = value;
+              lastSavedProxyUrl = value;
+              pendingProxyUrl = value;
+              await plugin.saveSettings();
+            })();
           }
+          refreshProxyCheckSelection();
         });
       })
       .addText((text) => {
@@ -748,6 +797,7 @@ export function renderGeneralSettingsTab(
           .setValue(plugin.settings.corsProxyUrl || "")
           .onChange((value) => {
             pendingProxyUrl = value;
+            refreshProxyCheckSelection();
           });
 
         text.inputEl.addEventListener("blur", () => {
@@ -766,6 +816,7 @@ export function renderGeneralSettingsTab(
             lastSavedProxyUrl = "";
             pendingProxyUrl = "";
             void plugin.saveSettings();
+            syncProxyRowToSetting();
           },
         });
         if (text.inputEl.parentElement) {
@@ -783,7 +834,6 @@ export function renderGeneralSettingsTab(
           .setTooltip("Save proxy URL")
           .onClick(async () => {
             const customUrl = textComponent.getValue().trim();
-            const { isValidUrl } = await import("../../utils/validation");
             const validation = isValidUrl(customUrl);
             if (validation.valid) {
               plugin.settings.corsProxyUrl = customUrl;
@@ -791,6 +841,7 @@ export function renderGeneralSettingsTab(
               pendingProxyUrl = customUrl;
               await plugin.saveSettings();
               new Notice("Proxy URL saved");
+              refreshProxyCheckSelection();
               containerEl.dispatchEvent(
                 new CustomEvent("rss-settings-refresh"),
               );
@@ -799,15 +850,23 @@ export function renderGeneralSettingsTab(
             }
           });
 
-        const currentUrl = plugin.settings.corsProxyUrl || "";
-        const isPredefined =
-          currentUrl === "auto" ||
-          PREDEFINED_PROXIES.some((p) => p.url === currentUrl);
-        if (isPredefined || !currentUrl) {
-          void import("../../utils/platform-utils").then(({ setCssProps }) =>
-            setCssProps(btn.buttonEl, { display: "none" }),
-          );
-        }
+        const currentUrl = (plugin.settings.corsProxyUrl || "").trim();
+        setSaveButtonVisible(
+          !isDropdownProxyOption(currentUrl) && currentUrl !== "",
+        );
       });
+
+    const proxyCheckControls = renderProxyCheckControls(containerEl, {
+      readSelectedProxyOption: () => selectedProxyOption,
+      readSavedProxyUrl: () => plugin.settings.corsProxyUrl,
+      readPendingProxyUrl: () => pendingProxyUrl,
+      store: plugin.proxyCheckStore,
+      fetchText: (url) =>
+        robustFetchDetailed(url, { headers: pageRequestHeaders() }),
+    });
+    refreshProxyCheckSelection = proxyCheckControls.refreshSelection;
+    disposeProxyCheck = proxyCheckControls.dispose;
   }
+
+  return disposeProxyCheck;
 }

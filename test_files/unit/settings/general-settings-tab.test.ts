@@ -5,6 +5,11 @@ import {
   type GeneralSettingsPlugin,
 } from "../../../src/settings/tabs/general-settings-tab";
 import { RetentionChangeConfirmModal } from "../../../src/settings/modals/settings-modals";
+import { ProxyCheckStore } from "../../../src/utils/proxy-check";
+import {
+  AUTO_PROXY_URL,
+  PREDEFINED_PROXIES,
+} from "../../../src/utils/proxy-utils";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { isToggleOn, setToggle } from "../test-toggle-helpers";
 
@@ -54,6 +59,7 @@ describe("renderGeneralSettingsTab() retention protections", () => {
       settings,
       saveSettings,
       getActiveDashboardView: vi.fn(async () => null),
+      proxyCheckStore: new ProxyCheckStore(),
       importPortableDataBundleFromFile: vi.fn(async () => {}),
       exportPortableDataBundle: vi.fn(async () => {}),
       applyFeedLimitsToAllFeeds: vi.fn(async () => {}),
@@ -97,6 +103,7 @@ describe("renderGeneralSettingsTab() retention protections", () => {
       settings,
       saveSettings,
       getActiveDashboardView: vi.fn(async () => null),
+      proxyCheckStore: new ProxyCheckStore(),
       importPortableDataBundleFromFile: vi.fn(async () => {}),
       exportPortableDataBundle: vi.fn(async () => {}),
       applyFeedLimitsToAllFeeds: vi.fn(async () => {}),
@@ -131,6 +138,7 @@ describe("renderGeneralSettingsTab() retention protections", () => {
       settings,
       saveSettings,
       getActiveDashboardView: vi.fn(async () => null),
+      proxyCheckStore: new ProxyCheckStore(),
       importPortableDataBundleFromFile: vi.fn(async () => {}),
       exportPortableDataBundle: vi.fn(async () => {}),
       applyFeedLimitsToAllFeeds,
@@ -172,6 +180,7 @@ describe("renderGeneralSettingsTab() retention protections", () => {
       settings,
       saveSettings,
       getActiveDashboardView: vi.fn(async () => null),
+      proxyCheckStore: new ProxyCheckStore(),
       importPortableDataBundleFromFile: vi.fn(async () => {}),
       exportPortableDataBundle: vi.fn(async () => {}),
       applyFeedLimitsToAllFeeds,
@@ -214,6 +223,7 @@ describe("renderGeneralSettingsTab() retention protections", () => {
       settings,
       saveSettings,
       getActiveDashboardView: vi.fn(async () => null),
+      proxyCheckStore: new ProxyCheckStore(),
       importPortableDataBundleFromFile: vi.fn(async () => {}),
       exportPortableDataBundle: vi.fn(async () => {}),
       applyFeedLimitsToAllFeeds,
@@ -255,6 +265,7 @@ describe("renderGeneralSettingsTab() retention protections", () => {
       settings,
       saveSettings,
       getActiveDashboardView: vi.fn(async () => null),
+      proxyCheckStore: new ProxyCheckStore(),
       importPortableDataBundleFromFile: vi.fn(async () => {}),
       exportPortableDataBundle: vi.fn(async () => {}),
       applyFeedLimitsToAllFeeds: vi.fn(async () => {}),
@@ -296,6 +307,7 @@ describe("renderGeneralSettingsTab() retention protections", () => {
       settings,
       saveSettings,
       getActiveDashboardView: vi.fn(async () => null),
+      proxyCheckStore: new ProxyCheckStore(),
       importPortableDataBundleFromFile: vi.fn(async () => {}),
       exportPortableDataBundle: vi.fn(async () => {}),
       applyFeedLimitsToAllFeeds: vi.fn(async () => {}),
@@ -341,6 +353,7 @@ describe("renderGeneralSettingsTab() reader view location", () => {
       settings: cloneSettings(),
       saveSettings: vi.fn(async () => {}),
       getActiveDashboardView: vi.fn(async () => null),
+      proxyCheckStore: new ProxyCheckStore(),
       importPortableDataBundleFromFile: vi.fn(async () => {}),
       exportPortableDataBundle: vi.fn(async () => {}),
       applyFeedLimitsToAllFeeds: vi.fn(async () => {}),
@@ -383,6 +396,7 @@ describe("renderGeneralSettingsTab() keyboard shortcuts", () => {
       settings: cloneSettings(),
       saveSettings: vi.fn(async () => {}),
       getActiveDashboardView: vi.fn(async () => null),
+      proxyCheckStore: new ProxyCheckStore(),
       importPortableDataBundleFromFile: vi.fn(async () => {}),
       exportPortableDataBundle: vi.fn(async () => {}),
       applyFeedLimitsToAllFeeds: vi.fn(async () => {}),
@@ -407,5 +421,127 @@ describe("renderGeneralSettingsTab() keyboard shortcuts", () => {
 
     button?.click();
     expect(openShortcutHelp).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("renderGeneralSettingsTab() proxy URL dropdown", () => {
+  beforeEach(() => {
+    installObsidianDomPolyfills();
+    document.body.empty();
+    vi.restoreAllMocks();
+  });
+
+  interface ProxyRow {
+    row: HTMLDivElement;
+    settings: typeof DEFAULT_SETTINGS;
+    dropdown: HTMLSelectElement;
+    saveButton: HTMLButtonElement | undefined;
+  }
+
+  /** Renders the tab for one saved proxy URL and returns the Proxy URL row. */
+  function renderProxyRow(corsProxyUrl: string): ProxyRow {
+    const containerEl = createDiv();
+    document.body.appendChild(containerEl);
+    const settings = cloneSettings();
+    settings.corsProxyUrl = corsProxyUrl;
+    const plugin = {
+      app: { workspace: { revealLeaf: vi.fn(async () => {}) } },
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      getActiveDashboardView: vi.fn(async () => null),
+      proxyCheckStore: new ProxyCheckStore(),
+      importPortableDataBundleFromFile: vi.fn(async () => {}),
+      exportPortableDataBundle: vi.fn(async () => {}),
+      applyFeedLimitsToAllFeeds: vi.fn(async () => {}),
+      refreshFeeds: vi.fn(async () => {}),
+      settingTab: null,
+    } as unknown as GeneralSettingsPlugin;
+
+    renderGeneralSettingsTab(containerEl, plugin);
+
+    const row = containerEl.querySelector<HTMLDivElement>(
+      ".rss-proxy-setting-item",
+    );
+    if (!row) throw new Error("Could not find the Proxy URL row");
+    const dropdown = row.querySelector<HTMLSelectElement>("select");
+    if (!dropdown) throw new Error("Could not find the proxy dropdown");
+    return {
+      row,
+      settings,
+      dropdown,
+      saveButton: Array.from(row.querySelectorAll("button")).find(
+        (element) => element.getAttribute("aria-label") === "Save proxy URL",
+      ),
+    };
+  }
+
+  function proxyField(row: HTMLElement): HTMLInputElement {
+    const input = row.querySelector<HTMLInputElement>("input[type=text]");
+    if (!input) throw new Error("Could not find the proxy URL field");
+    return input;
+  }
+
+  function clearButton(row: HTMLElement): HTMLButtonElement {
+    const button = row.querySelector<HTMLButtonElement>(
+      'button[aria-label="Clear proxy URL"]',
+    );
+    if (!button) throw new Error("Could not find the Clear proxy URL button");
+    return button;
+  }
+
+  it("shows the auto option, with the save button hidden, while the setting is auto", async () => {
+    const { dropdown, saveButton } = renderProxyRow(AUTO_PROXY_URL);
+    await flushPromises();
+
+    expect(dropdown.value).toBe(AUTO_PROXY_URL);
+    expect(saveButton?.style.display).toBe("none");
+  });
+
+  it("shows a built-in proxy's own option while it is saved", () => {
+    const url = PREDEFINED_PROXIES[1]?.url ?? "";
+
+    expect(renderProxyRow(url).dropdown.value).toBe(url);
+  });
+
+  it("shows the custom option while a custom URL is saved", () => {
+    expect(renderProxyRow("https://proxy.test/?url=").dropdown.value).toBe(
+      "custom",
+    );
+  });
+
+  it("shows the empty option while no proxy is saved", () => {
+    expect(renderProxyRow("").dropdown.value).toBe("");
+  });
+
+  it("returns the dropdown to the empty option when the proxy URL is cleared", async () => {
+    const { row, settings, dropdown, saveButton } = renderProxyRow(
+      "https://proxy.test/?url=",
+    );
+    await flushPromises();
+    expect(saveButton?.style.display).not.toBe("none");
+
+    clearButton(row).click();
+    await flushPromises();
+
+    expect(settings.corsProxyUrl).toBe("");
+    expect(proxyField(row).value).toBe("");
+    expect(dropdown.value).toBe("");
+    expect(saveButton?.style.display).toBe("none");
+  });
+
+  it("shows the custom option once a typed URL is committed over a built-in proxy", async () => {
+    const { row, settings, dropdown } = renderProxyRow(
+      PREDEFINED_PROXIES[0]?.url ?? "",
+    );
+
+    const field = proxyField(row);
+    field.value = "https://proxy.test/?url=";
+    field.dispatchEvent(new Event("input"));
+    field.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+    await flushPromises();
+    await flushPromises();
+
+    expect(settings.corsProxyUrl).toBe("https://proxy.test/?url=");
+    expect(dropdown.value).toBe("custom");
   });
 });
