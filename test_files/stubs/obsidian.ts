@@ -2449,6 +2449,7 @@ export type MenuItem = ObsidianApi.MenuItem;
 export const MenuItem = MenuItemStub as unknown as typeof ObsidianApi.MenuItem;
 export type Setting = ObsidianApi.Setting;
 export const Setting = SettingStub as unknown as typeof ObsidianApi.Setting;
+export type DropdownComponent = ObsidianApi.DropdownComponent;
 export type TextComponent = ObsidianApi.TextComponent;
 export const TextComponent =
   TextComponentStub as unknown as typeof ObsidianApi.TextComponent;
