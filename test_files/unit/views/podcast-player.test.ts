@@ -637,6 +637,68 @@ describe("PodcastPlayer", () => {
       player.destroy();
     });
 
+    it.each([NaN, 0, Infinity])(
+      "shows the neutral label and does not throw for duration %s",
+      (duration) => {
+        const { container, player, audio } = loadWithDuration(duration);
+
+        expect(() => {
+          audio.dispatchEvent(new Event("loadedmetadata"));
+          audio.dispatchEvent(new Event("timeupdate"));
+        }).not.toThrow();
+
+        expect(container.querySelector(".rss-duration")!.textContent).toBe(
+          "-0:00",
+        );
+
+        player.destroy();
+      },
+    );
+
+    it.each([NaN, 0, Infinity])(
+      "does not seek when the seek bar is clicked with duration %s",
+      (duration) => {
+        const { container, player, audio } = loadWithDuration(duration);
+        audio.currentTime = 5;
+
+        container
+          .querySelector<HTMLElement>(".podcast-progress-bar")!
+          .dispatchEvent(new MouseEvent("click", { clientX: 50 }));
+
+        expect(audio.currentTime).toBe(5);
+
+        player.destroy();
+      },
+    );
+
+    it("keeps the forward-30 button working with Infinity duration", () => {
+      const { container, player, audio } = loadWithDuration(Infinity);
+      audio.currentTime = 10;
+
+      container
+        .querySelector<HTMLElement>('[aria-label="Forward 30 seconds"]')!
+        .click();
+
+      expect(audio.currentTime).toBe(40);
+
+      player.destroy();
+    });
+
+    it("skips saving progress inside the last 3 seconds of a finite episode", () => {
+      vi.useFakeTimers();
+      const onPlaybackProgress = vi.fn();
+      const { player, audio } = loadWithDuration(100, onPlaybackProgress);
+
+      audio.currentTime = 98;
+      audio.dispatchEvent(new Event("play"));
+      vi.advanceTimersByTime(1000);
+
+      expect(onPlaybackProgress).not.toHaveBeenCalled();
+
+      player.destroy();
+      vi.useRealTimers();
+    });
+
     it("still renders a finite duration label", () => {
       const { container, player, audio } = loadWithDuration(125);
 
