@@ -1,8 +1,7 @@
-import { App, Notice, TFile, TFolder, normalizePath } from "obsidian";
+import { App, TFolder } from "obsidian";
 import type {
   Feed,
   FeedBundle,
-  FeedItem,
   FeedItemsShard,
   PortableDataBundle,
   PersistedFeedConfig,
@@ -19,8 +18,27 @@ import {
   parseSettingsBundle,
 } from "./storage-bundle-parsers";
 import { UserStateStore } from "./user-state-store";
-import { trimSurroundingSlashes } from "../utils/folder-paths";
 import { mergeImportedSettingsGroups } from "../utils/settings-group-merge";
+import {
+  createComparableFeedShardJson,
+  createFeedShard,
+  dropInvalidShardItems,
+  getFeedShardPath,
+  isHiddenFromSync,
+  normalizeFolderPath,
+} from "./feed-storage-shard";
+import {
+  hydrateFeedStorage,
+  persistFeedStorage,
+  type FeedStorageHydrationResult,
+  type FeedStoragePersistResult,
+  type FeedStorageRunnerHost,
+  type FeedStorageRunnerState,
+  type PersistSettingsOptions,
+} from "./feed-storage-runner";
+
+export { normalizeFolderPath, isHiddenFromSync };
+export type { PersistSettingsOptions };
 
 export interface FeedStorageStatus {
   mode: RssDashboardSettings["storageMode"];
@@ -34,21 +52,6 @@ export interface FeedStorageStatus {
 export interface FeedLocalStorageAddress {
   mode: RssDashboardSettings["storageMode"];
   address: string;
-}
-
-export interface PersistSettingsOptions {
-  forceMetadata?: boolean;
-  forceAllShards?: boolean;
-  /**
-   * The feed list was replaced wholesale (a bundle import or restore), so a
-   * feed it drops is not a feed removal: its shard is deleted, but its
-   * article state is kept on the unrecognized-feed horizon (issue #374).
-   */
-  replacesFeedList?: boolean;
-  /** Imported article state replaces existing values, including explicit resets. */
-  authoritativeArticleState?: boolean;
-  /** A confirmed bundle restore invalidates prior absence evidence; rollback does not. */
-  restoresArticlePresence?: boolean;
 }
 
 export interface RepairResult {
@@ -96,66 +99,6 @@ function createFeedId(): string {
   return `feed-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-export function normalizeFolderPath(path: string): string {
-  const trimmed = path.trim().replace(/\\/g, "/");
-  if (!trimmed) return ".rss-dashboard-data/feeds";
-
-  return normalizePath(trimSurroundingSlashes(trimmed));
-}
-
-/**
- * Obsidian Sync and most file-sync tools skip files and folders whose name
- * begins with ".", so shards under such a path never reach other devices.
- */
-export function isHiddenFromSync(folderPath: string): boolean {
-  return normalizeFolderPath(folderPath)
-    .split("/")
-    .some((segment) => segment.startsWith("."));
-}
-
-function getFeedShardPath(storageFolder: string, feedId: string): string {
-  return normalizePath(`${normalizeFolderPath(storageFolder)}/${feedId}.json`);
-}
-
-/** Keeps only entries usable as items: plain objects with a string guid. */
-function dropInvalidShardItems(items: unknown[]): FeedItem[] {
-  return items.filter(
-    (item): item is FeedItem =>
-      item != null &&
-      typeof item === "object" &&
-      typeof (item as { guid?: unknown }).guid === "string",
-  );
-}
-
-function createFeedShard(feed: Feed, stripState = false): FeedItemsShard {
-  return {
-    version: SHARD_VERSION,
-    feedId: feed.feedId ?? "",
-    feedUrl: feed.url,
-    updatedAt: Date.now(),
-    items: cloneJson(feed.items ?? []).map((item) => {
-      if (stripState) {
-        delete item.read;
-        delete item.starred;
-        delete item.tags;
-        delete item.saved;
-        delete item.savedFilePath;
-        delete item.playbackProgress;
-      }
-      return item;
-    }),
-  };
-}
-
-function createComparableFeedShardJson(feed: Feed, stripState = false): string {
-  const { updatedAt: _updatedAt, ...shardWithoutTimestamp } = createFeedShard(
-    feed,
-    stripState,
-  );
-  void _updatedAt;
-  return JSON.stringify(shardWithoutTimestamp, null, 2);
-}
-
 function storageLog(_message: string, _details?: unknown): void {}
 
 function storageError(
@@ -165,19 +108,27 @@ function storageError(
 ): void {}
 
 export class FeedStorageRepository {
-  private lastPersistedMetadataJson: string | null = null;
-  private lastPersistedShardJsonByFeedId = new Map<string, string>();
-  private lastStorageFolderPath: string | null = null;
-  private lastRepairResult = "Not yet run";
-  private feedShardHealthById = new Map<string, FeedShardHealth>();
-  private shardFolderHiddenFromSync = false;
   /**
-   * Feed IDs whose shard was successfully read and structurally validated in
-   * this plugin session, with the GUIDs present in that validated read.
+   * Workflow state the hydrate/persist runner reads and writes through the
+   * host. It stays on the repository and is passed by reference; the runner
+   * never holds a copy, so reassigning a field here is safe.
    */
-  private hydratedShardGuidsByFeedId = new Map<string, Set<string>>();
+  private readonly state: FeedStorageRunnerState = {
+    lastPersistedMetadataJson: null,
+    lastPersistedShardJsonByFeedId: new Map<string, string>(),
+    lastStorageFolderPath: null,
+    feedShardHealthById: new Map<string, FeedShardHealth>(),
+    shardFolderHiddenFromSync: false,
+    /**
+     * Feed IDs whose shard was successfully read and structurally validated
+     * in this plugin session, with the GUIDs present in that validated read.
+     */
+    hydratedShardGuidsByFeedId: new Map<string, Set<string>>(),
+  };
+  private lastRepairResult = "Not yet run";
   private userState: UserStateStore;
   private app: App;
+  private readonly runnerHost: FeedStorageRunnerHost;
 
   constructor(
     app: App,
@@ -190,8 +141,22 @@ export class FeedStorageRepository {
     this.userState = new UserStateStore(app, {
       writeWrapper: options?.writeWrapper,
       onUserStateHealthChange: options?.onUserStateHealthChange,
-      hydratedShardGuidsByFeedId: this.hydratedShardGuidsByFeedId,
+      hydratedShardGuidsByFeedId: this.state.hydratedShardGuidsByFeedId,
     });
+    this.runnerHost = {
+      app: this.app,
+      userState: this.userState,
+      state: this.state,
+      ensureFeedIds: (settings) => this.ensureFeedIds(settings),
+      capturePersistedState: (settings) => this.capturePersistedState(settings),
+      hasNothingToRebuild: (feed) => this.hasNothingToRebuild(feed),
+      removeShardFile: (shardPath) => this.removeShardFile(shardPath),
+      removeFolderIfEmpty: (folderPath) => this.removeFolderIfEmpty(folderPath),
+      pruneEmptyParentFolders: (folderPath) =>
+        this.pruneEmptyParentFolders(folderPath),
+      createPersistedSettings: (settings) =>
+        this.createPersistedSettings(settings),
+    };
   }
 
   public isUserStateUnreadable(): boolean {
@@ -200,12 +165,12 @@ export class FeedStorageRepository {
 
   public getFeedShardHealth(feed: Feed): FeedShardHealth | null {
     return feed.feedId
-      ? (this.feedShardHealthById.get(feed.feedId) ?? null)
+      ? (this.state.feedShardHealthById.get(feed.feedId) ?? null)
       : null;
   }
 
   public clearFeedShardHealth(feed: Feed): void {
-    if (feed.feedId) this.feedShardHealthById.delete(feed.feedId);
+    if (feed.feedId) this.state.feedShardHealthById.delete(feed.feedId);
   }
 
   /**
@@ -214,7 +179,7 @@ export class FeedStorageRepository {
    * dot-prefixed folders rather than of individually damaged shards.
    */
   public isShardFolderHiddenFromSync(): boolean {
-    return this.shardFolderHiddenFromSync;
+    return this.state.shardFolderHiddenFromSync;
   }
 
   /**
@@ -236,7 +201,7 @@ export class FeedStorageRepository {
    * device holds, with an empty one.
    */
   private hasNothingToRebuild(feed: Feed & { feedId: string }): boolean {
-    const health = this.feedShardHealthById.get(feed.feedId);
+    const health = this.state.feedShardHealthById.get(feed.feedId);
     return (
       (health === "missing" || health === "corrupt") && feed.items.length === 0
     );
@@ -284,329 +249,18 @@ export class FeedStorageRepository {
     };
   }
 
-  public async hydrateSettings(settings: RssDashboardSettings): Promise<{
-    didChange: boolean;
-    shardCount: number;
-    userStateLoaded?: boolean;
-  }> {
-    storageLog("Hydrating settings", {
-      mode: settings.storageMode,
-      folder: normalizeFolderPath(settings.storageFolder),
-      feedCount: settings.feeds.length,
-    });
-    const didAssignFeedIds = this.ensureFeedIds(settings);
-    let shardCount = 0;
-    let didDropInvalidItems = false;
-    const repairedFeedIds = new Set<string>();
-
-    this.shardFolderHiddenFromSync = false;
-    if (
-      settings.storageMode !== "vault-shards" &&
-      settings.storageMode !== "vault-shards-v2"
-    ) {
-      this.feedShardHealthById.clear();
-      this.hydratedShardGuidsByFeedId.clear();
-      storageLog("Skipping shard hydration because legacy JSON mode is active");
-      this.capturePersistedState(settings);
-      return { didChange: didAssignFeedIds, shardCount };
-    }
-
-    const feedsById = new Map<string, Feed>();
-    this.feedShardHealthById.clear();
-    this.hydratedShardGuidsByFeedId.clear();
-    for (const feed of settings.feeds) {
-      if (feed.feedId) {
-        feedsById.set(feed.feedId, feed);
-      }
-    }
-
-    for (const feed of settings.feeds) {
-      if (feed.feedId) {
-        this.hydratedShardGuidsByFeedId.delete(feed.feedId);
-      }
-      const shardPath = getFeedShardPath(
-        settings.storageFolder,
-        feed.feedId ?? "",
-      );
-      const shardExists = await this.app.vault.adapter.exists(shardPath);
-      if (!shardExists) {
-        if (feed.feedId) this.feedShardHealthById.set(feed.feedId, "missing");
-        storageLog("Shard file not found during hydration", {
-          feedId: feed.feedId,
-          title: feed.title,
-          shardPath,
-        });
-        continue;
-      }
-
-      try {
-        const raw = await this.app.vault.adapter.read(shardPath);
-        const parsed = JSON.parse(raw) as Partial<FeedItemsShard>;
-        if (
-          !parsed ||
-          parsed.feedId !== feed.feedId ||
-          !Array.isArray(parsed.items)
-        ) {
-          throw new Error("Invalid shard data");
-        }
-
-        // A hand-edited or damaged shard can hold nullish entries; drop them
-        // before any `.guid` access and report the repair so the load saves it.
-        const validItems = dropInvalidShardItems(parsed.items);
-        if (
-          this.noteDroppedShardItems(
-            feed,
-            parsed.items.length - validItems.length,
-            repairedFeedIds,
-          )
-        ) {
-          didDropInvalidItems = true;
-        }
-        feed.items = validItems;
-        if (feed.feedId) {
-          this.feedShardHealthById.delete(feed.feedId);
-          this.hydratedShardGuidsByFeedId.set(
-            feed.feedId,
-            new Set(feed.items.map((item) => item.guid)),
-          );
-        }
-        shardCount += 1;
-        storageLog("Hydrated feed from shard", {
-          feedId: feed.feedId,
-          title: feed.title,
-          shardPath,
-          itemCount: feed.items.length,
-        });
-      } catch (error) {
-        if (feed.feedId) this.feedShardHealthById.set(feed.feedId, "corrupt");
-        storageError("Failed to hydrate feed shard", error, {
-          feedId: feed.feedId,
-          title: feed.title,
-          shardPath,
-        });
-        feed.items = Array.isArray(feed.items) ? feed.items : [];
-        new Notice(
-          `RSS Dashboard: Failed to read shard for "${feed.title}". ${
-            error instanceof Error ? error.message : "Unknown error"
-          }`,
-        );
-      }
-    }
-
-    const feedsWithIds = settings.feeds.filter((feed) => Boolean(feed.feedId));
-    this.shardFolderHiddenFromSync =
-      feedsWithIds.length > 0 &&
-      isHiddenFromSync(settings.storageFolder) &&
-      feedsWithIds.every(
-        (feed) => this.feedShardHealthById.get(feed.feedId ?? "") === "missing",
-      );
-
-    storageLog("Completed shard hydration", {
-      didAssignFeedIds,
-      shardCount,
-    });
-
-    let userStateLoaded = false;
-    if (settings.storageMode === "vault-shards-v2") {
-      userStateLoaded = await this.userState.applyToFeeds(settings);
-    }
-
-    this.capturePersistedState(settings);
-    // The on-disk shard still holds the dropped entries; leave its baseline
-    // empty so the next save sees a difference and rewrites it.
-    for (const feedId of repairedFeedIds) {
-      this.lastPersistedShardJsonByFeedId.delete(feedId);
-    }
-    return {
-      didChange: didAssignFeedIds || didDropInvalidItems,
-      shardCount,
-      userStateLoaded,
-    };
+  public async hydrateSettings(
+    settings: RssDashboardSettings,
+  ): Promise<FeedStorageHydrationResult> {
+    return hydrateFeedStorage(settings, this.runnerHost);
   }
 
   public async persistSettings(
     settings: RssDashboardSettings,
     saveData: (data: unknown) => Promise<void>,
     options: PersistSettingsOptions = {},
-  ): Promise<{
-    metadataSaved: boolean;
-    shardWriteCount: number;
-    shardDeleteCount: number;
-  }> {
-    this.ensureFeedIds(settings);
-    storageLog("Persisting settings", {
-      mode: settings.storageMode,
-      folder: normalizeFolderPath(settings.storageFolder),
-      feedCount: settings.feeds.length,
-      forceMetadata: Boolean(options.forceMetadata),
-      forceAllShards: Boolean(options.forceAllShards),
-    });
-
-    if (
-      settings.storageMode !== "vault-shards" &&
-      settings.storageMode !== "vault-shards-v2"
-    ) {
-      await saveData(withSyncNonce(cloneJson(settings)));
-      storageLog("Saved full settings to legacy data.json");
-      this.capturePersistedState(settings);
-      return {
-        metadataSaved: true,
-        shardWriteCount: 0,
-        shardDeleteCount: 0,
-      };
-    }
-
-    const normalizedStorageFolder = normalizeFolderPath(settings.storageFolder);
-    const storageFolderChanged =
-      this.lastStorageFolderPath !== null &&
-      this.lastStorageFolderPath !== normalizedStorageFolder;
-    const forceAllShards = Boolean(
-      options.forceAllShards || storageFolderChanged,
-    );
-
-    if (storageFolderChanged) {
-      storageLog("Storage folder changed; forcing shard rewrite", {
-        previousFolder: this.lastStorageFolderPath,
-        nextFolder: normalizedStorageFolder,
-      });
-    }
-
-    await this.ensureStorageFolderExists(normalizedStorageFolder);
-
-    let shardWriteCount = 0;
-    let shardDeleteCount = 0;
-
-    const currentFeedIds = new Set<string>();
-    for (const feed of settings.feeds) {
-      if (!feed.feedId) {
-        continue;
-      }
-
-      currentFeedIds.add(feed.feedId);
-      // Also leaves the shard in a previous storage folder in place: it may
-      // be the only copy of this feed's articles.
-      if (this.hasNothingToRebuild(feed as Feed & { feedId: string })) {
-        storageLog("Skipped writing empty shard for unloaded feed", {
-          feedId: feed.feedId,
-          title: feed.title,
-        });
-        continue;
-      }
-      const isV2 = settings.storageMode === "vault-shards-v2";
-      const shard = createFeedShard(feed, isV2);
-      const shardJson = JSON.stringify(shard, null, 2);
-      const currentComparableJson = createComparableFeedShardJson(feed, isV2);
-      const previousJson = this.lastPersistedShardJsonByFeedId.get(feed.feedId);
-
-      const shardPath = getFeedShardPath(normalizedStorageFolder, feed.feedId);
-      const shardWriteDecision = await this.getShardWriteDecision(
-        shardPath,
-        forceAllShards || previousJson !== currentComparableJson,
-        feed.feedId,
-      );
-
-      if (shardWriteDecision.needsWrite) {
-        await this.app.vault.adapter.write(shardPath, shardJson);
-        this.lastPersistedShardJsonByFeedId.set(
-          feed.feedId,
-          currentComparableJson,
-        );
-        const recoveredHealth =
-          shardWriteDecision.recoveredHealth ??
-          this.feedShardHealthById.get(feed.feedId);
-        if (recoveredHealth === "missing" || recoveredHealth === "corrupt") {
-          this.feedShardHealthById.set(feed.feedId, "rebuilt");
-          // A feed has articles again, so the folder is no longer wholly
-          // unsynced; per-feed warnings cover the feeds still missing.
-          this.shardFolderHiddenFromSync = false;
-        }
-        shardWriteCount += 1;
-        storageLog("Wrote feed shard", {
-          feedId: feed.feedId,
-          title: feed.title,
-          shardPath,
-          itemCount: feed.items.length,
-        });
-      }
-
-      if (storageFolderChanged && this.lastStorageFolderPath) {
-        const previousShardPath = getFeedShardPath(
-          this.lastStorageFolderPath,
-          feed.feedId,
-        );
-        if (await this.removeShardFile(previousShardPath)) {
-          storageLog("Deleted shard from previous storage folder", {
-            feedId: feed.feedId,
-            previousShardPath,
-          });
-        }
-      }
-    }
-
-    if (storageFolderChanged && this.lastStorageFolderPath) {
-      // Once every shard has moved out, drop the emptied folder and any
-      // parent the move left empty.
-      if (await this.removeFolderIfEmpty(this.lastStorageFolderPath)) {
-        await this.pruneEmptyParentFolders(this.lastStorageFolderPath);
-      }
-    }
-
-    for (const previousFeedId of [
-      ...this.lastPersistedShardJsonByFeedId.keys(),
-    ]) {
-      if (currentFeedIds.has(previousFeedId)) {
-        continue;
-      }
-
-      const shardPath = getFeedShardPath(
-        normalizedStorageFolder,
-        previousFeedId,
-      );
-      if (await this.removeShardFile(shardPath)) {
-        storageLog("Deleted shard for removed feed", {
-          feedId: previousFeedId,
-          shardPath,
-        });
-      }
-      this.lastPersistedShardJsonByFeedId.delete(previousFeedId);
-      if (!options.replacesFeedList) {
-        this.userState.markFeedRemoved(previousFeedId);
-      }
-      shardDeleteCount += 1;
-    }
-
-    const persistedSettings = this.createPersistedSettings(settings);
-    const metadataJson = JSON.stringify(persistedSettings, null, 2);
-    const shouldSaveMetadata =
-      options.forceMetadata || this.lastPersistedMetadataJson !== metadataJson;
-
-    if (shouldSaveMetadata) {
-      await saveData(withSyncNonce(persistedSettings));
-      this.lastPersistedMetadataJson = metadataJson;
-      storageLog("Saved shard metadata to data.json", {
-        feedCount: persistedSettings.feeds.length,
-      });
-    }
-
-    if (settings.storageMode === "vault-shards-v2") {
-      await this.userState.save(settings, {
-        authoritativeLoadedState: options.authoritativeArticleState,
-        restoresArticlePresence: options.restoresArticlePresence,
-      });
-    }
-
-    this.lastStorageFolderPath = normalizedStorageFolder;
-    storageLog("Finished persisting settings", {
-      metadataSaved: shouldSaveMetadata,
-      shardWriteCount,
-      shardDeleteCount,
-    });
-
-    return {
-      metadataSaved: shouldSaveMetadata,
-      shardWriteCount,
-      shardDeleteCount,
-    };
+  ): Promise<FeedStoragePersistResult> {
+    return persistFeedStorage(settings, saveData, options, this.runnerHost);
   }
 
   public async migrateToVaultShards(
@@ -1172,13 +826,13 @@ export class FeedStorageRepository {
       settings.storageMode === "vault-shards" ||
       settings.storageMode === "vault-shards-v2"
     ) {
-      this.lastPersistedMetadataJson = JSON.stringify(
+      this.state.lastPersistedMetadataJson = JSON.stringify(
         this.createPersistedSettings(settings),
         null,
         2,
       );
       const isV2 = settings.storageMode === "vault-shards-v2";
-      this.lastPersistedShardJsonByFeedId = new Map(
+      this.state.lastPersistedShardJsonByFeedId = new Map(
         settings.feeds
           .filter((feed): feed is Feed & { feedId: string } =>
             Boolean(feed.feedId),
@@ -1188,17 +842,19 @@ export class FeedStorageRepository {
             createComparableFeedShardJson(feed, isV2),
           ]),
       );
-      this.lastStorageFolderPath = normalizeFolderPath(settings.storageFolder);
+      this.state.lastStorageFolderPath = normalizeFolderPath(
+        settings.storageFolder,
+      );
       return;
     }
 
-    this.lastPersistedMetadataJson = JSON.stringify(
+    this.state.lastPersistedMetadataJson = JSON.stringify(
       cloneJson(settings),
       null,
       2,
     );
-    this.lastPersistedShardJsonByFeedId.clear();
-    this.lastStorageFolderPath = null;
+    this.state.lastPersistedShardJsonByFeedId.clear();
+    this.state.lastStorageFolderPath = null;
   }
 
   private captureMigrationSnapshot(
@@ -1220,71 +876,12 @@ export class FeedStorageRepository {
     this.lastRepairResult = snapshot.lastRepairResult;
   }
 
-  private async ensureStorageFolderExists(
-    storageFolder: string,
-  ): Promise<void> {
-    const normalizedFolder = normalizeFolderPath(storageFolder);
-    if (!normalizedFolder) {
-      return;
-    }
-
-    const existing = this.app.vault.getAbstractFileByPath(normalizedFolder);
-    if (existing instanceof TFolder) {
-      storageLog("Storage folder already exists", { folder: normalizedFolder });
-      return;
-    }
-
-    if (existing instanceof TFile) {
-      throw new Error(
-        `Storage path points to a file, not a folder: ${normalizedFolder}`,
-      );
-    }
-
-    try {
-      await this.app.vault.createFolder(normalizedFolder);
-    } catch (error) {
-      const resolved = this.app.vault.getAbstractFileByPath(normalizedFolder);
-      if (resolved instanceof TFolder) {
-        storageLog("Storage folder became available after createFolder error", {
-          folder: normalizedFolder,
-        });
-        return;
-      }
-
-      if (await this.app.vault.adapter.exists(normalizedFolder)) {
-        storageLog(
-          "Storage folder exists on adapter after createFolder error",
-          {
-            folder: normalizedFolder,
-          },
-        );
-        return;
-      }
-
-      throw error;
-    }
-
-    const created = this.app.vault.getAbstractFileByPath(normalizedFolder);
-    if (!(created instanceof TFolder)) {
-      if (await this.app.vault.adapter.exists(normalizedFolder)) {
-        storageLog("Storage folder exists on adapter after creation", {
-          folder: normalizedFolder,
-        });
-        return;
-      }
-
-      throw new Error(`Failed to create storage folder: ${normalizedFolder}`);
-    }
-
-    storageLog("Created storage folder", { folder: normalizedFolder });
-  }
-
   private async deleteShardFolder(folderPath: string): Promise<void> {
     const existsBeforeDelete = await this.app.vault.adapter.exists(folderPath);
     if (!existsBeforeDelete) {
       storageLog("No shard folder found to clean", { folderPath });
-      this.lastPersistedShardJsonByFeedId.clear();
-      this.lastStorageFolderPath = null;
+      this.state.lastPersistedShardJsonByFeedId.clear();
+      this.state.lastStorageFolderPath = null;
       return;
     }
 
@@ -1309,8 +906,8 @@ export class FeedStorageRepository {
 
     await this.pruneEmptyParentFolders(folderPath);
 
-    this.lastPersistedShardJsonByFeedId.clear();
-    this.lastStorageFolderPath = null;
+    this.state.lastPersistedShardJsonByFeedId.clear();
+    this.state.lastStorageFolderPath = null;
     storageLog("Deleted shard storage folder", {
       folderPath,
     });
@@ -1380,59 +977,6 @@ export class FeedStorageRepository {
       return true;
     }
     return false;
-  }
-
-  /** Logs and records a shard repair; returns whether anything was dropped. */
-  private noteDroppedShardItems(
-    feed: Feed,
-    droppedCount: number,
-    repairedFeedIds: Set<string>,
-  ): boolean {
-    if (droppedCount === 0) return false;
-    if (feed.feedId) repairedFeedIds.add(feed.feedId);
-    storageLog("Dropped invalid items from feed shard", {
-      feedId: feed.feedId,
-      title: feed.title,
-      droppedCount,
-    });
-    return true;
-  }
-
-  private async getShardWriteDecision(
-    shardPath: string,
-    alreadyChanged: boolean,
-    feedId: string,
-  ): Promise<{
-    needsWrite: boolean;
-    recoveredHealth: "missing" | "corrupt" | null;
-  }> {
-    if (alreadyChanged) {
-      return { needsWrite: true, recoveredHealth: null };
-    }
-
-    if (!(await this.app.vault.adapter.exists(shardPath))) {
-      return { needsWrite: true, recoveredHealth: "missing" };
-    }
-
-    try {
-      const parsed = JSON.parse(
-        await this.app.vault.adapter.read(shardPath),
-      ) as {
-        updatedAt?: unknown;
-        feedId?: unknown;
-        items?: unknown;
-      };
-      if (parsed.feedId !== feedId || !Array.isArray(parsed.items)) {
-        return { needsWrite: true, recoveredHealth: "corrupt" };
-      }
-      // A valid shard whose content differs while this device's copy of the
-      // feed is unchanged was written elsewhere, typically by another device
-      // through sync. Rewriting it would replace newer data with this
-      // device's stale copy.
-      return { needsWrite: false, recoveredHealth: null };
-    } catch {
-      return { needsWrite: true, recoveredHealth: "corrupt" };
-    }
   }
 
   private getParentFolderPath(folderPath: string): string | null {
