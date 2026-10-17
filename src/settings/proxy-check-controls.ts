@@ -173,6 +173,9 @@ export function renderProxyCheckControls(
   const setting = new Setting(containerEl)
     .setName("Test proxy connections")
     .setDesc(proxyCheckHint());
+  // The results belong inside this row's own box, under its controls, so the
+  // row wraps and the board takes a full line of it (see the stylesheet).
+  setting.settingEl.addClass("rss-proxy-check-setting");
 
   const readSelection = (): SelectedProxyState =>
     resolveSelectedProxyState(
@@ -205,7 +208,7 @@ export function renderProxyCheckControls(
     });
   });
 
-  const boardEl = containerEl.createDiv({
+  const boardEl = setting.settingEl.createDiv({
     cls: "rss-proxy-check-board",
     attr: { role: "status" },
   });

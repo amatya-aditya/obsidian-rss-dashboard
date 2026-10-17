@@ -143,6 +143,19 @@ describe("General settings proxy check (#1298)", () => {
     expect(rowTexts(containerEl)).toEqual([]);
   });
 
+  it("draws the results inside the Test proxy connections box", () => {
+    const containerEl = renderTab(createPlugin());
+    const box = containerEl.querySelector(".rss-proxy-check-setting");
+
+    expect(box).not.toBeNull();
+    expect(box?.querySelector(".setting-item-name")?.textContent).toBe(
+      "Test proxy connections",
+    );
+    expect(box?.querySelector(".rss-proxy-check-board")?.parentElement).toBe(
+      box,
+    );
+  });
+
   it("disables Test selected proxy on auto, with a reason", () => {
     const containerEl = renderTab(createPlugin({ corsProxyUrl: "auto" }));
     const button = findButton(containerEl, "Test selected proxy");

@@ -168,8 +168,26 @@
  * 5. Proxy Check Results
  * ============================================ */
 
+/* The results sit inside the Test proxy connections box, on their own line
+ * under its controls, so that row wraps. The info column takes the width left
+ * over from the controls, exactly as it does on a row that does not wrap. */
+.rss-proxy-check-setting {
+  flex-wrap: wrap;
+}
+
+.rss-proxy-check-setting .setting-item-info {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.rss-proxy-check-setting .setting-item-control {
+  flex: 0 0 auto;
+}
+
 .rss-proxy-check-board {
-  margin: 0 0 8px;
+  flex: 1 1 100%;
+  min-width: 0;
+  margin: 0;
 }
 
 .rss-proxy-check-progress,
