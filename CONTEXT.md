@@ -163,7 +163,7 @@ A one-time save where the user chooses the folder, template, and filename patter
 _Avoid_: Advanced save, save as
 
 **Save version**:
-Which version of an article a save writes, and so what the saved note holds. The [[Default save version]] setting decides it, optionally overridden by the [[Saved template]] applied to the article. A note records the version it holds through the `{{contentSource}}` row, which names the version written rather than the version requested: a Fetched content save that fell back to the feed item's own text records [[RSS content]]. Notes saved before this row existed pick it up when they are next saved. See [ADR 0029](docs/adr/0029-record-the-version-a-save-wrote-in-the-note.md).
+Which version of an article a save writes, and so what the saved note holds. The [[Default save version]] setting decides it, optionally overridden by the [[Saved template]] applied to the article. A note records the version it holds through the `{{contentSource}}` row, which names the version written rather than the version requested: a Fetched content save that fell back to the feed item's own text records [[RSS content]]. The row is written only when the template that saved the note holds `{{contentSource}}`, so a [[Default article template]] saved before the row existed records it once the user adds the variable or resets the template. See [ADR 0029](docs/adr/0029-record-the-version-a-save-wrote-in-the-note.md).
 _Avoid_: Full content (the retired toggle), summary mode
 
 **Saved template**:

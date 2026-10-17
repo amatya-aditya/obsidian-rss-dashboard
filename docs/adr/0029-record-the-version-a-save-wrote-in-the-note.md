@@ -102,6 +102,11 @@ save being performed, refreshed into the note whenever that note is next saved.
 
 - No migration and no backfill. An existing note is unchanged until it is saved
   again, at which point the current template applies as it always has.
+- A default template the user has already saved keeps its own text: settings
+  merge the stored group over the defaults, and nothing rewrites a stored
+  template. Such a user records the row only after adding `{{contentSource}}` to
+  that template, or after resetting it to the shipped default. The built-in
+  fallback, used when the setting is empty, does carry the row.
 - A user template that does not mention `{{contentSource}}` renders exactly as
   before; the new step in the chain is inert unless the placeholder is present.
 - `{{source}}` and `{{feedTitle}}` keep their existing meaning and value, so
