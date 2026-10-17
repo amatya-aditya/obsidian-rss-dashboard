@@ -90,7 +90,6 @@
   max-height: calc(100svh - 16px);
   border-radius: 12px;
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.28);
-  /* 8px is the visual gap above the sheet; the rest is the OS safe-area inset. */
   padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px));
 }
 

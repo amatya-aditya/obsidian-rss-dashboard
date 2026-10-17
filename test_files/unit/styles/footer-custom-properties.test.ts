@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 // The Reader format sheet and the dashboard tags sheet (#1294) each read a
 // `--rss-footer-*` custom-property chain that nothing ever declared, so every
 // var() silently took its fallback. Both sheets now read
-// env(safe-area-inset-bottom) directly. This scan keeps the undeclared family
+// env(safe-area-inset-bottom) directly. This scan keeps the removed family
 // from returning, because a reference without a producer is invisible to the
 // cascade and only a text-level check can catch it.
 const testDir = path.dirname(fileURLToPath(import.meta.url));
@@ -28,7 +28,7 @@ function sourceFiles(dir: string): string[] {
 }
 
 describe("mobile sheet footer offset contract", () => {
-  it("references no undeclared --rss-footer-* custom property under src", () => {
+  it("leaves no --rss-footer-* custom property anywhere under src", () => {
     const offenders = sourceFiles(srcDir).flatMap((file) => {
       const text = readFileSync(file, "utf-8");
       const relative = path.relative(srcDir, file).split(path.sep).join("/");
