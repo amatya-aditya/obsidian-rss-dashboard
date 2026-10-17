@@ -29,7 +29,8 @@ import { addInputClearButton } from "../../utils/input-clear-button";
 import {
   renderAutoDeleteSetting,
   renderAutoTagsSetting,
-  renderExcludeAndTemplateSettings,
+  renderArticleTemplateSetting,
+  renderExcludeFromRefreshSetting,
   renderFeedEncodingSetting,
   renderMaxItemsSetting,
   renderScanIntervalSetting,
@@ -432,14 +433,12 @@ export class AddFeedModal extends AccessibleModal {
     renderMaxItemsSetting(perFeedControlsBody, state);
     renderScanIntervalSetting(perFeedControlsBody, state);
 
+    renderExcludeFromRefreshSetting(perFeedControlsBody, state);
+
     // Template selection
     const savedTemplates =
       this.plugin?.settings?.articleSaving?.savedTemplates || [];
-    renderExcludeAndTemplateSettings(
-      perFeedControlsBody,
-      state,
-      savedTemplates,
-    );
+    renderArticleTemplateSetting(perFeedControlsBody, state, savedTemplates);
 
     const availableTags: Tag[] = this.plugin?.settings?.availableTags ?? [];
     renderAutoTagsSetting(perFeedControlsBody, state, availableTags);
