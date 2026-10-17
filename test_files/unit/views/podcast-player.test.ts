@@ -592,4 +592,79 @@ describe("PodcastPlayer", () => {
       vi.useRealTimers();
     });
   });
+
+  describe("non-finite audio duration (live streams)", () => {
+    function loadWithDuration(
+      duration: number,
+      onPlaybackProgress?: (...args: unknown[]) => void,
+    ) {
+      const container: HTMLDivElement = createDiv();
+      document.body.appendChild(container);
+      const player = new PodcastPlayer(
+        container,
+        new App(),
+        "obsidian",
+        undefined,
+        undefined,
+        onPlaybackProgress,
+      );
+      const ep = baseEpisode();
+      player.loadEpisode(ep);
+      const audio = container.querySelector<HTMLAudioElement>("audio")!;
+      Object.defineProperty(audio, "duration", {
+        configurable: true,
+        value: duration,
+      });
+      return { container, player, audio, ep };
+    }
+
+    it("keeps the neutral duration label and does not throw on loadedmetadata/timeupdate", () => {
+      const { container, player, audio } = loadWithDuration(Infinity);
+
+      expect(() => {
+        audio.dispatchEvent(new Event("loadedmetadata"));
+        audio.dispatchEvent(new Event("timeupdate"));
+      }).not.toThrow();
+
+      const label = container.querySelector(".rss-duration")!.textContent;
+      expect(label).not.toContain("Infinity");
+      expect(label).toBe("-0:00");
+      expect(
+        container.querySelector<HTMLProgressElement>(".podcast-progress-bar")!
+          .max,
+      ).toBe(1);
+
+      player.destroy();
+    });
+
+    it("still renders a finite duration label", () => {
+      const { container, player, audio } = loadWithDuration(125);
+
+      audio.dispatchEvent(new Event("loadedmetadata"));
+
+      expect(container.querySelector(".rss-duration")!.textContent).toBe(
+        "2:05",
+      );
+
+      player.destroy();
+    });
+
+    it("saves progress with a zero duration instead of Infinity", () => {
+      vi.useFakeTimers();
+      const onPlaybackProgress = vi.fn();
+      const { player, audio, ep } = loadWithDuration(
+        Infinity,
+        onPlaybackProgress,
+      );
+
+      audio.currentTime = 12;
+      audio.dispatchEvent(new Event("play"));
+      vi.advanceTimersByTime(1000);
+
+      expect(onPlaybackProgress).toHaveBeenCalledWith(ep, 12, 0, false);
+
+      player.destroy();
+      vi.useRealTimers();
+    });
+  });
 });
