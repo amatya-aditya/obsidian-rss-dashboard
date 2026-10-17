@@ -85,6 +85,9 @@ JSON
   await app.plugins.setEnable(true);
   await app.plugins.loadManifests();
   await app.plugins.enablePluginAndSave('rss-dashboard');
+  // Enabling plugins opens a Settings window that becomes the active window,
+  // so modals would open there instead of in the vault window.
+  app.setting.close();
   return 'enabled';
 })()
 JS
