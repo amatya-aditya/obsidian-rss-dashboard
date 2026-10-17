@@ -1435,6 +1435,8 @@ export class ReaderView extends ItemView {
       // navigation so the next open does not stall on the same fetch (#1110).
       rememberOutcome: (result) =>
         this.rememberFetchOutcome(item, result) !== undefined,
+      persistRestrictedReason: (reason) =>
+        this.persistBackgroundUpdate(item, { restrictedReason: reason }, false),
       isCurrent: () => identity === this.displayIdentity,
       onSettled: (result) => {
         fetchedContent = result.content;

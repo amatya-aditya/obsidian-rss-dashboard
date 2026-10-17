@@ -82,15 +82,19 @@ afterEach(() => {
 describe("ReaderView request-local fetch outcomes", () => {
   async function setup() {
     const app = App.createMock();
-    // Metadata writes only: the remembered fetch failure (#1110) is asserted
-    // in the reader-view and article-renderer fetch-failure tests.
+    // Metadata writes only: the remembered fetch failure (#1110) and the
+    // persisted restricted flag (#1249) are asserted in the fetch-failure and
+    // restricted-banner tests.
     const updates = vi.fn();
     const recordMetadataUpdate = (
       entry: FeedItem,
       patch: Partial<FeedItem>,
       rerender?: boolean,
     ) => {
-      if (!("fullContentFetchFailure" in patch))
+      if (
+        !("fullContentFetchFailure" in patch) &&
+        !("restrictedReason" in patch)
+      )
         updates(entry, patch, rerender);
     };
     const settings = {

@@ -200,6 +200,8 @@ export class ArticleRenderer {
         // navigation so the next open does not stall on the same fetch (#1110).
         rememberOutcome: (result) =>
           this.rememberFetchOutcome(item, result) !== undefined,
+        persistRestrictedReason: (reason) =>
+          this.onArticleUpdate(item, { restrictedReason: reason }, false),
         isCurrent: () => identity === this.displayIdentity,
         renderRestrictedBanner: () => renderRestrictedBanner(container, item),
         renderFetchFailureBanner: () =>

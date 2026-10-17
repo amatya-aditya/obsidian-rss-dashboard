@@ -28,6 +28,11 @@ import {
   renderSingleRowCardTagChips,
   layoutCardTagRows,
 } from "./article-list/utils/tag-layout-utils";
+import {
+  groupCardsIntoRows,
+  resolveCardNavigationTarget,
+  type CardNavigationDirection,
+} from "./article-list/utils/card-navigation";
 import { renderPagination as renderPaginationUtil } from "./article-list/utils/pagination";
 import { renderFeedIcon as renderFeedIconUtil } from "./article-list/utils/feed-icon";
 import { createActionButtons as createArticleActionButtonsUtil } from "./article-list/utils/article-actions";
@@ -874,7 +879,7 @@ export class ArticleList {
 
   public getCardNavigationTargetGuid(
     currentGuid: string,
-    direction: "left" | "right" | "up" | "down",
+    direction: CardNavigationDirection,
   ): string | null {
     const cards = Array.from(
       this.container.querySelectorAll<HTMLElement>(
@@ -892,80 +897,11 @@ export class ArticleList {
       return cards[0]?.dataset.articleGuid ?? null;
     }
 
-    const rowTolerance = 6;
-    const positionedCards = cards
-      .map((card) => ({
-        guid: card.dataset.articleGuid ?? null,
-        rect: card.getBoundingClientRect(),
-      }))
-      .filter(
-        (entry): entry is { guid: string; rect: DOMRect } =>
-          entry.guid !== null,
-      );
-    const rows: Array<Array<{ guid: string; rect: DOMRect }>> = [];
-    positionedCards.forEach((entry) => {
-      const existingRow = rows.find((row) => {
-        const rowTop = row[0]?.rect.top;
-        return (
-          rowTop !== undefined &&
-          Math.abs(rowTop - entry.rect.top) <= rowTolerance
-        );
-      });
-      if (existingRow) {
-        existingRow.push(entry);
-        return;
-      }
-      rows.push([entry]);
-    });
-    rows.forEach((row) => row.sort((a, b) => a.rect.left - b.rect.left));
-    rows.sort((a, b) => (a[0]?.rect.top ?? 0) - (b[0]?.rect.top ?? 0));
-
-    const currentRowIndex = rows.findIndex((row) =>
-      row.some((entry) => entry.guid === currentGuid),
+    return resolveCardNavigationTarget(
+      groupCardsIntoRows(cards),
+      currentGuid,
+      direction,
     );
-    if (currentRowIndex === -1) {
-      return null;
-    }
-
-    const currentRow = rows[currentRowIndex];
-    if (!currentRow) {
-      return null;
-    }
-    const currentColumnIndex = currentRow.findIndex(
-      (entry) => entry.guid === currentGuid,
-    );
-    if (currentColumnIndex === -1) {
-      return null;
-    }
-
-    if (direction === "left") {
-      return currentColumnIndex > 0
-        ? (currentRow[currentColumnIndex - 1]?.guid ?? null)
-        : null;
-    }
-
-    if (direction === "right") {
-      return currentColumnIndex < currentRow.length - 1
-        ? (currentRow[currentColumnIndex + 1]?.guid ?? null)
-        : null;
-    }
-
-    const targetRowIndex =
-      direction === "up" ? currentRowIndex - 1 : currentRowIndex + 1;
-    if (targetRowIndex < 0 || targetRowIndex >= rows.length) {
-      return null;
-    }
-
-    const targetRow = rows[targetRowIndex];
-    if (!targetRow) {
-      return null;
-    }
-    const targetColumnIndex = Math.min(
-      currentColumnIndex,
-      targetRow.length - 1,
-    );
-
-    return targetRow[targetColumnIndex]?.guid ?? null;
   }
 
   /**
@@ -1300,40 +1236,33 @@ export class ArticleList {
     );
   }
 
-  private renderArticles(): void {
-    const renderPagination = (): void => {
-      const paginationWrapper = this.container.createDiv({
-        cls: "rss-dashboard-pagination-wrapper",
-      });
-      renderPaginationUtil({
-        container: paginationWrapper,
-        currentPage: this.currentPage,
-        totalPages: this.totalPages,
-        pageSize: this.pageSize,
-        totalArticles: this.totalArticles,
-        articles: this.articles,
-        deps: {
-          isMobileViewport: () => this.isMobileViewport(),
-          onPageChange: (page: number) => this.callbacks.onPageChange(page),
-          onPageSizeChange: (pageSize: number) =>
-            this.callbacks.onPageSizeChange(pageSize),
-          onMarkPageAsRead: this.callbacks.onMarkPageAsRead,
-          onPersistSettings: this.callbacks.onPersistSettings,
-          onRerender: () => this.render(),
-          notices: {
-            show: (message: string) => new Notice(message),
-          },
+  private renderPagination(): void {
+    const paginationWrapper = this.container.createDiv({
+      cls: "rss-dashboard-pagination-wrapper",
+    });
+    renderPaginationUtil({
+      container: paginationWrapper,
+      currentPage: this.currentPage,
+      totalPages: this.totalPages,
+      pageSize: this.pageSize,
+      totalArticles: this.totalArticles,
+      articles: this.articles,
+      deps: {
+        isMobileViewport: () => this.isMobileViewport(),
+        onPageChange: (page: number) => this.callbacks.onPageChange(page),
+        onPageSizeChange: (pageSize: number) =>
+          this.callbacks.onPageSizeChange(pageSize),
+        onMarkPageAsRead: this.callbacks.onMarkPageAsRead,
+        onPersistSettings: this.callbacks.onPersistSettings,
+        onRerender: () => this.render(),
+        notices: {
+          show: (message: string) => new Notice(message),
         },
-      });
-    };
+      },
+    });
+  }
 
-    if (
-      (this.settings.display.paginationPosition ?? "bottom") === "top" &&
-      this.articles.length > 0
-    ) {
-      renderPagination();
-    }
-
+  private createArticlesListContainer(): HTMLElement {
     const articlesList = this.container.createDiv({
       cls: `rss-dashboard-articles-list rss-dashboard-${this.settings.viewStyle}-view`,
     });
@@ -1361,6 +1290,93 @@ export class ArticleList {
         `rss-dashboard-mobile-list-style-${this.getMobileListToolbarStyle()}`,
       );
     }
+    return articlesList;
+  }
+
+  private renderArticlesInView(
+    target: HTMLElement,
+    articles: FeedItem[],
+  ): void {
+    if (this.settings.viewStyle === "list") {
+      this.renderListView(target, articles);
+    } else if (this.settings.viewStyle === "feed") {
+      this.renderFeedView(target, articles);
+    } else {
+      this.renderCardView(target, articles);
+      this.scheduleCardTagLayout(target);
+    }
+  }
+
+  private renderArticleGroup(
+    articlesList: HTMLElement,
+    groupName: string,
+    groupArticles: FeedItem[],
+  ): void {
+    const groupContainer = articlesList.createDiv({
+      cls: "rss-dashboard-article-group",
+    });
+
+    const groupHeader = groupContainer.createDiv({
+      cls: "rss-dashboard-article-group-header setting-item setting-item-heading",
+    });
+
+    // Initialize collapsed state from settings if present
+    const isInitiallyCollapsed =
+      Array.isArray(this.settings.collapsedFeedSections) &&
+      this.settings.collapsedFeedSections.includes(groupName);
+
+    const groupToggle = groupHeader.createEl("button", {
+      cls: "rss-dashboard-article-group-toggle",
+      attr: {
+        type: "button",
+        "aria-label": `Toggle ${groupName} group`,
+        "aria-expanded": String(!isInitiallyCollapsed),
+      },
+    });
+    setIcon(
+      groupToggle,
+      isInitiallyCollapsed ? "chevron-right" : "chevron-down",
+    );
+
+    groupHeader.createDiv({
+      cls: "rss-dashboard-article-group-title setting-item-name",
+      text: groupName,
+    });
+
+    const groupContent = groupContainer.createDiv({
+      cls: `rss-dashboard-article-group-content ${isInitiallyCollapsed ? "collapsed" : ""}`,
+    });
+
+    this.renderArticlesInView(groupContent, groupArticles);
+
+    const toggleGroup = (): void => {
+      const isCollapsed = groupContent.classList.toggle("collapsed");
+      groupToggle.textContent = isCollapsed ? "▶" : "▼";
+      setIcon(groupToggle, isCollapsed ? "chevron-right" : "chevron-down");
+      groupToggle.setAttribute("aria-expanded", String(!isCollapsed));
+
+      // Persist collapsed state to settings
+      this.onToggleFeedSectionCollapse(groupName, isCollapsed);
+    };
+
+    groupToggle.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleGroup();
+    });
+    groupHeader.addEventListener("click", (e) => {
+      if ((e.target as HTMLElement).closest("button") === groupToggle) return;
+      toggleGroup();
+    });
+  }
+
+  private renderArticles(): void {
+    const paginationOnTop =
+      (this.settings.display.paginationPosition ?? "bottom") === "top";
+    if (paginationOnTop && this.articles.length > 0) {
+      this.renderPagination();
+    }
+
+    const articlesList = this.createArticlesListContainer();
 
     if (this.articles.length === 0) {
       this.renderEmptyState(articlesList);
@@ -1371,89 +1387,23 @@ export class ArticleList {
       this.settings.viewStyle === "feed" &&
       this.settings.articleGroupBy === "feed";
     if (this.settings.articleGroupBy === "none" || feedViewGroupsByFeed) {
-      if (this.settings.viewStyle === "list") {
-        this.renderListView(articlesList, this.articles);
-      } else if (this.settings.viewStyle === "feed") {
-        this.renderFeedView(articlesList, this.articles);
-      } else {
-        this.renderCardView(articlesList, this.articles);
-        this.scheduleCardTagLayout(articlesList);
-      }
+      this.renderArticlesInView(articlesList, this.articles);
     } else {
       const groupedArticles = this.groupArticles(
         this.articles,
         this.settings.articleGroupBy,
       );
       for (const groupName in groupedArticles) {
-        const groupContainer = articlesList.createDiv({
-          cls: "rss-dashboard-article-group",
-        });
-
-        const groupHeader = groupContainer.createDiv({
-          cls: "rss-dashboard-article-group-header setting-item setting-item-heading",
-        });
-
-        // Initialize collapsed state from settings if present
-        const isInitiallyCollapsed =
-          Array.isArray(this.settings.collapsedFeedSections) &&
-          this.settings.collapsedFeedSections.includes(groupName);
-
-        const groupToggle = groupHeader.createEl("button", {
-          cls: "rss-dashboard-article-group-toggle",
-          attr: {
-            type: "button",
-            "aria-label": `Toggle ${groupName} group`,
-            "aria-expanded": String(!isInitiallyCollapsed),
-          },
-        });
-        setIcon(
-          groupToggle,
-          isInitiallyCollapsed ? "chevron-right" : "chevron-down",
+        this.renderArticleGroup(
+          articlesList,
+          groupName,
+          groupedArticles[groupName] ?? [],
         );
-
-        groupHeader.createDiv({
-          cls: "rss-dashboard-article-group-title setting-item-name",
-          text: groupName,
-        });
-
-        const groupContent = groupContainer.createDiv({
-          cls: `rss-dashboard-article-group-content ${isInitiallyCollapsed ? "collapsed" : ""}`,
-        });
-
-        const groupArticles = groupedArticles[groupName] ?? [];
-        if (this.settings.viewStyle === "list") {
-          this.renderListView(groupContent, groupArticles);
-        } else if (this.settings.viewStyle === "feed") {
-          this.renderFeedView(groupContent, groupArticles);
-        } else {
-          this.renderCardView(groupContent, groupArticles);
-          this.scheduleCardTagLayout(groupContent);
-        }
-
-        const toggleGroup = (): void => {
-          const isCollapsed = groupContent.classList.toggle("collapsed");
-          groupToggle.textContent = isCollapsed ? "▶" : "▼";
-          setIcon(groupToggle, isCollapsed ? "chevron-right" : "chevron-down");
-          groupToggle.setAttribute("aria-expanded", String(!isCollapsed));
-
-          // Persist collapsed state to settings
-          this.onToggleFeedSectionCollapse(groupName, isCollapsed);
-        };
-
-        groupToggle.addEventListener("click", (e) => {
-          e.stopPropagation();
-          toggleGroup();
-        });
-        groupHeader.addEventListener("click", (e) => {
-          if ((e.target as HTMLElement).closest("button") === groupToggle)
-            return;
-          toggleGroup();
-        });
       }
     }
 
-    if ((this.settings.display.paginationPosition ?? "bottom") !== "top") {
-      renderPagination();
+    if (!paginationOnTop) {
+      this.renderPagination();
     }
   }
 

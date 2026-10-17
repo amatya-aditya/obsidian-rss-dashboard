@@ -2,7 +2,7 @@ import { FeedItem } from "../types/types";
 import { App, setIcon, Menu, Notice } from "obsidian";
 import { PodcastEpisodeList } from "../components/podcast-episode-list";
 import { MediaService } from "../services/media-service";
-import { sanitizeAndAppendHtml } from "../utils/safe-html";
+import { renderEpisodeDetails } from "./podcast-episode-details";
 import { onActivate } from "../utils/keyboard-activation";
 import { windowInstanceOf } from "../utils/platform-utils";
 import { itemAuthorText } from "../utils/item-author";
@@ -16,6 +16,7 @@ export class PodcastPlayer {
   private hasAudioForCurrentItem = true;
   private playlist: FeedItem[] = [];
   private progressInterval: number | null = null;
+  private endSeekDrag: (() => void) | null = null;
   private progressData: Map<string, { position: number; duration: number }> =
     new Map();
   private currentPlaylistIndex = 0;
@@ -127,13 +128,7 @@ export class PodcastPlayer {
       this.setPlaylist(fullFeedEpisodes);
     }
 
-    const resolvedAudioUrl =
-      item.audioUrl ||
-      item.enclosure?.url ||
-      MediaService.extractPodcastAudio(item.description);
-    if (resolvedAudioUrl) {
-      item.audioUrl = resolvedAudioUrl;
-    }
+    const resolvedAudioUrl = this.resolveEpisodeAudioUrl(item);
 
     this.currentItem = item;
     this.hasAudioForCurrentItem = !!resolvedAudioUrl;
@@ -146,6 +141,21 @@ export class PodcastPlayer {
     }
 
     this.render();
+    this.syncAudioElementToItem(item, autoplay);
+  }
+
+  private resolveEpisodeAudioUrl(item: FeedItem): string | undefined {
+    const resolvedAudioUrl =
+      item.audioUrl ||
+      item.enclosure?.url ||
+      MediaService.extractPodcastAudio(item.description);
+    if (resolvedAudioUrl) {
+      item.audioUrl = resolvedAudioUrl;
+    }
+    return resolvedAudioUrl;
+  }
+
+  private syncAudioElementToItem(item: FeedItem, autoplay: boolean): void {
     if (this.audioElement) {
       if (item.audioUrl) {
         this.audioElement.src = item.audioUrl;
@@ -221,6 +231,7 @@ export class PodcastPlayer {
 
   private render(): void {
     if (!this.currentItem) return;
+    this.endSeekDrag?.();
     this.container.empty();
 
     const podcastContainer = this.container.createDiv({
@@ -228,6 +239,33 @@ export class PodcastPlayer {
     });
     podcastContainer.setAttribute("data-podcast-theme", this.theme);
 
+    this.renderAudioElement(podcastContainer);
+
+    // --- NEW TWO-ROW LAYOUT STRUCTURE ---
+    this.playerEl = podcastContainer.createDiv({
+      cls: "podcast-player-main-layout",
+    });
+
+    // ROW 1: Info, Controls, and Tools
+    const mainControlsRow = this.playerEl.createDiv({
+      cls: "podcast-main-controls-row",
+    });
+
+    this.renderInfoSection(mainControlsRow);
+    this.renderTransportSection(mainControlsRow, podcastContainer);
+    this.renderToolsSection(mainControlsRow);
+    this.renderProgressArea();
+
+    this.updateProgressDisplay();
+
+    this.renderEpisodeDetailsUnderProgress();
+
+    this.playlistWindowStart = undefined;
+    this.renderPlaylistSection();
+  }
+
+  private renderAudioElement(podcastContainer: HTMLElement): void {
+    if (!this.currentItem) return;
     // Initialize audio element early so UI components can reference its state
     this.audioElement = podcastContainer.createEl("audio", {
       attr: { preload: "metadata" },
@@ -253,17 +291,10 @@ export class PodcastPlayer {
     };
     this.audioElement.volume = 1;
     this.audioElement.playbackRate = this.defaultPlaySpeed;
+  }
 
-    // --- NEW TWO-ROW LAYOUT STRUCTURE ---
-    this.playerEl = podcastContainer.createDiv({
-      cls: "podcast-player-main-layout",
-    });
-
-    // ROW 1: Info, Controls, and Tools
-    const mainControlsRow = this.playerEl.createDiv({
-      cls: "podcast-main-controls-row",
-    });
-
+  private renderInfoSection(mainControlsRow: HTMLElement): void {
+    if (!this.currentItem) return;
     // 1.1 Left: Thumbnail & Info
     const infoSection = mainControlsRow.createDiv({
       cls: "podcast-info-section",
@@ -299,7 +330,12 @@ export class PodcastPlayer {
 
     // 1.1.5 Tags Section
     this.renderTagStrip(infoSection, this.currentItem.tags);
+  }
 
+  private renderTransportSection(
+    mainControlsRow: HTMLElement,
+    podcastContainer: HTMLElement,
+  ): void {
     // 1.2 Center: Transport Controls
     const transportSection = mainControlsRow.createDiv({
       cls: "podcast-transport-section",
@@ -435,7 +471,9 @@ export class PodcastPlayer {
         this.toggleRepeat();
       }
     });
+  }
 
+  private renderToolsSection(mainControlsRow: HTMLElement): void {
     // 1.3 Right: Tools (Speed & Volume)
     const toolsSection = mainControlsRow.createDiv({
       cls: "podcast-tools-section",
@@ -481,6 +519,12 @@ export class PodcastPlayer {
     onActivate(this.sleepTimerButton, (e) => this.showSleepTimerMenu(e));
     this.updateSleepTimerButtonState();
 
+    this.renderVolumeControl(toolsSection);
+
+    this.updateSleepTimerDisplay();
+  }
+
+  private renderVolumeControl(toolsSection: HTMLElement): void {
     this.volumeContainer = toolsSection.createDiv({
       cls: "rss-volume-control-container",
     });
@@ -575,9 +619,10 @@ export class PodcastPlayer {
     };
 
     updateVolumeIcon();
+  }
 
-    this.updateSleepTimerDisplay();
-
+  private renderProgressArea(): void {
+    if (!this.playerEl) return;
     // ROW 2: Progress Area
     const progressArea = this.playerEl.createDiv({
       cls: "podcast-progress-area",
@@ -606,6 +651,10 @@ export class PodcastPlayer {
       text: "-0:00",
     });
 
+    this.bindSeekHandlers();
+  }
+
+  private bindSeekHandlers(): void {
     if (this.progressBarEl) {
       const progressBar = this.progressBarEl;
       let isDragging = false;
@@ -649,7 +698,10 @@ export class PodcastPlayer {
           isDragging = false;
           activeWindow.removeEventListener("mousemove", moveHandler);
           activeWindow.removeEventListener("mouseup", upHandler);
+          if (this.endSeekDrag === upHandler) this.endSeekDrag = null;
         };
+        this.endSeekDrag?.();
+        this.endSeekDrag = upHandler;
         activeWindow.addEventListener("mousemove", moveHandler);
         activeWindow.addEventListener("mouseup", upHandler);
       });
@@ -668,148 +720,19 @@ export class PodcastPlayer {
           isDragging = false;
           activeWindow.removeEventListener("touchmove", moveHandler);
           activeWindow.removeEventListener("touchend", upHandler);
+          if (this.endSeekDrag === upHandler) this.endSeekDrag = null;
         };
+        this.endSeekDrag?.();
+        this.endSeekDrag = upHandler;
         activeWindow.addEventListener("touchmove", moveHandler);
         activeWindow.addEventListener("touchend", upHandler);
       });
     }
-
-    this.updateProgressDisplay();
-
-    this.renderEpisodeDetailsUnderProgress();
-
-    this.playlistWindowStart = undefined;
-    this.renderPlaylistSection();
-  }
-
-  private stripWhitespace(input: string): string {
-    return (input || "").replace(/\s+/g, "");
-  }
-
-  private selectEpisodeNotesHtml(item: FeedItem): string {
-    const content = (item.content || "").trim();
-    const description = (item.description || "").trim();
-    const itunesSummary = (item.itunes?.summary || "").trim();
-    const summary = (item.summary || "").trim();
-
-    if (content) {
-      const meaningfullyDifferent =
-        content.length > 40 &&
-        this.stripWhitespace(content) !== this.stripWhitespace(description);
-      if (!description || meaningfullyDifferent) {
-        return content;
-      }
-    }
-
-    return description || itunesSummary || summary || "";
-  }
-
-  private formatBytes(bytes: number): string {
-    if (!Number.isFinite(bytes) || bytes <= 0) return "";
-    const units = ["B", "KB", "MB", "GB", "TB"];
-    let value = bytes;
-    let unitIndex = 0;
-    while (value >= 1024 && unitIndex < units.length - 1) {
-      value /= 1024;
-      unitIndex += 1;
-    }
-    const rounded =
-      value >= 10 || unitIndex === 0
-        ? Math.round(value)
-        : Math.round(value * 10) / 10;
-    return `${rounded} ${units[unitIndex]}`;
   }
 
   private renderEpisodeDetailsUnderProgress(): void {
     if (!this.currentItem || !this.playerEl) return;
-
-    const item = this.currentItem;
-    const notesHtml = this.selectEpisodeNotesHtml(item);
-
-    const entries: Array<{ label: string; value: string; href?: string }> = [];
-
-    if (item.pubDate) {
-      const d = new Date(item.pubDate);
-      entries.push({
-        label: "Published",
-        value: Number.isNaN(d.getTime()) ? item.pubDate : d.toLocaleString(),
-      });
-    }
-
-    const duration = (item.duration || item.itunes?.duration || "").trim();
-    if (duration) entries.push({ label: "Duration", value: duration });
-
-    const author = itemAuthorText(item).trim();
-    if (author) entries.push({ label: "Author", value: author });
-
-    if (typeof item.explicit === "boolean") {
-      entries.push({ label: "Explicit", value: item.explicit ? "Yes" : "No" });
-    }
-
-    if (typeof item.season === "number")
-      entries.push({ label: "Season", value: String(item.season) });
-    if (typeof item.episode === "number")
-      entries.push({ label: "Episode", value: String(item.episode) });
-
-    const episodeType = (item.episodeType || "").trim();
-    if (episodeType) entries.push({ label: "Type", value: episodeType });
-
-    const category = (item.category || "").trim();
-    if (category) entries.push({ label: "Category", value: category });
-
-    const link = (item.link || "").trim();
-    if (link)
-      entries.push({ label: "Link", value: "Open episode", href: link });
-
-    const enclosureLen = (item.enclosure?.length || "").trim();
-    if (enclosureLen) {
-      const n = Number(enclosureLen);
-      const formatted = Number.isFinite(n) ? this.formatBytes(n) : "";
-      entries.push({ label: "Size", value: formatted || enclosureLen });
-    }
-
-    const hasNotes = Boolean(notesHtml && notesHtml.trim());
-    const hasMeta = entries.length > 0;
-    if (!hasNotes && !hasMeta) return;
-
-    const details = this.playerEl.createEl("details", {
-      cls: "podcast-episode-details",
-    });
-    details.setAttribute("data-podcast-theme", this.theme);
-
-    details.createEl("summary", { text: "Episode details" });
-    const body = details.createDiv({ cls: "podcast-episode-details-body" });
-
-    if (hasMeta) {
-      const grid = body.createDiv({ cls: "podcast-episode-meta-grid" });
-      entries.forEach((entry) => {
-        grid.createDiv({
-          cls: "podcast-episode-meta-label",
-          text: entry.label,
-        });
-        const valueEl = grid.createDiv({ cls: "podcast-episode-meta-value" });
-        if (entry.href) {
-          const a = valueEl.createEl("a", {
-            text: entry.value,
-            attr: { href: entry.href },
-          });
-          a.target = "_blank";
-          a.rel = "noopener noreferrer";
-        } else {
-          valueEl.textContent = entry.value;
-        }
-      });
-    }
-
-    if (hasNotes) {
-      const notes = body.createDiv({ cls: "podcast-episode-notes" });
-      notes.createDiv({
-        cls: "podcast-episode-notes-title",
-        text: "Show notes",
-      });
-      const notesBody = notes.createDiv({ cls: "podcast-episode-notes-body" });
-      sanitizeAndAppendHtml(notesBody, notesHtml);
-    }
+    renderEpisodeDetails(this.playerEl, this.currentItem, this.theme);
   }
 
   refreshPlaylistTags(_episodeGuid?: string): void {
@@ -1234,6 +1157,7 @@ export class PodcastPlayer {
   }
 
   destroy(): void {
+    this.endSeekDrag?.();
     this.stopProgressTracking();
     this.clearSleepTimer();
 

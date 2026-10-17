@@ -228,9 +228,15 @@ describe.each(["ReaderView", "ArticleRenderer"])(
           ?.textContent,
       ).not.toContain("Short feed blurb");
       expect(article.metadataFetchedAt).toBeUndefined();
-      expect(harness.updates).not.toHaveBeenCalled();
+      // Clearing the stored restriction is itself a persisted write (#1249).
+      expect(harness.updates).toHaveBeenCalledExactlyOnceWith(
+        article,
+        { restrictedReason: undefined },
+        false,
+      );
 
       // A short extraction must not lock out a later substantial metadata write.
+      harness.updates.mockClear();
       fetchMock.mockResolvedValueOnce(result("A"));
       await harness.render(article);
       expect(article).toMatchObject(expectedMetadata("A"));

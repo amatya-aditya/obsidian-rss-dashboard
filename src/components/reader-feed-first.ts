@@ -35,6 +35,12 @@ export interface FeedFirstDisplayOptions {
   isCurrent: () => boolean;
   /** Runs once the result is known to belong to the live display. */
   onSettled?: (result: FullArticleFetchResult) => void;
+  /**
+   * Persists the live article's restricted flag when the settled fetch changes
+   * it (#1249). Current-only, like the display that owns the flag, so a stale
+   * load never rewrites the stored value (#982).
+   */
+  persistRestrictedReason: (restrictedReason: string | undefined) => void;
   renderRestrictedBanner: () => void;
   /** Shows the remembered-failure banner with Try again (#1110). */
   renderFetchFailureBanner: () => void;
@@ -74,11 +80,15 @@ export async function runFeedFirstDisplay(
   fetchedContent = result.content;
   options.onSettled?.(result);
   if (result.failureType === "none" && fetchedContent.trim().length > 0) {
-    item.restrictedReason = undefined;
+    applyRestrictedReason(item, undefined, options.persistRestrictedReason);
     versions.ready();
   } else {
     if (result.failureType === "restricted") {
-      item.restrictedReason = RESTRICTED_ARTICLE_REASON;
+      applyRestrictedReason(
+        item,
+        RESTRICTED_ARTICLE_REASON,
+        options.persistRestrictedReason,
+      );
       if (!container.querySelector(".rss-reader-paywall-banner"))
         options.renderRestrictedBanner();
     } else if (remembered) {
@@ -87,6 +97,21 @@ export async function runFeedFirstDisplay(
     versions.failed(result);
   }
   return versions;
+}
+
+/**
+ * Applies the settled fetch's restricted flag to the live article, persisting
+ * it only when it changed (#1249). The display owns this flag, so it runs for
+ * the current article only; a stale load leaves the stored value alone (#982).
+ */
+function applyRestrictedReason(
+  item: FeedItem,
+  next: string | undefined,
+  persist: (restrictedReason: string | undefined) => void,
+): void {
+  if (item.restrictedReason === next) return;
+  item.restrictedReason = next;
+  persist(next);
 }
 
 /**
