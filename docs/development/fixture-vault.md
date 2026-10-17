@@ -108,6 +108,17 @@ takes the card's error path and hides it. Run the server to check that the
 defect still reproduces on a build without the fix. With the fix, no counter is
 requested, so the expected view is the same either way.
 
+The **duplicate-lead-photo-credit page** (`credit-caption-page.html`) backs the
+#1305 scenario: a caption-only `<figure>` whose credit is repeated as a
+paragraph above the body, a differing credit paragraph, a body paragraph, and a
+matching paragraph after the body. The seeded article sets a hero from the same
+server (`credit-caption-hero.png`), so the caption's figure is lead media. The
+lead-media scan runs on the fetched page's direct body children, which
+Readability wraps in a single root (#1304); until that is fixed the page renders
+the same on both sides of #1305, so the pairing is exercised at the caller level
+by `test_files/unit/views/reader-view-html-cleanup.characterization.test.ts` and
+re-checked here once #1304 lands.
+
 The **feed-advertising page** (`feed-advertising-page.html`) is not a feed but
 announces one, and names WordPress so the Save path reaches the same feed
 through the plugin's WordPress fallback. No seeded article links it: it is the
@@ -550,7 +561,7 @@ result must come from a known build and a clean vault.
 
 ## Seeded scenarios
 
-12 feeds, 162 articles: 48 read, 9 starred, 9 tagged, 1 saved, 2 with playback
+12 feeds, 163 articles: 48 read, 9 starred, 9 tagged, 1 saved, 2 with playback
 progress. The automated test in
 `test_files/unit/main/fixture-vault-loading.test.ts` checks these counts.
 
@@ -573,6 +584,7 @@ progress. The automated test in
 | Feed that reports the fetch's identity headers | **User-Agent echo (fixture)**: refresh it with `npm run fixture:serve` running and read the terminal (see [Checking the outbound User-Agent](#checking-the-outbound-user-agent)); shows a fetch error when the server is stopped                                                                        |
 | Unread article with an image                   | GitHub Blog: "Unread article with a preview image"                                                                                                                                                                                                                                                      |
 | Article with no feed description               | GitHub Blog: "Article with no feed description"; the preview stays blank until you open it with `npm run fixture:serve` running, then shows the fetched page's description                                                                                                                              |
+| Duplicate lead photo credit                    | GitHub Blog: "Article with a duplicate lead photo credit" (#1305): a caption-only figure whose credit repeats as a paragraph above the body, with a hero set; the figure and its repeated paragraph go together, while a differing credit and one after the body stay                                   |
 | Read article without an image                  | GitHub Blog: "Read article without a preview image"                                                                                                                                                                                                                                                     |
 | Starred, several tags                          | GitHub Blog: "Starred article with two tags" (Important, Research)                                                                                                                                                                                                                                      |
 | Saved article                                  | GitHub Blog: "Fixture guide to offline reading", saved to `saved-articles/`                                                                                                                                                                                                                             |

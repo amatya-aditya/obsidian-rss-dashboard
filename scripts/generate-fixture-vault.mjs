@@ -36,6 +36,14 @@ export const FIXTURE_SERVER_ORIGIN = `http://${FIXTURE_SERVER_HOST}:${FIXTURE_SE
 // The one seed article whose link is not on example.com (#975).
 export const EMPTY_DESCRIPTION_PAGE = "empty-description.html";
 export const EMPTY_DESCRIPTION_LINK = `${FIXTURE_SERVER_ORIGIN}/${EMPTY_DESCRIPTION_PAGE}`;
+// The #1305 scenario: a lead credit caption that the publisher repeats as a
+// paragraph above the body. With a hero set, the caption-only <figure> is
+// removed as lead media, so the matching paragraph has to go with it. The
+// seeded article links here and sets the hero below.
+export const CREDIT_CAPTION_PAGE = "credit-caption-page.html";
+export const CREDIT_CAPTION_LINK = `${FIXTURE_SERVER_ORIGIN}/${CREDIT_CAPTION_PAGE}`;
+export const CREDIT_CAPTION_HERO_FILE = "credit-caption-hero.png";
+export const CREDIT_CAPTION_HERO_URL = `${FIXTURE_SERVER_ORIGIN}/${CREDIT_CAPTION_HERO_FILE}`;
 // The one address the fixture server answers with a synthesized feed instead of
 // a page from the folder, printing the request's identity headers as it does.
 // The seeded feed below points at it. See "Checking the outbound User-Agent" in
@@ -406,6 +414,23 @@ function rssTechItems() {
       guid: `${LINK_BASE}/rss-tech/no-feed-description`,
       pubDate: at(3),
       author: "Fixture Author",
+    }),
+    item(feed, {
+      // #1305: a caption-only <figure> whose credit the publisher repeats as a
+      // paragraph above the body, with a hero set. The figure goes with lead
+      // media, and the matching paragraph must be removed with it rather than
+      // left orphaned. Open with `npm run fixture:serve` running so the Reader
+      // can fetch the page.
+      title: "Article with a duplicate lead photo credit",
+      link: CREDIT_CAPTION_LINK,
+      guid: `${LINK_BASE}/rss-tech/credit-caption`,
+      pubDate: at(4),
+      coverImage: CREDIT_CAPTION_HERO_URL,
+      author: "Fixture Author",
+      content:
+        "<p>RSS teaser for the fixture article with a duplicate lead photo credit.</p>",
+      summary:
+        "RSS teaser for the fixture article with a duplicate lead photo credit.",
     }),
     item(feed, {
       title: "Read article without a preview image",
