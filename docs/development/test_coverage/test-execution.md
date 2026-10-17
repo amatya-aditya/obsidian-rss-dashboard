@@ -47,6 +47,12 @@ plugin folder, reload the plugin, and launch with a debug port and a disposable
 `--user-data-dir` so the CDP route works). Real user data is touched only with
 the user's explicit go-ahead in chat and after a backup.
 
+**Clean the window once the vault is open.** Run `prepare-vault` (see **Prepare
+the window** in `docs/development/fixture-vault.md`) to close the vault picker
+and the Settings window enabling plugins opens, and to collapse the side panes,
+so only the vault shows. Pass `--keep-settings` only when the item under test is
+a settings feature, and `--keep-left` only when it drives the file explorer.
+
 **Promote reusable data.** When an item needs new sandbox data (a fixture, a
 seed record, an edge case), decide once: if it is durable and cheap, **promote**
 it into the repo's fixture generator and template (and its scenario docs) so the

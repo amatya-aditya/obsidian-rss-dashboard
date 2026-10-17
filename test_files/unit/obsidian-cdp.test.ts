@@ -6,6 +6,7 @@ import {
   assessCompanionTarget,
   assessVaultOwnership,
   assertWebSocket,
+  buildPrepareScript,
   choosePort,
   connect,
   isObsidianVaultTarget,
@@ -18,6 +19,8 @@ import {
   pollUntilReady,
   renderValue,
   selectSettingsTarget,
+  selectSettingsTargets,
+  selectStarterTargets,
   selectTarget,
   summarizeAxNode,
   summarizeAxQuery,
@@ -226,6 +229,34 @@ describe("obsidian-cdp parseArgs", () => {
       parseArgs(["--settings", "--target", "x", "eval", "p.js"], noEnv),
     ).toThrow(CdpError);
     expect(() => parseArgs(["open-settings"], noEnv)).toThrow(CdpError);
+  });
+
+  it("reads the prepare-vault command and its keep flags", () => {
+    const prep = parseArgs(["prepare-vault"], noEnv);
+    expect(prep.command).toBe("prepare-vault");
+    expect(prep.keepSettings).toBe(false);
+    expect(prep.keepLeft).toBe(false);
+    expect(
+      parseArgs(["--keep-settings", "prepare-vault"], noEnv).keepSettings,
+    ).toBe(true);
+    expect(parseArgs(["--keep-left", "prepare-vault"], noEnv).keepLeft).toBe(
+      true,
+    );
+  });
+
+  it("rejects prepare-vault misuse", () => {
+    expect(() => parseArgs(["prepare-vault", "extra"], noEnv)).toThrow(
+      CdpError,
+    );
+    expect(() => parseArgs(["--settings", "prepare-vault"], noEnv)).toThrow(
+      CdpError,
+    );
+    expect(() => parseArgs(["--keep-settings", "eval", "p.js"], noEnv)).toThrow(
+      CdpError,
+    );
+    expect(() => parseArgs(["--keep-left", "targets"], noEnv)).toThrow(
+      CdpError,
+    );
   });
 
   it("recognises help", () => {
@@ -628,6 +659,77 @@ describe("obsidian-cdp companion Settings target", () => {
     );
     expect(picked.ok).toBe(false);
     expect(picked.code).toBe("unpinned");
+  });
+});
+
+describe("obsidian-cdp prepare-vault", () => {
+  const starterPage = (overrides: Record<string, unknown> = {}) =>
+    page({
+      id: "picker",
+      title: "Obsidian",
+      url: "app://obsidian.md/starter.html",
+      ...overrides,
+    });
+  const settingsPage = (overrides: Record<string, unknown> = {}) =>
+    page({
+      id: "settings",
+      title: SETTINGS_TITLE,
+      url: "about:blank",
+      ...overrides,
+    });
+
+  it("finds the vault-picker windows and ignores the vault", () => {
+    const pickers = selectStarterTargets([
+      page({ id: "vault" }),
+      starterPage(),
+      page({ id: "other", url: "https://example.com/" }),
+    ]);
+    expect(pickers.map((target) => target.id)).toEqual(["picker"]);
+  });
+
+  it("finds every Settings window of the expected vault", () => {
+    const found = selectSettingsTargets(
+      [
+        page({ id: "vault" }),
+        settingsPage(),
+        settingsPage({ id: "settings-2" }),
+        settingsPage({
+          id: "foreign",
+          title: "Settings - Personal - Obsidian 1.14.0",
+        }),
+      ],
+      { expectedVault: FIXTURE_VAULT },
+    );
+    expect(found.map((target) => target.id)).toEqual([
+      "settings",
+      "settings-2",
+    ]);
+  });
+
+  it("finds no Settings windows on an unpinned port", () => {
+    expect(
+      selectSettingsTargets([settingsPage()], {
+        expectedVault: FIXTURE_VAULT,
+        pinned: false,
+      }),
+    ).toEqual([]);
+  });
+
+  it("builds a script that closes Settings and collapses the panes", () => {
+    const script = buildPrepareScript();
+    expect(script).toContain("app.setting.close()");
+    expect(script).toContain("leftSplit?.collapse");
+    expect(script).toContain("rightSplit?.collapse");
+  });
+
+  it("leaves a surface alone when its keep flag is set", () => {
+    const keepSettings = buildPrepareScript({ keepSettings: true });
+    expect(keepSettings).not.toContain("app.setting.close()");
+    expect(keepSettings).toContain("leftSplit?.collapse");
+
+    const keepLeft = buildPrepareScript({ keepLeft: true });
+    expect(keepLeft).toContain("app.setting.close()");
+    expect(keepLeft).not.toContain("collapse");
   });
 });
 

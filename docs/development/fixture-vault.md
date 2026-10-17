@@ -200,6 +200,26 @@ from `%APPDATA%\obsidian\obsidian.json`, so overriding the child's `APPDATA`
 does not redirect it; open the vault with the IPC call above rather than
 pre-seeding the registry.
 
+### Prepare the window
+
+Opening the vault leaves three surfaces behind that cover or sit in front of the
+dashboard, so close them once before you drive a checklist:
+
+```sh
+node scripts/obsidian-cdp.mjs --profile "$env:TEMP\rss-dashboard-cdp-profile" --expect-vault "$PWD\.fixture-vault" prepare-vault
+```
+
+It closes the **vault picker** (`starter.html`) that stays open after the IPC
+`vault-open` call, closes the **Settings** window that enabling community
+plugins opens (the same surface #1279 fixed for the Linux launch script), and
+collapses the workspace **side panes** — the fixture template ships no
+`.obsidian/workspace.json`, so Obsidian's default left pane (Files, Search,
+Bookmarks) otherwise covers the dashboard.
+
+It needs `--profile` and `--expect-vault`, so it can only touch this session's
+windows. Pass `--keep-settings` when the checklist tests a settings feature, and
+`--keep-left` when an item drives the file explorer.
+
 Kill only your own instance. Match the process command line to your
 `--user-data-dir` and stop that tree (`Get-NetTCPConnection -LocalPort <port>`
 names the owning process); never blanket-kill Obsidian, or other sessions lose
@@ -238,6 +258,7 @@ node scripts/obsidian-cdp.mjs eval ./probe.js        # one expression, from a fi
 echo "document.title" | node scripts/obsidian-cdp.mjs eval -   # or stdin
 node scripts/obsidian-cdp.mjs shot dashboard.png     # one screenshot
 node scripts/obsidian-cdp.mjs repl ./steps.txt       # many steps, one connection
+node scripts/obsidian-cdp.mjs --profile <dir> --expect-vault <vault> prepare-vault  # clean the window
 ```
 
 The committed Obsidian console probes under `test_files/stubs/probes/` drive
@@ -476,7 +497,8 @@ scripts/launch-obsidian-cloud.sh stop    # stops only the instance this script s
 script) and extracts it to `/opt/obsidian` when it is missing, since the
 container has no FUSE. It then creates a fresh fixture vault and profile under
 `$TMPDIR/rss-dashboard-obsidian`, launches with `--no-sandbox` (the container
-runs as root), turns on community plugins, and enables `rss-dashboard`. To skip
+runs as root), turns on community plugins, and enables `rss-dashboard`, closing
+the Settings window that opens and collapsing the side panes. To skip
 the download in later sessions, run the same install block from the cloud
 environment's setup script. The environment's network policy must allow
 `github.com` release downloads.

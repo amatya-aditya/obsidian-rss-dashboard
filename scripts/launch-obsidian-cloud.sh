@@ -88,6 +88,10 @@ JSON
   // Enabling plugins opens a Settings window that becomes the active window,
   // so modals would open there instead of in the vault window.
   app.setting.close();
+  // The default workspace opens the left pane (Files, Search, Bookmarks),
+  // which would cover part of the dashboard.
+  app.workspace.leftSplit?.collapse?.();
+  app.workspace.rightSplit?.collapse?.();
   return 'enabled';
 })()
 JS
