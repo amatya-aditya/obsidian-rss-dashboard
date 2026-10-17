@@ -702,14 +702,8 @@
   left: 8px;
   right: 8px;
   top: auto;
-  bottom: calc(
-    var(--rss-footer-visual-pad, 8px) +
-      max(
-        var(--rss-footer-safe-bottom, env(safe-area-inset-bottom, 0px)),
-        var(--rss-footer-system-bottom, 0px),
-        var(--rss-footer-platform-fallback-bottom, 0px)
-      )
-  );
+  /* 8px is the visual gap above the sheet; the rest is the OS safe-area inset. */
+  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   width: auto;
   max-width: none;
   min-width: 0;

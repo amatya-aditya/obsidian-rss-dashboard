@@ -153,7 +153,9 @@ describe("Reader format mobile sheet stylesheet", () => {
 
   it("anchors the sheet to the bottom instead of the shared anchor origin", () => {
     expect(sheet.get("top")?.value).toBe("auto");
-    expect(sheet.get("bottom")?.value).toContain("--rss-footer-visual-pad");
+    expect(sheet.get("bottom")?.value).toBe(
+      "calc(8px + env(safe-area-inset-bottom, 0px))",
+    );
   });
 
   it("centres the sheet with equal side insets and no fixed sizing", () => {
@@ -188,6 +190,13 @@ describe("Reader format mobile sheet stylesheet", () => {
   it("uses the same bottom offset contract as the tags mobile sheet", () => {
     const tags = resolve([PORTAL_BASE, TAGS_MOBILE_SHEET], MOBILE_WIDTH);
     expect(sheet.get("bottom")?.value).toBe(tags.get("bottom")?.value);
+  });
+
+  it("gives the tags mobile sheet the same offset in its bottom padding", () => {
+    const tags = resolve([PORTAL_BASE, TAGS_MOBILE_SHEET], MOBILE_WIDTH);
+    expect(tags.get("padding")?.value).toBe(
+      "8px 0 calc(8px + env(safe-area-inset-bottom, 0px))",
+    );
   });
 
   it("does not use !important on any mobile sheet declaration", () => {
