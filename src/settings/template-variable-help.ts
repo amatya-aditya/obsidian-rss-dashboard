@@ -143,6 +143,11 @@ export const TEMPLATE_VARIABLE_HELP_GROUPS: readonly TemplateVariableHelpGroup[]
           description:
             "The content selected for this save. A saved template can set its own “Save version”, which wins over the “Default save version” setting; otherwise the setting chooses between Fetched content (the full article) and RSS content (the feed item’s content, which falls back to the feed description, then the summary). {{content}} only controls where that content is placed in the template.",
         },
+        {
+          name: "contentSource",
+          description:
+            "Which version this save wrote: RSS content or Fetched content. It reports the version written, not the one requested, so a save that asked for Fetched content and fell back to the feed item’s own text reads RSS content. This is not the feed title, which is {{source}}.",
+        },
       ],
     },
     {

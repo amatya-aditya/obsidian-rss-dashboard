@@ -4,6 +4,8 @@ import type { ArticleTemplateValues } from "../../../../src/services/article-tem
 
 // {{language}} is the registry's omitIfEmpty variable (#266, #246): an unknown
 // language leaves out the whole `lang:` line instead of writing `lang: ""`.
+// {{contentSource}} is the second one (#1248): a call site that cannot say
+// which version it wrote leaves out the row instead of guessing.
 function createValues(language: string): ArticleTemplateValues {
   return {
     title: "Title",
@@ -15,6 +17,7 @@ function createValues(language: string): ArticleTemplateValues {
     description: "",
     excerpt: "",
     language,
+    contentSource: "",
     tags: "",
     guid: "",
     image: "",
@@ -74,5 +77,28 @@ describe("renderArticleTemplate with an omitIfEmpty variable", () => {
     );
 
     expect(text).toBe("a\r\nb");
+  });
+});
+
+describe("renderArticleTemplate with {{contentSource}} (#1248)", () => {
+  const template =
+    '---\ncontentSource: "{{contentSource}}"\ntitle: "{{title}}"\n---';
+  const step = [{ kind: "variable", name: "contentSource" }] as const;
+
+  it("leaves out the row when the call site cannot name the version", () => {
+    const text = renderArticleTemplate(template, [...step], createValues(""));
+
+    expect(text).toBe('---\ntitle: "{{title}}"\n---');
+  });
+
+  it("fills the row with the version the save wrote", () => {
+    const text = renderArticleTemplate(template, [...step], {
+      ...createValues(""),
+      contentSource: "Fetched content",
+    });
+
+    expect(text).toBe(
+      '---\ncontentSource: "Fetched content"\ntitle: "{{title}}"\n---',
+    );
   });
 });

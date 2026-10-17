@@ -268,6 +268,9 @@ export class WebViewerIntegration {
       saveDateLong: isNote ? () => new Date() : undefined,
       tagNames,
       image: () => this.getImage(item),
+      // A web viewer save writes a clipped page, which is Fetched content,
+      // whether the note template or the frontmatter template asks (#1248).
+      contentSource: "fetched",
     });
   }
 
@@ -280,6 +283,7 @@ title: "{{title}}"
 date: "{{date}}"
 tags: [{{tags}}]
 source: "{{source}}"
+contentSource: "{{contentSource}}"
 link: "{{link}}"
 author: "{{author}}"
 feedTitle: "{{feedTitle}}"

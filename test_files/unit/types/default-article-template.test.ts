@@ -20,4 +20,15 @@ describe("shipped default article template", () => {
   it("keeps blank lines between body blocks", () => {
     expect(body).toBe("# {{title}}\n\n{{content}}\n\n[Source]({{link}})");
   });
+
+  it("lists the version a save wrote right after the source row, in both templates (#1248)", () => {
+    for (const template of [
+      DEFAULT_SETTINGS.articleSaving.defaultTemplate,
+      DEFAULT_SETTINGS.articleSaving.frontmatterTemplate,
+    ]) {
+      expect(template).toContain(
+        'source: "{{source}}"\ncontentSource: "{{contentSource}}"',
+      );
+    }
+  });
 });

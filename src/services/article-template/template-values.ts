@@ -1,8 +1,9 @@
 import { moment } from "obsidian";
-import type { FeedItem } from "../../types/types";
+import type { FeedItem, SaveVersion } from "../../types/types";
 import { normalizeLanguageTag } from "../../utils/article-metadata";
 import { resolveItemDescriptions } from "../../utils/article-metadata-persistence";
 import { itemAuthorText } from "../../utils/item-author";
+import { saveVersionLabel } from "../../utils/save-version";
 import { resolveDisplayDate } from "../feed-parser/feed-retention";
 import type { TemplateVariableName } from "./template-variables";
 
@@ -39,6 +40,14 @@ export interface ArticleTemplateInputs {
    * falls back to it, normalized, for an item with no stored language (#809).
    */
   readonly feedLanguage?: string;
+  /**
+   * The version this save actually wrote, which `{{contentSource}}` names
+   * (#1248). It is the version *written*, not the one requested: a Fetched
+   * content save that fell back to the feed's own text wrote RSS content.
+   * Leave it out when the call site cannot say which version it wrote; the
+   * row is then dropped rather than filled with a guess.
+   */
+  readonly contentSource?: SaveVersion;
 }
 
 export function formatMoment(date: Date, formatStr: string): string {
@@ -115,6 +124,9 @@ export function buildArticleTemplateValues(
       return describeItem().excerpt;
     },
     language: item.language ?? normalizeLanguageTag(inputs.feedLanguage ?? ""),
+    contentSource: inputs.contentSource
+      ? saveVersionLabel(inputs.contentSource)
+      : "",
     tags: inputs.tagNames.join(", "),
     guid: item.guid,
     image: typeof inputs.image === "function" ? inputs.image() : inputs.image,

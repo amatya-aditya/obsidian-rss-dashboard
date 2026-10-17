@@ -4,8 +4,10 @@ export interface TemplateVariable {
   readonly placeholder: RegExp;
   /**
    * Leave out each line holding the placeholder when the value is empty,
-   * rather than writing the empty value in place. Only `{{language}}` sets it,
-   * so an unknown language writes no `language:` line (#266).
+   * rather than writing the empty value in place. `{{language}}` (#266) and
+   * `{{contentSource}}` (#1248) set it, so an unknown language writes no
+   * `language:` line, and a save that cannot name the version it wrote writes
+   * no `contentSource:` row.
    */
   readonly omitIfEmpty: boolean;
 }
@@ -29,6 +31,7 @@ const VARIABLES = {
   description: { placeholder: /{{description}}/g, omitIfEmpty: false },
   excerpt: { placeholder: /{{excerpt}}/g, omitIfEmpty: false },
   language: { placeholder: /{{language}}/g, omitIfEmpty: true },
+  contentSource: { placeholder: /{{contentSource}}/g, omitIfEmpty: true },
   tags: { placeholder: /{{tags}}/g, omitIfEmpty: false },
   guid: { placeholder: /{{guid}}/g, omitIfEmpty: false },
   image: { placeholder: /{{image}}/g, omitIfEmpty: false },

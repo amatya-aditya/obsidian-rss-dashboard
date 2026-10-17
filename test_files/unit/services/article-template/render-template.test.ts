@@ -20,6 +20,7 @@ function createValues(
     description: "Desc",
     excerpt: "Exc",
     language: "en-GB",
+    contentSource: "RSS content",
     tags: "News",
     guid: "g-1",
     image: "https://img.example/a.png",

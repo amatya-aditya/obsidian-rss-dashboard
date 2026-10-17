@@ -256,6 +256,158 @@ describe("saved content source policy", () => {
   });
 });
 
+describe("the version a save wrote in the note (#1248)", () => {
+  /** The dashboard save flow, which decides the version and writes the note. */
+  function dashboard(article: FeedItem, settingsValue: RssDashboardSettings) {
+    const app = App.createMock();
+    const plugin = {
+      settings: settingsValue,
+      saveSettings: vi.fn(async () => {}),
+      updateArticle: vi.fn(async () => {}),
+    };
+    const view = new RssDashboardView({ app } as never, plugin as never);
+    const internal = view as unknown as DashboardInternals;
+    internal.selectedArticle = article;
+    internal.markArticleSaved = vi.fn(
+      async (savedArticle: FeedItem, path: string) => {
+        savedArticle.savedFilePath = path;
+      },
+    );
+    return { app, view };
+  }
+
+  /** Fetched content requested, and the note template asks which version was written. */
+  function requestedSettings(): RssDashboardSettings {
+    const settingsValue = settings(true);
+    settingsValue.articleSaving.defaultTemplate =
+      "version: {{contentSource}}\n\n{{content}}";
+    return settingsValue;
+  }
+
+  async function savedNote(app: App, article: FeedItem): Promise<string> {
+    const saved = app.vault.getAbstractFileByPath(article.savedFilePath ?? "");
+    expect(saved).toBeInstanceOf(TFile);
+    if (!(saved instanceof TFile)) throw new Error("expected saved TFile");
+    return app.vault.read(saved);
+  }
+
+  it("writes Fetched content when the page was fetched", async () => {
+    const article = item();
+    const settingsValue = requestedSettings();
+    settingsValue.feeds = [feed(article)];
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content: "<p>Fetched article body.</p>",
+      failureType: "none",
+    });
+    const { app, view } = dashboard(article, settingsValue);
+
+    await view.actionSaveSelectedArticle();
+
+    const written = await savedNote(app, article);
+    expect(written).toContain("version: Fetched content");
+    expect(written).toContain("Fetched article body.");
+  });
+
+  it("writes RSS content when a Fetched content save falls back to the feed's text", async () => {
+    const article = item();
+    const settingsValue = requestedSettings();
+    settingsValue.feeds = [feed(article)];
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({ content: "", failureType: "network" });
+    const { app, view } = dashboard(article, settingsValue);
+
+    await view.actionSaveSelectedArticle();
+
+    // The version written, not the version requested: the note holds feed text.
+    const written = await savedNote(app, article);
+    expect(written).toContain("version: RSS content");
+    expect(written).toContain("RSS item body.");
+  });
+
+  it("writes Fetched content when a restricted fetch still returned a body", async () => {
+    const article = item();
+    const settingsValue = requestedSettings();
+    settingsValue.feeds = [feed(article)];
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content: "<p>Restricted but real page body.</p>",
+      failureType: "restricted",
+    });
+    const { app, view } = dashboard(article, settingsValue);
+
+    await view.actionSaveSelectedArticle();
+
+    const written = await savedNote(app, article);
+    expect(written).toContain("version: Fetched content");
+    expect(written).toContain("Restricted but real page body.");
+  });
+
+  /** A saved template that records the version it wrote, with no fetch needed. */
+  function versionedTemplate(id: string): SavedTemplate {
+    return {
+      id,
+      name: id,
+      template: "version: {{contentSource}}\n\n{{content}}",
+      saveVersion: "rss",
+    };
+  }
+
+  it("writes the row through the shipped default template", async () => {
+    const article = item();
+    const settingsValue = JSON.parse(
+      JSON.stringify(DEFAULT_SETTINGS),
+    ) as RssDashboardSettings;
+    // RSS content, so the shipped template renders without a page fetch.
+    settingsValue.articleSaving.saveVersion = "rss";
+    settingsValue.feeds = [feed(article)];
+    const { app, view } = dashboard(article, settingsValue);
+
+    await view.actionSaveSelectedArticle();
+
+    const written = await savedNote(app, article);
+    expect(written).toContain('contentSource: "RSS content"');
+    expect(written).toContain("RSS item body.");
+  });
+
+  it("writes the row through a feed-assigned saved template", async () => {
+    const article = item();
+    const template = versionedTemplate("feed-assigned-template");
+    const settingsValue = settings(false);
+    settingsValue.articleSaving.savedTemplates = [template];
+    settingsValue.feeds = [feedWithTemplate(article, template.id)];
+    const { app, view } = dashboard(article, settingsValue);
+
+    await view.actionSaveSelectedArticle();
+
+    const written = await savedNote(app, article);
+    expect(written).toContain("version: RSS content");
+    expect(written).toContain("RSS item body.");
+  });
+
+  it("writes the row through the global default saved template", async () => {
+    const article = item();
+    const template = versionedTemplate("global-default-template");
+    const settingsValue = settings(false);
+    settingsValue.articleSaving.savedTemplates = [template];
+    settingsValue.articleSaving.globalDefaultTemplateId = template.id;
+    settingsValue.feeds = [feed(article)];
+    const { app, view } = dashboard(article, settingsValue);
+
+    await view.actionSaveSelectedArticle();
+
+    const written = await savedNote(app, article);
+    expect(written).toContain("version: RSS content");
+    expect(written).toContain("RSS item body.");
+  });
+});
+
 describe("a saved template's save version (#1185)", () => {
   it("saves the fetched page from the Dashboard when the feed's template asks for it", async () => {
     const app = App.createMock();

@@ -89,7 +89,7 @@ describe("web viewer saves with the templates it already filled", () => {
     });
 
     expect(note).toBe(
-      `---\ntitle: "Say \\"hi\\""\ndate: "${longDate(PUB)}"\ntags: [News]\nsource: "Feed"\nlink: "https://example.com/a"\nauthor: "Ann"\nfeedTitle: "Feed"\nguid: "g-1"\n---\nBODY`,
+      `---\ntitle: "Say \\"hi\\""\ndate: "${longDate(PUB)}"\ntags: [News]\nsource: "Feed"\ncontentSource: "Fetched content"\nlink: "https://example.com/a"\nauthor: "Ann"\nfeedTitle: "Feed"\nguid: "g-1"\n---\nBODY`,
     );
   });
 
@@ -179,6 +179,23 @@ describe("web viewer frontmatter template placeholders (#932)", () => {
     expect(note).not.toContain("{{");
     expect(note).toContain('summary: ""');
     expect(note).not.toContain("language:");
+  });
+});
+
+describe("web viewer content source (#1248)", () => {
+  it("names the version a web viewer save wrote: Fetched content", async () => {
+    const note = await save(createItem(), "v={{contentSource}}", false);
+
+    expect(note).toBe("v=Fetched content");
+  });
+
+  it("names it in the web viewer's frontmatter template too", async () => {
+    const note = await save(createItem(), "BODY", true, {
+      addSavedTag: false,
+      frontmatterTemplate: '---\ncontentSource: "{{contentSource}}"\n---',
+    });
+
+    expect(note).toBe('---\ncontentSource: "Fetched content"\n---\nBODY');
   });
 });
 

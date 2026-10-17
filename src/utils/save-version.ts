@@ -49,6 +49,30 @@ export function savedArticleNotice(version: SaveVersion): string {
 export const FALLBACK_BEFORE_SAVE_NOTICE =
   "Fetched content is unavailable; saving RSS content.";
 
+/**
+ * What a save wrote, and how it reports it. A call site chooses the two
+ * together, so the `{{contentSource}}` row and the notice cannot name
+ * different versions (#1248).
+ */
+export interface SaveReport {
+  /** The version this save wrote, which `{{contentSource}}` reports. */
+  readonly writtenVersion: SaveVersion;
+  /** The post-save notice, naming the version written. */
+  readonly notice: string;
+}
+
+/** What a save that writes RSS content reports: the save seam's default. */
+export function rssSaveReport(
+  notice: string = savedArticleNotice("rss"),
+): SaveReport {
+  return { writtenVersion: "rss", notice };
+}
+
+/** What a save that writes the fetched page reports. */
+export function fetchedSaveReport(): SaveReport {
+  return { writtenVersion: "fetched", notice: savedArticleNotice("fetched") };
+}
+
 /** The post-save notice when a Fetched content save wrote RSS content instead. */
 export const SAVE_FALLBACK_NOTICE: Record<"fetch" | "save", string> = {
   fetch: "Fetch failed; saved RSS content instead.",
