@@ -592,6 +592,144 @@ describe("PodcastPlayer", () => {
       vi.useRealTimers();
     });
   });
+
+  describe("non-finite audio duration (live streams)", () => {
+    function loadWithDuration(
+      duration: number,
+      onPlaybackProgress?: (...args: unknown[]) => void,
+    ) {
+      const container: HTMLDivElement = createDiv();
+      document.body.appendChild(container);
+      const player = new PodcastPlayer(
+        container,
+        new App(),
+        "obsidian",
+        undefined,
+        undefined,
+        onPlaybackProgress,
+      );
+      const ep = baseEpisode();
+      player.loadEpisode(ep);
+      const audio = container.querySelector<HTMLAudioElement>("audio")!;
+      Object.defineProperty(audio, "duration", {
+        configurable: true,
+        value: duration,
+      });
+      return { container, player, audio, ep };
+    }
+
+    it("keeps the neutral duration label and does not throw on loadedmetadata/timeupdate", () => {
+      const { container, player, audio } = loadWithDuration(Infinity);
+
+      expect(() => {
+        audio.dispatchEvent(new Event("loadedmetadata"));
+        audio.dispatchEvent(new Event("timeupdate"));
+      }).not.toThrow();
+
+      const label = container.querySelector(".rss-duration")!.textContent;
+      expect(label).not.toContain("Infinity");
+      expect(label).toBe("-0:00");
+      expect(
+        container.querySelector<HTMLProgressElement>(".podcast-progress-bar")!
+          .max,
+      ).toBe(1);
+
+      player.destroy();
+    });
+
+    it.each([NaN, 0, Infinity])(
+      "shows the neutral label and does not throw for duration %s",
+      (duration) => {
+        const { container, player, audio } = loadWithDuration(duration);
+
+        expect(() => {
+          audio.dispatchEvent(new Event("loadedmetadata"));
+          audio.dispatchEvent(new Event("timeupdate"));
+        }).not.toThrow();
+
+        expect(container.querySelector(".rss-duration")!.textContent).toBe(
+          "-0:00",
+        );
+
+        player.destroy();
+      },
+    );
+
+    it.each([NaN, 0, Infinity])(
+      "does not seek when the seek bar is clicked with duration %s",
+      (duration) => {
+        const { container, player, audio } = loadWithDuration(duration);
+        audio.currentTime = 5;
+
+        container
+          .querySelector<HTMLElement>(".podcast-progress-bar")!
+          .dispatchEvent(new MouseEvent("click", { clientX: 50 }));
+
+        expect(audio.currentTime).toBe(5);
+
+        player.destroy();
+      },
+    );
+
+    it("keeps the forward-30 button working with Infinity duration", () => {
+      const { container, player, audio } = loadWithDuration(Infinity);
+      audio.currentTime = 10;
+
+      container
+        .querySelector<HTMLElement>('[aria-label="Forward 30 seconds"]')!
+        .click();
+
+      expect(audio.currentTime).toBe(40);
+
+      player.destroy();
+    });
+
+    it("skips saving progress inside the last 3 seconds of a finite episode", () => {
+      vi.useFakeTimers();
+      const onPlaybackProgress = vi.fn();
+      const { player, audio } = loadWithDuration(100, onPlaybackProgress);
+
+      audio.currentTime = 98;
+      audio.dispatchEvent(new Event("play"));
+      vi.advanceTimersByTime(1000);
+
+      expect(onPlaybackProgress).not.toHaveBeenCalled();
+
+      player.destroy();
+      vi.useRealTimers();
+    });
+
+    it("still renders a finite duration label", () => {
+      const { container, player, audio } = loadWithDuration(125);
+
+      audio.dispatchEvent(new Event("loadedmetadata"));
+
+      expect(container.querySelector(".rss-duration")!.textContent).toBe(
+        "2:05",
+      );
+
+      player.destroy();
+    });
+
+    it("saves progress with a zero duration instead of Infinity", () => {
+      vi.useFakeTimers();
+      const onPlaybackProgress = vi.fn();
+      const { player, audio, ep } = loadWithDuration(
+        Infinity,
+        onPlaybackProgress,
+      );
+
+      audio.currentTime = 12;
+      audio.dispatchEvent(new Event("play"));
+      vi.advanceTimersByTime(1000);
+
+      expect(onPlaybackProgress).toHaveBeenCalledWith(ep, 12, 0, false);
+
+      player.destroy();
+      vi.useRealTimers();
+    });
+  });
+
   describe("seek drag listeners", () => {
     it("removes window drag listeners when the player is destroyed mid-drag", () => {
       const container: HTMLDivElement = createDiv();

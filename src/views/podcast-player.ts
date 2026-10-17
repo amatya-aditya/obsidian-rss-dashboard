@@ -675,25 +675,23 @@ export class PodcastPlayer {
           0,
           Math.min(1, (clientX - rect.left) / rect.width),
         );
-        if (this.audioElement && this.audioElement.duration) {
-          return percent * this.audioElement.duration;
-        }
-        return 0;
+        const duration = this.getFiniteDuration();
+        return duration === null ? 0 : percent * duration;
       };
 
       progressBar.addEventListener("click", (e) => {
-        if (!this.audioElement || !this.audioElement.duration) return;
+        if (!this.audioElement || this.getFiniteDuration() === null) return;
         const seekTime = getSeekTime(e);
         this.audioElement.currentTime = seekTime;
         this.updateProgressDisplay();
       });
 
       progressBar.addEventListener("mousedown", (_e) => {
-        if (!this.audioElement || !this.audioElement.duration) return;
+        if (this.getFiniteDuration() === null) return;
         isDragging = true;
         const moveHandler = (moveEvent: MouseEvent) => {
-          if (!isDragging || !this.audioElement || !this.audioElement.duration)
-            return;
+          if (!isDragging || !this.audioElement) return;
+          if (this.getFiniteDuration() === null) return;
           const seekTime = getSeekTime(moveEvent);
           this.audioElement.currentTime = seekTime;
           this.updateProgressDisplay();
@@ -711,11 +709,11 @@ export class PodcastPlayer {
       });
 
       progressBar.addEventListener("touchstart", (_e) => {
-        if (!this.audioElement || !this.audioElement.duration) return;
+        if (this.getFiniteDuration() === null) return;
         isDragging = true;
         const moveHandler = (moveEvent: TouchEvent) => {
-          if (!isDragging || !this.audioElement || !this.audioElement.duration)
-            return;
+          if (!isDragging || !this.audioElement) return;
+          if (this.getFiniteDuration() === null) return;
           const seekTime = getSeekTime(moveEvent);
           this.audioElement.currentTime = seekTime;
           this.updateProgressDisplay();
@@ -1074,26 +1072,42 @@ export class PodcastPlayer {
     if (this.currentTimeEl) {
       this.currentTimeEl.textContent = currentTime;
     }
-    if (this.audioElement.duration && !isNaN(this.audioElement.duration)) {
-      const duration = this.formatTime(this.audioElement.duration);
-      if (this.durationEl) {
-        this.durationEl.textContent = duration;
-      }
+    // Live streams and media of unknown length report Infinity (or NaN before
+    // metadata loads). Show the neutral initial state instead of formatting or
+    // assigning a non-finite value, which throws on <progress>.max.
+    const mediaDuration = this.getFiniteDuration();
+    const hasDuration = mediaDuration !== null;
+    const percent = hasDuration
+      ? (this.audioElement.currentTime / mediaDuration) * 100
+      : 0;
 
-      if (this.progressBarEl) {
-        this.progressBarEl.value = this.audioElement.currentTime;
-        this.progressBarEl.max = this.audioElement.duration;
-      }
-
-      if (this.progressFilledEl) {
-        const percent =
-          (this.audioElement.currentTime / this.audioElement.duration) * 100;
-        this.progressFilledEl.style.setProperty(
-          "--progress-percent",
-          `${percent}%`,
-        );
-      }
+    if (this.durationEl) {
+      this.durationEl.textContent = hasDuration
+        ? this.formatTime(mediaDuration)
+        : "-0:00";
     }
+
+    if (this.progressBarEl) {
+      this.progressBarEl.value = hasDuration
+        ? this.audioElement.currentTime
+        : 0;
+      this.progressBarEl.max = hasDuration ? mediaDuration : 1;
+    }
+
+    if (this.progressFilledEl) {
+      this.progressFilledEl.style.setProperty(
+        "--progress-percent",
+        `${percent}%`,
+      );
+    }
+  }
+
+  /** Audio duration when known and finite (> 0); null for NaN, 0 or Infinity. */
+  private getFiniteDuration(): number | null {
+    const duration = this.audioElement?.duration;
+    return duration !== undefined && Number.isFinite(duration) && duration > 0
+      ? duration
+      : null;
   }
 
   private formatTime(seconds: number): string {
@@ -1114,23 +1128,21 @@ export class PodcastPlayer {
 
     if (this.audioElement.currentTime < 3) return;
 
-    if (
-      this.audioElement.duration &&
-      this.audioElement.currentTime > this.audioElement.duration - 3
-    ) {
+    const duration = this.getFiniteDuration();
+    if (duration !== null && this.audioElement.currentTime > duration - 3) {
       return;
     }
 
     this.progressData.set(this.currentItem.guid, {
       position: this.audioElement.currentTime,
-      duration: this.audioElement.duration || 0,
+      duration: duration ?? 0,
     });
 
     if (this.onPlaybackProgress) {
       this.onPlaybackProgress(
         this.currentItem,
         this.audioElement.currentTime,
-        this.audioElement.duration || 0,
+        duration ?? 0,
         flush,
       );
     }
