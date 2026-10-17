@@ -488,8 +488,17 @@ function renderApplyButton(
     cls: "rss-dashboard-filter-apply-btn",
     text: "Apply",
   });
+  let applying = false;
   applyBtn.addEventListener("click", (e) => {
     e.stopPropagation();
+    // A save is a round trip. Ignore a second activation so an overlapping
+    // run cannot restore an intermediate state instead of the pre-Apply one
+    // (#1261), and disable the button so the wait is visible.
+    if (applying) {
+      return;
+    }
+    applying = true;
+    applyBtn.disabled = true;
     void applyStartupFilters(ctx, cleanup);
   });
 }
@@ -633,7 +642,11 @@ function openStartupFiltersMenu(
   renderApplyButton(ctx, removeTagSubmenus, () => cleanup());
 
   const cleanup = () => {
-    openMenuCleanups.delete(targetDocument);
+    // Only this menu owns the document's entry: a save that settles after the
+    // menu was reopened must not drop the newer menu's cleanup (#1261/#1259).
+    if (openMenuCleanups.get(targetDocument) === cleanup) {
+      openMenuCleanups.delete(targetDocument);
+    }
     removeTagSubmenus();
     if (state.repositionFrame !== null) {
       targetWindow.cancelAnimationFrame(state.repositionFrame);

@@ -322,3 +322,79 @@ describe("Startup filters Apply", () => {
     expect(menuPortal()).toBeNull();
   });
 });
+
+describe("Startup filters Apply while a save is pending", () => {
+  it("starts one save when Apply is clicked again before the save settles", async () => {
+    const pending: Array<(error: unknown) => void> = [];
+    const saveSettings = vi.fn(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          pending.push(reject);
+        }),
+    );
+    const { plugin, raw } = createPlugin({ saveSettings });
+    raw.settings.dashboardMultiFilters = {
+      statusFilters: ["read"],
+      tagFilters: [],
+      logic: "AND",
+    };
+    const button = renderTab(plugin);
+    await open(button);
+
+    menuItem("Unread").click();
+    applyButton().click();
+    applyButton().click();
+    await vi.runAllTimersAsync();
+
+    expect(saveSettings).toHaveBeenCalledTimes(1);
+
+    pending.forEach((reject) => reject(new Error("disk full")));
+    await vi.runAllTimersAsync();
+
+    expect(raw.settings.dashboardMultiFilters).toEqual({
+      statusFilters: ["read"],
+      tagFilters: [],
+      logic: "AND",
+    });
+    expect(menuPortal()).toBeNull();
+  });
+
+  it("cleans up the menu that replaced the one whose save settled late", async () => {
+    const pending: Array<(error: unknown) => void> = [];
+    const saveSettings = vi.fn(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          pending.push(reject);
+        }),
+    );
+    const { plugin } = createPlugin({ saveSettings });
+    const button = renderTab(plugin);
+
+    // Open the menu, start a save that stays pending, then reopen the menu
+    // before the save settles: the second menu registers its cleanup last.
+    await open(button);
+    menuItem("Unread").click();
+    applyButton().click();
+    await open(button);
+    expect(menuPortal()).not.toBeNull();
+
+    pending.forEach((reject) => reject(new Error("disk full")));
+    await vi.runAllTimersAsync();
+
+    // Reopening again must still run the second menu's cleanup.
+    const removeSpy = vi.spyOn(document, "removeEventListener");
+    await open(button);
+
+    expect(removeSpy).toHaveBeenCalledWith(
+      "scroll",
+      expect.any(Function),
+      true,
+    );
+    expect(removeSpy).toHaveBeenCalledWith("mousedown", expect.any(Function));
+    expect(
+      document.body.querySelectorAll(
+        ".rss-dashboard-startup-filters-menu-portal",
+      ),
+    ).toHaveLength(1);
+  });
+});
