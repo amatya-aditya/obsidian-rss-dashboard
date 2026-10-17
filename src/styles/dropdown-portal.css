@@ -82,29 +82,15 @@
   left: 8px;
   right: 8px;
   top: auto;
-  bottom: calc(
-    var(--rss-footer-visual-pad, 8px) +
-      max(
-        var(--rss-footer-safe-bottom, env(safe-area-inset-bottom, 0px)),
-        var(--rss-footer-system-bottom, 0px),
-        var(--rss-footer-platform-fallback-bottom, 0px)
-      )
-  );
+  /* 8px is the visual gap above the sheet; the rest is the OS safe-area inset. */
+  bottom: calc(8px + env(safe-area-inset-bottom, 0px));
   width: auto;
   max-width: none;
   min-width: 0;
   max-height: calc(100svh - 16px);
   border-radius: 12px;
   box-shadow: 0 10px 30px rgb(0 0 0 / 0.28);
-  padding: 8px 0
-    calc(
-      var(--rss-footer-visual-pad, 8px) +
-        max(
-          var(--rss-footer-safe-bottom, env(safe-area-inset-bottom, 0px)),
-          var(--rss-footer-system-bottom, 0px),
-          var(--rss-footer-platform-fallback-bottom, 0px)
-        )
-    );
+  padding: 8px 0 calc(8px + env(safe-area-inset-bottom, 0px));
 }
 
 .rss-dashboard-tags-mobile-sheet .rss-dashboard-tag-edit-button {
