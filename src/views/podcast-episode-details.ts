@@ -1,10 +1,16 @@
 import { FeedItem } from "../types/types";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { itemAuthorText } from "../utils/item-author";
+import { isOpenableHttpUrl } from "../utils/url-utils";
 
 interface EpisodeMetaEntry {
   label: string;
   value: string;
+  /**
+   * Anchored value. Must already be an openable http(s) URL: `renderMetaGrid`
+   * assigns this straight to an anchor's `href` with no further check, so a
+   * feed-controlled value has to be validated where the entry is built.
+   */
   href?: string;
 }
 
@@ -84,8 +90,13 @@ function buildTrailingMetaEntries(item: FeedItem): EpisodeMetaEntry[] {
   const category = (item.category || "").trim();
   if (category) entries.push({ label: "Category", value: category });
 
+  // A feed controls this value, so an anchor is only safe to build from an
+  // openable http(s) URL. Any other scheme (javascript:, data:, mailto:, a
+  // bare string) leaves the row out rather than rendering a dead "Open
+  // episode" label or a followable non-http link.
   const link = (item.link || "").trim();
-  if (link) entries.push({ label: "Link", value: "Open episode", href: link });
+  if (link && isOpenableHttpUrl(link))
+    entries.push({ label: "Link", value: "Open episode", href: link });
 
   const enclosureLen = (item.enclosure?.length || "").trim();
   if (enclosureLen) {
