@@ -838,17 +838,35 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
   );
 }
 
-/* Feed error indicator badge */
+/*
+ * Feed error badge. A native button, so Enter and Space work and the row's
+ * accessible name stays separate; the icon is sized explicitly on `> svg` with
+ * a paint-layer hint, the documented Android WebView failure modes. No
+ * `clickable-icon` here: this surface uses a plugin-scoped button reset.
+ *
+ * 32x32 is the design-spec hit-area baseline, matched by the mobile 44x44 rule
+ * below. A failing row is therefore taller than a healthy one, as it already is
+ * on touch.
+ */
 .rss-dashboard-feed-error-badge {
+  --icon-size: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 16px;
-  height: 16px;
+  contain: layout style;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
   color: var(--color-red, #e74c3c);
   opacity: 0.85;
-  cursor: help;
+  cursor: pointer;
   margin-left: 4px;
 }
 
@@ -856,9 +874,17 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
   opacity: 1;
 }
 
-.rss-dashboard-feed-error-badge svg {
-  width: 14px;
-  height: 14px;
+.rss-dashboard-feed-error-badge:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.rss-dashboard-feed-error-badge > svg {
+  display: block;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  overflow: visible;
+  will-change: transform;
 }
 
 .rss-dashboard-feed-shard-warning-badge {
@@ -902,23 +928,6 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
     padding: 4px;
     cursor: pointer;
   }
-}
-
-/* Feed error detail modal styles */
-body .rss-feed-error-detail-modal {
-  --modal-width: 400px;
-}
-
-.rss-feed-error-message {
-  padding: 16px;
-  background-color: var(--background-secondary);
-  border-radius: 8px;
-  font-family: var(--font-monospace);
-  font-size: 13px;
-  color: var(--text-normal);
-  margin-bottom: 16px;
-  white-space: pre-wrap;
-  word-break: break-word;
 }
 
 .rss-dashboard-all-feeds-unread {

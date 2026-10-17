@@ -1054,7 +1054,9 @@ describe("Sidebar row interactions (characterization)", () => {
         feedRow("https://a.test/feed").querySelector<HTMLElement>(
           ".rss-dashboard-feed-error-badge",
         );
-      expect(badge()?.getAttribute("aria-label")).toBe("Feed error: HTTP 500");
+      expect(badge()?.getAttribute("aria-label")).toBe(
+        "Refresh failed: HTTP 500. Show details",
+      );
       expect(lucideIconId(badge())).toBe("alert-circle");
 
       container.empty();

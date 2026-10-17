@@ -88,10 +88,14 @@ import { resolveItemExternalUrl } from "../utils/item-url-utils";
 import { buildArticleEmptyStateContext } from "../utils/filter-detection";
 import {
   formatRefreshStatusTime,
+  getFailingFeeds,
   getRefreshStatus,
   getRefreshStatusSegments,
   type RefreshStatus,
+  type RefreshStatusScope,
 } from "../utils/refresh-status";
+import { getFeedErrorDetail } from "../utils/feed-error";
+import { RefreshDetailsModal } from "../modals/refresh-details-modal";
 import { setupDashboardHotkeys } from "../hotkeys/dashboard-hotkeys";
 import { scheduleProcessMathElements } from "../utils/math-rendering";
 import {
@@ -1401,18 +1405,7 @@ export class RssDashboardView extends ItemView {
     }
 
     const refreshStatus = this.getCurrentRefreshStatus();
-    const refreshStatusRow = subheaderContent.createDiv({
-      cls: "rss-dashboard-filter-stats-row rss-dashboard-refresh-status-row",
-    });
-    const refreshStatusText = [
-      `${refreshStatus.completionLabel}: ${formatRefreshStatusTime(refreshStatus.completionAt)}`,
-      ...getRefreshStatusSegments(refreshStatus),
-    ].join(" | ");
-    refreshStatusRow.createSpan({
-      cls: "rss-dashboard-filter-stats-text rss-dashboard-refresh-status-text",
-      text: refreshStatusText,
-      attr: { "aria-live": "polite" },
-    });
+    this.renderRefreshStatusRow(subheaderContent, refreshStatus);
 
     // ── Row 1: Keyword rules stats ──────────────────────────────────────────
     if (hasKeywordStats) {
@@ -1504,6 +1497,65 @@ export class RssDashboardView extends ItemView {
     });
 
     applyCollapsedState();
+  }
+
+  /**
+   * The static refresh summary row. Its live-region text span stays untouched;
+   * the error control is a separate button beside it, because an interactive
+   * control inside `aria-live="polite"` re-announces badly, and it is rendered
+   * only while something is failing.
+   */
+  private renderRefreshStatusRow(
+    subheaderContent: HTMLElement,
+    refreshStatus: RefreshStatus,
+  ): void {
+    const refreshStatusRow = subheaderContent.createDiv({
+      cls: "rss-dashboard-filter-stats-row rss-dashboard-refresh-status-row",
+    });
+    const refreshStatusText = [
+      `${refreshStatus.completionLabel}: ${formatRefreshStatusTime(refreshStatus.completionAt)}`,
+      ...getRefreshStatusSegments(refreshStatus),
+    ].join(" | ");
+    refreshStatusRow.createSpan({
+      cls: "rss-dashboard-filter-stats-text rss-dashboard-refresh-status-text",
+      text: refreshStatusText,
+      attr: { "aria-live": "polite" },
+    });
+    if (refreshStatus.failingCount > 0) {
+      this.renderRefreshErrorButton(refreshStatusRow, refreshStatus);
+    }
+  }
+
+  /**
+   * Opens the feed error dialog for the feeds the row is reporting. Single-feed
+   * scope shows that one feed; `all` and `aggregate` list every failing feed
+   * with its own Copy and a Copy all.
+   */
+  private renderRefreshErrorButton(
+    row: HTMLElement,
+    refreshStatus: RefreshStatus,
+  ): void {
+    const scope = this.getCurrentRefreshScope();
+    const failingFeeds = getFailingFeeds(scope);
+    const count = refreshStatus.failingCount;
+    // Single-feed scope names the button after the message it reveals; a
+    // multi-feed scope names the count it lists.
+    const label =
+      refreshStatus.failingMessage ??
+      `Show details for ${count} failing ${count === 1 ? "feed" : "feeds"}`;
+    const button = row.createEl("button", {
+      cls: "rss-dashboard-refresh-error-btn",
+      attr: { type: "button", "aria-label": label },
+    });
+    setIcon(button, "alert-circle");
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      new RefreshDetailsModal(this.app, {
+        title: "Feed error",
+        lines: [],
+        errors: failingFeeds.map(getFeedErrorDetail),
+      }).open();
+    });
   }
 
   private renderKeywordStatsRow(subheaderContent: HTMLElement): void {
@@ -1665,9 +1717,13 @@ export class RssDashboardView extends ItemView {
   }
 
   // --- Title and article-scope helpers ---
-  private getCurrentRefreshStatus(): RefreshStatus {
+  /** The feeds the refresh status row covers, and the scope that named them. */
+  private getCurrentRefreshScope(): {
+    scope: RefreshStatusScope;
+    feeds: Feed[];
+  } {
     this.syncCurrentFeedReference();
-    let scope: "all" | "feed" | "aggregate" = "all";
+    let scope: RefreshStatusScope = "all";
     let feeds: Feed[] = this.settings.feeds;
 
     if (this.currentFeed) {
@@ -1694,6 +1750,12 @@ export class RssDashboardView extends ItemView {
         (feed) => Boolean(feed.folder) && folderPaths.has(feed.folder),
       );
     }
+
+    return { scope, feeds };
+  }
+
+  private getCurrentRefreshStatus(): RefreshStatus {
+    const { scope, feeds } = this.getCurrentRefreshScope();
 
     return getRefreshStatus({
       feeds,

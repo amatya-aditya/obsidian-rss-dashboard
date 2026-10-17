@@ -8,6 +8,7 @@ import { AddTagModal } from "../../../src/modals/add-tag-modal";
 import { FolderNameModal } from "../../../src/modals/folder-name-modal";
 import { ImportSuccessModal } from "../../../src/modals/import-success-modal";
 import { RefreshDetailsModal } from "../../../src/modals/refresh-details-modal";
+import { EditFeedModal } from "../../../src/modals/feed-manager/edit-feed-modal";
 import { ShortcutHelpModal } from "../../../src/modals/shortcut-help-modal";
 import {
   ConfirmDeleteModal,
@@ -32,6 +33,40 @@ function app(): obsidian.App {
   return new obsidian.App();
 }
 
+/**
+ * EditFeedModal reads its settings and does folder suggestions, so it needs a
+ * plugin fixture rather than the bare constructor the other modals take.
+ */
+function editFeedModal(): obsidian.Modal {
+  const mockApp = app();
+  const plugin = {
+    app: mockApp,
+    settings: {
+      feeds: [],
+      folders: [],
+      maxItems: 50,
+      corsProxyEnabled: false,
+      corsProxyUrl: "",
+      articleSaving: { savedTemplates: [] },
+    },
+    ensureFolderExists: vi.fn(async () => {}),
+    saveSettings: vi.fn(async () => {}),
+    notifyFiltersUpdated: vi.fn(),
+  };
+  return new EditFeedModal(
+    mockApp,
+    plugin as unknown as import("../../../main").default,
+    {
+      title: "Example feed",
+      url: "https://example.com/feed.xml",
+      folder: "",
+      items: [],
+      lastUpdated: 0,
+    } as unknown as import("../../../src/types/types").Feed,
+    vi.fn(),
+  );
+}
+
 const MODALS: Array<[string, string, () => obsidian.Modal]> = [
   [
     "FolderNameModal",
@@ -53,6 +88,7 @@ const MODALS: Array<[string, string, () => obsidian.Modal]> = [
     "Add feed",
     () => new AddFeedModal(app(), [], vi.fn(), vi.fn()),
   ],
+  ["EditFeedModal", "Edit feed", () => editFeedModal()],
   [
     "ShortcutHelpModal",
     "Keyboard shortcuts",
@@ -61,7 +97,29 @@ const MODALS: Array<[string, string, () => obsidian.Modal]> = [
   [
     "RefreshDetailsModal",
     "Refresh details",
-    () => new RefreshDetailsModal(app(), ["3 feeds refreshed"]),
+    () =>
+      new RefreshDetailsModal(app(), {
+        title: "Refresh details",
+        lines: ["3 feeds refreshed"],
+        errors: [],
+      }),
+  ],
+  [
+    "RefreshDetailsModal (feed error)",
+    "Feed error",
+    () =>
+      new RefreshDetailsModal(app(), {
+        title: "Feed error",
+        lines: [],
+        errors: [
+          {
+            feedTitle: "Broken feed",
+            feedUrl: "https://broken.test/rss",
+            refreshError: "HTTP 500",
+            importError: null,
+          },
+        ],
+      }),
   ],
   [
     "ImportSuccessModal",

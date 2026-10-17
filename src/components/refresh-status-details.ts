@@ -1,6 +1,5 @@
 const POPUP_GUTTER_PX = 8;
 const MIN_SIDE_POPUP_WIDTH_PX = 240;
-const MANUAL_POPUP_DISMISS_MS = 5000;
 
 // Each document shows at most one refresh-details popup. Opening one closes
 // whichever popup is already open in that document.
@@ -50,41 +49,6 @@ export function positionRefreshDetailsPopup(
   popup.style.setProperty("top", `${rect.bottom + 4}px`);
   popup.style.setProperty("left", `${POPUP_GUTTER_PX}px`);
   popup.style.setProperty("right", `${POPUP_GUTTER_PX}px`);
-}
-
-/**
- * Shows the refresh-details popup opened from a context menu. It replaces any
- * other open refresh-details popup and dismisses itself after five seconds or
- * on Escape.
- */
-export function showRefreshDetailsPopup(options: {
-  anchor: HTMLElement;
-  render: (popup: HTMLElement) => void;
-}): void {
-  const ownerDocument = options.anchor.ownerDocument;
-  const ownerWindow = ownerDocument.defaultView;
-  let dismissTimer: number | null = null;
-  const popup = ownerDocument.body.createDiv({
-    cls: "rss-dashboard-refresh-details rss-dashboard-refresh-details-manual",
-    attr: { role: "status" },
-  });
-  const onKeyDown = (event: KeyboardEvent) => {
-    if (event.key === "Escape") close();
-  };
-  const close = () => {
-    if (dismissTimer !== null) ownerWindow?.clearTimeout(dismissTimer);
-    dismissTimer = null;
-    popup.remove();
-    ownerDocument.removeEventListener("keydown", onKeyDown);
-    releaseRefreshDetailsPopup(ownerDocument, close);
-  };
-  claimRefreshDetailsPopup(ownerDocument, close);
-  options.render(popup);
-  positionRefreshDetailsPopup(popup, options.anchor);
-  ownerDocument.addEventListener("keydown", onKeyDown);
-  if (ownerWindow) {
-    dismissTimer = ownerWindow.setTimeout(close, MANUAL_POPUP_DISMISS_MS);
-  }
 }
 
 /** A timer together with the window that owns it, so it is cleared there. */

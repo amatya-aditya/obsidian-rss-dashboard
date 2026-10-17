@@ -6,13 +6,13 @@ import type {
 } from "../types/types";
 import { MediaService } from "../services/media-service";
 import { MastodonService } from "../services/mastodon-service";
+import { formatFeedErrorBadgeLabel, hasFeedError } from "../utils/feed-error";
 import {
   createSafeIconImage,
   failedFeedIconUrls,
   extractDomain,
   getFaviconUrl,
 } from "../utils/favicon-utils";
-import { isFeedImportFailed } from "../utils/feed-import-status";
 
 export function renderFallbackFeedIcon(
   feedIcon: HTMLElement,
@@ -120,15 +120,23 @@ export function renderFeedIcon(
   }
 }
 
-function renderFeedWarningBadge(
+function renderFeedErrorBadge(
   feedNameContainer: HTMLElement,
-  label: string,
+  feed: Feed,
+  onOpenFeedError: (feed: Feed) => void,
 ): void {
-  const badge = feedNameContainer.createDiv({
+  const label = formatFeedErrorBadgeLabel(feed);
+  if (!label) return;
+  const badge = feedNameContainer.createEl("button", {
     cls: "rss-dashboard-feed-error-badge",
-    attr: { "aria-label": label },
+    attr: { type: "button", "aria-label": label },
   });
   setIcon(badge, "alert-circle");
+  badge.addEventListener("click", (event) => {
+    // The row itself opens the feed; the badge opens its error dialog.
+    event.stopPropagation();
+    onOpenFeedError(feed);
+  });
 }
 
 export function renderFeedBadges(
@@ -143,6 +151,7 @@ export function renderFeedBadges(
     isQueuedForRefresh: boolean;
   },
   settings: RssDashboardSettings,
+  onOpenFeedError: (feed: Feed) => void,
 ): void {
   const {
     unreadCount,
@@ -160,25 +169,10 @@ export function renderFeedBadges(
     });
   }
 
-  if (!settings.display.hideFeedFetchErrorBadges && feed.lastFetchError) {
-    renderFeedWarningBadge(
-      feedNameContainer,
-      `Feed error: ${feed.lastFetchError}`,
-    );
-  }
-
-  // GH #1140: a feed whose first (background) import failed or timed out must
-  // be distinguishable from one that simply has no articles yet.
-  const importFailed = isFeedImportFailed(feed);
-  if (
-    !settings.display.hideFeedFetchErrorBadges &&
-    importFailed &&
-    !feed.lastFetchError
-  ) {
-    renderFeedWarningBadge(
-      feedNameContainer,
-      `Import failed: ${feed.importError ?? "Background import failed"}`,
-    );
+  // GH #1140: a feed whose background import failed or timed out is a feed
+  // error too, so it gets the same badge (as a refresh failure ahead of it).
+  if (!settings.display.hideFeedFetchErrorBadges && hasFeedError(feed)) {
+    renderFeedErrorBadge(feedNameContainer, feed, onOpenFeedError);
   }
 
   if (shardHealth) {
