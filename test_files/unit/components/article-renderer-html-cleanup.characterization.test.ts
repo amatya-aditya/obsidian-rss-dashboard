@@ -1,6 +1,7 @@
 // Characterization (#983 slice 1): pins how the inline reader cleans up
-// fetched article HTML before its private helpers move onto the shared
-// reader-html-cleanup utils. Read-only during the migration.
+// fetched article HTML. The four private helpers this file was written around
+// moved onto the shared `reader-html-cleanup` and `substack-image-url` utils in
+// #1238, so these cases now pin the shared behavior; none of them changed.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Component } from "obsidian";
 import { ArticleRenderer } from "../../../src/components/article-renderer";
@@ -119,7 +120,9 @@ describe("ArticleRenderer fetched-article HTML cleanup", () => {
     expect(body?.querySelector("svg")).toBeNull();
     expect(body?.textContent).toContain(LONG_A);
     expect(body?.textContent).toContain(LONG_B);
-    // The page h1 becomes the displayed title.
+    // The page h1 becomes the displayed title. It sits at element index 9, the
+    // last index the shared title extractor accepts, so this stays the title
+    // now that the inline reader uses that extractor (#1238).
     expect(full.querySelector(".rss-reader-item-title")?.textContent).toBe(
       "Fetched headline from the page",
     );

@@ -34,6 +34,7 @@ import { isLikelyVideoItem } from "../utils/video-detection";
 import {
   normalizeSubstackImageUrl,
   normalizeSubstackImageUrlsInDocument,
+  recoverFailedSubstackImageElement,
 } from "../utils/substack-image-url";
 import { isDuplicateIntro } from "../utils/duplicate-intro-detection";
 import {
@@ -42,12 +43,15 @@ import {
   selectCalloutDescription,
 } from "../utils/reader-article-render";
 import {
+  extractDisplayTitleFromHtml,
+  hasMeaningfulArticleContent,
   isLikelySameImageSource,
   removeLeadImageElement,
   stripDuplicateLeadCaptionBlocks,
   stripDuplicateLeadContentFromDocument,
   stripDuplicateLeadMediaMatchingHero,
   stripLeadMediaBeforeContent,
+  stripNavigationChromeFromDocument,
   stripSkipLinksFromDocument,
   stripTopHeadlineFromDocument,
 } from "../utils/reader-html-cleanup";
@@ -192,10 +196,10 @@ export class ArticleRenderer {
             version === "full" ? fetchedContent : feedContent;
           this.currentDisplayTitle =
             version === "full"
-              ? this.extractDisplayTitleFromHtml(fetchedContent) || undefined
+              ? extractDisplayTitleFromHtml(fetchedContent) || undefined
               : undefined;
         },
-        hasMeaningfulContent: (html) => this.hasMeaningfulArticleContent(html),
+        hasMeaningfulContent: hasMeaningfulArticleContent,
         onVersions: (versions) => {
           this.contentVersions = versions;
         },
@@ -527,7 +531,7 @@ export class ArticleRenderer {
         .forEach((el) => el.remove());
 
       if (stripTopHeadline) {
-        this.stripNavigationChromeFromDocument(doc);
+        stripNavigationChromeFromDocument(doc);
         stripTopHeadlineFromDocument(doc);
         stripDuplicateLeadContentFromDocument(doc, feedDescriptionHtml);
         stripSkipLinksFromDocument(doc);
@@ -602,50 +606,13 @@ export class ArticleRenderer {
       // Substack recovery clones it.
       applyReaderImageLoading(img);
       img.addEventListener("error", () => {
-        this.recoverFailedSubstackImageElement(img);
+        recoverFailedSubstackImageElement(img);
       });
     });
     void scheduleProcessMathElements(container, {
       app: this.app,
       component: this.component,
     });
-  }
-
-  private recoverFailedSubstackImageElement(img: HTMLImageElement): boolean {
-    if (img.dataset.rssSubstackRecoverAttempted === "true") {
-      return false;
-    }
-
-    const rawSrc = img.getAttribute("src") || "";
-    const currentSrc = img.currentSrc || "";
-    const normalizedCurrentSrc = normalizeSubstackImageUrl(currentSrc);
-    const normalizedRawSrc = normalizeSubstackImageUrl(rawSrc);
-    if (
-      !currentSrc ||
-      ((!normalizedCurrentSrc || normalizedCurrentSrc === currentSrc) &&
-        (!normalizedRawSrc || normalizedRawSrc === currentSrc))
-    ) {
-      return false;
-    }
-
-    img.dataset.rssSubstackRecoverAttempted = "true";
-
-    const picture = img.closest("picture");
-    if (picture) {
-      picture.querySelectorAll("source").forEach((source) => source.remove());
-    }
-
-    const replacement = img.cloneNode(true) as HTMLImageElement;
-    replacement.dataset.rssSubstackRecoverAttempted = "true";
-    replacement.removeAttribute("srcset");
-    replacement.removeAttribute("sizes");
-    const recoverySrc =
-      normalizedCurrentSrc && normalizedCurrentSrc !== currentSrc
-        ? normalizedCurrentSrc
-        : normalizedRawSrc;
-    replacement.setAttribute("src", recoverySrc);
-    img.replaceWith(replacement);
-    return true;
   }
 
   public setYouTubeFocusMode(hide: boolean): void {
@@ -698,15 +665,6 @@ export class ArticleRenderer {
     }
   }
 
-  private hasMeaningfulArticleContent(html: string): boolean {
-    if (!html) return false;
-    const text = html
-      .replace(/<[^>]*>/g, "")
-      .replace(/\s+/g, " ")
-      .trim();
-    return text.length > 200;
-  }
-
   private shouldSkipFullArticleFetch(item: FeedItem): boolean {
     // A fetch that failed earlier waits for an explicit "Try again" (#1110).
     if (hasActiveFetchFailure(item)) return true;
@@ -739,111 +697,5 @@ export class ArticleRenderer {
       lower.includes('class="image-link image2 is-viewable-img"') ||
       lower.includes("substackcdn.com/image/fetch/")
     );
-  }
-
-  private stripNavigationChromeFromDocument(doc: Document): void {
-    const body = doc.body;
-    if (!body) return;
-
-    const elements = Array.from(body.querySelectorAll<HTMLElement>("*"));
-    if (elements.length === 0) return;
-
-    const substantialParagraphIndex = elements.findIndex((el) => {
-      if (el.tagName.toLowerCase() !== "p") return false;
-      const text = (el.textContent || "").replace(/\s+/g, " ").trim();
-      return text.length >= 120;
-    });
-
-    const cutoffIndex = Math.max(
-      29,
-      substantialParagraphIndex >= 0 ? substantialParagraphIndex - 1 : 29,
-    );
-
-    const hasBreadcrumbSignal = (el: HTMLElement): boolean => {
-      const attr = (name: string) =>
-        (el.getAttribute(name) || "").toLowerCase();
-      const aria = attr("aria-label");
-      const testId = attr("data-testid");
-      const cls = attr("class");
-      const id = attr("id");
-      return [aria, testId, cls, id].some((s) => s.includes("breadcrumb"));
-    };
-
-    const looksLikeBreadcrumbList = (el: HTMLElement): boolean => {
-      const tag = el.tagName.toLowerCase();
-      if (tag !== "ol" && tag !== "ul") return false;
-      const liEls = Array.from(el.children).filter(
-        (c) => c.tagName.toLowerCase() === "li",
-      ) as HTMLElement[];
-      if (liEls.length < 2 || liEls.length > 10) return false;
-      const totalText = (el.textContent || "").replace(/\s+/g, " ").trim();
-      if (totalText.length > 140) return false;
-      let linkish = 0;
-      for (const li of liEls) {
-        const onlyChild = li.children[0];
-        if (
-          li.children.length === 1 &&
-          onlyChild?.tagName.toLowerCase() === "a"
-        )
-          linkish++;
-      }
-      return linkish / liEls.length >= 0.7;
-    };
-
-    const looksLikeChromeContainer = (el: HTMLElement): boolean => {
-      if (hasBreadcrumbSignal(el)) return true;
-      if (el.getAttribute("role") === "navigation") return true;
-      if (
-        el.querySelector(
-          "nav, [role='navigation'], [aria-label*='breadcrumb' i], [data-testid*='breadcrumb' i]",
-        )
-      )
-        return true;
-      const links = el.querySelectorAll("a").length;
-      const paragraphs = el.querySelectorAll("p").length;
-      return (
-        links >= 3 && paragraphs === 0 && (el.textContent || "").length < 200
-      );
-    };
-
-    const shouldRemove = (el: HTMLElement): boolean => {
-      const tag = el.tagName.toLowerCase();
-      if (
-        tag === "nav" ||
-        el.getAttribute("role") === "navigation" ||
-        hasBreadcrumbSignal(el)
-      )
-        return true;
-      if (["header", "footer", "aside"].includes(tag))
-        return looksLikeChromeContainer(el);
-      if (looksLikeBreadcrumbList(el)) return true;
-      return false;
-    };
-
-    const removeSet = new Set(
-      elements.filter((el, idx) => idx <= cutoffIndex && shouldRemove(el)),
-    );
-    elements
-      .filter((el) => {
-        let p = el.parentElement;
-        while (p) {
-          if (removeSet.has(p)) return false;
-          p = p.parentElement;
-        }
-        return removeSet.has(el);
-      })
-      .forEach((el) => el.remove());
-  }
-
-  private extractDisplayTitleFromHtml(html: string): string | null {
-    if (!html) return null;
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, "text/html");
-      const h1 = doc.body?.querySelector("h1");
-      return h1 ? h1.textContent : null;
-    } catch {
-      return null;
-    }
   }
 }

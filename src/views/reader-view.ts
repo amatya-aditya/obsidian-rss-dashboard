@@ -103,6 +103,7 @@ import { createReaderFormatPortal } from "../utils/reader-format-portal";
 import {
   normalizeSubstackImageUrl,
   normalizeSubstackImageUrlsInDocument,
+  recoverFailedSubstackImageElement,
 } from "../utils/substack-image-url";
 import { firstNonFormulaImageUrl } from "../utils/image-url-utils";
 import { applyReaderImageLoading } from "../utils/reader-image-loading";
@@ -2130,7 +2131,7 @@ export class ReaderView extends ItemView {
       this.setupReaderImageTooltip(img, title);
       this.setupLightboxForImage(img);
       img.addEventListener("error", () => {
-        this.recoverFailedSubstackImageElement(img);
+        recoverFailedSubstackImageElement(img);
       });
     });
 
@@ -2228,43 +2229,6 @@ export class ReaderView extends ItemView {
     } else if (opensLightbox) {
       img.setAttribute("aria-label", "Open image in lightbox");
     }
-  }
-
-  private recoverFailedSubstackImageElement(img: HTMLImageElement): boolean {
-    if (img.dataset.rssSubstackRecoverAttempted === "true") {
-      return false;
-    }
-
-    const rawSrc = img.getAttribute("src") || "";
-    const currentSrc = img.currentSrc || "";
-    const normalizedCurrentSrc = normalizeSubstackImageUrl(currentSrc);
-    const normalizedRawSrc = normalizeSubstackImageUrl(rawSrc);
-    if (
-      !currentSrc ||
-      ((!normalizedCurrentSrc || normalizedCurrentSrc === currentSrc) &&
-        (!normalizedRawSrc || normalizedRawSrc === currentSrc))
-    ) {
-      return false;
-    }
-
-    img.dataset.rssSubstackRecoverAttempted = "true";
-
-    const picture = img.closest("picture");
-    if (picture) {
-      picture.querySelectorAll("source").forEach((source) => source.remove());
-    }
-
-    const replacement = img.cloneNode(true) as HTMLImageElement;
-    replacement.dataset.rssSubstackRecoverAttempted = "true";
-    replacement.removeAttribute("srcset");
-    replacement.removeAttribute("sizes");
-    const recoverySrc =
-      normalizedCurrentSrc && normalizedCurrentSrc !== currentSrc
-        ? normalizedCurrentSrc
-        : normalizedRawSrc;
-    replacement.setAttribute("src", recoverySrc);
-    img.replaceWith(replacement);
-    return true;
   }
 
   private async fetchFullArticleContent(
