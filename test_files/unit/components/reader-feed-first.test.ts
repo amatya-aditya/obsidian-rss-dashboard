@@ -34,6 +34,7 @@ function setup(
     rememberOutcome: vi.fn(() => false),
     isCurrent: () => true,
     onSettled: vi.fn(),
+    persistRestrictedReason: vi.fn(),
     renderRestrictedBanner: vi.fn(),
     renderFetchFailureBanner: vi.fn(),
     ...overrides,
@@ -61,6 +62,7 @@ describe("runFeedFirstDisplay", () => {
     expect(item.restrictedReason).toBeUndefined();
     expect(options.persistMetadata).toHaveBeenCalledTimes(1);
     expect(options.onSettled).toHaveBeenCalledTimes(1);
+    expect(options.persistRestrictedReason).toHaveBeenCalledWith(undefined);
   });
 
   it("renders the restricted banner once and offers no toggle", async () => {
@@ -72,8 +74,41 @@ describe("runFeedFirstDisplay", () => {
     await runFeedFirstDisplay(options);
 
     expect(item.restrictedReason).toBe(RESTRICTED_ARTICLE_REASON);
+    expect(options.persistRestrictedReason).toHaveBeenCalledWith(
+      RESTRICTED_ARTICLE_REASON,
+    );
     expect(options.renderRestrictedBanner).toHaveBeenCalledTimes(1);
     expect(findContentToggle(container)).toBeNull();
+  });
+
+  it("persists the restricted flag only when the settled outcome changes it", async () => {
+    const alreadyRestricted = setup({ content: "", failureType: "restricted" });
+    alreadyRestricted.item.restrictedReason = RESTRICTED_ARTICLE_REASON;
+    await runFeedFirstDisplay(alreadyRestricted.options);
+    expect(
+      alreadyRestricted.options.persistRestrictedReason,
+    ).not.toHaveBeenCalled();
+
+    const unchangedSuccess = setup({
+      content: `<p>${LONG}</p>`,
+      failureType: "none",
+    });
+    await runFeedFirstDisplay(unchangedSuccess.options);
+    expect(
+      unchangedSuccess.options.persistRestrictedReason,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("does not persist the restricted flag for a stale result", async () => {
+    const stale = setup(
+      { content: "", failureType: "restricted" },
+      { isCurrent: () => false },
+    );
+
+    await runFeedFirstDisplay(stale.options);
+
+    expect(stale.item.restrictedReason).toBeUndefined();
+    expect(stale.options.persistRestrictedReason).not.toHaveBeenCalled();
   });
 
   it("skips the banner when one is already shown", async () => {
