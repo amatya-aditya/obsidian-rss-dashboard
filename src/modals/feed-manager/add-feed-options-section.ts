@@ -120,8 +120,11 @@ function presetOrCustomDropdownValue(value: number, presets: number[]): string {
 
 export function renderAutoDeleteSetting(
   perFeedControlsBody: HTMLElement,
-  state: AddFeedOptionsState,
-): void {
+  state: Pick<
+    AddFeedOptionsState,
+    "getAutoDeleteDuration" | "setAutoDeleteDuration"
+  >,
+): Setting {
   const setting = new Setting(perFeedControlsBody)
     .setName("Auto delete articles duration")
     .setDesc(
@@ -148,12 +151,13 @@ export function renderAutoDeleteSetting(
     get: () => state.getAutoDeleteDuration(),
     set: (value) => state.setAutoDeleteDuration(value),
   });
+  return setting;
 }
 
 export function renderMaxItemsSetting(
   perFeedControlsBody: HTMLElement,
-  state: AddFeedOptionsState,
-): void {
+  state: Pick<AddFeedOptionsState, "getMaxItemsLimit" | "setMaxItemsLimit">,
+): Setting {
   const setting = new Setting(perFeedControlsBody)
     .setName("Max items limit")
     .setDesc(
@@ -178,12 +182,13 @@ export function renderMaxItemsSetting(
     get: () => state.getMaxItemsLimit(),
     set: (value) => state.setMaxItemsLimit(value),
   });
+  return setting;
 }
 
 export function renderScanIntervalSetting(
   perFeedControlsBody: HTMLElement,
-  state: AddFeedOptionsState,
-): void {
+  state: Pick<AddFeedOptionsState, "getScanInterval" | "setScanInterval">,
+): Setting {
   const setting = new Setting(perFeedControlsBody)
     .setName("Auto-refresh interval")
     .setDesc(
@@ -211,6 +216,7 @@ export function renderScanIntervalSetting(
     get: () => state.getScanInterval(),
     set: (value) => state.setScanInterval(value),
   });
+  return setting;
 }
 
 export function renderExcludeFromRefreshSetting(

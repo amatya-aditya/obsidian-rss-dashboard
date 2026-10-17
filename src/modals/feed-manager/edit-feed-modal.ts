@@ -15,9 +15,10 @@ import { removeNativeModalCloseButton } from "../../utils/modal-close-button";
 import { settingsUiCompatibility } from "../../settings/settings-ui-compat";
 import { isValidFeedTitle } from "../../utils/validation";
 import {
-  FEED_REFRESH_DISABLED_INTERVAL,
-  getPerFeedRefreshIntervalDropdownValue,
-} from "../../utils/refresh-intervals";
+  renderAutoDeleteSetting,
+  renderMaxItemsSetting,
+  renderScanIntervalSetting,
+} from "./add-feed-options-section";
 import {
   renderSupportedFormatBadges,
   SupportedFeedType,
@@ -540,69 +541,11 @@ export class EditFeedModal extends AccessibleModal {
       },
     );
 
-    const autoDeleteSetting = new Setting(perFeedControlsBody)
-      .setName("Auto delete articles duration")
-      .setDesc(
-        "Days to keep articles before auto-delete. Articles are dated by their publish date, or by the date first seen for undated items when that general setting is on. Articles covered by a retention protection in the general settings are never deleted. This also limits the timeframe window for shown articles.",
-      );
-
-    let autoDeleteCustomInput: HTMLInputElement | null = null;
-
-    autoDeleteSetting.addDropdown((dropdown) => {
-      dropdown
-        .addOption("0", "Disabled")
-        .addOption("1", "1 day")
-        .addOption("3", "3 days")
-        .addOption("7", "1 week")
-        .addOption("14", "2 weeks")
-        .addOption("30", "1 month")
-        .addOption("60", "2 months")
-        .addOption("90", "3 months")
-        .addOption("180", "6 months")
-        .addOption("365", "1 year")
-        .addOption("custom", "Custom...")
-        .setValue(
-          this.autoDeleteDuration === 0
-            ? "0"
-            : [1, 3, 7, 14, 30, 60, 90, 180, 365].includes(
-                  this.autoDeleteDuration,
-                )
-              ? this.autoDeleteDuration.toString()
-              : "custom",
-        )
-        .onChange((value) => {
-          if (value === "custom") {
-            if (!autoDeleteCustomInput) {
-              autoDeleteCustomInput = autoDeleteSetting.controlEl.createEl(
-                "input",
-                {
-                  type: "number",
-                  placeholder: "Enter days",
-                  cls: "rss-custom-input",
-                },
-              );
-              autoDeleteCustomInput.min = "1";
-              autoDeleteCustomInput.value =
-                this.autoDeleteDuration > 0
-                  ? this.autoDeleteDuration.toString()
-                  : "";
-              autoDeleteCustomInput.addEventListener("change", (evt: Event) => {
-                const target = evt.target as HTMLInputElement;
-                this.autoDeleteDuration = parseInt(target.value) || 0;
-              });
-            }
-            if (autoDeleteCustomInput) {
-              autoDeleteCustomInput.removeClass("hidden");
-              autoDeleteCustomInput.addClass("visible");
-            }
-          } else {
-            if (autoDeleteCustomInput) {
-              autoDeleteCustomInput.removeClass("visible");
-              autoDeleteCustomInput.addClass("hidden");
-            }
-            this.autoDeleteDuration = parseInt(value) || 0;
-          }
-        });
+    const autoDeleteSetting = renderAutoDeleteSetting(perFeedControlsBody, {
+      getAutoDeleteDuration: () => this.autoDeleteDuration,
+      setAutoDeleteDuration: (value) => {
+        this.autoDeleteDuration = value;
+      },
     });
 
     if (this.options?.highlightSection === "per-feed") {
@@ -615,121 +558,18 @@ export class EditFeedModal extends AccessibleModal {
       });
     }
 
-    const maxItemsSetting = new Setting(perFeedControlsBody)
-      .setName("Max items limit")
-      .setDesc(
-        "Maximum number of items to keep per feed. Articles covered by a retention protection in the general settings are kept and do not count toward the limit.",
-      );
-
-    let maxItemsCustomInput: HTMLInputElement | null = null;
-
-    maxItemsSetting.addDropdown((dropdown) => {
-      dropdown
-        .addOption("0", "Unlimited")
-        .addOption("10", "10 items")
-        .addOption("25", "25 items")
-        .addOption("50", "50 items")
-        .addOption("100", "100 items")
-        .addOption("200", "200 items")
-        .addOption("500", "500 items")
-        .addOption("1000", "1000 items")
-        .addOption("custom", "Custom...")
-        .setValue(
-          this.maxItemsLimit === 0
-            ? "0"
-            : [10, 25, 50, 100, 200, 500, 1000].includes(this.maxItemsLimit)
-              ? this.maxItemsLimit.toString()
-              : "custom",
-        )
-        .onChange((value) => {
-          if (value === "custom") {
-            if (!maxItemsCustomInput) {
-              maxItemsCustomInput = maxItemsSetting.controlEl.createEl(
-                "input",
-                {
-                  type: "number",
-                  placeholder: "Enter number",
-                  cls: "rss-custom-input",
-                },
-              );
-              maxItemsCustomInput.min = "1";
-              maxItemsCustomInput.addEventListener("change", (evt: Event) => {
-                const target = evt.target as HTMLInputElement;
-                this.maxItemsLimit = parseInt(target.value) || 0;
-              });
-            }
-            if (maxItemsCustomInput) {
-              maxItemsCustomInput.removeClass("hidden");
-              maxItemsCustomInput.addClass("visible");
-            }
-          } else {
-            if (maxItemsCustomInput) {
-              maxItemsCustomInput.removeClass("visible");
-              maxItemsCustomInput.addClass("hidden");
-            }
-            this.maxItemsLimit = parseInt(value) || 0;
-          }
-        });
+    renderMaxItemsSetting(perFeedControlsBody, {
+      getMaxItemsLimit: () => this.maxItemsLimit,
+      setMaxItemsLimit: (value) => {
+        this.maxItemsLimit = value;
+      },
     });
 
-    const scanIntervalSetting = new Setting(perFeedControlsBody)
-      .setName("Auto-refresh interval")
-      .setDesc(
-        "How often this feed refreshes automatically, in minutes. Use global setting follows the auto-refresh interval in the general settings, off turns automatic refresh off for this feed, and custom lets you enter a number of minutes. Exclude from refresh, below, overrides this and keeps the feed off.",
-      );
-
-    let scanIntervalCustomInput: HTMLInputElement | null = null;
-
-    scanIntervalSetting.addDropdown((dropdown) => {
-      dropdown
-        .addOption("0", "Use global setting")
-        .addOption(String(FEED_REFRESH_DISABLED_INTERVAL), "Off")
-        .addOption("5", "5 minutes")
-        .addOption("10", "10 minutes")
-        .addOption("15", "15 minutes")
-        .addOption("30", "30 minutes")
-        .addOption("60", "1 hour")
-        .addOption("120", "2 hours")
-        .addOption("240", "4 hours")
-        .addOption("480", "8 hours")
-        .addOption("720", "12 hours")
-        .addOption("1440", "24 hours")
-        .addOption("custom", "Custom...")
-        .setValue(getPerFeedRefreshIntervalDropdownValue(this.scanInterval))
-        .onChange((value) => {
-          if (value === "custom") {
-            if (!scanIntervalCustomInput) {
-              scanIntervalCustomInput = scanIntervalSetting.controlEl.createEl(
-                "input",
-                {
-                  type: "number",
-                  placeholder: "Enter minutes",
-                  cls: "rss-custom-input",
-                },
-              );
-              scanIntervalCustomInput.min = "1";
-              scanIntervalCustomInput.value =
-                this.scanInterval > 0 ? this.scanInterval.toString() : "";
-              scanIntervalCustomInput.addEventListener(
-                "change",
-                (evt: Event) => {
-                  const target = evt.target as HTMLInputElement;
-                  this.scanInterval = parseInt(target.value, 10) || 0;
-                },
-              );
-            }
-            if (scanIntervalCustomInput) {
-              scanIntervalCustomInput.removeClass("hidden");
-              scanIntervalCustomInput.addClass("visible");
-            }
-          } else {
-            if (scanIntervalCustomInput) {
-              scanIntervalCustomInput.removeClass("visible");
-              scanIntervalCustomInput.addClass("hidden");
-            }
-            this.scanInterval = parseInt(value, 10) || 0;
-          }
-        });
+    renderScanIntervalSetting(perFeedControlsBody, {
+      getScanInterval: () => this.scanInterval,
+      setScanInterval: (value) => {
+        this.scanInterval = value;
+      },
     });
 
     new Setting(perFeedControlsBody)
