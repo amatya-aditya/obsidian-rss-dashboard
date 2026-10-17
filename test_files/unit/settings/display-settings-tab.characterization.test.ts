@@ -456,13 +456,14 @@ describe("renderDisplaySettingsTab() startup filters menu characterization", () 
       ).map((el) => el.textContent),
     ).toEqual(["alpha", "beta"]);
 
-    // Selecting a tag unchecks All; Apply stores it.
+    // Selecting a tag unchecks All and ticks Tagged; Apply stores both.
     (
       submenu.querySelectorAll(
         ".rss-dashboard-filter-menu-item",
       )[1] as HTMLElement
     ).click();
     expect(allCheckbox().checked).toBe(false);
+    expect(checkboxOf(menuItem("Tagged")).checked).toBe(true);
 
     menuItem("Read").dispatchEvent(new MouseEvent("mouseenter"));
     expect(
@@ -472,7 +473,7 @@ describe("renderDisplaySettingsTab() startup filters menu characterization", () 
     applyButton().click();
     await vi.runAllTimersAsync();
     expect(raw.settings.dashboardMultiFilters).toEqual({
-      statusFilters: [],
+      statusFilters: ["tagged"],
       tagFilters: ["beta"],
       logic: "OR",
     });

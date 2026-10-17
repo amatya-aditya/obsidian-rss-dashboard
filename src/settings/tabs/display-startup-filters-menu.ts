@@ -5,7 +5,7 @@
  * split along its original blocks; each block is moved verbatim except where
  * the split forces an edit (shared `let` state now lives on `MenuState`).
  */
-import { setIcon, setTooltip, Setting } from "obsidian";
+import { Notice, setIcon, setTooltip, Setting } from "obsidian";
 import type { App, ButtonComponent, WorkspaceLeaf } from "obsidian";
 import type { RssDashboardSettings } from "../../types/types";
 import { formatDashboardMultiFiltersSummaryCompact } from "../../utils/filter-title-format";
@@ -50,6 +50,13 @@ interface AllItemControls {
   allCheckbox: HTMLInputElement;
   filterCheckboxes: Map<string, HTMLInputElement>;
 }
+
+/**
+ * The cleanup of the menu currently open in a document. Reopening the menu
+ * tears the previous one down through it, so its listeners do not leak
+ * (#1259). Keyed by document because a menu can live in a popout window.
+ */
+const openMenuCleanups = new WeakMap<Document, () => void>();
 
 const formatStartupFiltersButton = (
   plugin: StartupFiltersPlugin,
@@ -269,10 +276,21 @@ function renderAllItem(
 function showTagsSubMenu(
   ctx: MenuContext,
   parentItem: HTMLElement,
-  allCheckbox: HTMLInputElement,
+  controls: AllItemControls,
   repositionSubmenu: () => void,
 ): void {
   const { plugin, targetWindow, menuPortal, state } = ctx;
+  const { allCheckbox, filterCheckboxes } = controls;
+
+  // A tag selection implies the broad Tagged status, so the row and the
+  // stored filters stay in sync (#1260).
+  const tickTaggedStatus = () => {
+    state.pendingStatusFilters.add("tagged");
+    const taggedCheckbox = filterCheckboxes.get("tagged");
+    if (taggedCheckbox) {
+      taggedCheckbox.checked = true;
+    }
+  };
 
   // Remove existing submenus
   menuPortal
@@ -317,6 +335,7 @@ function showTagsSubMenu(
       e.stopPropagation();
       if (checkbox.checked) {
         state.pendingTagFilters.add(tag.name);
+        tickTaggedStatus();
         allCheckbox.checked = false;
         state.pendingAllChecked = false;
       } else {
@@ -336,6 +355,7 @@ function showTagsSubMenu(
         checkbox.checked = !checkbox.checked;
         if (checkbox.checked) {
           state.pendingTagFilters.add(tag.name);
+          tickTaggedStatus();
           allCheckbox.checked = false;
           state.pendingAllChecked = false;
         } else {
@@ -423,6 +443,9 @@ function renderStatusOptions(
         state.pendingStatusFilters.delete(opt.id);
         if (opt.id === "tagged") {
           state.pendingTagFilters.clear();
+          // The open submenu must not keep showing tags the filters no
+          // longer contain (#1260).
+          removeTagSubmenus();
         }
         if (
           state.pendingStatusFilters.size === 0 &&
@@ -454,7 +477,7 @@ function renderApplyButton(
   removeTagSubmenus: () => void,
   cleanup: () => void,
 ): void {
-  const { plugin, btn, menuPortal, state } = ctx;
+  const { menuPortal } = ctx;
 
   const preApplySeparator = menuPortal.createDiv({
     cls: "rss-dashboard-filter-menu-separator",
@@ -467,47 +490,77 @@ function renderApplyButton(
   });
   applyBtn.addEventListener("click", (e) => {
     e.stopPropagation();
-    void (async () => {
-      const nextStatusFilters = state.pendingAllChecked
-        ? []
-        : Array.from(state.pendingStatusFilters);
-      const nextTagFilters = state.pendingAllChecked
-        ? []
-        : Array.from(state.pendingTagFilters);
-
-      plugin.settings.dashboardMultiFilters = {
-        statusFilters: nextStatusFilters,
-        tagFilters: nextTagFilters,
-        logic: state.pendingFilterLogic,
-      };
-
-      // De-emphasize legacy single-filter behavior now that startup filtering
-      // is configured via dashboard multi-filters.
-      plugin.settings.display.defaultFilter = "all";
-
-      await plugin.saveSettings();
-      plugin.notifyFiltersUpdated({
-        source: "settings-startup-filters",
-        timestamp: Date.now(),
-      });
-
-      const updated = formatStartupFiltersButton(plugin);
-      btn.setButtonText(updated.text);
-      if (updated.tooltip) {
-        setTooltip(btn.buttonEl, updated.tooltip);
-      } else {
-        btn.buttonEl.removeAttribute("aria-label");
-      }
-
-      const view = await plugin.getActiveDashboardView();
-      if (view) {
-        await plugin.app.workspace.revealLeaf(view.leaf);
-        view.render();
-      }
-
-      cleanup();
-    })();
+    void applyStartupFilters(ctx, cleanup);
   });
+}
+
+/**
+ * Applies the pending filters. The save is all-or-nothing: when it fails the
+ * previous filters are restored, and the menu always closes (#1261).
+ */
+async function applyStartupFilters(
+  ctx: MenuContext,
+  cleanup: () => void,
+): Promise<void> {
+  const { plugin, btn, state } = ctx;
+  const previousFilters = plugin.settings.dashboardMultiFilters;
+  const previousDefaultFilter = plugin.settings.display.defaultFilter;
+
+  try {
+    plugin.settings.dashboardMultiFilters = {
+      statusFilters: state.pendingAllChecked
+        ? []
+        : Array.from(state.pendingStatusFilters),
+      tagFilters: state.pendingAllChecked
+        ? []
+        : Array.from(state.pendingTagFilters),
+      logic: state.pendingFilterLogic,
+    };
+
+    // De-emphasize legacy single-filter behavior now that startup filtering
+    // is configured via dashboard multi-filters.
+    plugin.settings.display.defaultFilter = "all";
+
+    await plugin.saveSettings();
+  } catch (error) {
+    plugin.settings.dashboardMultiFilters = previousFilters;
+    plugin.settings.display.defaultFilter = previousDefaultFilter;
+    new Notice(
+      `Startup filters update failed${
+        error instanceof Error ? `: ${error.message}` : ""
+      }`,
+    );
+    return;
+  } finally {
+    cleanup();
+  }
+
+  try {
+    plugin.notifyFiltersUpdated({
+      source: "settings-startup-filters",
+      timestamp: Date.now(),
+    });
+
+    const updated = formatStartupFiltersButton(plugin);
+    btn.setButtonText(updated.text);
+    if (updated.tooltip) {
+      setTooltip(btn.buttonEl, updated.tooltip);
+    } else {
+      btn.buttonEl.removeAttribute("aria-label");
+    }
+
+    const view = await plugin.getActiveDashboardView();
+    if (view) {
+      await plugin.app.workspace.revealLeaf(view.leaf);
+      view.render();
+    }
+  } catch (error) {
+    new Notice(
+      `Dashboard refresh failed after startup filters were saved${
+        error instanceof Error ? `: ${error.message}` : ""
+      }`,
+    );
+  }
 }
 
 function openStartupFiltersMenu(
@@ -519,7 +572,9 @@ function openStartupFiltersMenu(
   const targetWindow = targetDocument.defaultView || activeWindow;
   const margin = 8;
 
-  // Remove any existing menus from stale state.
+  // Tear down the menu this document already has open, then remove any
+  // portal left behind by stale state (#1259).
+  openMenuCleanups.get(targetDocument)?.();
   targetDocument
     .querySelectorAll(".rss-dashboard-startup-filters-menu-portal")
     .forEach((el) => el.remove());
@@ -571,13 +626,14 @@ function openStartupFiltersMenu(
     ctx,
     controls,
     (parentItem) =>
-      showTagsSubMenu(ctx, parentItem, controls.allCheckbox, repositionSubmenu),
+      showTagsSubMenu(ctx, parentItem, controls, repositionSubmenu),
     removeTagSubmenus,
   );
 
   renderApplyButton(ctx, removeTagSubmenus, () => cleanup());
 
   const cleanup = () => {
+    openMenuCleanups.delete(targetDocument);
     removeTagSubmenus();
     if (state.repositionFrame !== null) {
       targetWindow.cancelAnimationFrame(state.repositionFrame);
@@ -588,6 +644,8 @@ function openStartupFiltersMenu(
     targetDocument.removeEventListener("mousedown", handleClickOutside);
     menuPortal.remove();
   };
+
+  openMenuCleanups.set(targetDocument, cleanup);
 
   // Position the menu (flip/clamp) and keep it attached on scroll/resize.
   scheduleReposition();

@@ -638,10 +638,17 @@
   text-align: start;
 }
 
-.episode-list-row:hover {
+/* The hover treatment stays inside the row: `.episode-list` is a scroll
+   container, so it clips anything a row paints outside its own box, and the
+   2px lift this used to carry cost the first row its top border and both top
+   corners (#1270). The container scope outranks each theme's base row rule
+   for the inset outline, while the theme keeps ownership of the hover
+   background, and the accent-bordered `.active` row stays distinct from it.
+   The outline is a neutral palette step one above Obsidian's own hover
+   border, so it still reads against the themes' hardcoded row colours. */
+.rss-reader-podcast-container .episode-list-row:hover {
   background: var(--background-modifier-hover);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: inset 0 0 0 1px var(--color-base-50);
 }
 
 .episode-list-cover {
