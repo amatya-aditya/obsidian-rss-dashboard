@@ -31,7 +31,7 @@ export interface DisplaySectionsPlugin {
   clearImageCache(): Promise<{ cleared: number; failed: number }>;
   getImageCacheSizeBytes?(): number;
   onImageCacheChanged?(listener: () => void): () => void;
-  versionStatusBar?: { renderSetting(containerEl: HTMLElement): void };
+  versionStatusBar?: { renderSetting(containerEl: HTMLElement): void } | null;
   getActiveDashboardView(): Promise<{
     leaf: import("obsidian").WorkspaceLeaf;
     render(): void;
