@@ -12,6 +12,7 @@ import {
   extractDomain,
   getFaviconUrl,
 } from "../utils/favicon-utils";
+import { isFeedImportFailed } from "../utils/feed-import-status";
 
 export function renderFallbackFeedIcon(
   feedIcon: HTMLElement,
@@ -168,8 +169,7 @@ export function renderFeedBadges(
 
   // GH #1140: a feed whose first (background) import failed or timed out must
   // be distinguishable from one that simply has no articles yet.
-  const importFailed =
-    feed.importStatus === "failed" || feed.importStatus === "timed_out";
+  const importFailed = isFeedImportFailed(feed);
   if (
     !settings.display.hideFeedFetchErrorBadges &&
     importFailed &&

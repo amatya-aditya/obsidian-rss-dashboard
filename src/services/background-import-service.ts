@@ -1,4 +1,4 @@
-import { setIcon, Setting } from "obsidian";
+import { Notice, setIcon, Setting } from "obsidian";
 import type {
   RssDashboardSettings,
   Feed,
@@ -221,6 +221,37 @@ export class BackgroundImportService {
       this.backgroundImportInFlightUrls.has(url) ||
       this.backgroundImportQueuedUrls.has(url)
     );
+  }
+
+  /**
+   * Re-import a feed whose background import failed, by queueing it for the
+   * background import pipeline again. This is an explicit, per-feed action, so
+   * it ignores `excludeFromRefresh`, which only governs ordinary refreshes.
+   * The feed's import state moves back to `pending` with its old error cleared
+   * — so the sidebar stops showing the failure while the retry runs — and
+   * `importPending` is set again so an interrupted retry resumes next load. A
+   * queued retry is skipped with a Notice when that feed is already in the
+   * pipeline.
+   * @param {Feed} feed Feed to re-import; matched to settings by URL
+   * @returns {void}
+   */
+  public retryFeedImport(feed: Feed): void {
+    const storedFeed = this.getSettings().feeds.find(
+      (candidate) => candidate.url === feed.url,
+    );
+    if (!storedFeed) {
+      return;
+    }
+    if (this.isFeedPendingImport(storedFeed.url)) {
+      new Notice(`Already importing "${storedFeed.title}".`);
+      return;
+    }
+
+    storedFeed.importStatus = "pending";
+    delete storedFeed.importError;
+    storedFeed.importPending = true;
+    this.startBackgroundImport([storedFeed]);
+    new Notice(`Re-importing "${storedFeed.title}"...`);
   }
 
   /**

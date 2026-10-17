@@ -19,6 +19,7 @@ import {
   FeedShardHealth,
 } from "../types/types";
 import { collectFolderPaths } from "../utils/folder-paths";
+import { isFeedImportFailed } from "../utils/feed-import-status";
 import { AddFeedModal, EditFeedModal } from "../modals/feed-manager-modal";
 import { FolderAutoTagModal } from "../modals/feed-manager/folder-auto-tag-modal";
 import {
@@ -136,6 +137,7 @@ export interface SidebarCallbacks {
   onDeleteFolder: (folder: string) => void;
   onRefreshFeeds: () => Promise<void> | void;
   onRetryFailedFeeds?: () => Promise<void> | void;
+  onRetryImport?: (feed: Feed) => Promise<void> | void;
   onUpdateFeed: (feed: Feed) => Promise<void>;
   onImportOpml: () => void;
   onExportOpml: () => void;
@@ -3627,6 +3629,20 @@ export class Sidebar {
           .setIcon("alert-circle")
           .onClick(() => {
             this.showErrorDetailModal(feed.lastFetchError!, feed.title);
+          });
+      });
+      menu.addSeparator();
+    }
+
+    if (isFeedImportFailed(feed)) {
+      // A failed import is not a failed fetch: the feed has no items yet, so
+      // offer the re-import that matches the state (#1309).
+      menu.addItem((item: MenuItem) => {
+        item
+          .setTitle("Retry import")
+          .setIcon("refresh-cw")
+          .onClick(() => {
+            void this.callbacks.onRetryImport?.(feed);
           });
       });
       menu.addSeparator();

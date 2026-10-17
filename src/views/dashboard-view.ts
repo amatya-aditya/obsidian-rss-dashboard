@@ -1022,6 +1022,7 @@ export class RssDashboardView extends ItemView {
           onDeleteFolder: this.handleDeleteFolder.bind(this),
           onRefreshFeeds: this.handleRefreshFeeds.bind(this),
           onRetryFailedFeeds: this.handleRetryFailedFeeds.bind(this),
+          onRetryImport: this.handleRetryImport.bind(this),
           onUpdateFeed: this.handleUpdateFeed.bind(this),
           onImportOpml: this.handleImportOpml.bind(this),
           onExportOpml: this.handleExportOpml.bind(this),
@@ -2579,6 +2580,17 @@ export class RssDashboardView extends ItemView {
     await this.plugin.refreshFailedFeeds();
   }
 
+  /**
+   * Re-import one feed whose background import failed (#1309). This is not a
+   * refresh: the label and notice name the re-import, and the background
+   * import service owns the state transition.
+   */
+  private handleRetryImport(feed: Feed): void {
+    this.plugin.cancelPendingStartupRefresh();
+    this.plugin.retryFeedImport(feed);
+    this.render();
+  }
+
   private handleImportOpml(): void {
     void this.plugin.importOpml();
   }
@@ -2638,6 +2650,7 @@ export class RssDashboardView extends ItemView {
         onDeleteFeed: this.handleDeleteFeed.bind(this),
         onDeleteFolder: this.handleDeleteFolder.bind(this),
         onRefreshFeeds: this.handleRefreshFeeds.bind(this),
+        onRetryImport: this.handleRetryImport.bind(this),
         onUpdateFeed: this.handleUpdateFeed.bind(this),
         onImportOpml: this.handleImportOpml.bind(this),
         onExportOpml: this.handleExportOpml.bind(this),

@@ -345,6 +345,34 @@ describe("Feed Error Badge Rendering", () => {
       ),
     ).toBeNull();
   });
+
+  it("should not render a warning badge while a failed import is being retried", () => {
+    settings.feeds = [
+      {
+        title: "Retrying feed",
+        url: "url-import-retry",
+        folder: "Folder 1",
+        items: [],
+        importStatus: "pending",
+      } as unknown as Feed,
+    ];
+
+    const sidebar = new Sidebar(
+      app as unknown as import("obsidian").App,
+      container,
+      plugin as unknown as RssDashboardPlugin,
+      settings,
+      options,
+      callbacks,
+    );
+    sidebar.render();
+
+    expect(
+      container.querySelector(
+        '[data-feed-url="url-import-retry"] .rss-dashboard-feed-error-badge',
+      ),
+    ).toBeNull();
+  });
 });
 
 describe("parseFetchErrorMessage", () => {

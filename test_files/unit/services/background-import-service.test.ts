@@ -1011,4 +1011,154 @@ describe("BackgroundImportService", () => {
       expect(service.resumePendingImports()).toBe(0);
     });
   });
+
+  // ── retrying a failed import ─────────────────────────────────────────────────
+
+  describe("retryFeedImport", () => {
+    function importFailedFeed(overrides: Partial<Feed> = {}): Feed {
+      return {
+        title: "Broken feed",
+        url: "https://example.com/broken.xml",
+        folder: "Inbox",
+        items: [],
+        lastUpdated: 0,
+        mediaType: "article",
+        importStatus: "failed",
+        importError: "Request failed, status 500",
+        ...overrides,
+      };
+    }
+
+    function parsedFeed(feed: Feed): Feed {
+      return {
+        ...feed,
+        importStatus: undefined,
+        importError: undefined,
+        importPending: undefined,
+        items: [
+          {
+            title: "Article",
+            link: "https://example.com/article",
+            description: "",
+            pubDate: new Date(0).toISOString(),
+            guid: "article-1",
+            read: false,
+            starred: false,
+            tags: [],
+            feedTitle: feed.title,
+            feedUrl: feed.url,
+            coverImage: "",
+          },
+        ],
+      };
+    }
+
+    it("moves an import-failed feed back to pending while the retry runs", async () => {
+      const feed = importFailedFeed();
+      const deps = makeDeps({ feeds: [feed] });
+      let resolveParse: ((value: Feed) => void) | undefined;
+      deps.feedParser.parseFeed = vi.fn(
+        () =>
+          new Promise<Feed>((resolve) => {
+            resolveParse = resolve;
+          }),
+      );
+      const service = new BackgroundImportService(deps);
+
+      service.retryFeedImport(feed);
+      await vi.waitFor(() =>
+        expect(vi.mocked(deps.feedParser.parseFeed)).toHaveBeenCalled(),
+      );
+
+      const stored = deps._settings.feeds[0];
+      expect(stored.importStatus).toBe("pending");
+      expect(stored.importError).toBeUndefined();
+      expect(stored.importPending).toBe(true);
+      expect(service.isFeedPendingImport(feed.url)).toBe(true);
+
+      resolveParse?.(parsedFeed(feed));
+      await vi.waitFor(() =>
+        expect(service.isFeedPendingImport(feed.url)).toBe(false),
+      );
+    });
+
+    it("clears the recorded failure once the retry succeeds", async () => {
+      const feed = importFailedFeed();
+      const deps = makeDeps({ feeds: [feed] });
+      const done = drained();
+      deps.feedParser.parseFeed = vi.fn().mockResolvedValue(parsedFeed(feed));
+      const service = new BackgroundImportService({ ...deps, ...done });
+
+      service.retryFeedImport(feed);
+      await done.promise;
+
+      const stored = deps._settings.feeds[0];
+      expect(stored.items).toHaveLength(1);
+      expect(stored.importStatus).toBeUndefined();
+      expect(stored.importError).toBeUndefined();
+      expect(stored.importPending).toBeUndefined();
+    });
+
+    it("records the failure again when the retry fails", async () => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const feed = importFailedFeed();
+      const deps = makeDeps({ feeds: [feed] });
+      const done = drained();
+      deps.feedParser.parseFeed = vi
+        .fn()
+        .mockRejectedValue(new Error("Request failed, status 500"));
+      const service = new BackgroundImportService({ ...deps, ...done });
+
+      service.retryFeedImport(feed);
+      await done.promise;
+
+      const stored = deps._settings.feeds[0];
+      expect(stored.importStatus).toBe("failed");
+      expect(stored.importError).toContain("status 500");
+    });
+
+    it("re-imports even when the feed is excluded from ordinary refreshes", async () => {
+      const feed = importFailedFeed({ excludeFromRefresh: true });
+      const deps = makeDeps({ feeds: [feed] });
+      const done = drained();
+      deps.feedParser.parseFeed = vi.fn().mockResolvedValue(parsedFeed(feed));
+      const service = new BackgroundImportService({ ...deps, ...done });
+
+      service.retryFeedImport(feed);
+      await done.promise;
+
+      expect(vi.mocked(deps.feedParser.parseFeed)).toHaveBeenCalledWith(
+        feed.url,
+        null,
+        expect.objectContaining({ signal: expect.anything() }),
+      );
+      expect(deps._settings.feeds[0].importStatus).toBeUndefined();
+    });
+
+    it("does not start a second import for a feed already in the pipeline", async () => {
+      const feed = importFailedFeed();
+      const deps = makeDeps({ feeds: [feed] });
+      let resolveParse: ((value: Feed) => void) | undefined;
+      deps.feedParser.parseFeed = vi.fn(
+        () =>
+          new Promise<Feed>((resolve) => {
+            resolveParse = resolve;
+          }),
+      );
+      const service = new BackgroundImportService(deps);
+
+      service.retryFeedImport(feed);
+      await vi.waitFor(() =>
+        expect(vi.mocked(deps.feedParser.parseFeed)).toHaveBeenCalledTimes(1),
+      );
+
+      service.retryFeedImport(feed);
+      expect(vi.mocked(deps.feedParser.parseFeed)).toHaveBeenCalledTimes(1);
+
+      resolveParse?.(parsedFeed(feed));
+      await vi.waitFor(() =>
+        expect(service.isFeedPendingImport(feed.url)).toBe(false),
+      );
+    });
+  });
 });
