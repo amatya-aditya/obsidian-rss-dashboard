@@ -105,7 +105,9 @@ describe("Dashboard save settings", () => {
     const beforeReload = cloneSettings();
     beforeReload.articleSaving.saveVersion = "fetched";
     beforeReload.articleSaving.defaultFolder = "Old articles";
-    beforeReload.articleSaving.defaultTemplate = "{{content}}";
+    // Both groups share one non-minimal template, so the frontmatter below can
+    // only come from the reloaded group's `includeFrontmatter` (#1246).
+    beforeReload.articleSaving.defaultTemplate = "# {{title}}\n\n{{content}}";
     beforeReload.articleSaving.includeFrontmatter = false;
 
     // A settings reload re-keys `plugin.settings`: normalization builds a fresh
@@ -113,7 +115,7 @@ describe("Dashboard save settings", () => {
     const afterReload = cloneSettings();
     afterReload.articleSaving.saveVersion = "rss";
     afterReload.articleSaving.defaultFolder = "New articles";
-    afterReload.articleSaving.defaultTemplate = "{{content}}";
+    afterReload.articleSaving.defaultTemplate = "# {{title}}\n\n{{content}}";
     afterReload.articleSaving.includeFrontmatter = true;
 
     const { app, plugin, view } = createView(beforeReload);

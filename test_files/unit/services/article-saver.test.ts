@@ -143,6 +143,39 @@ summary: "{{summary}}"
     expect(written).not.toContain("{{summary}}");
   });
 
+  it("saves content only when the cleared minimal template is the whole note (#1246)", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      includeFrontmatter: true,
+      // The value the Article Saving tab's Clear button writes into the box.
+      defaultTemplate: "{{content}}",
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const createSpy = vi.spyOn(app.vault, "create");
+    await saver.saveArticle(createItem(), undefined, undefined, "BODY");
+
+    const written = createSpy.mock.calls[0][1];
+    expect(written).toBe("BODY");
+    expect(written).not.toContain("---");
+  });
+
+  it("still prepends frontmatter for a body template that is not the minimal one (#1246)", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      includeFrontmatter: true,
+      defaultTemplate: "{{title}}\n\n{{content}}",
+    });
+    const saver = new ArticleSaver(app, settings);
+
+    const createSpy = vi.spyOn(app.vault, "create");
+    await saver.saveArticle(createItem(), undefined, undefined, "BODY");
+
+    const written = createSpy.mock.calls[0][1];
+    expect(written.startsWith("---\n")).toBe(true);
+    expect(written).toContain('title: "Test Article"');
+  });
+
   it("fills {{description}}, {{excerpt}} and the cleaned {{author}} in the note and frontmatter (#247)", async () => {
     const app = App.createMock();
     const settings = createSettings({

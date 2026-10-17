@@ -40,6 +40,7 @@ import { AD_CONTAINER_SELECTOR } from "../utils/ad-containers";
 import { escapeYamlDoubleQuoted } from "../utils/yaml-escape";
 import { ensureVaultFolder } from "../utils/vault-files";
 import { ONE_SAVE_OVERRIDE_TEMPLATE_ID } from "../utils/saved-template-utils";
+import { isMinimalArticleTemplate } from "../utils/minimal-article-template";
 import {
   FALLBACK_BEFORE_SAVE_NOTICE,
   resolveSaveVersion,
@@ -647,7 +648,10 @@ guid: "{{guid}}"
     }
   }
 
-  /** A saved template owns the whole file, so only the unsaved paths get plugin frontmatter. */
+  /**
+   * A saved template owns the whole file, as does the cleared minimal template,
+   * so only the remaining unsaved paths get plugin frontmatter (#1246).
+   */
   private shouldAddFrontmatter(
     template: string,
     savedTemplate: SavedTemplate | undefined,
@@ -658,6 +662,7 @@ guid: "{{guid}}"
     return (
       this.settings.includeFrontmatter &&
       !templateOwnsFile &&
+      !isMinimalArticleTemplate(template) &&
       !template.trim().startsWith("---")
     );
   }
