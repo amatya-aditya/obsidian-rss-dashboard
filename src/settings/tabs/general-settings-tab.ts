@@ -727,7 +727,10 @@ export function renderGeneralSettingsTab(
     proxySetting
       .addDropdown((dropdown) => {
         dropdown.addOption("", "Select a proxy...");
-        dropdown.addOption("auto", "Auto-cycle (try all proxies on failure)");
+        dropdown.addOption(
+          AUTO_PROXY_URL,
+          "Auto-cycle (try all proxies on failure)",
+        );
         PREDEFINED_PROXIES.forEach((proxy) => {
           dropdown.addOption(proxy.url, proxy.label);
         });
