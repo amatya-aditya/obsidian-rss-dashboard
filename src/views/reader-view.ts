@@ -72,6 +72,7 @@ import {
   stripEmbeddedTooltipAttributes,
 } from "../utils/reader-article-render";
 import {
+  collectLeadCaptionTexts,
   extractDisplayTitleFromHtml,
   hasMeaningfulArticleContent,
   isLikelySameImageSource,
@@ -2080,9 +2081,10 @@ export class ReaderView extends ItemView {
         stripDuplicateLeadContentFromDocument(doc, feedDescriptionHtml);
         stripSkipLinksFromDocument(doc);
         if (fallbackHeroUrl) {
+          const leadCaptionTexts = collectLeadCaptionTexts(doc);
           stripLeadMediaBeforeContent(doc);
           stripDuplicateLeadMediaMatchingHero(doc, fallbackHeroUrl);
-          stripDuplicateLeadCaptionBlocks(doc);
+          stripDuplicateLeadCaptionBlocks(doc, leadCaptionTexts);
         }
         // Strip inline SVGs from fetched articles — these are publisher UI
         // decorations (section icons, share buttons) never present in RSS payloads.

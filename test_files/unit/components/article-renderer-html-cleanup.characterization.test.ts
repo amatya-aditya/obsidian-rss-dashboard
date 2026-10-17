@@ -179,13 +179,11 @@ describe("ArticleRenderer fetched-article HTML cleanup", () => {
       full.querySelector(".rss-reader-hero-slot img")?.getAttribute("src"),
     ).toBe("https://img.example.com/hero.jpg");
     expect(bodySrcs).toEqual(["https://img.example.com/body.jpg"]);
-    // BUG: pinned, see #1238 — the caption figure goes, the matching paragraph stays.
     expect(body?.querySelector("figcaption")?.textContent).toBe(
       "Photo credit: later",
     );
-    expect(body?.querySelector("p")?.textContent).toBe(
-      "Photo credit: Jane Doe",
-    );
+    // The caption figure goes with lead media; its matching paragraph goes too.
+    expect(body?.querySelector("p")?.textContent).toBe(LONG_A);
   });
 
   it("drops the first body image when it matches the hero ignoring a size suffix", async () => {
