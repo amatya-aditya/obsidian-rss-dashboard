@@ -247,16 +247,22 @@ describe("ReaderView request-local fetch outcomes", () => {
     });
   });
 
-  it.each(["", "https://news.kagi.com/story"])(
+  it.each([
+    ["an item with no link", { link: "" }],
+    [
+      "feed content with Substack markup",
+      { content: '<img src="https://substackcdn.com/image/fetch/x.png">' },
+    ],
+  ])(
     "does not borrow a restriction when the next article needs no fetch: %s",
-    async (link) => {
+    async (_label, overrides) => {
       const harness = await setup();
       fetchMock.mockResolvedValueOnce({
         content: "",
         failureType: "restricted",
       });
       await harness.render(item("B"));
-      const a = { ...item("A"), link };
+      const a = { ...item("A"), ...overrides };
       await harness.render(a);
       expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(a.restrictedReason).toBeUndefined();
@@ -399,13 +405,19 @@ describe("ReaderView request-local fetch outcomes", () => {
     },
   );
 
-  it.each(["", "https://news.kagi.com/story"])(
+  it.each([
+    ["an item with no link", { link: "" }],
+    [
+      "feed content with Substack markup",
+      { content: '<img src="https://substackcdn.com/image/fetch/x.png">' },
+    ],
+  ])(
     "does not reuse prior metadata when a subsequent article needs no fetch: %s",
-    async (link) => {
+    async (_label, overrides) => {
       const harness = await setup();
       fetchMock.mockResolvedValueOnce(result("B"));
       await harness.render(item("B"));
-      const a = { ...item("A"), link, content: result("A").content };
+      const a = { ...item("A"), content: result("A").content, ...overrides };
       await harness.render(a);
       expect(fetchMock).toHaveBeenCalledTimes(1);
       expect(a.metadataFetchedAt).toBeUndefined();

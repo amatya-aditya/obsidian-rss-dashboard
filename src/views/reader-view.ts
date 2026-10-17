@@ -1730,31 +1730,16 @@ export class ReaderView extends ItemView {
     return isLikelyVideoItem(item);
   }
 
+  /**
+   * Whether the feed's own markup should be preferred over a page fetch. This
+   * looks at the feed content only: the hard-coded host allowlist (Aeon, Kagi,
+   * Substack) was disabled because it silently suppressed the fetch for hosts
+   * whose feed ships a teaser, leaving no way to reach the article (#1287). A
+   * user-facing replacement list is proposed in #1288.
+   */
   private prefersFeedContent(item: FeedItem, feedHtml?: string): boolean {
-    if (item.link) {
-      try {
-        const host = new URL(item.link).hostname.toLowerCase();
-        if (this.isFeedContentPreferredHost(host)) {
-          return true;
-        }
-      } catch {
-        // Fall through to markup-based detection.
-      }
-    }
-
     const html = (feedHtml || item.content || item.description || "").trim();
     return this.hasSubstackRichFeedMarkup(html);
-  }
-
-  private isFeedContentPreferredHost(host: string): boolean {
-    return (
-      host === "kite.kagi.com" ||
-      host === "news.kagi.com" ||
-      host === "aeon.co" ||
-      host.endsWith(".aeon.co") ||
-      host === "substack.com" ||
-      host.endsWith(".substack.com")
-    );
   }
 
   private hasSubstackRichFeedMarkup(html: string): boolean {

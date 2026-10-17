@@ -253,7 +253,7 @@ export class DiscoverSidebar {
         .filter((f) => f.type === type)
         .length.toString();
 
-      checkbox.addEventListener("change", () => {
+      const applyTypeToggle = () => {
         if (checkbox.checked) {
           this.filters.selectedTypes.push(type);
         } else {
@@ -262,6 +262,16 @@ export class DiscoverSidebar {
           );
         }
         this.callbacks.onFilterChange();
+      };
+
+      checkbox.addEventListener("change", applyTypeToggle);
+
+      typeItem.addEventListener("click", (e) => {
+        if (e.target === checkbox) {
+          return;
+        }
+        checkbox.checked = !checkbox.checked;
+        applyTypeToggle();
       });
     });
   }
@@ -447,23 +457,28 @@ export class DiscoverSidebar {
       count.textContent =
         this.getFeedsInCategoryPath(currentPathArr).toString();
 
-      checkbox.addEventListener("change", () => {
-        const pathStr = currentPathStr;
+      const applyCategoryToggle = () => {
         if (checkbox.checked) {
           if (
             !this.filters.selectedPaths.some(
-              (p: CategoryPath) => this.categoryPathToString(p) === pathStr,
+              (p: CategoryPath) =>
+                this.categoryPathToString(p) === currentPathStr,
             )
           ) {
-            this.filters.selectedPaths.push(this.stringToCategoryPath(pathStr));
+            this.filters.selectedPaths.push(
+              this.stringToCategoryPath(currentPathStr),
+            );
           }
         } else {
           this.filters.selectedPaths = this.filters.selectedPaths.filter(
-            (p: CategoryPath) => this.categoryPathToString(p) !== pathStr,
+            (p: CategoryPath) =>
+              this.categoryPathToString(p) !== currentPathStr,
           );
         }
         this.callbacks.onFilterChange();
-      });
+      };
+
+      checkbox.addEventListener("change", applyCategoryToggle);
 
       if (hasChildren) {
         const childrenContainer = itemContainer.createDiv({
@@ -476,8 +491,7 @@ export class DiscoverSidebar {
           depth + 1,
         );
 
-        expandIcon.addEventListener("click", (e) => {
-          e.stopPropagation();
+        const toggleChildren = () => {
           const isCollapsed = childrenContainer.hasClass("rss-collapsed");
           if (isCollapsed) {
             childrenContainer.removeClass("rss-collapsed");
@@ -486,6 +500,27 @@ export class DiscoverSidebar {
             childrenContainer.addClass("rss-collapsed");
             setIcon(expandIcon, "chevron-right");
           }
+        };
+
+        expandIcon.addEventListener("click", (e) => {
+          e.stopPropagation();
+          toggleChildren();
+        });
+
+        // A parent row expands like a folder; selecting it stays on the checkbox.
+        contentRow.addEventListener("click", (e) => {
+          if (e.target === checkbox) {
+            return;
+          }
+          toggleChildren();
+        });
+      } else {
+        contentRow.addEventListener("click", (e) => {
+          if (e.target === checkbox) {
+            return;
+          }
+          checkbox.checked = !checkbox.checked;
+          applyCategoryToggle();
         });
       }
     });
@@ -546,7 +581,7 @@ export class DiscoverSidebar {
         .filter((f) => f.tags && f.tags.includes(tag))
         .length.toString();
 
-      checkbox.addEventListener("change", () => {
+      const applyTagToggle = () => {
         if (checkbox.checked) {
           this.filters.selectedTags.push(tag);
         } else {
@@ -555,6 +590,16 @@ export class DiscoverSidebar {
           );
         }
         this.callbacks.onFilterChange();
+      };
+
+      checkbox.addEventListener("change", applyTagToggle);
+
+      tagItem.addEventListener("click", (e) => {
+        if (e.target === checkbox) {
+          return;
+        }
+        checkbox.checked = !checkbox.checked;
+        applyTagToggle();
       });
     });
   }
