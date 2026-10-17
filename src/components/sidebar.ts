@@ -1116,20 +1116,7 @@ export class Sidebar {
     const menu = new Menu();
     const anchor = event.currentTarget;
 
-    menu.addItem((item: MenuItem) => {
-      item
-        .setTitle("Refresh details")
-        .setIcon("info")
-        .onClick(() => {
-          this.showRefreshDetails(
-            isDomNode(anchor) && anchor.instanceOf(HTMLElement)
-              ? anchor
-              : this.container,
-            this.settings.feeds,
-            "all",
-          );
-        });
-    });
+    this.appendRefreshDetailsItem(menu, this.settings.feeds, "all", anchor);
 
     menu.addItem((item: MenuItem) => {
       item
@@ -3595,10 +3582,17 @@ export class Sidebar {
     ).open();
   }
 
-  private showFeedContextMenu(event: MouseEvent, feed: Feed): void {
-    const menu = new Menu();
-    const anchor = event.currentTarget;
-
+  /**
+   * Adds the "Refresh details" item that every feed menu shares. The single
+   * feed menu places it after Update/Edit feed; a selection menu keeps it
+   * first, before the selection actions.
+   */
+  private appendRefreshDetailsItem(
+    menu: Menu,
+    feeds: Feed[],
+    scope: "all" | "feed" | "aggregate",
+    anchor: EventTarget | null,
+  ): void {
     menu.addItem((item: MenuItem) => {
       item
         .setTitle("Refresh details")
@@ -3608,13 +3602,19 @@ export class Sidebar {
             isDomNode(anchor) && anchor.instanceOf(HTMLElement)
               ? anchor
               : this.container,
-            [feed],
-            "feed",
+            feeds,
+            scope,
           );
         });
     });
+  }
+
+  private showFeedContextMenu(event: MouseEvent, feed: Feed): void {
+    const menu = new Menu();
+    const anchor = event.currentTarget;
 
     if (this.isMultiSelectionTarget("feed", feed.url, feed.folder)) {
+      this.appendRefreshDetailsItem(menu, [feed], "feed", anchor);
       this.appendSelectionContextMenu(menu);
       menu.showAtMouseEvent(event);
       return;
@@ -3649,6 +3649,8 @@ export class Sidebar {
           this.showEditFeedModal(feed);
         });
     });
+
+    this.appendRefreshDetailsItem(menu, [feed], "feed", anchor);
 
     menu.addItem((item: MenuItem) => {
       item

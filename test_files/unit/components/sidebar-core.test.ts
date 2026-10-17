@@ -410,6 +410,94 @@ describe("Sidebar Core", () => {
     });
   });
 
+  describe("feed row context menu", () => {
+    const sidebars: Sidebar[] = [];
+
+    afterEach(() => {
+      sidebars.splice(0).forEach((sidebar) => sidebar.destroy());
+    });
+
+    function createFeed(overrides: Partial<Feed> = {}): Feed {
+      return {
+        title: "Feed A",
+        url: "https://example.com/a.xml",
+        folder: "",
+        items: [],
+        lastUpdated: 0,
+        mediaType: "article",
+        ...overrides,
+      };
+    }
+
+    function renderSidebar(feeds: Feed[]): void {
+      settings.feeds = feeds;
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+      sidebars.push(sidebar);
+      sidebar.render();
+    }
+
+    /** Right-clicks the only rendered feed row and returns the menu titles. */
+    function openFeedMenuTitles(feed: Feed): string[] {
+      renderSidebar([feed]);
+
+      const feedEl = container.querySelector(".rss-dashboard-feed");
+      if (!feedEl) throw new Error("Expected the feed row");
+      feedEl.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+      );
+
+      return ObsidianStubs.Menu.lastItems.map((menuItem) => menuItem.title);
+    }
+
+    it("lists Update feed and Edit feed above Refresh details", () => {
+      expect(openFeedMenuTitles(createFeed()).slice(0, 3)).toEqual([
+        "Update feed",
+        "Edit feed",
+        "Refresh details",
+      ]);
+    });
+
+    it("keeps Refresh details directly after Edit feed when the feed has a fetch error", () => {
+      const titles = openFeedMenuTitles(
+        createFeed({ lastFetchError: "network down" }),
+      );
+      expect(titles.indexOf("Refresh details")).toBe(
+        titles.indexOf("Edit feed") + 1,
+      );
+    });
+
+    it("keeps Refresh details first when the feed is part of a selection", () => {
+      const feed = createFeed();
+      options.selectedFeeds = [feed.url, "https://example.com/b.xml"];
+
+      expect(openFeedMenuTitles(feed).slice(0, 2)).toEqual([
+        "Refresh details",
+        "Mark selection as read",
+      ]);
+    });
+
+    it("keeps Refresh details first in the all-feeds menu", () => {
+      renderSidebar([createFeed()]);
+
+      container
+        .querySelector(".rss-dashboard-all-feeds-button")
+        ?.dispatchEvent(
+          new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+        );
+
+      expect(
+        ObsidianStubs.Menu.lastItems.map((menuItem) => menuItem.title)[0],
+      ).toBe("Refresh details");
+    });
+  });
+
   describe("renderFallbackFeedIcon", () => {
     let iconEl: HTMLElement;
 
