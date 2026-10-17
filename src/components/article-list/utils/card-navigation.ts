@@ -11,12 +11,14 @@ function findRowForCard(
   rows: PositionedCard[][],
   entry: PositionedCard,
 ): PositionedCard[] | undefined {
-  return rows.find((row) => {
-    const rowTop = row[0]?.rect.top;
-    return (
-      rowTop !== undefined && Math.abs(rowTop - entry.rect.top) <= ROW_TOLERANCE
-    );
-  });
+  // Compare against every member, not just the first: a card can sit within
+  // the row tolerance of a later card while being further than the tolerance
+  // from the row's first card (see #1262).
+  return rows.find((row) =>
+    row.some(
+      (member) => Math.abs(member.rect.top - entry.rect.top) <= ROW_TOLERANCE,
+    ),
+  );
 }
 
 export function groupCardsIntoRows(cards: HTMLElement[]): PositionedCard[][] {
