@@ -34,7 +34,7 @@ import type { ImportResult } from "../../services/import-export-service";
 import type { RssDashboardSettings } from "../../types/types";
 import type { ProxyCheckStore } from "../../utils/proxy-check";
 import { CUSTOM_PROXY_OPTION } from "../../utils/proxy-check";
-import { PREDEFINED_PROXIES } from "../../utils/proxy-utils";
+import { AUTO_PROXY_URL, PREDEFINED_PROXIES } from "../../utils/proxy-utils";
 
 export interface GeneralSettingsPlugin {
   app: App;
@@ -686,6 +686,15 @@ export function renderGeneralSettingsTab(
     // so the handlers above them only reach them through this callback.
     let refreshProxyCheckSelection: () => void = () => {};
 
+    /**
+     * Whether the saved setting names an option the dropdown itself offers:
+     * auto, or a built-in proxy. Anything else is a custom URL, which the
+     * dropdown shows as the "add new proxy URL" option.
+     */
+    const isDropdownProxyOption = (url: string): boolean =>
+      url === AUTO_PROXY_URL ||
+      PREDEFINED_PROXIES.some((proxy) => proxy.url === url);
+
     const commitProxyUrl = async (rawValue: string): Promise<void> => {
       const value = rawValue.trim();
       if (value === lastSavedProxyUrl) return;
@@ -725,10 +734,7 @@ export function renderGeneralSettingsTab(
         dropdown.addOption(CUSTOM_PROXY_OPTION, "Add new proxy URL...");
 
         const currentUrl = plugin.settings.corsProxyUrl || "";
-        const isPredefined = PREDEFINED_PROXIES.some(
-          (p) => p.url === currentUrl,
-        );
-        if (isPredefined) {
+        if (isDropdownProxyOption(currentUrl)) {
           selectedProxyOption = currentUrl;
         } else if (currentUrl) {
           selectedProxyOption = CUSTOM_PROXY_OPTION;
@@ -825,10 +831,7 @@ export function renderGeneralSettingsTab(
           });
 
         const currentUrl = plugin.settings.corsProxyUrl || "";
-        const isPredefined =
-          currentUrl === "auto" ||
-          PREDEFINED_PROXIES.some((p) => p.url === currentUrl);
-        if (isPredefined || !currentUrl) {
+        if (isDropdownProxyOption(currentUrl) || !currentUrl) {
           void import("../../utils/platform-utils").then(({ setCssProps }) =>
             setCssProps(btn.buttonEl, { display: "none" }),
           );

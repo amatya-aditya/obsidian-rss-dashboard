@@ -6,6 +6,7 @@ import {
 } from "../../../src/settings/tabs/general-settings-tab";
 import { RetentionChangeConfirmModal } from "../../../src/settings/modals/settings-modals";
 import { ProxyCheckStore } from "../../../src/utils/proxy-check";
+import { PREDEFINED_PROXIES } from "../../../src/utils/proxy-utils";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { isToggleOn, setToggle } from "../test-toggle-helpers";
 
@@ -417,5 +418,68 @@ describe("renderGeneralSettingsTab() keyboard shortcuts", () => {
 
     button?.click();
     expect(openShortcutHelp).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("renderGeneralSettingsTab() proxy URL dropdown", () => {
+  beforeEach(() => {
+    installObsidianDomPolyfills();
+    document.body.empty();
+    vi.restoreAllMocks();
+  });
+
+  /** Renders the tab for one saved proxy URL and returns the Proxy URL row. */
+  function renderProxyRow(corsProxyUrl: string): HTMLDivElement {
+    const containerEl = createDiv();
+    document.body.appendChild(containerEl);
+    const settings = cloneSettings();
+    settings.corsProxyUrl = corsProxyUrl;
+    const plugin = {
+      app: { workspace: { revealLeaf: vi.fn(async () => {}) } },
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      getActiveDashboardView: vi.fn(async () => null),
+      proxyCheckStore: new ProxyCheckStore(),
+      importPortableDataBundleFromFile: vi.fn(async () => {}),
+      exportPortableDataBundle: vi.fn(async () => {}),
+      applyFeedLimitsToAllFeeds: vi.fn(async () => {}),
+      refreshFeeds: vi.fn(async () => {}),
+      settingTab: null,
+    } as unknown as GeneralSettingsPlugin;
+
+    renderGeneralSettingsTab(containerEl, plugin);
+
+    const row = containerEl.querySelector<HTMLDivElement>(
+      ".rss-proxy-setting-item",
+    );
+    if (!row) throw new Error("Could not find the Proxy URL row");
+    return row;
+  }
+
+  it("shows the auto option, with the save button hidden, while the setting is auto", async () => {
+    const row = renderProxyRow("auto");
+    await flushPromises();
+
+    expect(row.querySelector("select")?.value).toBe("auto");
+    const save = Array.from(row.querySelectorAll("button")).find(
+      (element) => element.getAttribute("aria-label") === "Save proxy URL",
+    );
+    expect(save?.style.display).toBe("none");
+  });
+
+  it("shows a built-in proxy's own option while it is saved", () => {
+    const url = PREDEFINED_PROXIES[1]?.url ?? "";
+
+    expect(renderProxyRow(url).querySelector("select")?.value).toBe(url);
+  });
+
+  it("shows the custom option while a custom URL is saved", () => {
+    expect(
+      renderProxyRow("https://proxy.test/?url=").querySelector("select")?.value,
+    ).toBe("custom");
+  });
+
+  it("shows the empty option while no proxy is saved", () => {
+    expect(renderProxyRow("").querySelector("select")?.value).toBe("");
   });
 });
