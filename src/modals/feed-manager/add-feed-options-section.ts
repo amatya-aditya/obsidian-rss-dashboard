@@ -243,10 +243,9 @@ export function renderScanIntervalSetting(
   });
 }
 
-export function renderExcludeAndTemplateSettings(
+export function renderExcludeFromRefreshSetting(
   perFeedControlsBody: HTMLElement,
   state: AddFeedOptionsState,
-  savedTemplates: SavedTemplate[],
 ): void {
   new Setting(perFeedControlsBody)
     .setName("Exclude from refresh")
@@ -258,7 +257,13 @@ export function renderExcludeAndTemplateSettings(
         state.setExcludeFromRefresh(value);
       });
     });
+}
 
+export function renderArticleTemplateSetting(
+  perFeedControlsBody: HTMLElement,
+  state: AddFeedOptionsState,
+  savedTemplates: SavedTemplate[],
+): void {
   new Setting(perFeedControlsBody)
     .setName("Article template")
     .setDesc(

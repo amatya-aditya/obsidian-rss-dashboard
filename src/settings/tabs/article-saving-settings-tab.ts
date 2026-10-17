@@ -27,6 +27,7 @@ import { settingsUiCompatibility } from "../settings-ui-compat";
 import { addActionButtonContent } from "../../utils/action-button-content";
 import { renderTemplateVariableHelp } from "../template-variable-help";
 import { addInputClearButton } from "../../utils/input-clear-button";
+import { MINIMAL_ARTICLE_TEMPLATE } from "../../utils/minimal-article-template";
 
 export interface ArticleSavingPluginLike {
   app: App;
@@ -44,8 +45,6 @@ export interface ArticleSavingPluginLike {
   };
   saveSettings: () => Promise<void>;
 }
-
-const MINIMAL_TEMPLATE = "{{content}}";
 
 const defaultTemplateHint =
   "The built-in template. It is used when neither the feed nor the global default saved template sets one.";
@@ -212,7 +211,7 @@ function renderDefaultTemplateSection(
     else useAsDefaultBtn.removeAttribute("aria-disabled");
     const nextDisabled = new Map<HTMLButtonElement, boolean>([
       [resetBtn, templateInput.value === shippedTemplate],
-      [clearBtn, templateInput.value === MINIMAL_TEMPLATE],
+      [clearBtn, templateInput.value === MINIMAL_ARTICLE_TEMPLATE],
     ]);
     // A focused button that disables itself drops keyboard focus to the page
     // body (Chromium blurs it the moment `disabled` is set), so hand focus to
@@ -289,7 +288,7 @@ function renderDefaultTemplateSection(
           "This replaces the default article template with a minimal {{content}} template. Saved templates are not changed.",
         confirmLabel: "Clear",
       },
-      MINIMAL_TEMPLATE,
+      MINIMAL_ARTICLE_TEMPLATE,
       "Template cleared",
     );
   };

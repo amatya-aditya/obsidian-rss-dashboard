@@ -287,7 +287,7 @@ describe("ArticleSaver.saveArticle frontmatter decision", () => {
     );
   });
 
-  it("adds the plugin frontmatter when the default template is cleared to {{content}} (#1037)", async () => {
+  it("adds no plugin frontmatter when the default template is cleared to {{content}} (#1246)", async () => {
     const app = App.createMock();
     const saver = new ArticleSaver(
       app,
@@ -301,9 +301,9 @@ describe("ArticleSaver.saveArticle frontmatter decision", () => {
       await saver.saveArticle(createItem(), undefined, undefined, "BODY"),
     );
 
-    await expect(app.vault.read(file)).resolves.toBe(
-      "---\ntitle: Test Article\n---\nBODY",
-    );
+    // The cleared minimal template is the whole note; #1246 reverses the
+    // frontmatter the earlier #1037 decision added here.
+    await expect(app.vault.read(file)).resolves.toBe("BODY");
   });
 
   it("adds no frontmatter when the note template starts with its own", async () => {
