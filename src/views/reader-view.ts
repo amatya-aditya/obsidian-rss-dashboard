@@ -147,6 +147,14 @@ export class ReaderView extends ItemView {
   private settingsProvider: () => RssDashboardSettings;
   private onArticleSave: (item: FeedItem) => void;
   private persistSettings: () => Promise<void>;
+  private readonly onPodcastPlaySpeedChange = (speed: number): void => {
+    // Remember the speed the user picked in the player so later players, and
+    // the Settings → Media control, start from it (#1269).
+    this.settings.media.defaultPlaySpeed = speed;
+    void this.persistSettings().catch(() => {
+      // Keep the in-session speed even when the settings write fails.
+    });
+  };
   private onArticleUpdate: (
     item: FeedItem,
     updates: Partial<FeedItem>,
@@ -1552,6 +1560,7 @@ export class ReaderView extends ItemView {
         this.settings.media.rememberPlaybackProgress,
         this.settings.media.defaultPlaySpeed ?? 1,
         this.settings.useFirstSeenDateFallback,
+        this.onPodcastPlaySpeedChange,
       );
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
     } else {
@@ -1571,6 +1580,7 @@ export class ReaderView extends ItemView {
           this.settings.media.rememberPlaybackProgress,
           this.settings.media.defaultPlaySpeed ?? 1,
           this.settings.useFirstSeenDateFallback,
+          this.onPodcastPlaySpeedChange,
         );
         this.podcastPlayer.loadEpisode(podcastItem, fullFeedEpisodes);
       } else {

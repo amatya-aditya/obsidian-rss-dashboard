@@ -416,6 +416,129 @@ describe("PodcastPlayer", () => {
     });
   });
 
+  describe("play speed reporting", () => {
+    function buildPlayer(
+      container: HTMLElement,
+      defaultPlaySpeed: number,
+      onPlaySpeedChange: (speed: number) => void,
+    ): PodcastPlayer {
+      return new PodcastPlayer(
+        container,
+        new App(),
+        "obsidian",
+        undefined,
+        undefined,
+        undefined,
+        true,
+        defaultPlaySpeed,
+        false,
+        onPlaySpeedChange,
+      );
+    }
+
+    function speedControl(container: HTMLElement): HTMLSelectElement {
+      return container.querySelector(".rss-speed-control") as HTMLSelectElement;
+    }
+
+    it("reports the chosen speed when the user changes the control", () => {
+      const container: HTMLDivElement = createDiv();
+      document.body.appendChild(container);
+      const onPlaySpeedChange = vi.fn();
+      const player = buildPlayer(container, 1, onPlaySpeedChange);
+      player.loadEpisode(baseEpisode());
+
+      const control = speedControl(container);
+      control.value = "2";
+      control.dispatchEvent(new Event("change"));
+
+      expect(onPlaySpeedChange).toHaveBeenCalledTimes(1);
+      expect(onPlaySpeedChange).toHaveBeenCalledWith(2);
+    });
+
+    it("does not report a speed when an episode loads without a change", () => {
+      const container: HTMLDivElement = createDiv();
+      document.body.appendChild(container);
+      const onPlaySpeedChange = vi.fn();
+      const player = buildPlayer(container, 1, onPlaySpeedChange);
+
+      player.loadEpisode(baseEpisode());
+
+      expect(onPlaySpeedChange).not.toHaveBeenCalled();
+    });
+
+    it("ignores a selected value that is not one of the control's options", () => {
+      const container: HTMLDivElement = createDiv();
+      document.body.appendChild(container);
+      const onPlaySpeedChange = vi.fn();
+      const player = buildPlayer(container, 1, onPlaySpeedChange);
+      player.loadEpisode(baseEpisode());
+
+      const control = speedControl(container);
+      // jsdom stores "" for a value no option matches; `Number("")` is 0, so an
+      // unguarded handler would persist and apply 0.
+      control.value = "9";
+      control.dispatchEvent(new Event("change"));
+
+      expect(onPlaySpeedChange).not.toHaveBeenCalled();
+      const audio = (player as unknown as { audioElement: HTMLAudioElement })
+        .audioElement;
+      expect(audio.playbackRate).toBe(1);
+    });
+
+    it("keeps the chosen speed when the next episode loads in the same player", () => {
+      const container: HTMLDivElement = createDiv();
+      document.body.appendChild(container);
+      const player = buildPlayer(container, 1, vi.fn());
+      player.loadEpisode(baseEpisode());
+
+      const control = speedControl(container);
+      control.value = "1.5";
+      control.dispatchEvent(new Event("change"));
+
+      player.loadEpisode({ ...baseEpisode(), guid: "guid-ep2" });
+
+      const audio = (player as unknown as { audioElement: HTMLAudioElement })
+        .audioElement;
+      expect(audio.playbackRate).toBe(1.5);
+      expect(speedControl(container).value).toBe("1.5");
+    });
+
+    it("starts a player constructed after the change at the chosen speed", () => {
+      // Mirrors the reader/dashboard wiring: the change callback persists the
+      // value, and the next player is constructed from the persisted value.
+      const settings = { media: { defaultPlaySpeed: 1 } };
+      const persist = (speed: number) => {
+        settings.media.defaultPlaySpeed = speed;
+      };
+
+      const firstContainer: HTMLDivElement = createDiv();
+      document.body.appendChild(firstContainer);
+      const first = buildPlayer(
+        firstContainer,
+        settings.media.defaultPlaySpeed,
+        persist,
+      );
+      first.loadEpisode(baseEpisode());
+      const control = speedControl(firstContainer);
+      control.value = "2";
+      control.dispatchEvent(new Event("change"));
+
+      const secondContainer: HTMLDivElement = createDiv();
+      document.body.appendChild(secondContainer);
+      const second = buildPlayer(
+        secondContainer,
+        settings.media.defaultPlaySpeed,
+        persist,
+      );
+      second.loadEpisode(baseEpisode());
+
+      const audio = (second as unknown as { audioElement: HTMLAudioElement })
+        .audioElement;
+      expect(audio.playbackRate).toBe(2);
+      expect(speedControl(secondContainer).value).toBe("2");
+    });
+  });
+
   describe("autoplay behavior", () => {
     it("stops playing by default at the end of an episode", async () => {
       const container: HTMLDivElement = createDiv();

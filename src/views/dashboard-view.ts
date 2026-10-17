@@ -943,6 +943,7 @@ export class RssDashboardView extends ItemView {
           item,
         );
       },
+      onPersistSettings: () => this.plugin.saveSettings(),
     });
   }
 

@@ -7,6 +7,9 @@ import { onActivate } from "../utils/keyboard-activation";
 import { windowInstanceOf } from "../utils/platform-utils";
 import { itemAuthorText } from "../utils/item-author";
 
+/** The speeds the player's control offers, in menu order. */
+const PLAY_SPEEDS: readonly number[] = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+
 export class PodcastPlayer {
   private container: HTMLElement;
   private app: App;
@@ -40,6 +43,7 @@ export class PodcastPlayer {
     duration: number,
     flush?: boolean,
   ) => void;
+  private onPlaySpeedChange?: (speed: number) => void;
 
   private playerEl: HTMLElement | null = null;
   private playButton: HTMLElement | null = null;
@@ -78,6 +82,7 @@ export class PodcastPlayer {
     progressTrackingEnabled = true,
     defaultPlaySpeed = 1,
     useFirstSeenDateFallback = false,
+    onPlaySpeedChange?: (speed: number) => void,
   ) {
     this.container = container;
     this.app = app;
@@ -90,6 +95,7 @@ export class PodcastPlayer {
     }
     this.onEpisodeSelected = onEpisodeSelected;
     this.onPlaybackProgress = onPlaybackProgress;
+    this.onPlaySpeedChange = onPlaySpeedChange;
   }
 
   setPlaylist(playlist: FeedItem[]) {
@@ -484,22 +490,14 @@ export class PodcastPlayer {
     this.speedButtonEl = toolsSection.createEl("select", {
       cls: "rss-speed-control",
     });
-    [0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3].forEach((v) => {
+    PLAY_SPEEDS.forEach((v) => {
       const option = this.speedButtonEl?.createEl("option", {
         attr: { value: v.toString() },
         text: `${v}\u00D7`,
       });
       if (option && v === this.defaultPlaySpeed) option.selected = true;
     });
-    this.speedButtonEl.onchange = () => {
-      if (this.audioElement && this.speedButtonEl) {
-        const newSpeed = Number(
-          (this.speedButtonEl as HTMLSelectElement).value,
-        );
-        this.audioElement.playbackRate = newSpeed;
-        this.defaultPlaySpeed = newSpeed;
-      }
-    };
+    this.speedButtonEl.onchange = () => this.applySelectedPlaySpeed();
 
     // Sleep timer button
     this.sleepTimerButton = toolsSection.createDiv({
@@ -1025,6 +1023,21 @@ export class PodcastPlayer {
     } else {
       this.audioElement.pause();
     }
+  }
+
+  /**
+   * Applies the speed the user picked and reports it so the owning view can
+   * remember it. A value outside the control's options is ignored: an
+   * unmatched selection reads back as an empty string, which `Number` would
+   * otherwise turn into 0.
+   */
+  private applySelectedPlaySpeed(): void {
+    if (!this.audioElement || !this.speedButtonEl) return;
+    const newSpeed = Number((this.speedButtonEl as HTMLSelectElement).value);
+    if (!PLAY_SPEEDS.includes(newSpeed)) return;
+    this.audioElement.playbackRate = newSpeed;
+    this.defaultPlaySpeed = newSpeed;
+    this.onPlaySpeedChange?.(newSpeed);
   }
 
   private cyclePlaybackSpeed(): void {
