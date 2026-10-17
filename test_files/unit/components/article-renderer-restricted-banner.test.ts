@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi, type Mock } from "vitest";
 import { ArticleRenderer } from "../../../src/components/article-renderer";
 import {
   FeedItem,
@@ -47,6 +47,9 @@ function makeItem(overrides: Partial<FeedItem> = {}): FeedItem {
 describe("ArticleRenderer restricted-content handling", () => {
   let renderer: ArticleRenderer;
   let container: HTMLElement;
+  let onArticleUpdate: Mock<
+    (item: FeedItem, updates: Partial<FeedItem>, rerender?: boolean) => void
+  >;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -62,6 +65,10 @@ describe("ArticleRenderer restricted-content handling", () => {
       vault: { getAbstractFileByPath: vi.fn() },
     };
 
+    onArticleUpdate =
+      vi.fn<
+        (item: FeedItem, updates: Partial<FeedItem>, rerender?: boolean) => void
+      >();
     renderer = new ArticleRenderer({
       app: mockApp as never,
       component: new Component(),
@@ -70,7 +77,7 @@ describe("ArticleRenderer restricted-content handling", () => {
         corsProxyEnabled: false,
       } as RssDashboardSettings,
       onArticleSave: vi.fn(),
-      onArticleUpdate: vi.fn(),
+      onArticleUpdate,
     });
 
     container = createDiv();
@@ -108,6 +115,44 @@ describe("ArticleRenderer restricted-content handling", () => {
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(content.textContent).toContain("Fallback excerpt from feed.");
+  });
+
+  it("persists restrictedReason on the article when the full-article fetch is restricted", async () => {
+    const item = makeItem();
+
+    await renderer.render(container, item);
+
+    expect(item.restrictedReason).toBe(RESTRICTED_ARTICLE_REASON);
+    expect(onArticleUpdate).toHaveBeenCalledWith(
+      item,
+      { restrictedReason: RESTRICTED_ARTICLE_REASON },
+      false,
+    );
+  });
+
+  it("persists clearing restrictedReason when a later fetch succeeds", async () => {
+    fetchFullArticleContentWithOutcomeMock.mockResolvedValue({
+      content: `<p>${"Fetched article body. ".repeat(30)}</p>`,
+      failureType: "none",
+    });
+    const item = makeItem({ restrictedReason: RESTRICTED_ARTICLE_REASON });
+
+    await renderer.render(container, item);
+
+    expect(item.restrictedReason).toBeUndefined();
+    expect(onArticleUpdate).toHaveBeenCalledWith(
+      item,
+      { restrictedReason: undefined },
+      false,
+    );
+  });
+
+  it("does not rewrite the stored restricted flag when the fetch is restricted again", async () => {
+    const item = makeItem({ restrictedReason: RESTRICTED_ARTICLE_REASON });
+
+    await renderer.render(container, item);
+
+    expect(onArticleUpdate).not.toHaveBeenCalled();
   });
 
   it("skips restricted full-article fetch for media:content video items", async () => {
