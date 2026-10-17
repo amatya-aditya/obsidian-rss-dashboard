@@ -459,6 +459,33 @@ native dialog, or pixel-level layout. Reading the DOM, clicking, and
 screenshotting are cheaper and repeatable over CDP, which is why this is the
 default for automated checks.
 
+## Headless Obsidian in a Linux container
+
+A Linux cloud container has no desktop, but Obsidian runs there headless under
+`xvfb`, and the CDP harness drives it the same way as on a desktop. The one
+script covers install, launch, and teardown:
+
+```sh
+npm run build
+scripts/launch-obsidian-cloud.sh start   # prints the --port, --profile, --expect-vault flags
+node scripts/obsidian-cdp.mjs --port 9333 --profile <profile> --expect-vault <vault> shot out.png
+scripts/launch-obsidian-cloud.sh stop    # stops only the instance this script started
+```
+
+`start` downloads the Obsidian AppImage (`OBS_VER`, default pinned in the
+script) and extracts it to `/opt/obsidian` when it is missing, since the
+container has no FUSE. It then creates a fresh fixture vault and profile under
+`$TMPDIR/rss-dashboard-obsidian`, launches with `--no-sandbox` (the container
+runs as root), turns on community plugins, and enables `rss-dashboard`. To skip
+the download in later sessions, run the same install block from the cloud
+environment's setup script. The environment's network policy must allow
+`github.com` release downloads.
+
+Set `OBS_DIR`, `OBS_WORK_DIR`, or `CDP_PORT` to change the install folder, the
+working folder, or the debug port. The guard rules under
+[Guard the session you attach to](#guard-the-session-you-attach-to) still apply:
+pass `--profile` and `--expect-vault` on every harness call.
+
 ## Testing a refactor
 
 A refactor's scoped checklist compares the build before and after, so every
