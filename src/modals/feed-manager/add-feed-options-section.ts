@@ -50,73 +50,103 @@ export function renderFeedEncodingSetting(
     });
 }
 
+interface PresetOrCustomConfig {
+  options: Array<[value: string, label: string]>;
+  initialDropdownValue: string;
+  placeholder: string;
+  get(): number;
+  set(value: number): void;
+}
+
+/** Custom entries are whole numbers of at least 0; anything else counts as 0. */
+function parseCustomValue(raw: string): number {
+  return Math.max(0, parseInt(raw, 10) || 0);
+}
+
+/**
+ * A preset dropdown with a "Custom..." entry that reveals a number input. The
+ * input is created on first need, prefilled from the current value, and shown
+ * from the start when the current value is not one of the presets.
+ */
+function renderPresetOrCustomDropdown(
+  setting: Setting,
+  config: PresetOrCustomConfig,
+): void {
+  let customInput: HTMLInputElement | null = null;
+
+  const setCustomInputVisible = (visible: boolean) => {
+    if (visible && !customInput) {
+      customInput = setting.controlEl.createEl("input", {
+        type: "number",
+        placeholder: config.placeholder,
+        cls: "rss-custom-input",
+      });
+      customInput.min = "1";
+      customInput.value = config.get() > 0 ? config.get().toString() : "";
+      customInput.addEventListener("change", (evt: Event) => {
+        const target = evt.target as HTMLInputElement;
+        config.set(parseCustomValue(target.value));
+      });
+    }
+    if (customInput) {
+      customInput.toggleClass("visible", visible);
+      customInput.toggleClass("hidden", !visible);
+    }
+  };
+
+  setting.addDropdown((dropdown) => {
+    for (const [value, label] of config.options) {
+      dropdown.addOption(value, label);
+    }
+    dropdown
+      .addOption("custom", "Custom...")
+      .setValue(config.initialDropdownValue)
+      .onChange((value) => {
+        if (value === "custom") {
+          setCustomInputVisible(true);
+        } else {
+          setCustomInputVisible(false);
+          config.set(parseInt(value, 10) || 0);
+        }
+      });
+  });
+  setCustomInputVisible(config.initialDropdownValue === "custom");
+}
+
+function presetOrCustomDropdownValue(value: number, presets: number[]): string {
+  if (value === 0) return "0";
+  return presets.includes(value) ? value.toString() : "custom";
+}
+
 export function renderAutoDeleteSetting(
   perFeedControlsBody: HTMLElement,
   state: AddFeedOptionsState,
 ): void {
-  const autoDeleteSetting = new Setting(perFeedControlsBody)
+  const setting = new Setting(perFeedControlsBody)
     .setName("Auto delete articles duration")
     .setDesc(
       "Days to keep articles before auto-delete. Articles are dated by their publish date, or by the date first seen for undated items when that general setting is on. Articles covered by a retention protection in the general settings are never deleted. This also limits the timeframe window for shown articles.",
     );
-
-  let autoDeleteCustomInput: HTMLInputElement | null = null;
-
-  autoDeleteSetting.addDropdown((dropdown) => {
-    dropdown
-      .addOption("0", "Disabled")
-      .addOption("1", "1 day")
-      .addOption("3", "3 days")
-      .addOption("7", "1 week")
-      .addOption("14", "2 weeks")
-      .addOption("30", "1 month")
-      .addOption("60", "2 months")
-      .addOption("90", "3 months")
-      .addOption("180", "6 months")
-      .addOption("365", "1 year")
-      .addOption("custom", "Custom...")
-      .setValue(
-        state.getAutoDeleteDuration() === 0
-          ? "0"
-          : [1, 3, 7, 14, 30, 60, 90, 180, 365].includes(
-                state.getAutoDeleteDuration(),
-              )
-            ? state.getAutoDeleteDuration().toString()
-            : "custom",
-      )
-      .onChange((value) => {
-        if (value === "custom") {
-          if (!autoDeleteCustomInput) {
-            autoDeleteCustomInput = autoDeleteSetting.controlEl.createEl(
-              "input",
-              {
-                type: "number",
-                placeholder: "Enter days",
-                cls: "rss-custom-input",
-              },
-            );
-            autoDeleteCustomInput.min = "1";
-            autoDeleteCustomInput.value =
-              state.getAutoDeleteDuration() > 0
-                ? state.getAutoDeleteDuration().toString()
-                : "";
-            autoDeleteCustomInput.addEventListener("change", (evt: Event) => {
-              const target = evt.target as HTMLInputElement;
-              state.setAutoDeleteDuration(parseInt(target.value) || 0);
-            });
-          }
-          if (autoDeleteCustomInput) {
-            autoDeleteCustomInput.removeClass("hidden");
-            autoDeleteCustomInput.addClass("visible");
-          }
-        } else {
-          if (autoDeleteCustomInput) {
-            autoDeleteCustomInput.removeClass("visible");
-            autoDeleteCustomInput.addClass("hidden");
-          }
-          state.setAutoDeleteDuration(parseInt(value) || 0);
-        }
-      });
+  renderPresetOrCustomDropdown(setting, {
+    options: [
+      ["0", "Disabled"],
+      ["1", "1 day"],
+      ["3", "3 days"],
+      ["7", "1 week"],
+      ["14", "2 weeks"],
+      ["30", "1 month"],
+      ["60", "2 months"],
+      ["90", "3 months"],
+      ["180", "6 months"],
+      ["365", "1 year"],
+    ],
+    initialDropdownValue: presetOrCustomDropdownValue(
+      state.getAutoDeleteDuration(),
+      [1, 3, 7, 14, 30, 60, 90, 180, 365],
+    ),
+    placeholder: "Enter days",
+    get: () => state.getAutoDeleteDuration(),
+    set: (value) => state.setAutoDeleteDuration(value),
   });
 }
 
@@ -124,58 +154,29 @@ export function renderMaxItemsSetting(
   perFeedControlsBody: HTMLElement,
   state: AddFeedOptionsState,
 ): void {
-  const maxItemsSetting = new Setting(perFeedControlsBody)
+  const setting = new Setting(perFeedControlsBody)
     .setName("Max items limit")
     .setDesc(
       "Maximum number of items to keep per feed. Articles covered by a retention protection in the general settings are kept and do not count toward the limit.",
     );
-
-  let maxItemsCustomInput: HTMLInputElement | null = null;
-
-  maxItemsSetting.addDropdown((dropdown) => {
-    dropdown
-      .addOption("0", "Unlimited")
-      .addOption("10", "10 items")
-      .addOption("25", "25 items")
-      .addOption("50", "50 items")
-      .addOption("100", "100 items")
-      .addOption("200", "200 items")
-      .addOption("500", "500 items")
-      .addOption("1000", "1000 items")
-      .addOption("custom", "Custom...")
-      .setValue(
-        state.getMaxItemsLimit() === 0
-          ? "0"
-          : [10, 25, 50, 100, 200, 500, 1000].includes(state.getMaxItemsLimit())
-            ? state.getMaxItemsLimit().toString()
-            : "custom",
-      )
-      .onChange((value) => {
-        if (value === "custom") {
-          if (!maxItemsCustomInput) {
-            maxItemsCustomInput = maxItemsSetting.controlEl.createEl("input", {
-              type: "number",
-              placeholder: "Enter number",
-              cls: "rss-custom-input",
-            });
-            maxItemsCustomInput.min = "1";
-            maxItemsCustomInput.addEventListener("change", (evt: Event) => {
-              const target = evt.target as HTMLInputElement;
-              state.setMaxItemsLimit(parseInt(target.value) || 0);
-            });
-          }
-          if (maxItemsCustomInput) {
-            maxItemsCustomInput.removeClass("hidden");
-            maxItemsCustomInput.addClass("visible");
-          }
-        } else {
-          if (maxItemsCustomInput) {
-            maxItemsCustomInput.removeClass("visible");
-            maxItemsCustomInput.addClass("hidden");
-          }
-          state.setMaxItemsLimit(parseInt(value) || 0);
-        }
-      });
+  renderPresetOrCustomDropdown(setting, {
+    options: [
+      ["0", "Unlimited"],
+      ["10", "10 items"],
+      ["25", "25 items"],
+      ["50", "50 items"],
+      ["100", "100 items"],
+      ["200", "200 items"],
+      ["500", "500 items"],
+      ["1000", "1000 items"],
+    ],
+    initialDropdownValue: presetOrCustomDropdownValue(
+      state.getMaxItemsLimit(),
+      [10, 25, 50, 100, 200, 500, 1000],
+    ),
+    placeholder: "Enter number",
+    get: () => state.getMaxItemsLimit(),
+    set: (value) => state.setMaxItemsLimit(value),
   });
 }
 
@@ -183,63 +184,32 @@ export function renderScanIntervalSetting(
   perFeedControlsBody: HTMLElement,
   state: AddFeedOptionsState,
 ): void {
-  const scanIntervalSetting = new Setting(perFeedControlsBody)
+  const setting = new Setting(perFeedControlsBody)
     .setName("Auto-refresh interval")
     .setDesc(
       "How often this feed refreshes automatically, in minutes. Use global setting follows the auto-refresh interval in the general settings, off turns automatic refresh off for this feed, and custom lets you enter a number of minutes. Exclude from refresh, below, overrides this and keeps the feed off.",
     );
-
-  let scanIntervalCustomInput: HTMLInputElement | null = null;
-
-  scanIntervalSetting.addDropdown((dropdown) => {
-    dropdown
-      .addOption("0", "Use global setting")
-      .addOption(String(FEED_REFRESH_DISABLED_INTERVAL), "Off")
-      .addOption("5", "5 minutes")
-      .addOption("10", "10 minutes")
-      .addOption("15", "15 minutes")
-      .addOption("30", "30 minutes")
-      .addOption("60", "1 hour")
-      .addOption("120", "2 hours")
-      .addOption("240", "4 hours")
-      .addOption("480", "8 hours")
-      .addOption("720", "12 hours")
-      .addOption("1440", "24 hours")
-      .addOption("custom", "Custom...")
-      .setValue(getPerFeedRefreshIntervalDropdownValue(state.getScanInterval()))
-      .onChange((value) => {
-        if (value === "custom") {
-          if (!scanIntervalCustomInput) {
-            scanIntervalCustomInput = scanIntervalSetting.controlEl.createEl(
-              "input",
-              {
-                type: "number",
-                placeholder: "Enter minutes",
-                cls: "rss-custom-input",
-              },
-            );
-            scanIntervalCustomInput.min = "1";
-            scanIntervalCustomInput.value =
-              state.getScanInterval() > 0
-                ? state.getScanInterval().toString()
-                : "";
-            scanIntervalCustomInput.addEventListener("change", (evt: Event) => {
-              const target = evt.target as HTMLInputElement;
-              state.setScanInterval(parseInt(target.value, 10) || 0);
-            });
-          }
-          if (scanIntervalCustomInput) {
-            scanIntervalCustomInput.removeClass("hidden");
-            scanIntervalCustomInput.addClass("visible");
-          }
-        } else {
-          if (scanIntervalCustomInput) {
-            scanIntervalCustomInput.removeClass("visible");
-            scanIntervalCustomInput.addClass("hidden");
-          }
-          state.setScanInterval(parseInt(value, 10) || 0);
-        }
-      });
+  renderPresetOrCustomDropdown(setting, {
+    options: [
+      ["0", "Use global setting"],
+      [String(FEED_REFRESH_DISABLED_INTERVAL), "Off"],
+      ["5", "5 minutes"],
+      ["10", "10 minutes"],
+      ["15", "15 minutes"],
+      ["30", "30 minutes"],
+      ["60", "1 hour"],
+      ["120", "2 hours"],
+      ["240", "4 hours"],
+      ["480", "8 hours"],
+      ["720", "12 hours"],
+      ["1440", "24 hours"],
+    ],
+    initialDropdownValue: getPerFeedRefreshIntervalDropdownValue(
+      state.getScanInterval(),
+    ),
+    placeholder: "Enter minutes",
+    get: () => state.getScanInterval(),
+    set: (value) => state.setScanInterval(value),
   });
 }
 

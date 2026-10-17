@@ -333,9 +333,16 @@ describe("AddFeedModal feed options (characterization)", () => {
       getSelect(custom.contentEl, "Auto delete articles duration").value,
     ).toBe("custom");
     expect(getSelect(custom.contentEl, "Max items limit").value).toBe("custom");
-    // BUG: pinned, see #1264 (Custom... selected but no number input rendered)
-    expect(getCustomInput(custom, "Auto delete articles duration")).toBeNull();
-    expect(getCustomInput(custom, "Max items limit")).toBeNull();
+    // Fixed in #1264: a non-preset default shows its number input, prefilled.
+    const autoDeleteInput = getCustomInput(
+      custom,
+      "Auto delete articles duration",
+    );
+    expect(autoDeleteInput?.value).toBe("45");
+    expect(autoDeleteInput?.hasClass("visible")).toBe(true);
+    const maxItemsInput = getCustomInput(custom, "Max items limit");
+    expect(maxItemsInput?.value).toBe("75");
+    expect(maxItemsInput?.hasClass("visible")).toBe(true);
     custom.close();
     document.body.empty();
 
@@ -458,7 +465,7 @@ describe("AddFeedModal feed options (characterization)", () => {
     expect(input.hasClass("hidden")).toBe(false);
   });
 
-  it("creates the max items custom input empty, parses edits, and hides it for a preset", async () => {
+  it("creates the max items custom input prefilled, parses edits, and hides it for a preset", async () => {
     const onAdd: OnAddFn = vi.fn(async () => true);
     const modal = createModal(onAdd);
     const select = getSelect(modal.contentEl, "Max items limit");
@@ -467,8 +474,8 @@ describe("AddFeedModal feed options (characterization)", () => {
     const input = getCustomInput(modal, "Max items limit")!;
     expect(input.placeholder).toBe("Enter number");
     expect(input.min).toBe("1");
-    // BUG: pinned, see #1265 (max items custom input is not prefilled)
-    expect(input.value).toBe("");
+    // Fixed in #1265: prefilled from the current limit, like auto delete.
+    expect(input.value).toBe("50");
     expect(input.hasClass("visible")).toBe(true);
 
     input.value = "abc";
@@ -542,7 +549,7 @@ describe("AddFeedModal feed options (characterization)", () => {
     );
   });
 
-  it("submits a negative custom auto delete value unclamped", async () => {
+  it("clamps a negative custom auto delete value to 0", async () => {
     const onAdd: OnAddFn = vi.fn(async () => true);
     const modal = createModal(onAdd);
     changeSelect(
@@ -557,9 +564,45 @@ describe("AddFeedModal feed options (characterization)", () => {
     getButton(modal.contentEl, "Save").click();
     await flushPromises();
 
-    // BUG: pinned, see #1265 (min=1 is not enforced on change)
+    // Fixed in #1265: min=1 is enforced on change, so a negative becomes 0.
     expect(onAdd).toHaveBeenCalledWith(
-      expect.objectContaining({ autoDeleteDuration: -5 }),
+      expect.objectContaining({ autoDeleteDuration: 0 }),
+    );
+  });
+
+  it("clamps negative custom max items and refresh interval values to 0", async () => {
+    const onAdd: OnAddFn = vi.fn(async () => true);
+    const modal = createModal(onAdd);
+    changeSelect(getSelect(modal.contentEl, "Max items limit"), "custom");
+    changeSelect(getSelect(modal.contentEl, "Auto-refresh interval"), "custom");
+    const maxItems = getCustomInput(modal, "Max items limit")!;
+    const interval = getCustomInput(modal, "Auto-refresh interval")!;
+    maxItems.value = "-3";
+    maxItems.dispatchEvent(new Event("change"));
+    interval.value = "-1";
+    interval.dispatchEvent(new Event("change"));
+    typeUrl(modal, "https://example.com/feed.xml");
+
+    getButton(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    // -1 would silently select the "Off" refresh preset, so it must not pass through.
+    expect(onAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ maxItemsLimit: 0, scanInterval: 0 }),
+    );
+  });
+
+  it("keeps the Off refresh preset selectable", async () => {
+    const onAdd: OnAddFn = vi.fn(async () => true);
+    const modal = createModal(onAdd);
+    changeSelect(getSelect(modal.contentEl, "Auto-refresh interval"), "-1");
+    typeUrl(modal, "https://example.com/feed.xml");
+
+    getButton(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    expect(onAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ scanInterval: -1 }),
     );
   });
 });
