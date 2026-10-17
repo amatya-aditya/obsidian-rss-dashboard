@@ -54,6 +54,12 @@
   --rss-color-unfollow-hover-bg: var(--background-modifier-error, #5a1e24);
   --rss-color-unfollow-hover-border: var(--text-error, #e5484d);
   --rss-color-unfollow-hover-text: var(--text-error, #ffb4b4);
+
+  /* Bottom clearance for Obsidian's floating mobile menu (the bar with
+   * back/forward and the tab switcher), which paints over the end of a
+   * scrollable pane. The article list and both reading panes reserve it as
+   * bottom padding behind the same narrow-window gate. */
+  --rss-mobile-bottom-bar-clearance: 110px;
 }
 
 /* ============================================

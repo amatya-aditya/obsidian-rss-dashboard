@@ -644,7 +644,7 @@ body .rss-dashboard-tag-action-button svg {
 
   /* Increase bottom padding to accommodate the persistent Obsidian mobile menu */
   .rss-dashboard-articles {
-    padding: 0 10px 110px 10px;
+    padding: 0 10px var(--rss-mobile-bottom-bar-clearance);
   }
 }
 
