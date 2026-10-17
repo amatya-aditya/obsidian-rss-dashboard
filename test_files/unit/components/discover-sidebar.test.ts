@@ -560,4 +560,51 @@ describe("DiscoverSidebar", () => {
     expect(newsCheckbox.checked).toBe(true);
     expect(callbacks.onFilterChange).toHaveBeenCalledTimes(1);
   });
+
+  it("toggles a type filter when the row's count badge is clicked", () => {
+    const filters = createFilters();
+    const feeds = [createFeed({ id: "n", type: "News" })];
+
+    const { container } = setupSidebar({
+      filters,
+      feeds,
+      activeSection: "types",
+    });
+
+    const newsRow = container.querySelector(
+      ".rss-discover-type-item",
+    ) as HTMLElement;
+    const newsCount = newsRow.querySelector(
+      ".rss-discover-type-count",
+    ) as HTMLElement;
+
+    newsCount.click();
+
+    expect(filters.selectedTypes).toEqual(["News"]);
+  });
+
+  it("toggles a leaf category when its count badge is clicked", () => {
+    const filters = createFilters();
+    const feeds = [createFeed({ id: "u", domain: [] })];
+
+    const { container } = setupSidebar({
+      filters,
+      feeds,
+      activeSection: "categories",
+    });
+
+    const uncategorized = container.querySelector(
+      ".rss-discover-category-item",
+    ) as HTMLElement;
+    expect(uncategorized.querySelector("label")?.textContent).toBe(
+      "Uncategorized",
+    );
+    const count = uncategorized.querySelector(
+      ".rss-discover-category-count",
+    ) as HTMLElement;
+
+    count.click();
+
+    expect(filters.selectedPaths).toContainEqual({ domain: "Uncategorized" });
+  });
 });
