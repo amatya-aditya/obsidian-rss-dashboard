@@ -1,5 +1,10 @@
 import { Menu, MenuItem, Notice } from "obsidian";
 import type { FeedItem, SaveVersion } from "../../../types/types";
+import { isHttpUrl } from "../../../utils/http-url";
+import {
+  COVER_IMAGE_FETCH_ICON,
+  coverImageActionLabel,
+} from "./cover-image-action";
 import { addSaveOptionItems, type CustomSaveHooks } from "./save-options-menu";
 
 export interface ArticleContext {
@@ -145,15 +150,11 @@ export function showArticleContextMenu(
   });
 
   const fetchCoverImage = ctx.callbacks.onFetchCoverImage;
-  if (ctx.showFetchCoverImage && article.link && fetchCoverImage) {
+  if (ctx.showFetchCoverImage && isHttpUrl(article.link) && fetchCoverImage) {
     menu.addItem((item: MenuItem) => {
       item
-        .setTitle(
-          article.coverImage
-            ? "Replace cover image from page"
-            : "Fetch cover image from page",
-        )
-        .setIcon("download")
+        .setTitle(coverImageActionLabel(article))
+        .setIcon(COVER_IMAGE_FETCH_ICON)
         .onClick(() => {
           void fetchCoverImage(article).then((found) => {
             if (found) ctx.callbacks.onCoverImageFetched?.(article);

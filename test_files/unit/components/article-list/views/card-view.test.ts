@@ -745,16 +745,16 @@ describe("card-view", () => {
 
       fetchButton()?.click();
 
-      expect(card.classList.contains("rss-dashboard-card-cover-fetching")).toBe(
+      expect(card.classList.contains("rss-dashboard-cover-fetching")).toBe(
         true,
       );
       expect(card.getAttribute("aria-busy")).toBe("true");
 
       finish(false);
       await vi.waitFor(() =>
-        expect(
-          card.classList.contains("rss-dashboard-card-cover-fetching"),
-        ).toBe(false),
+        expect(card.classList.contains("rss-dashboard-cover-fetching")).toBe(
+          false,
+        ),
       );
       expect(card.hasAttribute("aria-busy")).toBe(false);
     });

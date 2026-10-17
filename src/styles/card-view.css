@@ -270,12 +270,13 @@
   background-color: var(--background-modifier-hover);
 }
 
-.rss-dashboard-card-cover-fetching .rss-dashboard-fetch-cover-button {
+.rss-dashboard-cover-fetching .rss-dashboard-fetch-cover-button {
   opacity: 1;
   color: var(--text-muted);
 }
 
-.rss-dashboard-card-cover-fetching .rss-dashboard-card-preview-region {
+.rss-dashboard-cover-fetching .rss-dashboard-card-preview-region,
+.rss-dashboard-cover-fetching .rss-dashboard-feed-preview-region {
   opacity: 0.5;
 }
 

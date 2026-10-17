@@ -3,6 +3,7 @@
 // would pick a byline avatar or a site logo (#812).
 import type { FullArticleFetchResult } from "../utils/fetch-helpers";
 import { resolvePageCoverImage } from "../utils/article-metadata";
+import { isHttpUrl } from "../utils/http-url";
 
 export type PageCoverImageStatus =
   | "found"
@@ -36,7 +37,7 @@ export class PageCoverImageService {
    */
   fetch(rawLink: string): Promise<PageCoverImageResult> {
     const link = (rawLink ?? "").trim();
-    if (!/^https?:\/\//i.test(link)) {
+    if (!isHttpUrl(link)) {
       return Promise.resolve({ status: "skipped", url: "" });
     }
 

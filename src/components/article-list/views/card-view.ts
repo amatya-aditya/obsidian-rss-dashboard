@@ -11,7 +11,12 @@ import {
   resolveArticlePreviewImage,
 } from "../../../utils/article-preview-utils";
 import { renderSingleRowCardTagChips } from "../utils/tag-layout-utils";
+import {
+  COVER_IMAGE_FETCH_ICON,
+  coverImageActionLabel,
+} from "../utils/cover-image-action";
 import { createIconButton } from "../../../utils/icon-button";
+import { isHttpUrl } from "../../../utils/http-url";
 import type { BaseViewContext, ViewDeps } from "./view-types";
 import {
   renderPreviewPlaceholder,
@@ -59,22 +64,20 @@ function renderFetchCoverButton(
   if (!deps.fetchCoverImage) return;
 
   const runFetch = async (): Promise<void> => {
-    card.classList.add("rss-dashboard-card-cover-fetching");
+    card.classList.add("rss-dashboard-cover-fetching");
     card.setAttribute("aria-busy", "true");
     try {
       const fetched = await deps.fetchCoverImage?.(article);
       if (fetched) deps.replaceArticle?.(article);
     } finally {
-      card.classList.remove("rss-dashboard-card-cover-fetching");
+      card.classList.remove("rss-dashboard-cover-fetching");
       card.removeAttribute("aria-busy");
     }
   };
 
   const button = createIconButton({
-    label: article.coverImage
-      ? "Replace cover image from page"
-      : "Fetch cover image from page",
-    icon: "download",
+    label: coverImageActionLabel(article),
+    icon: COVER_IMAGE_FETCH_ICON,
     parent: card,
     cls: "rss-dashboard-fetch-cover-button",
     action: "fetch-cover-image",
@@ -339,7 +342,7 @@ export function renderCardView(
     if (
       deps.fetchCoverImage &&
       ctx.settings.display.showCoverImage &&
-      article.link
+      isHttpUrl(article.link)
     ) {
       renderFetchCoverButton(card, article, deps);
     }

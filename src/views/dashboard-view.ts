@@ -3079,16 +3079,15 @@ export class RssDashboardView extends ItemView {
    * stored, so the calling card can rebuild itself.
    */
   private async handleFetchCoverImage(article: FeedItem): Promise<boolean> {
-    const result = await this.plugin.fetchPageCoverImage(article);
+    const result = await this.plugin.fetchPageCoverImage(article.link);
     if (result.status === "found") {
       await this.updateArticleStatus(
         article,
         { coverImage: result.url },
         false,
       );
-      if (this.settings.display.allowImageCaching) {
-        this.plugin.warmCoverImage(result.url);
-      }
+      // The cache itself decides whether caching is on for this image.
+      this.plugin.warmCoverImage(result.url);
       return true;
     }
 

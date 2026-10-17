@@ -483,8 +483,8 @@ export default class RssDashboardPlugin extends Plugin {
    * Reads the article page's declared cover image for the manual dashboard
    * action (#1314). Shares one request per link while one is in flight.
    */
-  public fetchPageCoverImage(article: FeedItem): Promise<PageCoverImageResult> {
-    return this.pageCoverImageService.fetch(article.link ?? "");
+  public fetchPageCoverImage(link: string): Promise<PageCoverImageResult> {
+    return this.pageCoverImageService.fetch(link);
   }
 
   /** Caches a just-fetched cover image immediately (#1314). */

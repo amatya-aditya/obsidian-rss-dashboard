@@ -38,6 +38,7 @@ import { renderFeedIcon as renderFeedIconUtil } from "./article-list/utils/feed-
 import { createActionButtons as createArticleActionButtonsUtil } from "./article-list/utils/article-actions";
 import type { CustomSaveHooks } from "./article-list/utils/save-options-menu";
 import { showArticleContextMenu as showArticleContextMenuUtil } from "./article-list/utils/article-context-menu";
+import { isHttpUrl } from "../utils/http-url";
 import { renderFeedView as renderFeedViewUtil } from "./article-list/views/feed-view";
 import { renderListView as renderListViewUtil } from "./article-list/views/list-view";
 import { renderCardView as renderCardViewUtil } from "./article-list/views/card-view";
@@ -1449,9 +1450,7 @@ export class ArticleList {
         this.createArticleActionButtons(actionToolbar, article, mode),
       showArticleContextMenu: (event, article) =>
         this.showArticleContextMenu(event, article),
-      fetchCoverImage: onFetchCoverImage
-        ? (article: FeedItem) => onFetchCoverImage(article)
-        : undefined,
+      fetchCoverImage: onFetchCoverImage,
       replaceArticle: (article: FeedItem) => {
         this.replaceArticleInPlace(article);
       },
@@ -1593,16 +1592,22 @@ export class ArticleList {
   }
 
   private showArticleContextMenu(event: MouseEvent, article: FeedItem): void {
+    const fetchCoverImage = this.callbacks.onFetchCoverImage;
     showArticleContextMenuUtil(event, article, {
       callbacks: {
         ...this.callbacks,
+        onFetchCoverImage: fetchCoverImage
+          ? (target: FeedItem) =>
+              this.fetchCoverImageWithBusyState(target, fetchCoverImage)
+          : undefined,
         onCoverImageFetched: (updated: FeedItem) =>
           this.replaceArticleInPlace(updated),
       },
       showFetchCoverImage:
-        !!this.callbacks.onFetchCoverImage &&
+        !!fetchCoverImage &&
         this.settings.viewStyle !== "list" &&
-        this.settings.display.showCoverImage,
+        this.settings.display.showCoverImage &&
+        isHttpUrl(article.link),
       settings: { articleSaving: this.settings.articleSaving },
     });
   }
@@ -1614,20 +1619,10 @@ export class ArticleList {
    * control in the new element when the replaced one held it.
    */
   public replaceArticleInPlace(article: FeedItem): boolean {
-    const listEl = this.container.querySelector<HTMLElement>(
-      ".rss-dashboard-articles-list",
-    );
+    const listEl = this.getArticlesListEl();
     if (!listEl) return false;
 
-    const targetEl = Array.from(
-      listEl.querySelectorAll<HTMLElement>(
-        ".rss-dashboard-article-card, .rss-dashboard-feed-item, .rss-dashboard-article-item",
-      ),
-    ).find(
-      (el) =>
-        el.id === `article-${article.guid}` &&
-        el.dataset.feedUrl === article.feedUrl,
-    );
+    const targetEl = this.findArticleElement(article);
     if (!targetEl) return false;
 
     // Build the replacement detached: createDiv() on a Document appends to the
@@ -1660,6 +1655,51 @@ export class ArticleList {
       focusTarget?.focus();
     }
     return true;
+  }
+
+  private getArticlesListEl(): HTMLElement | null {
+    return this.container.querySelector<HTMLElement>(
+      ".rss-dashboard-articles-list",
+    );
+  }
+
+  /** The rendered element for one article, in whichever view rendered it. */
+  private findArticleElement(article: FeedItem): HTMLElement | null {
+    const listEl = this.getArticlesListEl();
+    if (!listEl) return null;
+
+    return (
+      Array.from(
+        listEl.querySelectorAll<HTMLElement>(
+          ".rss-dashboard-article-card, .rss-dashboard-feed-item, .rss-dashboard-article-item",
+        ),
+      ).find(
+        (el) =>
+          el.id === `article-${article.guid}` &&
+          el.dataset.feedUrl === article.feedUrl,
+      ) ?? null
+    );
+  }
+
+  /**
+   * Runs the cover-image fetch with the busy state the card shows (#1314), so
+   * the context-menu path reports progress exactly as the in-card control does.
+   * The stylesheet keys the visible part off the class; `aria-busy` carries it
+   * to a screen reader.
+   */
+  private async fetchCoverImageWithBusyState(
+    article: FeedItem,
+    fetch: (article: FeedItem) => Promise<boolean>,
+  ): Promise<boolean> {
+    const element = this.findArticleElement(article);
+    element?.classList.add("rss-dashboard-cover-fetching");
+    element?.setAttribute("aria-busy", "true");
+    try {
+      return await fetch(article);
+    } finally {
+      element?.classList.remove("rss-dashboard-cover-fetching");
+      element?.removeAttribute("aria-busy");
+    }
   }
 
   private createPortalDropdown(
