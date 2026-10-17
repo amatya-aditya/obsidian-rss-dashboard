@@ -553,12 +553,6 @@ describe("ReaderView article rendering (characterization)", () => {
         "an item that looks like a video",
         { mediaType: "video" as const, link: "https://example.com/clip" },
       ],
-      ["a Kagi story", { link: "https://kite.kagi.com/story" }],
-      ["a Kagi news story", { link: "https://news.kagi.com/story" }],
-      ["an Aeon essay", { link: "https://aeon.co/essays/x" }],
-      ["an Aeon subdomain", { link: "https://www.aeon.co/essays/x" }],
-      ["a Substack post", { link: "https://substack.com/p/x" }],
-      ["a Substack publication", { link: "https://writer.substack.com/p/x" }],
     ])("does not fetch for %s", async (_label, overrides) => {
       await view.displayItem(
         makeItem({ content: "<p>short</p>", ...overrides }),
@@ -566,6 +560,25 @@ describe("ReaderView article rendering (characterization)", () => {
 
       expect(fetchMock()).not.toHaveBeenCalled();
     });
+
+    // The hidden preferred-host list was disabled (#1287): these hosts no
+    // longer skip the fetch just because of their domain.
+    it.each([
+      ["a Kagi story", "https://kite.kagi.com/story"],
+      ["a Kagi news story", "https://news.kagi.com/story"],
+      ["an Aeon essay", "https://aeon.co/essays/x"],
+      ["an Aeon subdomain", "https://www.aeon.co/essays/x"],
+      ["a Substack post", "https://substack.com/p/x"],
+      ["a Substack publication", "https://writer.substack.com/p/x"],
+    ])(
+      "fetches for %s after the preferred-host list is disabled",
+      async (_label, link) => {
+        await view.displayItem(makeItem({ content: "<p>short</p>", link }));
+
+        expect(fetchMock()).toHaveBeenCalledTimes(1);
+        expect(fetchMock()).toHaveBeenCalledWith(link);
+      },
+    );
 
     it.each([
       ["data-component-name", '<div data-component-name="Image2ToDOM"></div>'],
@@ -592,17 +605,6 @@ describe("ReaderView article rendering (characterization)", () => {
       );
 
       expect(fetchMock()).not.toHaveBeenCalled();
-    });
-
-    it("fetches for a host that only ends like a preferred one", async () => {
-      await view.displayItem(
-        makeItem({
-          content: "<p>short</p>",
-          link: "https://notsubstack.com/p/x",
-        }),
-      );
-
-      expect(fetchMock()).toHaveBeenCalledTimes(1);
     });
 
     it("fetches when the link is not a valid url and the content has no marker", async () => {
@@ -867,7 +869,9 @@ describe("ReaderView article rendering (characterization)", () => {
       expect(q(".rss-reader-article-header")).not.toBeNull();
     });
 
-    it("bypasses the web viewer for a Substack link", async () => {
+    it("no longer bypasses the web viewer for a Substack link without rich markup", async () => {
+      // The host list that used to bypass the web viewer for these domains was
+      // disabled (#1287); only the content markup check remains.
       const open = vi.fn().mockResolvedValue(true);
       enableWebViewer(open);
 
@@ -878,8 +882,7 @@ describe("ReaderView article rendering (characterization)", () => {
         }),
       );
 
-      expect(open).not.toHaveBeenCalled();
-      expect(q(".rss-reader-article-header")).not.toBeNull();
+      expect(open).toHaveBeenCalledTimes(1);
     });
 
     it("bypasses the web viewer for Substack markup in the content", async () => {
