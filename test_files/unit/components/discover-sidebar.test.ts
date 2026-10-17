@@ -342,4 +342,269 @@ describe("DiscoverSidebar", () => {
 
     expect(callbacks.onFilterChange).toHaveBeenCalled();
   });
+
+  it("toggles a type filter when the row's text is clicked", () => {
+    const filters = createFilters();
+    const feeds = [
+      createFeed({ id: "n", type: "News" }),
+      createFeed({ id: "p", type: "Podcast" }),
+    ];
+
+    const { container, callbacks } = setupSidebar({
+      filters,
+      feeds,
+      activeSection: "types",
+    });
+
+    const findTypeRow = (type: string) =>
+      Array.from(container.querySelectorAll(".rss-discover-type-item")).find(
+        (el) => el.querySelector("label")?.textContent === type,
+      ) as HTMLElement | undefined;
+
+    const newsRow = findTypeRow("News")!;
+    const newsLabel = newsRow.querySelector("label") as HTMLLabelElement;
+    const newsCheckbox = newsRow.querySelector(
+      'input[type="checkbox"]',
+    ) as HTMLInputElement;
+
+    newsLabel.click();
+
+    expect(filters.selectedTypes).toEqual(["News"]);
+    expect(newsCheckbox.checked).toBe(true);
+    expect(callbacks.onFilterChange).toHaveBeenCalledTimes(1);
+
+    newsLabel.click();
+
+    expect(filters.selectedTypes).toEqual([]);
+    expect(newsCheckbox.checked).toBe(false);
+  });
+
+  it("toggles a tag filter when the row's text is clicked", () => {
+    const filters = createFilters();
+    const feeds = [
+      createFeed({ id: "a", tags: ["ai"] }),
+      createFeed({ id: "b", tags: ["web"] }),
+    ];
+
+    const { container } = setupSidebar({
+      filters,
+      feeds,
+      activeSection: "tags",
+    });
+
+    const findTagRow = (tag: string) =>
+      Array.from(container.querySelectorAll(".rss-discover-tag-item")).find(
+        (el) => el.querySelector("label")?.textContent === tag,
+      ) as HTMLElement | undefined;
+
+    const aiLabel = findTagRow("ai")!.querySelector(
+      "label",
+    ) as HTMLLabelElement;
+
+    aiLabel.click();
+
+    expect(filters.selectedTags).toEqual(["ai"]);
+  });
+
+  it("toggles a leaf category when the row's text is clicked", () => {
+    const filters = createFilters();
+    const feeds = [
+      createFeed({ id: "u", domain: [] }),
+      createFeed({ id: "t", domain: ["Tech"], subdomain: ["AI"] }),
+    ];
+
+    const { container } = setupSidebar({
+      filters,
+      feeds,
+      activeSection: "categories",
+    });
+
+    const findCategoryItem = (labelText: string) =>
+      Array.from(
+        container.querySelectorAll(".rss-discover-category-item"),
+      ).find(
+        (item) =>
+          item.querySelector(".rss-discover-category-main label")
+            ?.textContent === labelText,
+      ) as HTMLElement | undefined;
+
+    const aiItem = findCategoryItem("AI")!;
+    expect(aiItem.querySelector(".rss-discover-category-children")).toBeNull();
+    const aiLabel = aiItem.querySelector(
+      ".rss-discover-category-main label",
+    ) as HTMLLabelElement;
+
+    aiLabel.click();
+
+    expect(filters.selectedPaths).toContainEqual({
+      domain: "Tech",
+      subdomain: "AI",
+    });
+  });
+
+  it("expands a parent category when the row's text is clicked, without selecting it", () => {
+    const filters = createFilters();
+    const feeds = [
+      createFeed({ id: "t", domain: ["Tech"], subdomain: ["AI"] }),
+    ];
+
+    const { container } = setupSidebar({
+      filters,
+      feeds,
+      activeSection: "categories",
+    });
+
+    const techItem = container.querySelector(
+      ".rss-discover-category-item",
+    ) as HTMLElement;
+    const techLabel = techItem.querySelector(
+      ".rss-discover-category-main label",
+    ) as HTMLLabelElement;
+    const techChildren = techItem.querySelector(
+      ".rss-discover-category-children",
+    ) as HTMLElement;
+    const techCheckbox = techItem.querySelector(
+      'input[type="checkbox"]',
+    ) as HTMLInputElement;
+
+    expect(techLabel.textContent).toBe("Tech");
+    expect(techChildren.classList.contains("rss-collapsed")).toBe(true);
+
+    techLabel.click();
+
+    expect(techChildren.classList.contains("rss-collapsed")).toBe(false);
+    expect(filters.selectedPaths).toEqual([]);
+    expect(techCheckbox.checked).toBe(false);
+  });
+
+  it("expands a parent category when its count badge is clicked", () => {
+    const filters = createFilters();
+    const feeds = [
+      createFeed({ id: "t", domain: ["Tech"], subdomain: ["AI"] }),
+    ];
+
+    const { container } = setupSidebar({
+      filters,
+      feeds,
+      activeSection: "categories",
+    });
+
+    const techItem = container.querySelector(
+      ".rss-discover-category-item",
+    ) as HTMLElement;
+    const techCount = techItem.querySelector(
+      ".rss-discover-category-count",
+    ) as HTMLElement;
+    const techChildren = techItem.querySelector(
+      ".rss-discover-category-children",
+    ) as HTMLElement;
+
+    techCount.click();
+
+    expect(techChildren.classList.contains("rss-collapsed")).toBe(false);
+    expect(filters.selectedPaths).toEqual([]);
+  });
+
+  it("selects a parent category from its checkbox without expanding it", () => {
+    const filters = createFilters();
+    const feeds = [
+      createFeed({ id: "t", domain: ["Tech"], subdomain: ["AI"] }),
+    ];
+
+    const { container, callbacks } = setupSidebar({
+      filters,
+      feeds,
+      activeSection: "categories",
+    });
+
+    const techItem = container.querySelector(
+      ".rss-discover-category-item",
+    ) as HTMLElement;
+    const techCheckbox = techItem.querySelector(
+      'input[type="checkbox"]',
+    ) as HTMLInputElement;
+    const techChildren = techItem.querySelector(
+      ".rss-discover-category-children",
+    ) as HTMLElement;
+
+    techCheckbox.click();
+    techCheckbox.dispatchEvent(new Event("change"));
+
+    expect(filters.selectedPaths).toEqual([{ domain: "Tech" }]);
+    expect(techCheckbox.checked).toBe(true);
+    expect(techChildren.classList.contains("rss-collapsed")).toBe(true);
+    expect(callbacks.onFilterChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("toggles a filter exactly once when the checkbox itself is clicked", () => {
+    const filters = createFilters();
+    const feeds = [createFeed({ id: "n", type: "News" })];
+
+    const { container, callbacks } = setupSidebar({
+      filters,
+      feeds,
+      activeSection: "types",
+    });
+
+    const newsCheckbox = container.querySelector(
+      '.rss-discover-type-item input[type="checkbox"]',
+    ) as HTMLInputElement;
+
+    // jsdom toggles `checked` on click but fires no `change`; a browser fires
+    // both, so send both to model the real activation and prove the row's
+    // checkbox guard does not toggle a second time.
+    newsCheckbox.click();
+    newsCheckbox.dispatchEvent(new Event("change"));
+
+    expect(filters.selectedTypes).toEqual(["News"]);
+    expect(newsCheckbox.checked).toBe(true);
+    expect(callbacks.onFilterChange).toHaveBeenCalledTimes(1);
+  });
+
+  it("toggles a type filter when the row's count badge is clicked", () => {
+    const filters = createFilters();
+    const feeds = [createFeed({ id: "n", type: "News" })];
+
+    const { container } = setupSidebar({
+      filters,
+      feeds,
+      activeSection: "types",
+    });
+
+    const newsRow = container.querySelector(
+      ".rss-discover-type-item",
+    ) as HTMLElement;
+    const newsCount = newsRow.querySelector(
+      ".rss-discover-type-count",
+    ) as HTMLElement;
+
+    newsCount.click();
+
+    expect(filters.selectedTypes).toEqual(["News"]);
+  });
+
+  it("toggles a leaf category when its count badge is clicked", () => {
+    const filters = createFilters();
+    const feeds = [createFeed({ id: "u", domain: [] })];
+
+    const { container } = setupSidebar({
+      filters,
+      feeds,
+      activeSection: "categories",
+    });
+
+    const uncategorized = container.querySelector(
+      ".rss-discover-category-item",
+    ) as HTMLElement;
+    expect(uncategorized.querySelector("label")?.textContent).toBe(
+      "Uncategorized",
+    );
+    const count = uncategorized.querySelector(
+      ".rss-discover-category-count",
+    ) as HTMLElement;
+
+    count.click();
+
+    expect(filters.selectedPaths).toContainEqual({ domain: "Uncategorized" });
+  });
 });
