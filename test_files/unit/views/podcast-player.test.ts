@@ -592,4 +592,25 @@ describe("PodcastPlayer", () => {
       vi.useRealTimers();
     });
   });
+  describe("seek drag listeners", () => {
+    it("removes window drag listeners when the player is destroyed mid-drag", () => {
+      const container: HTMLDivElement = createDiv();
+      document.body.appendChild(container);
+      const player = new PodcastPlayer(container, new App(), "obsidian");
+      player.loadEpisode(baseEpisode());
+
+      const removeSpy = vi.spyOn(activeWindow, "removeEventListener");
+      const audio = container.querySelector("audio") as HTMLAudioElement;
+      Object.defineProperty(audio, "duration", { value: 100 });
+      const bar = container.querySelector(".podcast-progress-bar");
+      expect(bar).not.toBeNull();
+
+      bar?.dispatchEvent(new MouseEvent("mousedown"));
+      player.destroy();
+
+      const removed = removeSpy.mock.calls.map((call) => call[0]);
+      expect(removed).toContain("mousemove");
+      expect(removed).toContain("mouseup");
+    });
+  });
 });

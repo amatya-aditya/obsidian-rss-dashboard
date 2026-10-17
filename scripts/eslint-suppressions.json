@@ -159,13 +159,5 @@
     "complexity": {
       "count": 1
     }
-  },
-  "src/views/podcast-player.ts": {
-    "complexity": {
-      "count": 2
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
   }
 }
