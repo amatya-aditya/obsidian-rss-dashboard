@@ -72,18 +72,33 @@ JSON
     sleep 1
   done
 
-  # Restricted mode is on in a fresh profile: turn community plugins on and load ours.
+  # Restricted mode is on in a fresh profile: dismiss the trust dialog, turn
+  # community plugins on, and load ours. The vault window opens a moment after
+  # CDP answers, so retry until the plugin is loaded.
   local enable="$WORK/enable-plugin.js"
   cat >"$enable" <<'JS'
 (async () => {
+  const trust = [...document.querySelectorAll('button')].find((b) =>
+    /Trust author/.test(b.textContent),
+  );
+  if (trust) trust.click();
   await app.plugins.setEnable(true);
   await app.plugins.loadManifests();
   await app.plugins.enablePluginAndSave('rss-dashboard');
   return 'enabled';
 })()
 JS
-  node "$REPO/scripts/obsidian-cdp.mjs" --port "$PORT" --profile "$PROFILE" \
-    --expect-vault "$VAULT" --wait 30000 eval "$enable" >/dev/null
+  local cdp=(node "$REPO/scripts/obsidian-cdp.mjs" --port "$PORT" --profile "$PROFILE" --expect-vault "$VAULT")
+  # eval does not await a promise, so fire the enable and then probe synchronously.
+  local probe="$WORK/probe-plugin.js"
+  echo "Boolean(app.plugins.plugins['rss-dashboard'])" >"$probe"
+  local attempt=0
+  until "${cdp[@]}" eval "$probe" 2>/dev/null | tail -1 | grep -q '^true$'; do
+    "${cdp[@]}" eval "$enable" >/dev/null 2>&1 || true
+    sleep 1
+    attempt=$((attempt + 1))
+    [ "$attempt" -gt 30 ] && { echo "rss-dashboard did not load; see $WORK/obsidian.log." >&2; exit 1; }
+  done
 
   echo "Obsidian $OBS_VER running. Pass these to scripts/obsidian-cdp.mjs:"
   echo "  --port $PORT --profile $PROFILE --expect-vault $VAULT"
