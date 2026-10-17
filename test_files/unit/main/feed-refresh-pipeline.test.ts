@@ -165,8 +165,52 @@ describe("refreshFeeds() pipeline behavior", () => {
     expect(refreshSpy).not.toHaveBeenCalled();
     expect(plugin.feedParser.refreshFeed).not.toHaveBeenCalled();
     expect(getNoticeMessages(consoleLogSpy)).toContain(
-      "No failed feeds to retry.",
+      "No failed refreshes to retry.",
     );
+  });
+
+  it("points to Retry import instead of claiming there are no failed feeds when only a background import failed", async () => {
+    const importFailed = createFeed({
+      title: "Import Failed Feed",
+      url: "https://example.com/import-failed.xml",
+      importStatus: "failed",
+      importError: "Request failed, status 500",
+    });
+    const plugin = createPluginWithSettings([importFailed]);
+    const refreshSpy = vi
+      .spyOn(plugin, "refreshFeeds")
+      .mockResolvedValue(undefined);
+
+    await plugin.refreshFailedFeeds();
+
+    expect(refreshSpy).not.toHaveBeenCalled();
+    const notices = getNoticeMessages(consoleLogSpy);
+    expect(notices).toContain(
+      "No failed refreshes to retry. 1 feed import failed; choose Retry import from the feed's menu.",
+    );
+    expect(notices).not.toContain("No failed feeds to retry.");
+  });
+
+  it("still retries only the fetch failures when an import-failed feed is present", async () => {
+    const fetchFailed = createFeed({
+      title: "Fetch Failed Feed",
+      url: "https://example.com/fetch-failed.xml",
+      lastFetchError: "network down",
+    });
+    const importFailed = createFeed({
+      title: "Import Failed Feed",
+      url: "https://example.com/import-failed.xml",
+      importStatus: "failed",
+      importError: "Request failed, status 500",
+    });
+    const plugin = createPluginWithSettings([fetchFailed, importFailed]);
+    const refreshSpy = vi
+      .spyOn(plugin, "refreshFeeds")
+      .mockResolvedValue(undefined);
+
+    await plugin.refreshFailedFeeds();
+
+    expect(refreshSpy).toHaveBeenCalledWith([fetchFailed], "failed");
   });
 
   it("keeps global completion unchanged while successful and repeated failed retries update their errors", async () => {

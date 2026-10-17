@@ -1730,6 +1730,15 @@ export default class RssDashboardPlugin extends Plugin {
     this.backgroundImportService.startBackgroundImport(feeds);
   }
 
+  /**
+   * Re-import one feed whose background import failed (#1309): a thin facade
+   * over BackgroundImportService, which owns the re-import and its Notices.
+   * The sidebar's "Retry import" action calls this; it is not a refresh.
+   */
+  public retryFeedImport(feed: Feed): void {
+    this.backgroundImportService.retryFeedImport(feed);
+  }
+
   public async ingestFeedsForBackgroundImport(
     candidates: FeedIngestionCandidate[],
     options?: FeedIngestionOptions,

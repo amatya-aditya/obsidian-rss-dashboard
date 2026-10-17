@@ -131,6 +131,8 @@ describe("Sidebar Core", () => {
       onDeleteFeed: vi.fn(),
       onDeleteFolder: vi.fn(),
       onRefreshFeeds: vi.fn(),
+      onRetryFailedFeeds: vi.fn(),
+      onRetryImport: vi.fn(),
       onUpdateFeed: vi.fn(),
       onImportOpml: vi.fn(),
       onExportOpml: vi.fn(),
@@ -462,6 +464,42 @@ describe("Sidebar Core", () => {
         "Edit feed",
         "Refresh details",
       ]);
+    });
+
+    it("offers Retry import for a feed whose background import failed", () => {
+      const titles = openFeedMenuTitles(
+        createFeed({
+          importStatus: "failed",
+          importError: "Request failed, status 500",
+        }),
+      );
+      expect(titles).toContain("Retry import");
+    });
+
+    it("hides Retry import for feeds whose import did not fail", () => {
+      expect(openFeedMenuTitles(createFeed())).not.toContain("Retry import");
+      expect(
+        openFeedMenuTitles(createFeed({ lastFetchError: "network down" })),
+      ).not.toContain("Retry import");
+    });
+
+    it("runs a re-import from the feed context menu", () => {
+      const feed = createFeed({
+        importStatus: "timed_out",
+        importError: "Timed out",
+      });
+      renderSidebar([feed]);
+
+      container
+        .querySelector(".rss-dashboard-feed")
+        ?.dispatchEvent(
+          new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+        );
+      ObsidianStubs.Menu.lastItems
+        .find((menuItem) => menuItem.title === "Retry import")
+        ?.trigger();
+
+      expect(callbacks.onRetryImport).toHaveBeenCalledWith(feed);
     });
 
     it("keeps Refresh details directly after Edit feed when the feed has a fetch error", () => {

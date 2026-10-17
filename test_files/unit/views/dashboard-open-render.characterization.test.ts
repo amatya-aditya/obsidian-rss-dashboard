@@ -278,6 +278,7 @@ const SIDEBAR_CALLBACK_NAMES = [
   "onRangeSelect",
   "onRefreshFeeds",
   "onRetryFailedFeeds",
+  "onRetryImport",
   "onSelectionCleared",
   "onTagFilterModeChange",
   "onTagToggle",

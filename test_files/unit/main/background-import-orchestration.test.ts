@@ -588,4 +588,41 @@ describe("background import orchestration", () => {
       mockRefreshFeed.mock.calls.map(([feed]) => (feed as Feed).url),
     ).toEqual([feedA.url, feedB.url]);
   });
+
+  it("re-imports a feed whose background import failed and clears the failure", async () => {
+    const plugin = createPlugin();
+    const failed: Feed = {
+      ...createPlaceholderFeed("https://example.com/broken.xml"),
+      importStatus: "failed",
+      importError: "Request failed, status 500",
+    };
+    plugin.settings.feeds = [failed];
+    mockParseFeed.mockResolvedValue({
+      ...failed,
+      items: [
+        {
+          title: "Article",
+          link: "https://example.com/article",
+          description: "",
+          pubDate: "2026-01-01T00:00:00.000Z",
+          guid: "article-1",
+          read: false,
+          starred: false,
+          tags: [],
+          feedTitle: failed.title,
+          feedUrl: failed.url,
+          coverImage: "",
+        },
+      ],
+    });
+
+    plugin.retryFeedImport(failed);
+
+    expect(plugin.settings.feeds[0]?.importStatus).toBe("pending");
+    expect(plugin.settings.feeds[0]?.importError).toBeUndefined();
+    await vi.waitFor(() =>
+      expect(plugin.settings.feeds[0]?.importStatus).toBeUndefined(),
+    );
+    expect(plugin.settings.feeds[0]?.items).toHaveLength(1);
+  });
 });
