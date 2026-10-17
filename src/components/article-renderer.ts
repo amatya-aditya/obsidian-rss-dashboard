@@ -78,6 +78,8 @@ export interface ArticleRendererOptions {
     duration: number,
     flush?: boolean,
   ) => void;
+  /** Persists the settings object after this renderer mutates it. */
+  onPersistSettings?: () => Promise<void>;
 }
 
 export class ArticleRenderer {
@@ -98,6 +100,15 @@ export class ArticleRenderer {
     duration: number,
     flush?: boolean,
   ) => void;
+  private onPersistSettings?: () => Promise<void>;
+  private readonly onPodcastPlaySpeedChange = (speed: number): void => {
+    // Remember the speed the user picked in the inline player so later players
+    // start from it, and persist it through the owning view (#1269).
+    this.settings.media.defaultPlaySpeed = speed;
+    void this.onPersistSettings?.().catch(() => {
+      // Keep the in-session speed even when the settings write fails.
+    });
+  };
 
   private podcastPlayer: PodcastPlayer | null = null;
   private videoPlayer: VideoPlayer | null = null;
@@ -120,6 +131,7 @@ export class ArticleRenderer {
     this.onArticleUpdate = options.onArticleUpdate;
     this.onOpenSavedArticle = options.onOpenSavedArticle;
     this.onPlaybackProgress = options.onPlaybackProgress;
+    this.onPersistSettings = options.onPersistSettings;
   }
 
   // Plugin imports replace plugin.settings with a new object, so resolve it per read.
@@ -301,6 +313,7 @@ export class ArticleRenderer {
         this.settings.media.rememberPlaybackProgress,
         this.settings.media.defaultPlaySpeed ?? 1,
         this.settings.useFirstSeenDateFallback,
+        this.onPodcastPlaySpeedChange,
       );
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
     } else {
