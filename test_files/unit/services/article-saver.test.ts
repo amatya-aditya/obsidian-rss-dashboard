@@ -3021,7 +3021,9 @@ describe("ArticleSaver contentSource (#1248)", () => {
       createSettings({
         includeFrontmatter: true,
         frontmatterTemplate: '---\ncontentSource: "{{contentSource}}"\n---',
-        defaultTemplate: "{{content}}",
+        // Not `{{content}}`: a body cleared to the minimal template gets no
+        // plugin frontmatter at all (#1246).
+        defaultTemplate: "# {{title}}\n\n{{content}}",
       }),
     );
 
@@ -3035,7 +3037,7 @@ describe("ArticleSaver contentSource (#1248)", () => {
     );
 
     expect(await readNote(app, file)).toBe(
-      '---\ncontentSource: "Fetched content"\n---\nBODY',
+      '---\ncontentSource: "Fetched content"\n---\n# Test Article\n\nBODY',
     );
   });
 
