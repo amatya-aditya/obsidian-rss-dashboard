@@ -230,7 +230,10 @@ One message per event, never per feed:
 A background refresh of due feeds (intent `due`) and the interval scheduler's
 global refresh (intent `scheduled`, also the startup refresh) are quiet: no
 start message, and a finish message only when it found articles or errors. A
-manual global refresh (intent `global`) is fully announced. To assert in a
+manual global refresh (intent `global`) is fully announced. A background feed
+import that settles with a failed or timed-out feed reports one message per
+batch on the same event and region; a successful import announces nothing (see
+`test_files/unit/main/background-import-announcements.test.ts`). To assert in a
 test, read the region's text, or observe it with a `MutationObserver` to count
 announcements (see `test_files/unit/main/refresh-announcements.test.ts`).
 
