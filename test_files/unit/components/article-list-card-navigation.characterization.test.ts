@@ -95,8 +95,8 @@ describe("ArticleList.getCardNavigationTargetGuid characterization", () => {
       { guid: "c", top: 7, left: 400 },
     ]);
     expect(navigate("a", "right")).toBe("b");
-    expect(navigate("b", "right")).toBeNull();
-    expect(navigate("b", "down")).toBe("c");
+    expect(navigate("b", "right")).toBe("c");
+    expect(navigate("b", "down")).toBeNull();
     h.cleanup();
   });
 
