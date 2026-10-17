@@ -11,6 +11,7 @@
 //   node scripts/obsidian-cdp.mjs repl ./steps.txt
 //   node scripts/obsidian-cdp.mjs open-settings rss-dashboard
 //   node scripts/obsidian-cdp.mjs --settings shot ./settings.png
+//   node scripts/obsidian-cdp.mjs --profile <dir> --expect-vault <vault> prepare-vault
 //
 // Dependency-free: it uses Node's built-in http module and the global
 // WebSocket, so it needs Node 22 or newer. The app under test must have been
@@ -55,6 +56,7 @@ const COMMANDS = [
   "repl",
   "batch",
   "open-settings",
+  "prepare-vault",
   "help",
 ];
 const STEP_NAMES = [
@@ -122,6 +124,10 @@ Commands:
   open-settings <id> Open Settings on the tab with this id (for example
                      rss-dashboard) and wait for the Settings window. Needs
                      --profile and --expect-vault.
+  prepare-vault      Close the vault picker and the Settings window, and collapse
+                     the workspace side panes, leaving only the vault window.
+                     Needs --profile and --expect-vault; --keep-settings and
+                     --keep-left leave the named surface open.
 
 Batch steps (one per line in a repl script):
   @eval <expr>       Evaluate an expression, or a multi-line body below it.
@@ -151,6 +157,9 @@ Options:
                      repl. Needs --profile and --expect-vault; the window must
                      be titled for the expected vault. In a repl, the
                      @settings step switches to it and @vault switches back.
+  --keep-settings    With prepare-vault, leave the Settings window open (a
+                     checklist item that tests a settings feature).
+  --keep-left        With prepare-vault, leave the workspace side panes open.
   --wait <ms>        Poll for a ready vault target for up to <ms> before failing
                      (default: 0, fail fast).
   --json             Print machine-readable output where supported.
@@ -229,16 +238,35 @@ function assertArity(command, args) {
       "open-settings needs one argument: a settings tab id, for example rss-dashboard.",
     );
   }
+  if (command === "prepare-vault" && args.length > 0) {
+    throw new CdpError(`prepare-vault takes no argument, got "${args[0]}".`);
+  }
 }
 
 function assertSettingsFlag(options) {
   if (!options.settings) return;
-  if (options.command === "targets" || options.command === "open-settings") {
+  if (
+    options.command === "targets" ||
+    options.command === "open-settings" ||
+    options.command === "prepare-vault"
+  ) {
     throw new CdpError(`--settings does not apply to ${options.command}.`);
   }
   if (options.target) {
     throw new CdpError(
       "--settings and --target both pick the window; pass only one.",
+    );
+  }
+}
+
+/** `--keep-settings` and `--keep-left` only mean anything to prepare-vault. */
+function assertKeepFlags(options) {
+  if (
+    options.command !== "prepare-vault" &&
+    (options.keepSettings || options.keepLeft)
+  ) {
+    throw new CdpError(
+      "--keep-settings and --keep-left apply to prepare-vault only.",
     );
   }
 }
@@ -257,6 +285,8 @@ export function parseArgs(argv, env = process.env) {
     expectVault: env[ENV_EXPECT_VAULT] || undefined,
     profile: env[ENV_PROFILE] || undefined,
     settings: false,
+    keepSettings: false,
+    keepLeft: false,
     waitMs: 0,
     json: false,
     help: false,
@@ -279,6 +309,10 @@ export function parseArgs(argv, env = process.env) {
       options.json = true;
     } else if (arg === "--settings") {
       options.settings = true;
+    } else if (arg === "--keep-settings") {
+      options.keepSettings = true;
+    } else if (arg === "--keep-left") {
+      options.keepLeft = true;
     } else if (arg === "--port" || arg.startsWith("--port=")) {
       port = parsePort(optionValue(argv, i, "--port"), "--port");
       if (!arg.includes("=")) i += 1;
@@ -335,6 +369,7 @@ export function parseArgs(argv, env = process.env) {
   options.command = command === "batch" ? "repl" : command;
   assertArity(options.command, args);
   assertSettingsFlag(options);
+  assertKeepFlags(options);
   options.args = args;
   return options;
 }
@@ -809,6 +844,63 @@ export function selectSettingsTarget(pages, { expectedVault, pinned } = {}) {
   return verdicts[0];
 }
 
+/**
+ * The vault-picker page targets (`starter.html`) on a port. A fresh
+ * `--user-data-dir` opens one, and it lingers after the vault opens, so
+ * prepare-vault closes it. Exported for unit tests.
+ */
+export function selectStarterTargets(pages) {
+  return (Array.isArray(pages) ? pages : []).filter(
+    (candidate) => isPageTarget(candidate) && isStarterTarget(candidate),
+  );
+}
+
+/**
+ * Every Settings window for the expected vault on this port. Unlike
+ * `selectSettingsTarget`, which picks one, this returns them all so
+ * prepare-vault can close each. Exported for unit tests.
+ *
+ * @param {any} pages
+ * @param {{ expectedVault?: string, pinned?: boolean }} [options]
+ * @returns {any[]}
+ */
+export function selectSettingsTargets(
+  pages,
+  { expectedVault, pinned = true } = {},
+) {
+  return (Array.isArray(pages) ? pages : [])
+    .filter(isPageTarget)
+    .filter(
+      (candidate) =>
+        assessCompanionTarget({ target: candidate, expectedVault, pinned }).ok,
+    );
+}
+
+/**
+ * The expression prepare-vault runs in the vault window: close the Settings
+ * surface the plugin-enable step opened, and collapse the workspace side panes
+ * so the dashboard is not covered. Each switch can be left alone. Exported for
+ * unit tests.
+ */
+export function buildPrepareScript({
+  keepSettings = false,
+  keepLeft = false,
+} = {}) {
+  const lines = ["(() => {", "  const done = {};"];
+  if (!keepSettings) {
+    lines.push(
+      "  try { app.setting.close(); done.settings = true; } catch { done.settings = false; }",
+    );
+  }
+  if (!keepLeft) {
+    lines.push(
+      "  try { app.workspace?.leftSplit?.collapse?.(); app.workspace?.rightSplit?.collapse?.(); done.panes = true; } catch { done.panes = false; }",
+    );
+  }
+  lines.push("  return done;", "})()");
+  return lines.join("\n");
+}
+
 /** Fails with a pointed message when the runtime lacks a global WebSocket. */
 export function assertWebSocket(
   hasWebSocket = typeof WebSocket === "function",
@@ -859,6 +951,58 @@ function httpGetJson(url) {
     );
     req.end();
   });
+}
+
+/** Like httpGetJson, but for endpoints that answer plain text (the close API). */
+function httpGetText(url) {
+  return new Promise((resolve, reject) => {
+    const req = request(url, (res) => {
+      let body = "";
+      res.setEncoding("utf8");
+      res.on("data", (chunk) => {
+        body += chunk;
+      });
+      res.on("end", () => {
+        if (res.statusCode !== 200) {
+          reject(new CdpError(`HTTP ${res.statusCode}`));
+          return;
+        }
+        resolve(body);
+      });
+    });
+    req.on("error", (error) =>
+      reject(new CdpError(error.message || error.code || "request failed")),
+    );
+    req.setTimeout(2000, () =>
+      req.destroy(new CdpError(`timed out requesting ${url}`)),
+    );
+    req.end();
+  });
+}
+
+/**
+ * Asks Chromium's debug HTTP endpoint to close one page target. It answers
+ * "Target is closing"; a target that is already gone answers 404, which
+ * closeTargets ignores.
+ */
+async function closePageTarget(host, port, id) {
+  return httpGetText(
+    `http://${host}:${port}/json/close/${encodeURIComponent(id)}`,
+  );
+}
+
+/** Closes each page target, skipping any that is already gone. */
+async function closeTargets(host, port, targets) {
+  let closed = 0;
+  for (const target of targets) {
+    try {
+      await closePageTarget(host, port, target.id);
+      closed += 1;
+    } catch {
+      // app.setting.close() or a concurrent step already closed it.
+    }
+  }
+  return closed;
 }
 
 async function fetchTargets(host, port) {
@@ -1470,6 +1614,23 @@ function assertCompanionGuard(options, pinnedPort) {
   if (refusal) throw new CdpError(refusal.message);
 }
 
+/** Refuses prepare-vault before any side effect unless it can only touch our windows. */
+function assertPrepareVaultGuard(options, pinnedPort) {
+  if (normalizeVaultPath(options.expectVault) === undefined) {
+    throw new CdpError(
+      "Refusing prepare-vault: pass --expect-vault so the Settings window it " +
+        "closes can be matched to the vault you meant.",
+    );
+  }
+  if (!pinnedPort) {
+    throw new CdpError(
+      "Refusing prepare-vault: pass --profile so the port is pinned to this " +
+        "session's own Obsidian. Without it it may close another session's " +
+        "picker or Settings window.",
+    );
+  }
+}
+
 /** Waits for the expected vault's Settings window and returns its target. */
 async function waitForCompanion(options, budgetMs) {
   const port = options.ports[0];
@@ -1523,6 +1684,46 @@ async function openSettings(options, connection) {
   });
   const target = await waitForCompanion(options, budgetMs);
   console.log(`Settings tab ${tabId} is open: ${describeTarget(target)}`);
+}
+
+/**
+ * Leaves a clean fixture window: close the vault picker that lingers after
+ * `vault-open`, close the Settings surface the plugin-enable step opens, and
+ * collapse the workspace side panes so the dashboard is not covered. Needs a
+ * pinned profile and the expected vault so it can only touch this session's
+ * windows.
+ */
+async function prepareVault(options, connection) {
+  const port = options.ports[0];
+  const pickers = selectStarterTargets(await pageTargetsOn(options.host, port));
+  const pickersClosed = await closeTargets(options.host, port, pickers);
+
+  await evaluate(
+    connection,
+    buildPrepareScript({
+      keepSettings: options.keepSettings,
+      keepLeft: options.keepLeft,
+    }),
+  );
+
+  let settingsClosed = 0;
+  if (!options.keepSettings) {
+    const settings = selectSettingsTargets(
+      await pageTargetsOn(options.host, port),
+      { expectedVault: options.expectVault },
+    );
+    settingsClosed = await closeTargets(options.host, port, settings);
+  }
+
+  console.log(
+    `prepare-vault: closed ${pickersClosed} picker window(s), ` +
+      (options.keepSettings
+        ? "kept the Settings window"
+        : `closed ${settingsClosed} Settings window(s)`) +
+      (options.keepLeft
+        ? ", kept the side panes."
+        : ", collapsed the side panes."),
+  );
 }
 
 async function listTargets(options) {
@@ -1579,6 +1780,9 @@ async function main() {
   ) {
     assertCompanionGuard(options, pinnedPort);
   }
+  if (options.command === "prepare-vault") {
+    assertPrepareVaultGuard(options, pinnedPort);
+  }
 
   const { connection } = await openTarget(options.host, ports, options.target, {
     expectVault: options.expectVault,
@@ -1589,6 +1793,10 @@ async function main() {
   try {
     if (options.command === "open-settings") {
       await openSettings(options, connection);
+      return;
+    }
+    if (options.command === "prepare-vault") {
+      await prepareVault(options, connection);
       return;
     }
     if (options.command === "eval") {
