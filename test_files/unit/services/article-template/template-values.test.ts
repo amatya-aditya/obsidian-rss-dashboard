@@ -235,6 +235,27 @@ describe("buildArticleTemplateValues language (#246)", () => {
   });
 });
 
+describe("buildArticleTemplateValues contentSource (#1248)", () => {
+  it("names the version the save actually wrote", () => {
+    expect(
+      buildArticleTemplateValues(createItem(), inputs({ contentSource: "rss" }))
+        .contentSource,
+    ).toBe("RSS content");
+    expect(
+      buildArticleTemplateValues(
+        createItem(),
+        inputs({ contentSource: "fetched" }),
+      ).contentSource,
+    ).toBe("Fetched content");
+  });
+
+  it("is empty when the call site cannot say which version it wrote", () => {
+    expect(
+      buildArticleTemplateValues(createItem(), inputs()).contentSource,
+    ).toBe("");
+  });
+});
+
 describe("resolveSavedArticleDate", () => {
   it("uses the item's pubDate when it parses", () => {
     expect(resolveSavedArticleDate(createItem(), false)).toEqual(PUB);

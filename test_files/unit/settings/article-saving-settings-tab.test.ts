@@ -124,14 +124,14 @@ describe("renderArticleSavingSettingsTab()", () => {
     const defaultFrontmatterProperties = [
       ...DEFAULT_SETTINGS.articleSaving.defaultTemplate
         .split("\n")
-        .slice(1, 10),
+        .slice(1, 11),
       ...DEFAULT_SETTINGS.articleSaving.frontmatterTemplate
         .split("\n")
-        .slice(1, 10),
+        .slice(1, 11),
     ];
 
     expect(description?.textContent).toBe(expectedDefaultHint);
-    expect(defaultFrontmatterProperties).toHaveLength(18);
+    expect(defaultFrontmatterProperties).toHaveLength(20);
     expect(
       defaultFrontmatterProperties.every((property) =>
         /^[A-Za-z]+:/.test(property),

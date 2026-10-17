@@ -24,7 +24,7 @@ const EXPECTED_GROUPS: Record<string, string[]> = {
     "tags",
     "language",
   ],
-  Content: ["summary", "description", "excerpt", "content"],
+  Content: ["summary", "description", "excerpt", "content", "contentSource"],
   "Links and media": ["link", "image"],
 };
 
@@ -107,6 +107,10 @@ describe("renderTemplateVariableHelp", () => {
     expect(text("language")).toContain("left out when the language is unknown");
     expect(text("content")).toContain("Default save version");
     expect(text("content")).not.toContain("Save full content");
+    expect(text("contentSource")).toContain(
+      "the version written, not the one requested",
+    );
+    expect(text("contentSource")).toContain("{{source}}");
   });
 
   describe("copy chips", () => {
@@ -141,7 +145,7 @@ describe("renderTemplateVariableHelp", () => {
 
     it("renders each leading placeholder as a button wrapping a code, named Copy <value>", () => {
       const buttons = leading();
-      expect(buttons).toHaveLength(23);
+      expect(buttons).toHaveLength(24);
       for (const button of buttons) {
         expect(button.tagName).toBe("BUTTON");
         expect(button.getAttribute("type")).toBe("button");
@@ -208,11 +212,11 @@ describe("renderTemplateVariableHelp", () => {
       expect(writeText).toHaveBeenLastCalledWith("{{isoDate}}");
     });
 
-    it("keeps the 12 repeated inline chips out of the tab order only", () => {
+    it("keeps the 13 repeated inline chips out of the tab order only", () => {
       const skipped = allChips().filter(
         (b) => b.getAttribute("tabindex") === "-1",
       );
-      expect(skipped).toHaveLength(12);
+      expect(skipped).toHaveLength(13);
       for (const button of skipped) {
         expect(leading()).not.toContain(button);
       }
@@ -223,7 +227,7 @@ describe("renderTemplateVariableHelp", () => {
       for (const example of DATE_EXAMPLES) {
         expect(chipFor(example).hasAttribute("tabindex")).toBe(false);
       }
-      expect(allChips().filter((b) => b.tabIndex !== -1)).toHaveLength(28);
+      expect(allChips().filter((b) => b.tabIndex !== -1)).toHaveLength(29);
     });
 
     it("makes the inline {{date:YYYY/MM/DD}} in the {{date}} description a skipped duplicate", () => {

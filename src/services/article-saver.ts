@@ -4,6 +4,7 @@ import {
   Feed,
   FeedItem,
   SavedTemplate,
+  SaveVersion,
 } from "../types/types";
 import { type FullArticleFetchResult } from "../utils/fetch-helpers";
 import {
@@ -43,9 +44,12 @@ import { ONE_SAVE_OVERRIDE_TEMPLATE_ID } from "../utils/saved-template-utils";
 import { isMinimalArticleTemplate } from "../utils/minimal-article-template";
 import {
   FALLBACK_BEFORE_SAVE_NOTICE,
+  fetchedSaveReport,
   resolveSaveVersion,
+  rssSaveReport,
   SAVE_FALLBACK_NOTICE,
   savedArticleNotice,
+  type SaveReport,
 } from "../utils/save-version";
 
 const MAX_FILENAME_LENGTH = 100;
@@ -309,7 +313,10 @@ export class ArticleSaver {
   }
 
   /** The values this saver's templates fill, built separately for each template render to preserve clock timing. */
-  private buildTemplateValues(item: FeedItem): ArticleTemplateValues {
+  private buildTemplateValues(
+    item: FeedItem,
+    writtenVersion: SaveVersion,
+  ): ArticleTemplateValues {
     const articleDate = resolveSavedArticleDate(
       item,
       this.getUseFirstSeenDateFallback(),
@@ -326,10 +333,14 @@ export class ArticleSaver {
         : tagNames,
       image: () => this.getFallbackHeroUrl(item),
       feedLanguage: feedLanguageFor(this.getFeeds(), item),
+      contentSource: writtenVersion,
     });
   }
 
-  private generateFrontmatter(item: FeedItem): string {
+  private generateFrontmatter(
+    item: FeedItem,
+    writtenVersion: SaveVersion,
+  ): string {
     let frontmatter = this.settings.frontmatterTemplate;
 
     if (!frontmatter) {
@@ -338,6 +349,7 @@ title: "{{title}}"
 date: "{{date}}"
 tags: [{{tags}}]
 source: "{{source}}"
+contentSource: "{{contentSource}}"
 link: "{{link}}"
 author: "{{author}}"
 feedTitle: "{{feedTitle}}"
@@ -348,7 +360,7 @@ guid: "{{guid}}"
     frontmatter = renderArticleTemplate(
       frontmatter,
       ARTICLE_SAVER_FRONTMATTER_STEPS,
-      this.buildTemplateValues(item),
+      this.buildTemplateValues(item, writtenVersion),
     );
 
     if (item.mediaType === "video" && item.videoId) {
@@ -369,14 +381,15 @@ guid: "{{guid}}"
   private applyTemplate(
     item: FeedItem,
     template: string,
-    rawContent?: string,
+    rawContent: string | undefined,
+    writtenVersion: SaveVersion,
   ): string {
     const content = rawContent ? rawContent : this.feedHtmlAsMarkdown(item);
 
     return renderArticleTemplate(
       template,
       ARTICLE_SAVER_NOTE_STEPS,
-      this.buildTemplateValues(item),
+      this.buildTemplateValues(item, writtenVersion),
       content,
     );
   }
@@ -498,7 +511,7 @@ guid: "{{guid}}"
           customTemplate,
           markdown,
           savedTemplate,
-          savedArticleNotice("fetched"),
+          fetchedSaveReport(),
         );
       }
       return this.saveWithRssFallback(
@@ -546,7 +559,7 @@ guid: "{{guid}}"
       customTemplate,
       markedFallback,
       savedTemplate,
-      notice,
+      rssSaveReport(notice),
     );
   }
 
@@ -632,7 +645,7 @@ guid: "{{guid}}"
         customTemplate,
         markdownContent,
         savedTemplate,
-        savedArticleNotice("fetched"),
+        fetchedSaveReport(),
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -643,7 +656,7 @@ guid: "{{guid}}"
         customTemplate,
         undefined,
         savedTemplate,
-        SAVE_FALLBACK_NOTICE.save,
+        rssSaveReport(SAVE_FALLBACK_NOTICE.save),
       );
     }
   }
@@ -673,7 +686,11 @@ guid: "{{guid}}"
     customTemplate?: string,
     rawContent?: string,
     savedTemplate?: SavedTemplate,
-    notice: string = savedArticleNotice("rss"),
+    /**
+     * The version this save wrote and the notice that names it. It defaults to
+     * an RSS content save, which is what a caller with no report is saving.
+     */
+    report: SaveReport = rssSaveReport(),
   ): Promise<TFile | null> {
     try {
       const folder = await this.resolveSaveFolder(customFolder, savedTemplate);
@@ -683,6 +700,7 @@ guid: "{{guid}}"
         template,
         rawContent,
         savedTemplate,
+        report.writtenVersion,
       );
       const { filePath, existingSavedFile } = this.resolveSaveTarget(
         item,
@@ -699,7 +717,7 @@ guid: "{{guid}}"
       item.saved = true;
       item.savedFilePath = filePath;
 
-      new Notice(notice);
+      new Notice(report.notice);
       return file;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -744,13 +762,19 @@ guid: "{{guid}}"
     template: string,
     rawContent: string | undefined,
     savedTemplate: SavedTemplate | undefined,
+    writtenVersion: SaveVersion,
   ): string {
     let contentToWrite = "";
     if (this.shouldAddFrontmatter(template, savedTemplate)) {
-      contentToWrite += this.generateFrontmatter(item);
+      contentToWrite += this.generateFrontmatter(item, writtenVersion);
     }
 
-    contentToWrite += this.applyTemplate(item, template, rawContent);
+    contentToWrite += this.applyTemplate(
+      item,
+      template,
+      rawContent,
+      writtenVersion,
+    );
     return contentToWrite;
   }
 

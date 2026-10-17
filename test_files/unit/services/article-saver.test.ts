@@ -18,6 +18,7 @@ import {
 } from "../../../src/services/article-saver";
 import * as fetchHelpers from "../../../src/utils/fetch-helpers";
 import { RESTRICTED_ARTICLE_REASON } from "../../../src/utils/full-article-fetch";
+import { fetchedSaveReport } from "../../../src/utils/save-version";
 
 function createSettings(
   overrides: Partial<ArticleSavingSettings> = {},
@@ -1945,7 +1946,10 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
       undefined,
       "> RSS feed content shown because the full article could not be fetched.\n\nFeed body wins.",
       undefined,
-      "Fetch failed; saved RSS content instead.",
+      {
+        writtenVersion: "rss",
+        notice: "Fetch failed; saved RSS content instead.",
+      },
     );
   });
 
@@ -2975,5 +2979,71 @@ describe("ArticleSaver sanitises fetched-content saves (#1195)", () => {
     expect(written).toContain("Fetched body.");
     expect(written).not.toContain("Sponsored placement");
     expect(written).toContain("![Fetched pic](https://example.com/img/y.png)");
+  });
+});
+
+describe("ArticleSaver contentSource (#1248)", () => {
+  async function readNote(app: App, file: TFile | null): Promise<string> {
+    if (!(file instanceof TFile)) throw new Error("expected a saved TFile");
+    return app.vault.read(file);
+  }
+
+  it("names the version the note holds in the note template", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(
+      app,
+      createSettings({ defaultTemplate: "v={{contentSource}}" }),
+    );
+
+    const rss = await saver.saveArticle(
+      createItem({ title: "RSS save" }),
+      undefined,
+      undefined,
+      "BODY",
+    );
+    const fetched = await saver.saveArticle(
+      createItem({ title: "Fetched save" }),
+      undefined,
+      undefined,
+      "BODY",
+      undefined,
+      fetchedSaveReport(),
+    );
+
+    expect(await readNote(app, rss)).toBe("v=RSS content");
+    expect(await readNote(app, fetched)).toBe("v=Fetched content");
+  });
+
+  it("names it in the frontmatter template too", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(
+      app,
+      createSettings({
+        includeFrontmatter: true,
+        frontmatterTemplate: '---\ncontentSource: "{{contentSource}}"\n---',
+        defaultTemplate: "{{content}}",
+      }),
+    );
+
+    const file = await saver.saveArticle(
+      createItem(),
+      undefined,
+      undefined,
+      "BODY",
+      undefined,
+      fetchedSaveReport(),
+    );
+
+    expect(await readNote(app, file)).toBe(
+      '---\ncontentSource: "Fetched content"\n---\nBODY',
+    );
+  });
+
+  it("leaves the placeholder in a filename pattern, as for any variable that chain does not fill", () => {
+    const saver = new ArticleSaver(App.createMock(), createSettings());
+
+    expect(
+      saver.getFilenamePreview(createItem(), "", "{{contentSource}}"),
+    ).toBe("{{contentSource}}.md");
   });
 });
