@@ -6,13 +6,19 @@
 
 ## Status
 
-proposed
+accepted
 
 The maintainer endorsed the RSS-first direction, explicit version switching,
 source-based terminology, and separate tickets for separate concerns in
 [#954](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/954).
-This record remains proposed pending review of the pull request and this text;
-endorsement of the direction is not acceptance of every detail below.
+The implementation and this text were reviewed in
+[PR #1053](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/1053),
+merged into `dev` on 2026-10-13 as
+[`48d91e49`](https://github.com/amatya-aditya/obsidian-rss-dashboard/commit/48d91e49cc5b9dd54f12fbe147c43be719625b6a),
+so the reading behavior, terminology, and shared request budget below are
+current project policy. The deferred saving, note-upgrade, and parity questions
+recorded below remain open, as questions this record leaves to separate
+decisions rather than conditions of its acceptance.
 
 ## Date
 
