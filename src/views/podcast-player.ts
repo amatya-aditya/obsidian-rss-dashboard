@@ -230,7 +230,8 @@ export class PodcastPlayer {
   }
 
   private render(): void {
-    if (!this.currentItem) return;
+    const item = this.currentItem;
+    if (!item) return;
     this.endSeekDrag?.();
     this.container.empty();
 
@@ -239,9 +240,9 @@ export class PodcastPlayer {
     });
     podcastContainer.setAttribute("data-podcast-theme", this.theme);
 
-    this.renderAudioElement(podcastContainer);
+    this.renderAudioElement(podcastContainer, item);
 
-    // --- NEW TWO-ROW LAYOUT STRUCTURE ---
+    // Two-row layout: main controls row, then progress area
     this.playerEl = podcastContainer.createDiv({
       cls: "podcast-player-main-layout",
     });
@@ -251,7 +252,7 @@ export class PodcastPlayer {
       cls: "podcast-main-controls-row",
     });
 
-    this.renderInfoSection(mainControlsRow);
+    this.renderInfoSection(mainControlsRow, item);
     this.renderTransportSection(mainControlsRow, podcastContainer);
     this.renderToolsSection(mainControlsRow);
     this.renderProgressArea();
@@ -264,14 +265,16 @@ export class PodcastPlayer {
     this.renderPlaylistSection();
   }
 
-  private renderAudioElement(podcastContainer: HTMLElement): void {
-    if (!this.currentItem) return;
+  private renderAudioElement(
+    podcastContainer: HTMLElement,
+    item: FeedItem,
+  ): void {
     // Initialize audio element early so UI components can reference its state
     this.audioElement = podcastContainer.createEl("audio", {
       attr: { preload: "metadata" },
     });
-    if (this.currentItem.audioUrl) {
-      this.audioElement.src = this.currentItem.audioUrl;
+    if (item.audioUrl) {
+      this.audioElement.src = item.audioUrl;
     }
     this.audioElement.onplay = () => {
       this.updatePlayButtonIcon(true);
@@ -293,18 +296,17 @@ export class PodcastPlayer {
     this.audioElement.playbackRate = this.defaultPlaySpeed;
   }
 
-  private renderInfoSection(mainControlsRow: HTMLElement): void {
-    if (!this.currentItem) return;
-    // 1.1 Left: Thumbnail & Info
+  private renderInfoSection(
+    mainControlsRow: HTMLElement,
+    item: FeedItem,
+  ): void {
+    // Left: thumbnail and info
     const infoSection = mainControlsRow.createDiv({
       cls: "podcast-info-section",
     });
 
     const coverImageUrl =
-      this.currentItem.coverImage ||
-      this.currentItem.image ||
-      this.currentItem.itunes?.image?.href ||
-      "";
+      item.coverImage || item.image || item.itunes?.image?.href || "";
     const coverWrapper = infoSection.createDiv({
       cls: "podcast-cover-wrapper",
     });
@@ -313,7 +315,7 @@ export class PodcastPlayer {
     if (coverImageUrl && activeDocument.defaultView) {
       const image = new activeDocument.defaultView.Image();
       image.classList.add("podcast-cover");
-      image.alt = this.currentItem.title;
+      image.alt = item.title;
       image.onload = () => coverPlaceholder.replaceWith(image);
       image.src = coverImageUrl;
     }
@@ -321,22 +323,22 @@ export class PodcastPlayer {
     const textInfo = infoSection.createDiv({ cls: "podcast-text-info" });
     textInfo.createDiv({
       cls: "podcast-title-display",
-      text: this.currentItem.title,
+      text: item.title,
     });
     textInfo.createDiv({
       cls: "podcast-meta-display",
-      text: `${this.currentItem.feedTitle}${itemAuthorText(this.currentItem) ? " - " + itemAuthorText(this.currentItem) : ""}`,
+      text: `${item.feedTitle}${itemAuthorText(item) ? " - " + itemAuthorText(item) : ""}`,
     });
 
-    // 1.1.5 Tags Section
-    this.renderTagStrip(infoSection, this.currentItem.tags);
+    // Tags section
+    this.renderTagStrip(infoSection, item.tags);
   }
 
   private renderTransportSection(
     mainControlsRow: HTMLElement,
     podcastContainer: HTMLElement,
   ): void {
-    // 1.2 Center: Transport Controls
+    // Center: transport controls
     const transportSection = mainControlsRow.createDiv({
       cls: "podcast-transport-section",
     });
@@ -474,7 +476,7 @@ export class PodcastPlayer {
   }
 
   private renderToolsSection(mainControlsRow: HTMLElement): void {
-    // 1.3 Right: Tools (Speed & Volume)
+    // Right: tools (speed and volume)
     const toolsSection = mainControlsRow.createDiv({
       cls: "podcast-tools-section",
     });
@@ -623,7 +625,7 @@ export class PodcastPlayer {
 
   private renderProgressArea(): void {
     if (!this.playerEl) return;
-    // ROW 2: Progress Area
+    // Row 2: progress area
     const progressArea = this.playerEl.createDiv({
       cls: "podcast-progress-area",
     });
