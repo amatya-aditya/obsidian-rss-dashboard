@@ -1151,6 +1151,33 @@ describe("Reader HTML cleanup utilities (characterization)", () => {
     });
   });
 
+  describe("collectLeadCaptionTexts", () => {
+    const collect = (html: string): Set<string> =>
+      cleanup.collectLeadCaptionTexts(parse(html));
+
+    it("collects the normalized text of a credit caption before the first substantial paragraph", () => {
+      expect(
+        collect(
+          `<figure><figcaption>Photo:  Jane Doe</figcaption></figure>${LONG}<figcaption>Photo: Later</figcaption>`,
+        ),
+      ).toEqual(new Set(["photo: jane doe"]));
+    });
+
+    it("ignores a caption without a credit marker, an empty one and one over 300 characters", () => {
+      expect(
+        collect(
+          `<figcaption>A lovely sunset</figcaption><figcaption>   </figcaption><figcaption>Photo ${"a".repeat(300)}</figcaption>${LONG}`,
+        ),
+      ).toEqual(new Set());
+    });
+
+    it("does nothing for a body-less document", () => {
+      const xml = new DOMParser().parseFromString("<root/>", "text/xml");
+      expect(() => cleanup.collectLeadCaptionTexts(xml)).not.toThrow();
+      expect(cleanup.collectLeadCaptionTexts(xml)).toEqual(new Set());
+    });
+  });
+
   describe("stripDuplicateLeadCaptionBlocks", () => {
     const strip = (html: string): string => {
       const doc = parse(html);
@@ -1234,6 +1261,48 @@ describe("Reader HTML cleanup utilities (characterization)", () => {
     it("keeps a paragraph that differs from every removed caption", () => {
       const html = `<figcaption>Photo: Jane</figcaption><p>Photo: John</p>${LONG}`;
       expect(strip(html)).toBe(`<p>Photo: John</p>${LONG}`);
+    });
+
+    it("removes a matching paragraph for a caption recorded before lead media stripping", () => {
+      // A caption-only figure is removed by stripLeadMediaBeforeContent, so the
+      // caption pass must receive its text from an earlier collect step (#1305).
+      const doc = parse(
+        `<figure><figcaption>Photo credit: Jane Doe</figcaption></figure><p>Photo credit: Jane Doe</p>${LONG}`,
+      );
+      const captionTexts = cleanup.collectLeadCaptionTexts(doc);
+      cleanup.stripLeadMediaBeforeContent(doc);
+      cleanup.stripDuplicateLeadCaptionBlocks(doc, captionTexts);
+      expect(bodyOf(doc)).toBe(LONG);
+    });
+
+    it("removes a caption recorded before lead media even when no paragraph matches it", () => {
+      const doc = parse(
+        `<figure><figcaption>Photo credit: Jane Doe</figcaption></figure><p>Other</p>${LONG}`,
+      );
+      const captionTexts = cleanup.collectLeadCaptionTexts(doc);
+      cleanup.stripLeadMediaBeforeContent(doc);
+      cleanup.stripDuplicateLeadCaptionBlocks(doc, captionTexts);
+      expect(bodyOf(doc)).toBe(`<p>Other</p>${LONG}`);
+    });
+
+    it("keeps a credit-like paragraph when the recorded caption differs from it", () => {
+      const doc = parse(
+        `<figure><figcaption>Photo credit: Jane Doe</figcaption></figure><p>Photo credit: John Roe</p>${LONG}`,
+      );
+      const captionTexts = cleanup.collectLeadCaptionTexts(doc);
+      cleanup.stripLeadMediaBeforeContent(doc);
+      cleanup.stripDuplicateLeadCaptionBlocks(doc, captionTexts);
+      expect(bodyOf(doc)).toBe(`<p>Photo credit: John Roe</p>${LONG}`);
+    });
+
+    it("keeps a matching paragraph after the first substantial paragraph", () => {
+      const doc = parse(
+        `<figure><figcaption>Photo credit: Jane Doe</figcaption></figure>${LONG}<p>Photo credit: Jane Doe</p>`,
+      );
+      const captionTexts = cleanup.collectLeadCaptionTexts(doc);
+      cleanup.stripLeadMediaBeforeContent(doc);
+      cleanup.stripDuplicateLeadCaptionBlocks(doc, captionTexts);
+      expect(bodyOf(doc)).toBe(`${LONG}<p>Photo credit: Jane Doe</p>`);
     });
 
     it("does nothing for a body-less document", () => {
@@ -1607,6 +1676,59 @@ describe("Reader HTML cleanup utilities (characterization)", () => {
         "The first paragraph of the story",
       );
       expect(content?.textContent).toContain("Further article text.");
+    });
+
+    it("removes a lead credit caption's figure and its matching paragraph when a hero is set", async () => {
+      const hero = "https://img.example.com/images/hero.jpg";
+      const bodyText = "Body sentence of the article. ".repeat(8);
+      viewHarness.fetchFullArticleContent = vi.fn().mockResolvedValue({
+        content: `<figure><figcaption>Photo credit: Jane Doe</figcaption></figure>
+          <p>Photo credit: Jane Doe</p>
+          <p>${bodyText}</p>`,
+        failureType: "none",
+      });
+
+      await view.displayItem(makeItem({ coverImage: hero }));
+      const fullArticleToggle = findContentToggle(viewHarness.readingContainer);
+      expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+      fullArticleToggle?.click();
+
+      const content = viewHarness.readingContainer.querySelector(
+        ".rss-reader-article-content",
+      );
+      expect(content).not.toBeNull();
+      expect(content?.textContent).not.toContain("Photo credit: Jane Doe");
+      expect(content?.textContent).toContain("Body sentence of the article.");
+      expect(
+        viewHarness.readingContainer
+          .querySelector(".rss-reader-hero-slot img")
+          ?.getAttribute("src"),
+      ).toBe(hero);
+    });
+
+    it("keeps lead-media stripping and hero placement unchanged without credit captions", async () => {
+      const hero = "https://img.example.com/images/hero.jpg";
+      const bodyText = "Body sentence of the article. ".repeat(8);
+      viewHarness.fetchFullArticleContent = vi.fn().mockResolvedValue({
+        content: `<figure><img src="https://img.example.com/other.jpg"></figure>
+          <p>${bodyText}</p>`,
+        failureType: "none",
+      });
+
+      await view.displayItem(makeItem({ coverImage: hero }));
+      const fullArticleToggle = findContentToggle(viewHarness.readingContainer);
+      fullArticleToggle?.click();
+
+      const content = viewHarness.readingContainer.querySelector(
+        ".rss-reader-article-content",
+      );
+      expect(content?.querySelector("figure")).toBeNull();
+      expect(content?.textContent).toContain("Body sentence of the article.");
+      expect(
+        viewHarness.readingContainer
+          .querySelector(".rss-reader-hero-slot img")
+          ?.getAttribute("src"),
+      ).toBe(hero);
     });
   });
 });

@@ -368,30 +368,78 @@ export function stripDuplicateLeadMediaMatchingHero(
   });
 }
 
-export function stripDuplicateLeadCaptionBlocks(doc: Document): void {
+const LEAD_CAPTION_SELECTOR = "figcaption, [id^='caption-'], [id*='caption-']";
+const LEAD_CREDIT_MARKER = /(credit|photo|image|source)/i;
+
+/**
+ * The normalized text of a credit caption that sits before the body, or null
+ * when the element is not a credit caption the cleanup should pair with a
+ * paragraph. Shared by the collect and remove phases so both agree on what
+ * counts as a credit caption (#1305).
+ */
+function getLeadCreditCaptionText(
+  el: HTMLElement,
+  firstSubstantial: HTMLElement | null,
+): string | null {
+  if (!isBeforeBoundary(el, firstSubstantial)) return null;
+
+  const raw = (el.textContent || "").replace(/\s+/g, " ").trim();
+  const normalized = normalizeComparableText(raw);
+  if (!normalized) return null;
+
+  if (!LEAD_CREDIT_MARKER.test(raw) || normalized.length > 300) return null;
+
+  return normalized;
+}
+
+/**
+ * Records the text of every credit caption ahead of the body without touching
+ * the DOM. Call this before lead media is removed: a caption-only <figure> is
+ * itself lead media, so it disappears before
+ * {@link stripDuplicateLeadCaptionBlocks} could see it, and its matching
+ * paragraph would be left behind (#1305).
+ *
+ * The boundary is computed before the strip, while
+ * {@link stripDuplicateLeadCaptionBlocks} computes it after. Removing lead
+ * media cannot move the first substantial paragraph earlier (a >=120-character
+ * <p> is never lead media), so a caption collected here is still ahead of the
+ * boundary when the remove phase runs.
+ */
+export function collectLeadCaptionTexts(doc: Document): Set<string> {
+  const texts = new Set<string>();
+  if (!doc.body) return texts;
+
+  const firstSubstantial = findFirstSubstantialParagraph(doc);
+  doc.body
+    .querySelectorAll<HTMLElement>(LEAD_CAPTION_SELECTOR)
+    .forEach((el) => {
+      const normalized = getLeadCreditCaptionText(el, firstSubstantial);
+      if (normalized) texts.add(normalized);
+    });
+
+  return texts;
+}
+
+export function stripDuplicateLeadCaptionBlocks(
+  doc: Document,
+  leadCaptionTexts: ReadonlySet<string> = new Set(),
+): void {
   if (!doc.body) return;
 
   const firstSubstantial = findFirstSubstantialParagraph(doc);
-  const removedCaptionTexts = new Set<string>();
+  const captionTexts = new Set(leadCaptionTexts);
 
   doc.body
-    .querySelectorAll<HTMLElement>(
-      "figcaption, [id^='caption-'], [id*='caption-']",
-    )
+    .querySelectorAll<HTMLElement>(LEAD_CAPTION_SELECTOR)
     .forEach((el) => {
-      if (!isBeforeBoundary(el, firstSubstantial)) return;
-      const raw = (el.textContent || "").replace(/\s+/g, " ").trim();
-      const normalized = normalizeComparableText(raw);
+      const normalized = getLeadCreditCaptionText(el, firstSubstantial);
       if (!normalized) return;
 
-      const looksLikeCredit = /(credit|photo|image|source)/i.test(raw);
-      if (!looksLikeCredit || normalized.length > 300) return;
-
-      removedCaptionTexts.add(normalized);
+      captionTexts.add(normalized);
       el.remove();
     });
 
-  if (removedCaptionTexts.size === 0) return;
+  if (captionTexts.size === 0) return;
 
   doc.body.querySelectorAll<HTMLElement>("p").forEach((p) => {
     if (!isBeforeBoundary(p, firstSubstantial)) return;
@@ -399,8 +447,8 @@ export function stripDuplicateLeadCaptionBlocks(doc: Document): void {
     if (!raw) return;
 
     const normalized = normalizeComparableText(raw);
-    if (!removedCaptionTexts.has(normalized)) return;
-    if (!/(credit|photo|image|source)/i.test(raw)) return;
+    if (!captionTexts.has(normalized)) return;
+    if (!LEAD_CREDIT_MARKER.test(raw)) return;
 
     p.remove();
   });

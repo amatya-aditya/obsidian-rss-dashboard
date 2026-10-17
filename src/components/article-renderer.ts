@@ -43,6 +43,7 @@ import {
   selectCalloutDescription,
 } from "../utils/reader-article-render";
 import {
+  collectLeadCaptionTexts,
   extractDisplayTitleFromHtml,
   hasMeaningfulArticleContent,
   isLikelySameImageSource,
@@ -539,9 +540,10 @@ export class ArticleRenderer {
         // decorations (section icons, share buttons) never present in RSS payloads.
         doc.body.querySelectorAll("svg").forEach((el) => el.remove());
         if (fallbackHeroUrl) {
+          const leadCaptionTexts = collectLeadCaptionTexts(doc);
           stripLeadMediaBeforeContent(doc);
           stripDuplicateLeadMediaMatchingHero(doc, fallbackHeroUrl);
-          stripDuplicateLeadCaptionBlocks(doc);
+          stripDuplicateLeadCaptionBlocks(doc, leadCaptionTexts);
         }
       }
 
