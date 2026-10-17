@@ -972,3 +972,15 @@ mark.rss-highlight {
 .rss-reader-content .rss-reader-content-placeholder > div:last-child {
   width: 65%;
 }
+
+/* Reserve Obsidian's floating mobile menu's clearance at the bottom of both
+ * reading panes, so the last line of an article (a trailing Comments link, for
+ * example) scrolls clear of the bar. Declared after `.inline-reader-content`'s
+ * base shorthand so the bottom padding also wins on the pane that carries both
+ * classes. */
+@media (max-width: 1200px) {
+  .rss-reader-content,
+  .inline-reader-content {
+    padding-bottom: var(--rss-mobile-bottom-bar-clearance);
+  }
+}
