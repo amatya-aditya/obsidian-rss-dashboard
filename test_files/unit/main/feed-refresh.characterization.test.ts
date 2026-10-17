@@ -468,7 +468,7 @@ describe("feed refresh: which feeds refresh", () => {
     await harness.plugin.refreshFailedFeeds();
 
     expect(fetchedUrls(harness)).toEqual([]);
-    expect(notices()).toEqual(["No failed feeds to retry."]);
+    expect(notices()).toEqual(["No failed refreshes to retry."]);
   });
 
   it("refreshes a selected feed even when it's excluded from refresh", async () => {

@@ -24,6 +24,7 @@ import {
   shouldAnnounceFinish,
   type FeedRefreshOutcome,
 } from "./refresh-announcements";
+import { isFeedImportFailed } from "../utils/feed-import-status";
 
 /** The dashboard view methods the runner redraws through. main.ts supplies the view. */
 export interface RefreshDashboardViewLike {
@@ -174,7 +175,17 @@ export class FeedRefreshRunner {
     );
 
     if (failedFeeds.length === 0) {
-      new Notice("No failed feeds to retry.");
+      // A feed whose background import failed has no fetch error, so it is
+      // not a retry candidate here. Say so without claiming there are no
+      // failed feeds at all, and point at the operation that fits (#1309).
+      const importFailures = this.settings.feeds.filter((feed) =>
+        isFeedImportFailed(feed),
+      ).length;
+      new Notice(
+        importFailures > 0
+          ? `No failed refreshes to retry. ${importFailures} feed import${importFailures === 1 ? "" : "s"} failed; choose Retry import from the feed's menu.`
+          : "No failed refreshes to retry.",
+      );
       return;
     }
 

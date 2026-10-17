@@ -72,14 +72,17 @@ export interface BackgroundImportCompletionHooks {
   isCancelled: () => boolean;
   persist: () => Promise<void>;
   render: () => Promise<void>;
-  onDrained: (processedCount: number) => void;
-  processedCount: number;
+  /**
+   * Called once the queue drains, so the owner can report the batch. The owner
+   * holds the batch totals; this runner only forwards.
+   */
+  onDrained: () => void;
 }
 
 /**
  * Success path of a drained import run, skipped entirely when the run was
  * cancelled: persist settings, render the view, then announce the drain.
- * @param {BackgroundImportCompletionHooks} hooks Current cancellation state, the persist/render callbacks, and the processed count
+ * @param {BackgroundImportCompletionHooks} hooks Current cancellation state and the persist/render/drain callbacks
  * @returns {Promise<void>} Resolves once the persist, render, and drain callback have run
  */
 export async function finishBackgroundImportRun(
@@ -88,7 +91,7 @@ export async function finishBackgroundImportRun(
   if (!hooks.isCancelled()) {
     await hooks.persist();
     await hooks.render();
-    hooks.onDrained(hooks.processedCount);
+    hooks.onDrained();
   }
 }
 

@@ -8,7 +8,8 @@ import { TIMED_OUT_MESSAGE } from "./feed-timeout.js";
  * never reports per feed, so a multi-feed refresh stays a handful of
  * announcements however many feeds it fetches. Each open dashboard view
  * listens for `REFRESH_ANNOUNCEMENT_EVENT` and writes the message to its own
- * live region.
+ * live region. A background import batch reports its single failure message on
+ * the same event, so it reaches that region without a second mechanism.
  */
 
 /** Workspace event carrying one announcement string. */

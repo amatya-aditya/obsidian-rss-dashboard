@@ -66,6 +66,10 @@ import { ImportConfirmationModal } from "./src/settings/modals/import-confirmati
 import type { ExportBlobResult } from "./src/utils/export-utils";
 import { BackgroundImportService } from "./src/services/background-import-service";
 import { FeedRefreshScheduler } from "./src/services/feed-refresh-scheduler";
+import {
+  hasImportFailures,
+  importBatchFailureMessage,
+} from "./src/services/import-announcements";
 import { REFRESH_ANNOUNCEMENT_EVENT } from "./src/services/refresh-announcements";
 import { OpmlManager } from "./src/services/opml-manager";
 import { PreviewImageCache } from "./src/services/preview-image-cache";
@@ -380,9 +384,21 @@ export default class RssDashboardPlugin extends Plugin {
       endGlobalOperation: () => this.feedOperationTracker.end(),
       isGlobalOperationCancelled: () => this.feedOperationTracker.isCancelled,
       onFeedImported: (feed) => this.previewImageCache.warmFeed(feed),
-      onImportQueueDrained: (processedCount) => {
+      onImportQueueDrained: (summary) => {
+        // One message per batch. A batch in which a feed's import failed or
+        // timed out is reported on both surfaces — the Notice for sighted
+        // users, the same workspace event the refresh announcements use for
+        // screen readers — so neither stays silent (#1308). Import failures are
+        // deliberately not part of the refresh run tally; this is their own
+        // report.
+        if (hasImportFailures(summary)) {
+          const message = importBatchFailureMessage(summary);
+          new Notice(message);
+          this.app.workspace.trigger(REFRESH_ANNOUNCEMENT_EVENT, message);
+          return;
+        }
         new Notice(
-          `Background import completed. Processed ${processedCount} feeds.`,
+          `Background import completed. Processed ${summary.processedCount} feeds.`,
         );
       },
     });
@@ -1719,6 +1735,15 @@ export default class RssDashboardPlugin extends Plugin {
   public startBackgroundImport(feeds: Feed[]): void {
     // ✅ BackgroundImportService extracted — all 882 currently green tests passing
     this.backgroundImportService.startBackgroundImport(feeds);
+  }
+
+  /**
+   * Re-import one feed whose background import failed (#1309): a thin facade
+   * over BackgroundImportService, which owns the re-import and its Notices.
+   * The sidebar's "Retry import" action calls this; it is not a refresh.
+   */
+  public retryFeedImport(feed: Feed): void {
+    this.backgroundImportService.retryFeedImport(feed);
   }
 
   public async ingestFeedsForBackgroundImport(

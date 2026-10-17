@@ -1,4 +1,4 @@
-import { setIcon, Setting } from "obsidian";
+import { Notice, setIcon, Setting } from "obsidian";
 import type {
   RssDashboardSettings,
   Feed,
@@ -26,6 +26,7 @@ import {
   TIMED_OUT_MESSAGE,
 } from "./feed-timeout";
 import { globalFetchSemaphore } from "./feed-parser/fetch-semaphore";
+import type { ImportBatchSummary } from "./import-announcements";
 import { setCssProps } from "../utils/platform-utils";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -59,7 +60,7 @@ interface FeedParserLike {
  * @property {Function} [endGlobalOperation] Ends the active global operation
  * @property {Function} [isGlobalOperationCancelled] Returns true if the active global operation was cancelled
  * @property {Function} [onFeedImported] Called each time a queued feed finishes importing successfully
- * @property {Function} [onImportQueueDrained] Called once the background import queue finishes draining (unless the run was cancelled), with the number of feeds processed. Callers use this to surface a completion Notice — the service itself never shows one.
+ * @property {Function} [onImportQueueDrained] Called once the background import queue finishes draining (unless the run was cancelled), with the batch's processed and failed counts. Callers use this to surface a completion Notice and one failure message per batch — the service itself never shows one.
  */
 export interface BackgroundImportServiceDeps {
   feedParser: FeedParserLike;
@@ -76,7 +77,7 @@ export interface BackgroundImportServiceDeps {
   endGlobalOperation?: () => Promise<void>;
   isGlobalOperationCancelled?: () => boolean;
   onFeedImported?: (feed: Feed) => void;
-  onImportQueueDrained?: (processedCount: number) => void;
+  onImportQueueDrained?: (summary: ImportBatchSummary) => void;
 }
 
 // ── Service ──────────────────────────────────────────────────────────────────
@@ -105,7 +106,7 @@ export class BackgroundImportService {
   private readonly endGlobalOperation?: () => Promise<void>;
   private readonly isGlobalOperationCancelled?: () => boolean;
   private readonly onFeedImported?: (feed: Feed) => void;
-  private readonly onImportQueueDrained?: (processedCount: number) => void;
+  private readonly onImportQueueDrained?: (summary: ImportBatchSummary) => void;
 
   // ── State ──────────────────────────────────────────────────────────────────
 
@@ -117,6 +118,9 @@ export class BackgroundImportService {
   private backgroundImportPendingIngestionUrls = new Set<string>();
   private backgroundImportProcessedCount = 0;
   private backgroundImportTotalCount = 0;
+  private backgroundImportFailedCount = 0;
+  private backgroundImportTimedOutCount = 0;
+  private backgroundImportLastError: string | undefined = undefined;
   private backgroundImportPersistMode:
     RssDashboardSettings["storageMode"] | null = null;
   private backgroundImportSignal: AbortSignal | null = null;
@@ -221,6 +225,37 @@ export class BackgroundImportService {
       this.backgroundImportInFlightUrls.has(url) ||
       this.backgroundImportQueuedUrls.has(url)
     );
+  }
+
+  /**
+   * Re-import a feed whose background import failed, by queueing it for the
+   * background import pipeline again. This is an explicit, per-feed action, so
+   * it ignores `excludeFromRefresh`, which only governs ordinary refreshes.
+   * The feed's import state moves back to `pending` with its old error cleared
+   * — so the sidebar stops showing the failure while the retry runs — and
+   * `importPending` is set again so an interrupted retry resumes next load. A
+   * queued retry is skipped with a Notice when that feed is already in the
+   * pipeline.
+   * @param {Feed} feed Feed to re-import; matched to settings by URL
+   * @returns {void}
+   */
+  public retryFeedImport(feed: Feed): void {
+    const storedFeed = this.getSettings().feeds.find(
+      (candidate) => candidate.url === feed.url,
+    );
+    if (!storedFeed) {
+      return;
+    }
+    if (this.isFeedPendingImport(storedFeed.url)) {
+      new Notice(`Already importing "${storedFeed.title}".`);
+      return;
+    }
+
+    storedFeed.importStatus = "pending";
+    delete storedFeed.importError;
+    storedFeed.importPending = true;
+    this.startBackgroundImport([storedFeed]);
+    new Notice(`Re-importing "${storedFeed.title}"...`);
   }
 
   /**
@@ -438,9 +473,13 @@ export class BackgroundImportService {
             view.render();
           }
         },
-        onDrained: (processedCount) =>
-          this.onImportQueueDrained?.(processedCount),
-        processedCount: this.backgroundImportProcessedCount,
+        onDrained: () =>
+          this.onImportQueueDrained?.({
+            processedCount: this.backgroundImportProcessedCount,
+            failed: this.backgroundImportFailedCount,
+            timedOut: this.backgroundImportTimedOutCount,
+            lastError: this.backgroundImportLastError,
+          }),
       });
     } finally {
       if (this.importStatusBarItem) {
@@ -470,6 +509,9 @@ export class BackgroundImportService {
       this.isBackgroundImporting = false;
       this.backgroundImportProcessedCount = 0;
       this.backgroundImportTotalCount = 0;
+      this.backgroundImportFailedCount = 0;
+      this.backgroundImportTimedOutCount = 0;
+      this.backgroundImportLastError = undefined;
       this.backgroundImportInFlightUrls.clear();
       this.backgroundImportSignal = null;
 
@@ -900,10 +942,22 @@ export class BackgroundImportService {
    * written back onto the settings feed by URL; otherwise the failure would
    * live only on the discarded copy and the feed would look like an ordinary
    * empty one (GH #1140).
+   *
+   * The same call tallies the batch: the failure is counted here whether or not
+   * the feed is still in settings, because the batch really did fail a feed.
    * @param {FeedMetadata} feedMetadata Queued import entry that has already been updated with its failure status and error
    * @returns {void}
    */
   private recordImportFailure(feedMetadata: FeedMetadata): void {
+    if (feedMetadata.importStatus === "timed_out") {
+      this.backgroundImportTimedOutCount += 1;
+    } else {
+      this.backgroundImportFailedCount += 1;
+    }
+    if (feedMetadata.importError) {
+      this.backgroundImportLastError = feedMetadata.importError;
+    }
+
     const feed = this.getSettings().feeds.find(
       (candidate) => candidate.url === feedMetadata.url,
     );
