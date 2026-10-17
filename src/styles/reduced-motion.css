@@ -98,6 +98,9 @@
   .rss-dashboard-article-card,
   .rss-dashboard-article-card:active,
   .rss-dashboard-card-view
+    .rss-dashboard-article-card
+    .rss-dashboard-fetch-cover-button,
+  .rss-dashboard-card-view
     .rss-dashboard-card-preview-region
     .rss-dashboard-summary-overlay {
     transition-duration: 0.01ms;

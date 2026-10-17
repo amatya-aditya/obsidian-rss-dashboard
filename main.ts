@@ -73,6 +73,11 @@ import {
 import { REFRESH_ANNOUNCEMENT_EVENT } from "./src/services/refresh-announcements";
 import { OpmlManager } from "./src/services/opml-manager";
 import { PreviewImageCache } from "./src/services/preview-image-cache";
+import {
+  PageCoverImageService,
+  type PageCoverImageResult,
+} from "./src/services/page-cover-image-service";
+import { fetchFullArticleContentWithOutcome } from "./src/utils/full-article-fetch";
 import { FeedOperationTracker } from "./src/services/feed-operation-tracker";
 import {
   FeedRefreshRunner,
@@ -219,6 +224,7 @@ export default class RssDashboardPlugin extends Plugin {
   private readonly uriActionHandler: UriActionHandler;
   private readonly feedOperationTracker: FeedOperationTracker;
   private readonly previewImageCache: PreviewImageCache;
+  private readonly pageCoverImageService: PageCoverImageService;
   private readonly feedRefreshRunner: FeedRefreshRunner;
   private readonly feedSubscriptionService: FeedSubscriptionService;
   private readonly settingsImportApplier: SettingsImportApplier;
@@ -298,6 +304,14 @@ export default class RssDashboardPlugin extends Plugin {
       saveSettings: () => this.saveSettings(),
       isRefreshBatchRunning: () => this.feedOperationTracker.isRunning,
       getDashboardView: () => this.getActiveDashboardView(),
+    });
+    this.pageCoverImageService = new PageCoverImageService({
+      fetchPage: (url) =>
+        fetchFullArticleContentWithOutcome(
+          url,
+          this.settings.corsProxyUrl,
+          this.settings.articleSaving.fetchTimeout,
+        ),
     });
     this.feedRefreshRunner = new FeedRefreshRunner({
       feedOperationTracker: this.feedOperationTracker,
@@ -463,6 +477,19 @@ export default class RssDashboardPlugin extends Plugin {
 
   public resolveCachedImageUrl(remoteUrl: string): string | null {
     return this.previewImageCache.resolveCachedUrl(remoteUrl);
+  }
+
+  /**
+   * Reads the article page's declared cover image for the manual dashboard
+   * action (#1314). Shares one request per link while one is in flight.
+   */
+  public fetchPageCoverImage(article: FeedItem): Promise<PageCoverImageResult> {
+    return this.pageCoverImageService.fetch(article.link ?? "");
+  }
+
+  /** Caches a just-fetched cover image immediately (#1314). */
+  public warmCoverImage(remoteUrl: string): void {
+    void this.previewImageCache.warmUrl(remoteUrl);
   }
 
   public getImageCacheSizeBytes(): number {

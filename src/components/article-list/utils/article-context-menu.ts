@@ -17,7 +17,19 @@ export interface ArticleContext {
       hooks: CustomSaveHooks,
     ) => Promise<void> | void;
     onArticleClick?: (article: FeedItem) => void;
+    /**
+     * Fetches the article page's cover image (#1314). Resolves true when a
+     * usable image was stored on the article, false otherwise.
+     */
+    onFetchCoverImage?: (article: FeedItem) => Promise<boolean>;
+    /** Rebuilds whatever rendered the article, once a cover image was stored. */
+    onCoverImageFetched?: (article: FeedItem) => void;
   };
+  /**
+   * Whether this surface offers the cover-image fetch. The view decides: only
+   * the views that render a cover, with "Show cover images" on.
+   */
+  showFetchCoverImage?: boolean;
   settings: {
     articleSaving: {
       saveVersion: SaveVersion;
@@ -131,6 +143,24 @@ export function showArticleContextMenu(
         );
       });
   });
+
+  const fetchCoverImage = ctx.callbacks.onFetchCoverImage;
+  if (ctx.showFetchCoverImage && article.link && fetchCoverImage) {
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle(
+          article.coverImage
+            ? "Replace cover image from page"
+            : "Fetch cover image from page",
+        )
+        .setIcon("download")
+        .onClick(() => {
+          void fetchCoverImage(article).then((found) => {
+            if (found) ctx.callbacks.onCoverImageFetched?.(article);
+          });
+        });
+    });
+  }
 
   if (!article.saved) {
     menu.addSeparator();

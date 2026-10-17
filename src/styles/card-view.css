@@ -237,6 +237,48 @@
   border-color: var(--interactive-accent);
 }
 
+/* The manual cover-image fetch (#1314). Out of the way until the card is
+ * hovered or holds focus, but always reachable from the keyboard. */
+.rss-dashboard-card-view
+  .rss-dashboard-article-card
+  .rss-dashboard-fetch-cover-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  background-color: var(--background-primary);
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.rss-dashboard-article-card:hover .rss-dashboard-fetch-cover-button,
+.rss-dashboard-article-card:focus-within .rss-dashboard-fetch-cover-button {
+  opacity: 1;
+}
+
+.rss-dashboard-fetch-cover-button:hover {
+  color: var(--text-normal);
+  background-color: var(--background-modifier-hover);
+}
+
+.rss-dashboard-card-cover-fetching .rss-dashboard-fetch-cover-button {
+  opacity: 1;
+  color: var(--text-muted);
+}
+
+.rss-dashboard-card-cover-fetching .rss-dashboard-card-preview-region {
+  opacity: 0.5;
+}
+
 .rss-dashboard-article-card.active {
   background-color: var(--background-modifier-active);
 }

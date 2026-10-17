@@ -613,4 +613,150 @@ describe("card-view", () => {
       container.querySelector(".rss-dashboard-cover-summary-only")?.textContent,
     ).toBe("An invented description of an invented discovery.");
   });
+
+  describe("fetch cover image affordance (#1314)", () => {
+    function fetchButton(): HTMLButtonElement | null {
+      return container.querySelector<HTMLButtonElement>(
+        ".rss-dashboard-fetch-cover-button",
+      );
+    }
+
+    function renderWith(overrides: {
+      article?: Parameters<typeof makeArticle>[0];
+      deps?: Parameters<typeof baseViewDeps>[0];
+      context?: Parameters<typeof baseViewContext>[0];
+    }) {
+      renderCardView(
+        container,
+        [makeArticle(overrides.article)],
+        { ...baseViewContext(overrides.context), showCardToolbar: false },
+        baseViewDeps({ fetchCoverImage: vi.fn(), ...overrides.deps }),
+      );
+    }
+
+    it("offers to fetch a cover when the item has none", () => {
+      renderWith({});
+
+      const button = fetchButton();
+      expect(button?.tagName).toBe("BUTTON");
+      expect(button?.getAttribute("type")).toBe("button");
+      expect(button?.getAttribute("aria-label")).toBe(
+        "Fetch cover image from page",
+      );
+    });
+
+    it("offers to replace the cover the item already has", () => {
+      renderWith({
+        article: { coverImage: "https://cdn.example.com/old.jpg" },
+      });
+
+      expect(fetchButton()?.getAttribute("aria-label")).toBe(
+        "Replace cover image from page",
+      );
+    });
+
+    it("omits the control when the dashboard offers no cover fetch", () => {
+      renderCardView(
+        container,
+        [makeArticle()],
+        { ...baseViewContext(), showCardToolbar: false },
+        baseViewDeps(),
+      );
+
+      expect(fetchButton()).toBeNull();
+    });
+
+    it("omits the control while cover images are hidden", () => {
+      renderWith({
+        context: {
+          settings: {
+            ...baseViewContext().settings,
+            display: {
+              ...baseViewContext().settings.display,
+              showCoverImage: false,
+            },
+          },
+        },
+      });
+
+      expect(fetchButton()).toBeNull();
+    });
+
+    it("omits the control for an item with no article link", () => {
+      renderWith({ article: { link: "" } });
+
+      expect(fetchButton()).toBeNull();
+    });
+
+    it("fetches on activation without opening the article, rebuilding the card when a cover was found", async () => {
+      const onArticleClick = vi.fn();
+      const fetchCoverImage = vi.fn().mockResolvedValue(true);
+      const replaceArticle = vi.fn();
+      renderCardView(
+        container,
+        [makeArticle()],
+        {
+          ...baseViewContext({ callbacks: { onArticleClick } }),
+          showCardToolbar: false,
+        },
+        baseViewDeps({ fetchCoverImage, replaceArticle }),
+      );
+
+      fetchButton()?.click();
+
+      await vi.waitFor(() => expect(replaceArticle).toHaveBeenCalledTimes(1));
+      expect(fetchCoverImage).toHaveBeenCalledTimes(1);
+      expect(onArticleClick).not.toHaveBeenCalled();
+    });
+
+    it("leaves the card in place when the page had no cover", async () => {
+      const fetchCoverImage = vi.fn().mockResolvedValue(false);
+      const replaceArticle = vi.fn();
+      renderCardView(
+        container,
+        [makeArticle()],
+        { ...baseViewContext(), showCardToolbar: false },
+        baseViewDeps({ fetchCoverImage, replaceArticle }),
+      );
+
+      fetchButton()?.click();
+
+      await vi.waitFor(() => expect(fetchCoverImage).toHaveBeenCalledTimes(1));
+      expect(replaceArticle).not.toHaveBeenCalled();
+    });
+
+    it("marks the card busy while the fetch runs and clears it afterwards", async () => {
+      let finish!: (found: boolean) => void;
+      const fetchCoverImage = vi.fn(
+        () =>
+          new Promise<boolean>((resolve) => {
+            finish = resolve;
+          }),
+      );
+      renderCardView(
+        container,
+        [makeArticle()],
+        { ...baseViewContext(), showCardToolbar: false },
+        baseViewDeps({ fetchCoverImage }),
+      );
+      const card = container.querySelector<HTMLElement>(
+        ".rss-dashboard-article-card",
+      )!;
+
+      fetchButton()?.click();
+
+      expect(card.classList.contains("rss-dashboard-card-cover-fetching")).toBe(
+        true,
+      );
+      expect(card.getAttribute("aria-busy")).toBe("true");
+
+      finish(false);
+      await vi.waitFor(() =>
+        expect(
+          card.classList.contains("rss-dashboard-card-cover-fetching"),
+        ).toBe(false),
+      );
+      expect(card.hasAttribute("aria-busy")).toBe(false);
+    });
+  });
 });

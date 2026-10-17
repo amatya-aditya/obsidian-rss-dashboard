@@ -17,6 +17,13 @@ export interface ViewDeps {
     mode: "full" | "minimal-read",
   ): void;
   showArticleContextMenu(event: MouseEvent, article: FeedItem): void;
+  /**
+   * Fetches the article page's cover image and stores it (#1314). Resolves true
+   * when a usable image was stored. Absent when the dashboard cannot fetch.
+   */
+  fetchCoverImage?(article: FeedItem): Promise<boolean>;
+  /** Rebuilds one article's rendered element in place, after its data changed. */
+  replaceArticle?(article: FeedItem): void;
   scheduleMathRendering?(element: HTMLElement): void;
   scheduleCardTagLayout?(card: HTMLElement): void;
   onToggleFeedSectionCollapse?(

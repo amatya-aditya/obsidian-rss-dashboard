@@ -81,6 +81,7 @@ import { markMainLandmark, markNamedLandmark } from "../utils/landmarks";
 import { SIDEBAR_ROW_SELECTOR } from "../utils/sidebar-row-interactions";
 import { clearViewReady, markViewReady } from "../utils/view-ready";
 import { REFRESH_ANNOUNCEMENT_EVENT } from "../services/refresh-announcements";
+import { coverImageFailureNotice } from "../services/cover-image-notice";
 import { attachRovingToolbar } from "../utils/roving-toolbar";
 import { toggleFeedInMultiSelection } from "../utils/feed-multi-select";
 import { applyAutomaticArticleTags } from "../utils/tag-utils";
@@ -1291,6 +1292,7 @@ export class RssDashboardView extends ItemView {
       },
       onResolveCachedImageUrl: (remoteUrl) =>
         this.plugin.resolveCachedImageUrl(remoteUrl),
+      onFetchCoverImage: (article) => this.handleFetchCoverImage(article),
       onMarkAllAsRead: () => {
         this.actionMarkAllAsRead();
       },
@@ -3069,6 +3071,34 @@ export class RssDashboardView extends ItemView {
   }
 
   // --- Article mutation, sync, and persistence ---
+
+  /**
+   * The dashboard's manual cover-image fetch (#1314): one page request, the
+   * image stored on the item, and nothing else about the article changed. Warms
+   * the disk cache when image caching is on. Resolves true when an image was
+   * stored, so the calling card can rebuild itself.
+   */
+  private async handleFetchCoverImage(article: FeedItem): Promise<boolean> {
+    const result = await this.plugin.fetchPageCoverImage(article);
+    if (result.status === "found") {
+      await this.updateArticleStatus(
+        article,
+        { coverImage: result.url },
+        false,
+      );
+      if (this.settings.display.allowImageCaching) {
+        this.plugin.warmCoverImage(result.url);
+      }
+      return true;
+    }
+
+    const notice = coverImageFailureNotice(result);
+    if (notice) {
+      new Notice(notice);
+    }
+    return false;
+  }
+
   private async updateArticleStatus(
     article: FeedItem,
     updates: Partial<FeedItem>,

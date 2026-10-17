@@ -11,6 +11,7 @@ import {
   resolveArticlePreviewImage,
 } from "../../../utils/article-preview-utils";
 import { renderSingleRowCardTagChips } from "../utils/tag-layout-utils";
+import { createIconButton } from "../../../utils/icon-button";
 import type { BaseViewContext, ViewDeps } from "./view-types";
 import {
   renderPreviewPlaceholder,
@@ -42,6 +43,48 @@ function renderCardPlaceholder(
   placeholder.tabIndex = 0;
   keepTextStopEnterLocal(placeholder);
   openButton.setAttribute("aria-describedby", descriptionId);
+}
+
+/**
+ * The card's cover-image fetch control (#1314): the discoverable path to the
+ * same action the context menu offers. Revealed by the stylesheet on card
+ * hover and on focus within the card, so it stays out of the way but is never
+ * hidden from the keyboard.
+ */
+function renderFetchCoverButton(
+  card: HTMLElement,
+  article: FeedItem,
+  deps: ViewDeps,
+): void {
+  if (!deps.fetchCoverImage) return;
+
+  const runFetch = async (): Promise<void> => {
+    card.classList.add("rss-dashboard-card-cover-fetching");
+    card.setAttribute("aria-busy", "true");
+    try {
+      const fetched = await deps.fetchCoverImage?.(article);
+      if (fetched) deps.replaceArticle?.(article);
+    } finally {
+      card.classList.remove("rss-dashboard-card-cover-fetching");
+      card.removeAttribute("aria-busy");
+    }
+  };
+
+  const button = createIconButton({
+    label: article.coverImage
+      ? "Replace cover image from page"
+      : "Fetch cover image from page",
+    icon: "download",
+    parent: card,
+    cls: "rss-dashboard-fetch-cover-button",
+    action: "fetch-cover-image",
+    region: "article-card",
+  });
+  button.addEventListener("click", (event: MouseEvent) => {
+    // The card itself opens the article on click.
+    event.stopPropagation();
+    void runFetch();
+  });
 }
 
 export function renderCardView(
@@ -291,6 +334,14 @@ export function renderCardView(
         cls: "rss-dashboard-tag-container",
       });
       renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
+    }
+
+    if (
+      deps.fetchCoverImage &&
+      ctx.settings.display.showCoverImage &&
+      article.link
+    ) {
+      renderFetchCoverButton(card, article, deps);
     }
 
     if (ctx.showCardToolbar) {

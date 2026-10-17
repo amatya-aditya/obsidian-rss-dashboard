@@ -23,6 +23,8 @@ function raw(overrides: Partial<RawArticleMetadata> = {}): RawArticleMetadata {
     microdataAuthors: [],
     relAuthors: [],
     canonicalUrl: "",
+    ogImage: "",
+    twitterImage: "",
     readabilityExcerpt: "",
     ...overrides,
   };

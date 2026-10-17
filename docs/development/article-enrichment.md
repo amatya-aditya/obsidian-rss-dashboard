@@ -92,6 +92,17 @@ the first `<img>` in `content`, then in `summary`, then an `image/*` enclosure.
 It never uses the article page's image; that is
 [#812](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/812).
 
+A reader can ask for the page's image by hand, though: **Fetch cover image from
+page** in an article's right-click menu, or the same control in the corner of a
+card that has none. That action fetches the page once, takes its declared image
+(`og:image`, then `twitter:image`), and stores it in `coverImage`, so every
+cover surface picks it up. It reads no page body — a body's first image is
+usually a byline avatar or a site logo — stores no page content, and changes no
+other field. It is manual and one request per activation; the automatic
+alternatives remain [#812](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/812)
+and [#1030](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1030).
+See [ADR 0031](../adr/0031-store-a-manually-fetched-page-cover-image-in-coverimage.md).
+
 ## Why the plugin fetches pages only on open
 
 Fetching a page per item per feed at refresh would reverse a deliberate choice.
@@ -108,6 +119,10 @@ The reasons:
   cannot.
 - **Local-first storage.** Only articles that were opened carry page metadata,
   keeping the stored data proportional to what was read.
+
+The one exception is manual: the per-card cover-image fetch contacts the article
+page when the reader asks for it, for one item at a time, and stores only the
+image. A refresh still never fetches article pages.
 
 ## How other readers do it
 

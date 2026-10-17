@@ -513,4 +513,84 @@ describe("ArticleList in-place updates honor reduced motion (#867)", () => {
 
     h.cleanup();
   });
+
+  it("rebuilds one card in place when its cover image changed (#1314)", () => {
+    const h = createArticleListHarness({
+      settings: {
+        viewStyle: "card",
+        articleGroupBy: "none",
+        articleSort: "newest",
+      },
+      articles: [buildArticle({ guid: "1", title: "One", coverImage: "" })],
+    });
+    h.list.render();
+
+    const before = h.getArticleEl("1");
+    expect(before).not.toBeNull();
+    expect(before?.querySelector(".rss-dashboard-cover-image")).toBeNull();
+
+    h.articles[0].coverImage = "https://cdn.example.com/hero.jpg";
+    expect(h.list.replaceArticleInPlace(h.articles[0])).toBe(true);
+
+    const after = h.getArticleEl("1");
+    expect(after).not.toBeNull();
+    expect(after).not.toBe(before);
+    expect(
+      after?.querySelector(".rss-dashboard-cover-image")?.getAttribute("src"),
+    ).toBe("https://cdn.example.com/hero.jpg");
+    expect(h.getVisibleArticleIds()).toEqual(["1"]);
+
+    h.cleanup();
+  });
+
+  it("keeps focus on the same card control after an in-place rebuild (#1314)", () => {
+    // The harness container is detached; jsdom only moves focus for a connected
+    // subtree, so attach one for this test.
+    const container = createDiv();
+    document.body.appendChild(container);
+    const h = createArticleListHarness({
+      container,
+      settings: {
+        viewStyle: "card",
+        articleGroupBy: "none",
+        articleSort: "newest",
+        display: {
+          showCoverImage: true,
+        } as unknown as RssDashboardSettings["display"],
+      },
+      callbacks: { onFetchCoverImage: vi.fn(async () => true) },
+      articles: [buildArticle({ guid: "1", title: "One", coverImage: "" })],
+    });
+    h.list.render();
+
+    const button = h
+      .getArticleEl("1")
+      ?.querySelector<HTMLElement>('[data-rss-action="fetch-cover-image"]');
+    expect(button).not.toBeNull();
+    button?.focus();
+    expect(document.activeElement).toBe(button);
+
+    h.articles[0].coverImage = "https://cdn.example.com/hero.jpg";
+    h.list.replaceArticleInPlace(h.articles[0]);
+
+    expect(document.activeElement?.getAttribute("data-rss-action")).toBe(
+      "fetch-cover-image",
+    );
+
+    h.cleanup();
+  });
+
+  it("reports when the article has no rendered element to rebuild (#1314)", () => {
+    const h = createArticleListHarness({
+      settings: { viewStyle: "card", articleGroupBy: "none" },
+      articles: [buildArticle({ guid: "1" })],
+    });
+    h.list.render();
+
+    expect(
+      h.list.replaceArticleInPlace(buildArticle({ guid: "missing" })),
+    ).toBe(false);
+
+    h.cleanup();
+  });
 });

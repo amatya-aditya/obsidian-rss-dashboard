@@ -325,6 +325,18 @@ _Avoid_: Extracted metadata, page signals
 One value per metadata field (description, language) after precedence is applied across [[Raw article metadata]] and [[Feed metadata]]. Produced by `resolveArticleMetadata`, held only for the current render or save — not a `FeedItem` shape itself. Individual fields may be copied onto `FeedItem` by the ticket that defines that field; the object as a whole is never persisted wholesale.
 _Avoid_: Final metadata, merged metadata
 
+**Cover image**:
+The image a card, a feed-view hero, or a Reader hero shows for an article, stored on the feed item in the `coverImage` field. It normally comes from the feed's own markup (media tags, an enclosure, or the first image in the blurb); after a [[Cover image fetch]] it may instead be the article page's [[Page cover image]]. The Reader's "hero" names a layout region, not a separate image. See [ADR 0031](docs/adr/0031-store-a-manually-fetched-page-cover-image-in-coverimage.md).
+_Avoid_: Preview image (the documentation's older name), hero image (the Reader layout region), card image, thumbnail
+
+**Page cover image**:
+The image an article page declares for itself through `og:image`, falling back to `twitter:image`, resolved against the article URL. Read only by a [[Cover image fetch]]; never at refresh or render time, and never by scanning the page body, where the first image is usually a byline avatar or a site logo. A formula image, a tracking pixel, a `data:` URL, and any non-`http(s)` value are refused. See [ADR 0031](docs/adr/0031-store-a-manually-fetched-page-cover-image-in-coverimage.md).
+_Avoid_: og image, social image, page hero, article thumbnail
+
+**Cover image fetch**:
+The manual dashboard action that reads an article page's [[Page cover image]] and stores it as the item's [[Cover image]], offered in an article's context menu and as a control on a card, in Card and Feed views while cover-image display is on. One request per activation, sharing a request already in flight for the same link; it stores no page content and changes no other article field. Distinct from the Reader's fetch that produces [[Fetched content]].
+_Avoid_: Fetch card image, image fetch, full fetch, article fetch (the Reader's fetch)
+
 **Persisted article metadata**:
 The subset of [[Resolved article metadata]] fields written onto `FeedItem` once a full-article fetch resolves them: `publisherDescription` (stored beside `FeedItem.description`, which keeps the [[Feed description]]), `language`, `authors` (`string[]`; overrides the feed-derived value only when the feed side resolved to a single author entry, while `FeedItem.author` stays a string holding the same names joined with `", "`), `canonicalUrl`, `metadataFetchedAt`, and `languageSource`. First-write-wins — once `metadataFetchedAt` is set on an item, a later feed refresh never overwrites these fields, since [[Feed metadata]] is the pre-fetch fallback, not a rival source. Distinct from `excerpt`, `siteName`, `modifiedAt`, and `descriptionSource`, which stay unpersisted (transient [[Resolved article metadata]] only).
 _Avoid_: Enriched metadata (doesn't distinguish transient from persisted), saved metadata

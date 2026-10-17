@@ -93,6 +93,12 @@ interface ArticleListCallbacks {
   onOpenTagsSettings?: () => Promise<void> | void;
   onTagsMutated?: () => void;
   onResolveCachedImageUrl?: (remoteUrl: string) => string | null;
+  /**
+   * Fetches the article page's cover image and stores it on the item (#1314).
+   * Resolves true when a usable image was stored. Absent when the dashboard
+   * cannot fetch, which hides the action everywhere.
+   */
+  onFetchCoverImage?: (article: FeedItem) => Promise<boolean>;
 }
 
 export class ArticleList {
@@ -1435,6 +1441,7 @@ export class ArticleList {
   }
 
   private getViewDeps(): ViewDeps {
+    const onFetchCoverImage = this.callbacks.onFetchCoverImage;
     return {
       renderFeedIcon: (container, feedUrl, mediaType) =>
         this.renderFeedIcon(container, feedUrl, mediaType),
@@ -1442,6 +1449,12 @@ export class ArticleList {
         this.createArticleActionButtons(actionToolbar, article, mode),
       showArticleContextMenu: (event, article) =>
         this.showArticleContextMenu(event, article),
+      fetchCoverImage: onFetchCoverImage
+        ? (article: FeedItem) => onFetchCoverImage(article)
+        : undefined,
+      replaceArticle: (article: FeedItem) => {
+        this.replaceArticleInPlace(article);
+      },
       scheduleMathRendering: (element: HTMLElement) =>
         this.callbacks.onRenderArticleTitle?.(element),
       scheduleCardTagLayout: (card) => this.scheduleCardTagLayout(card),
@@ -1581,9 +1594,72 @@ export class ArticleList {
 
   private showArticleContextMenu(event: MouseEvent, article: FeedItem): void {
     showArticleContextMenuUtil(event, article, {
-      callbacks: this.callbacks,
+      callbacks: {
+        ...this.callbacks,
+        onCoverImageFetched: (updated: FeedItem) =>
+          this.replaceArticleInPlace(updated),
+      },
+      showFetchCoverImage:
+        !!this.callbacks.onFetchCoverImage &&
+        this.settings.viewStyle !== "list" &&
+        this.settings.display.showCoverImage,
       settings: { articleSaving: this.settings.articleSaving },
     });
+  }
+
+  /**
+   * Rebuilds one article's rendered element from the current article data, so a
+   * field the in-place sync does not carry — a fetched cover image (#1314) —
+   * appears without a full dashboard re-render. Focus follows to the same
+   * control in the new element when the replaced one held it.
+   */
+  public replaceArticleInPlace(article: FeedItem): boolean {
+    const listEl = this.container.querySelector<HTMLElement>(
+      ".rss-dashboard-articles-list",
+    );
+    if (!listEl) return false;
+
+    const targetEl = Array.from(
+      listEl.querySelectorAll<HTMLElement>(
+        ".rss-dashboard-article-card, .rss-dashboard-feed-item, .rss-dashboard-article-item",
+      ),
+    ).find(
+      (el) =>
+        el.id === `article-${article.guid}` &&
+        el.dataset.feedUrl === article.feedUrl,
+    );
+    if (!targetEl) return false;
+
+    // Build the replacement detached: createDiv() on a Document appends to the
+    // document itself, which throws once <html> exists (#409).
+    const temp = listEl.win.createDiv();
+    if (this.settings.viewStyle === "list") {
+      this.renderListView(temp, [article]);
+    } else if (this.settings.viewStyle === "feed") {
+      this.renderFeedView(temp, [article]);
+    } else {
+      this.renderCardView(temp, [article]);
+    }
+
+    const newEl = temp.firstElementChild as HTMLElement | null;
+    if (!newEl) return false;
+
+    const scrollPos = listEl.scrollTop;
+    // `activeElement` lives on the Document, not the Window; use the element's
+    // own document so a popout window works the same way.
+    const ownerDocument = targetEl.ownerDocument;
+    const focused = ownerDocument.activeElement;
+    const hadFocus = !!focused && targetEl.contains(focused);
+    targetEl.replaceWith(newEl);
+    listEl.scrollTop = scrollPos;
+
+    if (hadFocus) {
+      const focusTarget =
+        newEl.querySelector<HTMLElement>(".rss-dashboard-fetch-cover-button") ??
+        newEl.querySelector<HTMLElement>(".rss-dashboard-card-open-button");
+      focusTarget?.focus();
+    }
+    return true;
   }
 
   private createPortalDropdown(

@@ -293,6 +293,7 @@ const ARTICLE_LIST_CALLBACK_NAMES = [
   "onArticleCustomSave",
   "onArticleSave",
   "onArticleUpdate",
+  "onFetchCoverImage",
   "onFilterChange",
   "onGroupChange",
   "onMarkAllAsRead",

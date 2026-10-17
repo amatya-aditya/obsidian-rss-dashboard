@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
   extractPageMetadata,
   resolveArticleMetadata,
+  resolvePageCoverImage,
   type RawArticleMetadata,
 } from "../../../src/utils/article-metadata";
 
@@ -19,6 +20,8 @@ function emptyRaw(overrides: Partial<RawArticleMetadata> = {}) {
     metaDescription: "",
     ogDescription: "",
     twitterDescription: "",
+    ogImage: "",
+    twitterImage: "",
     htmlLang: "",
     metaAuthor: "",
     jsonLdAuthors: [],
@@ -543,5 +546,97 @@ describe("resolveArticleMetadata feed-blurb footer (#677)", () => {
     });
     expect(resolved.description).toBe("");
     expect(resolved.excerpt).toBe(FEED_BLURB);
+  });
+});
+
+describe("extractPageMetadata page images (#1314)", () => {
+  it("reads the declared og:image and twitter:image as separate raw signals", () => {
+    const raw = extractPageMetadata(
+      docFrom(
+        `<html><head>
+          <meta property="og:image" content="https://cdn.example.com/hero.jpg" />
+          <meta name="twitter:image" content="https://cdn.example.com/card.jpg" />
+        </head><body>Hello</body></html>`,
+      ),
+    );
+
+    expect(raw.ogImage).toBe("https://cdn.example.com/hero.jpg");
+    expect(raw.twitterImage).toBe("https://cdn.example.com/card.jpg");
+  });
+});
+
+describe("resolvePageCoverImage (#1314)", () => {
+  const PAGE = "https://example.com/posts/one";
+
+  it("prefers the declared og:image over twitter:image", () => {
+    expect(
+      resolvePageCoverImage(
+        emptyRaw({
+          ogImage: "https://cdn.example.com/hero.jpg",
+          twitterImage: "https://cdn.example.com/card.jpg",
+        }),
+        PAGE,
+      ),
+    ).toBe("https://cdn.example.com/hero.jpg");
+  });
+
+  it("falls back to twitter:image when the page declares no og:image", () => {
+    expect(
+      resolvePageCoverImage(
+        emptyRaw({ twitterImage: "https://cdn.example.com/card.jpg" }),
+        PAGE,
+      ),
+    ).toBe("https://cdn.example.com/card.jpg");
+  });
+
+  it("resolves a relative and a protocol-relative image against the article URL", () => {
+    expect(
+      resolvePageCoverImage(emptyRaw({ ogImage: "/uploads/hero.png" }), PAGE),
+    ).toBe("https://example.com/uploads/hero.png");
+    expect(
+      resolvePageCoverImage(
+        emptyRaw({ ogImage: "//cdn.example.com/hero.png" }),
+        PAGE,
+      ),
+    ).toBe("https://cdn.example.com/hero.png");
+  });
+
+  it("refuses a data: URL, a non-http(s) scheme and a relative URL with no usable base", () => {
+    expect(
+      resolvePageCoverImage(
+        emptyRaw({ ogImage: "data:image/png;base64,AAAA" }),
+        PAGE,
+      ),
+    ).toBe("");
+    expect(
+      resolvePageCoverImage(
+        emptyRaw({ ogImage: "ftp://example.com/hero.png" }),
+        PAGE,
+      ),
+    ).toBe("");
+    expect(resolvePageCoverImage(emptyRaw({ ogImage: "/hero.png" }), "")).toBe(
+      "",
+    );
+  });
+
+  it("refuses a rendered formula image and a tracking pixel", () => {
+    expect(
+      resolvePageCoverImage(
+        emptyRaw({
+          ogImage: "https://example.com/mediawiki/latex.php?latex=x",
+        }),
+        PAGE,
+      ),
+    ).toBe("");
+    expect(
+      resolvePageCoverImage(
+        emptyRaw({ ogImage: "https://count.example.com/pixel.gif" }),
+        PAGE,
+      ),
+    ).toBe("");
+  });
+
+  it("returns an empty string when the page declares no image at all", () => {
+    expect(resolvePageCoverImage(emptyRaw(), PAGE)).toBe("");
   });
 });

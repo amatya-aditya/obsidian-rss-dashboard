@@ -6,6 +6,7 @@
 import { isDuplicateIntro } from "./duplicate-intro-detection";
 import { stripFeedBlurbFooter } from "./feed-blurb-footer";
 import { htmlToReadableText } from "./html-text";
+import { firstNonFormulaImageUrl, sanitizeImageUrl } from "./image-url-utils";
 
 /**
  * Every page-metadata signal as found on the fetched page, one slot per
@@ -16,6 +17,10 @@ export interface RawArticleMetadata {
   metaDescription: string;
   ogDescription: string;
   twitterDescription: string;
+  /** The page's declared social image (`og:image`), unset when absent. */
+  ogImage: string;
+  /** The page's declared Twitter card image, unset when absent. */
+  twitterImage: string;
   htmlLang: string;
   metaAuthor: string;
   jsonLdAuthors: string[];
@@ -83,6 +88,8 @@ export function emptyRawMetadata(): RawArticleMetadata {
     metaDescription: "",
     ogDescription: "",
     twitterDescription: "",
+    ogImage: "",
+    twitterImage: "",
     htmlLang: "",
     metaAuthor: "",
     jsonLdAuthors: [],
@@ -215,6 +222,8 @@ export function extractPageMetadata(doc: Document): RawArticleMetadata {
       metaDescription: metaContent(doc, "description"),
       ogDescription: metaContent(doc, "og:description"),
       twitterDescription: metaContent(doc, "twitter:description"),
+      ogImage: metaContent(doc, "og:image"),
+      twitterImage: metaContent(doc, "twitter:image"),
       htmlLang: (doc.documentElement?.getAttribute("lang") ?? "").trim(),
       metaAuthor: cleanAuthorName(metaContent(doc, "author")),
       jsonLdAuthors: jsonLdAuthors(doc),
@@ -399,6 +408,37 @@ function resolveAuthors(
     .map(dedupe)
     .find((names) => names.length > 0);
   return page ?? feed;
+}
+
+/*
+ * The page image the card action fetches (#1314). Deliberately narrow: only the
+ * page's own declaration, never a scan of the body, because the first body image
+ * on a typical article page is a byline avatar or a site logo (#812).
+ *
+ * `pageUrl` resolves a relative or protocol-relative declaration; a value that
+ * still is not an absolute http(s) URL is refused.
+ */
+export function resolvePageCoverImage(
+  pageRaw: RawArticleMetadata,
+  pageUrl: string,
+): string {
+  return (
+    firstNonFormulaImageUrl([
+      absoluteImageUrl(pageRaw.ogImage, pageUrl),
+      absoluteImageUrl(pageRaw.twitterImage, pageUrl),
+    ]) ?? ""
+  );
+}
+
+function absoluteImageUrl(value: string, pageUrl: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("//")) return sanitizeImageUrl(`https:${trimmed}`);
+  try {
+    return sanitizeImageUrl(new URL(trimmed, pageUrl).href);
+  } catch {
+    return sanitizeImageUrl(trimmed);
+  }
 }
 
 /**

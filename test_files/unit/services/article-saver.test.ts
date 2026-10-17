@@ -1694,6 +1694,8 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
       microdataAuthors: [],
       relAuthors: [],
       canonicalUrl: "https://example.com/canonical",
+      ogImage: "",
+      twitterImage: "",
       readabilityExcerpt: "",
     };
     const fetchMock = vi
@@ -1742,6 +1744,8 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
       microdataAuthors: [],
       relAuthors: [],
       canonicalUrl: "",
+      ogImage: "",
+      twitterImage: "",
       readabilityExcerpt: "",
     };
 
