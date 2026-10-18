@@ -128,11 +128,13 @@ jobs:
       # stop covering anything. If the file below moves or loses its importing
       # tests, pick another file that has related tests.
       - name: Run the related-test selection
+        env:
+          NO_COLOR: "1"
         run: |
           set -o pipefail
           log="$RUNNER_TEMP/related.log"
           node node_modules/vitest/vitest.mjs related --run --passWithNoTests --config vitest.config.mjs src/settings/tabs/general-settings-tab.ts | tee "$log"
-          if ! grep -Eq "Test Files +[0-9]+ passed" "$log"; then
+          if ! sed 's/\x1b\[[0-9;]*m//g' "$log" | grep -Eq "Test Files +[0-9]+ passed"; then
             echo "::error::vitest related selected no test files"
             exit 1
           fi
