@@ -101,6 +101,7 @@ jobs:
   # `.githooks/pre-commit` does; the full suite stays on Ubuntu (#1321).
   test-windows:
     runs-on: windows-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     defaults:
@@ -123,13 +124,17 @@ jobs:
         run: node node_modules/vitest/vitest.mjs run --config vitest.config.mjs test_files/unit/main
 
       # `--passWithNoTests` mirrors the hook, which exits 0 when nothing is
-      # selected. Fail here instead, so the check cannot quietly stop covering
-      # anything.
+      # selected. Require the run summary instead, so the check cannot quietly
+      # stop covering anything. If the file below moves or loses its importing
+      # tests, pick another file that has related tests.
       - name: Run the related-test selection
+        env:
+          NO_COLOR: "1"
         run: |
           set -o pipefail
-          node node_modules/vitest/vitest.mjs related --run --passWithNoTests --config vitest.config.mjs src/settings/tabs/general-settings-tab.ts | tee related.log
-          if grep -q "No test files found" related.log; then
+          log="$RUNNER_TEMP/related.log"
+          node node_modules/vitest/vitest.mjs related --run --passWithNoTests --config vitest.config.mjs src/settings/tabs/general-settings-tab.ts | tee "$log"
+          if ! sed 's/\x1b\[[0-9;]*m//g' "$log" | grep -Eq "Test Files +[0-9]+ passed"; then
             echo "::error::vitest related selected no test files"
             exit 1
           fi
