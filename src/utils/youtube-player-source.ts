@@ -10,9 +10,8 @@
  * instead of inventing its own.
  *
  * The host forwards every query parameter to the iframe it nests, so
- * `autoplay` and `start` reach the player. That nested player cannot be reached
- * with `postMessage`, so the host path has no live progress events; only the
- * direct path (a plain web context, never Obsidian) keeps them.
+ * `enablejsapi`, `autoplay` and `start` reach the player. `enablejsapi=1` lets
+ * `youtube-player-channel.ts` read the nested player's position (#1236).
  */
 import { isYouTubeVideoId } from "./youtube-embed";
 
@@ -52,6 +51,7 @@ export function youTubePlayerSourceUrl(
 
   if (protocol !== "https:") {
     params.set("v", videoId);
+    params.set("enablejsapi", "1");
     if (options.autoplay) params.set("autoplay", "1");
     if (startSeconds > 0) params.set("start", String(startSeconds));
     return `${EMBED_HOST_URL}?${params.toString()}`;

@@ -7,13 +7,11 @@ import {
   YOUTUBE_PLAYER_REFERRER_POLICY,
   youTubePlayerSourceUrl,
 } from "../utils/youtube-player-source";
+import {
+  connectYouTubePlayerChannel,
+  YouTubePlayerUpdate,
+} from "../utils/youtube-player-channel";
 import { resolveDisplayDate } from "../services/feed-parser/feed-retention";
-
-interface YouTubeMessagePayload {
-  id?: string | number;
-  event?: string;
-  info?: unknown;
-}
 
 export class VideoPlayer {
   private container: HTMLElement;
@@ -21,7 +19,9 @@ export class VideoPlayer {
   private playerEl: HTMLElement | null = null;
   private iframeEl: HTMLIFrameElement | null = null;
   private progressInterval: number | null = null;
-  private lastTrackedPosition: number | null = null;
+  /** The player's last reported position; null until it reports one. */
+  private reportedPosition: number | null = null;
+  private lastSavedPosition: number | null = null;
   private progressTrackingEnabled: boolean;
   private onVideoSelect?: (item: FeedItem) => void;
   private onPlaybackProgress?: (
@@ -31,8 +31,7 @@ export class VideoPlayer {
     flush?: boolean,
   ) => void;
   private relatedVideos: FeedItem[] = [];
-  private messageHandler: ((event: MessageEvent) => void) | null = null;
-  private playStartTime: number | null = null;
+  private disconnectPlayer: (() => void) | null = null;
   private videoDuration: number | null = null;
   private useFirstSeenDateFallback: boolean;
   private focusMode: boolean;
@@ -61,7 +60,6 @@ export class VideoPlayer {
     this.progressTrackingEnabled = progressTrackingEnabled;
     this.useFirstSeenDateFallback = useFirstSeenDateFallback;
     this.focusMode = focusMode;
-    this.setupMessageListener();
   }
 
   private formatVideoDate(item: FeedItem): string {
@@ -76,8 +74,14 @@ export class VideoPlayer {
     }
 
     try {
+      // Save the video being left before the player is replaced.
+      this.stopTracking();
+      this.flushProgress();
+      this.disconnect();
       this.currentItem = item;
-      this.lastTrackedPosition = item.playbackProgress?.position ?? null;
+      this.reportedPosition = null;
+      this.videoDuration = null;
+      this.lastSavedPosition = item.playbackProgress?.position ?? null;
       this.render();
     } catch (error) {
       const msg = `Error loading video: ${error instanceof Error ? error.message : "Unknown error"}`;
@@ -114,8 +118,7 @@ export class VideoPlayer {
 
     videoContainer.appendChild(this.iframeEl);
     this.renderWatchLink();
-
-    this.initPlayer(iframeId);
+    this.connectPlayer(this.iframeEl);
 
     this.tags = this.currentItem.tags;
     this.renderDetails();
@@ -124,8 +127,7 @@ export class VideoPlayer {
 
   /**
    * The saved resume position in seconds, or undefined when progress tracking
-   * is off or nothing was saved. Live progress events cannot reach the host
-   * player, so `start` is the only resume channel on that path.
+   * is off or nothing was saved. The player starts there through `start`.
    */
   private resumeSeconds(): number | undefined {
     if (!this.progressTrackingEnabled) return undefined;
@@ -228,123 +230,37 @@ export class VideoPlayer {
     this.descriptionEl = descriptionContainer;
   }
 
-  private sendCommand(func: string, args: unknown[] = []): void {
-    if (!this.iframeEl || !this.iframeEl.contentWindow) return;
-    try {
-      const message = JSON.stringify({
-        event: "command",
-        func: func,
-        args: args,
-        id: this.iframeEl.id,
-      });
-      const url = new URL(this.iframeEl.src);
-      this.iframeEl.contentWindow.postMessage(message, url.origin);
-    } catch {
-      // Ignore errors
-    }
-  }
-
   /**
-   * Listens for the YouTube IFrame API's `postMessage` events. The embed host
-   * nests the player in its own iframe, so on the live player these never
-   * arrive and nothing is saved; re-engineering this is #1236.
+   * Follows the player's own position reports (#1236). Nothing is estimated:
+   * until the player reports, nothing is saved.
    */
-  private setupMessageListener(): void {
-    this.messageHandler = (event: MessageEvent) => {
-      if (
-        event.origin !== "https://www.youtube.com" &&
-        event.origin !== "https://www.youtube-nocookie.com"
-      ) {
-        return;
-      }
-
-      try {
-        let parsedData: unknown;
-        if (typeof event.data === "string") {
-          parsedData = JSON.parse(event.data);
-        } else {
-          parsedData = event.data;
-        }
-
-        if (!parsedData || typeof parsedData !== "object") return;
-        const payload = parsedData as YouTubeMessagePayload;
-
-        // Verify it belongs to this player's iframe
-        if (
-          payload.id !== undefined &&
-          String(payload.id) !== this.iframeEl?.id
-        ) {
-          return;
-        }
-
-        if (payload.event === "onReady") {
-          this.handlePlayerReady();
-        } else if (payload.event === "onStateChange") {
-          if (typeof payload.info === "number") {
-            this.handleStateChange(payload.info);
-          }
-        } else if (
-          payload.event === "infoDelivery" &&
-          payload.info &&
-          typeof payload.info === "object"
-        ) {
-          const info = payload.info as Record<string, unknown>;
-          if (typeof info.duration === "number") {
-            this.videoDuration = info.duration;
-          }
-          if (typeof info.currentTime === "number") {
-            this.lastTrackedPosition = info.currentTime;
-            if (this.playStartTime !== null) {
-              this.playStartTime = Date.now();
-            }
-          }
-          if (typeof info.playerState === "number") {
-            this.handleStateChange(info.playerState);
-          }
-        }
-      } catch {
-        // Parse/JSON error
-      }
-    };
-
-    window.addEventListener("message", this.messageHandler);
+  private connectPlayer(iframe: HTMLIFrameElement): void {
+    if (!this.progressTrackingEnabled || !this.onPlaybackProgress) return;
+    this.disconnectPlayer = connectYouTubePlayerChannel(iframe, (update) =>
+      this.handlePlayerUpdate(update),
+    );
   }
 
-  private handlePlayerReady(): void {
-    if (
-      this.progressTrackingEnabled &&
-      this.currentItem?.playbackProgress?.position
-    ) {
-      this.sendCommand("seekTo", [
-        this.currentItem.playbackProgress.position,
-        true,
-      ]);
+  private disconnect(): void {
+    this.disconnectPlayer?.();
+    this.disconnectPlayer = null;
+  }
+
+  private handlePlayerUpdate(update: YouTubePlayerUpdate): void {
+    if (update.duration !== undefined && update.duration > 0) {
+      this.videoDuration = update.duration;
     }
-  }
-
-  private initPlayer(_iframeId: string): void {
-    this.playStartTime = null;
-    this.videoDuration = null;
-
-    if (
-      this.progressTrackingEnabled &&
-      this.currentItem?.playbackProgress?.position
-    ) {
-      window.setTimeout(() => {
-        this.sendCommand("seekTo", [
-          this.currentItem!.playbackProgress!.position,
-          true,
-        ]);
-      }, 1000);
+    if (update.currentTime !== undefined) {
+      this.reportedPosition = update.currentTime;
+    }
+    if (update.playerState !== undefined) {
+      this.handleStateChange(update.playerState);
     }
   }
 
   private handleStateChange(state: number): void {
     if (state === 1) {
       // PLAYING
-      if (this.playStartTime === null) {
-        this.playStartTime = Date.now();
-      }
       this.startTracking();
       return;
     }
@@ -353,12 +269,10 @@ export class VideoPlayer {
       // PAUSED or ENDED
       this.saveProgress(true);
       this.stopTracking();
-      this.playStartTime = null;
     }
   }
 
   private startTracking(): void {
-    if (!this.progressTrackingEnabled) return;
     if (this.progressInterval) return;
     this.progressInterval = window.setInterval(() => {
       this.saveProgress();
@@ -376,37 +290,21 @@ export class VideoPlayer {
     if (!this.progressTrackingEnabled) return;
     if (!this.currentItem || !this.onPlaybackProgress) return;
 
-    try {
-      let position = this.lastTrackedPosition ?? 0;
-      if (this.playStartTime !== null) {
-        const elapsed = (Date.now() - this.playStartTime) / 1000;
-        position += elapsed;
-      }
+    const position = this.reportedPosition;
+    const duration =
+      this.videoDuration ?? this.currentItem.playbackProgress?.duration ?? 0;
+    if (position === null || !(position >= 0) || !(duration > 0)) return;
 
-      const duration =
-        this.videoDuration ?? this.currentItem.playbackProgress?.duration ?? 0;
-
-      if (!(position >= 0) || !(duration > 0)) {
-        return;
-      }
-
-      if (
-        !flush &&
-        this.lastTrackedPosition !== null &&
-        Math.abs(position - this.lastTrackedPosition) < 1
-      ) {
-        return;
-      }
-
-      this.lastTrackedPosition = position;
-      if (this.playStartTime !== null) {
-        this.playStartTime = Date.now();
-      }
-
-      this.onPlaybackProgress(this.currentItem, position, duration, flush);
-    } catch {
-      // Player might not be ready or detached
+    if (
+      !flush &&
+      this.lastSavedPosition !== null &&
+      Math.abs(position - this.lastSavedPosition) < 1
+    ) {
+      return;
     }
+
+    this.lastSavedPosition = position;
+    this.onPlaybackProgress(this.currentItem, position, duration, flush);
   }
 
   private flushProgress(): void {
@@ -492,10 +390,7 @@ export class VideoPlayer {
   destroy(): void {
     this.stopTracking();
     this.flushProgress();
-    if (this.messageHandler) {
-      window.removeEventListener("message", this.messageHandler);
-      this.messageHandler = null;
-    }
+    this.disconnect();
     if (this.iframeEl) {
       this.iframeEl.remove();
       this.iframeEl = null;

@@ -11,7 +11,7 @@ const DIRECT_PREFIX = "https://www.youtube-nocookie.com/embed";
 describe("youTubePlayerSourceUrl", () => {
   it("routes a non-https origin through Obsidian's embed host", () => {
     expect(youTubePlayerSourceUrl(VIDEO_ID, {}, "app:")).toBe(
-      `${HOST_PREFIX}?v=${VIDEO_ID}`,
+      `${HOST_PREFIX}?v=${VIDEO_ID}&enablejsapi=1`,
     );
   });
 
@@ -31,7 +31,7 @@ describe("youTubePlayerSourceUrl", () => {
 
   it("asks the host to autoplay when requested", () => {
     expect(youTubePlayerSourceUrl(VIDEO_ID, { autoplay: true }, "app:")).toBe(
-      `${HOST_PREFIX}?v=${VIDEO_ID}&autoplay=1`,
+      `${HOST_PREFIX}?v=${VIDEO_ID}&enablejsapi=1&autoplay=1`,
     );
   });
 
