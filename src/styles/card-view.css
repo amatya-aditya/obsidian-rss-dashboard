@@ -237,58 +237,9 @@
   border-color: var(--interactive-accent);
 }
 
-/* The manual cover-image fetch (#1314) sits at the right end of the card's tag
- * row, after the chips and their `+n` overflow chip. The row reserves its width
- * whether or not it is revealed, so revealing it never reflows the chips or
- * changes the `+n` count. Out of the way until the card is hovered or holds
- * focus, but never unreachable: the hidden control takes no pointer events (a
- * tap meant to open the card must not fetch a page), and a touch screen shows it
- * outright because it has no hover to reveal it. */
-.rss-dashboard-card-view
-  .rss-dashboard-article-card
-  .rss-dashboard-fetch-cover-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: 4px;
-  background-color: var(--background-primary);
-  color: var(--text-muted);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.15s ease;
-}
-
-.rss-dashboard-card-view
-  .rss-dashboard-article-card:hover
-  .rss-dashboard-fetch-cover-button,
-.rss-dashboard-card-view
-  .rss-dashboard-article-card:focus-within
-  .rss-dashboard-fetch-cover-button {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.rss-dashboard-card-view .rss-dashboard-fetch-cover-button:hover {
-  color: var(--text-normal);
-  background-color: var(--background-modifier-hover);
-}
-
-@media (pointer: coarse) {
-  .rss-dashboard-card-view
-    .rss-dashboard-article-card
-    .rss-dashboard-fetch-cover-button {
-    opacity: 1;
-    pointer-events: auto;
-  }
-}
-
 /* The article itself dims while its page is being fetched, so a card with no
- * preview region still shows that something is happening. */
+ * preview region still shows that something is happening. The control that
+ * starts it lives in the tag row (articles.css). */
 .rss-dashboard-card-view
   .rss-dashboard-article-card.rss-dashboard-cover-fetching {
   opacity: 0.75;

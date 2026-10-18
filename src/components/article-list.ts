@@ -1089,31 +1089,30 @@ export class ArticleList {
     }
     if (!hasTags && existingContainers.length > 0) {
       existingContainers.forEach((container) => {
-        // A card's tag strip can host the cover-image fetch control (#1314):
-        // empty the chips and let the region decide below whether it still has
-        // a reason to exist.
-        if (container.closest(".rss-dashboard-card-tags-region")) {
+        // An article's tag strip can host its cover-image fetch control
+        // (#1314): empty the chips and let the region below decide whether it
+        // still has a reason to exist.
+        if (
+          container.closest(
+            ".rss-dashboard-card-tags-region, .rss-dashboard-feed-tags-region",
+          )
+        ) {
           container.empty();
           return;
         }
         container.remove();
       });
-      if (articleEl.classList.contains("rss-dashboard-article-card")) {
-        // The region also hosts the card's cover-image fetch control (#1314),
-        // so it is removed only when nothing else lives in it.
-        articleEl
-          .querySelectorAll(".rss-dashboard-card-tags-region")
-          .forEach((region) => {
-            if (!region.querySelector(`.${COVER_IMAGE_FETCH_BUTTON_CLASS}`)) {
-              region.remove();
-            }
-          });
-      }
-      if (articleEl.classList.contains("rss-dashboard-feed-item")) {
-        articleEl
-          .querySelectorAll(".rss-dashboard-feed-tags-region")
-          .forEach((el) => el.remove());
-      }
+      // A region with nothing left in it goes; one that still holds the control
+      // stays, so the control keeps its place on an article with no tags.
+      articleEl
+        .querySelectorAll<HTMLElement>(
+          ".rss-dashboard-card-tags-region, .rss-dashboard-feed-tags-region",
+        )
+        .forEach((region) => {
+          if (!region.querySelector(`.${COVER_IMAGE_FETCH_BUTTON_CLASS}`)) {
+            region.remove();
+          }
+        });
       return;
     }
 

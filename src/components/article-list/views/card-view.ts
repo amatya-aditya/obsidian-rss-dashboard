@@ -11,14 +11,8 @@ import {
   resolveArticlePreviewImage,
 } from "../../../utils/article-preview-utils";
 import { renderSingleRowCardTagChips } from "../utils/tag-layout-utils";
-import {
-  COVER_IMAGE_FETCH_BUTTON_CLASS,
-  COVER_IMAGE_FETCH_ICON,
-  canOfferCoverImageFetch,
-  coverImageActionLabel,
-} from "../utils/cover-image-action";
-import { withCoverImageBusyState } from "../utils/cover-image-busy";
-import { createIconButton } from "../../../utils/icon-button";
+import { canOfferCoverImageFetch } from "../utils/cover-image-action";
+import { renderCoverImageFetchControl } from "../utils/cover-image-control";
 import type { BaseViewContext, ViewDeps } from "./view-types";
 import {
   renderPreviewPlaceholder,
@@ -50,54 +44,6 @@ function renderCardPlaceholder(
   placeholder.tabIndex = 0;
   keepTextStopEnterLocal(placeholder);
   openButton.setAttribute("aria-describedby", descriptionId);
-}
-
-/**
- * The card's cover-image fetch control (#1314): the discoverable path to the
- * same action the context menu offers. It belongs to the card's tag row and
- * sits at its right end, after the tag chips and their `+n` overflow chip. The
- * row reserves its width whether or not the control is revealed, so revealing
- * it never reflows the chips. Revealed by the stylesheet on card hover and on
- * focus within the card (and always on a touch screen), so it stays out of the
- * way but is never hidden from the keyboard or unreachable by touch.
- *
- * `parent` is the tag region, not the tag container: the container is emptied
- * and re-measured by the tag layout, and a child of it would be wiped by that
- * pass and counted by the `+n` measurement.
- */
-function renderFetchCoverButton(
-  parent: HTMLElement,
-  card: HTMLElement,
-  article: FeedItem,
-  deps: ViewDeps,
-): void {
-  const runFetch = async (): Promise<void> => {
-    const fetched = await withCoverImageBusyState(
-      card,
-      () => deps.fetchCoverImage?.(article) ?? Promise.resolve(false),
-    );
-    if (fetched) deps.replaceArticle?.(article);
-  };
-
-  const button = createIconButton({
-    label: coverImageActionLabel(article),
-    icon: COVER_IMAGE_FETCH_ICON,
-    parent,
-    cls: COVER_IMAGE_FETCH_BUTTON_CLASS,
-    action: "fetch-cover-image",
-    region: "article-card",
-  });
-  button.addEventListener("keydown", (event: KeyboardEvent) => {
-    if (event.key === "Enter" || event.key === " ") {
-      // Keep dashboard-wide shortcuts from taking over native button activation.
-      event.stopPropagation();
-    }
-  });
-  button.addEventListener("click", (event: MouseEvent) => {
-    // The card itself opens the article on click.
-    event.stopPropagation();
-    void runFetch();
-  });
 }
 
 export function renderCardView(
@@ -357,7 +303,13 @@ export function renderCardView(
       renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
 
       if (offersCoverFetch) {
-        renderFetchCoverButton(tagsRegion, card, article, deps);
+        renderCoverImageFetchControl({
+          parent: tagsRegion,
+          articleEl: card,
+          article,
+          deps,
+          region: "article-card",
+        });
       }
     }
 
