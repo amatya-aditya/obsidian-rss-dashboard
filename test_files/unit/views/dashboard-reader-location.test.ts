@@ -155,18 +155,22 @@ type MockLeaf = {
   view: MockReaderView;
   setViewState: ReturnType<typeof vi.fn>;
   loadIfDeferred: ReturnType<typeof vi.fn>;
+  getRoot: ReturnType<typeof vi.fn>;
 };
 
-function createReaderLeaf(app: App, id: string): MockLeaf {
+/** `root` is the workspace split the leaf lives in; unique per leaf if omitted. */
+function createReaderLeaf(app: App, id: string, root?: object): MockLeaf {
   // Cast through unknown to bypass constructor argument requirements —
   // at runtime ReaderView is the zero-arg mock class registered above.
   const view = new (ReaderView as unknown as new () => MockReaderView)();
+  const leafRoot = root ?? { id: `root-${id}` };
   return {
     id,
     app,
     view,
     setViewState: vi.fn(async () => {}),
     loadIfDeferred: vi.fn(async () => {}),
+    getRoot: vi.fn(() => leafRoot),
   };
 }
 
@@ -490,6 +494,63 @@ describe("Dashboard reader location", () => {
 
     expect(rightLeaf.setViewState).toHaveBeenCalledTimes(1);
     expect(leftLeaf.setViewState).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["right-sidebar", "rightSplit", "getRightLeaf"],
+    ["left-sidebar", "leftSplit", "getLeftLeaf"],
+  ] as const)(
+    "reuses the Reader leaf already in the %s instead of opening another tab (#1236)",
+    async (location, splitKey, getLeafKey) => {
+      // Every extra Reader tab keeps its own VideoPlayer playing and saving
+      // into the same item, so a stale player overwrites the newer position.
+      const settings = cloneSettings();
+      const feed = makeFeed("https://example.com/feed", [{}]);
+      settings.feeds = [feed];
+      settings.readerViewLocation = location;
+      const split = { id: splitKey };
+      const existing = createReaderLeaf(new App(), "existing", split);
+      const { view } = await createDashboardView(settings, {
+        [splitKey]: split,
+        getLeavesOfType: vi.fn(() => [existing]),
+        getLeaf: vi.fn(),
+        getLeftLeaf: vi.fn(() => createReaderLeaf(new App(), "new-left")),
+        getRightLeaf: vi.fn(() => createReaderLeaf(new App(), "new-right")),
+        revealLeaf: vi.fn(async () => {}),
+      });
+
+      await view.handleArticleClick(feed.items[0]);
+
+      expect(
+        view.app.workspace[getLeafKey] as ReturnType<typeof vi.fn>,
+      ).not.toHaveBeenCalled();
+      expect(existing.setViewState).toHaveBeenCalledTimes(1);
+      expect(existing.view.displayItem).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("does not reuse a sidebar Reader leaf that is playing a podcast", async () => {
+    const settings = cloneSettings();
+    const feed = makeFeed("https://example.com/feed", [{}]);
+    settings.feeds = [feed];
+    settings.readerViewLocation = "right-sidebar";
+    const split = { id: "rightSplit" };
+    const playing = createReaderLeaf(new App(), "playing", split);
+    playing.view.isPodcastPlaying.mockReturnValue(true);
+    const fresh = createReaderLeaf(new App(), "fresh", split);
+    const { view } = await createDashboardView(settings, {
+      rightSplit: split,
+      getLeavesOfType: vi.fn(() => [playing]),
+      getLeaf: vi.fn(),
+      getLeftLeaf: vi.fn(),
+      getRightLeaf: vi.fn(() => fresh),
+      revealLeaf: vi.fn(async () => {}),
+    });
+
+    await view.handleArticleClick(feed.items[0]);
+
+    expect(playing.setViewState).not.toHaveBeenCalled();
+    expect(fresh.setViewState).toHaveBeenCalledTimes(1);
   });
 
   it("uses readerViewLocation for explicit open-in-reader actions too", async () => {

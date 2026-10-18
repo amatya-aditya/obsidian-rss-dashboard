@@ -4219,15 +4219,27 @@ export class RssDashboardView extends ItemView {
     return "main";
   }
 
-  private getConfiguredReaderLeaf(): WorkspaceLeaf | null {
+  /**
+   * `getLeftLeaf(false)` and `getRightLeaf(false)` open a new tab each call.
+   * Every extra Reader tab keeps its own video player playing and saving into
+   * the same item, so a stale player overwrites the newer position (#1236).
+   * A Reader already in that sidebar is reused, unless `excluded` names it.
+   */
+  private getConfiguredReaderLeaf(
+    excluded: WorkspaceLeaf[] = [],
+  ): WorkspaceLeaf | null {
     const { workspace } = this.app;
     const readerLeaves = workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
+    const readerIn = (split: unknown): WorkspaceLeaf | undefined =>
+      readerLeaves.find(
+        (leaf) => !excluded.includes(leaf) && leaf.getRoot() === split,
+      );
 
     switch (this.getReaderViewLocation()) {
       case "left-sidebar":
-        return workspace.getLeftLeaf(false);
+        return readerIn(workspace.leftSplit) ?? workspace.getLeftLeaf(false);
       case "right-sidebar":
-        return workspace.getRightLeaf(false);
+        return readerIn(workspace.rightSplit) ?? workspace.getRightLeaf(false);
       case "inline":
         return null;
       default:
@@ -4278,7 +4290,7 @@ export class RssDashboardView extends ItemView {
     const readerLeaves =
       this.app.workspace.getLeavesOfType(RSS_READER_VIEW_TYPE);
     const podcastPlayingLeaves = await this.getPodcastPlayingReaderLeaves();
-    const targetLeaf = this.getConfiguredReaderLeaf();
+    const targetLeaf = this.getConfiguredReaderLeaf(podcastPlayingLeaves);
 
     if (podcastPlayingLeaves.length > 0) {
       const reusablePodcastLeaf =
