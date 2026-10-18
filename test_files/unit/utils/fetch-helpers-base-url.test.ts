@@ -90,3 +90,50 @@ describe("fetched articles resolve relative URLs against the article (#1195)", (
     expect(result.content).toContain("https://news.example.com/pic@2x.png 2x");
   });
 });
+
+describe("fetched articles report the page's own image", () => {
+  beforeEach(() => {
+    detailedMock.mockReset();
+  });
+
+  const withHead = (head: string): string =>
+    `<html><head><title>T</title>${head}</head><body><article><p>${"Real article text. ".repeat(40)}</p></article></body></html>`;
+
+  it("returns og:image, which Readability would drop with the page chrome", async () => {
+    detailedMock.mockResolvedValue({
+      text: withHead('<meta property="og:image" content="/img/hero.jpg">'),
+      status: 200,
+    });
+
+    const result = await fetchWithProxyFallbackDetailed(
+      "https://news.example.com/posts/1",
+    );
+
+    expect(result.pageImage).toBe("https://news.example.com/img/hero.jpg");
+  });
+
+  it("falls back to twitter:image", async () => {
+    detailedMock.mockResolvedValue({
+      text: withHead(
+        '<meta name="twitter:image" content="https://cdn.example.com/t.jpg">',
+      ),
+      status: 200,
+    });
+
+    const result = await fetchWithProxyFallbackDetailed(
+      "https://news.example.com/posts/1",
+    );
+
+    expect(result.pageImage).toBe("https://cdn.example.com/t.jpg");
+  });
+
+  it("leaves pageImage out when the page declares none", async () => {
+    detailedMock.mockResolvedValue({ text: withHead(""), status: 200 });
+
+    const result = await fetchWithProxyFallbackDetailed(
+      "https://news.example.com/posts/1",
+    );
+
+    expect(result).not.toHaveProperty("pageImage");
+  });
+});

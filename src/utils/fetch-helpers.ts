@@ -1,6 +1,7 @@
 import { Readability } from "@mozilla/readability";
 import { debugLog } from "./debug-logger";
 import {
+  extractPageImage,
   extractPageMetadata,
   isEmptyRawMetadata,
   type RawArticleMetadata,
@@ -65,6 +66,12 @@ export interface FullArticleFetchResult {
    * page carried no signal.
    */
   pageMetadata?: RawArticleMetadata;
+  /**
+   * The fetched page's own `og:image`/`twitter:image` as an absolute http(s)
+   * URL. Readability drops the featured image that sits outside the article
+   * body, so this is the only place the page's hero survives.
+   */
+  pageImage?: string;
 }
 
 export const DEFAULT_FETCH_TIMEOUT_SECONDS = 10;
@@ -264,14 +271,20 @@ function parseArticleContent(
 ): {
   content: string;
   pageMetadata: RawArticleMetadata;
+  pageImage?: string;
 } {
   const doc = parsePageDocument(html, pageUrl);
   // Readability.parse() mutates the document (it drops scripts, so JSON-LD
   // would be gone), so the page's metadata is read first.
   const pageMetadata = extractPageMetadata(doc);
+  const pageImage = extractPageImage(doc, pageUrl);
   const article = new Readability(doc).parse();
   pageMetadata.readabilityExcerpt = (article?.excerpt ?? "").trim();
-  return { content: article?.content ?? "", pageMetadata };
+  return {
+    content: article?.content ?? "",
+    pageMetadata,
+    ...(pageImage ? { pageImage } : {}),
+  };
 }
 
 /**

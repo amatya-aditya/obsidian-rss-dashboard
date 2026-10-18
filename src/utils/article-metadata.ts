@@ -228,6 +228,24 @@ export function extractPageMetadata(doc: Document): RawArticleMetadata {
   }
 }
 
+/**
+ * The page's own picture (`og:image`, else `twitter:image`) as an absolute
+ * http(s) URL, or "" when it declares none. Like `extractPageMetadata`, it must
+ * run before `Readability.parse()`. A relative value resolves against
+ * `pageUrl`.
+ */
+export function extractPageImage(doc: Document, pageUrl: string): string {
+  const declared =
+    metaContent(doc, "og:image") || metaContent(doc, "twitter:image");
+  if (!declared) return "";
+  try {
+    const resolved = new URL(declared, pageUrl || undefined);
+    return /^https?:$/.test(resolved.protocol) ? resolved.href : "";
+  } catch {
+    return "";
+  }
+}
+
 /** True when extraction found no signal at all. */
 export function isEmptyRawMetadata(raw: RawArticleMetadata): boolean {
   return (Object.values(raw) as Array<string | string[]>).every((value) =>

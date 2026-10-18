@@ -424,3 +424,13 @@ describe("extractCoverImage", () => {
     });
   });
 });
+
+describe("extractCoverImage lazy-loaded images", () => {
+  it("takes the cover from data-lazy when the image has no src (JSTOR Daily)", () => {
+    const { cover } = extract(
+      '<p><a href="https://example.com/a"><img width="1050" height="840" class="attachment-full" data-lazy="https://img.example.com/lazy.jpg" /></a></p>',
+    );
+
+    expect(cover).toBe("https://img.example.com/lazy.jpg");
+  });
+});

@@ -9,6 +9,7 @@ import {
   RESTRICTED_ARTICLE_LINK_TEXT,
   RESTRICTED_ARTICLE_REASON,
 } from "./full-article-fetch";
+import { firstNonFormulaImageUrl } from "./image-url-utils";
 import { isLikelyVideoItem } from "./video-detection";
 import { getOpenableHttpHref } from "./url-utils";
 
@@ -35,6 +36,28 @@ export function persistFetchedMetadata(
     feedLanguageFor(feeds, item),
   );
   if (update) emit(update);
+}
+
+/**
+ * Gives an item with no usable picture the fetched page's own image as its
+ * cover, so the Reader shows the page's hero instead of promoting whatever
+ * image comes first in the extracted body (an ad, for one feed). The feed's
+ * own picture always wins. `emit` persists the update.
+ */
+export function persistFetchedCoverImage(
+  item: FeedItem,
+  pageImage: string | undefined,
+  emit: (update: Partial<FeedItem>) => void,
+): void {
+  if (!pageImage) return;
+  const hasPicture = firstNonFormulaImageUrl([
+    item.coverImage,
+    item.image,
+    item.itunes?.image?.href,
+  ]);
+  if (hasPicture) return;
+  item.coverImage = pageImage;
+  emit({ coverImage: pageImage });
 }
 
 /** Banner for fetched content that looks truncated, restricted or paywalled. */
