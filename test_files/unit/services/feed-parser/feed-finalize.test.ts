@@ -176,6 +176,19 @@ describe("feed-finalize", () => {
 
       expect(items.map((entry) => entry.coverImage)).toEqual(["", ""]);
     });
+
+    it("drops the provenance marker with a cover it blanks (#1330)", () => {
+      const items = [
+        item({ coverImage: LOGO, coverImageFromPage: true }),
+        item({ coverImage: LOGO, coverImageFromPage: true }),
+      ];
+
+      clearSharedLogoCoverImages(items, [LOGO]);
+
+      expect(items[0]?.coverImage).toBe("");
+      expect(items[0]?.coverImageFromPage).toBeUndefined();
+      expect(items[1]?.coverImageFromPage).toBeUndefined();
+    });
   });
 
   describe("applyMediaDefaultFolder", () => {

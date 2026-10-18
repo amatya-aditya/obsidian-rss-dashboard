@@ -3074,16 +3074,17 @@ export class RssDashboardView extends ItemView {
 
   /**
    * The dashboard's manual cover-image fetch (#1314): one page request, the
-   * image stored on the item, and nothing else about the article changed. Warms
-   * the disk cache when image caching is on. Resolves true when an image was
-   * stored, so the calling card can rebuild itself.
+   * image stored on the item with the marker that records where it came from
+   * (#1330), and nothing else about the article changed. Warms the disk cache
+   * when image caching is on. Resolves true when an image was stored, so the
+   * calling card can rebuild itself.
    */
   private async handleFetchCoverImage(article: FeedItem): Promise<boolean> {
     const result = await this.plugin.fetchPageCoverImage(article.link);
     if (result.status === "found") {
       const stored = await this.updateArticleStatus(
         article,
-        { coverImage: result.url },
+        { coverImage: result.url, coverImageFromPage: true },
         false,
       );
       if (!stored) {

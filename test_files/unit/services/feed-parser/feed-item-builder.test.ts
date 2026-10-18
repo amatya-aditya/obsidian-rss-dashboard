@@ -307,6 +307,127 @@ describe("feed-item-builder", () => {
       });
     });
 
+    it("clears the provenance marker when the refresh finds the feed's own cover (#1330)", () => {
+      const ctx = makeContext();
+      const existing = feedOf([
+        stored({
+          coverImage: "https://page.example.com/hero.jpg",
+          coverImageFromPage: true,
+        }),
+      ]);
+
+      const result = collectRefreshedItems(
+        requestFor(
+          [
+            pitem({
+              link: "https://example.com/a",
+              description: "<img src='https://img.example.com/feed.jpg'>",
+              pubDate: RECENT,
+            }),
+          ],
+          existing,
+          ctx,
+        ),
+        ctx,
+      );
+
+      expect(result.updatedItems[0]?.coverImage).toBe(
+        "https://img.example.com/c.jpg",
+      );
+      expect(result.updatedItems[0]?.coverImageFromPage).toBeUndefined();
+    });
+
+    it("keeps the page cover and its marker when the feed ships none (#1330)", () => {
+      const ctx = makeContext();
+      const existing = feedOf([
+        stored({
+          coverImage: "https://page.example.com/hero.jpg",
+          coverImageFromPage: true,
+        }),
+      ]);
+
+      const result = collectRefreshedItems(
+        requestFor(
+          [
+            pitem({
+              link: "https://example.com/a",
+              description: "no image here",
+              pubDate: RECENT,
+            }),
+          ],
+          existing,
+          ctx,
+        ),
+        ctx,
+      );
+
+      expect(result.updatedItems[0]?.coverImage).toBe(
+        "https://page.example.com/hero.jpg",
+      );
+      expect(result.updatedItems[0]?.coverImageFromPage).toBe(true);
+    });
+
+    it("keeps a feed cover unmarked when the feed ships none (#1330)", () => {
+      const ctx = makeContext();
+      const existing = feedOf([
+        stored({ coverImage: "https://img.example.com/feed.jpg" }),
+      ]);
+
+      const result = collectRefreshedItems(
+        requestFor(
+          [
+            pitem({
+              link: "https://example.com/a",
+              description: "no image here",
+              pubDate: RECENT,
+            }),
+          ],
+          existing,
+          ctx,
+        ),
+        ctx,
+      );
+
+      expect(result.updatedItems[0]?.coverImage).toBe(
+        "https://img.example.com/feed.jpg",
+      );
+      expect(result.updatedItems[0]?.coverImageFromPage).toBeUndefined();
+    });
+
+    it("clears the marker when a refreshed podcast takes the feed's cover (#1330)", () => {
+      const ctx = makeContext();
+      const existing = feedOf([
+        stored({
+          coverImage: "https://page.example.com/hero.jpg",
+          coverImageFromPage: true,
+        }),
+      ]);
+
+      const result = collectRefreshedItems(
+        requestFor(
+          [
+            pitem({
+              link: "https://example.com/a",
+              pubDate: RECENT,
+              enclosure: {
+                url: "https://example.com/a.mp3",
+                type: "audio/mpeg",
+                length: "",
+              },
+            }),
+          ],
+          existing,
+          ctx,
+        ),
+        ctx,
+      );
+
+      expect(result.updatedItems[0]?.coverImage).toBe(
+        "https://img.example.com/podcast.jpg",
+      );
+      expect(result.updatedItems[0]?.coverImageFromPage).toBeUndefined();
+    });
+
     it("keeps stored article metadata while rewriting the blurb on refresh (#247)", () => {
       const ctx = makeContext();
       const metadata = {

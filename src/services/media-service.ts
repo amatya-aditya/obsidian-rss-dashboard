@@ -189,6 +189,9 @@ export class MediaService {
         mediaType: "video" as const,
         videoId: videoId,
         coverImage: thumbnail || item.coverImage,
+        // The thumbnail is the feed's own image, so a page cover it replaces
+        // is no longer restorable (#1330).
+        coverImageFromPage: videoId ? undefined : item.coverImageFromPage,
       };
     });
 

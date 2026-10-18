@@ -547,6 +547,39 @@ describe("settings-loader", () => {
       expect(feeds[0].items[0].content).toBe("Much longer body content");
     });
 
+    it("keeps the provenance marker of whichever cover the merge keeps (#1330)", async () => {
+      const { dedupeAndNormalizeFeedItems } =
+        await import("../../../src/utils/settings-loader");
+
+      const feeds: Feed[] = [
+        createFeed({
+          items: [
+            createFeedItem({
+              guid: "item-3",
+              title: "A",
+              link: "https://example.com/3",
+              coverImage: "",
+            }),
+            createFeedItem({
+              guid: "item-3",
+              title: "A",
+              link: "https://example.com/3",
+              coverImage: "https://page.example.com/hero.jpg",
+              coverImageFromPage: true,
+            }),
+          ],
+        }),
+      ];
+
+      dedupeAndNormalizeFeedItems(feeds);
+
+      expect(feeds[0].items).toHaveLength(1);
+      expect(feeds[0].items[0].coverImage).toBe(
+        "https://page.example.com/hero.jpg",
+      );
+      expect(feeds[0].items[0].coverImageFromPage).toBe(true);
+    });
+
     it("merges tags without duplicates", async () => {
       const { dedupeAndNormalizeFeedItems } =
         await import("../../../src/utils/settings-loader");

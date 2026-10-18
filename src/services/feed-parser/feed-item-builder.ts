@@ -318,23 +318,41 @@ function shouldSkipNewItem(
   );
 }
 
-function resolveExistingCoverImage(
+/** The cover a refresh settles on, with the provenance marker that goes with it. */
+interface ResolvedExistingCover {
+  coverImage: string;
+  /** Set while the kept cover came from the article page (#1330). */
+  coverImageFromPage: boolean | undefined;
+}
+
+/**
+ * The cover a refresh keeps or takes (#1330). The feed wins whenever it ships
+ * an image of its own, which also drops the marker that says a page image is
+ * being shown; with no feed image the stored cover and its marker both survive.
+ */
+function resolveExistingCover(
   work: ItemWork,
   existingItem: FeedItem,
   ctx: FeedItemContext,
-): string {
+): ResolvedExistingCover {
   const { item, audio, request } = work;
   const url = request.feedUrl;
   if (audio.isPodcast) {
-    return (
-      ctx.resolvePodcastCoverImage(item, request.parsed, url) ||
-      existingItem.coverImage
-    );
+    const feedCover = ctx.resolvePodcastCoverImage(item, request.parsed, url);
+    return feedCover
+      ? { coverImage: feedCover, coverImageFromPage: undefined }
+      : {
+          coverImage: existingItem.coverImage,
+          coverImageFromPage: existingItem.coverImageFromPage,
+        };
   }
-  return (
-    buildArticleCover(item, url, ctx) ||
-    sanitizeArticleImageUrl(existingItem.coverImage)
-  );
+  const feedCover = buildArticleCover(item, url, ctx);
+  return feedCover
+    ? { coverImage: feedCover, coverImageFromPage: undefined }
+    : {
+        coverImage: sanitizeArticleImageUrl(existingItem.coverImage),
+        coverImageFromPage: existingItem.coverImageFromPage,
+      };
 }
 
 type UpdatedItemCore = Pick<
@@ -353,6 +371,7 @@ type UpdatedItemCore = Pick<
   | "savedFilePath"
   | "feedTitle"
   | "coverImage"
+  | "coverImageFromPage"
   | "summary"
   | "image"
 >;
@@ -372,7 +391,7 @@ function refreshedAuthors(
 function buildUpdatedItemCore(
   work: ItemWork,
   existingItem: FeedItem,
-  coverImage: string,
+  cover: ResolvedExistingCover,
   ctx: FeedItemContext,
 ): UpdatedItemCore {
   const { item, itemGuid, request } = work;
@@ -391,7 +410,8 @@ function buildUpdatedItemCore(
     saved: existingItem.saved,
     savedFilePath: existingItem.savedFilePath,
     feedTitle: request.newFeed.title, // Update feedTitle to match the new feed title
-    coverImage,
+    coverImage: cover.coverImage,
+    coverImageFromPage: cover.coverImageFromPage,
     summary:
       ctx.extractSummary(item.content || item.description || "") ||
       existingItem.summary,
@@ -465,10 +485,10 @@ function processExistingItem(
     return;
   }
 
-  const coverImage = resolveExistingCoverImage(work, existingItem, ctx);
+  const cover = resolveExistingCover(work, existingItem, ctx);
   const updatedItem: FeedItem = {
     ...existingItem,
-    ...buildUpdatedItemCore(work, existingItem, coverImage, ctx),
+    ...buildUpdatedItemCore(work, existingItem, cover, ctx),
     ...buildUpdatedItemItunes(item, existingItem),
     ...buildUpdatedItemMedia(item, existingItem, audio),
   };
