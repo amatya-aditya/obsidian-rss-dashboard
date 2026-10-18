@@ -528,5 +528,80 @@ describe("feed-view", () => {
         container.querySelector(".rss-dashboard-feed-tags-region"),
       ).toBeNull();
     });
+
+    describe("restore states (#1330)", () => {
+      const FETCHED_COVER = "https://page.example.com/hero.jpg";
+      const FEED_COVER = "https://img.example.com/feed.jpg";
+
+      function fetchedArticle(
+        overrides: Parameters<typeof makeArticle>[0] = {},
+      ) {
+        return makeArticle({
+          coverImage: FETCHED_COVER,
+          coverImageFromPage: true,
+          content: `<p><img src="${FEED_COVER}"></p>`,
+          ...overrides,
+        });
+      }
+
+      it("offers the restore, with the restore icon, in the item's tag row", () => {
+        renderWith({
+          article: fetchedArticle(),
+          deps: { restoreCoverImage: vi.fn() },
+        });
+
+        const button = fetchButton();
+        expect(button?.getAttribute("aria-label")).toBe(
+          "Restore cover image from feed",
+        );
+        expect(button?.querySelector("svg.lucide-rotate-ccw")).not.toBeNull();
+        expect(fetchButton()?.parentElement).toBe(
+          container.querySelector(".rss-dashboard-feed-tags-region"),
+        );
+      });
+
+      it("offers the removal when the feed supplies no image", () => {
+        renderWith({
+          article: fetchedArticle({ content: "", description: "" }),
+          deps: { restoreCoverImage: vi.fn() },
+        });
+
+        expect(fetchButton()?.getAttribute("aria-label")).toBe(
+          "Remove fetched cover image",
+        );
+      });
+
+      it("runs the restore on activation and rebuilds the item, fetching nothing", async () => {
+        const restoreCoverImage = vi.fn().mockResolvedValue(true);
+        const fetchCoverImage = vi.fn().mockResolvedValue(true);
+        const replaceArticle = vi.fn();
+        renderFeedView(
+          container,
+          [fetchedArticle()],
+          baseViewContext(),
+          baseViewDeps({ restoreCoverImage, fetchCoverImage, replaceArticle }),
+        );
+
+        fetchButton()?.click();
+
+        await vi.waitFor(() => expect(replaceArticle).toHaveBeenCalledTimes(1));
+        expect(restoreCoverImage).toHaveBeenCalledTimes(1);
+        expect(fetchCoverImage).not.toHaveBeenCalled();
+      });
+
+      it("offers nothing, not a fetch, when the dashboard supplies no restore", () => {
+        // The role follows the state (AC-007), so a surface that cannot restore
+        // shows no control for a fetched cover rather than a fetch it could not
+        // undo.
+        renderFeedView(
+          container,
+          [fetchedArticle()],
+          baseViewContext(),
+          baseViewDeps({ fetchCoverImage: vi.fn() }),
+        );
+
+        expect(fetchButton()).toBeNull();
+      });
+    });
   });
 });

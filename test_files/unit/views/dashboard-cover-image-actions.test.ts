@@ -1,5 +1,6 @@
-// The dashboard's cover-image action (#1314, #1330): what the manual fetch
-// stores on the item, provenance marker included.
+// The dashboard's two cover-image actions (#1330): what the manual fetch
+// stores on the item, and what the restore puts back for it. The restore is
+// local, so the tests also pin that it asks the plugin for no page at all.
 import {
   afterEach,
   beforeEach,
@@ -82,10 +83,12 @@ vi.mock("../../../src/services/article-saver", () => ({
 
 const FEED_URL = "https://example.com/feed.xml";
 const PAGE_IMAGE = "https://page.example.com/hero.jpg";
+const FEED_IMAGE = "https://img.example.com/feed.jpg";
 
 /** Typed accessor for the view's private cover-image actions. */
 interface CoverActionsAPI {
   handleFetchCoverImage(article: FeedItem): Promise<boolean>;
+  handleRestoreCoverImage(article: FeedItem): Promise<boolean>;
 }
 
 interface Harness {
@@ -218,6 +221,75 @@ describe("dashboard cover-image actions (#1330)", () => {
       expect(h.article.coverImage).toBe("");
       expect(h.article.coverImageFromPage).toBeUndefined();
       expect(notices()).toEqual(["No cover image found on that page."]);
+    });
+  });
+
+  describe("handleRestoreCoverImage", () => {
+    it("puts the feed's image back, offline, and drops the marker", async () => {
+      const h = makeHarness({
+        coverImage: PAGE_IMAGE,
+        coverImageFromPage: true,
+        content: `<p><img src="${FEED_IMAGE}"></p>`,
+      });
+
+      await expect(h.view.handleRestoreCoverImage(h.article)).resolves.toBe(
+        true,
+      );
+
+      expect(h.plugin.fetchPageCoverImage).not.toHaveBeenCalled();
+      expect(h.plugin.warmCoverImage).not.toHaveBeenCalled();
+      expect(h.plugin.updateArticle).toHaveBeenCalledWith(
+        h.article.guid,
+        FEED_URL,
+        { coverImage: FEED_IMAGE, coverImageFromPage: undefined },
+        false,
+      );
+      expect(h.article.coverImage).toBe(FEED_IMAGE);
+      expect(h.article.coverImageFromPage).toBeUndefined();
+      expect(h.article.read).toBe(false);
+      expect(h.article.starred).toBe(false);
+      expect(notices()).toEqual([]);
+    });
+
+    it("clears the cover when the feed supplies none", async () => {
+      const h = makeHarness({
+        coverImage: PAGE_IMAGE,
+        coverImageFromPage: true,
+      });
+
+      await expect(h.view.handleRestoreCoverImage(h.article)).resolves.toBe(
+        true,
+      );
+
+      expect(h.plugin.updateArticle).toHaveBeenCalledWith(
+        h.article.guid,
+        FEED_URL,
+        { coverImage: "", coverImageFromPage: undefined },
+        false,
+      );
+      expect(h.article.coverImage).toBe("");
+      expect(h.article.coverImageFromPage).toBeUndefined();
+      expect(notices()).toEqual([]);
+    });
+
+    it("says so and leaves the item alone when it cannot be written", async () => {
+      const h = makeHarness({
+        coverImage: PAGE_IMAGE,
+        coverImageFromPage: true,
+        content: `<p><img src="${FEED_IMAGE}"></p>`,
+      });
+      // No feed in the dashboard holds the article any more.
+      h.settings.feeds = [];
+
+      await expect(h.view.handleRestoreCoverImage(h.article)).resolves.toBe(
+        false,
+      );
+
+      expect(h.plugin.updateArticle).not.toHaveBeenCalled();
+      expect(h.article.coverImage).toBe(PAGE_IMAGE);
+      expect(notices()).toEqual([
+        "Could not restore the cover image on this article.",
+      ]);
     });
   });
 });

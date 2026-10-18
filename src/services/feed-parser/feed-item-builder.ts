@@ -236,12 +236,21 @@ const STORED_ITEM_COVER_DEPS: FeedCoverDeps = {
     extractCoverImage(html, baseUrl ?? "", (relativeUrl) => relativeUrl),
 };
 
-function storedItemCoverFields(
-  item: Pick<
+/** The stored fields a feed cover is recomputed from; a missing one is no candidate. */
+export type StoredCoverFields = Partial<
+  Pick<
     FeedItem,
-    "content" | "description" | "itunes" | "image" | "enclosure"
-  >,
-): FeedCoverFields {
+    | "content"
+    | "description"
+    | "itunes"
+    | "image"
+    | "enclosure"
+    | "link"
+    | "feedUrl"
+  >
+>;
+
+function storedItemCoverFields(item: StoredCoverFields): FeedCoverFields {
   return {
     blurbHtml: item.content || item.description || "",
     itunesImageHref: item.itunes?.image?.href || "",
@@ -257,18 +266,7 @@ function storedItemCoverFields(
  * request, no parser instance, no page. `coverImage` is never a candidate, so
  * this cannot hand back the page image a fetch stored.
  */
-export function resolveStoredItemFeedCover(
-  item: Pick<
-    FeedItem,
-    | "content"
-    | "description"
-    | "itunes"
-    | "image"
-    | "enclosure"
-    | "link"
-    | "feedUrl"
-  >,
-): string {
+export function resolveStoredItemFeedCover(item: StoredCoverFields): string {
   return feedCoverFromFields(
     storedItemCoverFields(item),
     item.link || item.feedUrl || "",

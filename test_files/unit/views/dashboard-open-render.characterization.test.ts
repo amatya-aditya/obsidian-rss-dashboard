@@ -310,6 +310,7 @@ const ARTICLE_LIST_CALLBACK_NAMES = [
   "onRefreshFeeds",
   "onRenderArticleTitle",
   "onResolveCachedImageUrl",
+  "onRestoreCoverImage",
   "onSearch",
   "onShowShortcuts",
   "onSortChange",

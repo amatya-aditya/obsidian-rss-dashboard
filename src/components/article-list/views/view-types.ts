@@ -22,6 +22,12 @@ export interface ViewDeps {
    * when a usable image was stored. Absent when the dashboard cannot fetch.
    */
   fetchCoverImage?(article: FeedItem): Promise<boolean>;
+  /**
+   * Puts the feed's own cover image back after a manual fetch replaced it
+   * (#1330). Local and offline; resolves true when the article was rewritten.
+   * Absent when the dashboard cannot restore.
+   */
+  restoreCoverImage?(article: FeedItem): Promise<boolean>;
   /** Rebuilds one article's rendered element in place, after its data changed. */
   replaceArticle?(article: FeedItem): void;
   scheduleMathRendering?(element: HTMLElement): void;

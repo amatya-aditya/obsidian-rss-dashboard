@@ -10,8 +10,8 @@ import {
   resolveArticlePreviewImage,
 } from "../../../utils/article-preview-utils";
 import { renderSingleRowCardTagChips } from "../utils/tag-layout-utils";
-import { canOfferCoverImageFetch } from "../utils/cover-image-action";
-import { renderCoverImageFetchControl } from "../utils/cover-image-control";
+import { resolveCoverImageOffer } from "../utils/cover-image-action";
+import { renderCoverImageControl } from "../utils/cover-image-control";
 import { groupArticles } from "../utils/article-grouping";
 import type { BaseViewContext, ViewDeps } from "./view-types";
 import {
@@ -84,7 +84,7 @@ function renderFeedImage(
 }
 
 /**
- * The item's tag row (#1314), which also hosts the cover-image fetch control.
+ * The item's tag row (#1314), which also hosts the cover-image control.
  * Skipped outright when it would hold nothing, so an item with neither tags nor
  * the control renders no empty row.
  */
@@ -95,11 +95,12 @@ function renderFeedTagRow(
   deps: ViewDeps,
 ): void {
   const hasTags = !!article.tags?.length;
-  const offersCoverFetch = canOfferCoverImageFetch(article, {
+  const coverImageAction = resolveCoverImageOffer(article, {
     hasFetcher: !!deps.fetchCoverImage,
+    hasRestorer: !!deps.restoreCoverImage,
     showCoverImage: ctx.settings.display.showCoverImage,
   });
-  if (!hasTags && !offersCoverFetch) {
+  if (!hasTags && !coverImageAction) {
     return;
   }
 
@@ -111,12 +112,13 @@ function renderFeedTagRow(
   });
   renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
 
-  if (offersCoverFetch) {
-    renderCoverImageFetchControl({
+  if (coverImageAction) {
+    renderCoverImageControl({
       parent: tagsRegion,
       articleEl: feedItem,
       article,
       deps,
+      action: coverImageAction,
       region: "feed-item",
     });
   }

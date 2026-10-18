@@ -418,14 +418,15 @@ body .rss-dashboard-star-toggle svg {
   stroke: color-mix(in srgb, var(--color-yellow) 50%, #000);
 }
 
-/* The manual cover-image fetch (#1314): one control shared by the article card
- * and the feed item, so the two cannot drift apart. It lives at the right end
- * of the article's tag row, after the tag chips and their `+n` overflow chip;
- * the row reserves its width whether or not it is revealed, so revealing it
- * never reflows the chips. Out of the way until the article is hovered or holds
- * focus, but never unreachable: the hidden control takes no pointer events (a
- * tap meant to open the article must not fetch a page), and a touch screen
- * shows it outright because it has no hover to reveal it. */
+/* The cover-image control (#1314, #1330): one control shared by the article
+ * card and the feed item, so the two cannot drift apart. It lives at the right
+ * end of the article's tag row, after the tag chips and their `+n` overflow
+ * chip; the row reserves its width whether or not it is revealed, so revealing
+ * it never reflows the chips. Out of the way until the article is hovered or
+ * holds focus, but never unreachable: the hidden control takes no pointer
+ * events (a tap meant to open the article must not run the action), and a touch
+ * screen shows it outright because it has no hover to reveal it. It carries the
+ * fetch role and the restore role alike; only the fetch dims the article. */
 .rss-dashboard-article-card .rss-dashboard-fetch-cover-button,
 .rss-dashboard-feed-item .rss-dashboard-fetch-cover-button {
   display: flex;

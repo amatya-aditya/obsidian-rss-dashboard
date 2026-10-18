@@ -41,7 +41,7 @@ import { showArticleContextMenu as showArticleContextMenuUtil } from "./article-
 import { withCoverImageBusyState } from "./article-list/utils/cover-image-busy";
 import {
   COVER_IMAGE_FETCH_BUTTON_CLASS,
-  canOfferCoverImageFetch,
+  resolveCoverImageOffer,
 } from "./article-list/utils/cover-image-action";
 import { renderFeedView as renderFeedViewUtil } from "./article-list/views/feed-view";
 import { renderListView as renderListViewUtil } from "./article-list/views/list-view";
@@ -104,6 +104,13 @@ interface ArticleListCallbacks {
    * cannot fetch, which hides the action everywhere.
    */
   onFetchCoverImage?: (article: FeedItem) => Promise<boolean>;
+  /**
+   * Puts the feed's own cover image back after the manual fetch replaced it
+   * (#1330), locally and with no request. Resolves true when the article was
+   * rewritten. Absent when the dashboard cannot restore, which hides that state
+   * of the action everywhere.
+   */
+  onRestoreCoverImage?: (article: FeedItem) => Promise<boolean>;
 }
 
 export class ArticleList {
@@ -1455,6 +1462,7 @@ export class ArticleList {
 
   private getViewDeps(): ViewDeps {
     const onFetchCoverImage = this.callbacks.onFetchCoverImage;
+    const onRestoreCoverImage = this.callbacks.onRestoreCoverImage;
     return {
       renderFeedIcon: (container, feedUrl, mediaType) =>
         this.renderFeedIcon(container, feedUrl, mediaType),
@@ -1463,6 +1471,7 @@ export class ArticleList {
       showArticleContextMenu: (event, article) =>
         this.showArticleContextMenu(event, article),
       fetchCoverImage: onFetchCoverImage,
+      restoreCoverImage: onRestoreCoverImage,
       replaceArticle: (article: FeedItem) => {
         this.replaceArticleInPlace(article);
       },
@@ -1605,6 +1614,16 @@ export class ArticleList {
 
   private showArticleContextMenu(event: MouseEvent, article: FeedItem): void {
     const fetchCoverImage = this.callbacks.onFetchCoverImage;
+    const restoreCoverImage = this.callbacks.onRestoreCoverImage;
+    // The list view renders no cover, so it offers neither role (#1314, #1330).
+    const coverImageAction =
+      this.settings.viewStyle === "list"
+        ? null
+        : resolveCoverImageOffer(article, {
+            hasFetcher: !!fetchCoverImage,
+            hasRestorer: !!restoreCoverImage,
+            showCoverImage: this.settings.display.showCoverImage,
+          });
     showArticleContextMenuUtil(event, article, {
       callbacks: {
         ...this.callbacks,
@@ -1612,15 +1631,10 @@ export class ArticleList {
           ? (target: FeedItem) =>
               this.fetchCoverImageWithBusyState(target, fetchCoverImage)
           : undefined,
-        onCoverImageFetched: (updated: FeedItem) =>
+        onCoverImageChanged: (updated: FeedItem) =>
           this.replaceArticleInPlace(updated),
       },
-      showFetchCoverImage:
-        this.settings.viewStyle !== "list" &&
-        canOfferCoverImageFetch(article, {
-          hasFetcher: !!fetchCoverImage,
-          showCoverImage: this.settings.display.showCoverImage,
-        }),
+      coverImageAction: coverImageAction ?? undefined,
       settings: { articleSaving: this.settings.articleSaving },
     });
   }
