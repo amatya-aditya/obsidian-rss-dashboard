@@ -641,7 +641,7 @@ describe("card-view", () => {
       expect(button?.tagName).toBe("BUTTON");
       expect(button?.getAttribute("type")).toBe("button");
       expect(button?.getAttribute("aria-label")).toBe(
-        "Fetch cover image from page",
+        "Fetch and replace cover image",
       );
     });
 
@@ -651,7 +651,7 @@ describe("card-view", () => {
       });
 
       expect(fetchButton()?.getAttribute("aria-label")).toBe(
-        "Replace cover image from page",
+        "Replace cover image from the fetch",
       );
     });
 

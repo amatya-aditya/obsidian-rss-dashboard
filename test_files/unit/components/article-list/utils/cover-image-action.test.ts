@@ -59,13 +59,13 @@ describe("canOfferCoverImageFetch", () => {
 describe("coverImageActionLabel", () => {
   it("offers to fetch when the item has no cover", () => {
     expect(coverImageActionLabel({ coverImage: "" })).toBe(
-      "Fetch cover image from page",
+      "Fetch and replace cover image",
     );
   });
 
   it("offers to replace one the item already has", () => {
     expect(coverImageActionLabel({ coverImage: "https://cdn/x.jpg" })).toBe(
-      "Replace cover image from page",
+      "Replace cover image from the fetch",
     );
   });
 });

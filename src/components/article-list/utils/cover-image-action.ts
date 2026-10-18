@@ -4,14 +4,17 @@ import { isHttpUrl } from "../../../utils/http-url";
 /**
  * The wording of the manual cover-image fetch (#1314), shared by its two entry
  * points so the control and the menu item never disagree. Sentence case, per
- * the UI text rules; "Replace" when the item already shows a cover.
+ * the UI text rules. The action both fetches and writes the cover, so the label
+ * says so; "Replace" names the state where a cover is already shown. "The fetch"
+ * is the defined name for the article-page request — the feed's own image is the
+ * other source (#1330).
  */
 export function coverImageActionLabel(
   article: Pick<FeedItem, "coverImage">,
 ): string {
   return article.coverImage
-    ? "Replace cover image from page"
-    : "Fetch cover image from page";
+    ? "Replace cover image from the fetch"
+    : "Fetch and replace cover image";
 }
 
 /**

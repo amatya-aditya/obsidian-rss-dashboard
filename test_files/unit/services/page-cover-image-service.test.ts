@@ -1,4 +1,4 @@
-// The manual "fetch cover image from page" step (#1314). One page request per
+// The manual cover-image fetch step (#1314). One page request per
 // article link, and only the page's declared image is read: a scan of the
 // article body would pick a byline avatar or a site logo (#812).
 import { describe, expect, it, vi } from "vitest";

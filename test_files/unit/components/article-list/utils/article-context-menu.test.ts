@@ -257,8 +257,8 @@ describe("article-context-menu utils", () => {
       );
 
       const titles = Menu.lastItems.map((item) => item.title);
-      expect(titles).toContain("Fetch cover image from page");
-      expect(titles).not.toContain("Replace cover image from page");
+      expect(titles).toContain("Fetch and replace cover image");
+      expect(titles).not.toContain("Replace cover image from the fetch");
     });
 
     it("offers to replace a cover image the item already has", () => {
@@ -275,8 +275,8 @@ describe("article-context-menu utils", () => {
       );
 
       const titles = Menu.lastItems.map((item) => item.title);
-      expect(titles).toContain("Replace cover image from page");
-      expect(titles).not.toContain("Fetch cover image from page");
+      expect(titles).toContain("Replace cover image from the fetch");
+      expect(titles).not.toContain("Fetch and replace cover image");
     });
 
     it("hides the item when the surface does not offer it", () => {
@@ -291,8 +291,8 @@ describe("article-context-menu utils", () => {
       );
 
       const titles = Menu.lastItems.map((item) => item.title);
-      expect(titles).not.toContain("Fetch cover image from page");
-      expect(titles).not.toContain("Replace cover image from page");
+      expect(titles).not.toContain("Fetch and replace cover image");
+      expect(titles).not.toContain("Replace cover image from the fetch");
     });
 
     it("hides the item for an article with no link", () => {
@@ -309,7 +309,7 @@ describe("article-context-menu utils", () => {
       );
 
       const titles = Menu.lastItems.map((item) => item.title);
-      expect(titles).not.toContain("Fetch cover image from page");
+      expect(titles).not.toContain("Fetch and replace cover image");
     });
 
     it("fetches on activation and rebuilds the card only when a cover was found", async () => {
@@ -326,7 +326,7 @@ describe("article-context-menu utils", () => {
         ctx,
       );
       Menu.lastItems
-        .find((item) => item.title === "Fetch cover image from page")
+        .find((item) => item.title === "Fetch and replace cover image")
         ?.trigger();
       await vi.waitFor(() =>
         expect(onCoverImageFetched).toHaveBeenCalledWith(article),
@@ -348,7 +348,7 @@ describe("article-context-menu utils", () => {
         ctx,
       );
       Menu.lastItems
-        .find((item) => item.title === "Fetch cover image from page")
+        .find((item) => item.title === "Fetch and replace cover image")
         ?.trigger();
       await Promise.resolve();
       await Promise.resolve();

@@ -6,8 +6,8 @@ import { Menu } from "obsidian";
 import { buildArticle, createArticleListHarness } from "./article-list-harness";
 import type { RssDashboardSettings } from "../../../src/types/types";
 
-const COVER_FETCH_TITLE = "Fetch cover image from page";
-const COVER_REPLACE_TITLE = "Replace cover image from page";
+const COVER_FETCH_TITLE = "Fetch and replace cover image";
+const COVER_REPLACE_TITLE = "Replace cover image from the fetch";
 const COVER_FETCH_BUTTON = ".rss-dashboard-fetch-cover-button";
 const FETCHING_CLASS = "rss-dashboard-cover-fetching";
 
