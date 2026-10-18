@@ -140,6 +140,46 @@ describe("feed-view", () => {
     ).toBeTruthy();
   });
 
+  it("shows the stored cover in the hero when it differs from the feed's image (#1330)", () => {
+    renderFeedView(
+      container,
+      [
+        makeArticle({
+          coverImage: "https://example.com/fetched-page-cover.jpg",
+          image: "https://example.com/feed-image.jpg",
+        }),
+      ],
+      baseViewContext(),
+      baseViewDeps(),
+    );
+
+    expect(
+      container
+        .querySelector(".rss-dashboard-feed-hero-image")
+        ?.getAttribute("src"),
+    ).toBe("https://example.com/fetched-page-cover.jpg");
+  });
+
+  it("falls back to the feed's image in the hero when the stored cover is empty", () => {
+    renderFeedView(
+      container,
+      [
+        makeArticle({
+          coverImage: "",
+          image: "https://example.com/feed-image.jpg",
+        }),
+      ],
+      baseViewContext(),
+      baseViewDeps(),
+    );
+
+    expect(
+      container
+        .querySelector(".rss-dashboard-feed-hero-image")
+        ?.getAttribute("src"),
+    ).toBe("https://example.com/feed-image.jpg");
+  });
+
   it("uses one cached preview URL for the Feed image and blur", () => {
     const resolveCachedImageUrl = vi.fn(() => "app://local/cache/cover.jpg");
     renderFeedView(

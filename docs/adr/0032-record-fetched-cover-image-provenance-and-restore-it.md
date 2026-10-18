@@ -67,6 +67,10 @@ storage of feed data, and no refresh.
 - Surfaces are unchanged: the tag-row control and the context menu, in Card and
   Feed views, while cover-image display is on. List view renders no cover, so it
   offers neither role.
+- Cover surfaces read `coverImage` before `image`, so the image a fetch stored is
+  the one the card, the feed-view hero, the Reader hero and a saved note show.
+  The feed-view hero read `image` first, which this decision corrects; the card,
+  the Reader hero and the save template already read `coverImage` first.
 
 ## Consequences
 

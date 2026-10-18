@@ -36,7 +36,7 @@ function renderFeedImage(
   onImageUnavailable: () => void,
 ): boolean {
   const coverImgSrc = ctx.settings.display.showCoverImage
-    ? resolveArticlePreviewImage(article, ["image", "coverImage"])
+    ? resolveArticlePreviewImage(article, ["coverImage", "image"])
     : undefined;
   const displayedCoverImgSrc =
     coverImgSrc && ctx.settings.display.allowImageCaching
