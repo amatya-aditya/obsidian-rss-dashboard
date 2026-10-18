@@ -2539,6 +2539,92 @@ describe("ArticleSaver - static YouTube iframe in the fetched page (#1168)", () 
   });
 });
 
+describe("ArticleSaver - the note body follows the reader's fetched cleanup (#1323)", () => {
+  const HERO = "https://img.example.com/images/hero.jpg";
+  const CREDIT = "Photo credit: Jane Doe";
+  const OTHER_CREDIT = "Photo credit: John Roe";
+  const BODY =
+    "The first substantial paragraph of the fetched fixture article runs well " +
+    "past one hundred and twenty characters so it marks the body start.";
+
+  // The seeded credit-caption page as Readability returns it: one root element
+  // around a caption-only figure, the repeated credit, a different credit, the
+  // body, and a trailing repeated credit (#1304).
+  const FETCHED_HTML = `<div id="readability-page-1" class="page">
+    <figure><figcaption>${CREDIT}</figcaption></figure>
+    <p>${CREDIT}</p>
+    <p>${OTHER_CREDIT}</p>
+    <p>${BODY}</p>
+    <p>${CREDIT}</p>
+  </div>`;
+
+  function createSaver(app: App): ArticleSaver {
+    return new ArticleSaver(
+      app,
+      createSettings({
+        defaultTemplate: "{{contentSource}}\n\n{{content}}",
+        includeFrontmatter: false,
+        saveVersion: "fetched",
+      }),
+      "https://proxy/?url=",
+    );
+  }
+
+  function creditItem(): FeedItem {
+    return createItem({
+      link: "https://example.com/fixture/credit-caption",
+      description: "",
+      content: "<p>RSS teaser for the fixture credit-caption article.</p>",
+      coverImage: HERO,
+    });
+  }
+
+  async function readNote(app: App, file: TFile | null): Promise<string> {
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected a saved TFile");
+    return app.vault.read(file);
+  }
+
+  it("drops the lead credit caption and its repeated paragraph when the saver fetches on demand", async () => {
+    const app = App.createMock();
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({ content: FETCHED_HTML, failureType: "none" });
+
+    const written = await readNote(
+      app,
+      await createSaver(app).saveArticleWithFullContent(creditItem()),
+    );
+
+    expect(written).toContain("Fetched content");
+    expect(written).toContain(`![Hero image](${HERO})`);
+    expect(written).toContain(OTHER_CREDIT);
+    expect(written).toContain(BODY);
+    expect(written.match(/Photo credit: Jane Doe/g)).toHaveLength(1);
+  });
+
+  it("drops them when the Reader hands over the fetched HTML to save", async () => {
+    const app = App.createMock();
+
+    const written = await readNote(
+      app,
+      await createSaver(app).saveArticleWithContentPolicy(
+        creditItem(),
+        undefined,
+        undefined,
+        undefined,
+        { fetchAttempted: true, fetchedHtml: FETCHED_HTML },
+      ),
+    );
+
+    expect(written).toContain("Fetched content");
+    expect(written).toContain(OTHER_CREDIT);
+    expect(written).toContain(BODY);
+    expect(written.match(/Photo credit: Jane Doe/g)).toHaveLength(1);
+  });
+});
+
 describe("ArticleSaver save notices (#1184)", () => {
   const SAVED_TAIL =
     "Click/tap the icon again to open the article in your vault.";

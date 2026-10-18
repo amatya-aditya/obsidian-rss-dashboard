@@ -506,6 +506,71 @@ export function stripDuplicateLeadCaptionBlocks(
   });
 }
 
+export interface FetchedArticleCleanupOptions {
+  /**
+   * The feed or publisher description to take out of the body's lead when the
+   * page repeats it. Omit when there is none; the readers pass
+   * `descriptionToStripFromBody`'s result here (#1238).
+   */
+  feedDescriptionHtml?: string;
+  /**
+   * The item's hero image. Lead media is removed only when one is set — the
+   * same gate the readers use (#1304, #1305).
+   */
+  fallbackHeroUrl?: string;
+}
+
+/**
+ * The fetched-page cleanup both readers run before they render the body (#612,
+ * #1238, #1304, #1305), as one orchestration the save path shares, so a note
+ * holds the body the reader shows (#1323).
+ *
+ * Order matters. Navigation chrome and the top headline go first, then the
+ * single root element Readability wraps a fetched page in is flattened so the
+ * body-child scans below see its blocks. The duplicate lead and the skip links
+ * follow. Lead media and its captions run last, and only when a hero is set:
+ * the credit captions are collected before the lead media is removed, so a
+ * caption-only `<figure>` is paired with the paragraph that repeats it.
+ */
+export function cleanFetchedArticleDocument(
+  doc: Document,
+  options: FetchedArticleCleanupOptions = {},
+): void {
+  stripNavigationChromeFromDocument(doc);
+  stripTopHeadlineFromDocument(doc);
+  flattenSingleRootWrapper(doc);
+  stripDuplicateLeadContentFromDocument(doc, options.feedDescriptionHtml);
+  stripSkipLinksFromDocument(doc);
+  // Inline SVGs are publisher UI decorations (section icons, share buttons)
+  // never present in RSS payloads.
+  doc.body?.querySelectorAll("svg").forEach((el) => el.remove());
+
+  if (!options.fallbackHeroUrl) return;
+
+  const leadCaptionTexts = collectLeadCaptionTexts(doc);
+  stripLeadMediaBeforeContent(doc);
+  stripDuplicateLeadMediaMatchingHero(doc, options.fallbackHeroUrl);
+  stripDuplicateLeadCaptionBlocks(doc, leadCaptionTexts);
+}
+
+/**
+ * {@link cleanFetchedArticleDocument} for a caller that holds HTML rather than
+ * a parsed document. Returns the input unchanged if it cannot be parsed.
+ */
+export function cleanFetchedArticleHtml(
+  html: string,
+  options: FetchedArticleCleanupOptions = {},
+): string {
+  if (!html) return html;
+  try {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    cleanFetchedArticleDocument(doc, options);
+    return doc.body.innerHTML;
+  } catch {
+    return html;
+  }
+}
+
 export function findFirstSubstantialParagraph(
   doc: Document,
 ): HTMLElement | null {
