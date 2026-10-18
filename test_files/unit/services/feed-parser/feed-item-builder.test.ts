@@ -4,6 +4,7 @@ import {
   collectCarriedForwardItems,
   collectRefreshedItems,
   indexExistingItems,
+  resolveStoredItemFeedCover,
   type FeedItemContext,
   type RefreshedItemsRequest,
 } from "../../../../src/services/feed-parser/feed-item-builder.js";
@@ -543,6 +544,105 @@ describe("feed-item-builder", () => {
       );
 
       expect(carried).toEqual([]);
+    });
+  });
+
+  describe("resolveStoredItemFeedCover (#1330)", () => {
+    it("reads the blurb's image first, as the parser's precedence does", () => {
+      const cover = resolveStoredItemFeedCover(
+        stored({
+          content: `<p><img src="https://img.example.com/body.jpg"></p>`,
+          itunes: { image: { href: "https://img.example.com/itunes.jpg" } },
+        }),
+      );
+
+      expect(cover).toBe("https://img.example.com/body.jpg");
+    });
+
+    it("falls back through itunes, the item image, then an image enclosure", () => {
+      expect(
+        resolveStoredItemFeedCover(
+          stored({
+            itunes: { image: { href: "https://img.example.com/itunes.jpg" } },
+            image: "https://img.example.com/item.jpg",
+            enclosure: {
+              url: "https://img.example.com/enclosure.jpg",
+              type: "image/jpeg",
+              length: "",
+            },
+          }),
+        ),
+      ).toBe("https://img.example.com/itunes.jpg");
+
+      expect(
+        resolveStoredItemFeedCover(
+          stored({
+            image: "https://img.example.com/item.jpg",
+            enclosure: {
+              url: "https://img.example.com/enclosure.jpg",
+              type: "image/jpeg",
+              length: "",
+            },
+          }),
+        ),
+      ).toBe("https://img.example.com/item.jpg");
+
+      expect(
+        resolveStoredItemFeedCover(
+          stored({
+            enclosure: {
+              url: "https://img.example.com/enclosure.jpg",
+              type: "image/jpeg",
+              length: "",
+            },
+          }),
+        ),
+      ).toBe("https://img.example.com/enclosure.jpg");
+    });
+
+    it("leaves an audio enclosure out of the cover", () => {
+      expect(
+        resolveStoredItemFeedCover(
+          stored({
+            enclosure: {
+              url: "https://audio.example.com/episode.mp3",
+              type: "audio/mpeg",
+              length: "",
+            },
+          }),
+        ),
+      ).toBe("");
+    });
+
+    it("never reads the cover the item displays", () => {
+      expect(
+        resolveStoredItemFeedCover(
+          stored({ coverImage: "https://page.example.com/hero.jpg" }),
+        ),
+      ).toBe("");
+    });
+
+    it("skips a tracking pixel in the blurb and reads the next source", () => {
+      expect(
+        resolveStoredItemFeedCover(
+          stored({
+            content: `<img src="https://img.example.com/1x1/pixel.gif">`,
+            itunes: { image: { href: "https://img.example.com/itunes.jpg" } },
+          }),
+        ),
+      ).toBe("https://img.example.com/itunes.jpg");
+    });
+
+    it("refuses a relative image rather than guessing a base for it", () => {
+      expect(
+        resolveStoredItemFeedCover(
+          stored({ content: `<img src="/hero.jpg">` }),
+        ),
+      ).toBe("");
+    });
+
+    it("is empty when the item stores no image at all", () => {
+      expect(resolveStoredItemFeedCover(stored())).toBe("");
     });
   });
 });

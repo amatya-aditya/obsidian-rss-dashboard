@@ -11,6 +11,7 @@ import {
   sanitizeImageUrl,
 } from "../../utils/image-url-utils.js";
 import { getEffectiveDateMs, isProtectedItem } from "./feed-retention.js";
+import { extractCoverImage } from "./feed-cover-image.js";
 import type { ParsedFeed, ParsedItem } from "./types.js";
 
 /**
@@ -138,46 +139,75 @@ function resolveItemAudio(
   return { isPodcast, audioUrl, enclosure };
 }
 
-function itunesImageUrl(
-  item: ParsedItem,
-  url: string,
-  ctx: FeedItemContext,
-): string {
-  return optimizeImageUrl(
-    ctx.convertToAbsoluteUrl(item.itunes?.image?.href || "", url),
-  );
+/**
+ * The images the feed itself supplies for one item, in the order the parser
+ * prefers them. The parse pipeline fills these from a `ParsedItem`; the restore
+ * action (#1330) fills them from the item the vault already holds, so the
+ * precedence lives in one place and the two cannot disagree.
+ */
+interface FeedCoverFields {
+  /** The HTML a cover image is scanned from: `content`, else `description`. */
+  blurbHtml: string;
+  itunesImageHref: string;
+  imageUrl: string;
+  enclosureUrl: string;
+  enclosureType: string;
 }
 
-function itemImageUrl(
-  item: ParsedItem,
+/** The `FeedItemContext` helpers that resolving a feed cover reads. */
+type FeedCoverDeps = Pick<
+  FeedItemContext,
+  "convertToAbsoluteUrl" | "extractCoverImage"
+>;
+
+function absoluteImage(
+  value: string,
   url: string,
-  ctx: FeedItemContext,
+  deps: FeedCoverDeps,
 ): string {
-  return optimizeImageUrl(ctx.convertToAbsoluteUrl(item.image?.url || "", url));
+  return optimizeImageUrl(deps.convertToAbsoluteUrl(value, url));
 }
 
-function enclosureImageUrl(
-  item: ParsedItem,
+function enclosureImage(
+  fields: FeedCoverFields,
   url: string,
-  ctx: FeedItemContext,
+  deps: FeedCoverDeps,
 ): string {
-  return item.enclosure?.type?.startsWith("image/")
-    ? optimizeImageUrl(ctx.convertToAbsoluteUrl(item.enclosure.url, url))
+  return fields.enclosureType.startsWith("image/")
+    ? absoluteImage(fields.enclosureUrl, url, deps)
     : "";
 }
 
-/** Article cover: the image in the content comes first. */
+/** Article cover: the image in the blurb comes first. */
+function feedCoverFromFields(
+  fields: FeedCoverFields,
+  url: string,
+  deps: FeedCoverDeps,
+): string {
+  return firstSanitizedArticleImageUrl([
+    deps.extractCoverImage(fields.blurbHtml, url),
+    absoluteImage(fields.itunesImageHref, url, deps),
+    absoluteImage(fields.imageUrl, url, deps),
+    enclosureImage(fields, url, deps),
+  ]);
+}
+
+function parsedItemCoverFields(item: ParsedItem): FeedCoverFields {
+  return {
+    blurbHtml: item.content || item.description || "",
+    itunesImageHref: item.itunes?.image?.href || "",
+    imageUrl: item.image?.url || "",
+    enclosureUrl: item.enclosure?.url || "",
+    enclosureType: item.enclosure?.type || "",
+  };
+}
+
 function buildArticleCover(
   item: ParsedItem,
   url: string,
   ctx: FeedItemContext,
 ): string {
-  return firstSanitizedArticleImageUrl([
-    ctx.extractCoverImage(item.content || item.description || "", url),
-    itunesImageUrl(item, url, ctx),
-    itemImageUrl(item, url, ctx),
-    enclosureImageUrl(item, url, ctx),
-  ]);
+  return feedCoverFromFields(parsedItemCoverFields(item), url, ctx);
 }
 
 /** Article card image: the content image comes third. */
@@ -186,12 +216,64 @@ function buildArticleImage(
   url: string,
   ctx: FeedItemContext,
 ): string {
+  const fields = parsedItemCoverFields(item);
   return firstSanitizedArticleImageUrl([
-    itunesImageUrl(item, url, ctx),
-    itemImageUrl(item, url, ctx),
-    ctx.extractCoverImage(item.content || item.description || "", url),
-    enclosureImageUrl(item, url, ctx),
+    absoluteImage(fields.itunesImageHref, url, ctx),
+    absoluteImage(fields.imageUrl, url, ctx),
+    ctx.extractCoverImage(fields.blurbHtml, url),
+    enclosureImage(fields, url, ctx),
   ]);
+}
+
+/**
+ * Stored items hold absolute URLs: the parse rewrote relative ones in the blurb,
+ * and the image fields were resolved against the feed. There is no base to apply
+ * here, so a value that is still relative is refused rather than guessed at.
+ */
+const STORED_ITEM_COVER_DEPS: FeedCoverDeps = {
+  convertToAbsoluteUrl: (relativeUrl) => relativeUrl,
+  extractCoverImage: (html, baseUrl) =>
+    extractCoverImage(html, baseUrl ?? "", (relativeUrl) => relativeUrl),
+};
+
+function storedItemCoverFields(
+  item: Pick<
+    FeedItem,
+    "content" | "description" | "itunes" | "image" | "enclosure"
+  >,
+): FeedCoverFields {
+  return {
+    blurbHtml: item.content || item.description || "",
+    itunesImageHref: item.itunes?.image?.href || "",
+    imageUrl: item.image || "",
+    enclosureUrl: item.enclosure?.url || "",
+    enclosureType: item.enclosure?.type || "",
+  };
+}
+
+/**
+ * The feed's own cover for an item the vault already holds (#1330), resolved
+ * from its stored fields with the parser's precedence. Pure and offline — no
+ * request, no parser instance, no page. `coverImage` is never a candidate, so
+ * this cannot hand back the page image a fetch stored.
+ */
+export function resolveStoredItemFeedCover(
+  item: Pick<
+    FeedItem,
+    | "content"
+    | "description"
+    | "itunes"
+    | "image"
+    | "enclosure"
+    | "link"
+    | "feedUrl"
+  >,
+): string {
+  return feedCoverFromFields(
+    storedItemCoverFields(item),
+    item.link || item.feedUrl || "",
+    STORED_ITEM_COVER_DEPS,
+  );
 }
 
 function shouldSkipExistingItem(
