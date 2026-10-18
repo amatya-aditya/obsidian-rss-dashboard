@@ -849,8 +849,14 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
  * `::after` below expands it to 24x24, the WCAG 2.2 AA 2.5.8 Target Size
  * (Minimum), and to 32x32 on touch. The expansion is invisible and never
  * changes the row's layout.
+ *
+ * Scoped through the name container rather than left as a bare class: this is a
+ * `<button>`, and Obsidian's own `button:not(.clickable-icon)` rule sets `color`
+ * and `background` at 0-1-1, which beats a single class at 0-1-0. Unscoped, the
+ * badge takes Obsidian's grey text and its grey button background instead of
+ * the red error colour and the transparent reset below.
  */
-.rss-dashboard-feed-error-badge {
+.rss-dashboard-feed-name-container .rss-dashboard-feed-error-badge {
   --icon-size: 16px;
   position: relative;
   display: flex;
