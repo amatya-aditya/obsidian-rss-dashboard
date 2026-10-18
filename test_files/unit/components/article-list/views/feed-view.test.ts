@@ -456,4 +456,77 @@ describe("feed-view", () => {
     ).toBe(2);
     expect(deps.renderFeedIcon).toHaveBeenCalledTimes(4);
   });
+
+  describe("cover image affordance (#1314)", () => {
+    function fetchButton(): HTMLButtonElement | null {
+      return container.querySelector<HTMLButtonElement>(
+        ".rss-dashboard-fetch-cover-button",
+      );
+    }
+
+    function renderWith(
+      overrides: {
+        article?: Parameters<typeof makeArticle>[0];
+        deps?: Parameters<typeof baseViewDeps>[0];
+      } = {},
+    ) {
+      renderFeedView(
+        container,
+        [makeArticle(overrides.article)],
+        baseViewContext(),
+        baseViewDeps({ fetchCoverImage: vi.fn(), ...overrides.deps }),
+      );
+    }
+
+    it("puts the control at the end of the item's tag row, after the chips", () => {
+      renderWith({
+        article: {
+          tags: [
+            { name: "tech", color: "#ff0000" },
+            { name: "news", color: "#00ff00" },
+          ],
+        },
+      });
+
+      const region = container.querySelector<HTMLElement>(
+        ".rss-dashboard-feed-tags-region",
+      );
+      const button = fetchButton();
+
+      // Beside the tag container, never inside it: the layout pass empties and
+      // re-measures the container, and the `+n` count would count the control.
+      expect(button?.parentElement).toBe(region);
+      expect(region?.lastElementChild).toBe(button);
+      expect(
+        region?.querySelector(".rss-dashboard-tag-container")
+          ?.nextElementSibling,
+      ).toBe(button);
+    });
+
+    it("renders the tag row for an untagged item when the control lives in it", () => {
+      renderWith({ article: { tags: [] } });
+
+      const region = container.querySelector<HTMLElement>(
+        ".rss-dashboard-feed-tags-region",
+      );
+      expect(region).not.toBeNull();
+      expect(
+        region?.querySelector(".rss-dashboard-tag-container")?.children.length,
+      ).toBe(0);
+      expect(fetchButton()?.parentElement).toBe(region);
+    });
+
+    it("renders no tag row when it would hold nothing", () => {
+      renderFeedView(
+        container,
+        [makeArticle()],
+        baseViewContext(),
+        baseViewDeps(),
+      );
+
+      expect(
+        container.querySelector(".rss-dashboard-feed-tags-region"),
+      ).toBeNull();
+    });
+  });
 });

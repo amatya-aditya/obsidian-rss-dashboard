@@ -613,4 +613,234 @@ describe("card-view", () => {
       container.querySelector(".rss-dashboard-cover-summary-only")?.textContent,
     ).toBe("An invented description of an invented discovery.");
   });
+
+  describe("fetch cover image affordance (#1314)", () => {
+    function fetchButton(): HTMLButtonElement | null {
+      return container.querySelector<HTMLButtonElement>(
+        ".rss-dashboard-fetch-cover-button",
+      );
+    }
+
+    function renderWith(overrides: {
+      article?: Parameters<typeof makeArticle>[0];
+      deps?: Parameters<typeof baseViewDeps>[0];
+      context?: Parameters<typeof baseViewContext>[0];
+    }) {
+      renderCardView(
+        container,
+        [makeArticle(overrides.article)],
+        { ...baseViewContext(overrides.context), showCardToolbar: false },
+        baseViewDeps({ fetchCoverImage: vi.fn(), ...overrides.deps }),
+      );
+    }
+
+    it("offers to fetch a cover when the item has none", () => {
+      renderWith({});
+
+      const button = fetchButton();
+      expect(button?.tagName).toBe("BUTTON");
+      expect(button?.getAttribute("type")).toBe("button");
+      expect(button?.getAttribute("aria-label")).toBe(
+        "Fetch and replace cover image",
+      );
+    });
+
+    it("offers to replace the cover the item already has", () => {
+      renderWith({
+        article: { coverImage: "https://cdn.example.com/old.jpg" },
+      });
+
+      expect(fetchButton()?.getAttribute("aria-label")).toBe(
+        "Replace cover image from the fetch",
+      );
+    });
+
+    it("puts the control at the end of the card's tag row, after the chips", () => {
+      renderWith({
+        article: {
+          tags: [
+            { name: "tech", color: "#ff0000" },
+            { name: "news", color: "#00ff00" },
+          ],
+        },
+      });
+
+      const region = container.querySelector<HTMLElement>(
+        ".rss-dashboard-card-tags-region",
+      );
+      const button = fetchButton();
+
+      // Beside the tag container, never inside it: the layout pass empties and
+      // re-measures the container, and the `+n` count would count the control.
+      expect(button?.parentElement).toBe(region);
+      expect(region?.lastElementChild).toBe(button);
+      expect(
+        region?.querySelector(".rss-dashboard-tag-container")
+          ?.nextElementSibling,
+      ).toBe(button);
+    });
+
+    it("renders the tag row for an untagged card when the control lives in it", () => {
+      renderWith({ article: { tags: [] } });
+
+      const region = container.querySelector<HTMLElement>(
+        ".rss-dashboard-card-tags-region",
+      );
+      expect(region).not.toBeNull();
+      expect(
+        region?.querySelector(".rss-dashboard-tag-container")?.children.length,
+      ).toBe(0);
+      expect(fetchButton()?.parentElement).toBe(region);
+    });
+
+    it("renders no tag row when it would hold nothing", () => {
+      renderCardView(
+        container,
+        [makeArticle()],
+        { ...baseViewContext(), showCardToolbar: false },
+        baseViewDeps(),
+      );
+
+      expect(
+        container.querySelector(".rss-dashboard-card-tags-region"),
+      ).toBeNull();
+    });
+
+    it("omits the control when the dashboard offers no cover fetch", () => {
+      renderCardView(
+        container,
+        [makeArticle()],
+        { ...baseViewContext(), showCardToolbar: false },
+        baseViewDeps(),
+      );
+
+      expect(fetchButton()).toBeNull();
+    });
+
+    it("omits the control while cover images are hidden", () => {
+      renderWith({
+        context: {
+          settings: {
+            ...baseViewContext().settings,
+            display: {
+              ...baseViewContext().settings.display,
+              showCoverImage: false,
+            },
+          },
+        },
+      });
+
+      expect(fetchButton()).toBeNull();
+    });
+
+    it("omits the control for an item with no article link", () => {
+      renderWith({ article: { link: "" } });
+
+      expect(fetchButton()).toBeNull();
+    });
+
+    it("fetches on activation without opening the article, rebuilding the card when a cover was found", async () => {
+      const onArticleClick = vi.fn();
+      const fetchCoverImage = vi.fn().mockResolvedValue(true);
+      const replaceArticle = vi.fn();
+      renderCardView(
+        container,
+        [makeArticle()],
+        {
+          ...baseViewContext({ callbacks: { onArticleClick } }),
+          showCardToolbar: false,
+        },
+        baseViewDeps({ fetchCoverImage, replaceArticle }),
+      );
+
+      fetchButton()?.click();
+
+      await vi.waitFor(() => expect(replaceArticle).toHaveBeenCalledTimes(1));
+      expect(fetchCoverImage).toHaveBeenCalledTimes(1);
+      expect(onArticleClick).not.toHaveBeenCalled();
+    });
+
+    it("leaves the card in place when the page had no cover", async () => {
+      const fetchCoverImage = vi.fn().mockResolvedValue(false);
+      const replaceArticle = vi.fn();
+      renderCardView(
+        container,
+        [makeArticle()],
+        { ...baseViewContext(), showCardToolbar: false },
+        baseViewDeps({ fetchCoverImage, replaceArticle }),
+      );
+
+      fetchButton()?.click();
+
+      await vi.waitFor(() => expect(fetchCoverImage).toHaveBeenCalledTimes(1));
+      expect(replaceArticle).not.toHaveBeenCalled();
+    });
+
+    it("stops Enter and Space from reaching dashboard shortcuts", () => {
+      const onArticleClick = vi.fn();
+      const seen: string[] = [];
+      container.addEventListener("keydown", (event) => {
+        seen.push(event.key);
+      });
+      renderCardView(
+        container,
+        [makeArticle()],
+        {
+          ...baseViewContext({ callbacks: { onArticleClick } }),
+          showCardToolbar: false,
+        },
+        baseViewDeps({ fetchCoverImage: vi.fn() }),
+      );
+      const button = fetchButton()!;
+
+      button.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      );
+      button.dispatchEvent(
+        new KeyboardEvent("keydown", { key: " ", bubbles: true }),
+      );
+      expect(seen).toEqual([]);
+      expect(onArticleClick).not.toHaveBeenCalled();
+
+      // A key the control does not handle still reaches the dashboard.
+      button.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Tab", bubbles: true }),
+      );
+      expect(seen).toEqual(["Tab"]);
+    });
+
+    it("marks the card busy while the fetch runs and clears it afterwards", async () => {
+      let finish!: (found: boolean) => void;
+      const fetchCoverImage = vi.fn(
+        () =>
+          new Promise<boolean>((resolve) => {
+            finish = resolve;
+          }),
+      );
+      renderCardView(
+        container,
+        [makeArticle()],
+        { ...baseViewContext(), showCardToolbar: false },
+        baseViewDeps({ fetchCoverImage }),
+      );
+      const card = container.querySelector<HTMLElement>(
+        ".rss-dashboard-article-card",
+      )!;
+
+      fetchButton()?.click();
+
+      expect(card.classList.contains("rss-dashboard-cover-fetching")).toBe(
+        true,
+      );
+      expect(card.getAttribute("aria-busy")).toBe("true");
+
+      finish(false);
+      await vi.waitFor(() =>
+        expect(card.classList.contains("rss-dashboard-cover-fetching")).toBe(
+          false,
+        ),
+      );
+      expect(card.hasAttribute("aria-busy")).toBe(false);
+    });
+  });
 });

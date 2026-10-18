@@ -45,6 +45,8 @@ const PAGE_METADATA: RawArticleMetadata = {
   jsonLdAuthors: [],
   microdataAuthors: [],
   relAuthors: [],
+  ogImage: "",
+  twitterImage: "",
   readabilityExcerpt: "",
   canonicalUrl: "https://example.com/canonical",
 };

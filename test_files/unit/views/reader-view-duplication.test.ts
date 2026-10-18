@@ -963,6 +963,8 @@ describe("ReaderView – summary de-duplication", () => {
       microdataAuthors: [],
       relAuthors: [],
       canonicalUrl: "",
+      ogImage: "",
+      twitterImage: "",
       readabilityExcerpt: "",
       ...overrides,
     });

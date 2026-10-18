@@ -11,6 +11,8 @@ import {
   resolveArticlePreviewImage,
 } from "../../../utils/article-preview-utils";
 import { renderSingleRowCardTagChips } from "../utils/tag-layout-utils";
+import { canOfferCoverImageFetch } from "../utils/cover-image-action";
+import { renderCoverImageFetchControl } from "../utils/cover-image-control";
 import type { BaseViewContext, ViewDeps } from "./view-types";
 import {
   renderPreviewPlaceholder,
@@ -283,7 +285,15 @@ export function renderCardView(
       renderCardPlaceholder(previewRegion, openButton, cardDescriptionId);
     }
 
-    if (hasTags) {
+    const offersCoverFetch = canOfferCoverImageFetch(article, {
+      hasFetcher: !!deps.fetchCoverImage,
+      showCoverImage: ctx.settings.display.showCoverImage,
+    });
+
+    // The tag row doubles as the card's action row (#1314). It is skipped
+    // outright when it would hold nothing, and an untagged card renders it for
+    // the cover control alone.
+    if (hasTags || offersCoverFetch) {
       const tagsRegion = card.createDiv({
         cls: "rss-dashboard-card-tags-region",
       });
@@ -291,6 +301,16 @@ export function renderCardView(
         cls: "rss-dashboard-tag-container",
       });
       renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
+
+      if (offersCoverFetch) {
+        renderCoverImageFetchControl({
+          parent: tagsRegion,
+          articleEl: card,
+          article,
+          deps,
+          region: "article-card",
+        });
+      }
     }
 
     if (ctx.showCardToolbar) {

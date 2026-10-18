@@ -38,6 +38,11 @@ import { renderFeedIcon as renderFeedIconUtil } from "./article-list/utils/feed-
 import { createActionButtons as createArticleActionButtonsUtil } from "./article-list/utils/article-actions";
 import type { CustomSaveHooks } from "./article-list/utils/save-options-menu";
 import { showArticleContextMenu as showArticleContextMenuUtil } from "./article-list/utils/article-context-menu";
+import { withCoverImageBusyState } from "./article-list/utils/cover-image-busy";
+import {
+  COVER_IMAGE_FETCH_BUTTON_CLASS,
+  canOfferCoverImageFetch,
+} from "./article-list/utils/cover-image-action";
 import { renderFeedView as renderFeedViewUtil } from "./article-list/views/feed-view";
 import { renderListView as renderListViewUtil } from "./article-list/views/list-view";
 import { renderCardView as renderCardViewUtil } from "./article-list/views/card-view";
@@ -93,6 +98,12 @@ interface ArticleListCallbacks {
   onOpenTagsSettings?: () => Promise<void> | void;
   onTagsMutated?: () => void;
   onResolveCachedImageUrl?: (remoteUrl: string) => string | null;
+  /**
+   * Fetches the article page's cover image and stores it on the item (#1314).
+   * Resolves true when a usable image was stored. Absent when the dashboard
+   * cannot fetch, which hides the action everywhere.
+   */
+  onFetchCoverImage?: (article: FeedItem) => Promise<boolean>;
 }
 
 export class ArticleList {
@@ -776,15 +787,9 @@ export class ArticleList {
     // the document itself, which throws once <html> exists (#409).
     const temp = listEl.win.createDiv();
 
-    if (this.settings.viewStyle === "list") {
-      this.renderListView(temp, [article]);
-    } else if (this.settings.viewStyle === "feed") {
-      this.renderFeedView(temp, [article]);
-    } else {
-      this.renderCardView(temp, [article]);
-    }
+    this.renderArticleInto(temp, article);
 
-    const newEl = temp.firstElementChild as HTMLElement | null;
+    const newEl = this.findArticleElementIn(temp, article);
     if (!newEl) {
       return false;
     }
@@ -1083,17 +1088,31 @@ export class ArticleList {
       );
     }
     if (!hasTags && existingContainers.length > 0) {
-      existingContainers.forEach((container) => container.remove());
-      if (articleEl.classList.contains("rss-dashboard-article-card")) {
-        articleEl
-          .querySelectorAll(".rss-dashboard-card-tags-region")
-          .forEach((el) => el.remove());
-      }
-      if (articleEl.classList.contains("rss-dashboard-feed-item")) {
-        articleEl
-          .querySelectorAll(".rss-dashboard-feed-tags-region")
-          .forEach((el) => el.remove());
-      }
+      existingContainers.forEach((container) => {
+        // An article's tag strip can host its cover-image fetch control
+        // (#1314): empty the chips and let the region below decide whether it
+        // still has a reason to exist.
+        if (
+          container.closest(
+            ".rss-dashboard-card-tags-region, .rss-dashboard-feed-tags-region",
+          )
+        ) {
+          container.empty();
+          return;
+        }
+        container.remove();
+      });
+      // A region with nothing left in it goes; one that still holds the control
+      // stays, so the control keeps its place on an article with no tags.
+      articleEl
+        .querySelectorAll<HTMLElement>(
+          ".rss-dashboard-card-tags-region, .rss-dashboard-feed-tags-region",
+        )
+        .forEach((region) => {
+          if (!region.querySelector(`.${COVER_IMAGE_FETCH_BUTTON_CLASS}`)) {
+            region.remove();
+          }
+        });
       return;
     }
 
@@ -1435,6 +1454,7 @@ export class ArticleList {
   }
 
   private getViewDeps(): ViewDeps {
+    const onFetchCoverImage = this.callbacks.onFetchCoverImage;
     return {
       renderFeedIcon: (container, feedUrl, mediaType) =>
         this.renderFeedIcon(container, feedUrl, mediaType),
@@ -1442,6 +1462,10 @@ export class ArticleList {
         this.createArticleActionButtons(actionToolbar, article, mode),
       showArticleContextMenu: (event, article) =>
         this.showArticleContextMenu(event, article),
+      fetchCoverImage: onFetchCoverImage,
+      replaceArticle: (article: FeedItem) => {
+        this.replaceArticleInPlace(article);
+      },
       scheduleMathRendering: (element: HTMLElement) =>
         this.callbacks.onRenderArticleTitle?.(element),
       scheduleCardTagLayout: (card) => this.scheduleCardTagLayout(card),
@@ -1580,10 +1604,131 @@ export class ArticleList {
   }
 
   private showArticleContextMenu(event: MouseEvent, article: FeedItem): void {
+    const fetchCoverImage = this.callbacks.onFetchCoverImage;
     showArticleContextMenuUtil(event, article, {
-      callbacks: this.callbacks,
+      callbacks: {
+        ...this.callbacks,
+        onFetchCoverImage: fetchCoverImage
+          ? (target: FeedItem) =>
+              this.fetchCoverImageWithBusyState(target, fetchCoverImage)
+          : undefined,
+        onCoverImageFetched: (updated: FeedItem) =>
+          this.replaceArticleInPlace(updated),
+      },
+      showFetchCoverImage:
+        this.settings.viewStyle !== "list" &&
+        canOfferCoverImageFetch(article, {
+          hasFetcher: !!fetchCoverImage,
+          showCoverImage: this.settings.display.showCoverImage,
+        }),
       settings: { articleSaving: this.settings.articleSaving },
     });
+  }
+
+  /**
+   * Rebuilds one article's rendered element from the current article data, so a
+   * field the in-place sync does not carry — a fetched cover image (#1314) —
+   * appears without a full dashboard re-render. Focus follows to the same
+   * control in the new element when the replaced one held it.
+   */
+  public replaceArticleInPlace(article: FeedItem): boolean {
+    const listEl = this.getArticleScrollEl();
+    if (!listEl) return false;
+
+    const targetEl = this.findArticleElement(article);
+    if (!targetEl) return false;
+
+    // Build the replacement detached: createDiv() on a Document appends to the
+    // document itself, which throws once <html> exists (#409).
+    const temp = listEl.win.createDiv();
+    this.renderArticleInto(temp, article);
+
+    // Find the item by identity rather than taking the first child: in a
+    // grouped feed view the renderer wraps one article in a section of its own
+    // (#1314), and that wrapper must not replace the item.
+    const newEl = this.findArticleElementIn(temp, article);
+    if (!newEl) return false;
+
+    const scrollPos = listEl.scrollTop;
+    // `activeElement` lives on the Document, not the Window; use the element's
+    // own document so a popout window works the same way.
+    const ownerDocument = targetEl.ownerDocument;
+    const focused = ownerDocument.activeElement;
+    const hadFocus = !!focused && targetEl.contains(focused);
+    targetEl.replaceWith(newEl);
+    listEl.scrollTop = scrollPos;
+
+    if (hadFocus) {
+      // The element is new, so focus returns to its cover control, or to the
+      // card's opener when the control is no longer offered.
+      const focusTarget =
+        newEl.querySelector<HTMLElement>(
+          `.${COVER_IMAGE_FETCH_BUTTON_CLASS}`,
+        ) ??
+        newEl.querySelector<HTMLElement>(".rss-dashboard-card-open-button");
+      focusTarget?.focus();
+    }
+    return true;
+  }
+
+  /**
+   * Renders one article with the current view style into `container`. One
+   * implementation for the two in-place paths, so neither can drift from the
+   * view the list is actually showing.
+   */
+  private renderArticleInto(container: HTMLElement, article: FeedItem): void {
+    if (this.settings.viewStyle === "list") {
+      this.renderListView(container, [article]);
+    } else if (this.settings.viewStyle === "feed") {
+      this.renderFeedView(container, [article]);
+    } else {
+      this.renderCardView(container, [article]);
+    }
+  }
+
+  private getArticleScrollEl(): HTMLElement | null {
+    return this.container.querySelector<HTMLElement>(
+      ".rss-dashboard-articles-list",
+    );
+  }
+
+  /** The rendered element for one article, in whichever view rendered it. */
+  private findArticleElement(article: FeedItem): HTMLElement | null {
+    const listEl = this.getArticleScrollEl();
+    if (!listEl) return null;
+    return this.findArticleElementIn(listEl, article);
+  }
+
+  /** The rendered element for `article` anywhere inside `root`. */
+  private findArticleElementIn(
+    root: ParentNode,
+    article: FeedItem,
+  ): HTMLElement | null {
+    return (
+      Array.from(
+        root.querySelectorAll<HTMLElement>(
+          ".rss-dashboard-article-card, .rss-dashboard-feed-item, .rss-dashboard-article-item",
+        ),
+      ).find(
+        (el) =>
+          el.id === `article-${article.guid}` &&
+          el.dataset.feedUrl === article.feedUrl,
+      ) ?? null
+    );
+  }
+
+  /**
+   * Runs the cover-image fetch with the progress state the article's element
+   * shows (#1314), so the context-menu path reports it exactly as the in-card
+   * control does.
+   */
+  private async fetchCoverImageWithBusyState(
+    article: FeedItem,
+    fetch: (article: FeedItem) => Promise<boolean>,
+  ): Promise<boolean> {
+    return withCoverImageBusyState(this.findArticleElement(article), () =>
+      fetch(article),
+    );
   }
 
   private createPortalDropdown(

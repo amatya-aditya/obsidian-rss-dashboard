@@ -65,7 +65,9 @@
   .rss-dashboard-article-card,
   .rss-dashboard-save-toggle,
   .rss-dashboard-article-card:hover,
-  .rss-dashboard-article-item:hover {
+  .rss-dashboard-article-item:hover,
+  .rss-dashboard-article-card .rss-dashboard-fetch-cover-button,
+  .rss-dashboard-feed-item .rss-dashboard-fetch-cover-button {
     transition-duration: 0.01ms;
     transition-delay: 0s;
   }

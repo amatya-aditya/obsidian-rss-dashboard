@@ -45,6 +45,8 @@ function result(id: string): FullArticleFetchResult {
       jsonLdAuthors: [],
       microdataAuthors: [],
       relAuthors: [],
+      ogImage: "",
+      twitterImage: "",
       readabilityExcerpt: "",
       canonicalUrl: `https://example.com/canonical-${id}`,
     },

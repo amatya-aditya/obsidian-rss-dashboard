@@ -36,6 +36,11 @@
   box-shadow: 0 0 0 2px var(--interactive-accent);
 }
 
+/* The item dims while its cover image is being fetched from its page (#1314). */
+.rss-dashboard-feed-item.rss-dashboard-cover-fetching {
+  opacity: 0.75;
+}
+
 .rss-dashboard-feed-content {
   display: flex;
   flex-direction: column;
@@ -129,7 +134,18 @@
 }
 
 .rss-dashboard-feed-tags-region {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   padding: 0 20px 12px 20px;
+}
+
+.rss-dashboard-feed-tags-region .rss-dashboard-tag-container {
+  /* Takes the row's remaining width, so the cover control (#1314) keeps its
+   * place at the right end and the `+n` measurement sees the width it really
+   * has. */
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .rss-dashboard-feed-footer {

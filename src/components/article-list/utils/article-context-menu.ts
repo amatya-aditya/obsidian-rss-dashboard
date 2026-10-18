@@ -1,5 +1,10 @@
 import { Menu, MenuItem, Notice } from "obsidian";
 import type { FeedItem, SaveVersion } from "../../../types/types";
+import { isHttpUrl } from "../../../utils/http-url";
+import {
+  COVER_IMAGE_FETCH_ICON,
+  coverImageActionLabel,
+} from "./cover-image-action";
 import { addSaveOptionItems, type CustomSaveHooks } from "./save-options-menu";
 
 export interface ArticleContext {
@@ -17,7 +22,20 @@ export interface ArticleContext {
       hooks: CustomSaveHooks,
     ) => Promise<void> | void;
     onArticleClick?: (article: FeedItem) => void;
+    /**
+     * Fetches the article page's cover image (#1314). Resolves true when a
+     * usable image was stored on the article, false otherwise.
+     */
+    onFetchCoverImage?: (article: FeedItem) => Promise<boolean>;
+    /** Rebuilds whatever rendered the article, once a cover image was stored. */
+    onCoverImageFetched?: (article: FeedItem) => void;
   };
+  /**
+   * Whether this surface offers the cover-image fetch. The view applies the
+   * shared availability gate (a usable link, a shown cover surface, and a
+   * dashboard that can fetch); the card control applies the same one.
+   */
+  showFetchCoverImage?: boolean;
   settings: {
     articleSaving: {
       saveVersion: SaveVersion;
@@ -131,6 +149,20 @@ export function showArticleContextMenu(
         );
       });
   });
+
+  const fetchCoverImage = ctx.callbacks.onFetchCoverImage;
+  if (ctx.showFetchCoverImage && isHttpUrl(article.link) && fetchCoverImage) {
+    menu.addItem((item: MenuItem) => {
+      item
+        .setTitle(coverImageActionLabel(article))
+        .setIcon(COVER_IMAGE_FETCH_ICON)
+        .onClick(() => {
+          void fetchCoverImage(article).then((found) => {
+            if (found) ctx.callbacks.onCoverImageFetched?.(article);
+          });
+        });
+    });
+  }
 
   if (!article.saved) {
     menu.addSeparator();

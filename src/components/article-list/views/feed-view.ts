@@ -10,6 +10,8 @@ import {
   resolveArticlePreviewImage,
 } from "../../../utils/article-preview-utils";
 import { renderSingleRowCardTagChips } from "../utils/tag-layout-utils";
+import { canOfferCoverImageFetch } from "../utils/cover-image-action";
+import { renderCoverImageFetchControl } from "../utils/cover-image-control";
 import { groupArticles } from "../utils/article-grouping";
 import type { BaseViewContext, ViewDeps } from "./view-types";
 import {
@@ -81,13 +83,51 @@ function renderFeedImage(
   return !!displayedCoverImgSrc;
 }
 
+/**
+ * The item's tag row (#1314), which also hosts the cover-image fetch control.
+ * Skipped outright when it would hold nothing, so an item with neither tags nor
+ * the control renders no empty row.
+ */
+function renderFeedTagRow(
+  feedItem: HTMLElement,
+  article: FeedItem,
+  ctx: BaseViewContext,
+  deps: ViewDeps,
+): void {
+  const hasTags = !!article.tags?.length;
+  const offersCoverFetch = canOfferCoverImageFetch(article, {
+    hasFetcher: !!deps.fetchCoverImage,
+    showCoverImage: ctx.settings.display.showCoverImage,
+  });
+  if (!hasTags && !offersCoverFetch) {
+    return;
+  }
+
+  const tagsRegion = feedItem.createDiv({
+    cls: "rss-dashboard-feed-tags-region",
+  });
+  const tagsContainer = tagsRegion.createDiv({
+    cls: "rss-dashboard-tag-container",
+  });
+  renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
+
+  if (offersCoverFetch) {
+    renderCoverImageFetchControl({
+      parent: tagsRegion,
+      articleEl: feedItem,
+      article,
+      deps,
+      region: "feed-item",
+    });
+  }
+}
+
 function renderArticleCard(
   container: HTMLElement,
   article: FeedItem,
   ctx: BaseViewContext,
   deps: ViewDeps,
 ): void {
-  const hasTags = !!article.tags?.length;
   const feedItem = container.createDiv({
     cls:
       "rss-dashboard-feed-item" +
@@ -182,15 +222,7 @@ function renderArticleCard(
   feedContent.appendChild(textRegion);
   showPlaceholder(hasDisplayedImage);
 
-  if (hasTags) {
-    const tagsRegion = feedItem.createDiv({
-      cls: "rss-dashboard-feed-tags-region",
-    });
-    const tagsContainer = tagsRegion.createDiv({
-      cls: "rss-dashboard-tag-container",
-    });
-    renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
-  }
+  renderFeedTagRow(feedItem, article, ctx, deps);
 
   // A div, not a <footer>: see the card footer (WCAG 2.2 1.3.1).
   const feedFooter = feedItem.createDiv({

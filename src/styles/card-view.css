@@ -237,6 +237,14 @@
   border-color: var(--interactive-accent);
 }
 
+/* The article itself dims while its page is being fetched, so a card with no
+ * preview region still shows that something is happening. The control that
+ * starts it lives in the tag row (articles.css). */
+.rss-dashboard-card-view
+  .rss-dashboard-article-card.rss-dashboard-cover-fetching {
+  opacity: 0.75;
+}
+
 .rss-dashboard-article-card.active {
   background-color: var(--background-modifier-active);
 }
@@ -732,6 +740,9 @@
 }
 
 .rss-dashboard-card-view .rss-dashboard-card-tags-region {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   flex: 0 0 auto;
   overflow: hidden;
   box-sizing: border-box;
@@ -749,6 +760,11 @@
   .rss-dashboard-tag-container {
   display: flex;
   flex-wrap: nowrap;
+  /* Takes the row's remaining width, so the cover control (#1314) keeps its
+   * place at the right end and the `+n` measurement sees the width it really
+   * has. */
+  flex: 1 1 auto;
+  min-width: 0;
   gap: 5px;
   margin: 0;
   max-height: 100%;

@@ -19,7 +19,10 @@ function buildContext(
         hooks: { onSavingChange: (saving: boolean) => void },
       ) => Promise<void> | void;
       onArticleClick?: (article: FeedItem) => void;
+      onFetchCoverImage?: (article: FeedItem) => Promise<boolean>;
+      onCoverImageFetched?: (article: FeedItem) => void;
     };
+    showFetchCoverImage?: boolean;
     settings?: {
       articleSaving?: {
         saveVersion: "rss" | "fetched";
@@ -29,6 +32,7 @@ function buildContext(
 ) {
   return {
     callbacks: overrides.callbacks ?? {},
+    showFetchCoverImage: overrides.showFetchCoverImage,
     settings: {
       articleSaving: {
         saveVersion: "fetched" as const,
@@ -237,5 +241,118 @@ describe("article-context-menu utils", () => {
     const titles = Menu.lastItems.map((item) => item.title);
     expect(titles).not.toContain("Save with default settings");
     expect(titles).not.toContain("Save to custom folder...");
+  });
+
+  describe("cover image fetch (#1314)", () => {
+    it("offers to fetch a cover image when the card has none", () => {
+      const ctx = buildContext({
+        showFetchCoverImage: true,
+        callbacks: { onFetchCoverImage: async () => true },
+      });
+
+      showArticleContextMenu(
+        new MouseEvent("contextmenu") as unknown as MouseEvent,
+        article,
+        ctx,
+      );
+
+      const titles = Menu.lastItems.map((item) => item.title);
+      expect(titles).toContain("Fetch and replace cover image");
+      expect(titles).not.toContain("Replace cover image from the fetch");
+    });
+
+    it("offers to replace a cover image the item already has", () => {
+      article.coverImage = "https://cdn.example.com/old.jpg";
+      const ctx = buildContext({
+        showFetchCoverImage: true,
+        callbacks: { onFetchCoverImage: async () => true },
+      });
+
+      showArticleContextMenu(
+        new MouseEvent("contextmenu") as unknown as MouseEvent,
+        article,
+        ctx,
+      );
+
+      const titles = Menu.lastItems.map((item) => item.title);
+      expect(titles).toContain("Replace cover image from the fetch");
+      expect(titles).not.toContain("Fetch and replace cover image");
+    });
+
+    it("hides the item when the surface does not offer it", () => {
+      const ctx = buildContext({
+        callbacks: { onFetchCoverImage: async () => true },
+      });
+
+      showArticleContextMenu(
+        new MouseEvent("contextmenu") as unknown as MouseEvent,
+        article,
+        ctx,
+      );
+
+      const titles = Menu.lastItems.map((item) => item.title);
+      expect(titles).not.toContain("Fetch and replace cover image");
+      expect(titles).not.toContain("Replace cover image from the fetch");
+    });
+
+    it("hides the item for an article with no link", () => {
+      article.link = "";
+      const ctx = buildContext({
+        showFetchCoverImage: true,
+        callbacks: { onFetchCoverImage: async () => true },
+      });
+
+      showArticleContextMenu(
+        new MouseEvent("contextmenu") as unknown as MouseEvent,
+        article,
+        ctx,
+      );
+
+      const titles = Menu.lastItems.map((item) => item.title);
+      expect(titles).not.toContain("Fetch and replace cover image");
+    });
+
+    it("fetches on activation and rebuilds the card only when a cover was found", async () => {
+      const onFetchCoverImage = vi.fn().mockResolvedValue(true);
+      const onCoverImageFetched = vi.fn();
+      const ctx = buildContext({
+        showFetchCoverImage: true,
+        callbacks: { onFetchCoverImage, onCoverImageFetched },
+      });
+
+      showArticleContextMenu(
+        new MouseEvent("contextmenu") as unknown as MouseEvent,
+        article,
+        ctx,
+      );
+      Menu.lastItems
+        .find((item) => item.title === "Fetch and replace cover image")
+        ?.trigger();
+      await vi.waitFor(() =>
+        expect(onCoverImageFetched).toHaveBeenCalledWith(article),
+      );
+      expect(onFetchCoverImage).toHaveBeenCalledWith(article);
+    });
+
+    it("leaves the card alone when no cover was found", async () => {
+      const onFetchCoverImage = vi.fn().mockResolvedValue(false);
+      const onCoverImageFetched = vi.fn();
+      const ctx = buildContext({
+        showFetchCoverImage: true,
+        callbacks: { onFetchCoverImage, onCoverImageFetched },
+      });
+
+      showArticleContextMenu(
+        new MouseEvent("contextmenu") as unknown as MouseEvent,
+        article,
+        ctx,
+      );
+      Menu.lastItems
+        .find((item) => item.title === "Fetch and replace cover image")
+        ?.trigger();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(onCoverImageFetched).not.toHaveBeenCalled();
+    });
   });
 });

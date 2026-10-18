@@ -169,6 +169,19 @@ export class PreviewImageCache {
     await this.options.saveSettings();
   }
 
+  /**
+   * Caches one remote image now (#1314), so a card that just gained a cover
+   * does not wait for a later feed warm pass to stop loading it remotely.
+   * Resolves false when caching is off or the image could not be stored.
+   */
+  public async warmUrl(remoteUrl: string): Promise<boolean> {
+    if (this.disposed || !this.isWarmingEnabled() || !this.service) {
+      return false;
+    }
+    this.queuedUrls.delete(remoteUrl);
+    return this.service.cacheUrl(remoteUrl, true);
+  }
+
   public warmFeed(feed: Feed): void {
     if (this.disposed || !this.isWarmingEnabled() || !this.service) {
       return;
