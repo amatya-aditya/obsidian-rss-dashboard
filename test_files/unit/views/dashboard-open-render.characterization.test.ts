@@ -907,6 +907,119 @@ describe("Dashboard renderFilterSubheader characterization", () => {
     ).toBe("polite");
   });
 
+  it("adds no error button while nothing is failing", () => {
+    const { container } = strip(() => {});
+
+    expect(
+      container.querySelector(".rss-dashboard-refresh-error-btn"),
+    ).toBeNull();
+  });
+
+  it("reports a failed background import as failing, with the button outside the live region", () => {
+    const { container } = strip((_view, settings) => {
+      settings.feeds[0].importStatus = "failed";
+      settings.feeds[0].importError = "boom";
+    });
+
+    const row = container.querySelector(".rss-dashboard-refresh-status-row");
+    expect(
+      row?.querySelector(".rss-dashboard-refresh-status-text")?.textContent,
+    ).toContain("Feeds currently failing: 1");
+
+    const button = row?.querySelector<HTMLElement>(
+      ".rss-dashboard-refresh-error-btn",
+    );
+    expect(button).not.toBeNull();
+    expect(button?.getAttribute("aria-label")).toBe(
+      "Show details for 1 failing feed",
+    );
+    // An interactive control inside `aria-live="polite"` re-announces badly.
+    expect(button?.closest('[aria-live="polite"]')).toBeNull();
+  });
+
+  it("shows the single feed's error inline and names it on the button", () => {
+    const { container } = strip((view, settings) => {
+      settings.feeds[0].lastFetchError = "HTTP 500";
+      view.currentFeed = settings.feeds[0];
+    });
+
+    expect(
+      container.querySelector(".rss-dashboard-refresh-status-text")
+        ?.textContent,
+    ).toContain("Refresh failed: HTTP 500");
+    expect(
+      container
+        .querySelector(".rss-dashboard-refresh-error-btn")
+        ?.getAttribute("aria-label"),
+    ).toBe("Refresh failed: HTTP 500");
+  });
+
+  it("opens a single feed's error dialog with a Copy error from feed scope", () => {
+    const { container } = strip((view, settings) => {
+      settings.feeds[0].lastFetchError = "HTTP 500";
+      view.currentFeed = settings.feeds[0];
+    });
+
+    container
+      .querySelector<HTMLElement>(".rss-dashboard-refresh-error-btn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    const dialog = document.querySelector(
+      ".rss-dashboard-refresh-details-modal",
+    );
+    expect(dialog?.textContent).toContain("HTTP 500");
+    expect(
+      dialog?.querySelectorAll(".rss-dashboard-feed-error-copy"),
+    ).toHaveLength(1);
+    expect(
+      dialog?.querySelector(".rss-dashboard-feed-error-copy")?.textContent,
+    ).toBe("Copy error");
+  });
+
+  it("lists every failing feed with a per-feed Copy and a Copy all in all scope", () => {
+    const { container } = strip((_view, settings) => {
+      settings.feeds = [
+        {
+          title: "First",
+          url: "https://first.test/feed.xml",
+          folder: "",
+          items: [],
+          lastUpdated: Date.now(),
+          lastFetchError: "HTTP 500",
+        } as Feed,
+        {
+          title: "Second",
+          url: "https://second.test/feed.xml",
+          folder: "",
+          items: [],
+          lastUpdated: Date.now(),
+          importStatus: "failed",
+          importError: "boom",
+        } as Feed,
+      ];
+    });
+
+    expect(
+      container
+        .querySelector(".rss-dashboard-refresh-error-btn")
+        ?.getAttribute("aria-label"),
+    ).toBe("Show details for 2 failing feeds");
+
+    container
+      .querySelector<HTMLElement>(".rss-dashboard-refresh-error-btn")
+      ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    const dialog = document.querySelector(
+      ".rss-dashboard-refresh-details-modal",
+    );
+    const buttons = Array.from(
+      dialog?.querySelectorAll(".rss-dashboard-feed-error-copy") ?? [],
+    ).map((button) => button.textContent);
+    expect(buttons).toEqual(["Copy", "Copy", "Copy all"]);
+    expect(dialog?.textContent).toContain("First");
+    expect(dialog?.textContent).toContain("Second");
+  });
+
   it("draws the rows in order: refresh status, keyword rules, highlights, viewing filters", () => {
     const { container } = strip((view) => {
       view.keywordFilterStats = keywordStats;

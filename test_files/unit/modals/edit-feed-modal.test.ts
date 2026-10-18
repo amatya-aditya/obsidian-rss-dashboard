@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
 import { EditFeedModal } from "../../../src/modals/feed-manager/edit-feed-modal";
 import { applyFeedRetentionLimits } from "../../../src/services/feed-parser";
@@ -2194,5 +2194,144 @@ describe("EditFeedModal article template replacement", () => {
     getButtonByText(modal.contentEl, "Save").click();
     await flushPromises();
     expect(feed.customTemplate).toBe("two");
+  });
+});
+
+describe("EditFeedModal stored feed errors", () => {
+  afterEach(() => {
+    // Close through the host's own button first, so AccessibleModal releases
+    // its focus-trap listener and MutationObserver.
+    document
+      .querySelectorAll<HTMLElement>(".modal-container .modal-header-button")
+      .forEach((button) => button.click());
+    document.querySelectorAll(".modal-container").forEach((el) => el.remove());
+  });
+
+  function openWith(feed: Feed): EditFeedModal {
+    const app = createMockApp();
+    const plugin = {
+      app,
+      settings: {
+        feeds: [feed],
+        folders: [],
+        maxItems: 50,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+    const modal = new EditFeedModal(
+      app,
+      asRssDashboardPlugin(plugin),
+      feed,
+      vi.fn(),
+    );
+    modal.open();
+    return modal;
+  }
+
+  function errorSection(modal: EditFeedModal): HTMLElement | null {
+    return modal.contentEl.querySelector<HTMLElement>(
+      ".rss-dashboard-feed-error-section",
+    );
+  }
+
+  it("shows no error area for a feed with no stored failure", () => {
+    const modal = openWith({
+      title: "Healthy feed",
+      url: "https://example.com/feed.xml",
+      folder: "",
+      items: [],
+      lastUpdated: 0,
+    });
+
+    expect(errorSection(modal)).toBeNull();
+  });
+
+  it("shows the stored refresh failure, labelled, without re-checking the feed", () => {
+    const modal = openWith({
+      title: "Failed feed",
+      url: "https://example.com/feed.xml",
+      folder: "",
+      items: [],
+      lastUpdated: 0,
+      lastFetchError: "HTTP 500",
+    });
+
+    const section = errorSection(modal);
+    expect(section?.textContent).toContain("Last refresh failed");
+    expect(section?.textContent).toContain("HTTP 500");
+  });
+
+  it("shows the stored import failure, which survives a restart", () => {
+    const modal = openWith({
+      title: "Import-failed feed",
+      url: "https://example.com/feed.xml",
+      folder: "",
+      items: [],
+      lastUpdated: 0,
+      importStatus: "timed_out",
+      importError: "Timed out",
+    });
+
+    const section = errorSection(modal);
+    expect(section?.textContent).toContain("Import failed");
+    expect(section?.textContent).toContain("Timed out");
+  });
+
+  it("shows both kinds when both are stored, refresh first", () => {
+    const modal = openWith({
+      title: "Doubly failed feed",
+      url: "https://example.com/feed.xml",
+      folder: "",
+      items: [],
+      lastUpdated: 0,
+      lastFetchError: "HTTP 500",
+      importStatus: "failed",
+      importError: "merge failed",
+    });
+
+    const labels = Array.from(
+      modal.contentEl.querySelectorAll(".rss-dashboard-feed-error-kind-label"),
+    ).map((el) => el.textContent);
+
+    expect(labels).toEqual(["Last refresh failed", "Import failed"]);
+  });
+
+  it("labels each stored error as a named read-only group", () => {
+    const modal = openWith({
+      title: "Failed feed",
+      url: "https://example.com/feed.xml",
+      folder: "",
+      items: [],
+      lastUpdated: 0,
+      lastFetchError: "HTTP 500",
+    });
+
+    const group = modal.contentEl.querySelector<HTMLElement>(
+      '.rss-dashboard-feed-error-kind[role="group"]',
+    );
+    const labelId = group?.getAttribute("aria-labelledby") ?? "";
+    expect(labelId).not.toBe("");
+    expect(modal.contentEl.querySelector(`h4#${labelId}`)?.textContent).toBe(
+      "Last refresh failed",
+    );
+  });
+
+  it("keeps the error area separate from the Load Status line", () => {
+    const modal = openWith({
+      title: "Failed feed",
+      url: "https://example.com/feed.xml",
+      folder: "",
+      items: [],
+      lastUpdated: 0,
+      lastFetchError: "HTTP 500",
+    });
+
+    const statusSetting = getSettingByName(modal.contentEl, "Status");
+    expect(statusSetting.textContent).not.toContain("HTTP 500");
   });
 });

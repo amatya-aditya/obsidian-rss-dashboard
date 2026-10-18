@@ -1054,7 +1054,12 @@ describe("Sidebar row interactions (characterization)", () => {
         feedRow("https://a.test/feed").querySelector<HTMLElement>(
           ".rss-dashboard-feed-error-badge",
         );
-      expect(badge()?.getAttribute("aria-label")).toBe("Feed error: HTTP 500");
+      // Named by a hidden element, not `aria-label`, so Obsidian draws no
+      // tooltip over the row's own hover popover.
+      const labelId = badge()?.getAttribute("aria-labelledby") ?? "";
+      expect(container.querySelector(`#${labelId}`)?.textContent).toBe(
+        "Refresh failed: HTTP 500. Show details",
+      );
       expect(lucideIconId(badge())).toBe("alert-circle");
 
       container.empty();

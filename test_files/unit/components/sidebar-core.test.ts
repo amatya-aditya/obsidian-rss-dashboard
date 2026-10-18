@@ -1166,20 +1166,23 @@ describe("Sidebar Core", () => {
 
       afterEach(() => {
         ObsidianStubs.Platform.isMobile = false;
+        // Close through the host's own button first, so AccessibleModal
+        // releases its focus-trap listener and MutationObserver.
         activeDocument
-          .querySelectorAll(
-            ".modal-container, .rss-dashboard-refresh-details-manual",
+          .querySelectorAll<HTMLElement>(
+            ".modal-container .modal-header-button",
           )
+          .forEach((button) => button.click());
+        activeDocument
+          .querySelectorAll(".modal-container")
           .forEach((el) => el.remove());
       });
 
-      it("opens a readable modal on mobile that stays open until dismissed", async () => {
-        vi.useFakeTimers();
+      it("opens the merged dialog on mobile, keeping the scoped layout classes", async () => {
         ObsidianStubs.Platform.isMobile = true;
         settings.feeds = [createFeed({ title: "Example feed" })];
 
         openRefreshDetails();
-        await vi.advanceTimersByTimeAsync(10_000);
 
         const modal = document.querySelector<HTMLElement>(
           ".rss-dashboard-refresh-details-modal",
@@ -1188,27 +1191,43 @@ describe("Sidebar Core", () => {
         expect(
           modal?.querySelectorAll(".rss-dashboard-refresh-details-line").length,
         ).toBeGreaterThan(0);
-        expect(
-          document.querySelector(".rss-dashboard-refresh-details-manual"),
-        ).toBeNull();
         // Obsidian positions and animates phone modals itself. The plugin's
         // `rss-dashboard-modal` class re-centers with a transform on top of
         // that, which pushed this modal mostly off an iPhone screen.
         expect(modal?.classList.contains("rss-dashboard-modal")).toBe(false);
-        vi.useRealTimers();
       });
 
-      it("keeps the anchored popover on desktop", () => {
+      it("opens the merged dialog on desktop instead of a five-second popover", () => {
         settings.feeds = [createFeed({ title: "Example feed" })];
 
         openRefreshDetails();
 
         expect(
-          document.querySelector(".rss-dashboard-refresh-details-manual"),
+          document.querySelector(".rss-dashboard-refresh-details-modal"),
         ).not.toBeNull();
         expect(
-          document.querySelector(".rss-dashboard-refresh-details-modal"),
+          document.querySelector(".rss-dashboard-refresh-details"),
         ).toBeNull();
+      });
+
+      it("lists a failing feed with its own copy action", () => {
+        settings.feeds = [
+          createFeed({
+            title: "Broken feed",
+            lastFetchError: "HTTP 500",
+          }),
+        ];
+
+        openRefreshDetails();
+
+        const modal = document.querySelector<HTMLElement>(
+          ".rss-dashboard-refresh-details-modal",
+        );
+        expect(modal?.textContent).toContain("Broken feed");
+        expect(modal?.textContent).toContain("HTTP 500");
+        expect(
+          modal?.querySelector(".rss-dashboard-feed-error-copy")?.textContent,
+        ).toBe("Copy error");
       });
     });
 

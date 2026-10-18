@@ -62,6 +62,26 @@ _Avoid_: Active feeds, multi-selection target, highlighted list
 Relocating multiple selected feeds or folders together into a target destination folder or root in a single operation.
 _Avoid_: Bulk drag, mass reorder, multi-drop
 
+**Feed error**:
+A stored, user-readable message recording why a feed last failed, shown on its sidebar row and in the feed's details dialog. Two kinds: a [[Refresh failure]] and an [[Import failure]]. One feed holds at most one of each.
+_Avoid_: Fetch error (unqualified), refresh error (when either kind is meant)
+
+**Refresh failure**:
+The [[Feed error]] from the most recent failed fetch, stored on `lastFetchError`, cleared on the next successful fetch.
+_Avoid_: Fetch error (when only the refresh kind is meant)
+
+**Import failure**:
+The [[Feed error]] from the feed's most recent failed background import, stored on `importError` alongside `importStatus` `failed` or `timed_out`; cleared by a successful import or refresh.
+_Avoid_: Fetch error, import error (when the concept is meant)
+
+**Failing feed**:
+A feed currently holding a [[Refresh failure]] and/or an [[Import failure]]. Counted once however many kinds it holds. Storage-health warnings are not feed errors.
+_Avoid_: Failed feed (when only a fetch failure is meant)
+
+**Feed error dialog**:
+The dialog presenting one feed's refresh details and its [[Feed error]]s, with a copy action. Opened from the sidebar error badge, or from the feed's `Refresh details` and `View fetch error` menu items; titled `Feed error` from the badge and `View fetch error`, and `Refresh details` from the `Refresh details` item.
+_Avoid_: Fetch error dialog, refresh details modal (when the merged dialog is meant)
+
 ## Sidebar search
 
 **Sidebar search**:

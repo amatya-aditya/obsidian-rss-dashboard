@@ -14,6 +14,23 @@ import { parseFetchErrorMessage } from "../../../src/services/feed-parser/feed-e
 
 installObsidianDomPolyfills();
 
+/**
+ * The name a browser computes for the badge: `aria-labelledby` first, then
+ * `aria-label`, then the text. jsdom ships no name computation.
+ */
+function badgeName(el: Element | null | undefined): string {
+  if (!el) return "";
+  const ids = el.getAttribute("aria-labelledby");
+  if (ids) {
+    return ids
+      .split(/\s+/)
+      .map((id) => el.ownerDocument.getElementById(id)?.textContent?.trim())
+      .filter(Boolean)
+      .join(" ");
+  }
+  return el.getAttribute("aria-label") ?? el.textContent?.trim() ?? "";
+}
+
 describe("Feed Error Badge Rendering", () => {
   let app: App;
   let container: HTMLElement;
@@ -95,7 +112,7 @@ describe("Feed Error Badge Rendering", () => {
     ).toBeNull();
   });
 
-  it("should render error badge with correct attributes when lastFetchError is present", () => {
+  it("should render the error badge as a native button named after the failure", () => {
     settings.feeds = [
       {
         title: "Failed Feed",
@@ -121,13 +138,198 @@ describe("Feed Error Badge Rendering", () => {
     ) as HTMLElement;
 
     expect(errorBadge).not.toBeNull();
+    // A native button is reachable and activatable by keyboard alone, unlike
+    // the previous non-interactive `div` whose message only reached a tooltip.
+    expect(errorBadge.tagName).toBe("BUTTON");
+    expect(errorBadge.getAttribute("type")).toBe("button");
     expect(errorBadge.hasAttribute("title")).toBe(false);
-    expect(errorBadge.getAttribute("aria-label")).toContain(
-      "Request failed, status 429",
+    // No `aria-label` either: Obsidian draws a hover tooltip from it, and the
+    // row's hover popover already reports the failure.
+    expect(errorBadge.hasAttribute("aria-label")).toBe(false);
+    expect(badgeName(errorBadge)).toBe(
+      "Refresh failed: Request failed, status 429. Show details",
     );
 
     // Check it rendered the icon
     expect(lucideIconId(errorBadge)).toBe("alert-circle");
+  });
+
+  it("caps the badge's name at the display limit, not the stored message", () => {
+    const longError = "A".repeat(200);
+    settings.feeds = [
+      {
+        title: "Wordy failure",
+        url: "url-long",
+        folder: "Folder 1",
+        items: [],
+        lastFetchError: longError,
+      } as unknown as Feed,
+    ];
+
+    const sidebar = new Sidebar(
+      app as unknown as import("obsidian").App,
+      container,
+      plugin as unknown as RssDashboardPlugin,
+      settings,
+      options,
+      callbacks,
+    );
+    sidebar.render();
+
+    const label = badgeName(
+      container.querySelector(
+        '[data-feed-url="url-long"] .rss-dashboard-feed-error-badge',
+      ),
+    );
+
+    const expectedMessage = `${"A".repeat(77)}...`;
+    expect(label).toBe(`Refresh failed: ${expectedMessage} Show details`);
+    expect(label?.includes(longError)).toBe(false);
+    // A stored message that already ends a sentence keeps one full stop.
+    expect(label?.includes("....")).toBe(false);
+  });
+
+  it("does not double the full stop of a stored message that ends a sentence", () => {
+    settings.feeds = [
+      {
+        title: "Sentence failure",
+        url: "url-period",
+        folder: "Folder 1",
+        items: [],
+        lastFetchError: "Request failed: the host could not be resolved.",
+      } as unknown as Feed,
+    ];
+
+    const sidebar = new Sidebar(
+      app as unknown as import("obsidian").App,
+      container,
+      plugin as unknown as RssDashboardPlugin,
+      settings,
+      options,
+      callbacks,
+    );
+    sidebar.render();
+
+    expect(
+      badgeName(
+        container.querySelector(
+          '[data-feed-url="url-period"] .rss-dashboard-feed-error-badge',
+        ),
+      ),
+    ).toBe(
+      "Refresh failed: Request failed: the host could not be resolved. Show details",
+    );
+  });
+
+  it("opens the feed error dialog for its own feed when activated", () => {
+    settings.feeds = [
+      {
+        title: "Failed Feed",
+        url: "url-open",
+        folder: "Folder 1",
+        items: [],
+        lastFetchError: "HTTP 500",
+      } as unknown as Feed,
+    ];
+
+    const sidebar = new Sidebar(
+      app as unknown as import("obsidian").App,
+      container,
+      plugin as unknown as RssDashboardPlugin,
+      settings,
+      options,
+      callbacks,
+    );
+    sidebar.render();
+
+    const errorBadge = container.querySelector(
+      '[data-feed-url="url-open"] .rss-dashboard-feed-error-badge',
+    ) as HTMLElement;
+    errorBadge.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    const dialog = document.querySelector(
+      ".rss-dashboard-refresh-details-modal",
+    );
+    expect(dialog?.textContent).toContain("Failed Feed");
+    expect(dialog?.textContent).toContain("HTTP 500");
+    // Close through the host's own button so AccessibleModal releases its
+    // focus-trap listener and MutationObserver.
+    dialog
+      ?.closest(".modal")
+      ?.querySelector<HTMLElement>(".modal-header-button")
+      ?.click();
+  });
+
+  it("describes the failing feed row with its error badge", () => {
+    settings.feeds = [
+      {
+        title: "Failed Feed",
+        url: "url-described",
+        folder: "Folder 1",
+        items: [],
+        lastFetchError: "HTTP 500",
+      } as unknown as Feed,
+    ];
+
+    const sidebar = new Sidebar(
+      app as unknown as import("obsidian").App,
+      container,
+      plugin as unknown as RssDashboardPlugin,
+      settings,
+      options,
+      callbacks,
+    );
+    sidebar.render();
+
+    const row = container.querySelector(
+      '[data-feed-url="url-described"]',
+    ) as HTMLElement;
+    const badge = row.querySelector(".rss-dashboard-feed-error-badge");
+    const describedBy = row.getAttribute("aria-describedby") ?? "";
+
+    expect(badge?.id).toBeTruthy();
+    expect(describedBy.split(" ")).toContain(badge?.id);
+  });
+
+  it("caps the error in the row's screen-reader description", () => {
+    const longError = "B".repeat(200);
+    settings.feeds = [
+      {
+        title: "Wordy failure",
+        url: "url-described-long",
+        folder: "Folder 1",
+        items: [],
+        lastFetchError: longError,
+      } as unknown as Feed,
+    ];
+
+    const sidebar = new Sidebar(
+      app as unknown as import("obsidian").App,
+      container,
+      plugin as unknown as RssDashboardPlugin,
+      settings,
+      options,
+      callbacks,
+    );
+    sidebar.render();
+
+    // The description is announced on every row focus, so it is capped like the
+    // badge name; the dialog and the clipboard carry the full message.
+    const row = container.querySelector(
+      '[data-feed-url="url-described-long"]',
+    ) as HTMLElement;
+    const badgeId = row
+      .querySelector(".rss-dashboard-feed-error-badge")
+      ?.getAttribute("id");
+    const descriptionId = (row.getAttribute("aria-describedby") ?? "")
+      .split(" ")
+      .find((id) => id.length > 0 && id !== badgeId);
+    const description = document.getElementById(descriptionId ?? "");
+
+    expect(description?.textContent).toContain(
+      `Refresh failed: ${"B".repeat(77)}`,
+    );
+    expect(description?.textContent?.includes(longError)).toBe(false);
   });
 
   it("should render both unread count and error badge when both exist", () => {
@@ -228,7 +430,7 @@ describe("Feed Error Badge Rendering", () => {
     ) as HTMLElement;
 
     expect(errorBadge).not.toBeNull();
-    expect(errorBadge.getAttribute("aria-label")).toContain("status 500");
+    expect(badgeName(errorBadge)).toContain("status 500");
     expect(lucideIconId(errorBadge)).toBe("alert-circle");
   });
 
@@ -398,10 +600,9 @@ describe("parseFetchErrorMessage", () => {
     expect(parseFetchErrorMessage(null)).toBe("Unknown error");
   });
 
-  it("should truncate very long messages", () => {
+  it("keeps a very long message in full", () => {
     const longError = "A".repeat(200);
     const parsed = parseFetchErrorMessage(longError);
-    expect(parsed.length).toBeLessThanOrEqual(120);
-    expect(parsed.endsWith("...")).toBe(true);
+    expect(parsed).toBe(longError);
   });
 });

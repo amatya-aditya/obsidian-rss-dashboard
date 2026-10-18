@@ -32,6 +32,8 @@ import {
 } from "./feed-preview-loader";
 import { MediaService } from "../../services/media-service";
 import { copyTextToClipboard } from "../../utils/export-utils";
+import { renderFeedErrorKinds } from "../../components/feed-error-section";
+import { getFeedErrorDetail } from "../../utils/feed-error";
 import { addInputClearButton } from "../../utils/input-clear-button";
 import { addTagMultiSelectControl } from "../../components/tag-multi-select-control";
 import { TagApplicationConfirmModal } from "./tag-application-confirm-modal";
@@ -45,6 +47,13 @@ import { getEffectiveDateMs } from "../../services/feed-parser/feed-retention.js
 
 const EMPTY_FEED_VALIDATION_WARNING =
   "Feed validation passed, however no content detected.";
+
+/**
+ * The edit modal's read-only label for the refresh kind. The dialog uses the
+ * shorter `Refresh failed`; this surface names it as the stored last attempt so
+ * it reads apart from the live `Status` line above it.
+ */
+const STORED_REFRESH_FAILURE_LABEL = "Last refresh failed";
 
 export interface EditFeedModalOptions {
   expandSection?: "per-feed" | "rules";
@@ -358,6 +367,8 @@ export class EditFeedModal extends AccessibleModal {
       cls: "add-feed-status",
     });
 
+    this.renderStoredFeedErrors();
+
     const folderSetting = new Setting(this.contentEl)
       .setName("Folder")
       .addText((text) => {
@@ -381,6 +392,24 @@ export class EditFeedModal extends AccessibleModal {
         );
       });
     folderSetting.settingEl.addClass("rss-feed-form-row");
+  }
+
+  /**
+   * The feed's stored feed errors, exactly as stored. A debugging surface, not
+   * a diagnostics runner: it reads persisted state and never re-checks the
+   * feed, so it survives a restart without holding the modal on a network
+   * round-trip. The Load action above owns the `Status` line; this is separate.
+   */
+  private renderStoredFeedErrors(): void {
+    const detail = getFeedErrorDetail(this.feed);
+    if (!detail.refreshError && !detail.importError) return;
+
+    const section = this.contentEl.createDiv({
+      cls: "rss-dashboard-feed-error-section",
+    });
+    renderFeedErrorKinds(section, detail, {
+      refreshLabel: STORED_REFRESH_FAILURE_LABEL,
+    });
   }
 
   /* ============================================

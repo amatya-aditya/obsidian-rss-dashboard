@@ -66,10 +66,8 @@ export function parseFetchErrorMessage(error: unknown): string {
   // Strip leading "Error: " prefix if present (normalises thrown Error messages)
   const withoutPrefix = raw.replace(/^Error:\s*/i, "").trim();
 
-  // Truncate to 120 chars so very long messages don't break the tooltip
-  if (withoutPrefix.length > 120) {
-    return withoutPrefix.substring(0, 117) + "...";
-  }
-
+  // The full message is kept. Two writers used to cap it differently, which
+  // made "copy the whole error for debugging" untrue; display surfaces cap it
+  // instead (see `capFeedErrorMessage`).
   return withoutPrefix || "Unknown error";
 }
