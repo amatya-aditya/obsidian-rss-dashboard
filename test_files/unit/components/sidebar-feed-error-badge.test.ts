@@ -14,6 +14,23 @@ import { parseFetchErrorMessage } from "../../../src/services/feed-parser/feed-e
 
 installObsidianDomPolyfills();
 
+/**
+ * The name a browser computes for the badge: `aria-labelledby` first, then
+ * `aria-label`, then the text. jsdom ships no name computation.
+ */
+function badgeName(el: Element | null | undefined): string {
+  if (!el) return "";
+  const ids = el.getAttribute("aria-labelledby");
+  if (ids) {
+    return ids
+      .split(/\s+/)
+      .map((id) => el.ownerDocument.getElementById(id)?.textContent?.trim())
+      .filter(Boolean)
+      .join(" ");
+  }
+  return el.getAttribute("aria-label") ?? el.textContent?.trim() ?? "";
+}
+
 describe("Feed Error Badge Rendering", () => {
   let app: App;
   let container: HTMLElement;
@@ -126,7 +143,10 @@ describe("Feed Error Badge Rendering", () => {
     expect(errorBadge.tagName).toBe("BUTTON");
     expect(errorBadge.getAttribute("type")).toBe("button");
     expect(errorBadge.hasAttribute("title")).toBe(false);
-    expect(errorBadge.getAttribute("aria-label")).toBe(
+    // No `aria-label` either: Obsidian draws a hover tooltip from it, and the
+    // row's hover popover already reports the failure.
+    expect(errorBadge.hasAttribute("aria-label")).toBe(false);
+    expect(badgeName(errorBadge)).toBe(
       "Refresh failed: Request failed, status 429. Show details",
     );
 
@@ -156,11 +176,11 @@ describe("Feed Error Badge Rendering", () => {
     );
     sidebar.render();
 
-    const label = container
-      .querySelector(
+    const label = badgeName(
+      container.querySelector(
         '[data-feed-url="url-long"] .rss-dashboard-feed-error-badge',
-      )
-      ?.getAttribute("aria-label");
+      ),
+    );
 
     const expectedMessage = `${"A".repeat(77)}...`;
     expect(label).toBe(`Refresh failed: ${expectedMessage} Show details`);
@@ -191,11 +211,11 @@ describe("Feed Error Badge Rendering", () => {
     sidebar.render();
 
     expect(
-      container
-        .querySelector(
+      badgeName(
+        container.querySelector(
           '[data-feed-url="url-period"] .rss-dashboard-feed-error-badge',
-        )
-        ?.getAttribute("aria-label"),
+        ),
+      ),
     ).toBe(
       "Refresh failed: Request failed: the host could not be resolved. Show details",
     );
@@ -410,7 +430,7 @@ describe("Feed Error Badge Rendering", () => {
     ) as HTMLElement;
 
     expect(errorBadge).not.toBeNull();
-    expect(errorBadge.getAttribute("aria-label")).toContain("status 500");
+    expect(badgeName(errorBadge)).toContain("status 500");
     expect(lucideIconId(errorBadge)).toBe("alert-circle");
   });
 

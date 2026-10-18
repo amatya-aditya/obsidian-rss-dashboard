@@ -129,9 +129,20 @@ function renderFeedErrorBadge(
   if (!label) return;
   const badge = feedNameContainer.createEl("button", {
     cls: "rss-dashboard-feed-error-badge",
-    attr: { type: "button", "aria-label": label },
+    attr: { type: "button" },
   });
   setIcon(badge, "alert-circle");
+  /*
+   * Named through a hidden element rather than `aria-label`. Obsidian draws a
+   * hover tooltip from `aria-label`, and the row's hover popover already
+   * reports the same failure, so the badge showed the message twice.
+   */
+  const name = badge.createSpan({
+    cls: "rss-dashboard-feed-error-badge-name",
+    text: label,
+  });
+  name.id = `rss-feed-error-badge-${Math.random().toString(36).slice(2)}`;
+  badge.setAttr("aria-labelledby", name.id);
   badge.addEventListener("click", (event) => {
     // The row itself opens the feed; the badge opens its error dialog.
     event.stopPropagation();

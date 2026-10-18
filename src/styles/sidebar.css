@@ -844,21 +844,24 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
  * a paint-layer hint, the documented Android WebView failure modes. No
  * `clickable-icon` here: this surface uses a plugin-scoped button reset.
  *
- * 32x32 is the design-spec hit-area baseline, matched by the mobile 44x44 rule
- * below. A failing row is therefore taller than a healthy one, as it already is
- * on touch.
+ * The box is 16x16, the size of the feed icon beside it, so a failing row is
+ * the same height as a healthy one. The tap target is larger than the paint:
+ * `::after` below expands it to 24x24, the WCAG 2.2 AA 2.5.8 Target Size
+ * (Minimum), and to 32x32 on touch. The expansion is invisible and never
+ * changes the row's layout.
  */
 .rss-dashboard-feed-error-badge {
-  --icon-size: 14px;
+  --icon-size: 16px;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   contain: layout style;
-  width: 32px;
-  height: 32px;
-  min-width: 32px;
-  min-height: 32px;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  min-height: 16px;
   padding: 0;
   border: none;
   border-radius: 4px;
@@ -868,6 +871,23 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
   opacity: 0.85;
   cursor: pointer;
   margin-left: 4px;
+  /*
+   * The sidebar's resize handle overlaps the row's right edge, so the target
+   * below would lose its right 2px to the handle without this inset. It is
+   * layout, not decoration: drop it and the 24px target measures 22px.
+   */
+  margin-right: 4px;
+}
+
+/*
+ * The hit area, not the paint: 24x24 around a 16x16 box. `contain: layout`
+ * above already makes the button the containing block for this, and layout
+ * containment does not clip, so the target may sit outside the box.
+ */
+.rss-dashboard-feed-error-badge::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
 }
 
 .rss-dashboard-feed-error-badge:hover {
@@ -918,15 +938,10 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
   }
 }
 
-/* Mobile touch target for error badge */
+/* On touch the target grows to 32x32; the box and the row keep their size. */
 @media (hover: none) and (pointer: coarse) {
-  .rss-dashboard-feed-error-badge {
-    min-width: 44px;
-    min-height: 44px;
-    width: auto;
-    height: auto;
-    padding: 4px;
-    cursor: pointer;
+  .rss-dashboard-feed-error-badge::after {
+    inset: -8px;
   }
 }
 
@@ -1465,7 +1480,8 @@ body .rss-folder-name-modal {
 .rss-dashboard-refresh-details-sr-only,
 .rss-dashboard-sidebar-landmark-label,
 .rss-dashboard-refresh-announcer,
-.rss-dashboard-search-status {
+.rss-dashboard-search-status,
+.rss-dashboard-feed-error-badge-name {
   position: absolute;
   width: 1px;
   height: 1px;
