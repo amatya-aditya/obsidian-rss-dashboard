@@ -529,6 +529,28 @@ describe("renderGeneralSettingsTab() proxy URL dropdown", () => {
     expect(saveButton?.style.display).toBe("none");
   });
 
+  it("shows the saved option when a built-in URL is saved over a custom one", async () => {
+    const { row, settings, dropdown } = renderProxyRow(
+      "https://proxy.test/?url=",
+    );
+    await flushPromises();
+    const save = row.querySelector<HTMLButtonElement>(
+      'button[aria-label="Save proxy URL"]',
+    );
+    if (!save) throw new Error("Could not find the Save proxy URL button");
+    const builtIn = PREDEFINED_PROXIES[0]?.url ?? "";
+
+    const field = proxyField(row);
+    field.value = builtIn;
+    field.dispatchEvent(new Event("input"));
+    save.click();
+    await flushPromises();
+    await flushPromises();
+
+    expect(settings.corsProxyUrl).toBe(builtIn);
+    expect(dropdown.value).toBe(builtIn);
+  });
+
   it("shows the custom option once a typed URL is committed over a built-in proxy", async () => {
     const { row, settings, dropdown } = renderProxyRow(
       PREDEFINED_PROXIES[0]?.url ?? "",

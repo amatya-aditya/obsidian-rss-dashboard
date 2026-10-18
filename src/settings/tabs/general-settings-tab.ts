@@ -699,9 +699,7 @@ export function renderGeneralSettingsTab(
     /** Shows the save button only for the custom URL field. */
     const setSaveButtonVisible = (visible: boolean): void => {
       if (!saveButton) return;
-      void import("../../utils/platform-utils").then(({ setCssProps }) =>
-        setCssProps(saveButton!.buttonEl, { display: visible ? "" : "none" }),
-      );
+      setCssProps(saveButton.buttonEl, { display: visible ? "" : "none" });
     };
 
     /**
@@ -841,7 +839,7 @@ export function renderGeneralSettingsTab(
               pendingProxyUrl = customUrl;
               await plugin.saveSettings();
               new Notice("Proxy URL saved");
-              refreshProxyCheckSelection();
+              syncProxyRowToSetting();
               containerEl.dispatchEvent(
                 new CustomEvent("rss-settings-refresh"),
               );
