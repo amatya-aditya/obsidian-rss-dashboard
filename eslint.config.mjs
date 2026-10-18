@@ -29,6 +29,7 @@ export default defineConfig([
       "main.js",
       "*.mjs",
       "scripts/**/*.js",
+      ".agents/**",
       ".kilo/**",
       ".claude/**",
       ".worktrees/**",
