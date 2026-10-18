@@ -226,14 +226,25 @@ function buildArticleImage(
 }
 
 /**
- * Stored items hold absolute URLs: the parse rewrote relative ones in the blurb,
- * and the image fields were resolved against the feed. There is no base to apply
- * here, so a value that is still relative is refused rather than guessed at.
+ * The parser's two base-independent rewrites, for the restore action reading a
+ * stored item (#1330): a protocol-relative URL follows the page's own protocol
+ * as `convertToAbsoluteUrl` does, and the `app://` scheme is the Obsidian one
+ * the parser maps to `https://`. Everything else is returned as it stands, so a
+ * value that is still not `http(s)` is refused by the sanitizer rather than
+ * guessed at against a base the item no longer carries. Stored items have
+ * neither of the other two shapes: the parse rewrote relative `<img src>` values
+ * in the blurb, and the image fields were resolved against the feed.
  */
+function resolveStoredImageUrl(value: string): string {
+  if (value.startsWith("//")) return `https:${value}`;
+  if (value.startsWith("app://")) return value.replace("app://", "https://");
+  return value;
+}
+
 const STORED_ITEM_COVER_DEPS: FeedCoverDeps = {
-  convertToAbsoluteUrl: (relativeUrl) => relativeUrl,
+  convertToAbsoluteUrl: resolveStoredImageUrl,
   extractCoverImage: (html, baseUrl) =>
-    extractCoverImage(html, baseUrl ?? "", (relativeUrl) => relativeUrl),
+    extractCoverImage(html, baseUrl ?? "", resolveStoredImageUrl),
 };
 
 /** The stored fields a feed cover is recomputed from; a missing one is no candidate. */

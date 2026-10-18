@@ -762,6 +762,18 @@ describe("feed-item-builder", () => {
       ).toBe("");
     });
 
+    it("resolves the two rewrites the parser makes without a base", () => {
+      expect(
+        resolveStoredItemFeedCover(
+          stored({ content: `<img src="//cdn.example.com/hero.jpg">` }),
+        ),
+      ).toBe("https://cdn.example.com/hero.jpg");
+
+      expect(
+        resolveStoredItemFeedCover(stored({ image: "app://local/hero.jpg" })),
+      ).toBe("https://local/hero.jpg");
+    });
+
     it("is empty when the item stores no image at all", () => {
       expect(resolveStoredItemFeedCover(stored())).toBe("");
     });

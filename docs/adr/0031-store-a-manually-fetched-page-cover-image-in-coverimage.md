@@ -32,7 +32,7 @@ make, and has to decide where the result lives.
 
 The stored image has no provenance today: `coverImage` means "the image this item
 shows", and the refresh path already keeps an existing value when the feed itself
-supplies none (`resolveExistingCoverImage` in
+supplies none (`resolveExistingCover` in
 `src/services/feed-parser/feed-item-builder.ts`). A separate field would record
 that the value came from the page, at the cost of a precedence rule in every
 resolver that reads it.
