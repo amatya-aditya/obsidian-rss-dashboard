@@ -567,7 +567,7 @@ result must come from a known build and a clean vault.
 
 ## Seeded scenarios
 
-12 feeds, 163 articles: 48 read, 9 starred, 9 tagged, 1 saved, 2 with playback
+12 feeds, 164 articles: 48 read, 9 starred, 9 tagged, 1 saved, 2 with playback
 progress. The automated test in
 `test_files/unit/main/fixture-vault-loading.test.ts` checks these counts.
 
@@ -602,6 +602,7 @@ progress. The automated test in
 | Photo with a declared size                     | GitHub Blog: "Photo with a declared size" (#1169): a photo with `width="640" height="360"` is still used as the image, so the size rule does not over-reject                                                                                                                                            |
 | URL-pattern pixel as the only image            | GitHub Blog: "URL-pattern pixel as the only image" (#1169): nothing is stored or shown, in any build                                                                                                                                                                                                    |
 | Stored tracking pixel as the preview image     | GitHub Blog: "Stored tracking pixel as the preview image" (#1182): a tracking pixel stored in `coverImage` while the body has no usable image; the hero and the saved note show none. Run `npm run fixture:serve` so the pixel genuinely loads (a 404 would hide the defect on a build without the fix) |
+| Non-http feed link                             | GitHub Blog: "Article with a non-http link" (#1297): the feed `link` is `javascript:alert(1)`; the restricted, video-source, fetch-failure, starred-import and video-id-not-found links must be left out, never rendered as an anchor `href`                                                            |
 | Paywalled article                              | GitHub Blog: "Paywalled article showing only an excerpt"                                                                                                                                                                                                                                                |
 | Undated articles                               | GitHub Blog: two undated articles, one with a first-seen date and one without                                                                                                                                                                                                                           |
 | Imported starred article                       | JSON Feed: "Starred article imported from starred.json" (cached preview banner)                                                                                                                                                                                                                         |

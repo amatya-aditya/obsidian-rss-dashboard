@@ -162,6 +162,20 @@
       "mediaType": "article"
     },
     {
+      "title": "Article with a non-http link",
+      "link": "javascript:alert(1)",
+      "description": "<p>Shows binder marks patient module bramble atlas trail steady delta reader simple. Opens plain compass field checks tests index thread. Cedar opens notebook reads ribbon brief vector notebook spindle. Amber cedar clover module token beacon fixture corridor gentle.</p>\n<p>Curious bramble plain compass curious delta patient saves signal calm quarry sample meadow stanza opens. Reads velvet delta lantern careful moves table folder window. Saves engine stanza ribbon cedar ribbon atlas archive kernel draft opens marks. Window zephyr signal timber engine compass reads checks atlas quiet folder.</p>",
+      "content": "<p>Shows binder marks patient module bramble atlas trail steady delta reader simple. Opens plain compass field checks tests index thread. Cedar opens notebook reads ribbon brief vector notebook spindle. Amber cedar clover module token beacon fixture corridor gentle.</p>\n<p>Curious bramble plain compass curious delta patient saves signal calm quarry sample meadow stanza opens. Reads velvet delta lantern careful moves table folder window. Saves engine stanza ribbon cedar ribbon atlas archive kernel draft opens marks. Window zephyr signal timber engine compass reads checks atlas quiet folder.</p>",
+      "pubDate": "Mon, 31 Aug 2026 23:00:00 GMT",
+      "guid": "https://example.com/rss-dashboard-fixture/rss-tech/non-http-link",
+      "feedTitle": "GitHub Blog (fixture)",
+      "feedUrl": "https://github.blog/feed/",
+      "coverImage": "",
+      "summary": "Shows binder marks patient module bramble atlas trail steady delta reader simple. Opens plain compass field checks tests index thread. Cedar opens notebook reads ribbon brief vector notebook spindle. Amber cedar clover module token beacon fixture corridor gentle.",
+      "author": "Fixture Author",
+      "mediaType": "article"
+    },
+    {
       "title": "Fixture guide to offline reading",
       "link": "https://example.com/rss-dashboard-fixture/rss-tech/4",
       "description": "<p>Finds cipher paper sample simple calm opens bramble calm meadow fixture keeps beacon. Calm trail velvet meadow trail vector quiet orbit moves gallery reads patient. Sketch steady timber vector pixel garden river patient patient engine sketch module pilot. Steady sorts moves meadow moves draft ledger delta gallery patient steady checks lantern engine summit corridor.</p>\n<p>Anchor bramble quiet reads quiet island clover orbit sorts. Signal mirror mirror builds pilot trail vector ember yarrow table vector outline amber rapid moves. Tangent trail reader outline paper quiet ribbon mirror pixel module zephyr. Gallery velvet signal planner stanza metric channel copper reader archive planner garden zephyr sample.</p>\n<p>Tests summit field careful shows corridor brief forest river. Lantern copper pilot folder table steady quarry summit checks quill. Atlas patient pebble calm harbor yarrow marble marble binder beacon radar timber amber token notebook. Granite harbor spindle marble granite pebble delta atlas quill.</p>",

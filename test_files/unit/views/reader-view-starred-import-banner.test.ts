@@ -137,6 +137,31 @@ describe("ReaderView starred-import cached-preview banner", () => {
     expect(openLink?.textContent).toContain("Open in browser");
   });
 
+  it("omits the Open in browser link when the feed link is not http(s) (#1297)", async () => {
+    const item = makeItem({
+      link: "javascript:alert(1)",
+      starredImportContentState: "unfetched",
+      starredImportedAt: Date.now(),
+    });
+
+    await readerView.onOpen();
+    await readerView.displayItem(item);
+
+    const readingContainer = (
+      readerView as unknown as { readingContainer: HTMLElement }
+    ).readingContainer;
+    const banner = readingContainer.querySelector(
+      ".rss-reader-starred-import-banner",
+    );
+    expect(banner).not.toBeNull();
+    expect(
+      banner?.querySelector(".rss-reader-starred-import-fetch-now"),
+    ).not.toBeNull();
+    expect(
+      banner?.querySelector(".rss-reader-starred-import-open-link"),
+    ).toBeNull();
+  });
+
   it("shows a distinct banner wording for an article whose last fetch attempt failed", async () => {
     const item = makeItem({
       starredImportContentState: "failed",

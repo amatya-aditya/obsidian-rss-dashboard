@@ -61,6 +61,7 @@ import {
   findFirstNonFormulaImage,
   firstNonFormulaImageUrl,
 } from "../utils/image-url-utils";
+import { getOpenableHttpHref } from "../utils/url-utils";
 import { applyReaderImageLoading } from "../utils/reader-image-loading";
 import { PodcastPlayer } from "../views/podcast-player";
 import { VideoPlayer } from "../views/video-player";
@@ -262,11 +263,12 @@ export class ArticleRenderer {
         cls: "rss-reader-error",
         text: "Video id not found. Cannot play this video.",
       });
-      if (item.link) {
+      const watchHref = getOpenableHttpHref(item.link);
+      if (watchHref) {
         const watchLink = errorContainer.createEl("a", {
           cls: "rss-reader-error-link",
           text: "Watch on YouTube",
-          href: item.link,
+          href: watchHref,
         });
         watchLink.target = "_blank";
         watchLink.rel = "noopener noreferrer";

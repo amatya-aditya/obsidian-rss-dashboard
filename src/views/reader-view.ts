@@ -108,6 +108,7 @@ import {
   recoverFailedSubstackImageElement,
 } from "../utils/substack-image-url";
 import { firstNonFormulaImageUrl } from "../utils/image-url-utils";
+import { getOpenableHttpHref } from "../utils/url-utils";
 import { applyReaderImageLoading } from "../utils/reader-image-loading";
 import { markNamedLandmark } from "../utils/landmarks";
 import { ReaderLightbox } from "../components/reader-lightbox";
@@ -1513,11 +1514,12 @@ export class ReaderView extends ItemView {
         cls: "rss-reader-error",
         text: "Video id not found. Cannot play this video.",
       });
-      if (item.link) {
+      const watchHref = getOpenableHttpHref(item.link);
+      if (watchHref) {
         const watchLink = errorContainer.createEl("a", {
           cls: "rss-reader-error-link",
           text: "Watch on YouTube",
-          href: item.link,
+          href: watchHref,
         });
         watchLink.target = "_blank";
         watchLink.rel = "noopener noreferrer";
@@ -1961,11 +1963,12 @@ export class ReaderView extends ItemView {
       void this.handleStarredImportFetchNow(item);
     });
 
-    if (item.link) {
+    const openHref = getOpenableHttpHref(item.link);
+    if (openHref) {
       const openLink = actions.createEl("a", {
         cls: "rss-reader-starred-import-open-link",
         text: STARRED_IMPORT_OPEN_IN_BROWSER_TEXT,
-        href: item.link,
+        href: openHref,
       });
       openLink.target = "_blank";
       openLink.rel = "noopener noreferrer";

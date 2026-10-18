@@ -10,6 +10,7 @@ import {
   RESTRICTED_ARTICLE_REASON,
 } from "./full-article-fetch";
 import { isLikelyVideoItem } from "./video-detection";
+import { getOpenableHttpHref } from "./url-utils";
 
 const VIDEO_ARTICLE_BANNER =
   "This item appears to be a video. Open the source page to watch.";
@@ -53,14 +54,15 @@ export function renderRestrictedBanner(
       : (item.restrictedReason ?? RESTRICTED_ARTICLE_BANNER),
   );
 
-  if (!item.link) {
+  const href = getOpenableHttpHref(item.link);
+  if (!href) {
     return;
   }
 
   const link = banner.createEl("a", {
     cls: "rss-reader-paywall-banner-link",
     text: RESTRICTED_ARTICLE_LINK_TEXT,
-    href: item.link,
+    href,
   });
   link.target = "_blank";
   link.rel = "noopener noreferrer";
@@ -85,14 +87,15 @@ export function renderVideoSourceBanner(
   });
   message.setAttr("role", "note");
 
-  if (!item.link) {
+  const href = getOpenableHttpHref(item.link);
+  if (!href) {
     return;
   }
 
   const link = banner.createEl("a", {
     cls: "rss-reader-video-banner-link",
     text: VIDEO_ARTICLE_LINK_TEXT,
-    href: item.link,
+    href,
   });
   link.target = "_blank";
   link.rel = "noopener noreferrer";

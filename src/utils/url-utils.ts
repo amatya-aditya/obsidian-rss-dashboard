@@ -8,6 +8,18 @@ export function isOpenableHttpUrl(rawUrl: string): boolean {
 }
 
 /**
+ * The trimmed link when it is an openable http(s) URL, else null. Feed-supplied
+ * links reach anchors through this so a `javascript:`, `data:` or `mailto:`
+ * value is never built into an `href` (#1297).
+ */
+export function getOpenableHttpHref(
+  rawUrl: string | null | undefined,
+): string | null {
+  const trimmed = (rawUrl ?? "").trim();
+  return trimmed && isOpenableHttpUrl(trimmed) ? trimmed : null;
+}
+
+/**
  * YouTube video IDs are 11-character base64url strings ([-_A-Za-z0-9]{11}).
  */
 const YT_VIDEO_ID_RE = /^[-_A-Za-z0-9]{11}$/;
