@@ -7,6 +7,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   COUNTER_IMAGE_FILE,
+  CREDIT_CAPTION_HERO_FILE,
+  CREDIT_CAPTION_HERO_URL,
+  CREDIT_CAPTION_LINK,
+  CREDIT_CAPTION_PAGE,
   EMPTY_DESCRIPTION_LINK,
   EMPTY_DESCRIPTION_PAGE,
   FEED_ADVERTISING_PAGE,
@@ -177,6 +181,58 @@ describe("Empty-description fixture scenario (#975)", () => {
   });
 });
 
+// The seeded "Article with a duplicate lead photo credit" scenario (#1305): a
+// caption-only <figure> whose credit the publisher repeats as a paragraph above
+// the body, with a hero set. These tests keep the seed item, the committed page,
+// and the fixture server in step.
+describe("Duplicate lead photo credit fixture scenario (#1305)", () => {
+  function seededCreditCaptionItem(): FeedItem {
+    const item = seededItems().find(
+      (entry) => entry.link === CREDIT_CAPTION_LINK,
+    );
+    if (!item) throw new Error("Seeded credit-caption article not found.");
+    return item;
+  }
+
+  it("seeds an article with a hero that links to the page", () => {
+    const item = seededCreditCaptionItem();
+
+    expect(item.coverImage).toBe(CREDIT_CAPTION_HERO_URL);
+    // No feed description, so nothing else competes to be the article lead.
+    expect(item.description).toBe("");
+  });
+
+  it("keeps the caption and both repeated paragraphs in the fetched page", () => {
+    const html = readFileSync(
+      join(FIXTURE_PAGES_DIR, CREDIT_CAPTION_PAGE),
+      "utf8",
+    );
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const articleHtml = new Readability(doc).parse()?.content ?? "";
+
+    // The pairing runs on the page's own blocks, so the caption and the three
+    // credit paragraphs must survive Readability for the scenario to hold.
+    expect(articleHtml).toContain(
+      "<figcaption>Photo credit: Jane Doe</figcaption>",
+    );
+    expect(articleHtml.match(/Photo credit: Jane Doe/g)).toHaveLength(3);
+    expect(articleHtml).toContain("Photo credit: John Roe");
+  });
+
+  it("serves the page and its hero over HTTP", async () => {
+    const port = await listeningPort();
+
+    const page = await get(port, `/${CREDIT_CAPTION_PAGE}`);
+    expect(page.status).toBe(200);
+    expect(page.contentType).toContain("text/html");
+    expect(page.body).toContain("Photo credit: Jane Doe");
+
+    const hero = await getBytes(port, `/${CREDIT_CAPTION_HERO_FILE}`);
+    expect(hero.status).toBe(200);
+    expect(hero.contentType).toContain("image/png");
+  });
+});
+
 // The seeded "User-Agent echo (fixture)" feed (#1162 test drive): refresh it
 // with the server running and the terminal prints the headers the fetch sent.
 // These tests keep the seed, the address, and the printed lines in step, so the
@@ -291,6 +347,14 @@ describe("Fixture server file mapping (#1169)", () => {
     expect(resolveFixtureFile(`/${EMPTY_DESCRIPTION_PAGE}`)).toMatchObject({
       name: EMPTY_DESCRIPTION_PAGE,
       contentType: "text/html; charset=utf-8",
+    });
+    expect(resolveFixtureFile(`/${CREDIT_CAPTION_PAGE}`)).toMatchObject({
+      name: CREDIT_CAPTION_PAGE,
+      contentType: "text/html; charset=utf-8",
+    });
+    expect(resolveFixtureFile(`/${CREDIT_CAPTION_HERO_FILE}`)).toMatchObject({
+      name: CREDIT_CAPTION_HERO_FILE,
+      contentType: "image/png",
     });
     expect(resolveFixtureFile(`/${FEED_ADVERTISING_PAGE}`)).toMatchObject({
       name: FEED_ADVERTISING_PAGE,
