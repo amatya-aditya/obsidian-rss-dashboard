@@ -94,3 +94,42 @@ jobs:
           files: ./coverage/coverage-final.json
           flags: unittests
           name: rss-dashboard
+
+  # Windows-only path-case bugs (#1319) cannot show on Ubuntu, where the launch
+  # path and the disk path already agree. Run only the main-folder tests and the
+  # pre-commit hook's related selection, launched by script path exactly as
+  # `.githooks/pre-commit` does; the full suite stays on Ubuntu (#1321).
+  test-windows:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Run the main-folder unit tests
+        run: node node_modules/vitest/vitest.mjs run --config vitest.config.mjs test_files/unit/main
+
+      # `--passWithNoTests` mirrors the hook, which exits 0 when nothing is
+      # selected. Fail here instead, so the check cannot quietly stop covering
+      # anything.
+      - name: Run the related-test selection
+        run: |
+          set -o pipefail
+          node node_modules/vitest/vitest.mjs related --run --passWithNoTests --config vitest.config.mjs src/settings/tabs/general-settings-tab.ts | tee related.log
+          if grep -q "No test files found" related.log; then
+            echo "::error::vitest related selected no test files"
+            exit 1
+          fi
