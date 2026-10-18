@@ -338,6 +338,21 @@ describe("ReaderView article rendering (characterization)", () => {
       expect(fetchMock()).not.toHaveBeenCalled();
     });
 
+    // The old player holds the last position it heard and a live handshake
+    // timer; only destroy() saves the one and stops the other (#1236).
+    it("tears down the previous video player when another video is displayed", async () => {
+      await view.displayItem(
+        makeItem({ mediaType: "video", videoId: "abcdefghijk" }),
+      );
+      await view.displayItem(
+        makeItem({ guid: "g2", mediaType: "video", videoId: "bcdefghijkl" }),
+      );
+
+      expect(players.videos).toHaveLength(2);
+      expect(players.videos[0]?.destroy).toHaveBeenCalledTimes(1);
+      expect(players.videos[1]?.destroy).not.toHaveBeenCalled();
+    });
+
     it("does not hand the video player an empty related list", async () => {
       await view.displayItem(
         makeItem({ mediaType: "video", videoId: "abcdefghijk" }),

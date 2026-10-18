@@ -1491,6 +1491,12 @@ export class ReaderView extends ItemView {
       this.podcastPlayer.destroy();
       this.podcastPlayer = null;
     }
+    // A related-video click lands here with the old player still live: destroy
+    // saves its last position and stops its timers and message listener.
+    if (this.videoPlayer) {
+      this.videoPlayer.destroy();
+      this.videoPlayer = null;
+    }
     const container = this.readingContainer.createDiv({
       cls: "rss-reader-video-container enhanced",
     });
