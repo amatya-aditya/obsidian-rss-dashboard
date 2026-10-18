@@ -68,11 +68,13 @@ import {
   resolveReaderMediaRoute,
   resolveRelativeUrlsInDocument,
   descriptionToStripFromBody,
+  feedDescriptionToStripFromBody,
   selectArticleSections,
   stripEmbeddedTooltipAttributes,
 } from "../utils/reader-article-render";
 import {
   collectLeadCaptionTexts,
+  cleanFetchedArticleHtml,
   extractDisplayTitleFromHtml,
   flattenSingleRootWrapper,
   hasMeaningfulArticleContent,
@@ -82,10 +84,8 @@ import {
   stripDuplicateLeadMediaMatchingHero,
   stripLeadMediaBeforeContent,
   stripNavigationChromeFromDocument,
-  stripNavigationChromeFromHtml,
   stripSkipLinksFromDocument,
   stripTopHeadlineFromDocument,
-  stripTopHeadlineFromHtml,
 } from "../utils/reader-html-cleanup";
 import { stripAdContainersFromHtml } from "../utils/ad-containers";
 import TurndownService from "turndown";
@@ -775,9 +775,15 @@ export class ReaderView extends ItemView {
   private buildReaderSaveMarkdown(item: FeedItem): string {
     const htmlToSave =
       this.currentFullContent && this.currentContentIsFullArticle
-        ? stripNavigationChromeFromHtml(
-            stripTopHeadlineFromHtml(this.currentFullContent),
-          )
+        ? cleanFetchedArticleHtml(this.currentFullContent, {
+            // The note body follows the body the reader shows: same cleanup,
+            // same description and hero inputs (#1323).
+            feedDescriptionHtml: feedDescriptionToStripFromBody(
+              item,
+              this.currentFullContent,
+            ),
+            fallbackHeroUrl: resolveFallbackHeroUrl(item, this.settings.feeds),
+          })
         : this.currentFullContent || item.description || "";
     // Same ad stripping the saver applies on its own paths (#1195).
     const htmlWithHero = this.prependFallbackHeroForSavedMarkdown(

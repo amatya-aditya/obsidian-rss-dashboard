@@ -34,6 +34,8 @@ type ReaderViewHarness = {
   contentEl: HTMLElement;
   readingContainer: HTMLElement;
   fetchFullArticleContent: ReturnType<typeof vi.fn>;
+  currentFullContent?: string;
+  currentContentIsFullArticle: boolean;
   buildReaderSaveMarkdown(item: FeedItem): string;
 };
 
@@ -467,6 +469,37 @@ describe("ReaderView – summary de-duplication", () => {
   }
 
   // ------------------------------------------------------------------ RED ---
+
+  it("drops the lead credit caption and its repeated paragraph from the saved Markdown (#1323)", () => {
+    const hero = "https://img.example.com/images/hero.jpg";
+    const credit = "Photo credit: Jane Doe";
+    const otherCredit = "Photo credit: John Roe";
+    const bodyText = "Body sentence of the article. ".repeat(8);
+    const harness = getHarness(readerView);
+    // The fetched page as Readability returns it: one root element around the
+    // lead credit caption, the repeated credit, a different credit, the body,
+    // and a trailing repeated credit (#1304).
+    harness.currentFullContent = `<div id="readability-page-1" class="page">
+      <figure><figcaption>${credit}</figcaption></figure>
+      <p>${credit}</p>
+      <p>${otherCredit}</p>
+      <p>${bodyText}</p>
+      <p>${credit}</p>
+    </div>`;
+    harness.currentContentIsFullArticle = true;
+
+    const markdown = harness.buildReaderSaveMarkdown(
+      makeItem({ coverImage: hero }),
+    );
+
+    // The note body follows the body the Reader shows: the caption's figure and
+    // the repeated lead credit are gone, and the differing credit and the
+    // trailing one stay (#1305, #1323).
+    expect(markdown.match(/Photo credit: Jane Doe/g)).toHaveLength(1);
+    expect(markdown).toContain(otherCredit);
+    expect(markdown).toContain(bodyText.trim());
+    expect(markdown).toContain(`![Hero image](${hero})`);
+  });
 
   it("RED: no callout when description equals content except for HTML entity encoding", async () => {
     const item = makeItem({

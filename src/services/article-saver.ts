@@ -18,6 +18,11 @@ import { isLikelyVideoItem } from "../utils/video-detection";
 import { articleHtmlToMarkdown } from "../utils/article-markdown";
 import { replaceYouTubeEmbedsInHtmlNote } from "../utils/youtube-embed";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
+import {
+  feedDescriptionToStripFromBody,
+  resolveFallbackHeroUrl,
+} from "../utils/reader-article-render";
+import { cleanFetchedArticleDocument } from "../utils/reader-html-cleanup";
 import { resolveDisplayDate } from "./feed-parser/feed-retention";
 import {
   buildArticleTemplateValues,
@@ -564,7 +569,29 @@ guid: "{{guid}}"
   }
 
   private convertFetchedHtmlToMarkdown(item: FeedItem, html: string): string {
-    const sanitizedHtml = this.sanitizeFeedHtmlForMarkdown(html, item.link);
+    const doc = this.parseHtmlBody(html);
+    if (!doc) {
+      return this.prependFallbackHeroMarkdown(
+        item,
+        articleHtmlToMarkdown(html),
+        html,
+      );
+    }
+
+    this.stripAdsAndNonContentNodes(doc);
+    this.absolutizeImageSources(doc, item.link);
+    // The note body follows the body the readers show: run the same fetched
+    // page cleanup once, before the conversion, so a save from any route drops
+    // the lead media and repeated lead the readers already drop (#1323).
+    cleanFetchedArticleDocument(doc, {
+      feedDescriptionHtml: feedDescriptionToStripFromBody(
+        item,
+        doc.body.innerHTML,
+      ),
+      fallbackHeroUrl: resolveFallbackHeroUrl(item, this.getFeeds()),
+    });
+
+    const sanitizedHtml = doc.body.innerHTML;
     return this.prependFallbackHeroMarkdown(
       item,
       articleHtmlToMarkdown(sanitizedHtml),

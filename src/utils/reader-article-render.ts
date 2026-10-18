@@ -154,6 +154,25 @@ export function selectCalloutDescription(item: FeedItem): {
   };
 }
 
+/**
+ * The description the fetched-body scan should take out of the lead, or
+ * `undefined` for none. Shared by the readers' render and the save path, so a
+ * note drops the same repeated intro the reader does (#1238, #1323).
+ */
+export function feedDescriptionToStripFromBody(
+  item: FeedItem,
+  bodyHtml: string,
+): string | undefined {
+  const { html: descriptionHtml } = selectCalloutDescription(item);
+  const hasMeaningfulDescription =
+    hasMeaningfulFeedDescription(descriptionHtml);
+  const hasDistinctMainContent =
+    bodyHtml.trim() !== "" &&
+    (!hasMeaningfulDescription || !isDuplicateIntro(descriptionHtml, bodyHtml));
+
+  return descriptionToStripFromBody(hasDistinctMainContent, descriptionHtml);
+}
+
 /** Splits an item into the callout description and the body to render. */
 export function selectArticleSections(
   item: FeedItem,
