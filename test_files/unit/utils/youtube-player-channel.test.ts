@@ -112,6 +112,50 @@ describe("connectYouTubePlayerChannel", () => {
     dispose();
   });
 
+  // Re-navigating the player iframe replaces the nested frame with a new window;
+  // an answer from the first one must not pin the channel to a dead window.
+  it("reconnects to a replacement player window after the host reloads", () => {
+    const { iframe, host, player } = hostIframe();
+    const onUpdate = vi.fn();
+    const dispose = connectYouTubePlayerChannel(iframe, onUpdate);
+    postMessageFrom(player, { event: "onReady", info: null });
+
+    const replacement = fakeWindow();
+    host.frames[0] = replacement;
+    vi.advanceTimersByTime(5000);
+    expect(replacement.postMessage).toHaveBeenCalledTimes(1);
+
+    postMessageFrom(replacement, {
+      event: "infoDelivery",
+      info: { currentTime: 9 },
+    });
+    expect(onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ currentTime: 9 }),
+    );
+
+    onUpdate.mockClear();
+    postMessageFrom(player, {
+      event: "infoDelivery",
+      info: { currentTime: 3 },
+    });
+    expect(onUpdate).not.toHaveBeenCalled();
+    dispose();
+  });
+
+  // A window can close between two handshake ticks; the timer must not throw an
+  // uncaught error every few seconds from then on.
+  it("keeps handshaking when a player window throws on postMessage", () => {
+    const { iframe, player } = hostIframe();
+    player.postMessage.mockImplementation(() => {
+      throw new TypeError("window closed");
+    });
+    const dispose = connectYouTubePlayerChannel(iframe, vi.fn());
+
+    expect(() => vi.advanceTimersByTime(2000)).not.toThrow();
+    expect(player.postMessage).toHaveBeenCalledTimes(4);
+    dispose();
+  });
+
   it("keeps listening when the update handler throws", () => {
     const { iframe, player } = hostIframe();
     const onUpdate = vi.fn(() => {
