@@ -305,6 +305,46 @@ describe("cover-image action on the article list (#1314)", () => {
       h.cleanup();
     });
 
+    it("offers the fetch again once the fetched cover has been removed", async () => {
+      const article = fetchedArticle({ content: "", description: "" });
+      const onRestoreCoverImage = vi.fn(async (target: typeof article) => {
+        target.coverImage = "";
+        target.coverImageFromPage = undefined;
+        return true;
+      });
+      const h = createArticleListHarness({
+        settings: settingsWith({ viewStyle: "card" }),
+        callbacks: {
+          onFetchCoverImage: vi.fn(async () => true),
+          onRestoreCoverImage,
+        },
+        articles: [article],
+      });
+      h.list.render();
+
+      expect(
+        h
+          .getArticleEl("1")
+          ?.querySelector(COVER_FETCH_BUTTON)
+          ?.getAttribute("aria-label"),
+      ).toBe("Remove fetched cover image");
+
+      rightClick(h.getArticleEl("1"));
+      Menu.lastItems
+        .find((item) => item.title === "Remove fetched cover image")
+        ?.trigger();
+
+      await vi.waitFor(() =>
+        expect(
+          h
+            .getArticleEl("1")
+            ?.querySelector(COVER_FETCH_BUTTON)
+            ?.getAttribute("aria-label"),
+        ).toBe(COVER_FETCH_TITLE),
+      );
+      h.cleanup();
+    });
+
     it("omits the restore in the list view, which renders no cover", () => {
       const h = createArticleListHarness({
         settings: settingsWith({ viewStyle: "list" }),
