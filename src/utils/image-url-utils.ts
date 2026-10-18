@@ -302,3 +302,52 @@ export function sanitizeImageUrl(raw: unknown): string {
     return "";
   return trimmed;
 }
+
+/** Attributes lazy-loading plugins keep the real image URL in, best first. */
+const LAZY_SRC_ATTRIBUTES = [
+  "data-src",
+  "data-lazy-src",
+  "data-lazy",
+  "data-original",
+] as const;
+
+/** A `src` that stands in for the picture: absent, blank, or an inline `data:` placeholder. */
+function isPlaceholderSrc(src: string | null): boolean {
+  const trimmed = src?.trim() ?? "";
+  return !trimmed || trimmed === "about:blank" || trimmed.startsWith("data:");
+}
+
+/** A single URL or path, not a flag such as `true` or `lazy` or a list. */
+function isLazyUrlValue(value: string): boolean {
+  return (
+    value !== "" &&
+    !/\s/.test(value) &&
+    !isPlaceholderSrc(value) &&
+    /[/.]/.test(value)
+  );
+}
+
+/**
+ * Gives an `<img>` that a lazy-loading plugin left without a real `src` its
+ * URL from `data-src`, `data-lazy-src`, `data-lazy` or `data-original`, and
+ * its `srcset` from `data-srcset`. Browsers ignore those attributes, so the
+ * image shows blank until a script swaps them in, and the Reader runs none.
+ * A usable `src` is left alone.
+ */
+export function promoteLazyImageSources(root: ParentNode): void {
+  root.querySelectorAll("img").forEach((img) => {
+    if (!isPlaceholderSrc(img.getAttribute("src"))) return;
+
+    for (const name of LAZY_SRC_ATTRIBUTES) {
+      const value = img.getAttribute(name)?.trim() ?? "";
+      if (!isLazyUrlValue(value)) continue;
+      img.setAttribute("src", value);
+      break;
+    }
+
+    const srcset = img.getAttribute("data-srcset")?.trim() ?? "";
+    if (srcset && !img.getAttribute("srcset")) {
+      img.setAttribute("srcset", srcset);
+    }
+  });
+}

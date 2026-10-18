@@ -17,6 +17,7 @@ import {
 import { MediaService } from "../services/media-service";
 import { type FullArticleFetchResult } from "../utils/fetch-helpers";
 import {
+  persistFetchedCoverImage,
   persistFetchedMetadata,
   renderRestrictedBanner,
   renderVideoSourceBanner,
@@ -60,6 +61,7 @@ import {
 import {
   findFirstNonFormulaImage,
   firstNonFormulaImageUrl,
+  promoteLazyImageSources,
 } from "../utils/image-url-utils";
 import { getOpenableHttpHref } from "../utils/url-utils";
 import { applyReaderImageLoading } from "../utils/reader-image-loading";
@@ -207,14 +209,21 @@ export class ArticleRenderer {
           this.contentVersions = versions;
         },
         fetch: () => this.fetchFullArticleContent(item.link),
-        persistMetadata: (result) =>
+        persistMetadata: (result) => {
           persistFetchedMetadata(
             item,
             result.content,
             result.pageMetadata,
             this.settings.feeds,
             (update) => this.onArticleUpdate(item, update, false),
-          ),
+          );
+          persistFetchedCoverImage(
+            item,
+            result.pageImage,
+            this.settings.feeds,
+            (update) => this.onArticleUpdate(item, update, false),
+          );
+        },
         // The failure belongs to the item too: remember it even after
         // navigation so the next open does not stall on the same fetch (#1110).
         rememberOutcome: (result) =>
@@ -503,6 +512,8 @@ export class ArticleRenderer {
     try {
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, "text/html");
+
+      promoteLazyImageSources(doc);
 
       if (baseUrl) {
         const base = new URL(baseUrl);

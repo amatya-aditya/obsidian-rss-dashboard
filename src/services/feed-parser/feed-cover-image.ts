@@ -5,6 +5,7 @@ import {
   isTrackingPixel,
   isTrackingPixelElement,
   optimizeImageUrl,
+  promoteLazyImageSources,
 } from "../../utils/image-url-utils.js";
 
 /**
@@ -159,6 +160,7 @@ export function extractCoverImage(
   try {
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, "text/html");
+    promoteLazyImageSources(doc);
 
     return (
       coverFromOgImage(doc, baseUrl, toAbsoluteUrl) ??

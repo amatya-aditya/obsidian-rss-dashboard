@@ -29,6 +29,7 @@ import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { enhanceYouTubeEmbeds } from "../utils/youtube-inline-embed";
 import { type FullArticleFetchResult } from "../utils/fetch-helpers";
 import {
+  persistFetchedCoverImage,
   persistFetchedMetadata,
   renderRestrictedBanner,
   renderVideoSourceBanner,
@@ -107,7 +108,10 @@ import {
   normalizeSubstackImageUrlsInDocument,
   recoverFailedSubstackImageElement,
 } from "../utils/substack-image-url";
-import { firstNonFormulaImageUrl } from "../utils/image-url-utils";
+import {
+  firstNonFormulaImageUrl,
+  promoteLazyImageSources,
+} from "../utils/image-url-utils";
 import { getOpenableHttpHref } from "../utils/url-utils";
 import { applyReaderImageLoading } from "../utils/reader-image-loading";
 import { markNamedLandmark } from "../utils/landmarks";
@@ -1441,14 +1445,21 @@ export class ReaderView extends ItemView {
           };
         }
       },
-      persistMetadata: (result) =>
+      persistMetadata: (result) => {
         persistFetchedMetadata(
           item,
           result.content,
           result.pageMetadata,
           this.settings.feeds,
           (update) => this.persistBackgroundUpdate(item, update, false),
-        ),
+        );
+        persistFetchedCoverImage(
+          item,
+          result.pageImage,
+          this.settings.feeds,
+          (update) => this.persistBackgroundUpdate(item, update, false),
+        );
+      },
       // The failure belongs to the item too: remember it even after
       // navigation so the next open does not stall on the same fetch (#1110).
       rememberOutcome: (result) =>
@@ -2072,6 +2083,8 @@ export class ReaderView extends ItemView {
     try {
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, "text/html");
+
+      promoteLazyImageSources(doc);
 
       resolveRelativeUrlsInDocument(doc, baseUrl);
 

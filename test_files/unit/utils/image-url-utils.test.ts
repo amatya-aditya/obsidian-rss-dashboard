@@ -8,6 +8,7 @@ import {
   isTrackingPixelElement,
   isTrackingPixelTag,
   optimizeImageUrl,
+  promoteLazyImageSources,
 } from "../../../src/utils/image-url-utils.js";
 
 const COUNTER = "https://counter.example.com/content/123456/count.gif";
@@ -428,5 +429,71 @@ describe("hasLatexPhpQuery", () => {
   it("accepts latex.php at the very start of the text", () => {
     expect(hasLatexPhpQuery("latex.php?latex=y")).toBe(true);
     expect(hasLatexPhpQuery("xlatex.php?latex=y")).toBe(false);
+  });
+});
+
+describe("promoteLazyImageSources", () => {
+  const parse = (html: string): Document =>
+    new DOMParser().parseFromString(html, "text/html");
+
+  it("promotes data-lazy to src for an image with no src (JSTOR Daily)", () => {
+    const doc = parse(
+      '<img width="1050" class="attachment-full" alt="x" data-lazy="https://daily.jstor.org/a.jpg" />',
+    );
+
+    promoteLazyImageSources(doc);
+
+    expect(doc.querySelector("img")?.getAttribute("src")).toBe(
+      "https://daily.jstor.org/a.jpg",
+    );
+  });
+
+  it.each(["data-src", "data-lazy-src", "data-original"])(
+    "promotes %s over an inline data: placeholder",
+    (attribute) => {
+      const doc = parse(
+        `<img src="data:image/gif;base64,R0lGODlhAQABAAAAACw=" ${attribute}="/real.png">`,
+      );
+
+      promoteLazyImageSources(doc);
+
+      expect(doc.querySelector("img")?.getAttribute("src")).toBe("/real.png");
+    },
+  );
+
+  it("promotes data-srcset when the image has no srcset", () => {
+    const doc = parse(
+      '<img data-src="/a.png" data-srcset="/a.png 1x, /b.png 2x">',
+    );
+
+    promoteLazyImageSources(doc);
+
+    expect(doc.querySelector("img")?.getAttribute("srcset")).toBe(
+      "/a.png 1x, /b.png 2x",
+    );
+  });
+
+  it("leaves an image that already has a real src alone", () => {
+    const doc = parse('<img src="/real.png" data-lazy="/other.png">');
+
+    promoteLazyImageSources(doc);
+
+    expect(doc.querySelector("img")?.getAttribute("src")).toBe("/real.png");
+  });
+
+  it("skips a flag value and tries the next lazy attribute", () => {
+    const doc = parse('<img data-lazy="true" data-src="/real.png">');
+
+    promoteLazyImageSources(doc);
+
+    expect(doc.querySelector("img")?.getAttribute("src")).toBe("/real.png");
+  });
+
+  it("ignores a lazy attribute that is not a single URL", () => {
+    const doc = parse('<img data-lazy="not a url">');
+
+    promoteLazyImageSources(doc);
+
+    expect(doc.querySelector("img")?.hasAttribute("src")).toBe(false);
   });
 });
