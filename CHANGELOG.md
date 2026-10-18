@@ -254,6 +254,8 @@
 - The lint rule against a `title` attribute now also catches one inside a conditional or logical `attr` value, without flagging an unrelated nested object, and has a test of its own. [GH Issue #587](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/587), [GH Issue #591](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/591)
 - A plan now lives in its GitHub issue body, so the ticket you arrive at carries the question, the decisions, the slices, and the acceptance criteria instead of pointing at a file that can drift from it. `docs/plans/` is now `docs/planning/` and holds only documents that serve several issues, each declaring the issues it serves in `issues:` frontmatter; a draft is deleted once its issue exists, status lives on the issue rather than in frontmatter, and `docs/archive/plans/` keeps the plans written under the previous convention without taking new entries. `check:pre-release` now fails a `status:` field under that folder and requires every supporting document to name its issues. [GH Issue #1156](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1156)
 
+- Unit tests now pass in subset runs and through `vitest related` on Windows, where launching vitest by script path could give the `main` aliases a differently-cased base directory and load `main.ts` and its imports twice; the pre-commit hook's related selection resolves again. [GH Issue #1319](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1319)
+
 ## 2.7.1 - October 3, 2026
 
 For a user-facing overview, see the [RSS Dashboard 2.7.1 release notes](docs/releases/2.7.1.md).

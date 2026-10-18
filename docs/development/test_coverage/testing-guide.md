@@ -50,6 +50,8 @@ Shared files also run `test_files/unit/vitest.shared-environment.setup.ts`, whic
 
 You do not register anything: adding one of those calls moves the file by itself. If a test passes alone but fails in the full run, or the reverse, it probably leaks state; add its path to `ALWAYS_ISOLATED` in `vitest.config.mjs`, then fix the leak and remove the entry.
 
+The config canonicalises the repository root before it builds the `main` aliases, so a test file resolves to one module graph however vitest is launched (`npx vitest`, `npm run test:unit`, or `node node_modules/vitest/vitest.mjs` as the pre-commit hook runs it). A launch path whose case differs from the on-disk path would otherwise load `main.ts` and its imports a second time; `test_files/unit/main/module-graph-identity.test.ts` pins that (#1319). The canonical root is also what lets `vitest related <relative path>` resolve its arguments to the same ids, so the pre-commit hook still selects the tests a change touches.
+
 ## 4. Test Suites Reference
 
 ### Core Services
