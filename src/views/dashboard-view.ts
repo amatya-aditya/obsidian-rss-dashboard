@@ -82,6 +82,7 @@ import { SIDEBAR_ROW_SELECTOR } from "../utils/sidebar-row-interactions";
 import { clearViewReady, markViewReady } from "../utils/view-ready";
 import { REFRESH_ANNOUNCEMENT_EVENT } from "../services/refresh-announcements";
 import { coverImageFailureNotice } from "../services/cover-image-notice";
+import { resolveStoredItemFeedCover } from "../services/feed-parser/feed-item-builder";
 import { attachRovingToolbar } from "../utils/roving-toolbar";
 import { toggleFeedInMultiSelection } from "../utils/feed-multi-select";
 import { applyAutomaticArticleTags } from "../utils/tag-utils";
@@ -1293,6 +1294,7 @@ export class RssDashboardView extends ItemView {
       onResolveCachedImageUrl: (remoteUrl) =>
         this.plugin.resolveCachedImageUrl(remoteUrl),
       onFetchCoverImage: (article) => this.handleFetchCoverImage(article),
+      onRestoreCoverImage: (article) => this.handleRestoreCoverImage(article),
       onMarkAllAsRead: () => {
         this.actionMarkAllAsRead();
       },
@@ -3074,16 +3076,17 @@ export class RssDashboardView extends ItemView {
 
   /**
    * The dashboard's manual cover-image fetch (#1314): one page request, the
-   * image stored on the item, and nothing else about the article changed. Warms
-   * the disk cache when image caching is on. Resolves true when an image was
-   * stored, so the calling card can rebuild itself.
+   * image stored on the item with the marker that records where it came from
+   * (#1330), and nothing else about the article changed. Warms the disk cache
+   * when image caching is on. Resolves true when an image was stored, so the
+   * calling card can rebuild itself.
    */
   private async handleFetchCoverImage(article: FeedItem): Promise<boolean> {
     const result = await this.plugin.fetchPageCoverImage(article.link);
     if (result.status === "found") {
       const stored = await this.updateArticleStatus(
         article,
-        { coverImage: result.url },
+        { coverImage: result.url, coverImageFromPage: true },
         false,
       );
       if (!stored) {
@@ -3102,6 +3105,29 @@ export class RssDashboardView extends ItemView {
       new Notice(notice);
     }
     return false;
+  }
+
+  /**
+   * Puts the feed's own cover back after a manual fetch replaced it (#1330).
+   * Local and offline: the image is recomputed from the fields the item already
+   * stores, with the parser's precedence, so no page is requested and no cache
+   * is warmed. The marker goes with it, which returns the control to the fetch
+   * label — or, when the feed supplies no image, clears the cover so the card
+   * goes back to its blank state.
+   */
+  private async handleRestoreCoverImage(article: FeedItem): Promise<boolean> {
+    const feedCover = resolveStoredItemFeedCover(article);
+    const stored = await this.updateArticleStatus(
+      article,
+      { coverImage: feedCover, coverImageFromPage: undefined },
+      false,
+    );
+    if (!stored) {
+      // The article is no longer in a feed this dashboard can update.
+      new Notice("Could not restore the cover image on this article.");
+      return false;
+    }
+    return true;
   }
 
   private async updateArticleStatus(

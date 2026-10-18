@@ -708,6 +708,44 @@ describe("MediaService.detectAndProcessFeed", () => {
   });
 });
 
+describe("MediaService.processYouTubeFeed cover provenance (#1330)", () => {
+  const VIDEO_LINK = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+
+  it("clears the marker when the thumbnail replaces a page cover", () => {
+    const processed = MediaService.processYouTubeFeed(
+      createFeed([
+        createItem({
+          link: VIDEO_LINK,
+          coverImage: "https://page.example.com/hero.jpg",
+          coverImageFromPage: true,
+        }),
+      ]),
+    );
+
+    expect(processed.items[0]?.coverImage).toContain(
+      "https://img.youtube.com/vi/dQw4w9WgXcQ/",
+    );
+    expect(processed.items[0]?.coverImageFromPage).toBeUndefined();
+  });
+
+  it("keeps the marker when the item names no video", () => {
+    const processed = MediaService.processYouTubeFeed(
+      createFeed([
+        createItem({
+          link: "https://example.com/an-article",
+          coverImage: "https://page.example.com/hero.jpg",
+          coverImageFromPage: true,
+        }),
+      ]),
+    );
+
+    expect(processed.items[0]?.coverImage).toBe(
+      "https://page.example.com/hero.jpg",
+    );
+    expect(processed.items[0]?.coverImageFromPage).toBe(true);
+  });
+});
+
 describe("MediaService.shouldShowFeedIcon", () => {
   const defaultDisplaySettings = (
     overrides: Partial<DisplaySettings> = {},

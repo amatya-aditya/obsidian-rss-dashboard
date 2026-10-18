@@ -1667,6 +1667,8 @@ class MenuStub extends ComponentStub {
 
 class MenuItemStub {
   title = "";
+  /** The icon id the item was given, as `setIcon` received it. */
+  icon = "";
   // Observed on Obsidian 1.14.4 desktop (Windows): a fresh item has
   // `checked: null` and `disabled: false`.
   checked: boolean | null = null;
@@ -1677,7 +1679,8 @@ class MenuItemStub {
     this.title = typeof title === "string" ? title : (title.textContent ?? "");
     return this;
   }
-  setIcon(): this {
+  setIcon(icon: string | null): this {
+    this.icon = icon ?? "";
     return this;
   }
   setChecked(checked: boolean | null): this {

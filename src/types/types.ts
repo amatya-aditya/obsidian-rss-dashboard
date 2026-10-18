@@ -17,6 +17,14 @@ export interface FeedItem {
   feedTitle: string;
   feedUrl: string;
   coverImage: string;
+  /**
+   * Set while `coverImage` holds an image the manual cover-image fetch took
+   * from the article page (#1330); absent means the cover is the feed's own.
+   * Every writer that puts a feed image back — the refresh, the YouTube
+   * thumbnail step, and the restore action itself — clears it, and a cover the
+   * item never fetched carries no marker, so stored items need no migration.
+   */
+  coverImageFromPage?: boolean;
   fallbackIconUrl?: string;
 
   mediaType?: "article" | "video" | "podcast";

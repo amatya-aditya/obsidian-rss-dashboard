@@ -1,7 +1,24 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import type { FeedItem } from "../../../../../src/types/types";
 import { showArticleContextMenu } from "../../../../../src/components/article-list/utils/article-context-menu";
+import {
+  COVER_IMAGE_FETCH_ICON,
+  COVER_IMAGE_RESTORE_ICON,
+  type CoverImageAction,
+} from "../../../../../src/components/article-list/utils/cover-image-action";
 import { Menu } from "obsidian";
+
+const FETCH_ACTION: CoverImageAction = {
+  label: "Fetch and replace cover image",
+  icon: COVER_IMAGE_FETCH_ICON,
+  role: "fetch",
+};
+
+const RESTORE_ACTION: CoverImageAction = {
+  label: "Restore cover image from feed",
+  icon: COVER_IMAGE_RESTORE_ICON,
+  role: "restore",
+};
 
 function buildContext(
   overrides: {
@@ -20,9 +37,10 @@ function buildContext(
       ) => Promise<void> | void;
       onArticleClick?: (article: FeedItem) => void;
       onFetchCoverImage?: (article: FeedItem) => Promise<boolean>;
-      onCoverImageFetched?: (article: FeedItem) => void;
+      onRestoreCoverImage?: (article: FeedItem) => Promise<boolean>;
+      onCoverImageChanged?: (article: FeedItem) => void;
     };
-    showFetchCoverImage?: boolean;
+    coverImageAction?: CoverImageAction;
     settings?: {
       articleSaving?: {
         saveVersion: "rss" | "fetched";
@@ -32,7 +50,7 @@ function buildContext(
 ) {
   return {
     callbacks: overrides.callbacks ?? {},
-    showFetchCoverImage: overrides.showFetchCoverImage,
+    coverImageAction: overrides.coverImageAction,
     settings: {
       articleSaving: {
         saveVersion: "fetched" as const,
@@ -243,10 +261,10 @@ describe("article-context-menu utils", () => {
     expect(titles).not.toContain("Save to custom folder...");
   });
 
-  describe("cover image fetch (#1314)", () => {
+  describe("cover image action (#1314, #1330)", () => {
     it("offers to fetch a cover image when the card has none", () => {
       const ctx = buildContext({
-        showFetchCoverImage: true,
+        coverImageAction: FETCH_ACTION,
         callbacks: { onFetchCoverImage: async () => true },
       });
 
@@ -259,12 +277,21 @@ describe("article-context-menu utils", () => {
       const titles = Menu.lastItems.map((item) => item.title);
       expect(titles).toContain("Fetch and replace cover image");
       expect(titles).not.toContain("Replace cover image from the fetch");
+      expect(
+        Menu.lastItems.find(
+          (item) => item.title === "Fetch and replace cover image",
+        )?.icon,
+      ).toBe(COVER_IMAGE_FETCH_ICON);
     });
 
-    it("offers to replace a cover image the item already has", () => {
+    it("offers the action the surface resolved, whatever state it is", () => {
       article.coverImage = "https://cdn.example.com/old.jpg";
       const ctx = buildContext({
-        showFetchCoverImage: true,
+        coverImageAction: {
+          label: "Replace cover image from the fetch",
+          icon: COVER_IMAGE_FETCH_ICON,
+          role: "fetch",
+        },
         callbacks: { onFetchCoverImage: async () => true },
       });
 
@@ -277,6 +304,25 @@ describe("article-context-menu utils", () => {
       const titles = Menu.lastItems.map((item) => item.title);
       expect(titles).toContain("Replace cover image from the fetch");
       expect(titles).not.toContain("Fetch and replace cover image");
+    });
+
+    it("offers the restore with its own label and icon", () => {
+      const ctx = buildContext({
+        coverImageAction: RESTORE_ACTION,
+        callbacks: { onRestoreCoverImage: async () => true },
+      });
+
+      showArticleContextMenu(
+        new MouseEvent("contextmenu") as unknown as MouseEvent,
+        article,
+        ctx,
+      );
+
+      const item = Menu.lastItems.find(
+        (entry) => entry.title === "Restore cover image from feed",
+      );
+      expect(item).toBeDefined();
+      expect(item?.icon).toBe(COVER_IMAGE_RESTORE_ICON);
     });
 
     it("hides the item when the surface does not offer it", () => {
@@ -293,31 +339,15 @@ describe("article-context-menu utils", () => {
       const titles = Menu.lastItems.map((item) => item.title);
       expect(titles).not.toContain("Fetch and replace cover image");
       expect(titles).not.toContain("Replace cover image from the fetch");
-    });
-
-    it("hides the item for an article with no link", () => {
-      article.link = "";
-      const ctx = buildContext({
-        showFetchCoverImage: true,
-        callbacks: { onFetchCoverImage: async () => true },
-      });
-
-      showArticleContextMenu(
-        new MouseEvent("contextmenu") as unknown as MouseEvent,
-        article,
-        ctx,
-      );
-
-      const titles = Menu.lastItems.map((item) => item.title);
-      expect(titles).not.toContain("Fetch and replace cover image");
+      expect(titles).not.toContain("Restore cover image from feed");
     });
 
     it("fetches on activation and rebuilds the card only when a cover was found", async () => {
       const onFetchCoverImage = vi.fn().mockResolvedValue(true);
-      const onCoverImageFetched = vi.fn();
+      const onCoverImageChanged = vi.fn();
       const ctx = buildContext({
-        showFetchCoverImage: true,
-        callbacks: { onFetchCoverImage, onCoverImageFetched },
+        coverImageAction: FETCH_ACTION,
+        callbacks: { onFetchCoverImage, onCoverImageChanged },
       });
 
       showArticleContextMenu(
@@ -329,17 +359,17 @@ describe("article-context-menu utils", () => {
         .find((item) => item.title === "Fetch and replace cover image")
         ?.trigger();
       await vi.waitFor(() =>
-        expect(onCoverImageFetched).toHaveBeenCalledWith(article),
+        expect(onCoverImageChanged).toHaveBeenCalledWith(article),
       );
       expect(onFetchCoverImage).toHaveBeenCalledWith(article);
     });
 
     it("leaves the card alone when no cover was found", async () => {
       const onFetchCoverImage = vi.fn().mockResolvedValue(false);
-      const onCoverImageFetched = vi.fn();
+      const onCoverImageChanged = vi.fn();
       const ctx = buildContext({
-        showFetchCoverImage: true,
-        callbacks: { onFetchCoverImage, onCoverImageFetched },
+        coverImageAction: FETCH_ACTION,
+        callbacks: { onFetchCoverImage, onCoverImageChanged },
       });
 
       showArticleContextMenu(
@@ -352,7 +382,50 @@ describe("article-context-menu utils", () => {
         ?.trigger();
       await Promise.resolve();
       await Promise.resolve();
-      expect(onCoverImageFetched).not.toHaveBeenCalled();
+      expect(onCoverImageChanged).not.toHaveBeenCalled();
+    });
+
+    it("restores on activation and rebuilds the card", async () => {
+      const onRestoreCoverImage = vi.fn().mockResolvedValue(true);
+      const onCoverImageChanged = vi.fn();
+      const ctx = buildContext({
+        coverImageAction: RESTORE_ACTION,
+        callbacks: { onRestoreCoverImage, onCoverImageChanged },
+      });
+
+      showArticleContextMenu(
+        new MouseEvent("contextmenu") as unknown as MouseEvent,
+        article,
+        ctx,
+      );
+      Menu.lastItems
+        .find((item) => item.title === "Restore cover image from feed")
+        ?.trigger();
+      await vi.waitFor(() =>
+        expect(onCoverImageChanged).toHaveBeenCalledWith(article),
+      );
+      expect(onRestoreCoverImage).toHaveBeenCalledWith(article);
+    });
+
+    it("leaves the card alone when the restore could not be written", async () => {
+      const onRestoreCoverImage = vi.fn().mockResolvedValue(false);
+      const onCoverImageChanged = vi.fn();
+      const ctx = buildContext({
+        coverImageAction: RESTORE_ACTION,
+        callbacks: { onRestoreCoverImage, onCoverImageChanged },
+      });
+
+      showArticleContextMenu(
+        new MouseEvent("contextmenu") as unknown as MouseEvent,
+        article,
+        ctx,
+      );
+      Menu.lastItems
+        .find((item) => item.title === "Restore cover image from feed")
+        ?.trigger();
+      await Promise.resolve();
+      await Promise.resolve();
+      expect(onCoverImageChanged).not.toHaveBeenCalled();
     });
   });
 });

@@ -78,6 +78,8 @@ export function clearSharedLogoCoverImages(
       items.forEach((item) => {
         if (item.coverImage === imgUrl && item.mediaType !== "podcast") {
           item.coverImage = "";
+          // The cover the marker described is gone (#1330).
+          delete item.coverImageFromPage;
         }
       });
     }

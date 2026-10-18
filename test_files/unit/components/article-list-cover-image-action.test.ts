@@ -1,6 +1,6 @@
-// The dashboard-level wiring of the manual cover-image fetch (#1314): which
-// surfaces offer it, and the busy state the context-menu path shows while the
-// page request runs.
+// The dashboard-level wiring of the cover-image action (#1314, #1330): which
+// surfaces offer it, which role each state runs, and the busy state the
+// context-menu path shows while a page request runs.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Menu } from "obsidian";
 import { buildArticle, createArticleListHarness } from "./article-list-harness";
@@ -8,8 +8,11 @@ import type { RssDashboardSettings } from "../../../src/types/types";
 
 const COVER_FETCH_TITLE = "Fetch and replace cover image";
 const COVER_REPLACE_TITLE = "Replace cover image from the fetch";
+const COVER_RESTORE_TITLE = "Restore cover image from feed";
 const COVER_FETCH_BUTTON = ".rss-dashboard-fetch-cover-button";
 const FETCHING_CLASS = "rss-dashboard-cover-fetching";
+const PAGE_IMAGE = "https://page.example.com/hero.jpg";
+const FEED_IMAGE = "https://img.example.com/feed.jpg";
 
 function titles(): string[] {
   return Menu.lastItems.map((item) => item.title);
@@ -223,5 +226,163 @@ describe("cover-image action on the article list (#1314)", () => {
     );
     expect(h.getArticleEl("1")).not.toBe(card);
     h.cleanup();
+  });
+
+  describe("restore states (#1330)", () => {
+    function fetchedArticle(overrides: Record<string, unknown> = {}) {
+      return buildArticle({
+        guid: "1",
+        coverImage: PAGE_IMAGE,
+        coverImageFromPage: true,
+        content: `<p><img src="${FEED_IMAGE}"></p>`,
+        ...overrides,
+      });
+    }
+
+    it("offers the restore in the card's context menu and control", () => {
+      const h = createArticleListHarness({
+        settings: settingsWith({ viewStyle: "card" }),
+        callbacks: {
+          onFetchCoverImage: vi.fn(async () => true),
+          onRestoreCoverImage: vi.fn(async () => true),
+        },
+        articles: [fetchedArticle()],
+      });
+      h.list.render();
+
+      expect(
+        h
+          .getArticleEl("1")
+          ?.querySelector(COVER_FETCH_BUTTON)
+          ?.getAttribute("aria-label"),
+      ).toBe(COVER_RESTORE_TITLE);
+
+      rightClick(h.getArticleEl("1"));
+      expect(titles()).toContain(COVER_RESTORE_TITLE);
+      expect(titles()).not.toContain(COVER_REPLACE_TITLE);
+      h.cleanup();
+    });
+
+    it("restores on activation, rebuilding the card in place without a request", async () => {
+      const article = fetchedArticle();
+      const onFetchCoverImage = vi.fn(async () => true);
+      const onRestoreCoverImage = vi.fn(async (target: typeof article) => {
+        target.coverImage = FEED_IMAGE;
+        target.coverImageFromPage = undefined;
+        return true;
+      });
+      const h = createArticleListHarness({
+        settings: settingsWith({ viewStyle: "card" }),
+        callbacks: { onFetchCoverImage, onRestoreCoverImage },
+        articles: [article],
+      });
+      h.list.render();
+
+      const card = h.getArticleEl("1");
+      rightClick(card);
+      Menu.lastItems
+        .find((item) => item.title === COVER_RESTORE_TITLE)
+        ?.trigger();
+
+      await vi.waitFor(() =>
+        expect(
+          h
+            .getArticleEl("1")
+            ?.querySelector(".rss-dashboard-cover-image")
+            ?.getAttribute("src"),
+        ).toBe(FEED_IMAGE),
+      );
+
+      expect(onFetchCoverImage).not.toHaveBeenCalled();
+      expect(h.getArticleEl("1")).not.toBe(card);
+      // The state moved on, so the control now offers the fetch again.
+      expect(
+        h
+          .getArticleEl("1")
+          ?.querySelector(COVER_FETCH_BUTTON)
+          ?.getAttribute("aria-label"),
+      ).toBe(COVER_REPLACE_TITLE);
+      h.cleanup();
+    });
+
+    it("offers the fetch again once the fetched cover has been removed", async () => {
+      const article = fetchedArticle({ content: "", description: "" });
+      const onRestoreCoverImage = vi.fn(async (target: typeof article) => {
+        target.coverImage = "";
+        target.coverImageFromPage = undefined;
+        return true;
+      });
+      const h = createArticleListHarness({
+        settings: settingsWith({ viewStyle: "card" }),
+        callbacks: {
+          onFetchCoverImage: vi.fn(async () => true),
+          onRestoreCoverImage,
+        },
+        articles: [article],
+      });
+      h.list.render();
+
+      expect(
+        h
+          .getArticleEl("1")
+          ?.querySelector(COVER_FETCH_BUTTON)
+          ?.getAttribute("aria-label"),
+      ).toBe("Remove fetched cover image");
+
+      rightClick(h.getArticleEl("1"));
+      Menu.lastItems
+        .find((item) => item.title === "Remove fetched cover image")
+        ?.trigger();
+
+      await vi.waitFor(() =>
+        expect(
+          h
+            .getArticleEl("1")
+            ?.querySelector(COVER_FETCH_BUTTON)
+            ?.getAttribute("aria-label"),
+        ).toBe(COVER_FETCH_TITLE),
+      );
+      h.cleanup();
+    });
+
+    it("omits the restore in the list view, which renders no cover", () => {
+      const h = createArticleListHarness({
+        settings: settingsWith({ viewStyle: "list" }),
+        callbacks: {
+          onFetchCoverImage: vi.fn(async () => true),
+          onRestoreCoverImage: vi.fn(async () => true),
+        },
+        articles: [fetchedArticle()],
+      });
+      h.list.render();
+
+      rightClick(h.getArticleEl("1"));
+
+      expect(titles()).not.toContain(COVER_RESTORE_TITLE);
+      h.cleanup();
+    });
+
+    it("omits the restore while cover images are hidden", () => {
+      const h = createArticleListHarness({
+        settings: settingsWith({
+          viewStyle: "card",
+          display: {
+            showCoverImage: false,
+          } as unknown as RssDashboardSettings["display"],
+        }),
+        callbacks: {
+          onFetchCoverImage: vi.fn(async () => true),
+          onRestoreCoverImage: vi.fn(async () => true),
+        },
+        articles: [fetchedArticle()],
+      });
+      h.list.render();
+
+      rightClick(h.getArticleEl("1"));
+
+      expect(titles()).not.toContain(COVER_RESTORE_TITLE);
+      expect(h.getArticleEl("1")?.querySelector(COVER_FETCH_BUTTON)).toBeNull();
+      h.cleanup();
+    });
   });
 });

@@ -4,6 +4,7 @@ import {
   collectCarriedForwardItems,
   collectRefreshedItems,
   indexExistingItems,
+  resolveStoredItemFeedCover,
   type FeedItemContext,
   type RefreshedItemsRequest,
 } from "../../../../src/services/feed-parser/feed-item-builder.js";
@@ -306,6 +307,127 @@ describe("feed-item-builder", () => {
       });
     });
 
+    it("clears the provenance marker when the refresh finds the feed's own cover (#1330)", () => {
+      const ctx = makeContext();
+      const existing = feedOf([
+        stored({
+          coverImage: "https://page.example.com/hero.jpg",
+          coverImageFromPage: true,
+        }),
+      ]);
+
+      const result = collectRefreshedItems(
+        requestFor(
+          [
+            pitem({
+              link: "https://example.com/a",
+              description: "<img src='https://img.example.com/feed.jpg'>",
+              pubDate: RECENT,
+            }),
+          ],
+          existing,
+          ctx,
+        ),
+        ctx,
+      );
+
+      expect(result.updatedItems[0]?.coverImage).toBe(
+        "https://img.example.com/c.jpg",
+      );
+      expect(result.updatedItems[0]?.coverImageFromPage).toBeUndefined();
+    });
+
+    it("keeps the page cover and its marker when the feed ships none (#1330)", () => {
+      const ctx = makeContext();
+      const existing = feedOf([
+        stored({
+          coverImage: "https://page.example.com/hero.jpg",
+          coverImageFromPage: true,
+        }),
+      ]);
+
+      const result = collectRefreshedItems(
+        requestFor(
+          [
+            pitem({
+              link: "https://example.com/a",
+              description: "no image here",
+              pubDate: RECENT,
+            }),
+          ],
+          existing,
+          ctx,
+        ),
+        ctx,
+      );
+
+      expect(result.updatedItems[0]?.coverImage).toBe(
+        "https://page.example.com/hero.jpg",
+      );
+      expect(result.updatedItems[0]?.coverImageFromPage).toBe(true);
+    });
+
+    it("keeps a feed cover unmarked when the feed ships none (#1330)", () => {
+      const ctx = makeContext();
+      const existing = feedOf([
+        stored({ coverImage: "https://img.example.com/feed.jpg" }),
+      ]);
+
+      const result = collectRefreshedItems(
+        requestFor(
+          [
+            pitem({
+              link: "https://example.com/a",
+              description: "no image here",
+              pubDate: RECENT,
+            }),
+          ],
+          existing,
+          ctx,
+        ),
+        ctx,
+      );
+
+      expect(result.updatedItems[0]?.coverImage).toBe(
+        "https://img.example.com/feed.jpg",
+      );
+      expect(result.updatedItems[0]?.coverImageFromPage).toBeUndefined();
+    });
+
+    it("clears the marker when a refreshed podcast takes the feed's cover (#1330)", () => {
+      const ctx = makeContext();
+      const existing = feedOf([
+        stored({
+          coverImage: "https://page.example.com/hero.jpg",
+          coverImageFromPage: true,
+        }),
+      ]);
+
+      const result = collectRefreshedItems(
+        requestFor(
+          [
+            pitem({
+              link: "https://example.com/a",
+              pubDate: RECENT,
+              enclosure: {
+                url: "https://example.com/a.mp3",
+                type: "audio/mpeg",
+                length: "",
+              },
+            }),
+          ],
+          existing,
+          ctx,
+        ),
+        ctx,
+      );
+
+      expect(result.updatedItems[0]?.coverImage).toBe(
+        "https://img.example.com/podcast.jpg",
+      );
+      expect(result.updatedItems[0]?.coverImageFromPage).toBeUndefined();
+    });
+
     it("keeps stored article metadata while rewriting the blurb on refresh (#247)", () => {
       const ctx = makeContext();
       const metadata = {
@@ -543,6 +665,117 @@ describe("feed-item-builder", () => {
       );
 
       expect(carried).toEqual([]);
+    });
+  });
+
+  describe("resolveStoredItemFeedCover (#1330)", () => {
+    it("reads the blurb's image first, as the parser's precedence does", () => {
+      const cover = resolveStoredItemFeedCover(
+        stored({
+          content: `<p><img src="https://img.example.com/body.jpg"></p>`,
+          itunes: { image: { href: "https://img.example.com/itunes.jpg" } },
+        }),
+      );
+
+      expect(cover).toBe("https://img.example.com/body.jpg");
+    });
+
+    it("falls back through itunes, the item image, then an image enclosure", () => {
+      expect(
+        resolveStoredItemFeedCover(
+          stored({
+            itunes: { image: { href: "https://img.example.com/itunes.jpg" } },
+            image: "https://img.example.com/item.jpg",
+            enclosure: {
+              url: "https://img.example.com/enclosure.jpg",
+              type: "image/jpeg",
+              length: "",
+            },
+          }),
+        ),
+      ).toBe("https://img.example.com/itunes.jpg");
+
+      expect(
+        resolveStoredItemFeedCover(
+          stored({
+            image: "https://img.example.com/item.jpg",
+            enclosure: {
+              url: "https://img.example.com/enclosure.jpg",
+              type: "image/jpeg",
+              length: "",
+            },
+          }),
+        ),
+      ).toBe("https://img.example.com/item.jpg");
+
+      expect(
+        resolveStoredItemFeedCover(
+          stored({
+            enclosure: {
+              url: "https://img.example.com/enclosure.jpg",
+              type: "image/jpeg",
+              length: "",
+            },
+          }),
+        ),
+      ).toBe("https://img.example.com/enclosure.jpg");
+    });
+
+    it("leaves an audio enclosure out of the cover", () => {
+      expect(
+        resolveStoredItemFeedCover(
+          stored({
+            enclosure: {
+              url: "https://audio.example.com/episode.mp3",
+              type: "audio/mpeg",
+              length: "",
+            },
+          }),
+        ),
+      ).toBe("");
+    });
+
+    it("never reads the cover the item displays", () => {
+      expect(
+        resolveStoredItemFeedCover(
+          stored({ coverImage: "https://page.example.com/hero.jpg" }),
+        ),
+      ).toBe("");
+    });
+
+    it("skips a tracking pixel in the blurb and reads the next source", () => {
+      expect(
+        resolveStoredItemFeedCover(
+          stored({
+            content: `<img src="https://img.example.com/1x1/pixel.gif">`,
+            itunes: { image: { href: "https://img.example.com/itunes.jpg" } },
+          }),
+        ),
+      ).toBe("https://img.example.com/itunes.jpg");
+    });
+
+    it("refuses a relative image rather than guessing a base for it", () => {
+      expect(
+        resolveStoredItemFeedCover(
+          stored({ content: `<img src="/hero.jpg">` }),
+        ),
+      ).toBe("");
+    });
+
+    it("resolves the two rewrites the parser makes without a base", () => {
+      expect(
+        resolveStoredItemFeedCover(
+          stored({ content: `<img src="//cdn.example.com/hero.jpg">` }),
+        ),
+      ).toBe("https://cdn.example.com/hero.jpg");
+
+      expect(
+        resolveStoredItemFeedCover(stored({ image: "app://local/hero.jpg" })),
+      ).toBe("https://local/hero.jpg");
+    });
+
+    it("is empty when the item stores no image at all", () => {
+      expect(resolveStoredItemFeedCover(stored())).toBe("");
     });
   });
 });

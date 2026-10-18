@@ -79,18 +79,21 @@ export function buildArticle(overrides: Partial<FeedItem> = {}): FeedItem {
   const pubDate =
     overrides.pubDate ?? new Date("2026-01-01T00:00:00Z").toISOString();
   return {
-    guid: overrides.guid ?? "guid",
-    title: overrides.title ?? "Title",
-    link: overrides.link ?? "https://example.com",
+    guid: "guid",
+    title: "Title",
+    link: "https://example.com",
     pubDate,
-    description: overrides.description ?? "<p>desc</p>",
-    read: overrides.read ?? false,
-    starred: overrides.starred ?? false,
-    saved: overrides.saved ?? false,
-    tags: overrides.tags ?? [],
-    feedTitle: overrides.feedTitle ?? "Feed",
-    feedUrl: overrides.feedUrl ?? "https://example.com/feed",
-    coverImage: overrides.coverImage ?? "",
+    description: "<p>desc</p>",
+    read: false,
+    starred: false,
+    saved: false,
+    tags: [],
+    feedTitle: "Feed",
+    feedUrl: "https://example.com/feed",
+    coverImage: "",
+    // Every other field passes through as given, so a test can set the fields
+    // its case needs without this builder listing them all.
+    ...overrides,
   };
 }
 

@@ -842,5 +842,102 @@ describe("card-view", () => {
       );
       expect(card.hasAttribute("aria-busy")).toBe(false);
     });
+
+    describe("restore states (#1330)", () => {
+      const FETCHED_COVER = "https://page.example.com/hero.jpg";
+      const FEED_COVER = "https://img.example.com/feed.jpg";
+
+      function fetchedArticle(
+        overrides: Parameters<typeof makeArticle>[0] = {},
+      ) {
+        return makeArticle({
+          coverImage: FETCHED_COVER,
+          coverImageFromPage: true,
+          content: `<p><img src="${FEED_COVER}"></p>`,
+          ...overrides,
+        });
+      }
+
+      it("offers the restore, with the restore icon, when the feed still has an image", () => {
+        renderWith({
+          article: fetchedArticle(),
+          deps: { restoreCoverImage: vi.fn() },
+        });
+
+        const button = fetchButton();
+        expect(button?.getAttribute("aria-label")).toBe(
+          "Restore cover image from feed",
+        );
+        expect(button?.querySelector("svg.lucide-rotate-ccw")).not.toBeNull();
+        expect(button?.querySelector("svg.lucide-download")).toBeNull();
+      });
+
+      it("offers the removal when the feed supplies no image", () => {
+        renderWith({
+          article: fetchedArticle({ content: "", description: "" }),
+          deps: { restoreCoverImage: vi.fn() },
+        });
+
+        expect(fetchButton()?.getAttribute("aria-label")).toBe(
+          "Remove fetched cover image",
+        );
+      });
+
+      it("runs the restore on activation and rebuilds the card, fetching nothing", async () => {
+        const restoreCoverImage = vi.fn().mockResolvedValue(true);
+        const fetchCoverImage = vi.fn().mockResolvedValue(true);
+        const replaceArticle = vi.fn();
+        renderCardView(
+          container,
+          [fetchedArticle()],
+          { ...baseViewContext(), showCardToolbar: false },
+          baseViewDeps({ restoreCoverImage, fetchCoverImage, replaceArticle }),
+        );
+
+        fetchButton()?.click();
+
+        await vi.waitFor(() => expect(replaceArticle).toHaveBeenCalledTimes(1));
+        expect(restoreCoverImage).toHaveBeenCalledTimes(1);
+        expect(fetchCoverImage).not.toHaveBeenCalled();
+      });
+
+      it("leaves the card in place when the restore could not be written", async () => {
+        const restoreCoverImage = vi.fn().mockResolvedValue(false);
+        const replaceArticle = vi.fn();
+        renderCardView(
+          container,
+          [fetchedArticle()],
+          { ...baseViewContext(), showCardToolbar: false },
+          baseViewDeps({ restoreCoverImage, replaceArticle }),
+        );
+
+        fetchButton()?.click();
+
+        await vi.waitFor(() =>
+          expect(restoreCoverImage).toHaveBeenCalledTimes(1),
+        );
+        expect(replaceArticle).not.toHaveBeenCalled();
+      });
+
+      it("does not dim the card, since a restore has nothing to wait for", async () => {
+        const restoreCoverImage = vi.fn().mockResolvedValue(true);
+        renderCardView(
+          container,
+          [fetchedArticle()],
+          { ...baseViewContext(), showCardToolbar: false },
+          baseViewDeps({ restoreCoverImage }),
+        );
+        const card = container.querySelector<HTMLElement>(
+          ".rss-dashboard-article-card",
+        )!;
+
+        fetchButton()?.click();
+
+        expect(card.classList.contains("rss-dashboard-cover-fetching")).toBe(
+          false,
+        );
+        expect(card.hasAttribute("aria-busy")).toBe(false);
+      });
+    });
   });
 });

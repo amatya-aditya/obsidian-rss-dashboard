@@ -11,6 +11,7 @@ import {
   sanitizeImageUrl,
 } from "../../utils/image-url-utils.js";
 import { getEffectiveDateMs, isProtectedItem } from "./feed-retention.js";
+import { extractCoverImage } from "./feed-cover-image.js";
 import type { ParsedFeed, ParsedItem } from "./types.js";
 
 /**
@@ -138,46 +139,75 @@ function resolveItemAudio(
   return { isPodcast, audioUrl, enclosure };
 }
 
-function itunesImageUrl(
-  item: ParsedItem,
-  url: string,
-  ctx: FeedItemContext,
-): string {
-  return optimizeImageUrl(
-    ctx.convertToAbsoluteUrl(item.itunes?.image?.href || "", url),
-  );
+/**
+ * The images the feed itself supplies for one item, in the order the parser
+ * prefers them. The parse pipeline fills these from a `ParsedItem`; the restore
+ * action (#1330) fills them from the item the vault already holds, so the
+ * precedence lives in one place and the two cannot disagree.
+ */
+interface FeedCoverFields {
+  /** The HTML a cover image is scanned from: `content`, else `description`. */
+  blurbHtml: string;
+  itunesImageHref: string;
+  imageUrl: string;
+  enclosureUrl: string;
+  enclosureType: string;
 }
 
-function itemImageUrl(
-  item: ParsedItem,
+/** The `FeedItemContext` helpers that resolving a feed cover reads. */
+type FeedCoverDeps = Pick<
+  FeedItemContext,
+  "convertToAbsoluteUrl" | "extractCoverImage"
+>;
+
+function absoluteImage(
+  value: string,
   url: string,
-  ctx: FeedItemContext,
+  deps: FeedCoverDeps,
 ): string {
-  return optimizeImageUrl(ctx.convertToAbsoluteUrl(item.image?.url || "", url));
+  return optimizeImageUrl(deps.convertToAbsoluteUrl(value, url));
 }
 
-function enclosureImageUrl(
-  item: ParsedItem,
+function enclosureImage(
+  fields: FeedCoverFields,
   url: string,
-  ctx: FeedItemContext,
+  deps: FeedCoverDeps,
 ): string {
-  return item.enclosure?.type?.startsWith("image/")
-    ? optimizeImageUrl(ctx.convertToAbsoluteUrl(item.enclosure.url, url))
+  return fields.enclosureType.startsWith("image/")
+    ? absoluteImage(fields.enclosureUrl, url, deps)
     : "";
 }
 
-/** Article cover: the image in the content comes first. */
+/** Article cover: the image in the blurb comes first. */
+function feedCoverFromFields(
+  fields: FeedCoverFields,
+  url: string,
+  deps: FeedCoverDeps,
+): string {
+  return firstSanitizedArticleImageUrl([
+    deps.extractCoverImage(fields.blurbHtml, url),
+    absoluteImage(fields.itunesImageHref, url, deps),
+    absoluteImage(fields.imageUrl, url, deps),
+    enclosureImage(fields, url, deps),
+  ]);
+}
+
+function parsedItemCoverFields(item: ParsedItem): FeedCoverFields {
+  return {
+    blurbHtml: item.content || item.description || "",
+    itunesImageHref: item.itunes?.image?.href || "",
+    imageUrl: item.image?.url || "",
+    enclosureUrl: item.enclosure?.url || "",
+    enclosureType: item.enclosure?.type || "",
+  };
+}
+
 function buildArticleCover(
   item: ParsedItem,
   url: string,
   ctx: FeedItemContext,
 ): string {
-  return firstSanitizedArticleImageUrl([
-    ctx.extractCoverImage(item.content || item.description || "", url),
-    itunesImageUrl(item, url, ctx),
-    itemImageUrl(item, url, ctx),
-    enclosureImageUrl(item, url, ctx),
-  ]);
+  return feedCoverFromFields(parsedItemCoverFields(item), url, ctx);
 }
 
 /** Article card image: the content image comes third. */
@@ -186,12 +216,73 @@ function buildArticleImage(
   url: string,
   ctx: FeedItemContext,
 ): string {
+  const fields = parsedItemCoverFields(item);
   return firstSanitizedArticleImageUrl([
-    itunesImageUrl(item, url, ctx),
-    itemImageUrl(item, url, ctx),
-    ctx.extractCoverImage(item.content || item.description || "", url),
-    enclosureImageUrl(item, url, ctx),
+    absoluteImage(fields.itunesImageHref, url, ctx),
+    absoluteImage(fields.imageUrl, url, ctx),
+    ctx.extractCoverImage(fields.blurbHtml, url),
+    enclosureImage(fields, url, ctx),
   ]);
+}
+
+/**
+ * The parser's two base-independent rewrites, for the restore action reading a
+ * stored item (#1330): a protocol-relative URL follows the page's own protocol
+ * as `convertToAbsoluteUrl` does, and the `app://` scheme is the Obsidian one
+ * the parser maps to `https://`. Everything else is returned as it stands, so a
+ * value that is still not `http(s)` is refused by the sanitizer rather than
+ * guessed at against a base the item no longer carries. Stored items have
+ * neither of the other two shapes: the parse rewrote relative `<img src>` values
+ * in the blurb, and the image fields were resolved against the feed.
+ */
+function resolveStoredImageUrl(value: string): string {
+  if (value.startsWith("//")) return `https:${value}`;
+  if (value.startsWith("app://")) return value.replace("app://", "https://");
+  return value;
+}
+
+const STORED_ITEM_COVER_DEPS: FeedCoverDeps = {
+  convertToAbsoluteUrl: resolveStoredImageUrl,
+  extractCoverImage: (html, baseUrl) =>
+    extractCoverImage(html, baseUrl ?? "", resolveStoredImageUrl),
+};
+
+/** The stored fields a feed cover is recomputed from; a missing one is no candidate. */
+export type StoredCoverFields = Partial<
+  Pick<
+    FeedItem,
+    | "content"
+    | "description"
+    | "itunes"
+    | "image"
+    | "enclosure"
+    | "link"
+    | "feedUrl"
+  >
+>;
+
+function storedItemCoverFields(item: StoredCoverFields): FeedCoverFields {
+  return {
+    blurbHtml: item.content || item.description || "",
+    itunesImageHref: item.itunes?.image?.href || "",
+    imageUrl: item.image || "",
+    enclosureUrl: item.enclosure?.url || "",
+    enclosureType: item.enclosure?.type || "",
+  };
+}
+
+/**
+ * The feed's own cover for an item the vault already holds (#1330), resolved
+ * from its stored fields with the parser's precedence. Pure and offline — no
+ * request, no parser instance, no page. `coverImage` is never a candidate, so
+ * this cannot hand back the page image a fetch stored.
+ */
+export function resolveStoredItemFeedCover(item: StoredCoverFields): string {
+  return feedCoverFromFields(
+    storedItemCoverFields(item),
+    item.link || item.feedUrl || "",
+    STORED_ITEM_COVER_DEPS,
+  );
 }
 
 function shouldSkipExistingItem(
@@ -236,23 +327,41 @@ function shouldSkipNewItem(
   );
 }
 
-function resolveExistingCoverImage(
+/** The cover a refresh settles on, with the provenance marker that goes with it. */
+interface ResolvedExistingCover {
+  coverImage: string;
+  /** Set while the kept cover came from the article page (#1330). */
+  coverImageFromPage: boolean | undefined;
+}
+
+/**
+ * The cover a refresh keeps or takes (#1330). The feed wins whenever it ships
+ * an image of its own, which also drops the marker that says a page image is
+ * being shown; with no feed image the stored cover and its marker both survive.
+ */
+function resolveExistingCover(
   work: ItemWork,
   existingItem: FeedItem,
   ctx: FeedItemContext,
-): string {
+): ResolvedExistingCover {
   const { item, audio, request } = work;
   const url = request.feedUrl;
   if (audio.isPodcast) {
-    return (
-      ctx.resolvePodcastCoverImage(item, request.parsed, url) ||
-      existingItem.coverImage
-    );
+    const feedCover = ctx.resolvePodcastCoverImage(item, request.parsed, url);
+    return feedCover
+      ? { coverImage: feedCover, coverImageFromPage: undefined }
+      : {
+          coverImage: existingItem.coverImage,
+          coverImageFromPage: existingItem.coverImageFromPage,
+        };
   }
-  return (
-    buildArticleCover(item, url, ctx) ||
-    sanitizeArticleImageUrl(existingItem.coverImage)
-  );
+  const feedCover = buildArticleCover(item, url, ctx);
+  return feedCover
+    ? { coverImage: feedCover, coverImageFromPage: undefined }
+    : {
+        coverImage: sanitizeArticleImageUrl(existingItem.coverImage),
+        coverImageFromPage: existingItem.coverImageFromPage,
+      };
 }
 
 type UpdatedItemCore = Pick<
@@ -271,6 +380,7 @@ type UpdatedItemCore = Pick<
   | "savedFilePath"
   | "feedTitle"
   | "coverImage"
+  | "coverImageFromPage"
   | "summary"
   | "image"
 >;
@@ -290,7 +400,7 @@ function refreshedAuthors(
 function buildUpdatedItemCore(
   work: ItemWork,
   existingItem: FeedItem,
-  coverImage: string,
+  cover: ResolvedExistingCover,
   ctx: FeedItemContext,
 ): UpdatedItemCore {
   const { item, itemGuid, request } = work;
@@ -309,7 +419,8 @@ function buildUpdatedItemCore(
     saved: existingItem.saved,
     savedFilePath: existingItem.savedFilePath,
     feedTitle: request.newFeed.title, // Update feedTitle to match the new feed title
-    coverImage,
+    coverImage: cover.coverImage,
+    coverImageFromPage: cover.coverImageFromPage,
     summary:
       ctx.extractSummary(item.content || item.description || "") ||
       existingItem.summary,
@@ -383,10 +494,10 @@ function processExistingItem(
     return;
   }
 
-  const coverImage = resolveExistingCoverImage(work, existingItem, ctx);
+  const cover = resolveExistingCover(work, existingItem, ctx);
   const updatedItem: FeedItem = {
     ...existingItem,
-    ...buildUpdatedItemCore(work, existingItem, coverImage, ctx),
+    ...buildUpdatedItemCore(work, existingItem, cover, ctx),
     ...buildUpdatedItemItunes(item, existingItem),
     ...buildUpdatedItemMedia(item, existingItem, audio),
   };

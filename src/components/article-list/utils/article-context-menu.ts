@@ -1,11 +1,7 @@
 import { Menu, MenuItem, Notice } from "obsidian";
 import type { FeedItem, SaveVersion } from "../../../types/types";
-import { isHttpUrl } from "../../../utils/http-url";
-import {
-  COVER_IMAGE_FETCH_ICON,
-  coverImageActionLabel,
-} from "./cover-image-action";
 import { addSaveOptionItems, type CustomSaveHooks } from "./save-options-menu";
+import type { CoverImageAction } from "./cover-image-action";
 
 export interface ArticleContext {
   callbacks: {
@@ -27,15 +23,20 @@ export interface ArticleContext {
      * usable image was stored on the article, false otherwise.
      */
     onFetchCoverImage?: (article: FeedItem) => Promise<boolean>;
-    /** Rebuilds whatever rendered the article, once a cover image was stored. */
-    onCoverImageFetched?: (article: FeedItem) => void;
+    /**
+     * Puts the feed's own cover image back, locally and with no request
+     * (#1330). Resolves true when the article was rewritten.
+     */
+    onRestoreCoverImage?: (article: FeedItem) => Promise<boolean>;
+    /** Rebuilds whatever rendered the article, once its cover changed. */
+    onCoverImageChanged?: (article: FeedItem) => void;
   };
   /**
-   * Whether this surface offers the cover-image fetch. The view applies the
-   * shared availability gate (a usable link, a shown cover surface, and a
-   * dashboard that can fetch); the card control applies the same one.
+   * The cover-image action this article is offered, already resolved by the
+   * view's single helper (#1330): its label, icon and role, or absent when the
+   * surface offers none.
    */
-  showFetchCoverImage?: boolean;
+  coverImageAction?: CoverImageAction;
   settings: {
     articleSaving: {
       saveVersion: SaveVersion;
@@ -150,15 +151,19 @@ export function showArticleContextMenu(
       });
   });
 
-  const fetchCoverImage = ctx.callbacks.onFetchCoverImage;
-  if (ctx.showFetchCoverImage && isHttpUrl(article.link) && fetchCoverImage) {
+  const coverAction = ctx.coverImageAction;
+  const runCoverAction =
+    coverAction?.role === "restore"
+      ? ctx.callbacks.onRestoreCoverImage
+      : ctx.callbacks.onFetchCoverImage;
+  if (coverAction && runCoverAction) {
     menu.addItem((item: MenuItem) => {
       item
-        .setTitle(coverImageActionLabel(article))
-        .setIcon(COVER_IMAGE_FETCH_ICON)
+        .setTitle(coverAction.label)
+        .setIcon(coverAction.icon)
         .onClick(() => {
-          void fetchCoverImage(article).then((found) => {
-            if (found) ctx.callbacks.onCoverImageFetched?.(article);
+          void runCoverAction(article).then((changed) => {
+            if (changed) ctx.callbacks.onCoverImageChanged?.(article);
           });
         });
     });

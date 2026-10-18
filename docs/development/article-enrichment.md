@@ -92,16 +92,26 @@ the first `<img>` in `content`, then in `summary`, then an `image/*` enclosure.
 It never uses the article page's image; that is
 [#812](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/812).
 
-A reader can ask for the page's image by hand, though: **Fetch cover image from
-page** in an article's right-click menu, or the same control in the corner of a
-card that has none. That action fetches the page once, takes its declared image
-(`og:image`, then `twitter:image`), and stores it in `coverImage`, so every
-cover surface picks it up. It reads no page body — a body's first image is
-usually a byline avatar or a site logo — stores no page content, and changes no
-other field. It is manual and one request per activation; the automatic
-alternatives remain [#812](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/812)
-and [#1030](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1030).
+A reader can ask for the page's image by hand, though: **Fetch and replace cover
+image** in an article's right-click menu, or the same control at the right end of
+a card's or feed item's tag row. That action fetches the page once, takes its
+declared image (`og:image`, then `twitter:image`), and stores it in `coverImage`
+with the `coverImageFromPage` marker, so every cover surface picks it up. It
+reads no page body — a body's first image is usually a byline avatar or a site
+logo — stores no page content, and changes no other field. It is manual and one
+request per activation; the automatic alternatives remain
+[#812](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/812) and
+[#1030](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1030).
 See [ADR 0031](../adr/0031-store-a-manually-fetched-page-cover-image-in-coverimage.md).
+
+The same control also undoes that choice. A cover the fetch stored offers
+**Restore cover image from feed** — or **Remove fetched cover image** when the
+feed supplies no image of its own — which recomputes the feed's cover from the
+fields the item already stores, using the precedence above (blurb scan, then
+`itunes.image`, `image`, and an image enclosure). The restore is local: no page
+request, no cache warm, no other field touched. A refresh that finds the feed's
+own image takes it back on its own, clearing the marker. See
+[ADR 0032](../adr/0032-record-fetched-cover-image-provenance-and-restore-it.md).
 
 ## Why the plugin fetches pages only on open
 

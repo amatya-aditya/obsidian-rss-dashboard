@@ -698,6 +698,10 @@ function mergeFeedItemPair(
     content: pickLongerOptional(existing.content, item.content),
     summary: pickLongerOptional(existing.summary, item.summary),
     coverImage: existing.coverImage || item.coverImage,
+    // The marker follows whichever cover the merge kept (#1330).
+    coverImageFromPage: existing.coverImage
+      ? existing.coverImageFromPage
+      : item.coverImageFromPage,
     image: existing.image || item.image,
   };
 }
