@@ -317,6 +317,16 @@ function isPlaceholderSrc(src: string | null): boolean {
   return !trimmed || trimmed === "about:blank" || trimmed.startsWith("data:");
 }
 
+/** A single URL or path, not a flag such as `true` or `lazy` or a list. */
+function isLazyUrlValue(value: string): boolean {
+  return (
+    value !== "" &&
+    !/\s/.test(value) &&
+    !isPlaceholderSrc(value) &&
+    /[/.]/.test(value)
+  );
+}
+
 /**
  * Gives an `<img>` that a lazy-loading plugin left without a real `src` its
  * URL from `data-src`, `data-lazy-src`, `data-lazy` or `data-original`, and
@@ -330,7 +340,7 @@ export function promoteLazyImageSources(root: ParentNode): void {
 
     for (const name of LAZY_SRC_ATTRIBUTES) {
       const value = img.getAttribute(name)?.trim() ?? "";
-      if (!value || /\s/.test(value) || isPlaceholderSrc(value)) continue;
+      if (!isLazyUrlValue(value)) continue;
       img.setAttribute("src", value);
       break;
     }

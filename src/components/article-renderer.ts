@@ -217,8 +217,11 @@ export class ArticleRenderer {
             this.settings.feeds,
             (update) => this.onArticleUpdate(item, update, false),
           );
-          persistFetchedCoverImage(item, result.pageImage, (update) =>
-            this.onArticleUpdate(item, update, false),
+          persistFetchedCoverImage(
+            item,
+            result.pageImage,
+            this.settings.feeds,
+            (update) => this.onArticleUpdate(item, update, false),
           );
         },
         // The failure belongs to the item too: remember it even after

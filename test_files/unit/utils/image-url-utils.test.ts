@@ -481,6 +481,14 @@ describe("promoteLazyImageSources", () => {
     expect(doc.querySelector("img")?.getAttribute("src")).toBe("/real.png");
   });
 
+  it("skips a flag value and tries the next lazy attribute", () => {
+    const doc = parse('<img data-lazy="true" data-src="/real.png">');
+
+    promoteLazyImageSources(doc);
+
+    expect(doc.querySelector("img")?.getAttribute("src")).toBe("/real.png");
+  });
+
   it("ignores a lazy attribute that is not a single URL", () => {
     const doc = parse('<img data-lazy="not a url">');
 

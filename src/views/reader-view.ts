@@ -1453,8 +1453,11 @@ export class ReaderView extends ItemView {
           this.settings.feeds,
           (update) => this.persistBackgroundUpdate(item, update, false),
         );
-        persistFetchedCoverImage(item, result.pageImage, (update) =>
-          this.persistBackgroundUpdate(item, update, false),
+        persistFetchedCoverImage(
+          item,
+          result.pageImage,
+          this.settings.feeds,
+          (update) => this.persistBackgroundUpdate(item, update, false),
         );
       },
       // The failure belongs to the item too: remember it even after

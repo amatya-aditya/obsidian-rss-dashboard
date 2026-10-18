@@ -47,17 +47,23 @@ export function persistFetchedMetadata(
 export function persistFetchedCoverImage(
   item: FeedItem,
   pageImage: string | undefined,
+  feeds: readonly Feed[],
   emit: (update: Partial<FeedItem>) => void,
 ): void {
-  if (!pageImage) return;
+  const cover = firstNonFormulaImageUrl([pageImage]);
+  if (!cover) return;
+  // A site-wide default share card is the feed's logo, not this article's picture.
+  const feedIconUrl = feeds.find((f) => f.url === item.feedUrl)?.iconUrl ?? "";
+  const normalize = (url: string): string => url.trim().replace(/\/$/, "");
+  if (feedIconUrl && normalize(cover) === normalize(feedIconUrl)) return;
   const hasPicture = firstNonFormulaImageUrl([
     item.coverImage,
     item.image,
     item.itunes?.image?.href,
   ]);
   if (hasPicture) return;
-  item.coverImage = pageImage;
-  emit({ coverImage: pageImage });
+  item.coverImage = cover;
+  emit({ coverImage: cover });
 }
 
 /** Banner for fetched content that looks truncated, restricted or paywalled. */
