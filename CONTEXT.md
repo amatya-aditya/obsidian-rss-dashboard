@@ -326,15 +326,28 @@ One value per metadata field (description, language) after precedence is applied
 _Avoid_: Final metadata, merged metadata
 
 **Cover image**:
-The image a card, a feed-view hero, or a Reader hero shows for an article, stored on the feed item in the `coverImage` field. It normally comes from the feed's own markup (media tags, an enclosure, or the first image in the blurb); after a [[Cover image fetch]] it may instead be the article page's [[Page cover image]]. The Reader's "hero" names a layout region, not a separate image. See [ADR 0031](docs/adr/0031-store-a-manually-fetched-page-cover-image-in-coverimage.md).
+The image a card, a feed-view hero, or a Reader hero shows for an article, stored on the feed item in the `coverImage` field. It normally comes from the feed's own markup (media tags, an enclosure, or the first image in the blurb); after a [[Cover image fetch]] it may instead be the article page's [[Page cover image]]. The Reader's "hero" names a layout region, not a separate image. See [ADR 0031](docs/adr/0031-store-a-manually-fetched-page-cover-image-in-coverimage.md) and [ADR 0032](docs/adr/0032-record-fetched-cover-image-provenance-and-restore-it.md).
 _Avoid_: Preview image (the documentation's older name), hero image (the Reader layout region), card image, thumbnail
+
+**Feed cover image**:
+The image the feed's own markup supplies for an item, resolved with the parser's precedence: the blurb scan first, then `itunes.image`, then `image`, then an image `enclosure`. It is what a [[Cover image]] holds unless a [[Cover image fetch]] replaced it, and what a [[Cover image restore]] puts back — from the fields the item already stores, with no request. Set while the item carries no `coverImageFromPage` marker.
+_Avoid_: Feed image, original image, RSS image
+
+**Cover image provenance**:
+The optional `coverImageFromPage` marker on a feed item, set while its [[Cover image]] is the [[Page cover image]] a [[Cover image fetch]] stored. An absent marker means the cover is the feed's own, so items stored before it existed need no migration. Every writer that supplies a [[Feed cover image]] — the refresh, the YouTube-thumbnail step, the feed's shared-logo blanking, the settings dedupe, and the [[Cover image restore]] — clears it.
+_Avoid_: Cover source, image origin, fetched flag
 
 **Page cover image**:
 The image an article page declares for itself through `og:image`, falling back to `twitter:image`, resolved against the article URL. Read only by a [[Cover image fetch]]; never at refresh or render time, and never by scanning the page body, where the first image is usually a byline avatar or a site logo. A formula image, a tracking pixel, a `data:` URL, and any non-`http(s)` value are refused. See [ADR 0031](docs/adr/0031-store-a-manually-fetched-page-cover-image-in-coverimage.md).
 _Avoid_: og image, social image, page hero, article thumbnail
 
 **Cover image fetch**:
-The manual dashboard action that reads an article page's [[Page cover image]] and stores it as the item's [[Cover image]], offered in an article's context menu and as a control in a card's tag row, in Card and Feed views while cover-image display is on. One request per activation, sharing a request already in flight for the same link; it stores no page content and changes no other article field. Distinct from the Reader's fetch that produces [[Fetched content]].
+The manual dashboard action that reads an article page's [[Page cover image]] and stores it as the item's [[Cover image]], offered in an article's context menu and as a control in a card's tag row, in Card and Feed views while cover-image display is on. One request per activation, sharing a request already in flight for the same link; it stores no page content and changes no other article field. Distinct from the Reader's fetch that produces [[Fetched content]]. See [ADR 0031](docs/adr/0031-store-a-manually-fetched-page-cover-image-in-coverimage.md).
+_Avoid_: Fetch card image, image fetch, full fetch, article fetch (the Reader's fetch)
+
+**Cover image restore**:
+The dashboard action that puts the article's [[Feed cover image]] back after a [[Cover image fetch]] replaced it, recomputed from the fields the item already stores. Local and offline: it makes no request, warms no cache, and touches no other field. When the feed supplies no image it clears the [[Cover image]] instead, which the control labels **Remove fetched cover image**. It drops the [[Cover image provenance]] marker, so the control returns to the fetch labels. Reachable from the same control and context menu as the fetch, and never from List view, which shows no cover. See [ADR 0032](docs/adr/0032-record-fetched-cover-image-provenance-and-restore-it.md).
+_Avoid_: Unfetch cover, reset image, revert cover image, remove cover image (the feed still wins on the next refresh)
 _Avoid_: Fetch card image, image fetch, full fetch, article fetch (the Reader's fetch)
 
 **Persisted article metadata**:

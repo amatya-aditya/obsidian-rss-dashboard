@@ -82,9 +82,11 @@ declared image, and stores it in the item's existing `coverImage` field.
 
 ### Trade-offs
 
-- `coverImage` cannot tell a page-derived image from a feed one. A later refresh
-  replaces it the moment the feed ships its own cover, which is the intended
-  "feed wins" rule but is not something the stored data can explain.
+- `coverImage` cannot tell a page-derived image from a feed one by itself, so
+  [ADR 0032](0032-record-fetched-cover-image-provenance-and-restore-it.md)
+  records the manual fetch's provenance and lets the reader put the feed's image
+  back. A later refresh still replaces a page image the moment the feed ships its
+  own cover, which is the intended "feed wins" rule.
 - The action costs one page request, with the same proxy fallback and Fetch
   timeout the Reader uses. A paywalled page may still answer with a usable
   `og:image`, so a "restricted" page is not automatically a failure.
@@ -143,6 +145,7 @@ when it fetches on open.
 ## Related
 
 - [ADR 0007 — Article Metadata Pipeline Seam](0007-article-metadata-pipeline-seam.md)
+- [ADR 0032 — Record a Fetched Cover Image's Provenance and Restore It from the Feed](0032-record-fetched-cover-image-provenance-and-restore-it.md)
 - [ADR 0022 — RSS-First Reader Content Selection](0022-rss-first-reader-content-selection.md)
 - [Article Enrichment](../development/article-enrichment.md)
 - [GitHub Issue #1314](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1314)
