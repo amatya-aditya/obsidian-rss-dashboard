@@ -410,7 +410,7 @@ function resolveAuthors(
   return page ?? feed;
 }
 
-/*
+/**
  * The page image the card action fetches (#1314). Deliberately narrow: only the
  * page's own declaration, never a scan of the body, because the first body image
  * on a typical article page is a byline avatar or a site logo (#812).
@@ -433,8 +433,10 @@ export function resolvePageCoverImage(
 function absoluteImageUrl(value: string, pageUrl: string): string {
   const trimmed = value.trim();
   if (!trimmed) return "";
-  if (trimmed.startsWith("//")) return sanitizeImageUrl(`https:${trimmed}`);
   try {
+    // `new URL` resolves a protocol-relative "//host/path" against the page's
+    // own protocol and a root-relative path against its origin, so an http
+    // article does not silently become an https request.
     return sanitizeImageUrl(new URL(trimmed, pageUrl).href);
   } catch {
     return sanitizeImageUrl(trimmed);

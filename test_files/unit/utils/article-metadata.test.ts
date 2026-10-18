@@ -601,6 +601,15 @@ describe("resolvePageCoverImage (#1314)", () => {
     ).toBe("https://cdn.example.com/hero.png");
   });
 
+  it("keeps the article's own protocol for a protocol-relative image", () => {
+    expect(
+      resolvePageCoverImage(
+        emptyRaw({ ogImage: "//cdn.example.com/hero.png" }),
+        "http://example.com/posts/one",
+      ),
+    ).toBe("http://cdn.example.com/hero.png");
+  });
+
   it("refuses a data: URL, a non-http(s) scheme and a relative URL with no usable base", () => {
     expect(
       resolvePageCoverImage(

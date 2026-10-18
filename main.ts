@@ -309,7 +309,9 @@ export default class RssDashboardPlugin extends Plugin {
       fetchPage: (url) =>
         fetchFullArticleContentWithOutcome(
           url,
-          this.settings.corsProxyUrl,
+          this.settings.corsProxyEnabled && this.settings.corsProxyUrl
+            ? this.settings.corsProxyUrl
+            : undefined,
           this.settings.articleSaving.fetchTimeout,
         ),
     });

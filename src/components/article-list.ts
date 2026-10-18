@@ -39,7 +39,7 @@ import { createActionButtons as createArticleActionButtonsUtil } from "./article
 import type { CustomSaveHooks } from "./article-list/utils/save-options-menu";
 import { showArticleContextMenu as showArticleContextMenuUtil } from "./article-list/utils/article-context-menu";
 import { withCoverImageBusyState } from "./article-list/utils/cover-image-busy";
-import { isHttpUrl } from "../utils/http-url";
+import { canOfferCoverImageFetch } from "./article-list/utils/cover-image-action";
 import { renderFeedView as renderFeedViewUtil } from "./article-list/views/feed-view";
 import { renderListView as renderListViewUtil } from "./article-list/views/list-view";
 import { renderCardView as renderCardViewUtil } from "./article-list/views/card-view";
@@ -1599,10 +1599,11 @@ export class ArticleList {
           this.replaceArticleInPlace(updated),
       },
       showFetchCoverImage:
-        !!fetchCoverImage &&
         this.settings.viewStyle !== "list" &&
-        this.settings.display.showCoverImage &&
-        isHttpUrl(article.link),
+        canOfferCoverImageFetch(article, {
+          hasFetcher: !!fetchCoverImage,
+          showCoverImage: this.settings.display.showCoverImage,
+        }),
       settings: { articleSaving: this.settings.articleSaving },
     });
   }
@@ -1641,6 +1642,8 @@ export class ArticleList {
     listEl.scrollTop = scrollPos;
 
     if (hadFocus) {
+      // The element is new, so focus returns to its cover control, or to the
+      // card's opener when the control is no longer offered.
       const focusTarget =
         newEl.querySelector<HTMLElement>(".rss-dashboard-fetch-cover-button") ??
         newEl.querySelector<HTMLElement>(".rss-dashboard-card-open-button");

@@ -238,7 +238,9 @@
 }
 
 /* The manual cover-image fetch (#1314). Out of the way until the card is
- * hovered or holds focus, but always reachable from the keyboard. */
+ * hovered or holds focus, but never unreachable: the hidden control takes no
+ * pointer events (a tap meant to open the card must not fetch a page), and a
+ * touch screen shows it outright because it has no hover to reveal it. */
 .rss-dashboard-card-view
   .rss-dashboard-article-card
   .rss-dashboard-fetch-cover-button {
@@ -257,27 +259,39 @@
   background-color: var(--background-primary);
   color: var(--text-muted);
   opacity: 0;
+  pointer-events: none;
   transition: opacity 0.15s ease;
 }
 
-.rss-dashboard-article-card:hover .rss-dashboard-fetch-cover-button,
-.rss-dashboard-article-card:focus-within .rss-dashboard-fetch-cover-button {
+.rss-dashboard-card-view
+  .rss-dashboard-article-card:hover
+  .rss-dashboard-fetch-cover-button,
+.rss-dashboard-card-view
+  .rss-dashboard-article-card:focus-within
+  .rss-dashboard-fetch-cover-button {
   opacity: 1;
+  pointer-events: auto;
 }
 
-.rss-dashboard-fetch-cover-button:hover {
+.rss-dashboard-card-view .rss-dashboard-fetch-cover-button:hover {
   color: var(--text-normal);
   background-color: var(--background-modifier-hover);
 }
 
-.rss-dashboard-cover-fetching .rss-dashboard-fetch-cover-button {
-  opacity: 1;
-  color: var(--text-muted);
+@media (pointer: coarse) {
+  .rss-dashboard-card-view
+    .rss-dashboard-article-card
+    .rss-dashboard-fetch-cover-button {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
-.rss-dashboard-cover-fetching .rss-dashboard-card-preview-region,
-.rss-dashboard-cover-fetching .rss-dashboard-feed-preview-region {
-  opacity: 0.5;
+/* The article itself dims while its page is being fetched, so a card with no
+ * preview region still shows that something is happening. */
+.rss-dashboard-card-view
+  .rss-dashboard-article-card.rss-dashboard-cover-fetching {
+  opacity: 0.75;
 }
 
 .rss-dashboard-article-card.active {

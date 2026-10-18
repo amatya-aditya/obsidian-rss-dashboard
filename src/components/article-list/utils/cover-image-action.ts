@@ -1,4 +1,5 @@
 import type { FeedItem } from "../../../types/types";
+import { isHttpUrl } from "../../../utils/http-url";
 
 /**
  * The wording of the manual cover-image fetch (#1314), shared by its two entry
@@ -19,3 +20,25 @@ export function coverImageActionLabel(
  * article page.
  */
 export const COVER_IMAGE_FETCH_ICON = "download";
+
+export interface CoverImageAvailability {
+  /** The dashboard supplies the fetch at all (absent on a surface without it). */
+  hasFetcher: boolean;
+  /** Cover images are displayed, so a fetched one has somewhere to appear. */
+  showCoverImage: boolean;
+}
+
+/**
+ * Whether this article's cover image can be fetched from its page. One gate for
+ * the card control and the context menu, so a control is offered exactly when
+ * the request can run: a usable `http(s)` link, a visible cover surface, and a
+ * dashboard that can fetch.
+ */
+export function canOfferCoverImageFetch(
+  article: Pick<FeedItem, "link">,
+  options: CoverImageAvailability,
+): boolean {
+  return (
+    options.hasFetcher && options.showCoverImage && isHttpUrl(article.link)
+  );
+}

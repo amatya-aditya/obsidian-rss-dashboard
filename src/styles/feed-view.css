@@ -36,6 +36,11 @@
   box-shadow: 0 0 0 2px var(--interactive-accent);
 }
 
+/* The item dims while its cover image is being fetched from its page (#1314). */
+.rss-dashboard-feed-item.rss-dashboard-cover-fetching {
+  opacity: 0.75;
+}
+
 .rss-dashboard-feed-content {
   display: flex;
   flex-direction: column;

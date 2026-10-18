@@ -3081,11 +3081,17 @@ export class RssDashboardView extends ItemView {
   private async handleFetchCoverImage(article: FeedItem): Promise<boolean> {
     const result = await this.plugin.fetchPageCoverImage(article.link);
     if (result.status === "found") {
-      await this.updateArticleStatus(
+      const stored = await this.updateArticleStatus(
         article,
         { coverImage: result.url },
         false,
       );
+      if (!stored) {
+        // The article is no longer in a feed this dashboard can update; say so
+        // rather than leaving the reader with a silent no-op.
+        new Notice("Could not save the cover image on this article.");
+        return false;
+      }
       // The cache itself decides whether caching is on for this image.
       this.plugin.warmCoverImage(result.url);
       return true;
@@ -3102,7 +3108,7 @@ export class RssDashboardView extends ItemView {
     article: FeedItem,
     updates: Partial<FeedItem>,
     shouldRerender = true,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const normalizedUpdates = applyAutomaticArticleTags(
       article,
       updates,
@@ -3114,13 +3120,13 @@ export class RssDashboardView extends ItemView {
         f.items.some((item: FeedItem) => item.guid === article.guid),
       );
 
-    if (!feed) return;
+    if (!feed) return false;
 
     const originalArticle = feed.items.find(
       (item: FeedItem) => item.guid === article.guid,
     );
 
-    if (!originalArticle) return;
+    if (!originalArticle) return false;
 
     Object.assign(originalArticle, normalizedUpdates);
     Object.assign(article, normalizedUpdates);
@@ -3148,6 +3154,7 @@ export class RssDashboardView extends ItemView {
       }
       this.syncArticleListAfterUpdate(article, feed);
     }
+    return true;
   }
 
   public applyExternalArticleUpdate(

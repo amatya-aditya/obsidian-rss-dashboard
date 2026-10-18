@@ -31,8 +31,9 @@ export interface ArticleContext {
     onCoverImageFetched?: (article: FeedItem) => void;
   };
   /**
-   * Whether this surface offers the cover-image fetch. The view decides: only
-   * the views that render a cover, with "Show cover images" on.
+   * Whether this surface offers the cover-image fetch. The view applies the
+   * shared availability gate (a usable link, a shown cover surface, and a
+   * dashboard that can fetch); the card control applies the same one.
    */
   showFetchCoverImage?: boolean;
   settings: {

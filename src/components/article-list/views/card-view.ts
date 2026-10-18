@@ -13,11 +13,11 @@ import {
 import { renderSingleRowCardTagChips } from "../utils/tag-layout-utils";
 import {
   COVER_IMAGE_FETCH_ICON,
+  canOfferCoverImageFetch,
   coverImageActionLabel,
 } from "../utils/cover-image-action";
 import { withCoverImageBusyState } from "../utils/cover-image-busy";
 import { createIconButton } from "../../../utils/icon-button";
-import { isHttpUrl } from "../../../utils/http-url";
 import type { BaseViewContext, ViewDeps } from "./view-types";
 import {
   renderPreviewPlaceholder,
@@ -54,16 +54,15 @@ function renderCardPlaceholder(
 /**
  * The card's cover-image fetch control (#1314): the discoverable path to the
  * same action the context menu offers. Revealed by the stylesheet on card
- * hover and on focus within the card, so it stays out of the way but is never
- * hidden from the keyboard.
+ * hover and on focus within the card (and always on a touch screen), so it
+ * stays out of the way but is never hidden from the keyboard or unreachable by
+ * touch.
  */
 function renderFetchCoverButton(
   card: HTMLElement,
   article: FeedItem,
   deps: ViewDeps,
 ): void {
-  if (!deps.fetchCoverImage) return;
-
   const runFetch = async (): Promise<void> => {
     const fetched = await withCoverImageBusyState(
       card,
@@ -343,9 +342,10 @@ export function renderCardView(
     }
 
     if (
-      deps.fetchCoverImage &&
-      ctx.settings.display.showCoverImage &&
-      isHttpUrl(article.link)
+      canOfferCoverImageFetch(article, {
+        hasFetcher: !!deps.fetchCoverImage,
+        showCoverImage: ctx.settings.display.showCoverImage,
+      })
     ) {
       renderFetchCoverButton(card, article, deps);
     }
