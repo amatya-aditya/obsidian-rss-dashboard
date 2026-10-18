@@ -552,9 +552,95 @@ describe("Reader HTML cleanup utilities (characterization)", () => {
     });
   });
 
+  describe("flattenSingleRootWrapper", () => {
+    const flatten = (html: string): string => {
+      const doc = parse(html);
+      cleanup.flattenSingleRootWrapper(doc);
+      return bodyOf(doc);
+    };
+
+    it("hoists a single element child's children into the body", () => {
+      expect(flatten(`<div><p>one</p><p>two</p></div>`)).toBe(
+        `<p>one</p><p>two</p>`,
+      );
+    });
+
+    it("drops an attributed wrapper and keeps its children", () => {
+      expect(
+        flatten(
+          `<div id="readability-page-1" class="page"><p>one</p><figure></figure></div>`,
+        ),
+      ).toBe(`<p>one</p><figure></figure>`);
+    });
+
+    it("flattens nested wrappers repeatedly", () => {
+      expect(
+        flatten(`<div><section><div><p>one</p></div></section></div>`),
+      ).toBe(`<p>one</p>`);
+    });
+
+    it("flattens a page or article wrapper", () => {
+      expect(flatten(`<article><p>one</p><p>two</p></article>`)).toBe(
+        `<p>one</p><p>two</p>`,
+      );
+      expect(flatten(`<main><div><p>one</p></div></main>`)).toBe(`<p>one</p>`);
+    });
+
+    it("keeps the wrapper's text nodes and their order around the blocks", () => {
+      expect(flatten(`<div>lead<p>one</p>tail</div>`)).toBe(
+        `lead<p>one</p>tail`,
+      );
+    });
+
+    it("is a no-op for a body with no element children", () => {
+      expect(flatten(`just text`)).toBe(`just text`);
+      expect(flatten(``)).toBe(``);
+    });
+
+    it("is a no-op for two or more element children", () => {
+      expect(flatten(`<div><p>one</p></div><p>two</p>`)).toBe(
+        `<div><p>one</p></div><p>two</p>`,
+      );
+      expect(flatten(`<p>one</p><p>two</p>`)).toBe(`<p>one</p><p>two</p>`);
+    });
+
+    it("is a no-op when the single element child holds no elements", () => {
+      expect(flatten(`<p>text only</p>`)).toBe(`<p>text only</p>`);
+      expect(flatten(`<img src="a.jpg">`)).toBe(`<img src="a.jpg">`);
+    });
+
+    it("keeps a lone content block instead of unwrapping it", () => {
+      // Only a container is a wrapper. Unwrapping one of these would strip the
+      // block itself, and a stripped <p> leaves the position-guarded scans
+      // after the flatten with no boundary at all (#1304).
+      const paragraph = `<p>${"x".repeat(200)} <a href="/x"><img src="hero.jpg"></a></p>`;
+      expect(flatten(paragraph)).toBe(paragraph);
+      expect(flatten(`<a href="/story"><img src="a.jpg"></a>`)).toBe(
+        `<a href="/story"><img src="a.jpg"></a>`,
+      );
+      expect(
+        flatten(
+          `<figure><img src="a.jpg"><figcaption>Cap</figcaption></figure>`,
+        ),
+      ).toBe(`<figure><img src="a.jpg"><figcaption>Cap</figcaption></figure>`);
+      expect(flatten(`<ul><li>one</li><li>two</li></ul>`)).toBe(
+        `<ul><li>one</li><li>two</li></ul>`,
+      );
+      expect(flatten(`<div><p>only</p></div>`)).toBe(`<p>only</p>`);
+    });
+
+    it("does nothing for a body-less document", () => {
+      const xml = new DOMParser().parseFromString("<root/>", "text/xml");
+      expect(() => cleanup.flattenSingleRootWrapper(xml)).not.toThrow();
+    });
+  });
+
   describe("stripDuplicateLeadContentFromDocument", () => {
+    // The pipeline hoists a single root wrapper before this scan (#1304), so
+    // the helper models that order rather than calling the scan alone.
     const strip = (html: string, description?: string): string => {
       const doc = parse(html);
+      cleanup.flattenSingleRootWrapper(doc);
       cleanup.stripDuplicateLeadContentFromDocument(doc, description);
       return bodyOf(doc);
     };
@@ -720,8 +806,10 @@ describe("Reader HTML cleanup utilities (characterization)", () => {
       });
 
       it("removes a header copy that starts with the description", () => {
+        // With the wrapper hoisted (#1304), the header is the body's first
+        // block, so the direct-child scan removes it whole.
         const html = `<div><header><p>${DESC} after months.</p></header>${LONG}</div>`;
-        expect(strip(html, DESC)).toBe(`<div><header></header>${LONG}</div>`);
+        expect(strip(html, DESC)).toBe(LONG);
       });
     });
 
@@ -729,24 +817,34 @@ describe("Reader HTML cleanup utilities (characterization)", () => {
       it("removes header p and div descendants equal to the description", () => {
         const html = `<div><header><h2>Title</h2><p>Desc</p><div>Desc</div></header>${LONG}</div>`;
         expect(strip(html, "Desc")).toBe(
-          `<div><header><h2>Title</h2></header>${LONG}</div>`,
+          `<header><h2>Title</h2></header>${LONG}`,
         );
       });
 
       it("removes every matching header descendant, not only the first", () => {
-        const html = `<div><header><p>Desc</p></header><header><p>Desc</p></header>${LONG}</div>`;
+        // A kicker keeps each header from being the description itself, so the
+        // direct-child scan misses and this stays a slow-path case.
+        const html = `<div><header><h2>K</h2><p>Desc</p></header><header><h2>K</h2><p>Desc</p></header>${LONG}</div>`;
         expect(strip(html, "Desc")).toBe(
-          `<div><header></header><header></header>${LONG}</div>`,
+          `<header><h2>K</h2></header><header><h2>K</h2></header>${LONG}`,
         );
       });
 
-      it("leaves a matching paragraph outside any header", () => {
-        const html = `<div><p>Desc</p>${LONG}</div>`;
+      it("removes a description paragraph directly under a single root wrapper, as unwrapped", () => {
+        expect(strip(`<p>Desc</p>${LONG}`, "Desc")).toBe(LONG);
+        expect(strip(`<div><p>Desc</p>${LONG}</div>`, "Desc")).toBe(LONG);
+      });
+
+      it("does not widen the slow path to a duplicate outside any header", () => {
+        // The slow path stays scoped to header descendants: the duplicate is
+        // nested in a block the direct-child scan cannot match, and the body
+        // has two element children, so the flatten leaves it alone (#1304).
+        const html = `<div><p>other</p><p>Desc</p></div>${LONG}`;
         expect(strip(html, "Desc")).toBe(html);
       });
 
       it("does not remove the header itself", () => {
-        const html = `<div><header>Desc</header>${LONG}</div>`;
+        const html = `${LONG}<header>Desc</header>`;
         expect(strip(html, "Desc")).toBe(html);
       });
 
@@ -760,8 +858,11 @@ describe("Reader HTML cleanup utilities (characterization)", () => {
   });
 
   describe("stripLeadMediaBeforeContent", () => {
+    // The pipeline hoists a single root wrapper before this scan (#1304), so
+    // the helper models that order rather than calling the scan alone.
     const strip = (html: string): string => {
       const doc = parse(html);
+      cleanup.flattenSingleRootWrapper(doc);
       cleanup.stripLeadMediaBeforeContent(doc);
       return bodyOf(doc);
     };
@@ -772,6 +873,15 @@ describe("Reader HTML cleanup utilities (characterization)", () => {
           `<figure><img src="a.jpg"></figure><p>kept</p><picture><img src="b.jpg"></picture><img src="c.jpg">${LONG}`,
         ),
       ).toBe(`<p>kept</p>${LONG}`);
+    });
+
+    it("strips lead media under a single root wrapper exactly as unwrapped", () => {
+      const media = `<figure><img src="a.jpg"></figure><p>kicker</p><img src="b.jpg">`;
+      const unwrapped = strip(`${media}${LONG}`);
+      expect(unwrapped).toBe(`<p>kicker</p>${LONG}`);
+      expect(strip(`<div id="readability-page-1">${media}${LONG}</div>`)).toBe(
+        unwrapped,
+      );
     });
 
     it("keeps media after the first substantial block", () => {
@@ -1724,6 +1834,48 @@ describe("Reader HTML cleanup utilities (characterization)", () => {
       );
       expect(content?.querySelector("figure")).toBeNull();
       expect(content?.textContent).toContain("Body sentence of the article.");
+      expect(
+        viewHarness.readingContainer
+          .querySelector(".rss-reader-hero-slot img")
+          ?.getAttribute("src"),
+      ).toBe(hero);
+    });
+
+    it("cleans the fetched page inside Readability's single root, pairing the lead credit (#1304)", async () => {
+      const hero = "https://img.example.com/images/hero.jpg";
+      const credit = "Photo credit: Jane Doe";
+      const otherCredit = "Photo credit: John Roe";
+      const bodyText = "Body sentence of the article. ".repeat(8);
+      // The wrapper Readability returns around every fetched page (#1304): the
+      // lead-media scan and the caption pairing only run once it is hoisted.
+      viewHarness.fetchFullArticleContent = vi.fn().mockResolvedValue({
+        content: `<div id="readability-page-1" class="page">
+          <figure><figcaption>${credit}</figcaption></figure>
+          <p>${credit}</p>
+          <p>${otherCredit}</p>
+          <p>${bodyText}</p>
+          <p>${credit}</p>
+        </div>`,
+        failureType: "none",
+      });
+
+      await view.displayItem(makeItem({ coverImage: hero }));
+      const fullArticleToggle = findContentToggle(viewHarness.readingContainer);
+      expect(fullArticleToggle?.textContent).toBe("Show fetched content");
+      fullArticleToggle?.click();
+
+      const content = viewHarness.readingContainer.querySelector(
+        ".rss-reader-article-content",
+      );
+      expect(content).not.toBeNull();
+      expect(content?.querySelector("figure")).toBeNull();
+      const paragraphs = Array.from(content?.querySelectorAll("p") ?? []).map(
+        (p) => p.textContent,
+      );
+      // The caption's figure goes with lead media, the repeated credit goes with
+      // it, the differing credit stays, and the trailing repeated credit is
+      // after the body so it stays too (#1305).
+      expect(paragraphs).toEqual([otherCredit, bodyText, credit]);
       expect(
         viewHarness.readingContainer
           .querySelector(".rss-reader-hero-slot img")

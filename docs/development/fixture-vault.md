@@ -112,12 +112,18 @@ The **duplicate-lead-photo-credit page** (`credit-caption-page.html`) backs the
 #1305 scenario: a caption-only `<figure>` whose credit is repeated as a
 paragraph above the body, a differing credit paragraph, a body paragraph, and a
 matching paragraph after the body. The seeded article sets a hero from the same
-server (`credit-caption-hero.png`), so the caption's figure is lead media. The
-lead-media scan runs on the fetched page's direct body children, which
-Readability wraps in a single root (#1304); until that is fixed the page renders
-the same on both sides of #1305, so the pairing is exercised at the caller level
-by `test_files/unit/views/reader-view-html-cleanup.characterization.test.ts` and
-re-checked here once #1304 lands.
+server (`credit-caption-hero.png`), so the caption's figure is lead media.
+
+Fetched content is wrapped in a single root element (Readability's
+`#readability-page-1`), which the readers hoist before the body-child cleanup
+scans run (#1304). That hoist is what makes the lead-media scan act on this
+page: with the hero set, the caption's `<figure>` goes as lead media and the
+matching `Photo credit: Jane Doe` paragraph goes with it, while
+`Photo credit: John Roe` and the repeat after the body stay. Before #1304 the
+figure was never treated as lead media, so the page rendered the same on both
+sides of #1305; the pairing is also pinned at the caller level by
+`test_files/unit/views/reader-view-html-cleanup.characterization.test.ts` and
+`test_files/unit/components/article-renderer-html-cleanup.characterization.test.ts`.
 
 The **feed-advertising page** (`feed-advertising-page.html`) is not a feed but
 announces one, and names WordPress so the Save path reaches the same feed

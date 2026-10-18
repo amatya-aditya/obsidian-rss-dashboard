@@ -146,16 +146,41 @@ describe("ArticleRenderer fetched-article HTML cleanup", () => {
     expect(body?.textContent).toContain(LONG_A);
   });
 
-  it("keeps a description nested in the article header (pinned)", async () => {
-    // BUG: pinned, see #1238 — the nested description should be removed.
+  it("removes a description paragraph directly under a single root wrapper", async () => {
+    // Readability returns the article inside one root element, so the wrapper's
+    // blocks are hoisted before the body-child scans run (#1304).
     const full = await renderFetched(
-      `<div><header><p>${DESCRIPTION}</p></header>
+      `<div id="readability-page-1"><p>By Staff</p>
+       <p>${DESCRIPTION}</p><p>${LONG_A}</p><p>${LONG_B}</p></div>`,
+      makeItem({ description: `<p>${DESCRIPTION}</p>` }),
+    );
+    const body = full.querySelector(".rss-reader-article-content");
+
+    expect(
+      full.querySelector(".rss-reader-description-callout")?.textContent,
+    ).toContain(DESCRIPTION);
+    expect(body?.textContent).not.toContain(DESCRIPTION);
+    expect(body?.textContent).not.toContain("By Staff");
+    expect(body?.textContent).toContain(LONG_A);
+  });
+
+  it("removes a description nested in an article header inside the fetched wrapper", async () => {
+    // The article must not open with the description, or the callout is hidden
+    // and the duplicate intro deliberately stays (#247); "By Staff" keeps the
+    // body distinct so the callout shows and the lead is stripped.
+    const full = await renderFetched(
+      `<div id="readability-page-1"><p>By Staff</p>
+       <header><p>${DESCRIPTION}</p></header>
        <p>${LONG_A}</p><p>${LONG_B}</p></div>`,
       makeItem({ description: `<p>${DESCRIPTION}</p>` }),
     );
     const body = full.querySelector(".rss-reader-article-content");
 
-    expect(body?.textContent).toContain(DESCRIPTION);
+    expect(
+      full.querySelector(".rss-reader-description-callout")?.textContent,
+    ).toContain(DESCRIPTION);
+    expect(body?.textContent).not.toContain(DESCRIPTION);
+    expect(body?.textContent).not.toContain("By Staff");
     expect(body?.textContent).toContain(LONG_A);
   });
 
@@ -186,6 +211,45 @@ describe("ArticleRenderer fetched-article HTML cleanup", () => {
     expect(body?.querySelector("p")?.textContent).toBe(LONG_A);
   });
 
+  it("strips lead media inside a single root wrapper exactly as unwrapped", async () => {
+    const full = await renderFetched(
+      `<div id="readability-page-1"><figure><img src="https://img.example.com/other.jpg"></figure>
+       <p>${LONG_A}</p><p>${LONG_B}</p></div>`,
+      makeItem({ coverImage: "https://img.example.com/hero.jpg" }),
+    );
+    const body = full.querySelector(".rss-reader-article-content");
+
+    expect(body?.querySelector("figure")).toBeNull();
+    expect(body?.querySelector("img")).toBeNull();
+    expect(body?.textContent).toContain(LONG_A);
+    expect(
+      full.querySelector(".rss-reader-hero-slot img")?.getAttribute("src"),
+    ).toBe("https://img.example.com/hero.jpg");
+  });
+
+  it("pairs the lead credit inside a single root wrapper, as unwrapped (#1305)", async () => {
+    const credit = "Photo credit: Jane Doe";
+    const otherCredit = "Photo credit: John Roe";
+    const full = await renderFetched(
+      `<div id="readability-page-1"><figure><figcaption>${credit}</figcaption></figure>
+       <p>${credit}</p>
+       <p>${otherCredit}</p>
+       <p>${LONG_A}</p>
+       <p>${credit}</p></div>`,
+      makeItem({ coverImage: "https://img.example.com/hero.jpg" }),
+    );
+    const body = full.querySelector(".rss-reader-article-content");
+    const paragraphs = Array.from(body?.querySelectorAll("p") ?? []).map((p) =>
+      p.textContent?.trim(),
+    );
+
+    // The caption's figure goes with lead media, the credit repeated above the
+    // body goes with it, a differing credit stays, and the repeat after the body
+    // stays because it is not ahead of the body start.
+    expect(body?.querySelector("figure")).toBeNull();
+    expect(paragraphs).toEqual([otherCredit, LONG_A, credit]);
+  });
+
   it("drops the first body image when it matches the hero ignoring a size suffix", async () => {
     const full = await renderFetched(
       `<p>${LONG_A}</p>
@@ -214,6 +278,27 @@ describe("ArticleRenderer fetched-article HTML cleanup", () => {
 
     expect(body?.querySelector("nav")).not.toBeNull();
     expect(body?.querySelector("h1")?.textContent).toBe("Kept headline");
+  });
+
+  it("leaves RSS content wrapped in one root element untouched", async () => {
+    // The fetched-content cleanup, and the wrapper hoist with it, is gated on
+    // the strip flag (#1304); RSS content renders as it arrives.
+    fetchFullArticleContentWithOutcomeMock.mockResolvedValue({
+      content: "",
+      failureType: "none",
+    });
+    await renderer.render(
+      container,
+      makeItem({
+        description: `<p>${DESCRIPTION}</p>`,
+        content: `<div><p>${DESCRIPTION}</p><p>${LONG_A}</p></div>`,
+      }),
+    );
+    const body = container.querySelector(".rss-reader-article-content");
+
+    expect(body?.querySelector("div")).not.toBeNull();
+    expect(body?.textContent).toContain(DESCRIPTION);
+    expect(body?.textContent).toContain(LONG_A);
   });
 
   it("hides a description callout that is only an ellipsis", async () => {
