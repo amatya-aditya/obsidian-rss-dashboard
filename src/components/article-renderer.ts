@@ -45,6 +45,7 @@ import {
 import {
   collectLeadCaptionTexts,
   extractDisplayTitleFromHtml,
+  flattenSingleRootWrapper,
   hasMeaningfulArticleContent,
   isLikelySameImageSource,
   removeLeadImageElement,
@@ -534,6 +535,9 @@ export class ArticleRenderer {
       if (stripTopHeadline) {
         stripNavigationChromeFromDocument(doc);
         stripTopHeadlineFromDocument(doc);
+        // Readability wraps the fetched article in one root element; hoist its
+        // blocks so the body-child scans below see them directly (#1304).
+        flattenSingleRootWrapper(doc);
         stripDuplicateLeadContentFromDocument(doc, feedDescriptionHtml);
         stripSkipLinksFromDocument(doc);
         // Strip inline SVGs from fetched articles — these are publisher UI

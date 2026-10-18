@@ -217,6 +217,58 @@ export function normalizeComparableText(html: string): string {
     .trim();
 }
 
+/**
+ * The element names the flatten treats as a wrapper around a page's blocks.
+ * A lone content block — a single `<p>` with an inline image, a linked image
+ * post, a standalone `<figure>` — is not a wrapper: unwrapping it would strip
+ * the block itself and, for a `<p>` that is the only substantial block, leave
+ * `findFirstSubstantialParagraph` with nothing to find, so the position-guarded
+ * scans after it would treat the whole body as "before the boundary".
+ */
+const WRAPPER_TAGS = new Set(["div", "section", "main", "article"]);
+
+/**
+ * Hoists the children of a body's single root element into the body, so the
+ * body-child scans see a fetched page's blocks directly (#1304). Readability
+ * wraps every fetched article in one `<div>`, which otherwise hides those
+ * blocks from {@link stripDuplicateLeadContentFromDocument} and
+ * {@link stripLeadMediaBeforeContent}. Run this once, before those scans, so
+ * neither has to know about wrappers.
+ *
+ * A no-op unless the body has exactly one element child, that child is one of
+ * {@link WRAPPER_TAGS}, and it holds an element of its own; nested wrappers
+ * flatten repeatedly. Text nodes move with their element so the wrapper's own
+ * text is kept, not dropped.
+ */
+export function flattenSingleRootWrapper(doc: Document): void {
+  const body = doc.body;
+  if (!body) return;
+
+  let wrapper = getSingleRootElement(body);
+  while (
+    wrapper &&
+    isWrapperElement(wrapper) &&
+    wrapper.childElementCount > 0
+  ) {
+    // Move each child in turn rather than spreading them into replaceWith: a
+    // page with a very large number of blocks would overflow the argument list.
+    while (wrapper.firstChild) {
+      body.insertBefore(wrapper.firstChild, wrapper);
+    }
+    wrapper.remove();
+    wrapper = getSingleRootElement(body);
+  }
+}
+
+function isWrapperElement(el: Element): boolean {
+  return WRAPPER_TAGS.has(el.tagName.toLowerCase());
+}
+
+function getSingleRootElement(body: HTMLElement): Element | null {
+  if (body.children.length !== 1) return null;
+  return body.children[0] ?? null;
+}
+
 export function stripDuplicateLeadContentFromDocument(
   doc: Document,
   feedDescriptionHtml?: string,

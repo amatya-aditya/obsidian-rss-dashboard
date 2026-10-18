@@ -602,8 +602,13 @@ describe("ReaderView – summary de-duplication", () => {
       "Additional article context follows after the image with enough prose to satisfy the meaningful-content threshold used by the reader. ".repeat(
         3,
       );
+    // The long paragraph opens the article so the picture below is not lead
+    // media: with a hero set, a media block ahead of the first substantial
+    // paragraph is stripped (see the #1304 lead-media case). This test is about
+    // the srcset rewriting, which needs the picture to survive.
     const fetchedHtml = `
       <article>
+        <p>${longTailText}</p>
         <p>Lead-in text before image.</p>
         <div class="captioned-image-container">
           <figure>
@@ -629,7 +634,6 @@ describe("ReaderView – summary de-duplication", () => {
           </figure>
         </div>
         <p>Body text after image.</p>
-        <p>${longTailText}</p>
       </article>
     `;
     const item = makeItem({

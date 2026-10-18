@@ -446,8 +446,13 @@ describe("ArticleRenderer – summary de-duplication", () => {
       "Additional article context follows after the image with enough prose to satisfy the meaningful-content threshold used by the renderer. ".repeat(
         3,
       );
+    // The long paragraph opens the article so the picture below is not lead
+    // media: with a hero set, a media block ahead of the first substantial
+    // paragraph is stripped (see the #1304 lead-media case). This test is about
+    // the srcset rewriting, which needs the picture to survive.
     const fetchedHtml = `
       <article>
+        <p>${longTailText}</p>
         <p>Lead-in text before image.</p>
         <div class="captioned-image-container">
           <figure>
@@ -473,7 +478,6 @@ describe("ArticleRenderer – summary de-duplication", () => {
           </figure>
         </div>
         <p>Body text after image.</p>
-        <p>${longTailText}</p>
       </article>
     `;
 
@@ -519,13 +523,14 @@ describe("ArticleRenderer – summary de-duplication", () => {
     expect(body?.querySelector("button.view-image")).toBeNull();
   });
 
-  it("preserves non-duplicate early Substack image blocks before the first substantial paragraph", async () => {
+  it("drops early Substack image blocks before the first substantial paragraph when a hero is set", async () => {
     const heroUrl =
       "https://substackcdn.com/image/fetch/$s_!hero!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fhero_1024x562.png";
     const firstBodyImageUrl =
       "https://substackcdn.com/image/fetch/$s_!hPfO!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F08b8bdc3-afab-4e51-a14e-b18d6374384c_513x478.png";
     const secondBodyImageUrl =
       "https://substackcdn.com/image/fetch/$s_!YDr_!,w_1456,c_limit,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F78bc0b7f-5818-4597-b47e-9178ac5df0f2_513x478.png";
+    const tailImageUrl = "https://cdn.example.com/images/tail.jpg";
     const decodedHeroUrl =
       "https://substack-post-media.s3.amazonaws.com/public/images/hero_1024x562.png";
     const decodedFirstBodyImageUrl =
@@ -560,6 +565,15 @@ describe("ArticleRenderer – summary de-duplication", () => {
           </figure>
         </div>
         <p>${longParagraph}</p>
+        <div class="captioned-image-container">
+          <figure>
+            <div class="image2-inset">
+              <picture>
+                <img src="${tailImageUrl}" alt="Tail body image" />
+              </picture>
+            </div>
+          </figure>
+        </div>
       </article>
     `;
 
@@ -589,12 +603,16 @@ describe("ArticleRenderer – summary de-duplication", () => {
     );
 
     expect(heroImg?.getAttribute("src")).toBe(decodedHeroUrl);
+    // Every media block before the first substantial paragraph is lead media
+    // once the fetched page's wrapper is hoisted (#1304), hero-matching or not;
+    // one after the body start stays.
     expect(
       body?.querySelector(`img[src="${decodedFirstBodyImageUrl}"]`),
-    ).toBeTruthy();
+    ).toBeNull();
     expect(
       body?.querySelector(`img[src="${decodedSecondBodyImageUrl}"]`),
-    ).toBeTruthy();
+    ).toBeNull();
+    expect(body?.querySelector(`img[src="${tailImageUrl}"]`)).toBeTruthy();
     expect(body?.textContent || "").toContain("first substantial block");
   });
 
