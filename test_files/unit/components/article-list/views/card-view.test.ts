@@ -725,6 +725,39 @@ describe("card-view", () => {
       expect(replaceArticle).not.toHaveBeenCalled();
     });
 
+    it("stops Enter and Space from reaching dashboard shortcuts", () => {
+      const onArticleClick = vi.fn();
+      const seen: string[] = [];
+      container.addEventListener("keydown", (event) => {
+        seen.push(event.key);
+      });
+      renderCardView(
+        container,
+        [makeArticle()],
+        {
+          ...baseViewContext({ callbacks: { onArticleClick } }),
+          showCardToolbar: false,
+        },
+        baseViewDeps({ fetchCoverImage: vi.fn() }),
+      );
+      const button = fetchButton()!;
+
+      button.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      );
+      button.dispatchEvent(
+        new KeyboardEvent("keydown", { key: " ", bubbles: true }),
+      );
+      expect(seen).toEqual([]);
+      expect(onArticleClick).not.toHaveBeenCalled();
+
+      // A key the control does not handle still reaches the dashboard.
+      button.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Tab", bubbles: true }),
+      );
+      expect(seen).toEqual(["Tab"]);
+    });
+
     it("marks the card busy while the fetch runs and clears it afterwards", async () => {
       let finish!: (found: boolean) => void;
       const fetchCoverImage = vi.fn(

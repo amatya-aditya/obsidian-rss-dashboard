@@ -580,6 +580,36 @@ describe("ArticleList in-place updates honor reduced motion (#867)", () => {
     h.cleanup();
   });
 
+  it("rebuilds a grouped feed item without adding a second section (#1314)", () => {
+    const h = createArticleListHarness({
+      settings: {
+        viewStyle: "feed",
+        articleGroupBy: "feed",
+        articleSort: "newest",
+      },
+      articles: [buildArticle({ guid: "1", coverImage: "" })],
+    });
+    h.list.render();
+    expect(
+      h.container.querySelectorAll(".rss-dashboard-feed-section"),
+    ).toHaveLength(1);
+
+    h.articles[0].coverImage = "https://cdn.example.com/hero.jpg";
+    expect(h.list.replaceArticleInPlace(h.articles[0])).toBe(true);
+
+    expect(
+      h.container.querySelectorAll(".rss-dashboard-feed-section"),
+    ).toHaveLength(1);
+    expect(
+      h
+        .getArticleEl("1")
+        ?.querySelector(".rss-dashboard-feed-hero-image")
+        ?.getAttribute("src"),
+    ).toBe("https://cdn.example.com/hero.jpg");
+
+    h.cleanup();
+  });
+
   it("reports when the article has no rendered element to rebuild (#1314)", () => {
     const h = createArticleListHarness({
       settings: { viewStyle: "card", articleGroupBy: "none" },

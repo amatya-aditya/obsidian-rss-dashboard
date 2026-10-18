@@ -38,6 +38,7 @@ import { renderFeedIcon as renderFeedIconUtil } from "./article-list/utils/feed-
 import { createActionButtons as createArticleActionButtonsUtil } from "./article-list/utils/article-actions";
 import type { CustomSaveHooks } from "./article-list/utils/save-options-menu";
 import { showArticleContextMenu as showArticleContextMenuUtil } from "./article-list/utils/article-context-menu";
+import { withCoverImageBusyState } from "./article-list/utils/cover-image-busy";
 import { isHttpUrl } from "../utils/http-url";
 import { renderFeedView as renderFeedViewUtil } from "./article-list/views/feed-view";
 import { renderListView as renderListViewUtil } from "./article-list/views/list-view";
@@ -783,15 +784,9 @@ export class ArticleList {
     // the document itself, which throws once <html> exists (#409).
     const temp = listEl.win.createDiv();
 
-    if (this.settings.viewStyle === "list") {
-      this.renderListView(temp, [article]);
-    } else if (this.settings.viewStyle === "feed") {
-      this.renderFeedView(temp, [article]);
-    } else {
-      this.renderCardView(temp, [article]);
-    }
+    this.renderArticleInto(temp, article);
 
-    const newEl = temp.firstElementChild as HTMLElement | null;
+    const newEl = this.findArticleElementIn(temp, article);
     if (!newEl) {
       return false;
     }
@@ -1619,7 +1614,7 @@ export class ArticleList {
    * control in the new element when the replaced one held it.
    */
   public replaceArticleInPlace(article: FeedItem): boolean {
-    const listEl = this.getArticlesListEl();
+    const listEl = this.getArticleScrollEl();
     if (!listEl) return false;
 
     const targetEl = this.findArticleElement(article);
@@ -1628,15 +1623,12 @@ export class ArticleList {
     // Build the replacement detached: createDiv() on a Document appends to the
     // document itself, which throws once <html> exists (#409).
     const temp = listEl.win.createDiv();
-    if (this.settings.viewStyle === "list") {
-      this.renderListView(temp, [article]);
-    } else if (this.settings.viewStyle === "feed") {
-      this.renderFeedView(temp, [article]);
-    } else {
-      this.renderCardView(temp, [article]);
-    }
+    this.renderArticleInto(temp, article);
 
-    const newEl = temp.firstElementChild as HTMLElement | null;
+    // Find the item by identity rather than taking the first child: in a
+    // grouped feed view the renderer wraps one article in a section of its own
+    // (#1314), and that wrapper must not replace the item.
+    const newEl = this.findArticleElementIn(temp, article);
     if (!newEl) return false;
 
     const scrollPos = listEl.scrollTop;
@@ -1657,7 +1649,22 @@ export class ArticleList {
     return true;
   }
 
-  private getArticlesListEl(): HTMLElement | null {
+  /**
+   * Renders one article with the current view style into `container`. One
+   * implementation for the two in-place paths, so neither can drift from the
+   * view the list is actually showing.
+   */
+  private renderArticleInto(container: HTMLElement, article: FeedItem): void {
+    if (this.settings.viewStyle === "list") {
+      this.renderListView(container, [article]);
+    } else if (this.settings.viewStyle === "feed") {
+      this.renderFeedView(container, [article]);
+    } else {
+      this.renderCardView(container, [article]);
+    }
+  }
+
+  private getArticleScrollEl(): HTMLElement | null {
     return this.container.querySelector<HTMLElement>(
       ".rss-dashboard-articles-list",
     );
@@ -1665,12 +1672,19 @@ export class ArticleList {
 
   /** The rendered element for one article, in whichever view rendered it. */
   private findArticleElement(article: FeedItem): HTMLElement | null {
-    const listEl = this.getArticlesListEl();
+    const listEl = this.getArticleScrollEl();
     if (!listEl) return null;
+    return this.findArticleElementIn(listEl, article);
+  }
 
+  /** The rendered element for `article` anywhere inside `root`. */
+  private findArticleElementIn(
+    root: ParentNode,
+    article: FeedItem,
+  ): HTMLElement | null {
     return (
       Array.from(
-        listEl.querySelectorAll<HTMLElement>(
+        root.querySelectorAll<HTMLElement>(
           ".rss-dashboard-article-card, .rss-dashboard-feed-item, .rss-dashboard-article-item",
         ),
       ).find(
@@ -1682,24 +1696,17 @@ export class ArticleList {
   }
 
   /**
-   * Runs the cover-image fetch with the busy state the card shows (#1314), so
-   * the context-menu path reports progress exactly as the in-card control does.
-   * The stylesheet keys the visible part off the class; `aria-busy` carries it
-   * to a screen reader.
+   * Runs the cover-image fetch with the progress state the article's element
+   * shows (#1314), so the context-menu path reports it exactly as the in-card
+   * control does.
    */
   private async fetchCoverImageWithBusyState(
     article: FeedItem,
     fetch: (article: FeedItem) => Promise<boolean>,
   ): Promise<boolean> {
-    const element = this.findArticleElement(article);
-    element?.classList.add("rss-dashboard-cover-fetching");
-    element?.setAttribute("aria-busy", "true");
-    try {
-      return await fetch(article);
-    } finally {
-      element?.classList.remove("rss-dashboard-cover-fetching");
-      element?.removeAttribute("aria-busy");
-    }
+    return withCoverImageBusyState(this.findArticleElement(article), () =>
+      fetch(article),
+    );
   }
 
   private createPortalDropdown(

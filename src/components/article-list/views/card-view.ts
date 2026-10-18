@@ -15,6 +15,7 @@ import {
   COVER_IMAGE_FETCH_ICON,
   coverImageActionLabel,
 } from "../utils/cover-image-action";
+import { withCoverImageBusyState } from "../utils/cover-image-busy";
 import { createIconButton } from "../../../utils/icon-button";
 import { isHttpUrl } from "../../../utils/http-url";
 import type { BaseViewContext, ViewDeps } from "./view-types";
@@ -64,15 +65,11 @@ function renderFetchCoverButton(
   if (!deps.fetchCoverImage) return;
 
   const runFetch = async (): Promise<void> => {
-    card.classList.add("rss-dashboard-cover-fetching");
-    card.setAttribute("aria-busy", "true");
-    try {
-      const fetched = await deps.fetchCoverImage?.(article);
-      if (fetched) deps.replaceArticle?.(article);
-    } finally {
-      card.classList.remove("rss-dashboard-cover-fetching");
-      card.removeAttribute("aria-busy");
-    }
+    const fetched = await withCoverImageBusyState(
+      card,
+      () => deps.fetchCoverImage?.(article) ?? Promise.resolve(false),
+    );
+    if (fetched) deps.replaceArticle?.(article);
   };
 
   const button = createIconButton({
@@ -82,6 +79,12 @@ function renderFetchCoverButton(
     cls: "rss-dashboard-fetch-cover-button",
     action: "fetch-cover-image",
     region: "article-card",
+  });
+  button.addEventListener("keydown", (event: KeyboardEvent) => {
+    if (event.key === "Enter" || event.key === " ") {
+      // Keep dashboard-wide shortcuts from taking over native button activation.
+      event.stopPropagation();
+    }
   });
   button.addEventListener("click", (event: MouseEvent) => {
     // The card itself opens the article on click.
