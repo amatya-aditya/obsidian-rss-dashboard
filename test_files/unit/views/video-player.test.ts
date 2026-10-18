@@ -459,6 +459,85 @@ describe("VideoPlayer", () => {
     player.destroy();
   });
 
+  it("does not save another video picked inside the player onto this item", () => {
+    vi.useFakeTimers();
+
+    const container = createContainer();
+    const onPlaybackProgress = vi.fn();
+    const item = baseItem();
+    const player = new VideoPlayer(container, undefined, onPlaybackProgress);
+    player.loadVideo(item);
+    const iframe = container.querySelector<HTMLIFrameElement>("iframe");
+
+    postFromPlayer(iframe, {
+      event: "infoDelivery",
+      info: {
+        videoData: { video_id: VIDEO_ID },
+        duration: 120,
+        currentTime: 90,
+        playerState: 1,
+      },
+    });
+    // The viewer clicks an end-screen suggestion; its first report names it.
+    postFromPlayer(iframe, {
+      event: "infoDelivery",
+      info: {
+        videoData: { video_id: "jNQXAC9IVRw" },
+        duration: 19,
+        currentTime: 0,
+        playerState: 2,
+      },
+    });
+    postFromPlayer(iframe, {
+      event: "infoDelivery",
+      info: { currentTime: 4, playerState: 1 },
+    });
+    vi.advanceTimersByTime(20000);
+    player.destroy();
+
+    expect(onPlaybackProgress).toHaveBeenCalledTimes(1);
+    expect(onPlaybackProgress).toHaveBeenCalledWith(item, 90, 120, true);
+    vi.useRealTimers();
+  });
+
+  it("saves a repeated paused state only once", () => {
+    const container = createContainer();
+    const onPlaybackProgress = vi.fn();
+    const player = new VideoPlayer(container, undefined, onPlaybackProgress);
+    player.loadVideo(baseItem());
+    const iframe = container.querySelector<HTMLIFrameElement>("iframe");
+
+    for (let i = 0; i < 3; i += 1) {
+      postFromPlayer(iframe, {
+        event: "infoDelivery",
+        info: { duration: 120, currentTime: 20, playerState: 2 },
+      });
+    }
+
+    expect(onPlaybackProgress).toHaveBeenCalledTimes(1);
+    player.destroy();
+  });
+
+  it("still loads the next video when saving the previous one fails", () => {
+    const container = createContainer();
+    const onPlaybackProgress = vi.fn(() => {
+      throw new Error("feed removed");
+    });
+    const player = new VideoPlayer(container, undefined, onPlaybackProgress);
+    player.loadVideo(baseItem());
+    const iframe = container.querySelector<HTMLIFrameElement>("iframe");
+    postFromPlayer(iframe, {
+      event: "infoDelivery",
+      info: { duration: 120, currentTime: 20 },
+    });
+
+    player.loadVideo(baseItem({ guid: "guid-2", videoId: "bcdefghijkl" }));
+
+    const next = container.querySelector<HTMLIFrameElement>("iframe");
+    expect(next?.getAttribute("src")).toContain("v=bcdefghijkl");
+    player.destroy();
+  });
+
   it("does not track progress when playback progress is disabled", () => {
     vi.useFakeTimers();
 

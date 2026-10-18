@@ -21,11 +21,19 @@ const PLAYER_ORIGINS = new Set([
 /** Both player sources load the nocookie player. */
 const PLAYER_TARGET_ORIGIN = "https://www.youtube-nocookie.com";
 
-/** Retry the handshake until the player loads, for at most 30 seconds. */
-const HANDSHAKE_INTERVAL_MS = 500;
-const HANDSHAKE_MAX_ATTEMPTS = 60;
+/**
+ * The handshake repeats quickly for 30 seconds while the player loads, then
+ * slowly for as long as the channel is open: a player that loads late (a
+ * click-to-play cover) or reloads still gets a handshake. A connected player
+ * answers a repeat with `alreadyInitialized` and carries on.
+ */
+const FAST_HANDSHAKE_MS = 500;
+const FAST_HANDSHAKE_ATTEMPTS = 60;
+const SLOW_HANDSHAKE_MS = 5000;
 
 export interface YouTubePlayerUpdate {
+  /** The video the player is on, which changes if the viewer picks another. */
+  videoId?: string;
   currentTime?: number;
   duration?: number;
   /** The IFrame API state: 1 playing, 2 paused, 0 ended, 3 buffering. */
@@ -80,14 +88,17 @@ export function parseYouTubePlayerMessage(
     typeof message.info === "object"
   ) {
     const info = message.info as Record<string, unknown>;
+    const videoData = info.videoData as Record<string, unknown> | undefined;
     const update: YouTubePlayerUpdate = {
+      videoId:
+        typeof videoData?.video_id === "string" && videoData.video_id
+          ? videoData.video_id
+          : undefined,
       currentTime: numberOrUndefined(info.currentTime),
       duration: numberOrUndefined(info.duration),
       playerState: numberOrUndefined(info.playerState),
     };
-    return update.currentTime === undefined &&
-      update.duration === undefined &&
-      update.playerState === undefined
+    return Object.values(update).every((value) => value === undefined)
       ? null
       : update;
   }
@@ -108,53 +119,65 @@ export function connectYouTubePlayerChannel(
   iframe: HTMLIFrameElement,
   onUpdate: (update: YouTubePlayerUpdate) => void,
 ): () => void {
-  const listenerId = iframe.id || "rss-dashboard-video";
-  let connected = false;
+  const handshake = JSON.stringify({
+    event: "listening",
+    id: iframe.id || "rss-dashboard-video",
+    channel: "widget",
+  });
   let attempts = 0;
   let handshakeTimer: number | null = null;
+  let handshakeMs = 0;
+  // The window that answered; the host keeps one nested frame, so it stays.
+  let player: Window | null = null;
 
-  const stopHandshake = (): void => {
-    if (handshakeTimer !== null) {
-      window.clearInterval(handshakeTimer);
-      handshakeTimer = null;
-    }
+  const schedule = (intervalMs: number): void => {
+    if (handshakeTimer !== null) window.clearInterval(handshakeTimer);
+    handshakeMs = intervalMs;
+    handshakeTimer = window.setInterval(sendHandshake, intervalMs);
   };
 
   const sendHandshake = (): void => {
     attempts += 1;
-    const message = JSON.stringify({
-      event: "listening",
-      id: listenerId,
-      channel: "widget",
-    });
     // A window from another origin silently drops the message, so the host
     // page never receives it.
-    for (const target of playerWindows(iframe)) {
-      target.postMessage(message, PLAYER_TARGET_ORIGIN);
+    const targets = player ? [player] : playerWindows(iframe);
+    for (const target of targets) {
+      target.postMessage(handshake, PLAYER_TARGET_ORIGIN);
     }
-    if (attempts >= HANDSHAKE_MAX_ATTEMPTS) stopHandshake();
+    if (
+      handshakeMs === FAST_HANDSHAKE_MS &&
+      attempts >= FAST_HANDSHAKE_ATTEMPTS
+    ) {
+      schedule(SLOW_HANDSHAKE_MS);
+    }
+  };
+
+  const isPlayer = (source: MessageEventSource | null): boolean => {
+    if (!source) return false;
+    if (player) return source === player;
+    const match = playerWindows(iframe).find((win) => win === source);
+    if (match) player = match;
+    return match !== undefined;
   };
 
   const onMessage = (event: MessageEvent): void => {
-    if (!PLAYER_ORIGINS.has(event.origin)) return;
-    if (
-      !event.source ||
-      !playerWindows(iframe).includes(event.source as Window)
-    )
-      return;
-    if (!connected) {
-      connected = true;
-      stopHandshake();
-    }
+    if (!PLAYER_ORIGINS.has(event.origin) || !isPlayer(event.source)) return;
+    if (handshakeMs === FAST_HANDSHAKE_MS) schedule(SLOW_HANDSHAKE_MS);
     const update = parseYouTubePlayerMessage(event.data);
-    if (update) onUpdate(update);
+    if (!update) return;
+    try {
+      onUpdate(update);
+    } catch {
+      // A failing listener must not throw on every player event.
+    }
   };
 
   window.addEventListener("message", onMessage);
-  handshakeTimer = window.setInterval(sendHandshake, HANDSHAKE_INTERVAL_MS);
+  schedule(FAST_HANDSHAKE_MS);
 
   return () => {
-    stopHandshake();
+    if (handshakeTimer !== null) window.clearInterval(handshakeTimer);
+    handshakeTimer = null;
     window.removeEventListener("message", onMessage);
   };
 }

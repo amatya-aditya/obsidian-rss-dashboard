@@ -22,6 +22,9 @@ export class VideoPlayer {
   /** The player's last reported position; null until it reports one. */
   private reportedPosition: number | null = null;
   private lastSavedPosition: number | null = null;
+  /** The video the player last said it is on, and its last state. */
+  private playerVideoId: string | null = null;
+  private playerState: number | null = null;
   private progressTrackingEnabled: boolean;
   private onVideoSelect?: (item: FeedItem) => void;
   private onPlaybackProgress?: (
@@ -76,11 +79,13 @@ export class VideoPlayer {
     try {
       // Save the video being left before the player is replaced.
       this.stopTracking();
-      this.flushProgress();
       this.disconnect();
+      this.saveProgress(true);
       this.currentItem = item;
       this.reportedPosition = null;
       this.videoDuration = null;
+      this.playerVideoId = null;
+      this.playerState = null;
       this.lastSavedPosition = item.playbackProgress?.position ?? null;
       this.render();
     } catch (error) {
@@ -247,6 +252,18 @@ export class VideoPlayer {
   }
 
   private handlePlayerUpdate(update: YouTubePlayerUpdate): void {
+    if (update.videoId !== undefined) this.playerVideoId = update.videoId;
+    // Another video picked inside the player (an end-screen suggestion) must
+    // not overwrite this item's position. The first report from the new video
+    // carries its id, so nothing from it gets through.
+    if (
+      this.playerVideoId !== null &&
+      this.playerVideoId !== this.currentItem?.videoId
+    ) {
+      this.stopTracking();
+      this.playerState = null;
+      return;
+    }
     if (update.duration !== undefined && update.duration > 0) {
       this.videoDuration = update.duration;
     }
@@ -259,6 +276,9 @@ export class VideoPlayer {
   }
 
   private handleStateChange(state: number): void {
+    // Act on a change only: repeated reports of one state save nothing more.
+    if (state === this.playerState) return;
+    this.playerState = state;
     if (state === 1) {
       // PLAYING
       this.startTracking();
@@ -304,11 +324,11 @@ export class VideoPlayer {
     }
 
     this.lastSavedPosition = position;
-    this.onPlaybackProgress(this.currentItem, position, duration, flush);
-  }
-
-  private flushProgress(): void {
-    this.saveProgress(true);
+    try {
+      this.onPlaybackProgress(this.currentItem, position, duration, flush);
+    } catch {
+      // A failed save must not stop the next video from loading.
+    }
   }
 
   setRelatedVideos(videos: FeedItem[]): void {
@@ -389,8 +409,8 @@ export class VideoPlayer {
 
   destroy(): void {
     this.stopTracking();
-    this.flushProgress();
     this.disconnect();
+    this.saveProgress(true);
     if (this.iframeEl) {
       this.iframeEl.remove();
       this.iframeEl = null;

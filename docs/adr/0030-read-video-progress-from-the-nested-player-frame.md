@@ -41,7 +41,10 @@ to the player; without it the player sends nothing.
 Only a message whose `source` is that iframe's player window and whose origin
 is a YouTube origin is accepted. The saved position is the last position the
 player reported; nothing is estimated, and nothing is saved before the player
-reports. Resume stays on the `start` parameter.
+reports. Resume stays on the `start` parameter. Each report names the video
+the player is on (`videoData.video_id`); a report for any other video, such as
+an end-screen suggestion the viewer clicked, is not saved onto the Reader's
+item.
 
 ## Consequences
 
@@ -56,8 +59,10 @@ reports. Resume stays on the `start` parameter.
 
 - The mechanism depends on two undocumented details: the host keeps the
   player as its first nested frame and keeps forwarding query parameters. If
-  either changes, progress stops saving (playback and resume are unaffected),
-  and the handshake gives up after 30 seconds.
+  either changes, progress stops saving (playback and resume are unaffected).
+  The handshake repeats every 500 ms for 30 seconds, then every 5 seconds
+  while the player is open, so a late-loading or reloaded player still
+  connects.
 - Checked on Obsidian 1.13.7 desktop (Linux). iOS and Android use the same
   web-platform frame and `postMessage` rules but need a manual check.
 

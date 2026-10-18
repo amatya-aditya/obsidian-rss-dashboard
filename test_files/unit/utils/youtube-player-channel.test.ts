@@ -72,26 +72,58 @@ describe("connectYouTubePlayerChannel", () => {
     dispose();
   });
 
-  it("stops the handshake once the player answers", () => {
+  it("slows the handshake once the player answers, so a reloaded player is found again", () => {
     const { iframe, player } = hostIframe();
     const dispose = connectYouTubePlayerChannel(iframe, vi.fn());
 
     vi.advanceTimersByTime(500);
     postMessageFrom(player, { event: "onReady", info: null });
     const calls = player.postMessage.mock.calls.length;
-    vi.advanceTimersByTime(5000);
-
+    vi.advanceTimersByTime(4999);
     expect(player.postMessage).toHaveBeenCalledTimes(calls);
+
+    vi.advanceTimersByTime(1);
+    expect(player.postMessage).toHaveBeenCalledTimes(calls + 1);
     dispose();
   });
 
-  it("gives up the handshake after 30 seconds without an answer", () => {
-    const { iframe, player } = hostIframe();
-    const dispose = connectYouTubePlayerChannel(iframe, vi.fn());
+  it("keeps offering the handshake to a player that loads after 30 seconds", () => {
+    const player = fakeWindow();
+    const host = fakeWindow();
+    const iframe = document.body.createEl("iframe");
+    Object.defineProperty(iframe, "contentWindow", { value: host });
+    const onUpdate = vi.fn();
+    const dispose = connectYouTubePlayerChannel(iframe, onUpdate);
 
+    // The host shows its click-to-play cover; the player appears a minute in.
     vi.advanceTimersByTime(60000);
+    host.frames.length = 1;
+    host.frames[0] = player;
+    vi.advanceTimersByTime(5000);
+    expect(player.postMessage).toHaveBeenCalledTimes(1);
 
-    expect(player.postMessage).toHaveBeenCalledTimes(60);
+    postMessageFrom(player, {
+      event: "infoDelivery",
+      info: { currentTime: 9 },
+    });
+    expect(onUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ currentTime: 9 }),
+    );
+    dispose();
+  });
+
+  it("keeps listening when the update handler throws", () => {
+    const { iframe, player } = hostIframe();
+    const onUpdate = vi.fn(() => {
+      throw new Error("save failed");
+    });
+    const dispose = connectYouTubePlayerChannel(iframe, onUpdate);
+    const update = { event: "infoDelivery", info: { currentTime: 5 } };
+
+    expect(() => postMessageFrom(player, update)).not.toThrow();
+    postMessageFrom(player, update);
+
+    expect(onUpdate).toHaveBeenCalledTimes(2);
     dispose();
   });
 
@@ -151,6 +183,19 @@ describe("parseYouTubePlayerMessage", () => {
         JSON.stringify({ event: "onStateChange", info: 1 }),
       ),
     ).toEqual({ playerState: 1 });
+  });
+
+  it("reads the video the player is on", () => {
+    expect(
+      parseYouTubePlayerMessage(
+        JSON.stringify({
+          event: "infoDelivery",
+          info: { videoData: { video_id: "jNQXAC9IVRw" }, currentTime: 0 },
+        }),
+      ),
+    ).toEqual(
+      expect.objectContaining({ videoId: "jNQXAC9IVRw", currentTime: 0 }),
+    );
   });
 
   it("returns null for an event with nothing to track", () => {
