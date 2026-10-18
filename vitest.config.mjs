@@ -4,7 +4,16 @@ import fs from "node:fs";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// Vitest resolves test-file ids through their real (canonical) path, but a
+// shell can hand Node the directory with different case on Windows
+// (`C:\coding\...` while the disk says `C:\Coding\...`). Aliases built from the
+// launch case then point at a second copy of `main.ts` and of every module it
+// imports — two `DEFAULT_SETTINGS`, and `vi.mock` factories bound to the copy
+// the tests import rather than the one `main.ts` uses. Canonicalise the base
+// directory so aliases and test ids share one module graph (#1319). The
+// pre-commit hook hits this because it runs vitest by script path
+// (`node node_modules/vitest/vitest.mjs`), not through the `.bin` shim.
+const __dirname = fs.realpathSync.native(path.dirname(__filename));
 
 // The plugin bundles curated What's New notes with esbuild's `text` loader.
 // Vitest needs the same `.md`-as-string behavior to import them.
@@ -67,6 +76,10 @@ const sharedFiles = testFiles.filter(
 const isolatedFiles = testFiles.filter((file) => !sharedFiles.includes(file));
 
 export default defineConfig({
+  // `vitest related` resolves its file arguments against the project root, so
+  // the root must be canonical too; otherwise it silently selects no tests for
+  // a relative path typed in the launch's case.
+  root: __dirname,
   plugins: [markdownAsText],
   resolve: {
     alias: {
