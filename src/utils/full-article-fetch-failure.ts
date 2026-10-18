@@ -1,5 +1,6 @@
 import type { FeedItem } from "../types/types";
 import type { FullArticleFetchResult } from "./fetch-helpers";
+import { getOpenableHttpHref } from "./url-utils";
 
 export const FETCH_FAILURE_TIMEOUT_TEXT =
   "Couldn't load the full article: the page timed out.";
@@ -128,11 +129,12 @@ export function renderFetchFailureBanner(
     tryAgain.setText("Trying again…");
     onTryAgain();
   });
-  if (item.link) {
+  const openHref = getOpenableHttpHref(item.link);
+  if (openHref) {
     const openLink = actions.createEl("a", {
       cls: "rss-reader-fetch-failure-open-link",
       text: FETCH_FAILURE_OPEN_IN_BROWSER_TEXT,
-      href: item.link,
+      href: openHref,
     });
     openLink.target = "_blank";
     openLink.rel = "noopener noreferrer";

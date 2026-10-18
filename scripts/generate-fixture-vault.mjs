@@ -594,6 +594,17 @@ ${htmlParagraphs("rss-tech-11", 1)}
 ${htmlParagraphs("rss-tech-15-outro", 1)}`,
       summary: paragraphs("rss-tech-15", 1)[0],
     }),
+    item(feed, {
+      // A feed-supplied link that is not http(s) (#1297). Every anchor built
+      // from item.link must be left out, not rendered with this href. The guid
+      // stays on example.com so it is distinct from the link.
+      title: "Article with a non-http link",
+      link: "javascript:alert(1)",
+      guid: `${LINK_BASE}/rss-tech/non-http-link`,
+      pubDate: at(13),
+      author: "Fixture Author",
+      ...articleText("rss-tech-16", 2),
+    }),
   ];
 }
 
