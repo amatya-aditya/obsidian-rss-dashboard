@@ -2434,6 +2434,13 @@ export default class RssDashboardPlugin extends Plugin {
     if (!(duration > 0) || position < 0) return;
 
     item.playbackProgress = { position, duration, lastUpdated: Date.now() };
+    // A dashboard card holds a copy of the stored item and hands that copy to
+    // the Reader. With the Reader in a split or sidebar the dashboard is not
+    // re-rendered, so a reopen reads the copy: it must carry the new position
+    // too, or the video resumes where it was first opened (#1236).
+    if (sourceItem && sourceItem !== item) {
+      sourceItem.playbackProgress = { ...item.playbackProgress };
+    }
 
     if (flush) {
       if (this.progressSaveDebounce !== null) {

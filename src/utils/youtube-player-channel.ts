@@ -127,8 +127,6 @@ export function connectYouTubePlayerChannel(
   let attempts = 0;
   let handshakeTimer: number | null = null;
   let handshakeMs = 0;
-  // The window that answered; the host keeps one nested frame, so it stays.
-  let player: Window | null = null;
 
   const schedule = (intervalMs: number): void => {
     if (handshakeTimer !== null) window.clearInterval(handshakeTimer);
@@ -140,9 +138,12 @@ export function connectYouTubePlayerChannel(
     attempts += 1;
     // A window from another origin silently drops the message, so the host
     // page never receives it.
-    const targets = player ? [player] : playerWindows(iframe);
-    for (const target of targets) {
-      target.postMessage(handshake, PLAYER_TARGET_ORIGIN);
+    for (const target of playerWindows(iframe)) {
+      try {
+        target.postMessage(handshake, PLAYER_TARGET_ORIGIN);
+      } catch {
+        // A window can close between ticks; the timer must not throw.
+      }
     }
     if (
       handshakeMs === FAST_HANDSHAKE_MS &&
@@ -152,13 +153,10 @@ export function connectYouTubePlayerChannel(
     }
   };
 
-  const isPlayer = (source: MessageEventSource | null): boolean => {
-    if (!source) return false;
-    if (player) return source === player;
-    const match = playerWindows(iframe).find((win) => win === source);
-    if (match) player = match;
-    return match !== undefined;
-  };
+  // The frames are read afresh each time: re-navigating the iframe replaces
+  // the nested window, and a cached one would pin the channel to a dead frame.
+  const isPlayer = (source: MessageEventSource | null): boolean =>
+    source !== null && playerWindows(iframe).some((win) => win === source);
 
   const onMessage = (event: MessageEvent): void => {
     if (!PLAYER_ORIGINS.has(event.origin) || !isPlayer(event.source)) return;

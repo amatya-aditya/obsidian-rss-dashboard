@@ -242,6 +242,13 @@ export class ArticleRenderer {
     this.displayIdentity = {};
     this.contentVersions?.dispose();
     this.contentVersions = undefined;
+    // The dashboard calls this on leaving the inline Reader and on closing.
+    // destroy() saves the video's last position and stops its timers and
+    // message listener, which removing the iframe alone does not (#1236).
+    if (this.videoPlayer) {
+      this.videoPlayer.destroy();
+      this.videoPlayer = null;
+    }
   }
 
   private async displayVideo(
