@@ -1,13 +1,4 @@
-import {
-  Menu,
-  MenuItem,
-  Notice,
-  App,
-  Modal,
-  Platform,
-  setIcon,
-  Setting,
-} from "obsidian";
+import { Menu, MenuItem, Notice, App, Modal, setIcon, Setting } from "obsidian";
 import { AccessibleModal } from "../utils/accessible-modal";
 import {
   Feed,
@@ -82,15 +73,20 @@ import {
   describeBatchMove,
   describeRefusedFolders,
 } from "../services/sidebar-batch-move";
-import {
-  attachRefreshStatusDetails,
-  showRefreshDetailsPopup,
-} from "./refresh-status-details";
+import { attachRefreshStatusDetails } from "./refresh-status-details";
 import { RefreshDetailsModal } from "../modals/refresh-details-modal";
 import {
+  IMPORT_FAILURE_LABEL,
+  REFRESH_FAILURE_LABEL,
+  formatFeedErrorLine,
+  getFeedErrorDetail,
+} from "../utils/feed-error";
+import {
   formatRefreshStatusTime,
+  getFailingFeeds,
   getRefreshStatus,
   type RefreshStatus,
+  type RefreshStatusScope,
 } from "../utils/refresh-status";
 import { getEffectiveRefreshIntervalMinutes } from "../utils/refresh-intervals";
 import { smoothScrollBehavior } from "../utils/motion-preference";
@@ -248,7 +244,7 @@ export class Sidebar {
 
   private getRefreshDetailLines(
     feeds: Feed[],
-    scope: "all" | "feed" | "aggregate",
+    scope: RefreshStatusScope,
   ): string[] {
     const status = getRefreshStatus({
       feeds,
@@ -279,8 +275,6 @@ export class Sidebar {
           `Next scheduled refresh: ${status.nextDueAt === 0 ? "Due now" : formatRefreshStatusTime(status.nextDueAt, true)}`,
         );
       }
-      if (feed.lastFetchError)
-        lines.push(`Last attempt failed: ${feed.lastFetchError}`);
       const shardHealth = this.getReportedShardHealth(feed);
       if (shardHealth) lines.push(this.getFeedShardWarningMessage(shardHealth));
       if (status.refreshingCount > 0) lines.push("In progress");
@@ -321,12 +315,46 @@ export class Sidebar {
       lines.push(`Feeds not yet checked: ${status.neverCheckedCount}`);
   }
 
+  /**
+   * The feed's own error lines, refresh failure first, for the surfaces that
+   * show the message inline without the dialog's structured error area: the
+   * hover popup and the row's screen-reader description.
+   *
+   * Capped here, like the badge name and the status-bar segment. The stored
+   * message is kept in full, and the full text is what the dialog and the copy
+   * action show.
+   */
+  private getFeedErrorLines(
+    feeds: Feed[],
+    scope: RefreshStatusScope,
+  ): string[] {
+    if (scope !== "feed") return [];
+    const feed = feeds[0];
+    if (!feed) return [];
+    const detail = getFeedErrorDetail(feed);
+    const lines: string[] = [];
+    if (detail.refreshError) {
+      lines.push(
+        formatFeedErrorLine(REFRESH_FAILURE_LABEL, detail.refreshError, true),
+      );
+    }
+    if (detail.importError) {
+      lines.push(
+        formatFeedErrorLine(IMPORT_FAILURE_LABEL, detail.importError, true),
+      );
+    }
+    return lines;
+  }
+
   private attachRefreshDetails(
     row: HTMLElement,
     feeds: Feed[],
-    scope: "all" | "feed" | "aggregate",
+    scope: RefreshStatusScope,
   ): void {
-    const getLines = () => this.getRefreshDetailLines(feeds, scope);
+    const getLines = () => [
+      ...this.getRefreshDetailLines(feeds, scope),
+      ...this.getFeedErrorLines(feeds, scope),
+    ];
     this.refreshStatusDetailCleanups.set(
       row,
       attachRefreshStatusDetails({
@@ -362,31 +390,32 @@ export class Sidebar {
     );
   }
 
+  /**
+   * The merged feed error dialog, shared by every `Refresh details` item.
+   *
+   * `_anchor` is the row or container the menu item was opened from. It is kept
+   * because the folder-menu host passes it and that contract is unchanged; the
+   * dialog needs no anchor of its own.
+   */
   private showRefreshDetails(
-    anchor: HTMLElement,
+    _anchor: HTMLElement,
     feeds: Feed[],
-    scope: "all" | "feed" | "aggregate",
+    scope: RefreshStatusScope,
   ): void {
-    if (Platform.isMobile) {
-      new RefreshDetailsModal(
-        this.app,
-        this.getRefreshDetailLines(feeds, scope),
-      ).open();
-      return;
-    }
+    new RefreshDetailsModal(this.app, {
+      title: "Refresh details",
+      lines: this.getRefreshDetailLines(feeds, scope),
+      errors: getFailingFeeds({ feeds, scope }).map(getFeedErrorDetail),
+    }).open();
+  }
 
-    showRefreshDetailsPopup({
-      anchor,
-      render: (popup) => {
-        popup.createEl("strong", { text: "Refresh details" });
-        for (const line of this.getRefreshDetailLines(feeds, scope)) {
-          popup.createDiv({
-            cls: "rss-dashboard-refresh-details-line",
-            text: line,
-          });
-        }
-      },
-    });
+  /** Opens the feed error dialog for one feed, from its sidebar badge or menu. */
+  private showFeedErrorDialog(feed: Feed): void {
+    new RefreshDetailsModal(this.app, {
+      title: "Feed error",
+      lines: [],
+      errors: [getFeedErrorDetail(feed)],
+    }).open();
   }
 
   constructor(
@@ -1691,6 +1720,7 @@ export class Sidebar {
         isQueuedForRefresh,
       },
       this.settings,
+      (failingFeed) => this.showFeedErrorDialog(failingFeed),
     );
 
     applySidebarRowSemantics(feedEl, {
@@ -2852,35 +2882,6 @@ export class Sidebar {
     window.setTimeout(() => okButton.focus(), 50);
   }
 
-  private showErrorDetailModal(error: string, feedTitle: string): void {
-    const modal = new AccessibleModal(this.app);
-    modal.modalEl.addClass("rss-feed-error-detail-modal");
-
-    const { contentEl } = modal;
-    contentEl.empty();
-
-    new Setting(contentEl).setName(`Feed error: ${feedTitle}`).setHeading();
-
-    contentEl.createDiv({
-      text: error,
-      cls: "rss-feed-error-message",
-    });
-
-    const buttonContainer = contentEl.createDiv({
-      cls: "rss-dashboard-modal-buttons rss-folder-name-modal-buttons",
-    });
-
-    const okButton = buttonContainer.createEl("button");
-    okButton.addClass("rss-folder-name-modal-ok");
-    const okIcon = okButton.createSpan();
-    setIcon(okIcon, "check");
-    okButton.createSpan({ text: "OK" });
-    okButton.onclick = () => modal.close();
-
-    modal.open();
-    window.setTimeout(() => okButton.focus(), 50);
-  }
-
   public showAddTagModal(): void {
     new AddTagModal(this.app, {
       settings: this.settings,
@@ -3592,7 +3593,7 @@ export class Sidebar {
   private appendRefreshDetailsItem(
     menu: Menu,
     feeds: Feed[],
-    scope: "all" | "feed" | "aggregate",
+    scope: RefreshStatusScope,
     anchor: EventTarget | null,
   ): void {
     menu.addItem((item: MenuItem) => {
@@ -3628,7 +3629,7 @@ export class Sidebar {
           .setTitle("View fetch error")
           .setIcon("alert-circle")
           .onClick(() => {
-            this.showErrorDetailModal(feed.lastFetchError!, feed.title);
+            this.showFeedErrorDialog(feed);
           });
       });
       menu.addSeparator();

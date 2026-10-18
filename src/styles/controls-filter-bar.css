@@ -130,6 +130,65 @@
   flex: 1;
 }
 
+/*
+ * The refresh row's error button. It sits beside the `aria-live` status text,
+ * never inside it, and is a native button so Enter and Space work and focus is
+ * visible. Explicit `> svg` sizing plus a paint-layer hint cover the documented
+ * Android WebView icon failure modes; no `clickable-icon`, no `!important`.
+ *
+ * Scoped through the status row rather than left as a bare class: this is a
+ * `<button>`, and Obsidian's own `button:not(.clickable-icon)` sets `color` and
+ * `background` at 0-1-1, which beats a single class at 0-1-0. Unscoped, the
+ * button takes Obsidian's grey text and its grey button background instead of
+ * the red error colour and the transparent reset below.
+ */
+.rss-dashboard-refresh-status-row .rss-dashboard-refresh-error-btn {
+  --icon-size: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  contain: layout style;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--color-red, #e74c3c);
+  cursor: pointer;
+}
+
+.rss-dashboard-refresh-status-row .rss-dashboard-refresh-error-btn:hover {
+  background: var(--background-modifier-hover);
+}
+
+.rss-dashboard-refresh-status-row
+  .rss-dashboard-refresh-error-btn:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
+}
+
+.rss-dashboard-refresh-status-row .rss-dashboard-refresh-error-btn > svg {
+  display: block;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  overflow: visible;
+  will-change: transform;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .rss-dashboard-refresh-status-row .rss-dashboard-refresh-error-btn {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+    min-height: 40px;
+  }
+}
+
 /* ============================================
  * 3. Highlight Match Stats
  * ============================================ */

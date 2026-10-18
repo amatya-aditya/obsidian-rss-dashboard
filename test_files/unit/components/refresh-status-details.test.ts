@@ -1,8 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  attachRefreshStatusDetails,
-  showRefreshDetailsPopup,
-} from "../../../src/components/refresh-status-details";
+import { attachRefreshStatusDetails } from "../../../src/components/refresh-status-details";
 
 afterEach(() => {
   vi.useRealTimers();
@@ -292,55 +289,6 @@ describe("refresh status details - one popup at a time", () => {
 
     expect(openPopups()).toEqual(["Details for First feed"]);
     first.cleanup();
-  });
-
-  it("closes a context-menu refresh details popup when a hover popup opens", async () => {
-    vi.useFakeTimers();
-    const anchor = document.body.createDiv({ text: "Folder" });
-    const second = attachRow("Second feed");
-
-    showRefreshDetailsPopup({
-      anchor,
-      render: (popup) => popup.createDiv({ text: "Details for Folder" }),
-    });
-    expect(openPopups()).toEqual(["Details for Folder"]);
-
-    second.row.dispatchEvent(new MouseEvent("mouseenter"));
-    await vi.advanceTimersByTimeAsync(350);
-
-    expect(openPopups()).toEqual(["Details for Second feed"]);
-    second.cleanup();
-  });
-
-  it("dismisses a context-menu refresh details popup after five seconds", async () => {
-    vi.useFakeTimers();
-    const anchor = document.body.createDiv({ text: "Folder" });
-
-    showRefreshDetailsPopup({
-      anchor,
-      render: (popup) => popup.createDiv({ text: "Details for Folder" }),
-    });
-    await vi.advanceTimersByTimeAsync(5000);
-
-    expect(openPopups()).toEqual([]);
-  });
-
-  it("lifts the context-menu popup above the modal layer when its row is in the sidebar drawer", () => {
-    const anchor = document.body
-      .createDiv({ cls: "modal-container mod-dim" })
-      .createDiv({ cls: "modal" })
-      .createDiv({ text: "Drawer feed" });
-
-    showRefreshDetailsPopup({
-      anchor,
-      render: (popup) => popup.createDiv({ text: "Last checked: Not yet" }),
-    });
-
-    expect(
-      document
-        .querySelector(".rss-dashboard-refresh-details-manual")
-        ?.classList.contains("rss-dashboard-refresh-details-over-modal"),
-    ).toBe(true);
   });
 });
 

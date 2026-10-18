@@ -1440,3 +1440,71 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
     transform: translateX(0);
   }
 }
+
+/* ============================================
+ * Feed error area
+ *
+ * Shared by the `Feed error` / `Refresh details` dialog and the edit feed
+ * modal's stored-error section: labelled, read-only, and selectable, so a user
+ * can pick the text up by hand as well as use the copy action. Text stays in
+ * `--text-normal`; a failure is never conveyed by colour alone.
+ * ============================================ */
+.rss-dashboard-feed-error-section {
+  margin-top: 8px;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.rss-dashboard-feed-error-entry {
+  padding: 8px 0;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.rss-dashboard-feed-error-entry:first-child {
+  border-top: none;
+}
+
+.rss-dashboard-feed-error-feed-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.rss-dashboard-feed-error-kind {
+  margin-top: 4px;
+}
+
+.rss-dashboard-feed-error-kind-label {
+  margin: 0;
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.rss-dashboard-feed-error-kind-message {
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.rss-dashboard-feed-error-copy {
+  margin-top: 6px;
+  min-height: 32px;
+}
+
+.rss-dashboard-feed-error-copy-status {
+  margin-top: 4px;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .rss-dashboard-feed-error-copy {
+    min-height: 40px;
+  }
+}
+
+/* The edit feed modal keeps its stored-error section flush with its setting. */
+.rss-edit-feed-modal .rss-dashboard-feed-error-section {
+  margin-top: 0;
+}

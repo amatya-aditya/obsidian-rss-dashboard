@@ -27,6 +27,9 @@ const UNREAD_SELECTOR = [
   ".rss-dashboard-all-feeds-unread",
 ].join(", ");
 
+/** The feed-error badge, present on a failing feed row only. */
+const FEED_ERROR_BADGE_SELECTOR = ".rss-dashboard-feed-error-badge";
+
 export interface SidebarRowState {
   /** The row is the open feed, the open folder, or "All feeds" with no filter. */
   current: boolean;
@@ -64,6 +67,27 @@ export function syncSidebarRowName(row: HTMLElement): void {
 }
 
 /**
+ * Points a failing feed row's `aria-describedby` at its error badge, so moving
+ * through the rows tells a screen reader that the feed is failing instead of
+ * leaving that to an icon's colour. Any description already on the row (the
+ * refresh-details text) is kept.
+ *
+ * `aria-label` is deliberately not used on the row: Obsidian draws a hover
+ * tooltip from it and would echo the row's own text. `aria-describedby` does
+ * not have that problem.
+ */
+export function syncSidebarRowDescription(row: HTMLElement): void {
+  const badge = row.querySelector<HTMLElement>(FEED_ERROR_BADGE_SELECTOR);
+  if (!badge) return;
+  const badgeId = ensureId(badge);
+  const ids = (row.getAttribute("aria-describedby") ?? "")
+    .split(/\s+/)
+    .filter((id) => id.length > 0);
+  if (!ids.includes(badgeId)) ids.push(badgeId);
+  row.setAttribute("aria-describedby", ids.join(" "));
+}
+
+/**
  * Gives a finished row (its name and badge already inside it) its role, name
  * and state.
  */
@@ -73,6 +97,7 @@ export function applySidebarRowSemantics(
 ): void {
   row.setAttr("role", "link");
   syncSidebarRowName(row);
+  syncSidebarRowDescription(row);
   if (state.current) {
     row.setAttr("aria-current", "true");
   }
