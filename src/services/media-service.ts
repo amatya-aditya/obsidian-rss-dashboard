@@ -16,19 +16,7 @@ import {
   findPodcastDuration,
 } from "../utils/podcast-text-scan";
 
-export interface YouTubeEmbedConfig {
-  videoId: string;
-  embedUrl: string;
-  watchUrl: string;
-  referrerPolicy: "strict-origin-when-cross-origin";
-  allow: string;
-}
-
 export class MediaService {
-  static readonly YOUTUBE_EMBED_REFERRER_POLICY =
-    "strict-origin-when-cross-origin";
-  static readonly YOUTUBE_EMBED_ALLOW =
-    "accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
   private static readonly YOUTUBE_PATTERNS = [
     "youtube.com/feeds/videos.xml",
     "youtube.com/channel/",
@@ -330,52 +318,6 @@ export class MediaService {
         mediaType: "article" as const,
       })),
     };
-  }
-
-  static buildYouTubeEmbed(videoId: string): YouTubeEmbedConfig {
-    const normalizedVideoId = videoId.trim();
-    const embedParams = new URLSearchParams({
-      rel: "0",
-      enablejsapi: "1",
-    });
-
-    if (
-      typeof window !== "undefined" &&
-      (window.location.protocol === "http:" ||
-        window.location.protocol === "https:")
-    ) {
-      embedParams.set("origin", window.location.origin);
-    }
-
-    return {
-      videoId: normalizedVideoId,
-      embedUrl: `https://www.youtube-nocookie.com/embed/${normalizedVideoId}?${embedParams.toString()}`,
-      watchUrl: `https://www.youtube.com/watch?v=${normalizedVideoId}`,
-      referrerPolicy: this.YOUTUBE_EMBED_REFERRER_POLICY,
-      allow: this.YOUTUBE_EMBED_ALLOW,
-    };
-  }
-
-  static getYouTubePlayerHtml(
-    videoId: string,
-    width = 560,
-    height = 315,
-  ): string {
-    const embed = this.buildYouTubeEmbed(videoId);
-
-    return `
-            <div class="rss-dashboard-media-player youtube-player">
-                <iframe 
-                    width="${width}" 
-                    height="${height}" 
-                    src="${embed.embedUrl}" 
-                    frameborder="0" 
-                    referrerpolicy="${embed.referrerPolicy}"
-                    allow="${embed.allow}" 
-                    allowfullscreen>
-                </iframe>
-            </div>
-        `;
   }
 
   static getAudioPlayerHtml(audioUrl: string, title = ""): string {

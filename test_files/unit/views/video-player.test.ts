@@ -70,7 +70,7 @@ describe("VideoPlayer", () => {
     const iframe = container.querySelector<HTMLIFrameElement>("iframe");
     expect(iframe).not.toBeNull();
     expect(iframe?.getAttribute("src")).toBe(
-      `https://releases.obsidian.md/youtube?v=${VIDEO_ID}&autoplay=1`,
+      `https://releases.obsidian.md/youtube?v=${VIDEO_ID}&enablejsapi=1&autoplay=1`,
     );
     expect(iframe?.getAttribute("allow")).toContain("autoplay");
     expect(iframe?.getAttribute("referrerpolicy")).toBe(
@@ -91,7 +91,7 @@ describe("VideoPlayer", () => {
 
     const iframe = container.querySelector<HTMLIFrameElement>("iframe");
     expect(iframe?.getAttribute("src")).toBe(
-      `https://releases.obsidian.md/youtube?v=${VIDEO_ID}&autoplay=1&start=42`,
+      `https://releases.obsidian.md/youtube?v=${VIDEO_ID}&enablejsapi=1&autoplay=1&start=42`,
     );
   });
 
@@ -289,67 +289,256 @@ describe("VideoPlayer", () => {
     expect(loadSpy).toHaveBeenCalledWith(related);
   });
 
-  it("starts polling progress once the YouTube player is ready", () => {
+  // The player posts from the window inside the iframe; jsdom loads no
+  // nested frame, so the iframe's own window stands in for the player.
+  function postFromPlayer(
+    iframe: HTMLIFrameElement | null,
+    message: Record<string, unknown>,
+    origin = "https://www.youtube-nocookie.com",
+  ): void {
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        origin,
+        source: iframe?.contentWindow ?? null,
+        data: JSON.stringify({ channel: "widget", ...message }),
+      }),
+    );
+  }
+
+  it("saves the exact position the player reports while it plays", () => {
     vi.useFakeTimers();
 
     const container = createContainer();
     const onPlaybackProgress = vi.fn();
     const item = baseItem();
-
     const player = new VideoPlayer(container, undefined, onPlaybackProgress);
-
     player.loadVideo(item);
-
     const iframe = container.querySelector<HTMLIFrameElement>("iframe");
-    const iframeId = iframe?.id;
 
-    // Send onReady event
-    window.dispatchEvent(
-      new MessageEvent("message", {
-        origin: "https://www.youtube-nocookie.com",
-        data: JSON.stringify({
-          event: "onReady",
-          id: iframeId,
-        }),
-      }),
-    );
-
-    // Send infoDelivery event to set duration
-    window.dispatchEvent(
-      new MessageEvent("message", {
-        origin: "https://www.youtube-nocookie.com",
-        data: JSON.stringify({
-          event: "infoDelivery",
-          info: { duration: 120 },
-          id: iframeId,
-        }),
-      }),
-    );
-
-    // Send stateChange playing (1) event
-    window.dispatchEvent(
-      new MessageEvent("message", {
-        origin: "https://www.youtube-nocookie.com",
-        data: JSON.stringify({
-          event: "onStateChange",
-          info: 1,
-          id: iframeId,
-        }),
-      }),
-    );
-
-    // Now timers advance by 5 seconds
+    postFromPlayer(iframe, {
+      event: "infoDelivery",
+      info: { duration: 120, currentTime: 3, playerState: 1 },
+    });
+    postFromPlayer(iframe, {
+      event: "infoDelivery",
+      info: { currentTime: 7.5 },
+    });
     vi.advanceTimersByTime(5000);
-    expect(onPlaybackProgress).toHaveBeenNthCalledWith(1, item, 5, 120, false);
+    expect(onPlaybackProgress).toHaveBeenNthCalledWith(
+      1,
+      item,
+      7.5,
+      120,
+      false,
+    );
 
+    postFromPlayer(iframe, {
+      event: "infoDelivery",
+      info: { currentTime: 12.25 },
+    });
     vi.advanceTimersByTime(5000);
-    expect(onPlaybackProgress).toHaveBeenNthCalledWith(2, item, 10, 120, false);
+    expect(onPlaybackProgress).toHaveBeenNthCalledWith(
+      2,
+      item,
+      12.25,
+      120,
+      false,
+    );
 
     player.destroy();
     vi.useRealTimers();
   });
 
-  it("does not restore or track progress when playback progress is disabled", () => {
+  it("saves the paused position once and does not advance it while paused", () => {
+    vi.useFakeTimers();
+
+    const container = createContainer();
+    const onPlaybackProgress = vi.fn();
+    const item = baseItem();
+    const player = new VideoPlayer(container, undefined, onPlaybackProgress);
+    player.loadVideo(item);
+    const iframe = container.querySelector<HTMLIFrameElement>("iframe");
+
+    postFromPlayer(iframe, {
+      event: "infoDelivery",
+      info: { duration: 120, currentTime: 40, playerState: 1 },
+    });
+    postFromPlayer(iframe, {
+      event: "infoDelivery",
+      info: { currentTime: 41.5, playerState: 2 },
+    });
+    expect(onPlaybackProgress).toHaveBeenCalledTimes(1);
+    expect(onPlaybackProgress).toHaveBeenCalledWith(item, 41.5, 120, true);
+
+    vi.advanceTimersByTime(60000);
+    expect(onPlaybackProgress).toHaveBeenCalledTimes(1);
+
+    player.destroy();
+    vi.useRealTimers();
+  });
+
+  it("saves a seek made inside the player", () => {
+    const container = createContainer();
+    const onPlaybackProgress = vi.fn();
+    const item = baseItem();
+    const player = new VideoPlayer(container, undefined, onPlaybackProgress);
+    player.loadVideo(item);
+    const iframe = container.querySelector<HTMLIFrameElement>("iframe");
+
+    postFromPlayer(iframe, {
+      event: "infoDelivery",
+      info: { duration: 120, currentTime: 100 },
+    });
+    postFromPlayer(iframe, {
+      event: "infoDelivery",
+      info: { currentTime: 30 },
+    });
+    player.destroy();
+
+    expect(onPlaybackProgress).toHaveBeenCalledWith(item, 30, 120, true);
+  });
+
+  it("saves nothing until the player reports a position", () => {
+    vi.useFakeTimers();
+
+    const container = createContainer();
+    const onPlaybackProgress = vi.fn();
+    const item = baseItem({
+      playbackProgress: { position: 33, duration: 120, lastUpdated: 0 },
+    });
+    const player = new VideoPlayer(container, undefined, onPlaybackProgress);
+    player.loadVideo(item);
+    const iframe = container.querySelector<HTMLIFrameElement>("iframe");
+
+    postFromPlayer(iframe, { event: "onStateChange", info: 1 });
+    vi.advanceTimersByTime(30000);
+    player.destroy();
+
+    expect(onPlaybackProgress).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it("ignores messages from other frames and non-YouTube origins", () => {
+    const container = createContainer();
+    const onPlaybackProgress = vi.fn();
+    const player = new VideoPlayer(container, undefined, onPlaybackProgress);
+    player.loadVideo(baseItem());
+    const iframe = container.querySelector<HTMLIFrameElement>("iframe");
+    const other = container.createEl("iframe");
+
+    postFromPlayer(
+      iframe,
+      { event: "infoDelivery", info: { duration: 120, currentTime: 50 } },
+      "https://example.com",
+    );
+    postFromPlayer(other, {
+      event: "infoDelivery",
+      info: { duration: 120, currentTime: 60 },
+    });
+    player.destroy();
+
+    expect(onPlaybackProgress).not.toHaveBeenCalled();
+  });
+
+  it("saves the previous video's position when another video loads", () => {
+    const container = createContainer();
+    const onPlaybackProgress = vi.fn();
+    const first = baseItem();
+    const second = baseItem({ guid: "guid-2", videoId: "bcdefghijkl" });
+    const player = new VideoPlayer(container, undefined, onPlaybackProgress);
+    player.loadVideo(first);
+    const iframe = container.querySelector<HTMLIFrameElement>("iframe");
+
+    postFromPlayer(iframe, {
+      event: "infoDelivery",
+      info: { duration: 120, currentTime: 64 },
+    });
+    player.loadVideo(second);
+
+    expect(onPlaybackProgress).toHaveBeenCalledWith(first, 64, 120, true);
+    player.destroy();
+  });
+
+  it("does not save another video picked inside the player onto this item", () => {
+    vi.useFakeTimers();
+
+    const container = createContainer();
+    const onPlaybackProgress = vi.fn();
+    const item = baseItem();
+    const player = new VideoPlayer(container, undefined, onPlaybackProgress);
+    player.loadVideo(item);
+    const iframe = container.querySelector<HTMLIFrameElement>("iframe");
+
+    postFromPlayer(iframe, {
+      event: "infoDelivery",
+      info: {
+        videoData: { video_id: VIDEO_ID },
+        duration: 120,
+        currentTime: 90,
+        playerState: 1,
+      },
+    });
+    // The viewer clicks an end-screen suggestion; its first report names it.
+    postFromPlayer(iframe, {
+      event: "infoDelivery",
+      info: {
+        videoData: { video_id: "jNQXAC9IVRw" },
+        duration: 19,
+        currentTime: 0,
+        playerState: 2,
+      },
+    });
+    postFromPlayer(iframe, {
+      event: "infoDelivery",
+      info: { currentTime: 4, playerState: 1 },
+    });
+    vi.advanceTimersByTime(20000);
+    player.destroy();
+
+    expect(onPlaybackProgress).toHaveBeenCalledTimes(1);
+    expect(onPlaybackProgress).toHaveBeenCalledWith(item, 90, 120, true);
+    vi.useRealTimers();
+  });
+
+  it("saves a repeated paused state only once", () => {
+    const container = createContainer();
+    const onPlaybackProgress = vi.fn();
+    const player = new VideoPlayer(container, undefined, onPlaybackProgress);
+    player.loadVideo(baseItem());
+    const iframe = container.querySelector<HTMLIFrameElement>("iframe");
+
+    for (let i = 0; i < 3; i += 1) {
+      postFromPlayer(iframe, {
+        event: "infoDelivery",
+        info: { duration: 120, currentTime: 20, playerState: 2 },
+      });
+    }
+
+    expect(onPlaybackProgress).toHaveBeenCalledTimes(1);
+    player.destroy();
+  });
+
+  it("still loads the next video when saving the previous one fails", () => {
+    const container = createContainer();
+    const onPlaybackProgress = vi.fn(() => {
+      throw new Error("feed removed");
+    });
+    const player = new VideoPlayer(container, undefined, onPlaybackProgress);
+    player.loadVideo(baseItem());
+    const iframe = container.querySelector<HTMLIFrameElement>("iframe");
+    postFromPlayer(iframe, {
+      event: "infoDelivery",
+      info: { duration: 120, currentTime: 20 },
+    });
+
+    player.loadVideo(baseItem({ guid: "guid-2", videoId: "bcdefghijkl" }));
+
+    const next = container.querySelector<HTMLIFrameElement>("iframe");
+    expect(next?.getAttribute("src")).toContain("v=bcdefghijkl");
+    player.destroy();
+  });
+
+  it("does not track progress when playback progress is disabled", () => {
     vi.useFakeTimers();
 
     const container = createContainer();
@@ -361,59 +550,23 @@ describe("VideoPlayer", () => {
         lastUpdated: Date.now(),
       },
     });
-
     const player = new VideoPlayer(
       container,
       undefined,
       onPlaybackProgress,
       false,
     );
-
     player.loadVideo(item);
-
     const iframe = container.querySelector<HTMLIFrameElement>("iframe");
-    const iframeId = iframe?.id;
 
-    // Send onReady event
-    window.dispatchEvent(
-      new MessageEvent("message", {
-        origin: "https://www.youtube-nocookie.com",
-        data: JSON.stringify({
-          event: "onReady",
-          id: iframeId,
-        }),
-      }),
-    );
-
-    // Send infoDelivery event to set duration
-    window.dispatchEvent(
-      new MessageEvent("message", {
-        origin: "https://www.youtube-nocookie.com",
-        data: JSON.stringify({
-          event: "infoDelivery",
-          info: { duration: 120 },
-          id: iframeId,
-        }),
-      }),
-    );
-
-    // Send stateChange playing (1) event
-    window.dispatchEvent(
-      new MessageEvent("message", {
-        origin: "https://www.youtube-nocookie.com",
-        data: JSON.stringify({
-          event: "onStateChange",
-          info: 1,
-          id: iframeId,
-        }),
-      }),
-    );
-
+    postFromPlayer(iframe, {
+      event: "infoDelivery",
+      info: { duration: 120, currentTime: 50, playerState: 1 },
+    });
     vi.advanceTimersByTime(10000);
+    player.destroy();
 
     expect(onPlaybackProgress).not.toHaveBeenCalled();
-
-    player.destroy();
     vi.useRealTimers();
   });
 
@@ -438,20 +591,12 @@ describe("VideoPlayer", () => {
     const item = baseItem();
 
     player.loadVideo(item);
-
     const iframe = container.querySelector<HTMLIFrameElement>("iframe");
-    const iframeId = iframe?.id;
 
-    window.dispatchEvent(
-      new MessageEvent("message", {
-        origin: "https://www.youtube-nocookie.com",
-        data: JSON.stringify({
-          event: "infoDelivery",
-          info: { duration: 120, currentTime: 42 },
-          id: iframeId,
-        }),
-      }),
-    );
+    postFromPlayer(iframe, {
+      event: "infoDelivery",
+      info: { duration: 120, currentTime: 42 },
+    });
 
     player.destroy();
 

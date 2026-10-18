@@ -1,6 +1,6 @@
 ---
 name: test-drive-and-fix
-description: Build a test checklist for the current work, drive it on the machine, and fix in-scope failures with a regression test and a commit.
+description: Drive the real app to verify the current work, fix what fails with a regression test and a commit, and park decisions for the user.
 disable-model-invocation: true
 ---
 

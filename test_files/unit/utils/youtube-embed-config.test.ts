@@ -2,34 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MediaService } from "../../../src/services/media-service";
 import { Feed } from "../../../src/types/types";
 
-describe("youtube embed config", () => {
-  it("builds privacy-enhanced embed config with strict referrer policy", () => {
-    const embed = MediaService.buildYouTubeEmbed("dQw4w9WgXcQ");
-
-    expect(embed.videoId).toBe("dQw4w9WgXcQ");
-    expect(embed.embedUrl).toContain(
-      "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?rel=0&enablejsapi=1",
-    );
-    expect(embed.embedUrl).toContain("origin=");
-    expect(embed.watchUrl).toBe("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
-    expect(embed.referrerPolicy).toBe("strict-origin-when-cross-origin");
-    expect(embed.embedUrl).not.toContain("autoplay=");
-    expect(embed.embedUrl).not.toContain("vq=");
-    expect(embed.allow).toContain("picture-in-picture");
-    expect(embed.allow).not.toContain("autoplay");
-  });
-
-  it("uses the shared embed config in the legacy html helper", () => {
-    const playerHtml = MediaService.getYouTubePlayerHtml("dQw4w9WgXcQ");
-
-    expect(playerHtml).toContain("https://www.youtube-nocookie.com/embed/");
-    expect(playerHtml).toContain(
-      'referrerpolicy="strict-origin-when-cross-origin"',
-    );
-    expect(playerHtml).not.toContain("autoplay");
-    expect(playerHtml).not.toContain("vq=");
-  });
-
+describe("youtube feed processing", () => {
   it("extracts and persists youtube video ids during feed processing", () => {
     const feed: Feed = {
       title: "Video feed",
