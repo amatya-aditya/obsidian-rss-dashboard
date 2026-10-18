@@ -237,22 +237,22 @@
   border-color: var(--interactive-accent);
 }
 
-/* The manual cover-image fetch (#1314). Out of the way until the card is
- * hovered or holds focus, but never unreachable: the hidden control takes no
- * pointer events (a tap meant to open the card must not fetch a page), and a
- * touch screen shows it outright because it has no hover to reveal it. */
+/* The manual cover-image fetch (#1314) sits at the right end of the card's tag
+ * row, after the chips and their `+n` overflow chip. The row reserves its width
+ * whether or not it is revealed, so revealing it never reflows the chips or
+ * changes the `+n` count. Out of the way until the card is hovered or holds
+ * focus, but never unreachable: the hidden control takes no pointer events (a
+ * tap meant to open the card must not fetch a page), and a touch screen shows it
+ * outright because it has no hover to reveal it. */
 .rss-dashboard-card-view
   .rss-dashboard-article-card
   .rss-dashboard-fetch-cover-button {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
   padding: 0;
   border: 1px solid var(--background-modifier-border);
   border-radius: 4px;
@@ -789,6 +789,9 @@
 }
 
 .rss-dashboard-card-view .rss-dashboard-card-tags-region {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   flex: 0 0 auto;
   overflow: hidden;
   box-sizing: border-box;
@@ -806,6 +809,11 @@
   .rss-dashboard-tag-container {
   display: flex;
   flex-wrap: nowrap;
+  /* Takes the row's remaining width, so the cover control (#1314) keeps its
+   * place at the right end and the `+n` measurement sees the width it really
+   * has. */
+  flex: 1 1 auto;
+  min-width: 0;
   gap: 5px;
   margin: 0;
   max-height: 100%;

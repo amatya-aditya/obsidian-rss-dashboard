@@ -21,6 +21,15 @@ export function coverImageActionLabel(
  */
 export const COVER_IMAGE_FETCH_ICON = "download";
 
+/**
+ * The class of the in-card cover-image fetch control (#1314). One name for the
+ * three places that have to agree on it: the control's own class, the tag
+ * region that must survive a tag removal because it hosts the control, and the
+ * focus hand-off after the card is rebuilt.
+ */
+export const COVER_IMAGE_FETCH_BUTTON_CLASS =
+  "rss-dashboard-fetch-cover-button";
+
 export interface CoverImageAvailability {
   /** The dashboard supplies the fetch at all (absent on a surface without it). */
   hasFetcher: boolean;

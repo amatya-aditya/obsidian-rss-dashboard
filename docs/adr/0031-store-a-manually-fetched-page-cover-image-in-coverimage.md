@@ -53,9 +53,9 @@ The decision is intended to preserve these core user expectations:
 A manual, per-article action reads the article page once, takes the page's
 declared image, and stores it in the item's existing `coverImage` field.
 
-- The action is offered from an article's context menu and from a control on a
-  card, in Card and Feed views, while "Show cover images" is on, for items with
-  an `http(s)` link.
+- The action is offered from an article's context menu and from a control in a
+  card's tag row, in Card and Feed views, while "Show cover images" is on, for
+  items with an `http(s)` link.
 - It reads `og:image`, then `twitter:image`, resolved against the article URL,
   and refuses a formula image, a tracking pixel, a `data:` URL, and any
   non-`http(s)` value. It never scans the page body, because a body's first image

@@ -39,7 +39,10 @@ import { createActionButtons as createArticleActionButtonsUtil } from "./article
 import type { CustomSaveHooks } from "./article-list/utils/save-options-menu";
 import { showArticleContextMenu as showArticleContextMenuUtil } from "./article-list/utils/article-context-menu";
 import { withCoverImageBusyState } from "./article-list/utils/cover-image-busy";
-import { canOfferCoverImageFetch } from "./article-list/utils/cover-image-action";
+import {
+  COVER_IMAGE_FETCH_BUTTON_CLASS,
+  canOfferCoverImageFetch,
+} from "./article-list/utils/cover-image-action";
 import { renderFeedView as renderFeedViewUtil } from "./article-list/views/feed-view";
 import { renderListView as renderListViewUtil } from "./article-list/views/list-view";
 import { renderCardView as renderCardViewUtil } from "./article-list/views/card-view";
@@ -1085,11 +1088,26 @@ export class ArticleList {
       );
     }
     if (!hasTags && existingContainers.length > 0) {
-      existingContainers.forEach((container) => container.remove());
+      existingContainers.forEach((container) => {
+        // A card's tag strip can host the cover-image fetch control (#1314):
+        // empty the chips and let the region decide below whether it still has
+        // a reason to exist.
+        if (container.closest(".rss-dashboard-card-tags-region")) {
+          container.empty();
+          return;
+        }
+        container.remove();
+      });
       if (articleEl.classList.contains("rss-dashboard-article-card")) {
+        // The region also hosts the card's cover-image fetch control (#1314),
+        // so it is removed only when nothing else lives in it.
         articleEl
           .querySelectorAll(".rss-dashboard-card-tags-region")
-          .forEach((el) => el.remove());
+          .forEach((region) => {
+            if (!region.querySelector(`.${COVER_IMAGE_FETCH_BUTTON_CLASS}`)) {
+              region.remove();
+            }
+          });
       }
       if (articleEl.classList.contains("rss-dashboard-feed-item")) {
         articleEl
@@ -1645,7 +1663,9 @@ export class ArticleList {
       // The element is new, so focus returns to its cover control, or to the
       // card's opener when the control is no longer offered.
       const focusTarget =
-        newEl.querySelector<HTMLElement>(".rss-dashboard-fetch-cover-button") ??
+        newEl.querySelector<HTMLElement>(
+          `.${COVER_IMAGE_FETCH_BUTTON_CLASS}`,
+        ) ??
         newEl.querySelector<HTMLElement>(".rss-dashboard-card-open-button");
       focusTarget?.focus();
     }

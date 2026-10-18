@@ -334,7 +334,7 @@ The image an article page declares for itself through `og:image`, falling back t
 _Avoid_: og image, social image, page hero, article thumbnail
 
 **Cover image fetch**:
-The manual dashboard action that reads an article page's [[Page cover image]] and stores it as the item's [[Cover image]], offered in an article's context menu and as a control on a card, in Card and Feed views while cover-image display is on. One request per activation, sharing a request already in flight for the same link; it stores no page content and changes no other article field. Distinct from the Reader's fetch that produces [[Fetched content]].
+The manual dashboard action that reads an article page's [[Page cover image]] and stores it as the item's [[Cover image]], offered in an article's context menu and as a control in a card's tag row, in Card and Feed views while cover-image display is on. One request per activation, sharing a request already in flight for the same link; it stores no page content and changes no other article field. Distinct from the Reader's fetch that produces [[Fetched content]].
 _Avoid_: Fetch card image, image fetch, full fetch, article fetch (the Reader's fetch)
 
 **Persisted article metadata**:

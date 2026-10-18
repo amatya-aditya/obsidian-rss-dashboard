@@ -122,6 +122,39 @@ describe("cover-image action on the article list (#1314)", () => {
     h.cleanup();
   });
 
+  it("keeps the card's control when the last tag is removed from it", () => {
+    const h = createArticleListHarness({
+      settings: settingsWith({ viewStyle: "card" }),
+      callbacks: { onFetchCoverImage: vi.fn(async () => true) },
+      articles: [
+        buildArticle({
+          guid: "1",
+          tags: [{ name: "tech", color: "#ff0000" }],
+        }),
+      ],
+    });
+    h.list.render();
+
+    const card = h.getArticleEl("1");
+    expect(
+      card?.querySelector(".rss-dashboard-card-tags-region"),
+    ).not.toBeNull();
+
+    h.articles[0].tags = [];
+    h.list.updateArticleInPlace(h.articles[0]);
+
+    // The chips go with the last tag; the row stays, because it is also where
+    // the cover control lives.
+    expect(
+      card?.querySelector(".rss-dashboard-card-tags-region"),
+    ).not.toBeNull();
+    expect(card?.querySelector(COVER_FETCH_BUTTON)).not.toBeNull();
+    expect(
+      card?.querySelector(".rss-dashboard-tag-container")?.children.length,
+    ).toBe(0);
+    h.cleanup();
+  });
+
   it("shows the card busy while the menu's fetch runs, then rebuilds it", async () => {
     let finish!: (found: boolean) => void;
     const onFetchCoverImage = vi.fn(

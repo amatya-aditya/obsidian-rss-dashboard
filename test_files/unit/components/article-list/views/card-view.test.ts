@@ -655,6 +655,57 @@ describe("card-view", () => {
       );
     });
 
+    it("puts the control at the end of the card's tag row, after the chips", () => {
+      renderWith({
+        article: {
+          tags: [
+            { name: "tech", color: "#ff0000" },
+            { name: "news", color: "#00ff00" },
+          ],
+        },
+      });
+
+      const region = container.querySelector<HTMLElement>(
+        ".rss-dashboard-card-tags-region",
+      );
+      const button = fetchButton();
+
+      // Beside the tag container, never inside it: the layout pass empties and
+      // re-measures the container, and the `+n` count would count the control.
+      expect(button?.parentElement).toBe(region);
+      expect(region?.lastElementChild).toBe(button);
+      expect(
+        region?.querySelector(".rss-dashboard-tag-container")
+          ?.nextElementSibling,
+      ).toBe(button);
+    });
+
+    it("renders the tag row for an untagged card when the control lives in it", () => {
+      renderWith({ article: { tags: [] } });
+
+      const region = container.querySelector<HTMLElement>(
+        ".rss-dashboard-card-tags-region",
+      );
+      expect(region).not.toBeNull();
+      expect(
+        region?.querySelector(".rss-dashboard-tag-container")?.children.length,
+      ).toBe(0);
+      expect(fetchButton()?.parentElement).toBe(region);
+    });
+
+    it("renders no tag row when it would hold nothing", () => {
+      renderCardView(
+        container,
+        [makeArticle()],
+        { ...baseViewContext(), showCardToolbar: false },
+        baseViewDeps(),
+      );
+
+      expect(
+        container.querySelector(".rss-dashboard-card-tags-region"),
+      ).toBeNull();
+    });
+
     it("omits the control when the dashboard offers no cover fetch", () => {
       renderCardView(
         container,

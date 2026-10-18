@@ -12,6 +12,7 @@ import {
 } from "../../../utils/article-preview-utils";
 import { renderSingleRowCardTagChips } from "../utils/tag-layout-utils";
 import {
+  COVER_IMAGE_FETCH_BUTTON_CLASS,
   COVER_IMAGE_FETCH_ICON,
   canOfferCoverImageFetch,
   coverImageActionLabel,
@@ -53,12 +54,19 @@ function renderCardPlaceholder(
 
 /**
  * The card's cover-image fetch control (#1314): the discoverable path to the
- * same action the context menu offers. Revealed by the stylesheet on card
- * hover and on focus within the card (and always on a touch screen), so it
- * stays out of the way but is never hidden from the keyboard or unreachable by
- * touch.
+ * same action the context menu offers. It belongs to the card's tag row and
+ * sits at its right end, after the tag chips and their `+n` overflow chip. The
+ * row reserves its width whether or not the control is revealed, so revealing
+ * it never reflows the chips. Revealed by the stylesheet on card hover and on
+ * focus within the card (and always on a touch screen), so it stays out of the
+ * way but is never hidden from the keyboard or unreachable by touch.
+ *
+ * `parent` is the tag region, not the tag container: the container is emptied
+ * and re-measured by the tag layout, and a child of it would be wiped by that
+ * pass and counted by the `+n` measurement.
  */
 function renderFetchCoverButton(
+  parent: HTMLElement,
   card: HTMLElement,
   article: FeedItem,
   deps: ViewDeps,
@@ -74,8 +82,8 @@ function renderFetchCoverButton(
   const button = createIconButton({
     label: coverImageActionLabel(article),
     icon: COVER_IMAGE_FETCH_ICON,
-    parent: card,
-    cls: "rss-dashboard-fetch-cover-button",
+    parent,
+    cls: COVER_IMAGE_FETCH_BUTTON_CLASS,
     action: "fetch-cover-image",
     region: "article-card",
   });
@@ -331,7 +339,15 @@ export function renderCardView(
       renderCardPlaceholder(previewRegion, openButton, cardDescriptionId);
     }
 
-    if (hasTags) {
+    const offersCoverFetch = canOfferCoverImageFetch(article, {
+      hasFetcher: !!deps.fetchCoverImage,
+      showCoverImage: ctx.settings.display.showCoverImage,
+    });
+
+    // The tag row doubles as the card's action row (#1314). It is skipped
+    // outright when it would hold nothing, and an untagged card renders it for
+    // the cover control alone.
+    if (hasTags || offersCoverFetch) {
       const tagsRegion = card.createDiv({
         cls: "rss-dashboard-card-tags-region",
       });
@@ -339,15 +355,10 @@ export function renderCardView(
         cls: "rss-dashboard-tag-container",
       });
       renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
-    }
 
-    if (
-      canOfferCoverImageFetch(article, {
-        hasFetcher: !!deps.fetchCoverImage,
-        showCoverImage: ctx.settings.display.showCoverImage,
-      })
-    ) {
-      renderFetchCoverButton(card, article, deps);
+      if (offersCoverFetch) {
+        renderFetchCoverButton(tagsRegion, card, article, deps);
+      }
     }
 
     if (ctx.showCardToolbar) {
