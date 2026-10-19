@@ -27,8 +27,9 @@ const BLOCKED_MARKERS = [
 
 /**
  * Wording that signals a paywall or login wall. Real article pages carry these
- * words in script data (for example an `accessPaywall` config key), so they
- * count only in visible text, not inside `<script>` or `<style>`.
+ * words in script data (an `accessPaywall` config key, say) or in markup
+ * attributes (a `pmc-paywall` class), so they count only in reader-visible
+ * text, never inside `<script>`/`<style>` or a tag's attributes (#1345).
  */
 const VISIBLE_TEXT_BLOCKED_MARKERS = [
   "paywall",
@@ -38,6 +39,9 @@ const VISIBLE_TEXT_BLOCKED_MARKERS = [
 ];
 
 const SCRIPT_OR_STYLE_BLOCK = /<(script|style)\b[^>]*>[\s\S]*?<\/\1\s*>/gi;
+
+/** Every remaining tag, attributes included, so only element text is left. */
+const MARKUP_TAG = /<[^>]*>/g;
 
 const RESTRICTED_MARKERS = [
   "401",
@@ -139,9 +143,14 @@ export function isBlockedResponse(html: string): boolean {
   }
   const lower = html.toLowerCase();
   if (BLOCKED_MARKERS.some((marker) => lower.includes(marker))) return true;
-  const visible = lower.replace(SCRIPT_OR_STYLE_BLOCK, " ");
+  // Paywall wording counts only in reader-visible text: drop script/style
+  // bodies, then every tag, so a marker inside an attribute value such as
+  // `class="pmc-paywall"` no longer matches (#1345).
+  const visibleText = lower
+    .replace(SCRIPT_OR_STYLE_BLOCK, " ")
+    .replace(MARKUP_TAG, " ");
   return VISIBLE_TEXT_BLOCKED_MARKERS.some((marker) =>
-    visible.includes(marker),
+    visibleText.includes(marker),
   );
 }
 

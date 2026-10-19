@@ -114,6 +114,13 @@ ${"<p>placeholder content to make this long enough to pass length check</p>".rep
     expect(isBlockedResponse(html)).toBe(false);
   });
 
+  it("ignores paywall wording that appears only in a markup attribute (Rolling Stone)", () => {
+    const html = `<!DOCTYPE html><html><head><title>Story</title></head><body>
+<div class="pmc-paywall"><div id="piano-paywall" data-paywall="true">${longArticleBody}</div></div></body></html>`;
+
+    expect(isBlockedResponse(html)).toBe(false);
+  });
+
   it("still blocks a page whose visible text mentions a paywall", () => {
     const html = `<!DOCTYPE html><html><head><title>Story</title></head><body>
 <script>var a = 1;</script><p>Subscribe to continue reading this story.</p>${longArticleBody}</body></html>`;
