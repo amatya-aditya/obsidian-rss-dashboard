@@ -6,6 +6,9 @@ export const FETCH_FAILURE_TIMEOUT_TEXT =
   "Couldn't load the full article: the page timed out.";
 export const FETCH_FAILURE_NETWORK_TEXT =
   "Couldn't load the full article: the page could not be loaded.";
+/** The site answered with a bot challenge instead of the page (#1347). */
+export const FETCH_FAILURE_BLOCKED_TEXT =
+  "The site refused the request, so the full article could not be loaded.";
 export const FETCH_FAILURE_TRY_AGAIN_TEXT = "Try again";
 export const FETCH_FAILURE_OPEN_IN_BROWSER_TEXT = "Open in browser";
 
@@ -33,7 +36,12 @@ export function buildFetchFailureRecord(
     return undefined;
   }
   return {
-    reason: result.failureReason === "timeout" ? "timeout" : "network",
+    reason:
+      result.failureReason === "timeout"
+        ? "timeout"
+        : result.failureReason === "blocked"
+          ? "blocked"
+          : "network",
     at: now,
   };
 }
@@ -85,9 +93,9 @@ export function clearFetchFailure(
 }
 
 export function describeFetchFailure(failure: FullContentFetchFailure): string {
-  return failure.reason === "timeout"
-    ? FETCH_FAILURE_TIMEOUT_TEXT
-    : FETCH_FAILURE_NETWORK_TEXT;
+  if (failure.reason === "timeout") return FETCH_FAILURE_TIMEOUT_TEXT;
+  if (failure.reason === "blocked") return FETCH_FAILURE_BLOCKED_TEXT;
+  return FETCH_FAILURE_NETWORK_TEXT;
 }
 
 /**

@@ -45,14 +45,31 @@ const MARKUP_TAG = /<[^>]*>/g;
 
 const RESTRICTED_MARKERS = [
   "401",
-  "403",
-  "forbidden",
-  "access denied",
+  "unauthorized",
   "paywall",
   "subscription required",
   "subscribe to continue",
-  "unauthorized",
 ];
+
+/**
+ * Markers that name a WAF/bot challenge. Deliberately narrower than
+ * `BLOCKED_MARKERS`: the generic phrases there ("403 forbidden",
+ * "access denied") also appear on a real content gate printed beside paywall
+ * wording, and only a named challenge page or Cloudflare's own header outranks
+ * a 401/403 (#1347).
+ */
+const CHALLENGE_MARKERS = [
+  "just a moment", // Cloudflare "Just a moment..." title
+  "cf-challenge",
+  "cf-browser-verification",
+  "challenge-platform",
+  "ddos-guard",
+  "enable javascript and cookies",
+];
+
+/** Cloudflare's own signal for a managed challenge, on the refused response. */
+const CHALLENGE_HEADER = "cf-mitigated";
+const CHALLENGE_HEADER_VALUE = "challenge";
 
 export type FullArticleFetchFailureType = "none" | "restricted" | "network";
 
@@ -62,8 +79,9 @@ export interface FullArticleFetchResult {
   /**
    * "timeout": the shared direct-and-proxy deadline expired. "unexpected": the
    * fetch threw, so the failure says nothing about the page (#1110).
+   * "blocked": the site answered with a bot challenge, not a paywall (#1347).
    */
-  failureReason?: "timeout" | "unexpected";
+  failureReason?: "timeout" | "unexpected" | "blocked";
   /**
    * Raw signals from the fetched page (#247). Unresolved: callers resolve it
    * against their own feed context. Absent when no page was fetched or the
@@ -159,6 +177,64 @@ export function isRestrictedSignal(input: string): boolean {
   if (!input) return false;
   const lower = input.toLowerCase();
   return RESTRICTED_MARKERS.some((marker) => lower.includes(marker));
+}
+
+export type FetchRefusal = "blocked" | "restricted" | "network";
+
+export interface FetchRefusalInput {
+  /** HTTP status, absent when the refusal arrived as a thrown error alone. */
+  status?: number;
+  /** Response headers, when the refusal came back as a thrown error. */
+  headers?: Record<string, string>;
+  /** Response body, when one was received. */
+  body?: string;
+  /** The thrown error's message. */
+  message?: string;
+}
+
+function hasChallengeHeader(
+  headers: Record<string, string> | undefined,
+): boolean {
+  if (!headers) return false;
+  return Object.entries(headers).some(
+    ([name, value]) =>
+      name.toLowerCase() === CHALLENGE_HEADER &&
+      value.toLowerCase().includes(CHALLENGE_HEADER_VALUE),
+  );
+}
+
+/** True when the text names a WAF/bot-challenge vendor. */
+function namesChallenge(text: string | undefined): boolean {
+  if (!text) return false;
+  const lower = text.toLowerCase();
+  return CHALLENGE_MARKERS.some((marker) => lower.includes(marker));
+}
+
+/**
+ * Classifies a refused article fetch (#1347). A bot challenge is a *blocked*
+ * fetch, not a paywall: the same page opens in a browser. Order matters, so a
+ * named challenge page and Cloudflare's own header outrank a bare 401/403 and
+ * any paywall wording.
+ */
+export function classifyFetchRefusal(input: FetchRefusalInput): FetchRefusal {
+  if (hasChallengeHeader(input.headers) || namesChallenge(input.body)) {
+    return "blocked";
+  }
+  if (isRestrictedStatus(input.status)) return "restricted";
+  if (
+    isRestrictedSignal(input.body ?? "") ||
+    isRestrictedSignal(input.message ?? "")
+  ) {
+    return "restricted";
+  }
+  return "network";
+}
+
+/** The refusal a classification names, or undefined for a plain failure. */
+function refusalOf(
+  classification: FetchRefusal,
+): "blocked" | "restricted" | undefined {
+  return classification === "network" ? undefined : classification;
 }
 
 // No User-Agent override: a Chrome UA without its sec-ch-ua client hints trips
@@ -337,31 +413,184 @@ function failureResult(
   };
 }
 
+/**
+ * The result for a fetch that produced no content. A refused page keeps its
+ * refusal - "restricted" for a real gate, "blocked" (a network failure with its
+ * own reason) for a bot challenge - and anything else is a plain failure
+ * (#1347).
+ */
+function refusalResult(
+  refusal: "blocked" | "restricted" | undefined,
+  pageMetadata: RawArticleMetadata | undefined,
+  pageImage?: string,
+): FullArticleFetchResult {
+  if (refusal === "restricted") {
+    return failureResult("restricted", pageMetadata, pageImage);
+  }
+  if (refusal === "blocked") {
+    return {
+      ...failureResult("network", pageMetadata, pageImage),
+      failureReason: "blocked",
+    };
+  }
+  return failureResult("network", pageMetadata, pageImage);
+}
+
 interface FetchErrorDetails {
   message: string;
   status: number;
-  restricted: boolean;
+  classification: FetchRefusal;
 }
 
 /**
- * Reads the status and message from a thrown fetch error. Obsidian's
- * `requestUrl` throws for any status of 400 or above, with the status on
- * `error.status`.
+ * Reads the status, headers and message from a thrown fetch error. Obsidian's
+ * `requestUrl` throws for any status of 400 or above, with the status and the
+ * response headers on the error - the body is not available, so a challenge is
+ * recognised from `cf-mitigated` or the message (#1347).
  */
 function describeFetchError(e: unknown): FetchErrorDetails {
   const error = e as {
     status?: number;
     statusCode?: number;
-    response?: { status?: number };
+    response?: { status?: number; headers?: Record<string, string> };
+    headers?: Record<string, string>;
   };
   const message = e instanceof Error ? e.message : String(e);
   const status =
     error?.status ?? error?.statusCode ?? error?.response?.status ?? 0;
+  const headers = error?.headers ?? error?.response?.headers;
   return {
     message,
     status,
-    restricted: isRestrictedStatus(status) || isRestrictedSignal(message),
+    classification: classifyFetchRefusal({ status, headers, message }),
   };
+}
+
+/** What the attempts so far say about the page, and how the last one ended. */
+interface FetchAttempts {
+  refusal: "blocked" | "restricted" | undefined;
+  metadata: RawArticleMetadata | undefined;
+  pageImage: string | undefined;
+  lastFailure: FullArticleFetchResult | undefined;
+  lastError: Error | undefined;
+}
+
+/**
+ * The direct request. A resolved response that is not blocked is the page; a
+ * refusal keeps whatever the response said about it. A thrown error that names
+ * no refusal says nothing about the page, so it propagates to the caller's
+ * outer handler (#1347).
+ */
+async function attemptDirectFetch(
+  url: string,
+  deadline: number,
+): Promise<
+  | { kind: "page"; result: FullArticleFetchResult }
+  | {
+      kind: "refused";
+      refusal: "blocked" | "restricted" | undefined;
+      metadata: RawArticleMetadata | undefined;
+      pageImage: string | undefined;
+    }
+> {
+  try {
+    const response = await withFetchDeadline(
+      () => robustFetchDetailed(url, { headers: DEFAULT_HEADERS }),
+      deadline,
+    );
+    const html = response.text;
+    if (!isBlockedResponse(html) && !isRestrictedStatus(response.status)) {
+      debugLog(
+        `[RSS Dashboard] Direct fetch succeeded for ${url} (${html.length} chars).`,
+      );
+      return {
+        kind: "page",
+        result: { ...parseArticleContent(html, url), failureType: "none" },
+      };
+    }
+    console.warn(
+      `[RSS Dashboard] Direct fetch returned blocked/empty response for ${url} (${html?.length ?? 0} chars). Attempting proxy...`,
+    );
+    const signals = extractMetadataOfUnparsedResponse(html, url);
+    return {
+      kind: "refused",
+      refusal: refusalOf(
+        classifyFetchRefusal({ status: response.status, body: html }),
+      ),
+      metadata: signals.pageMetadata,
+      pageImage: signals.pageImage,
+    };
+  } catch (directError: unknown) {
+    // requestUrl throws on 4xx/5xx instead of returning the response, so a
+    // refusal arrives here carrying its status and headers only. Other
+    // failures say nothing about the page, so they skip the proxy.
+    const failure = describeFetchError(directError);
+    const refusal = refusalOf(failure.classification);
+    if (!refusal) {
+      throw directError;
+    }
+    console.warn(
+      `[RSS Dashboard] Direct fetch was ${failure.classification} for ${url} (${failure.status || "no-status"}): ${failure.message}. Attempting proxy...`,
+    );
+    return {
+      kind: "refused",
+      refusal,
+      metadata: undefined,
+      pageImage: undefined,
+    };
+  }
+}
+
+/**
+ * One proxied attempt: returns the parsed page when the proxy served it, and
+ * otherwise records on `attempts` what the attempt said about the page (#1347).
+ */
+async function attemptProxyFetch(
+  url: string,
+  proxyTarget: string,
+  deadline: number,
+  attempts: FetchAttempts,
+): Promise<FullArticleFetchResult | undefined> {
+  try {
+    const response = await withFetchDeadline(
+      () => robustFetchDetailed(proxyTarget, { headers: DEFAULT_HEADERS }),
+      deadline,
+    );
+    const html = response.text;
+    if (!isBlockedResponse(html) && !isRestrictedStatus(response.status)) {
+      debugLog(
+        `[RSS Dashboard] Proxy fetch succeeded for ${url} (${html.length} chars).`,
+      );
+      return { ...parseArticleContent(html, url), failureType: "none" };
+    }
+
+    console.warn(
+      `[RSS Dashboard] Proxy fetch also returned blocked/empty response for ${url}.`,
+    );
+    // The direct answer is about the page itself; a proxy's refusal can be the
+    // proxy's own, so it only fills in a verdict we lack (#1347).
+    attempts.refusal ??= refusalOf(
+      classifyFetchRefusal({ status: response.status, body: html }),
+    );
+    const signals = extractMetadataOfUnparsedResponse(html, url);
+    attempts.metadata = signals.pageMetadata ?? attempts.metadata;
+    attempts.pageImage = signals.pageImage ?? attempts.pageImage;
+    attempts.lastFailure = refusalResult(
+      attempts.refusal,
+      attempts.metadata,
+      attempts.pageImage,
+    );
+    attempts.lastError = undefined;
+    return undefined;
+  } catch (proxyError: unknown) {
+    if (proxyError instanceof FetchTimeoutError) throw proxyError;
+    const failure = describeFetchError(proxyError);
+    attempts.refusal ??= refusalOf(failure.classification);
+    attempts.lastError =
+      proxyError instanceof Error ? proxyError : new Error(failure.message);
+    attempts.lastFailure = undefined;
+    return undefined;
+  }
 }
 
 /**
@@ -375,139 +604,75 @@ export async function fetchWithProxyFallbackDetailed(
   fetchTimeoutSeconds?: number,
 ): Promise<FullArticleFetchResult> {
   const deadline = Date.now() + resolveFetchTimeoutMs(fetchTimeoutSeconds);
-  let directRestricted = false;
-  let directMetadata: RawArticleMetadata | undefined;
-  let directPageImage: string | undefined;
+  const attempts: FetchAttempts = {
+    refusal: undefined,
+    metadata: undefined,
+    pageImage: undefined,
+    lastFailure: undefined,
+    lastError: undefined,
+  };
   try {
     // 1. Direct fetch
-    try {
-      const directResponse = await withFetchDeadline(
-        () => robustFetchDetailed(url, { headers: DEFAULT_HEADERS }),
-        deadline,
-      );
-      const directHtml = directResponse.text;
-      const directBlocked =
-        isBlockedResponse(directHtml) ||
-        isRestrictedStatus(directResponse.status);
-
-      if (!directBlocked) {
-        debugLog(
-          `[RSS Dashboard] Direct fetch succeeded for ${url} (${directHtml.length} chars).`,
-        );
-        return { ...parseArticleContent(directHtml, url), failureType: "none" };
-      }
-
-      const directSignals = extractMetadataOfUnparsedResponse(directHtml, url);
-      directMetadata = directSignals.pageMetadata;
-      directPageImage = directSignals.pageImage;
-      directRestricted =
-        isRestrictedStatus(directResponse.status) ||
-        isRestrictedSignal(directHtml);
-      console.warn(
-        `[RSS Dashboard] Direct fetch returned blocked/empty response for ${url} (${directHtml?.length ?? 0} chars). Attempting proxy...`,
-      );
-    } catch (directError: unknown) {
-      // requestUrl throws on 401/403 instead of returning the response, so a
-      // restricted page arrives here. Other failures skip the proxy.
-      const failure = describeFetchError(directError);
-      if (!failure.restricted) {
-        throw directError;
-      }
-      directRestricted = true;
-      console.warn(
-        `[RSS Dashboard] Direct fetch was restricted for ${url} (${failure.status || "no-status"}): ${failure.message}. Attempting proxy...`,
-      );
-    }
+    const direct = await attemptDirectFetch(url, deadline);
+    if (direct.kind === "page") return direct.result;
+    attempts.refusal = direct.refusal;
+    attempts.metadata = direct.metadata;
+    attempts.pageImage = direct.pageImage;
 
     // 2. Proxy fallback (silent, logs only)
     if (!proxyUrl || proxyUrl.trim() === "") {
       console.warn(
         "[RSS Dashboard] No CORS proxy configured. Cannot retry blocked fetch.",
       );
-      return failureResult(
-        directRestricted ? "restricted" : "network",
-        directMetadata,
-        directPageImage,
+      return refusalResult(
+        attempts.refusal,
+        attempts.metadata,
+        attempts.pageImage,
       );
     }
 
     // "auto" expands to several proxies; the first that returns the page wins.
-    let lastFailure: FullArticleFetchResult | undefined;
-    let lastError: Error | undefined;
     for (const prefix of resolveProxyPrefixes(proxyUrl.trim(), {
       rawBodyOnly: true,
     })) {
       const proxyTarget = prefix.replace(/\/$/, "") + encodeURIComponent(url);
-      try {
-        const proxyResponse = await withFetchDeadline(
-          () => robustFetchDetailed(proxyTarget, { headers: DEFAULT_HEADERS }),
-          deadline,
-        );
-        const proxyHtml = proxyResponse.text;
-
-        if (
-          !proxyHtml ||
-          isBlockedResponse(proxyHtml) ||
-          isRestrictedStatus(proxyResponse.status)
-        ) {
-          const proxyRestricted =
-            isRestrictedStatus(proxyResponse.status) ||
-            isRestrictedSignal(proxyHtml || "");
-          console.warn(
-            `[RSS Dashboard] Proxy fetch also returned blocked/empty response for ${url}.`,
-          );
-          directRestricted ||= proxyRestricted;
-          const proxySignals = extractMetadataOfUnparsedResponse(
-            proxyHtml,
-            url,
-          );
-          directMetadata = proxySignals.pageMetadata ?? directMetadata;
-          directPageImage = proxySignals.pageImage ?? directPageImage;
-          lastFailure = failureResult(
-            directRestricted ? "restricted" : "network",
-            directMetadata,
-            directPageImage,
-          );
-          lastError = undefined;
-          continue;
-        }
-
-        debugLog(
-          `[RSS Dashboard] Proxy fetch succeeded for ${url} (${proxyHtml.length} chars).`,
-        );
-        return { ...parseArticleContent(proxyHtml, url), failureType: "none" };
-      } catch (proxyError: unknown) {
-        if (proxyError instanceof FetchTimeoutError) throw proxyError;
-        directRestricted ||= describeFetchError(proxyError).restricted;
-        lastError =
-          proxyError instanceof Error
-            ? proxyError
-            : new Error(describeFetchError(proxyError).message);
-        lastFailure = undefined;
-      }
+      const page = await attemptProxyFetch(
+        url,
+        proxyTarget,
+        deadline,
+        attempts,
+      );
+      if (page) return page;
     }
 
-    if (lastError !== undefined) {
-      throw lastError;
+    if (attempts.lastError !== undefined) {
+      throw attempts.lastError;
     }
-    return lastFailure ?? failureResult("network", directMetadata);
+    return (
+      attempts.lastFailure ??
+      failureResult("network", attempts.metadata, attempts.pageImage)
+    );
   } catch (e: unknown) {
-    const { message: msg, status, restricted } = describeFetchError(e);
-    const logMessage = restricted
-      ? `[RSS Dashboard] Restricted article fetch blocked (${status || "no-status"}): ${msg}`
-      : `[RSS Dashboard] fetchWithProxyFallback error: ${msg}`;
+    const { message: msg, status, classification } = describeFetchError(e);
+    const logMessage =
+      classification === "network"
+        ? `[RSS Dashboard] fetchWithProxyFallback error: ${msg}`
+        : `[RSS Dashboard] Article fetch was ${classification} (${status || "no-status"}): ${msg}`;
 
-    if (restricted) {
-      console.warn(logMessage);
-    } else {
+    if (classification === "network") {
       console.error(logMessage);
+    } else {
+      console.warn(logMessage);
+    }
+
+    const refusal = attempts.refusal ?? refusalOf(classification);
+    // A block is the page's own answer; a deadline only ended a retry, so it
+    // must not overwrite the refusal with a timeout (#1347).
+    if (refusal === "blocked") {
+      return refusalResult("blocked", attempts.metadata, attempts.pageImage);
     }
     return {
-      ...failureResult(
-        directRestricted || restricted ? "restricted" : "network",
-        directMetadata,
-        directPageImage,
-      ),
+      ...refusalResult(refusal, attempts.metadata, attempts.pageImage),
       ...(e instanceof FetchTimeoutError
         ? { failureReason: "timeout" as const }
         : {}),

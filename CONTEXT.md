@@ -158,6 +158,16 @@ _Avoid_: iframe passthrough, inline iframe
 The Reader's dedicated player for a YouTube feed item (the Reader's video view), shown instead of article content. It plays through the same https embed host as a [[Video embed]] and keeps a "Watch on YouTube" link beneath it. It resumes from a saved position through the host's `start` parameter; live playback-progress events cannot reach the host, so this player does not save new progress. Distinct from a [[Video embed]], which appears inside article content.
 _Avoid_: YouTube player (unqualified), embedded player
 
+## Full-article fetch
+
+**Blocked fetch**:
+A [[Fetched content]] fetch the site refused with a bot challenge (a WAF or bot check) instead of serving the page, so the Reader keeps [[RSS content]] and offers Try again. Reported as a fetch failure with its own message, never as a paywall. See [ADR 0034](docs/adr/0034-treat-a-bot-challenge-as-a-blocked-fetch.md).
+_Avoid_: Restricted fetch, paywalled, 403 error, bot check
+
+**Restricted fetch**:
+A [[Fetched content]] fetch the site answered as a content or auth gate, so the Reader keeps [[RSS content]] and shows the restriction banner. Distinct from a [[Blocked fetch]], where the site's own bot check refused the request rather than a gate on its content.
+_Avoid_: Paywalled fetch, blocked fetch (a different refusal)
+
 ## Article state
 
 **Starred state**:

@@ -161,6 +161,25 @@ describe("full-article fetch timeout (#928, #954)", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
+  it("keeps a challenge block reported when a later proxy times out (#1347)", async () => {
+    const challenge = `<html><head><title>Just a moment...</title></head><body>cf-challenge ${"x".repeat(220)}</body></html>`;
+    fetchMock
+      .mockResolvedValueOnce({ text: challenge, status: 403 })
+      .mockReturnValueOnce(new Promise(() => {}));
+    const promise = fetchWithProxyFallbackDetailed(
+      "https://example.com/a",
+      "https://proxy.test/?u=",
+      1,
+    );
+    await vi.advanceTimersByTimeAsync(1000);
+    await expect(promise).resolves.toMatchObject({
+      content: "",
+      failureType: "network",
+      failureReason: "blocked",
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("does not launch a proxy when processing a blocked response exhausts the budget", async () => {
     fetchMock
       .mockImplementationOnce(() => {

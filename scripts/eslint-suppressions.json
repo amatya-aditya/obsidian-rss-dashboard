@@ -86,11 +86,6 @@
       "count": 1
     }
   },
-  "src/utils/fetch-helpers.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
   "src/utils/full-size-image-resolver.ts": {
     "complexity": {
       "count": 1
