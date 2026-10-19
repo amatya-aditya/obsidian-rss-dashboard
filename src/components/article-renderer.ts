@@ -50,19 +50,11 @@ import {
   selectCalloutDescription,
 } from "../utils/reader-article-render";
 import {
-  collectLeadCaptionTexts,
+  cleanFetchedArticleDocument,
   extractDisplayTitleFromHtml,
-  flattenSingleRootWrapper,
   hasMeaningfulArticleContent,
   isLikelySameImageSource,
   removeLeadImageElement,
-  stripDuplicateLeadCaptionBlocks,
-  stripDuplicateLeadContentFromDocument,
-  stripDuplicateLeadMediaMatchingHero,
-  stripLeadMediaBeforeContent,
-  stripNavigationChromeFromDocument,
-  stripSkipLinksFromDocument,
-  stripTopHeadlineFromDocument,
 } from "../utils/reader-html-cleanup";
 import {
   findFirstNonFormulaImage,
@@ -566,22 +558,11 @@ export class ArticleRenderer {
         .forEach((el) => el.remove());
 
       if (stripTopHeadline) {
-        stripNavigationChromeFromDocument(doc);
-        stripTopHeadlineFromDocument(doc);
-        // Readability wraps the fetched article in one root element; hoist its
-        // blocks so the body-child scans below see them directly (#1304).
-        flattenSingleRootWrapper(doc);
-        stripDuplicateLeadContentFromDocument(doc, feedDescriptionHtml);
-        stripSkipLinksFromDocument(doc);
-        // Strip inline SVGs from fetched articles — these are publisher UI
-        // decorations (section icons, share buttons) never present in RSS payloads.
-        doc.body.querySelectorAll("svg").forEach((el) => el.remove());
-        if (fallbackHeroUrl) {
-          const leadCaptionTexts = collectLeadCaptionTexts(doc);
-          stripLeadMediaBeforeContent(doc);
-          stripDuplicateLeadMediaMatchingHero(doc, fallbackHeroUrl);
-          stripDuplicateLeadCaptionBlocks(doc, leadCaptionTexts);
-        }
+        // The same cleanup the dedicated Reader and the save path run (#1362).
+        cleanFetchedArticleDocument(doc, {
+          feedDescriptionHtml,
+          fallbackHeroUrl,
+        });
       }
 
       if (heroSlot) {

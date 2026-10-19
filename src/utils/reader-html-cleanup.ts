@@ -402,6 +402,126 @@ export function stripSkipLinksFromDocument(doc: Document): void {
   });
 }
 
+/** The media an image-expand control wraps; a wrapper without one is not a control. */
+const IMAGE_CONTROL_MEDIA_SELECTOR = "img, picture";
+
+/**
+ * Semantic text elements that are never the expand control's text-only label.
+ * Kept even when they sit inside a focusable wrapper around a picture.
+ */
+const IMAGE_CONTROL_TEXT_BLOCK_TAGS = new Set([
+  "blockquote",
+  "figcaption",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "li",
+  "ol",
+  "p",
+  "pre",
+  "table",
+  "tbody",
+  "td",
+  "tfoot",
+  "th",
+  "thead",
+  "tr",
+  "ul",
+]);
+
+/**
+ * A publisher image control is a focusable wrapper around a picture or image.
+ * Medium uses `div[role="button"][tabindex="0"]`; its label is the only text in
+ * that wrapper. An anchor — a native link or a `role="link"` wrapper — and a
+ * figure are content, not controls, so neither is unwrapped even when it is
+ * focusable and holds an image.
+ */
+function isImageExpandControl(el: Element): boolean {
+  const tag = el.tagName.toLowerCase();
+  if (tag === "a" || tag === "figure") return false;
+
+  const role = (el.getAttribute("role") || "").trim().toLowerCase();
+  // A link is an anchor, even when it is a div with a role; it stays.
+  if (role === "link") return false;
+
+  if (!el.querySelector(IMAGE_CONTROL_MEDIA_SELECTOR)) return false;
+  return el.hasAttribute("tabindex") || role === "button";
+}
+
+/**
+ * The wrapper's own text label, which the publisher's CSS normally hides. Only
+ * text that is not part of a semantic block or the media is dropped, so a
+ * caption or a heading inside the control survives with the picture.
+ */
+function isImageControlLabel(el: Element): boolean {
+  if (IMAGE_CONTROL_TEXT_BLOCK_TAGS.has(el.tagName.toLowerCase())) {
+    return false;
+  }
+  if (el.querySelector(IMAGE_CONTROL_MEDIA_SELECTOR)) return false;
+  return (el.textContent || "").trim().length > 0;
+}
+
+function removeImageControlLabels(control: Element): void {
+  // A label can sit directly in the control as a bare text node.
+  Array.from(control.childNodes).forEach((node) => {
+    if (node.nodeType === Node.TEXT_NODE && (node.textContent || "").trim()) {
+      node.remove();
+    }
+  });
+
+  // Remove the outermost label in each non-media branch, so a nested
+  // `<div><span>label</span></div>` goes in one step and leaves no shell.
+  const labels = Array.from(control.querySelectorAll("*")).filter(
+    isImageControlLabel,
+  );
+  const labelSet = new Set(labels);
+  labels.forEach((label) => {
+    for (
+      let parent = label.parentElement;
+      parent && parent !== control;
+      parent = parent.parentElement
+    ) {
+      if (labelSet.has(parent)) return;
+    }
+    label.remove();
+  });
+}
+
+function unwrapElement(el: Element): void {
+  const parent = el.parentNode;
+  if (!parent) return;
+  while (el.firstChild) {
+    parent.insertBefore(el.firstChild, el);
+  }
+  el.remove();
+}
+
+/**
+ * Removes a publisher's image-expand control from a fetched article (#1362).
+ * The publisher styles the control's text label out of sight, but no publisher
+ * CSS is loaded in the reader, so the label would render as body copy above the
+ * picture. A focusable wrapper around media is unwrapped and its text-only
+ * label is dropped, keeping the picture and any `figcaption` where they were.
+ *
+ * A wrapper with no media is left alone, and so is an anchor around an image:
+ * neither is a publisher image control. The label match is structural, not
+ * textual, so a localized label is removed too.
+ */
+export function stripImageExpandControlsFromDocument(doc: Document): void {
+  const body = doc.body;
+  if (!body) return;
+
+  Array.from(body.querySelectorAll<HTMLElement>("[tabindex], [role]"))
+    .filter(isImageExpandControl)
+    .forEach((control) => {
+      removeImageControlLabels(control);
+      unwrapElement(control);
+    });
+}
+
 export function stripDuplicateLeadMediaMatchingHero(
   doc: Document,
   heroUrl: string,
@@ -539,6 +659,7 @@ export function cleanFetchedArticleDocument(
   stripNavigationChromeFromDocument(doc);
   stripTopHeadlineFromDocument(doc);
   flattenSingleRootWrapper(doc);
+  stripImageExpandControlsFromDocument(doc);
   stripDuplicateLeadContentFromDocument(doc, options.feedDescriptionHtml);
   stripSkipLinksFromDocument(doc);
   // Inline SVGs are publisher UI decorations (section icons, share buttons)
