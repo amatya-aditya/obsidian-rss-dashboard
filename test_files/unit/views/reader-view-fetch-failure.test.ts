@@ -124,6 +124,26 @@ describe("ReaderView remembers a failed full-article fetch (#1110)", () => {
     ).not.toBeNull();
   });
 
+  it("remembers a Cloudflare block as blocked, names the refusal, and sets no paywall flag (#1347)", async () => {
+    fetchMock.mockResolvedValue({
+      content: "",
+      failureType: "network",
+      failureReason: "blocked",
+    });
+    const item = makeItem();
+    await readerView.displayItem(item);
+
+    expect(item.fullContentFetchFailure).toMatchObject({ reason: "blocked" });
+    expect(item.restrictedReason).toBeUndefined();
+    expect(banner()?.textContent).toContain("refused the request");
+    expect(banner()?.querySelector("button")?.textContent).toBe("Try again");
+    expect(
+      (
+        readerView as unknown as { readingContainer: HTMLElement }
+      ).readingContainer.querySelector(".rss-reader-paywall-banner"),
+    ).toBeNull();
+  });
+
   it("re-fetches on Try again and clears the failure when the fetch succeeds", async () => {
     const item = makeItem({
       fullContentFetchFailure: { reason: "timeout", at: Date.now() },

@@ -27,7 +27,14 @@ export async function fetchFullArticleContentWithOutcome(
     fetchTimeoutSeconds,
   );
 
-  if (result.content || !isSagepubFull || result.failureReason === "timeout") {
+  // A block needs no abstract fallback: the abstract page is on the same host,
+  // so the host's refusal answers for both (#1347).
+  if (
+    result.content ||
+    !isSagepubFull ||
+    result.failureReason === "timeout" ||
+    result.failureReason === "blocked"
+  ) {
     return result;
   }
 

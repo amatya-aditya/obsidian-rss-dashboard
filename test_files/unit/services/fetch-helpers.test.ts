@@ -17,6 +17,7 @@ import { setRequestUrlHandler, type RequestUrlParam } from "obsidian";
 import * as platformUtils from "../../../src/utils/platform-utils";
 import { robustFetchDetailed } from "../../../src/utils/platform-utils";
 import {
+  classifyFetchRefusal,
   isBlockedResponse,
   isRestrictedSignal,
   fetchWithProxyFallback,
@@ -152,6 +153,90 @@ describe("isRestrictedSignal", () => {
     expect(isRestrictedSignal("socket timeout while fetching article")).toBe(
       false,
     );
+  });
+
+  // The bare status Obsidian puts on a thrown 4xx says nothing about a gate;
+  // a bot-challenge block arrives through the same path (#1347).
+  it("returns false for the bare 403 status message", () => {
+    expect(isRestrictedSignal("Request failed, status 403")).toBe(false);
+  });
+});
+
+// ── classifyFetchRefusal — unit tests (#1347) ──────────────────────────────
+
+describe("classifyFetchRefusal", () => {
+  const CHALLENGE_BODY = `<!DOCTYPE html><html><head><title>Just a moment...</title></head>
+<body><span id="challenge-platform">Checking your browser before accessing.</span>
+<p>Enable JavaScript and cookies to continue.</p>${"x".repeat(220)}</body></html>`;
+
+  it("treats Cloudflare's challenge header on a 403 as a block", () => {
+    expect(
+      classifyFetchRefusal({
+        status: 403,
+        headers: { "cf-mitigated": "challenge" },
+      }),
+    ).toBe("blocked");
+  });
+
+  it("matches the challenge header case-insensitively", () => {
+    expect(
+      classifyFetchRefusal({
+        status: 403,
+        headers: { "Cf-Mitigated": "Challenge" },
+      }),
+    ).toBe("blocked");
+  });
+
+  it("treats a challenge body served with 200 as a block", () => {
+    expect(classifyFetchRefusal({ status: 200, body: CHALLENGE_BODY })).toBe(
+      "blocked",
+    );
+  });
+
+  it("keeps a 401 without a challenge signal restricted", () => {
+    expect(classifyFetchRefusal({ status: 401 })).toBe("restricted");
+  });
+
+  it("keeps a 403 that prints paywall wording restricted", () => {
+    expect(
+      classifyFetchRefusal({
+        status: 403,
+        body: `403 Forbidden. Subscription required. ${"x".repeat(220)}`,
+      }),
+    ).toBe("restricted");
+  });
+
+  it("prefers a named challenge page over paywall wording in the same body", () => {
+    expect(
+      classifyFetchRefusal({
+        status: 403,
+        body: `${CHALLENGE_BODY}<p>Subscribe to continue reading.</p>`,
+      }),
+    ).toBe("blocked");
+  });
+
+  it("treats visible paywall wording at 200 as restricted", () => {
+    expect(
+      classifyFetchRefusal({
+        status: 200,
+        body: `<html><body><p>Subscribe to continue reading this story.</p>${"x".repeat(220)}</body></html>`,
+      }),
+    ).toBe("restricted");
+  });
+
+  it("treats a thrown 401 message as restricted", () => {
+    expect(classifyFetchRefusal({ message: "request failed 401" })).toBe(
+      "restricted",
+    );
+  });
+
+  it("treats a plain page as a network failure", () => {
+    expect(
+      classifyFetchRefusal({
+        status: 200,
+        body: "<html><body>Tiny</body></html>",
+      }),
+    ).toBe("network");
   });
 });
 
@@ -598,5 +683,74 @@ describe("fetchWithProxyFallbackDetailed with Obsidian requestUrl errors", () =>
 
     expect(requestedUrls).toEqual([ARTICLE_URL]);
     expect(result).toEqual({ content: "", failureType: "network" });
+  });
+
+  /** Serves Cloudflare's managed challenge: a 403 that names itself (#1347). */
+  function serveChallenge(): void {
+    setRequestUrlHandler((param: RequestUrlParam) => {
+      requestedUrls.push(param.url);
+      return {
+        status: 403,
+        headers: { "cf-mitigated": "challenge" },
+        text: "",
+      };
+    });
+  }
+
+  it("reports a Cloudflare challenge 403 as a blocked fetch, not restricted", async () => {
+    serveChallenge();
+
+    const result = await fetchWithProxyFallbackDetailed(ARTICLE_URL);
+
+    expect(requestedUrls).toEqual([ARTICLE_URL]);
+    expect(result).toEqual({
+      content: "",
+      failureType: "network",
+      failureReason: "blocked",
+    });
+  });
+
+  it("retries a challenge 403 through the proxy and stays blocked when the proxy is challenged too", async () => {
+    serveChallenge();
+
+    const result = await fetchWithProxyFallbackDetailed(
+      ARTICLE_URL,
+      PROXY_BASE,
+    );
+
+    expect(requestedUrls).toEqual([
+      ARTICLE_URL,
+      PROXY_BASE + encodeURIComponent(ARTICLE_URL),
+    ]);
+    expect(result).toEqual({
+      content: "",
+      failureType: "network",
+      failureReason: "blocked",
+    });
+  });
+
+  it("keeps the block when the direct fetch is challenged and the proxy then fails", async () => {
+    setRequestUrlHandler((param: RequestUrlParam) => {
+      requestedUrls.push(param.url);
+      if (param.url.startsWith(PROXY_BASE)) {
+        throw new Error("proxy unreachable");
+      }
+      return {
+        status: 403,
+        headers: { "cf-mitigated": "challenge" },
+        text: "",
+      };
+    });
+
+    const result = await fetchWithProxyFallbackDetailed(
+      ARTICLE_URL,
+      PROXY_BASE,
+    );
+
+    expect(result).toEqual({
+      content: "",
+      failureType: "network",
+      failureReason: "blocked",
+    });
   });
 });

@@ -70,7 +70,11 @@ ignored before any metadata or UI write.
 The pending status is a polite live region. Short or empty feed content also
 gets a static skeleton, so it remains motion-free with or without reduced
 motion. Failure leaves RSS readable and resolves the status; restricted
-results retain the existing restriction banner. The direct request, sequential
+results retain the existing restriction banner. A page that answers with a bot
+challenge is a **blocked** fetch rather than a restricted one: it carries no
+paywall wording, is remembered like a network failure, and shows the banner
+with **Try again** and **Open in browser**
+([ADR 0034](../adr/0034-treat-a-bot-challenge-as-a-blocked-fetch.md)). The direct request, sequential
 proxy attempts, and SagePub abstract fallback share one **Fetch timeout**
 budget. The underlying Obsidian request cannot be cancelled, so an expired
 request is abandoned and its late result is ignored.

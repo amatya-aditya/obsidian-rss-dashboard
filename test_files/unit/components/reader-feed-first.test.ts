@@ -209,6 +209,20 @@ describe("runFeedFirstDisplay", () => {
     );
     expect(forgotten.options.renderFetchFailureBanner).not.toHaveBeenCalled();
   });
+
+  it("announces a blocked fetch as the site refusing the request (#1347)", async () => {
+    const { container, options } = setup({
+      content: "",
+      failureType: "network",
+      failureReason: "blocked",
+    });
+
+    await runFeedFirstDisplay(options);
+
+    expect(
+      container.querySelector(".rss-reader-fetch-status")?.textContent,
+    ).toBe("The site refused the request. Showing available RSS content.");
+  });
 });
 
 describe("visitReaderContent", () => {

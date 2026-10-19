@@ -107,6 +107,20 @@ describe("PageCoverImageService", () => {
     });
   });
 
+  it("reports a bot-challenge block as a failed fetch, not a restricted page (#1347)", async () => {
+    const blocked = new PageCoverImageService({
+      fetchPage: vi
+        .fn()
+        .mockResolvedValue(pageResult("network", {}, "blocked")),
+    });
+
+    await expect(blocked.fetch(LINK)).resolves.toEqual({
+      status: "failed",
+      url: "",
+      reason: "blocked",
+    });
+  });
+
   it("skips an item with no usable http(s) article link, without fetching", async () => {
     const fetchPage = vi.fn();
     const service = new PageCoverImageService({ fetchPage });

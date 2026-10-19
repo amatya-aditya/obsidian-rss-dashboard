@@ -76,7 +76,9 @@ export class ReaderContentVersions {
         ? "Fetched content is restricted. Showing available RSS content."
         : result.failureReason === "timeout"
           ? "Could not fetch article content within the fetch timeout. Showing available RSS content."
-          : "Could not fetch article content. Showing available RSS content.";
+          : result.failureReason === "blocked"
+            ? "The site refused the request. Showing available RSS content."
+            : "Could not fetch article content. Showing available RSS content.";
     this.status.announce(message);
   }
 
