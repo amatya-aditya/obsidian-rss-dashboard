@@ -70,6 +70,7 @@ See the [ADR Policy](POLICY.md) for the complete lifecycle, authoring, and maint
 | [0030](0030-read-video-progress-from-the-nested-player-frame.md)               | Read Video Progress from the Nested Player Frame                        | accepted | Read the Reader video's exact position by handshaking with the player nested in Obsidian's embed host, instead of estimating or hosting a relay page.             |
 | [0031](0031-store-a-manually-fetched-page-cover-image-in-coverimage.md)        | Store a Manually Fetched Page Cover Image in `coverImage`               | accepted | A manual card action reads the article page's declared image and stores it in `coverImage`, so a blank card can be filled without making page fetching automatic. |
 | [0032](0032-record-fetched-cover-image-provenance-and-restore-it.md)           | Record a Fetched Cover Image's Provenance and Restore It from the Feed  | accepted | A fetched page image is marked on the item, so the control can offer to put the feed's own image back — locally, with no request.                                 |
+| [0033](0033-use-the-pages-own-image-as-the-fetched-heros-source.md)            | Use the Page's Own Image as the Fetched Version's Hero                  | accepted | Store the page's declared image on the item as `pageImage`, the fetched version's hero, while the card and RSS version keep the feed's own cover.                 |
 
 ## Creating a new ADR
 

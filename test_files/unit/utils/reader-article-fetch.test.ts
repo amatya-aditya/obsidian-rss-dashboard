@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { persistFetchedCoverImage } from "../../../src/utils/reader-article-fetch";
+import {
+  persistFetchedCoverImage,
+  persistFetchedPageImage,
+} from "../../../src/utils/reader-article-fetch";
 import type { Feed, FeedItem } from "../../../src/types/types";
 
 const PAGE_IMAGE = "https://daily.jstor.org/wp-content/uploads/hero.jpg";
@@ -79,6 +82,69 @@ describe("persistFetchedCoverImage", () => {
     const emit = vi.fn();
 
     persistFetchedCoverImage(item, "https://t.example.com/pixel.gif", [], emit);
+
+    expect(emit).not.toHaveBeenCalled();
+  });
+});
+
+describe("persistFetchedPageImage (#812)", () => {
+  it("stores the page image even when the feed supplies its own picture", () => {
+    const item = makeItem({
+      coverImage: "https://cdn.example.com/feed.jpg",
+      image: "https://cdn.example.com/item.jpg",
+    });
+    const emit = vi.fn();
+
+    persistFetchedPageImage(item, PAGE_IMAGE, [], emit);
+
+    expect(item.pageImage).toBe(PAGE_IMAGE);
+    // The cover the card and RSS version read is untouched.
+    expect(item.coverImage).toBe("https://cdn.example.com/feed.jpg");
+    expect(emit).toHaveBeenCalledWith({ pageImage: PAGE_IMAGE });
+  });
+
+  it("keeps the first page image on a later fetch", () => {
+    const item = makeItem({ pageImage: PAGE_IMAGE });
+    const emit = vi.fn();
+
+    persistFetchedPageImage(
+      item,
+      "https://cdn.example.com/other.jpg",
+      [],
+      emit,
+    );
+
+    expect(item.pageImage).toBe(PAGE_IMAGE);
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it("does nothing when the page has no image", () => {
+    const item = makeItem();
+    const emit = vi.fn();
+
+    persistFetchedPageImage(item, undefined, [], emit);
+
+    expect(item.pageImage).toBeUndefined();
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it("skips a page image that is a tracking pixel", () => {
+    const item = makeItem();
+    const emit = vi.fn();
+
+    persistFetchedPageImage(item, "https://t.example.com/pixel.gif", [], emit);
+
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it("skips a page image that is the feed's own icon", () => {
+    const item = makeItem({ feedUrl: "https://daily.jstor.org/feed/" });
+    const feeds = [
+      { url: "https://daily.jstor.org/feed/", iconUrl: PAGE_IMAGE + "/" },
+    ] as Feed[];
+    const emit = vi.fn();
+
+    persistFetchedPageImage(item, PAGE_IMAGE, feeds, emit);
 
     expect(emit).not.toHaveBeenCalled();
   });

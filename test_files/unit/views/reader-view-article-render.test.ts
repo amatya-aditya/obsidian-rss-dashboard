@@ -1696,6 +1696,55 @@ describe("ReaderView article rendering (characterization)", () => {
         ),
       ).toEqual(["https://img.example.com/different.jpg"]);
     });
+
+    it("uses the page's own image as the fetched hero, not the feed's cover (#812)", async () => {
+      fetchMock().mockResolvedValue({
+        content: LONG_HTML,
+        failureType: "none",
+        pageImage: "https://img.example.com/page.jpg",
+      });
+      const item = makeItem({
+        content: LONG_HTML,
+        coverImage: "https://img.example.com/cover.jpg",
+      });
+
+      await view.displayItem(item);
+
+      // The RSS version keeps the feed's cover.
+      expect(heroImg()?.getAttribute("src")).toBe(
+        "https://img.example.com/cover.jpg",
+      );
+
+      findContentToggle(reading())?.click();
+
+      // The fetched version shows the page's own image (#812).
+      expect(heroImg()?.getAttribute("src")).toBe(
+        "https://img.example.com/page.jpg",
+      );
+      // The card and RSS version are unchanged: the cover stays, the page image
+      // is stored beside it.
+      expect(item.coverImage).toBe("https://img.example.com/cover.jpg");
+      expect(item.pageImage).toBe("https://img.example.com/page.jpg");
+    });
+
+    it("keeps the feed's cover as the fetched hero when the page declares none (#812)", async () => {
+      fetchMock().mockResolvedValue({
+        content: LONG_HTML,
+        failureType: "none",
+      });
+      const item = makeItem({
+        content: LONG_HTML,
+        coverImage: "https://img.example.com/cover.jpg",
+      });
+
+      await view.displayItem(item);
+      findContentToggle(reading())?.click();
+
+      expect(heroImg()?.getAttribute("src")).toBe(
+        "https://img.example.com/cover.jpg",
+      );
+      expect(item.pageImage).toBeUndefined();
+    });
   });
 
   describe("populateArticleHtml: preparing the HTML", () => {

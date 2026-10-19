@@ -30,7 +30,10 @@ resolves the page signals against the feed's fallbacks. `planMetadataWrite`
 stores the resolved result on the item as `publisherDescription`, `language`,
 `authors`, `canonicalUrl`, `metadataFetchedAt`, and `languageSource`, and a
 later refresh never overwrites them — first-write-wins
-([ADR 0007](../adr/0007-article-metadata-pipeline-seam.md)).
+([ADR 0007](../adr/0007-article-metadata-pipeline-seam.md)). The page's declared
+image (`og:image`, else `twitter:image`) is stored beside them as `pageImage`,
+first-write-wins on its own presence, and is the hero of the fetched version
+([ADR 0033](../adr/0033-use-the-pages-own-image-as-the-fetched-heros-source.md)).
 
 Page-derived data therefore exists only for articles that have been opened.
 

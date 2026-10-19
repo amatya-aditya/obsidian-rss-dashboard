@@ -1,4 +1,7 @@
-import type { ReaderContentVersions } from "./reader-content-versions";
+import type {
+  ReaderContentVersion,
+  ReaderContentVersions,
+} from "./reader-content-versions";
 import { runFeedFirstDisplay } from "./reader-feed-first";
 import { App, type Component, TFile } from "obsidian";
 import {
@@ -19,6 +22,7 @@ import { type FullArticleFetchResult } from "../utils/fetch-helpers";
 import {
   persistFetchedCoverImage,
   persistFetchedMetadata,
+  persistFetchedPageImage,
   renderRestrictedBanner,
   renderVideoSourceBanner,
   shouldRenderVideoSourceBanner,
@@ -41,6 +45,8 @@ import { isDuplicateIntro } from "../utils/duplicate-intro-detection";
 import {
   descriptionToStripFromBody,
   hasMeaningfulFeedDescription,
+  resolveFallbackHeroUrl,
+  resolveFetchedHeroUrl,
   selectCalloutDescription,
 } from "../utils/reader-article-render";
 import {
@@ -60,7 +66,6 @@ import {
 } from "../utils/reader-html-cleanup";
 import {
   findFirstNonFormulaImage,
-  firstNonFormulaImageUrl,
   promoteLazyImageSources,
 } from "../utils/image-url-utils";
 import { getOpenableHttpHref } from "../utils/url-utils";
@@ -193,8 +198,8 @@ export class ArticleRenderer {
         container,
         item,
         feedContent,
-        renderVersion: (parent, _version, content) =>
-          this.renderArticle(parent, item, content),
+        renderVersion: (parent, version, content) =>
+          this.renderArticle(parent, item, content, version),
         onSelectVersion: (version, fetchedContent) => {
           this.currentContentIsFullArticle = version === "full";
           this.currentFullContent =
@@ -218,6 +223,12 @@ export class ArticleRenderer {
             (update) => this.onArticleUpdate(item, update, false),
           );
           persistFetchedCoverImage(
+            item,
+            result.pageImage,
+            this.settings.feeds,
+            (update) => this.onArticleUpdate(item, update, false),
+          );
+          persistFetchedPageImage(
             item,
             result.pageImage,
             this.settings.feeds,
@@ -358,6 +369,7 @@ export class ArticleRenderer {
     container: HTMLElement,
     item: FeedItem,
     fullContent?: string,
+    version: ReaderContentVersion = "rss",
   ): void {
     const headerContainer = container.createDiv({
       cls: "rss-reader-article-header",
@@ -406,11 +418,10 @@ export class ArticleRenderer {
     const hasMeaningfulDescription =
       hasMeaningfulFeedDescription(descriptionHtml);
     const mainHtml = (fullContent || item.content || "").trim();
-    const fallbackHeroUrl = firstNonFormulaImageUrl([
-      item.coverImage,
-      item.image,
-      item.itunes?.image?.href,
-    ]);
+    const fallbackHeroUrl =
+      version === "full"
+        ? resolveFetchedHeroUrl(item, this.settings.feeds)
+        : resolveFallbackHeroUrl(item, this.settings.feeds);
 
     const hasDistinctMainContent =
       mainHtml !== "" &&

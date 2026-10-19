@@ -1,4 +1,7 @@
-import type { ReaderContentVersions } from "../components/reader-content-versions";
+import type {
+  ReaderContentVersion,
+  ReaderContentVersions,
+} from "../components/reader-content-versions";
 import {
   runFeedFirstDisplay,
   visitReaderContent,
@@ -31,6 +34,7 @@ import { type FullArticleFetchResult } from "../utils/fetch-helpers";
 import {
   persistFetchedCoverImage,
   persistFetchedMetadata,
+  persistFetchedPageImage,
   renderRestrictedBanner,
   renderVideoSourceBanner,
   shouldRenderVideoSourceBanner,
@@ -64,8 +68,10 @@ import {
   buildReaderImageTooltipText,
   formatReaderDateText,
   getReaderImageFilename,
+  isFeedIconUrl,
   placeHeroImage,
   resolveFallbackHeroUrl,
+  resolveFetchedHeroUrl,
   resolveReaderMediaRoute,
   resolveRelativeUrlsInDocument,
   descriptionToStripFromBody,
@@ -787,7 +793,7 @@ export class ReaderView extends ItemView {
               item,
               this.currentFullContent,
             ),
-            fallbackHeroUrl: resolveFallbackHeroUrl(item, this.settings.feeds),
+            fallbackHeroUrl: resolveFetchedHeroUrl(item, this.settings.feeds),
           })
         : this.currentFullContent || item.description || "";
     // Same ad stripping the saver applies on its own paths (#1195).
@@ -850,13 +856,8 @@ export class ReaderView extends ItemView {
   ): string {
     if (!html) return html;
 
-    const feedIconUrl = item.feedUrl
-      ? this.settings.feeds.find((f) => f.url === item.feedUrl)?.iconUrl || ""
-      : "";
-    const normalize = (u: string) => normalizeSubstackImageUrl(u.trim());
-    const normalizedFeedIcon = feedIconUrl ? normalize(feedIconUrl) : "";
-
     const fallbackCandidates = [
+      item.pageImage || "",
       item.coverImage || "",
       item.image || "",
       item.itunes?.image?.href || "",
@@ -865,10 +866,14 @@ export class ReaderView extends ItemView {
         : "",
     ];
 
+    // Avoid using the feed icon (logo) as the article hero image.
     const fallbackHeroUrl = firstNonFormulaImageUrl(
       fallbackCandidates
-        .map((candidate) => normalize(candidate))
-        .filter((candidate) => candidate !== normalizedFeedIcon),
+        .map((candidate) => normalizeSubstackImageUrl(candidate.trim()))
+        .filter(
+          (candidate) =>
+            candidate && !isFeedIconUrl(candidate, item, this.settings.feeds),
+        ),
     );
 
     if (!fallbackHeroUrl) return html;
@@ -1419,8 +1424,8 @@ export class ReaderView extends ItemView {
       container: this.readingContainer,
       item,
       feedContent,
-      renderVersion: (parent, _version, content) =>
-        this.renderArticle(item, content, parent),
+      renderVersion: (parent, version, content) =>
+        this.renderArticle(item, content, parent, version),
       onSelectVersion: (version, fetched) => {
         this.currentContentIsFullArticle = version === "full";
         this.currentFullContent = version === "full" ? fetched : feedContent;
@@ -1454,6 +1459,12 @@ export class ReaderView extends ItemView {
           (update) => this.persistBackgroundUpdate(item, update, false),
         );
         persistFetchedCoverImage(
+          item,
+          result.pageImage,
+          this.settings.feeds,
+          (update) => this.persistBackgroundUpdate(item, update, false),
+        );
+        persistFetchedPageImage(
           item,
           result.pageImage,
           this.settings.feeds,
@@ -1785,6 +1796,7 @@ export class ReaderView extends ItemView {
     item: FeedItem,
     fullContent?: string,
     container = this.readingContainer,
+    version: ReaderContentVersion = "rss",
   ): void {
     const headerContainer = container.createDiv({
       cls: "rss-reader-article-header",
@@ -1852,7 +1864,10 @@ export class ReaderView extends ItemView {
       hasDistinctMainContent,
       contentToRender,
     } = selectArticleSections(item, fullContent);
-    const fallbackHeroUrl = resolveFallbackHeroUrl(item, this.settings.feeds);
+    const fallbackHeroUrl =
+      version === "full"
+        ? resolveFetchedHeroUrl(item, this.settings.feeds)
+        : resolveFallbackHeroUrl(item, this.settings.feeds);
 
     if (hasDistinctMainContent && hasMeaningfulDescription) {
       const descriptionCallout = container.createEl("details", {
