@@ -268,6 +268,47 @@ describe("ReaderView starred-import cached-preview banner", () => {
     );
   });
 
+  it("stores the page image and renders the fetched hero when 'Fetch now' succeeds (#812)", async () => {
+    const pageImage = "https://cdn.example.com/page-hero.jpg";
+    const item = makeItem({
+      starred: true,
+      starredImportContentState: "unfetched",
+      starredImportedAt: Date.now(),
+      coverImage: "https://cdn.example.com/feed-cover.jpg",
+    });
+
+    fetchFullArticleContentWithOutcomeMock.mockResolvedValue({
+      content: "<p>Full fetched article body.</p>",
+      failureType: "none",
+      pageImage,
+    });
+
+    await readerView.onOpen();
+    await readerView.displayItem(item);
+
+    const readingContainer = (
+      readerView as unknown as { readingContainer: HTMLElement }
+    ).readingContainer;
+    const fetchNowButton = readingContainer.querySelector<HTMLButtonElement>(
+      ".rss-reader-starred-import-fetch-now",
+    );
+
+    fetchNowButton!.dispatchEvent(new Event("click", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(item.pageImage).toBe(pageImage);
+    expect(onArticleUpdate).toHaveBeenCalledWith(item, { pageImage }, false);
+    // The reader now shows the fetched content, so its hero is the page's own
+    // image rather than the feed's cover.
+    expect(
+      readingContainer
+        .querySelector(".rss-reader-hero-slot img")
+        ?.getAttribute("src"),
+    ).toBe(pageImage);
+  });
+
   it("does not persist a successful 'Fetch now' fetch for an article that is neither starred nor saved", async () => {
     const item = makeItem({
       starred: false,

@@ -1676,6 +1676,69 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     );
   });
 
+  it("writes the fetched page's own image as the note's hero (#812)", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+
+    const pageImage = "https://page.example.com/hero.jpg";
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content: "<p>Body text from the article page.</p>",
+      failureType: "none",
+      pageImage,
+    });
+
+    // The item carries only the feed's cover; the page image arrives with the
+    // fetch, the way the card-save path really sees it.
+    const item = createItem({
+      coverImage: "https://img.example.com/feed-cover.jpg",
+      link: "https://example.com/photographer",
+    });
+
+    const file = await saver.saveArticleWithFullContent(item);
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+
+    // The page's own image is the fetched save's hero, not the feed's cover.
+    expect(written).toContain(`![Hero image](${pageImage})`);
+    expect(written).not.toContain("https://img.example.com/feed-cover.jpg");
+    expect(item.pageImage).toBe(pageImage);
+  });
+
+  it("keeps the feed's cover as the RSS save's hero, ignoring the page image (#812)", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "{{content}}",
+      includeFrontmatter: false,
+      saveVersion: "rss",
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+
+    const coverImage = "https://img.example.com/feed-cover.jpg";
+    const item = createItem({
+      coverImage,
+      pageImage: "https://page.example.com/hero.jpg",
+      content: "<p>Feed body text.</p>",
+    });
+
+    const file = await saver.saveArticle(item);
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+
+    expect(written).toContain(`![Hero image](${coverImage})`);
+    expect(written).not.toContain("https://page.example.com/hero.jpg");
+  });
+
   it("stores the fetched page's metadata on the item once, leaving description alone (#247)", async () => {
     const app = App.createMock();
     const settings = createSettings({

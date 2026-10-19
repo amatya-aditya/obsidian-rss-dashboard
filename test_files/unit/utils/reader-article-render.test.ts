@@ -9,7 +9,11 @@
 import { describe, it, expect } from "vitest";
 
 import type { Feed, FeedItem } from "../../../src/types/types";
-import { resolveFallbackHeroUrl } from "../../../src/utils/reader-article-render";
+import {
+  resolveFallbackHeroUrl,
+  resolveFetchedHeroUrl,
+  resolvePageImageHeroUrl,
+} from "../../../src/utils/reader-article-render";
 
 const PIXEL = "https://img.example.com/pixel.gif";
 const FORMULA = "https://s0.wp.com/latex.php?latex=%7Bx%7D";
@@ -81,5 +85,62 @@ describe("resolveFallbackHeroUrl", () => {
         makeFeed(PHOTO),
       ]),
     ).toBeUndefined();
+  });
+});
+
+describe("resolveFetchedHeroUrl (#812)", () => {
+  const PAGE = "https://news.example.com/page-hero.jpg";
+  const FEED_COVER = "https://news.example.com/feed-cover.jpg";
+
+  it("prefers the page's own image over the feed's cover", () => {
+    expect(
+      resolveFetchedHeroUrl(
+        makeItem({ pageImage: PAGE, coverImage: FEED_COVER }),
+        [],
+      ),
+    ).toBe(PAGE);
+  });
+
+  it("falls back to the feed's cover chain when the page had no image", () => {
+    expect(
+      resolveFetchedHeroUrl(makeItem({ coverImage: FEED_COVER }), []),
+    ).toBe(FEED_COVER);
+  });
+
+  it("skips a tracking pixel page image", () => {
+    expect(
+      resolveFetchedHeroUrl(
+        makeItem({ pageImage: PIXEL, coverImage: FEED_COVER }),
+        [],
+      ),
+    ).toBe(FEED_COVER);
+  });
+
+  it("skips a page image that is the feed's own icon", () => {
+    expect(
+      resolveFetchedHeroUrl(
+        makeItem({ pageImage: PAGE, coverImage: FEED_COVER }),
+        [makeFeed(PAGE)],
+      ),
+    ).toBe(FEED_COVER);
+  });
+
+  it("returns no hero when neither the page nor the feed supplies one", () => {
+    expect(resolveFetchedHeroUrl(makeItem(), [])).toBeUndefined();
+  });
+});
+
+describe("resolvePageImageHeroUrl (#812)", () => {
+  it("returns the stored page image", () => {
+    expect(
+      resolvePageImageHeroUrl(
+        makeItem({ pageImage: PHOTO, coverImage: "https://x/feed.jpg" }),
+        [],
+      ),
+    ).toBe(PHOTO);
+  });
+
+  it("returns undefined when the item has no page image", () => {
+    expect(resolvePageImageHeroUrl(makeItem(), [])).toBeUndefined();
   });
 });

@@ -415,6 +415,35 @@ describe("feed-item-builder", () => {
       expect(result.updatedItems[0]?.coverImageFromPage).toBeUndefined();
     });
 
+    it("keeps the fetched page image across a refresh (#812)", () => {
+      const ctx = makeContext();
+      const existing = feedOf([
+        stored({
+          coverImage: "https://img.example.com/feed.jpg",
+          pageImage: "https://page.example.com/hero.jpg",
+        }),
+      ]);
+
+      const result = collectRefreshedItems(
+        requestFor(
+          [
+            pitem({
+              link: "https://example.com/a",
+              description: "<img src='https://img.example.com/feed.jpg'>",
+              pubDate: RECENT,
+            }),
+          ],
+          existing,
+          ctx,
+        ),
+        ctx,
+      );
+
+      expect(result.updatedItems[0]?.pageImage).toBe(
+        "https://page.example.com/hero.jpg",
+      );
+    });
+
     it("clears the marker when a refreshed podcast takes the feed's cover (#1330)", () => {
       const ctx = makeContext();
       const existing = feedOf([

@@ -20,8 +20,9 @@ import { replaceYouTubeEmbedsInHtmlNote } from "../utils/youtube-embed";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
 import {
   feedDescriptionToStripFromBody,
-  resolveFallbackHeroUrl,
+  resolvePageImageHeroUrl,
 } from "../utils/reader-article-render";
+import { pageImageToStore } from "../utils/reader-article-fetch";
 import { cleanFetchedArticleDocument } from "../utils/reader-html-cleanup";
 import { resolveDisplayDate } from "./feed-parser/feed-retention";
 import {
@@ -300,10 +301,10 @@ export class ArticleSaver {
     item: FeedItem,
     markdown: string,
     sourceHtml: string,
+    heroUrl = this.getFallbackHeroUrl(item),
   ): string {
     if (!markdown) return markdown;
 
-    const heroUrl = this.getFallbackHeroUrl(item);
     if (!heroUrl) return markdown;
 
     if (this.htmlAlreadyContainsImage(sourceHtml, heroUrl)) {
@@ -569,12 +570,19 @@ guid: "{{guid}}"
   }
 
   private convertFetchedHtmlToMarkdown(item: FeedItem, html: string): string {
+    // The Fetched content save's hero is the page's own image first (#812),
+    // then the saver's full feed chain (which also accepts an image enclosure).
+    const fetchedHeroUrl =
+      normalizeSubstackImageUrl(
+        resolvePageImageHeroUrl(item, this.getFeeds()) || "",
+      ).trim() || this.getFallbackHeroUrl(item);
     const doc = this.parseHtmlBody(html);
     if (!doc) {
       return this.prependFallbackHeroMarkdown(
         item,
         articleHtmlToMarkdown(html),
         html,
+        fetchedHeroUrl,
       );
     }
 
@@ -588,7 +596,7 @@ guid: "{{guid}}"
         item,
         doc.body.innerHTML,
       ),
-      fallbackHeroUrl: resolveFallbackHeroUrl(item, this.getFeeds()),
+      fallbackHeroUrl: fetchedHeroUrl,
     });
 
     const sanitizedHtml = doc.body.innerHTML;
@@ -596,6 +604,7 @@ guid: "{{guid}}"
       item,
       articleHtmlToMarkdown(sanitizedHtml),
       sanitizedHtml,
+      fetchedHeroUrl,
     );
   }
 
@@ -640,6 +649,16 @@ guid: "{{guid}}"
           restricted ? savedArticleNotice("rss") : SAVE_FALLBACK_NOTICE.fetch,
         );
       }
+
+      // The fetched page's own image (#812): store it first-write-wins so this
+      // card-save path builds the note's hero from it, the same hero the Reader
+      // and the inline reader show.
+      const pageImage = pageImageToStore(
+        item,
+        fetchResult.pageImage,
+        this.getFeeds(),
+      );
+      if (pageImage) item.pageImage = pageImage;
 
       const markdownContent = this.convertFetchedHtmlToMarkdown(
         item,

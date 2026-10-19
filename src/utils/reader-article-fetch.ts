@@ -10,6 +10,7 @@ import {
   RESTRICTED_ARTICLE_REASON,
 } from "./full-article-fetch";
 import { firstNonFormulaImageUrl } from "./image-url-utils";
+import { isFeedIconUrl } from "./reader-article-render";
 import { isLikelyVideoItem } from "./video-detection";
 import { getOpenableHttpHref } from "./url-utils";
 
@@ -39,6 +40,53 @@ export function persistFetchedMetadata(
 }
 
 /**
+ * The fetched page's declared image as a usable hero, or "" when it is absent,
+ * not `http(s)`, a formula image, a tracking pixel, or the feed's own icon (a
+ * site-wide default share card, not this article's picture).
+ */
+function usableFetchedPageImage(
+  item: FeedItem,
+  pageImage: string | undefined,
+  feeds: readonly Feed[],
+): string {
+  const image = firstNonFormulaImageUrl([pageImage]);
+  if (!image || isFeedIconUrl(image, item, feeds)) return "";
+  return image;
+}
+
+/**
+ * The page image to store for an item, first-write-wins on its own presence: the
+ * sanitized candidate, or "" when the item already holds one or the candidate is
+ * unusable. Unlike the `metadataFetchedAt` group, an item stored before
+ * `pageImage` existed still gains one, so no backfill is needed.
+ */
+export function pageImageToStore(
+  item: FeedItem,
+  pageImage: string | undefined,
+  feeds: readonly Feed[],
+): string {
+  if (item.pageImage) return "";
+  return usableFetchedPageImage(item, pageImage, feeds);
+}
+
+/**
+ * Stores the fetched page's own image on the item as `pageImage` (#812). It is
+ * the hero of the Fetched content version, ranked above the feed's cover.
+ * `emit` persists the update.
+ */
+export function persistFetchedPageImage(
+  item: FeedItem,
+  pageImage: string | undefined,
+  feeds: readonly Feed[],
+  emit: (update: Partial<FeedItem>) => void,
+): void {
+  const image = pageImageToStore(item, pageImage, feeds);
+  if (!image) return;
+  item.pageImage = image;
+  emit({ pageImage: image });
+}
+
+/**
  * Gives an item with no usable picture the fetched page's own image as its
  * cover, so the Reader shows the page's hero instead of promoting whatever
  * image comes first in the extracted body (an ad, for one feed). The feed's
@@ -50,12 +98,8 @@ export function persistFetchedCoverImage(
   feeds: readonly Feed[],
   emit: (update: Partial<FeedItem>) => void,
 ): void {
-  const cover = firstNonFormulaImageUrl([pageImage]);
+  const cover = usableFetchedPageImage(item, pageImage, feeds);
   if (!cover) return;
-  // A site-wide default share card is the feed's logo, not this article's picture.
-  const feedIconUrl = feeds.find((f) => f.url === item.feedUrl)?.iconUrl ?? "";
-  const normalize = (url: string): string => url.trim().replace(/\/$/, "");
-  if (feedIconUrl && normalize(cover) === normalize(feedIconUrl)) return;
   const hasPicture = firstNonFormulaImageUrl([
     item.coverImage,
     item.image,

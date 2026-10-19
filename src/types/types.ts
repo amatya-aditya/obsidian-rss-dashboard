@@ -50,6 +50,15 @@ export interface FeedItem {
   languageSource?: "page" | "feed";
   /** The page's `<link rel="canonical">`. */
   canonicalUrl?: string;
+  /**
+   * The image the article page declares for itself (`og:image`, else
+   * `twitter:image`), stored when the Reader fetches the page (#812). It is the
+   * hero of the Fetched content version, ranked above the feed's own cover; the
+   * RSS version and the card keep reading `coverImage`/`image`, so neither
+   * changes. First-write-wins on its own presence — kept once set — so an item
+   * stored before this field existed still gains one, and a refresh keeps it.
+   */
+  pageImage?: string;
   /** When the metadata fields were written; once set they are never overwritten. */
   metadataFetchedAt?: number;
   saved?: boolean;
