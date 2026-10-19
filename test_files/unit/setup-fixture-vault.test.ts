@@ -216,7 +216,7 @@ describe("setup-fixture-vault", () => {
     expect(settings.metadataStorageMode).toBe("plugin-default");
     expect(settings.lastShownVersion).toBe("9.9.9");
     expect(feeds.reduce((total, feed) => total + feed.items.length, 0)).toBe(
-      164,
+      166,
     );
     expect(existsSync(join(target, "rss-dashboard-data"))).toBe(false);
   });

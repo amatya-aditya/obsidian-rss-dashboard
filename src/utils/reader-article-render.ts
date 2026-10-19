@@ -71,23 +71,77 @@ export function resolveFallbackHeroUrl(
   item: FeedItem,
   feeds: readonly Feed[],
 ): string | undefined {
-  let fallbackHeroUrl = firstNonFormulaImageUrl([
+  const fallbackHeroUrl = firstNonFormulaImageUrl([
     item.coverImage,
     item.image,
     item.itunes?.image?.href,
   ]);
 
-  // Avoid using the feed icon (logo) as the article hero image.
-  if (fallbackHeroUrl && item.feedUrl) {
-    const feedIconUrl =
-      feeds.find((f) => f.url === item.feedUrl)?.iconUrl || "";
-    const normalize = (u: string) => u.trim().replace(/\/$/, "");
-    if (feedIconUrl && normalize(fallbackHeroUrl) === normalize(feedIconUrl)) {
-      fallbackHeroUrl = undefined;
-    }
-  }
+  return excludeFeedIcon(fallbackHeroUrl, item, feeds);
+}
 
-  return fallbackHeroUrl;
+/**
+ * The page's own declared image for the item (`pageImage`, from `og:image` /
+ * `twitter:image`), or undefined when there is none or it is the feed's icon.
+ */
+export function resolvePageImageHeroUrl(
+  item: FeedItem,
+  feeds: readonly Feed[],
+): string | undefined {
+  return excludeFeedIcon(
+    firstNonFormulaImageUrl([item.pageImage]),
+    item,
+    feeds,
+  );
+}
+
+/**
+ * The hero of the [[Fetched content]] version (#812): the page's own image
+ * first, then the feed's cover chain, then (at the call site) the first body
+ * image. The page's image outranks the feed's here so the fetched article shows
+ * the page's own hero even when the feed ships a different picture. The RSS
+ * version and the card use {@link resolveFallbackHeroUrl} instead, so neither
+ * changes.
+ */
+export function resolveFetchedHeroUrl(
+  item: FeedItem,
+  feeds: readonly Feed[],
+): string | undefined {
+  return (
+    resolvePageImageHeroUrl(item, feeds) ?? resolveFallbackHeroUrl(item, feeds)
+  );
+}
+
+/** Drops a hero candidate that is the feed's own icon (a logo, not a picture). */
+function excludeFeedIcon(
+  url: string | undefined,
+  item: FeedItem,
+  feeds: readonly Feed[],
+): string | undefined {
+  return isFeedIconUrl(url, item, feeds) ? undefined : url;
+}
+
+/** The feed's own icon URL for an item, or "" when the feed is unknown or has none. */
+function feedIconUrlFor(item: FeedItem, feeds: readonly Feed[]): string {
+  if (!item.feedUrl) return "";
+  return feeds.find((f) => f.url === item.feedUrl)?.iconUrl || "";
+}
+
+/**
+ * True when `url` is the item's feed icon (a logo, not an article picture),
+ * ignoring surrounding whitespace and a trailing slash. An item with no feed
+ * URL, or a feed with no icon, never matches.
+ */
+export function isFeedIconUrl(
+  url: string | undefined,
+  item: FeedItem,
+  feeds: readonly Feed[],
+): boolean {
+  if (!url) return false;
+  const feedIconUrl = feedIconUrlFor(item, feeds);
+  if (!feedIconUrl) return false;
+  const normalize = (u: string) => u.trim().replace(/\/$/, "");
+  return normalize(url) === normalize(feedIconUrl);
 }
 
 /** False for an empty description or one that is only an ellipsis. */

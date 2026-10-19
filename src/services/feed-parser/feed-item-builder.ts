@@ -395,6 +395,7 @@ type UpdatedItemCore = Pick<
   | "coverImageFromPage"
   | "summary"
   | "image"
+  | "pageImage"
 >;
 
 /**
@@ -441,6 +442,9 @@ function buildUpdatedItemCore(
     image:
       buildArticleImage(item, url, ctx) ||
       sanitizeArticleImageUrl(existingItem.image),
+    // The fetched page's own image (#812) is article metadata, not feed data,
+    // so a refresh keeps it; first-write-wins like the fields above it.
+    pageImage: existingItem.pageImage,
   };
 }
 

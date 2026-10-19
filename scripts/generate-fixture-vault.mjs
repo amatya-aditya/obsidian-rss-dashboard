@@ -44,6 +44,18 @@ export const CREDIT_CAPTION_PAGE = "credit-caption-page.html";
 export const CREDIT_CAPTION_LINK = `${FIXTURE_SERVER_ORIGIN}/${CREDIT_CAPTION_PAGE}`;
 export const CREDIT_CAPTION_HERO_FILE = "credit-caption-hero.png";
 export const CREDIT_CAPTION_HERO_URL = `${FIXTURE_SERVER_ORIGIN}/${CREDIT_CAPTION_HERO_FILE}`;
+// The #812 page-image scenarios. Both committed pages declare an og:image that
+// differs from the first image in their body, so the fetched version's hero can
+// be told apart from the body-image fallback. One seeded article also has a feed
+// cover (which keeps winning on the card), the other has none.
+export const OG_IMAGE_HERO_PAGE = "og-image-hero.html";
+export const OG_IMAGE_HERO_LINK = `${FIXTURE_SERVER_ORIGIN}/${OG_IMAGE_HERO_PAGE}`;
+export const OG_IMAGE_NO_FEED_IMAGE_PAGE = "og-image-no-feed-image.html";
+export const OG_IMAGE_NO_FEED_IMAGE_LINK = `${FIXTURE_SERVER_ORIGIN}/${OG_IMAGE_NO_FEED_IMAGE_PAGE}`;
+export const OG_IMAGE_FILE = "og-image.png";
+export const OG_IMAGE_URL = `${FIXTURE_SERVER_ORIGIN}/${OG_IMAGE_FILE}`;
+export const OG_IMAGE_BODY_FILE = "og-image-body.png";
+export const OG_IMAGE_BODY_URL = `${FIXTURE_SERVER_ORIGIN}/${OG_IMAGE_BODY_FILE}`;
 // The one address the fixture server answers with a synthesized feed instead of
 // a page from the folder, printing the request's identity headers as it does.
 // The seeded feed below points at it. See "Checking the outbound User-Agent" in
@@ -604,6 +616,31 @@ ${htmlParagraphs("rss-tech-15-outro", 1)}`,
       pubDate: at(13),
       author: "Fixture Author",
       ...articleText("rss-tech-16", 2),
+    }),
+    item(feed, {
+      // #812: the page declares a hero image, so the fetched version's hero is
+      // the page's og:image, ranked above the feed's cover. The card and the RSS
+      // version keep the cover. Open with `npm run fixture:serve` running so the
+      // Reader can fetch the page.
+      title: "Article whose page declares a hero image",
+      link: OG_IMAGE_HERO_LINK,
+      guid: `${LINK_BASE}/rss-tech/og-image-hero`,
+      pubDate: at(17),
+      coverImage: previewImage("rss-tech-og-image-hero"),
+      author: "Fixture Author",
+      ...articleText("rss-tech-og-image-hero", 2),
+    }),
+    item(feed, {
+      // #812: no feed image, so the fetched version's hero is the page's
+      // og:image rather than the first image in the page body. The card stays
+      // imageless until the article is opened, when the page image is stored on
+      // the item. Open with `npm run fixture:serve` running.
+      title: "Article with no feed image but a page image",
+      link: OG_IMAGE_NO_FEED_IMAGE_LINK,
+      guid: `${LINK_BASE}/rss-tech/og-image-no-feed-image`,
+      pubDate: at(19),
+      author: "Fixture Author",
+      ...articleText("rss-tech-og-image-no-feed-image", 2),
     }),
   ];
 }

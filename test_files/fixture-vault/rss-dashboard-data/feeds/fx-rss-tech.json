@@ -176,6 +176,34 @@
       "mediaType": "article"
     },
     {
+      "title": "Article whose page declares a hero image",
+      "link": "http://127.0.0.1:8787/og-image-hero.html",
+      "description": "<p>Folder simple patient timber rapid spindle radar granite brief field. Fixture notebook bramble notebook quarry paper archive plain quiet draft anchor island saves. Clover reader cipher useful marks atlas finds steady calm useful fixture shows outline marble. Planner calm quarry compass timber lantern field rapid corridor calm.</p>\n<p>Granite vector ledger cipher kernel kernel amber window rapid harbor plain. Curious binder stanza ribbon granite harbor summit clover kernel quiet amber. Island marks linen forest reads sample sorts module. Steady engine velvet simple delta metric gallery amber beacon kernel orbit vector.</p>",
+      "content": "<p>Folder simple patient timber rapid spindle radar granite brief field. Fixture notebook bramble notebook quarry paper archive plain quiet draft anchor island saves. Clover reader cipher useful marks atlas finds steady calm useful fixture shows outline marble. Planner calm quarry compass timber lantern field rapid corridor calm.</p>\n<p>Granite vector ledger cipher kernel kernel amber window rapid harbor plain. Curious binder stanza ribbon granite harbor summit clover kernel quiet amber. Island marks linen forest reads sample sorts module. Steady engine velvet simple delta metric gallery amber beacon kernel orbit vector.</p>",
+      "pubDate": "Mon, 31 Aug 2026 19:00:00 GMT",
+      "guid": "https://example.com/rss-dashboard-fixture/rss-tech/og-image-hero",
+      "feedTitle": "GitHub Blog (fixture)",
+      "feedUrl": "https://github.blog/feed/",
+      "coverImage": "https://picsum.photos/seed/rss-fixture-rss-tech-og-image-hero/800/450",
+      "summary": "Folder simple patient timber rapid spindle radar granite brief field. Fixture notebook bramble notebook quarry paper archive plain quiet draft anchor island saves. Clover reader cipher useful marks atlas finds steady calm useful fixture shows outline marble. Planner calm quarry compass timber lantern field rapid corridor calm.",
+      "author": "Fixture Author",
+      "mediaType": "article"
+    },
+    {
+      "title": "Article with no feed image but a page image",
+      "link": "http://127.0.0.1:8787/og-image-no-feed-image.html",
+      "description": "<p>Stanza copper tests sample meadow marble anchor opens bramble signal cedar stanza. Ribbon lantern table lantern tangent anchor granite engine checks thread cipher ember moves reader. Island token linen compass window checks yarrow table marks tangent lantern steady compass cipher. Curious saves sketch thread quarry finds fixture folder.</p>\n<p>Quarry curious beacon patient quarry bramble calm anchor. Bramble pilot thread useful meadow linen pixel crescent harbor zephyr reader signal delta opens plain. Builds moves reader table copper notebook tests metric careful module. Checks mirror kernel sorts module quarry shows finds ribbon marble planner river channel.</p>",
+      "content": "<p>Stanza copper tests sample meadow marble anchor opens bramble signal cedar stanza. Ribbon lantern table lantern tangent anchor granite engine checks thread cipher ember moves reader. Island token linen compass window checks yarrow table marks tangent lantern steady compass cipher. Curious saves sketch thread quarry finds fixture folder.</p>\n<p>Quarry curious beacon patient quarry bramble calm anchor. Bramble pilot thread useful meadow linen pixel crescent harbor zephyr reader signal delta opens plain. Builds moves reader table copper notebook tests metric careful module. Checks mirror kernel sorts module quarry shows finds ribbon marble planner river channel.</p>",
+      "pubDate": "Mon, 31 Aug 2026 17:00:00 GMT",
+      "guid": "https://example.com/rss-dashboard-fixture/rss-tech/og-image-no-feed-image",
+      "feedTitle": "GitHub Blog (fixture)",
+      "feedUrl": "https://github.blog/feed/",
+      "coverImage": "",
+      "summary": "Stanza copper tests sample meadow marble anchor opens bramble signal cedar stanza. Ribbon lantern table lantern tangent anchor granite engine checks thread cipher ember moves reader. Island token linen compass window checks yarrow table marks tangent lantern steady compass cipher. Curious saves sketch thread quarry finds fixture folder.",
+      "author": "Fixture Author",
+      "mediaType": "article"
+    },
+    {
       "title": "Fixture guide to offline reading",
       "link": "https://example.com/rss-dashboard-fixture/rss-tech/4",
       "description": "<p>Finds cipher paper sample simple calm opens bramble calm meadow fixture keeps beacon. Calm trail velvet meadow trail vector quiet orbit moves gallery reads patient. Sketch steady timber vector pixel garden river patient patient engine sketch module pilot. Steady sorts moves meadow moves draft ledger delta gallery patient steady checks lantern engine summit corridor.</p>\n<p>Anchor bramble quiet reads quiet island clover orbit sorts. Signal mirror mirror builds pilot trail vector ember yarrow table vector outline amber rapid moves. Tangent trail reader outline paper quiet ribbon mirror pixel module zephyr. Gallery velvet signal planner stanza metric channel copper reader archive planner garden zephyr sample.</p>\n<p>Tests summit field careful shows corridor brief forest river. Lantern copper pilot folder table steady quarry summit checks quill. Atlas patient pebble calm harbor yarrow marble marble binder beacon radar timber amber token notebook. Granite harbor spindle marble granite pebble delta atlas quill.</p>",

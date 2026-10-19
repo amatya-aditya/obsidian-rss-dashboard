@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fixture article with no feed image but a page image</title>
+    <meta name="author" content="Fixture Author" />
+    <!-- The page's declared image (#812). The seeded article carries no feed
+         image, so the card stays imageless while the fetched version's hero is
+         this image rather than the one in the body below. -->
+    <meta property="og:image" content="http://127.0.0.1:8787/og-image.png" />
+  </head>
+  <body>
+    <main>
+      <article>
+        <h1>Fixture article with no feed image but a page image</h1>
+        <p>
+          The feed entry behind this page carries no cover image, media tag, or
+          image enclosure. Without a declared page image the fetched version's
+          hero would fall back to the first image in the body, which is the one
+          further down this page.
+        </p>
+        <p>
+          <img
+            src="http://127.0.0.1:8787/og-image-body.png"
+            alt="A placeholder image in the page body"
+          />
+        </p>
+        <p>
+          The paragraphs run well past one hundred and twenty characters so
+          Readability treats them as the article body. The fixture server serves
+          this page and both images from the repository, so the scenario
+          reproduces without any site outside it.
+        </p>
+      </article>
+    </main>
+  </body>
+</html>

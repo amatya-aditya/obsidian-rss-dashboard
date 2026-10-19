@@ -567,7 +567,7 @@ result must come from a known build and a clean vault.
 
 ## Seeded scenarios
 
-12 feeds, 164 articles: 48 read, 9 starred, 9 tagged, 1 saved, 2 with playback
+12 feeds, 166 articles: 48 read, 9 starred, 9 tagged, 1 saved, 2 with playback
 progress. The automated test in
 `test_files/unit/main/fixture-vault-loading.test.ts` checks these counts.
 
@@ -610,6 +610,8 @@ progress. The automated test in
 | YouTube embed in an article                    | GitHub Blog: "Article with an inline YouTube video" (#1173): the Reader and the dashboard inline reader show a click-to-play placeholder; playing loads the video and the **Watch on YouTube** link stays beneath it                                                                                    |
 | Podcast with playback progress                 | The Changelog: "Fixture episode 4", about 40% played                                                                                                                                                                                                                                                    |
 | Tags                                           | Important, Read later, Video, Podcast, Research, Reference, RSS (all used, in different colors) and Unused (defined, never applied)                                                                                                                                                                     |
+| Page image over the feed cover                 | GitHub Blog: "Article whose page declares a hero image" (#812): the page's `og:image` is the fetched version's hero, while the card and the RSS version keep the feed cover. Open it with `npm run fixture:serve` running.                                                                              |
+| Page image with no feed image                  | GitHub Blog: "Article with no feed image but a page image" (#812): the card stays imageless; opening the article makes the page's `og:image` the fetched version's hero, above the body image. Serve it with `npm run fixture:serve`.                                                                   |
 
 The "Stored tracking pixel as the preview image" row seeds the URL-pattern
 variant only. Its size-only twin (The Conversation's `count.gif`) carries no
