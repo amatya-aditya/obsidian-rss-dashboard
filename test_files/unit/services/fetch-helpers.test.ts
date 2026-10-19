@@ -487,6 +487,21 @@ extraction. The article continues with interesting information about the topic a
       });
     });
 
+    it("carries the declared page image of a restricted page (#1342)", async () => {
+      const paywalled = `<html><head>
+<meta property="og:image" content="/img/teaser.jpg"></head>
+<body>subscription required. ${"x".repeat(220)}</body></html>`;
+      robustFetchMock.mockResolvedValueOnce({ text: paywalled, status: 403 });
+
+      const result = await fetchWithProxyFallbackDetailed(
+        "https://example.com/restricted",
+      );
+
+      expect(result.content).toBe("");
+      expect(result.failureType).toBe("restricted");
+      expect(result.pageImage).toBe("https://example.com/img/teaser.jpg");
+    });
+
     it("prefers the proxy page's metadata when the proxy retry succeeds", async () => {
       const challenge = `<html><head><title>Just a moment...</title></head><body>cf-challenge ${"x".repeat(220)}</body></html>`;
       robustFetchMock.mockResolvedValueOnce({ text: challenge, status: 200 });

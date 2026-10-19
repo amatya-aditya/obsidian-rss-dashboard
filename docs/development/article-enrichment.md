@@ -31,9 +31,13 @@ stores the resolved result on the item as `publisherDescription`, `language`,
 `authors`, `canonicalUrl`, `metadataFetchedAt`, and `languageSource`, and a
 later refresh never overwrites them — first-write-wins
 ([ADR 0007](../adr/0007-article-metadata-pipeline-seam.md)). The page's declared
-image (`og:image`, else `twitter:image`) is stored beside them as `pageImage`,
-first-write-wins on its own presence, and is the hero of the fetched version
+image (`og:image`, else `twitter:image`, else a JSON-LD `image`) is stored beside
+them as `pageImage`, first-write-wins on its own presence, and is the hero of the
+fetched version
 ([ADR 0033](../adr/0033-use-the-pages-own-image-as-the-fetched-heros-source.md)).
+A restricted or blocked response's `<head>` declares one too, so the image is
+read from that head as well; a formula image, a tracking pixel, the feed's own
+icon, and a known avatar host are refused.
 
 Page-derived data therefore exists only for articles that have been opened.
 

@@ -125,6 +125,19 @@ describe("resolveFetchedHeroUrl (#812)", () => {
     ).toBe(FEED_COVER);
   });
 
+  it("refuses a stored avatar page image and falls back to the feed cover (#1342)", () => {
+    const avatar = "https://avatars.githubusercontent.com/u/78101617";
+    expect(
+      resolveFetchedHeroUrl(
+        makeItem({ pageImage: avatar, coverImage: FEED_COVER }),
+        [],
+      ),
+    ).toBe(FEED_COVER);
+    expect(resolvePageImageHeroUrl(makeItem({ pageImage: avatar }), [])).toBe(
+      undefined,
+    );
+  });
+
   it("returns no hero when neither the page nor the feed supplies one", () => {
     expect(resolveFetchedHeroUrl(makeItem(), [])).toBeUndefined();
   });

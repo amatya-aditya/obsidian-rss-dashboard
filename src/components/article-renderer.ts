@@ -228,6 +228,8 @@ export class ArticleRenderer {
             this.settings.feeds,
             (update) => this.onArticleUpdate(item, update, false),
           );
+        },
+        persistPageImage: (result) => {
           persistFetchedPageImage(
             item,
             result.pageImage,

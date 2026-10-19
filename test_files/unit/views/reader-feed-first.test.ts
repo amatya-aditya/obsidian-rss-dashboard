@@ -265,6 +265,26 @@ describe.each(["ReaderView", "ArticleRenderer"])(
       },
     );
 
+    it("stores the page image a restricted page declares (#1342)", async () => {
+      const harness = await setup();
+      const pending = deferFetch();
+      const article = item("A");
+      const opening = harness.render(article);
+      pending.resolve({
+        content: "",
+        failureType: "restricted",
+        pageImage: "https://example.com/img/teaser.jpg",
+      });
+      await opening;
+
+      expect(article.pageImage).toBe("https://example.com/img/teaser.jpg");
+      expect(harness.updates).toHaveBeenCalledWith(
+        article,
+        { pageImage: "https://example.com/img/teaser.jpg" },
+        false,
+      );
+    });
+
     it("shows a static placeholder for an empty feed and clears it after failure", async () => {
       const harness = await setup();
       const pending = deferFetch();

@@ -9,6 +9,7 @@ import { stripFeedBlurbFooter } from "./feed-blurb-footer";
 import {
   findFirstNonFormulaImage,
   firstNonFormulaImageUrl,
+  isAvatarImageUrl,
 } from "./image-url-utils";
 import { normalizeSubstackImageUrl } from "./substack-image-url";
 import {
@@ -81,18 +82,19 @@ export function resolveFallbackHeroUrl(
 }
 
 /**
- * The page's own declared image for the item (`pageImage`, from `og:image` /
- * `twitter:image`), or undefined when there is none or it is the feed's icon.
+ * The page's own declared image for the item (`pageImage`, from `og:image`,
+ * `twitter:image` or a JSON-LD `image`), or undefined when there is none, it is
+ * the feed's icon, or it comes from a known avatar host.
  */
 export function resolvePageImageHeroUrl(
   item: FeedItem,
   feeds: readonly Feed[],
 ): string | undefined {
-  return excludeFeedIcon(
-    firstNonFormulaImageUrl([item.pageImage]),
-    item,
-    feeds,
-  );
+  const url = firstNonFormulaImageUrl([item.pageImage]);
+  // The write path guards this too; re-checking here also refuses a value an
+  // earlier build stored before the avatar guard existed (#1342).
+  if (!url || isAvatarImageUrl(url)) return undefined;
+  return excludeFeedIcon(url, item, feeds);
 }
 
 /**

@@ -184,6 +184,97 @@ function jsonLdAuthors(doc: Document): string[] {
   return dedupe(names);
 }
 
+/**
+ * The first image URL a JSON-LD `image` value carries: the string itself, the
+ * first usable array entry, or an `ImageObject`'s `url`/`contentUrl`. Empty
+ * when the value declares none.
+ */
+function jsonLdImageValue(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const found = jsonLdImageValue(entry);
+      if (found) return found;
+    }
+    return "";
+  }
+  if (value && typeof value === "object") {
+    const record = value as { url?: unknown; contentUrl?: unknown };
+    return jsonLdImageValue(record.url) || jsonLdImageValue(record.contentUrl);
+  }
+  return "";
+}
+
+/**
+ * JSON-LD `@type` values whose `image` is never the article's own picture. A
+ * page usually ships several nodes — the article, the site, the publisher and
+ * a byline — and the `image` on the last three is a logo or a portrait. The
+ * list is deliberately narrow: an unknown or article type is still read (#1342).
+ */
+const NON_ARTICLE_JSON_LD_TYPES = [
+  "person",
+  "organization",
+  "website",
+  "brand",
+];
+
+function jsonLdTypeNames(value: unknown): string[] {
+  if (typeof value === "string") return [value.trim().toLowerCase()];
+  if (Array.isArray(value)) {
+    return value.flatMap((entry) => jsonLdTypeNames(entry));
+  }
+  return [];
+}
+
+/** True for a node whose `image` describes the entity, not the article. */
+function isNonArticleJsonLdNode(record: { "@type"?: unknown }): boolean {
+  return jsonLdTypeNames(record["@type"]).some((type) =>
+    NON_ARTICLE_JSON_LD_TYPES.includes(type),
+  );
+}
+
+/** The first `image` on a JSON-LD node, its array entries, or its `@graph`. */
+function jsonLdNodeImage(node: unknown): string {
+  if (Array.isArray(node)) {
+    for (const entry of node) {
+      const found = jsonLdNodeImage(entry);
+      if (found) return found;
+    }
+    return "";
+  }
+  if (!node || typeof node !== "object") return "";
+  const record = node as {
+    "@type"?: unknown;
+    image?: unknown;
+    "@graph"?: unknown;
+  };
+  const own = isNonArticleJsonLdNode(record)
+    ? ""
+    : jsonLdImageValue(record.image);
+  return own || jsonLdNodeImage(record["@graph"]);
+}
+
+/**
+ * The page's declared image from its JSON-LD blocks (#1342), the third source
+ * after `og:image` and `twitter:image` (Obsidian Web Clipper's order). Only
+ * `image` and `@graph` are followed: a `WebPage` wrapper's `mainEntity` is not,
+ * because the meta tags cover that shape. The value is raw — `extractPageImage`
+ * resolves and validates it like a meta tag.
+ */
+function jsonLdImage(doc: Document): string {
+  for (const script of Array.from(
+    doc.querySelectorAll('script[type="application/ld+json"]'),
+  )) {
+    try {
+      const found = jsonLdNodeImage(JSON.parse(script.textContent ?? ""));
+      if (found) return found;
+    } catch {
+      // A malformed JSON-LD block is one lost signal, not a failed extraction.
+    }
+  }
+  return "";
+}
+
 function microdataAuthorName(el: Element): string {
   if (el.hasAttribute("itemscope")) {
     const nested = el.querySelector('[itemprop~="name"]');
@@ -238,14 +329,27 @@ export function extractPageMetadata(doc: Document): RawArticleMetadata {
 }
 
 /**
- * The page's own picture (`og:image`, else `twitter:image`) as an absolute
- * http(s) URL, or "" when it declares none. Like `extractPageMetadata`, it must
- * run before `Readability.parse()`. A relative value resolves against
- * `pageUrl`.
+ * The page's own picture (`og:image`, else `twitter:image`, else a JSON-LD
+ * `image`) as an absolute http(s) URL, or "" when it declares none. Each
+ * declaration is validated before the next is tried, so a present-but-unusable
+ * `og:image` (a `data:` placeholder, say) does not shadow a usable
+ * `twitter:image` or JSON-LD value (#1342). Like `extractPageMetadata`, it must
+ * run before `Readability.parse()`. A relative value resolves against `pageUrl`.
  */
 export function extractPageImage(doc: Document, pageUrl: string): string {
-  const declared =
-    metaContent(doc, "og:image") || metaContent(doc, "twitter:image");
+  for (const declared of [
+    metaContent(doc, "og:image"),
+    metaContent(doc, "twitter:image"),
+  ]) {
+    const resolved = absoluteHttpUrl(declared, pageUrl);
+    if (resolved) return resolved;
+  }
+  // Parsed only when neither meta tag supplied a usable URL.
+  return absoluteHttpUrl(jsonLdImage(doc), pageUrl);
+}
+
+/** `declared` resolved against `pageUrl`, or "" when it is not absolute http(s). */
+function absoluteHttpUrl(declared: string, pageUrl: string): string {
   if (!declared) return "";
   try {
     const resolved = new URL(declared, pageUrl || undefined);

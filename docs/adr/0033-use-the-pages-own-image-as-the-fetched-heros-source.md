@@ -21,14 +21,14 @@ then an iTunes image) and, when that is empty, from the first image in the body.
 
 That works for the RSS version, which is the feed's own article. It is wrong for
 the fetched version. A page usually declares its own lead image in `<head>` as
-`og:image` (else `twitter:image`) — a signal distinct from anything the feed
-carries and from the first image in the page body, which is often a byline
-avatar, a promo, or a related-story thumbnail. Because the fetched hero reused
-the cover chain, a feed that supplied any picture at all hid the page's real
-hero: the fetched version showed the feed's image and the page's own image never
-appeared. It also meant the fetched hero could only change when the stored cover
-changed, so a cover fetched from the card after the reader had already shown the
-fetched version left that version stale.
+`og:image` (else `twitter:image`, else a JSON-LD `image`) — a signal distinct
+from anything the feed carries and from the first image in the page body, which
+is often a byline avatar, a promo, or a related-story thumbnail. Because the
+fetched hero reused the cover chain, a feed that supplied any picture at all hid
+the page's real hero: the fetched version showed the feed's image and the page's
+own image never appeared. It also meant the fetched hero could only change when
+the stored cover changed, so a cover fetched from the card after the reader had
+already shown the fetched version left that version stale.
 
 [ADR 0031](0031-store-a-manually-fetched-page-cover-image-in-coverimage.md) had
 the manual [[Cover image fetch]] read the page's declared image into
@@ -64,8 +64,13 @@ version.
   `metadataFetchedAt` gate the other fetched metadata shares, so an item stored
   before the field existed still gains its page image on the next open, and a
   feed refresh preserves it either way.
+- The declared image is read from the page's `<head>` even when the page yields
+  no usable body: a restricted or blocked response still names its hero, and the
+  image is stored the same way (#1342).
 - A candidate that is a formula image, a tracking pixel, a non-`http(s)` value,
-  or the feed's own icon is refused, the same guards the cover path uses.
+  or the feed's own icon is refused, the same guards the cover path uses. A
+  candidate served by a known avatar host — the byline profile picture the #812
+  evidence names — is refused too (#1342).
 - The page request is the one the Reader already makes on open. No refresh-time
   fetch and no new setting are added; fetching pages for items the reader has
   not opened is [issue #1030](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1030).
@@ -124,7 +129,13 @@ which ADR 0031 anticipated.
 
 - `persistFetchedPageImage` (`src/utils/reader-article-fetch.ts`) stores the
   value once, guarded; it sits beside `persistFetchedCoverImage`, whose
-  fill-only rule for the card is unchanged.
+  fill-only rule for the card is unchanged. `persistPageImage` on the shared
+  feed-first display hands a settled fetch's image on even when its body was
+  empty, so a restricted page's head still stores one (#1342).
+- `extractPageImage` (`src/utils/article-metadata.ts`) reads `og:image`, then
+  `twitter:image`, then a JSON-LD `image`, and runs for a restricted or blocked
+  response's head as well as a parsed page (#1342). `isAvatarImageUrl` in
+  `src/utils/image-url-utils.ts` is the avatar-host guard.
 - `resolveFetchedHeroUrl` (`src/utils/reader-article-render.ts`) is the shared
   fetched hero resolver; `resolveFallbackHeroUrl` and `resolvePageImageHeroUrl`
   are its two halves, and `placeHeroImage` still fills any remaining slot from

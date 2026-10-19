@@ -5,6 +5,7 @@
 // Document fixtures rather than live fetches.
 import { describe, expect, it } from "vitest";
 import {
+  extractPageImage,
   extractPageMetadata,
   resolveArticleMetadata,
   resolvePageCoverImage,
@@ -647,5 +648,146 @@ describe("resolvePageCoverImage (#1314)", () => {
 
   it("returns an empty string when the page declares no image at all", () => {
     expect(resolvePageCoverImage(emptyRaw(), PAGE)).toBe("");
+  });
+});
+
+describe("extractPageImage (#812, #1342)", () => {
+  const PAGE = "https://example.com/posts/one";
+  const jsonLd = (json: string): Document =>
+    docFrom(
+      `<html><head><script type="application/ld+json">${json}</script></head><body>Hello</body></html>`,
+    );
+
+  it("prefers og:image, then twitter:image, then a JSON-LD image", () => {
+    const both = docFrom(
+      `<html><head>
+        <meta property="og:image" content="https://cdn.example.com/hero.jpg" />
+        <meta name="twitter:image" content="https://cdn.example.com/card.jpg" />
+        <script type="application/ld+json">{"image":"https://cdn.example.com/ld.jpg"}</script>
+      </head><body>Hello</body></html>`,
+    );
+    expect(extractPageImage(both, PAGE)).toBe(
+      "https://cdn.example.com/hero.jpg",
+    );
+
+    const twitterAndJsonLd = docFrom(
+      `<html><head>
+        <meta name="twitter:image" content="https://cdn.example.com/card.jpg" />
+        <script type="application/ld+json">{"image":"https://cdn.example.com/ld.jpg"}</script>
+      </head><body>Hello</body></html>`,
+    );
+    expect(extractPageImage(twitterAndJsonLd, PAGE)).toBe(
+      "https://cdn.example.com/card.jpg",
+    );
+  });
+
+  it("falls back to a JSON-LD image string (#1342)", () => {
+    expect(
+      extractPageImage(
+        jsonLd('{"@type":"Article","image":"https://cdn.example.com/ld.jpg"}'),
+        PAGE,
+      ),
+    ).toBe("https://cdn.example.com/ld.jpg");
+  });
+
+  it("resolves a relative JSON-LD image against the article URL", () => {
+    expect(extractPageImage(jsonLd('{"image":"/uploads/ld.jpg"}'), PAGE)).toBe(
+      "https://example.com/uploads/ld.jpg",
+    );
+  });
+
+  it("reads an ImageObject's url and the first usable array entry", () => {
+    expect(
+      extractPageImage(
+        jsonLd(
+          '{"image":{"@type":"ImageObject","url":"https://cdn.example.com/obj.jpg","width":1200}}',
+        ),
+        PAGE,
+      ),
+    ).toBe("https://cdn.example.com/obj.jpg");
+    expect(
+      extractPageImage(
+        jsonLd(
+          '{"image":["","https://cdn.example.com/first.jpg","https://cdn.example.com/second.jpg"]}',
+        ),
+        PAGE,
+      ),
+    ).toBe("https://cdn.example.com/first.jpg");
+  });
+
+  it("reads an image declared on a node inside @graph", () => {
+    expect(
+      extractPageImage(
+        jsonLd(
+          '{"@graph":[{"@type":"WebSite"},{"@type":"Article","image":"https://cdn.example.com/graph.jpg"}]}',
+        ),
+        PAGE,
+      ),
+    ).toBe("https://cdn.example.com/graph.jpg");
+  });
+
+  it("prefers an article node's image over a non-article node's (#1342)", () => {
+    expect(
+      extractPageImage(
+        jsonLd(
+          '{"@graph":[{"@type":"Person","image":"https://cdn.example.com/ada.jpg"},{"@type":"NewsArticle","image":"https://cdn.example.com/hero.jpg"}]}',
+        ),
+        PAGE,
+      ),
+    ).toBe("https://cdn.example.com/hero.jpg");
+    expect(
+      extractPageImage(
+        jsonLd(
+          '{"@graph":[{"@type":"Organization","image":"https://cdn.example.com/logo.png"},{"@type":"Article","image":"https://cdn.example.com/hero.jpg"}]}',
+        ),
+        PAGE,
+      ),
+    ).toBe("https://cdn.example.com/hero.jpg");
+  });
+
+  it("refuses a JSON-LD image declared only on a non-article node (#1342)", () => {
+    expect(
+      extractPageImage(
+        jsonLd('{"@type":"Person","image":"https://cdn.example.com/ada.jpg"}'),
+        PAGE,
+      ),
+    ).toBe("");
+    expect(
+      extractPageImage(
+        jsonLd(
+          '{"@type":["Thing","Organization"],"image":"https://cdn.example.com/logo.png"}',
+        ),
+        PAGE,
+      ),
+    ).toBe("");
+  });
+
+  it("falls through to a later declaration when an earlier one is not http(s) (#1342)", () => {
+    const twitterBehindBrokenOg = docFrom(
+      `<html><head>
+        <meta property="og:image" content="data:image/gif;base64,AAAA" />
+        <meta name="twitter:image" content="https://cdn.example.com/card.jpg" />
+      </head><body>Hello</body></html>`,
+    );
+    expect(extractPageImage(twitterBehindBrokenOg, PAGE)).toBe(
+      "https://cdn.example.com/card.jpg",
+    );
+
+    const jsonLdBehindBrokenOg = docFrom(
+      `<html><head>
+        <meta property="og:image" content="data:image/gif;base64,AAAA" />
+        <script type="application/ld+json">{"@type":"Article","image":"https://cdn.example.com/ld.jpg"}</script>
+      </head><body>Hello</body></html>`,
+    );
+    expect(extractPageImage(jsonLdBehindBrokenOg, PAGE)).toBe(
+      "https://cdn.example.com/ld.jpg",
+    );
+  });
+
+  it("refuses a non-http(s) JSON-LD image and a malformed block", () => {
+    expect(
+      extractPageImage(jsonLd('{"image":"data:image/png;base64,AAAA"}'), PAGE),
+    ).toBe("");
+    expect(extractPageImage(jsonLd("{not json"), PAGE)).toBe("");
   });
 });

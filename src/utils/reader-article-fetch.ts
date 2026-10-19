@@ -9,7 +9,7 @@ import {
   RESTRICTED_ARTICLE_LINK_TEXT,
   RESTRICTED_ARTICLE_REASON,
 } from "./full-article-fetch";
-import { firstNonFormulaImageUrl } from "./image-url-utils";
+import { firstNonFormulaImageUrl, isAvatarImageUrl } from "./image-url-utils";
 import { isFeedIconUrl } from "./reader-article-render";
 import { isLikelyVideoItem } from "./video-detection";
 import { getOpenableHttpHref } from "./url-utils";
@@ -41,8 +41,9 @@ export function persistFetchedMetadata(
 
 /**
  * The fetched page's declared image as a usable hero, or "" when it is absent,
- * not `http(s)`, a formula image, a tracking pixel, or the feed's own icon (a
- * site-wide default share card, not this article's picture).
+ * not `http(s)`, a formula image, a tracking pixel, the feed's own icon (a
+ * site-wide default share card, not this article's picture), or a byline
+ * avatar (#1342).
  */
 function usableFetchedPageImage(
   item: FeedItem,
@@ -51,6 +52,7 @@ function usableFetchedPageImage(
 ): string {
   const image = firstNonFormulaImageUrl([pageImage]);
   if (!image || isFeedIconUrl(image, item, feeds)) return "";
+  if (isAvatarImageUrl(image)) return "";
   return image;
 }
 

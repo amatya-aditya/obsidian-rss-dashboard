@@ -28,6 +28,12 @@ export interface FeedFirstDisplayOptions {
   /** Runs for every settled fetch, even when the display went stale. */
   persistMetadata: (result: FullArticleFetchResult) => void;
   /**
+   * The fetched page's own image, for the item the settled fetch belongs to
+   * (#1342). Runs for every settled fetch too, even one whose body was empty,
+   * because a restricted page's `<head>` still declares its hero.
+   */
+  persistPageImage: (result: FullArticleFetchResult) => void;
+  /**
    * Runs for every settled fetch, even when the display went stale, so a
    * failure is remembered on its own item (#1110). True when one was recorded.
    */
@@ -74,6 +80,11 @@ export async function runFeedFirstDisplay(
   // Keep the substantial-body gate: a short extraction must not lock metadata.
   if (options.hasMeaningfulContent(result.content)) {
     options.persistMetadata(result);
+  }
+  // The page's own image is not body metadata: a restricted head declares one
+  // even when nothing readable was extracted (#1342).
+  if (result.pageImage) {
+    options.persistPageImage(result);
   }
   const remembered = options.rememberOutcome(result);
   if (!options.isCurrent() || !versions.isActive()) return null;

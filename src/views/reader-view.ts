@@ -1464,6 +1464,8 @@ export class ReaderView extends ItemView {
           this.settings.feeds,
           (update) => this.persistBackgroundUpdate(item, update, false),
         );
+      },
+      persistPageImage: (result) => {
         persistFetchedPageImage(
           item,
           result.pageImage,

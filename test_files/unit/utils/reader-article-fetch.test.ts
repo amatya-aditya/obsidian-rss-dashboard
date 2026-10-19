@@ -85,6 +85,21 @@ describe("persistFetchedCoverImage", () => {
 
     expect(emit).not.toHaveBeenCalled();
   });
+
+  it("skips a page image served by an avatar host (#1342)", () => {
+    const item = makeItem();
+    const emit = vi.fn();
+
+    persistFetchedCoverImage(
+      item,
+      "https://avatars.githubusercontent.com/u/78101617",
+      [],
+      emit,
+    );
+
+    expect(item.coverImage).toBe("");
+    expect(emit).not.toHaveBeenCalled();
+  });
 });
 
 describe("persistFetchedPageImage (#812)", () => {
@@ -146,6 +161,21 @@ describe("persistFetchedPageImage (#812)", () => {
 
     persistFetchedPageImage(item, PAGE_IMAGE, feeds, emit);
 
+    expect(emit).not.toHaveBeenCalled();
+  });
+
+  it("skips a page image served by an avatar host (#1342)", () => {
+    const item = makeItem();
+    const emit = vi.fn();
+
+    persistFetchedPageImage(
+      item,
+      "https://avatars.githubusercontent.com/u/78101617",
+      [],
+      emit,
+    );
+
+    expect(item.pageImage).toBeUndefined();
     expect(emit).not.toHaveBeenCalled();
   });
 });
