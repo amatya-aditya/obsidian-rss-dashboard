@@ -17,6 +17,14 @@ import {
   FIXTURE_FEED_PATH,
   FIXTURE_FEED_URL,
   FIXTURE_PAGES_DIR,
+  FIXTURE_SERVER_ORIGIN,
+  OG_IMAGE_BODY_FILE,
+  OG_IMAGE_FILE,
+  OG_IMAGE_HERO_LINK,
+  OG_IMAGE_HERO_PAGE,
+  OG_IMAGE_NO_FEED_IMAGE_LINK,
+  OG_IMAGE_NO_FEED_IMAGE_PAGE,
+  OG_IMAGE_URL,
   TEMPLATE_DIR,
   URL_PATTERN_PIXEL_FILE,
 } from "../../scripts/generate-fixture-vault.mjs";
@@ -27,6 +35,7 @@ import {
   startFixtureServer,
 } from "../../scripts/fixture-server.mjs";
 import {
+  extractPageImage,
   extractPageMetadata,
   resolveArticleMetadata,
 } from "../../src/utils/article-metadata";
@@ -233,6 +242,56 @@ describe("Duplicate lead photo credit fixture scenario (#1305)", () => {
   });
 });
 
+// The two page-image scenarios (#812): each committed page declares an og:image
+// that differs from the first image in its body, so the fetched version's hero
+// can be told apart from the body-image fallback. One seeded article also has a
+// feed cover, the other has none. These tests keep the seed items, the committed
+// pages, and the fixture server in step.
+describe("Page-image hero fixture scenarios (#812)", () => {
+  function seededItem(link: string): FeedItem {
+    const item = seededItems().find((entry) => entry.link === link);
+    if (!item) throw new Error(`Seeded article not found for ${link}.`);
+    return item;
+  }
+
+  it("seeds one article with a feed cover and one without", () => {
+    expect(seededItem(OG_IMAGE_HERO_LINK).coverImage).not.toBe("");
+    expect(seededItem(OG_IMAGE_NO_FEED_IMAGE_LINK).coverImage).toBe("");
+  });
+
+  it("declares a page image that differs from the first body image", () => {
+    for (const page of [OG_IMAGE_HERO_PAGE, OG_IMAGE_NO_FEED_IMAGE_PAGE]) {
+      const html = readFileSync(join(FIXTURE_PAGES_DIR, page), "utf8");
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      // Read the declared image before Readability mutates the document, as the
+      // reader's own fetch does.
+      expect(
+        extractPageImage(doc, `${FIXTURE_SERVER_ORIGIN}/${page}`),
+        page,
+      ).toBe(OG_IMAGE_URL);
+      const articleHtml = new Readability(doc).parse()?.content ?? "";
+      expect(articleHtml, page).toContain(OG_IMAGE_BODY_FILE);
+      expect(articleHtml, page).not.toContain(OG_IMAGE_FILE);
+    }
+  });
+
+  it("serves the pages and both images over HTTP", async () => {
+    const port = await listeningPort();
+
+    for (const page of [OG_IMAGE_HERO_PAGE, OG_IMAGE_NO_FEED_IMAGE_PAGE]) {
+      const response = await get(port, `/${page}`);
+      expect(response.status, page).toBe(200);
+      expect(response.contentType, page).toContain("text/html");
+    }
+
+    for (const file of [OG_IMAGE_FILE, OG_IMAGE_BODY_FILE]) {
+      const image = await getBytes(port, `/${file}`);
+      expect(image.status, file).toBe(200);
+      expect(image.contentType, file).toContain("image/png");
+    }
+  });
+});
+
 // The seeded "User-Agent echo (fixture)" feed (#1162 test drive): refresh it
 // with the server running and the terminal prints the headers the fetch sent.
 // These tests keep the seed, the address, and the printed lines in step, so the
@@ -354,6 +413,24 @@ describe("Fixture server file mapping (#1169)", () => {
     });
     expect(resolveFixtureFile(`/${CREDIT_CAPTION_HERO_FILE}`)).toMatchObject({
       name: CREDIT_CAPTION_HERO_FILE,
+      contentType: "image/png",
+    });
+    expect(resolveFixtureFile(`/${OG_IMAGE_HERO_PAGE}`)).toMatchObject({
+      name: OG_IMAGE_HERO_PAGE,
+      contentType: "text/html; charset=utf-8",
+    });
+    expect(resolveFixtureFile(`/${OG_IMAGE_NO_FEED_IMAGE_PAGE}`)).toMatchObject(
+      {
+        name: OG_IMAGE_NO_FEED_IMAGE_PAGE,
+        contentType: "text/html; charset=utf-8",
+      },
+    );
+    expect(resolveFixtureFile(`/${OG_IMAGE_FILE}`)).toMatchObject({
+      name: OG_IMAGE_FILE,
+      contentType: "image/png",
+    });
+    expect(resolveFixtureFile(`/${OG_IMAGE_BODY_FILE}`)).toMatchObject({
+      name: OG_IMAGE_BODY_FILE,
       contentType: "image/png",
     });
     expect(resolveFixtureFile(`/${FEED_ADVERTISING_PAGE}`)).toMatchObject({

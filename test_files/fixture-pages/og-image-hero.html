@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fixture article whose page declares a hero image</title>
+    <meta name="author" content="Fixture Author" />
+    <!-- The page's declared image, different from the image in the body below
+         (#812). The fetched version's hero must be this one, ranked above the
+         feed's cover; the card and the RSS version keep the cover. -->
+    <meta property="og:image" content="http://127.0.0.1:8787/og-image.png" />
+  </head>
+  <body>
+    <main>
+      <article>
+        <h1>Fixture article whose page declares a hero image</h1>
+        <p>
+          This page declares an image in its og:image meta tag that differs from
+          the first image in its body. A feed that supplies its own cover still
+          wins on the card and in the RSS version, while the fetched version's
+          hero must be the page's declared image rather than the body image or
+          the feed cover.
+        </p>
+        <p>
+          <img
+            src="http://127.0.0.1:8787/og-image-body.png"
+            alt="A placeholder image in the page body"
+          />
+        </p>
+        <p>
+          The paragraphs run well past one hundred and twenty characters so
+          Readability treats them as the article body. The fixture server serves
+          this page and both images from the repository, so the scenario
+          reproduces without any site outside it.
+        </p>
+      </article>
+    </main>
+  </body>
+</html>
