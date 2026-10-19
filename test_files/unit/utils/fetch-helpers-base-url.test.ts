@@ -136,4 +136,34 @@ describe("fetched articles report the page's own image", () => {
 
     expect(result).not.toHaveProperty("pageImage");
   });
+
+  it("falls back to a JSON-LD image when no meta tag declares one (#1342)", async () => {
+    detailedMock.mockResolvedValue({
+      text: withHead(
+        '<script type="application/ld+json">{"@type":"Article","image":"/img/ld-hero.jpg"}</script>',
+      ),
+      status: 200,
+    });
+
+    const result = await fetchWithProxyFallbackDetailed(
+      "https://news.example.com/posts/1",
+    );
+
+    expect(result.pageImage).toBe("https://news.example.com/img/ld-hero.jpg");
+  });
+
+  it("carries the declared image of a restricted page (#1342)", async () => {
+    detailedMock.mockResolvedValue({
+      text: `<html><head><meta property="og:image" content="/img/teaser.jpg"></head><body>subscription required. ${"x".repeat(220)}</body></html>`,
+      status: 403,
+    });
+
+    const result = await fetchWithProxyFallbackDetailed(
+      "https://news.example.com/posts/1",
+    );
+
+    expect(result.failureType).toBe("restricted");
+    expect(result.content).toBe("");
+    expect(result.pageImage).toBe("https://news.example.com/img/teaser.jpg");
+  });
 });

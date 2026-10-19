@@ -194,6 +194,24 @@ export function isTrackingPixelElement(image: Element): boolean {
 }
 
 /**
+ * Hosts that serve user avatars rather than an article's own picture. A page's
+ * declared image can point at the author's profile picture — the #812 evidence
+ * is a GitHub Blog byline at `avatars.githubusercontent.com/u/78101617` — and
+ * showing that as the article's hero is worse than showing none.
+ */
+const AVATAR_IMAGE_HOSTS = ["avatars.githubusercontent.com", "gravatar.com"];
+
+/**
+ * Returns whether an image is served by a known avatar host (#1342). A host
+ * allow/deny list, not a URL-shape heuristic, so an ordinary CDN path that
+ * merely mentions one of these hosts is not caught. A non-URL and a relative
+ * path return false; a protocol-relative `//host/path` is matched on its host.
+ */
+export function isAvatarImageUrl(url: string): boolean {
+  return AVATAR_IMAGE_HOSTS.some((host) => imageHostMatches(url, host));
+}
+
+/**
  * One attribute of an HTML tag: its lowercase name and its value, quoted or
  * bare. A global pattern is safe to reuse with `matchAll`, which clones it.
  */

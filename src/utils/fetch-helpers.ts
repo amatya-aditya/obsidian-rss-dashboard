@@ -71,9 +71,10 @@ export interface FullArticleFetchResult {
    */
   pageMetadata?: RawArticleMetadata;
   /**
-   * The fetched page's own `og:image`/`twitter:image` as an absolute http(s)
-   * URL. Readability drops the featured image that sits outside the article
-   * body, so this is the only place the page's hero survives.
+   * The fetched page's own declared image (`og:image`, else `twitter:image`,
+   * else a JSON-LD `image`) as an absolute http(s) URL. Readability drops the
+   * featured image that sits outside the article body, so this is the only
+   * place the page's hero survives.
    */
   pageImage?: string;
 }
@@ -297,30 +298,43 @@ function parseArticleContent(
 }
 
 /**
- * Reads the head metadata of a response that is not parsed for content
- * (blocked, restricted or paywalled). A paywalled page often has a real
- * `<head>`; a bot-challenge page's comes back empty on its own. The existing
- * `< 200` character guard is the only skip condition.
+ * Reads the head of a response that is not parsed for content (blocked,
+ * restricted or paywalled). A paywalled page often has a real `<head>`; a
+ * bot-challenge page's comes back empty on its own. The existing `< 200`
+ * character guard is the only skip condition. The declared page image is read
+ * too, so a restricted head still names the article's own hero (#1342).
  */
 function extractMetadataOfUnparsedResponse(
   html: string | undefined,
-): RawArticleMetadata | undefined {
-  if (!html || html.trim().length < 200) return undefined;
+  pageUrl: string,
+): {
+  pageMetadata?: RawArticleMetadata;
+  pageImage?: string;
+} {
+  if (!html || html.trim().length < 200) return {};
   const doc = new DOMParser().parseFromString(
     ensureUtf8Meta(html),
     "text/html",
   );
   const metadata = extractPageMetadata(doc);
-  return isEmptyRawMetadata(metadata) ? undefined : metadata;
+  const pageImage = extractPageImage(doc, pageUrl);
+  return {
+    ...(isEmptyRawMetadata(metadata) ? {} : { pageMetadata: metadata }),
+    ...(pageImage ? { pageImage } : {}),
+  };
 }
 
 function failureResult(
   failureType: FullArticleFetchFailureType,
   pageMetadata: RawArticleMetadata | undefined,
+  pageImage?: string,
 ): FullArticleFetchResult {
-  return pageMetadata
-    ? { content: "", failureType, pageMetadata }
-    : { content: "", failureType };
+  return {
+    content: "",
+    failureType,
+    ...(pageMetadata ? { pageMetadata } : {}),
+    ...(pageImage ? { pageImage } : {}),
+  };
 }
 
 interface FetchErrorDetails {
@@ -363,6 +377,7 @@ export async function fetchWithProxyFallbackDetailed(
   const deadline = Date.now() + resolveFetchTimeoutMs(fetchTimeoutSeconds);
   let directRestricted = false;
   let directMetadata: RawArticleMetadata | undefined;
+  let directPageImage: string | undefined;
   try {
     // 1. Direct fetch
     try {
@@ -382,7 +397,9 @@ export async function fetchWithProxyFallbackDetailed(
         return { ...parseArticleContent(directHtml, url), failureType: "none" };
       }
 
-      directMetadata = extractMetadataOfUnparsedResponse(directHtml);
+      const directSignals = extractMetadataOfUnparsedResponse(directHtml, url);
+      directMetadata = directSignals.pageMetadata;
+      directPageImage = directSignals.pageImage;
       directRestricted =
         isRestrictedStatus(directResponse.status) ||
         isRestrictedSignal(directHtml);
@@ -410,6 +427,7 @@ export async function fetchWithProxyFallbackDetailed(
       return failureResult(
         directRestricted ? "restricted" : "network",
         directMetadata,
+        directPageImage,
       );
     }
 
@@ -439,11 +457,16 @@ export async function fetchWithProxyFallbackDetailed(
             `[RSS Dashboard] Proxy fetch also returned blocked/empty response for ${url}.`,
           );
           directRestricted ||= proxyRestricted;
-          directMetadata =
-            extractMetadataOfUnparsedResponse(proxyHtml) ?? directMetadata;
+          const proxySignals = extractMetadataOfUnparsedResponse(
+            proxyHtml,
+            url,
+          );
+          directMetadata = proxySignals.pageMetadata ?? directMetadata;
+          directPageImage = proxySignals.pageImage ?? directPageImage;
           lastFailure = failureResult(
             directRestricted ? "restricted" : "network",
             directMetadata,
+            directPageImage,
           );
           lastError = undefined;
           continue;
@@ -483,6 +506,7 @@ export async function fetchWithProxyFallbackDetailed(
       ...failureResult(
         directRestricted || restricted ? "restricted" : "network",
         directMetadata,
+        directPageImage,
       ),
       ...(e instanceof FetchTimeoutError
         ? { failureReason: "timeout" as const }

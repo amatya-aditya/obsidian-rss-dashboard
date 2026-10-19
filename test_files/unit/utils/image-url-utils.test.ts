@@ -3,6 +3,7 @@ import {
   findFirstNonFormulaImage,
   firstNonFormulaImageUrl,
   hasLatexPhpQuery,
+  isAvatarImageUrl,
   isLatexFormulaImage,
   isTrackingPixel,
   isTrackingPixelElement,
@@ -237,6 +238,37 @@ describe("firstNonFormulaImageUrl", () => {
   // reject it offline. Out of scope for this issue; see its "Out of scope".
   it("cannot reject a size-only counter from a bare url", () => {
     expect(firstNonFormulaImageUrl([COUNTER])).toBe(COUNTER);
+  });
+});
+
+describe("isAvatarImageUrl (#1342)", () => {
+  it("recognizes the avatar host named in the #812 evidence", () => {
+    expect(
+      isAvatarImageUrl("https://avatars.githubusercontent.com/u/78101617"),
+    ).toBe(true);
+  });
+
+  it("recognizes an avatar host whatever the scheme and case", () => {
+    expect(isAvatarImageUrl("http://AVATARS.GITHUBUSERCONTENT.com/u/1")).toBe(
+      true,
+    );
+  });
+
+  it("recognizes a gravatar host", () => {
+    expect(isAvatarImageUrl("https://secure.gravatar.com/avatar/abc")).toBe(
+      true,
+    );
+  });
+
+  it("leaves an ordinary article image and a non-URL alone", () => {
+    expect(isAvatarImageUrl("https://news.example.com/img/hero.jpg")).toBe(
+      false,
+    );
+    // A host that merely names the denylist host in its path is not the host.
+    expect(
+      isAvatarImageUrl("https://cdn.example.com/avatars.githubusercontent.com"),
+    ).toBe(false);
+    expect(isAvatarImageUrl("/img/hero.jpg")).toBe(false);
   });
 });
 

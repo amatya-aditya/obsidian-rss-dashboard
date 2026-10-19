@@ -31,6 +31,7 @@ function setup(
     onVersions: vi.fn(),
     fetch: () => Promise.resolve(result),
     persistMetadata: vi.fn(),
+    persistPageImage: vi.fn(),
     rememberOutcome: vi.fn(() => false),
     isCurrent: () => true,
     onSettled: vi.fn(),
@@ -135,6 +136,47 @@ describe("runFeedFirstDisplay", () => {
     expect(options.persistMetadata).toHaveBeenCalledTimes(1);
     expect(options.onSettled).not.toHaveBeenCalled();
     expect(findContentToggle(container)).toBeNull();
+  });
+
+  it("hands on the page image of a fetch whose body was empty (#1342)", async () => {
+    const { options } = setup({
+      content: "",
+      failureType: "restricted",
+      pageImage: "https://example.com/img/teaser.jpg",
+    });
+
+    await runFeedFirstDisplay(options);
+
+    expect(options.persistPageImage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pageImage: "https://example.com/img/teaser.jpg",
+      }),
+    );
+    // The empty body keeps the substantial-body gate for every other signal.
+    expect(options.persistMetadata).not.toHaveBeenCalled();
+  });
+
+  it("does not hand on a page image the fetch does not declare", async () => {
+    const { options } = setup({ content: "", failureType: "restricted" });
+
+    await runFeedFirstDisplay(options);
+
+    expect(options.persistPageImage).not.toHaveBeenCalled();
+  });
+
+  it("hands on the page image of a stale result too (#1342)", async () => {
+    const { options } = setup(
+      {
+        content: "",
+        failureType: "restricted",
+        pageImage: "https://example.com/img/teaser.jpg",
+      },
+      { isCurrent: () => false },
+    );
+
+    await runFeedFirstDisplay(options);
+
+    expect(options.persistPageImage).toHaveBeenCalledTimes(1);
   });
 
   it("remembers a stale failure but shows no banner for it (#1110)", async () => {
