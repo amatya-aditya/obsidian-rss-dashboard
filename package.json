@@ -52,7 +52,7 @@
     "@types/node": "^26.6.5",
     "@typescript-eslint/parser": "^8.71.1",
     "@typescript-eslint/utils": "^8.71.1",
-    "@vitest/coverage-v8": "4.1.11",
+    "@vitest/coverage-v8": "5.0.5",
     "esbuild": "0.28.2",
     "eslint": "^9.39.2",
     "eslint-plugin-obsidianmd": "^0.4.2",
