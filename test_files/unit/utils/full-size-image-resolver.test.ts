@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
-  extractHighestResolutionFromSrcset,
   isLightboxEligibleImage,
   resolveFullResolutionImageSource,
   stripCdnResizeParameters,
@@ -61,29 +60,6 @@ describe("full-size-image-resolver", () => {
         },
       });
       expect(isLightboxEligibleImage(img)).toBe(true);
-    });
-  });
-
-  describe("extractHighestResolutionFromSrcset", () => {
-    it("returns null for empty or null srcset", () => {
-      expect(extractHighestResolutionFromSrcset(null)).toBe(null);
-      expect(extractHighestResolutionFromSrcset("")).toBe(null);
-    });
-
-    it("extracts the highest width descriptor", () => {
-      const srcset =
-        "https://example.com/img-300.jpg 300w, https://example.com/img-1200.jpg 1200w, https://example.com/img-600.jpg 600w";
-      expect(extractHighestResolutionFromSrcset(srcset)).toBe(
-        "https://example.com/img-1200.jpg",
-      );
-    });
-
-    it("extracts the highest pixel density descriptor", () => {
-      const srcset =
-        "https://example.com/img-1x.jpg 1x, https://example.com/img-3x.jpg 3x, https://example.com/img-2x.jpg 2x";
-      expect(extractHighestResolutionFromSrcset(srcset)).toBe(
-        "https://example.com/img-3x.jpg",
-      );
     });
   });
 
@@ -201,6 +177,19 @@ describe("full-size-image-resolver", () => {
           src: "https://example.com/thumb.jpg",
           srcset:
             "https://example.com/small.jpg 400w, https://example.com/large.jpg 1600w",
+        },
+      });
+      const result = resolveFullResolutionImageSource(img);
+
+      expect(result.fullUrl).toBe("https://example.com/large.jpg");
+    });
+
+    it("resolves the highest minified srcset candidate through the lightbox (#1361)", () => {
+      const img = createEl("img", {
+        attr: {
+          src: "https://example.com/thumb.jpg",
+          srcset:
+            "https://example.com/small.jpg 400w,https://example.com/large.jpg 1600w",
         },
       });
       const result = resolveFullResolutionImageSource(img);

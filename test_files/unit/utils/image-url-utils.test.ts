@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  extractHighestResolutionFromSrcset,
   findFirstNonFormulaImage,
   firstNonFormulaImageUrl,
   hasLatexPhpQuery,
@@ -10,6 +11,7 @@ import {
   isTrackingPixelTag,
   optimizeImageUrl,
   promoteLazyImageSources,
+  promotePictureImageSources,
 } from "../../../src/utils/image-url-utils.js";
 
 const COUNTER = "https://counter.example.com/content/123456/count.gif";
@@ -525,6 +527,178 @@ describe("promoteLazyImageSources", () => {
     const doc = parse('<img data-lazy="not a url">');
 
     promoteLazyImageSources(doc);
+
+    expect(doc.querySelector("img")?.hasAttribute("src")).toBe(false);
+  });
+});
+
+describe("extractHighestResolutionFromSrcset", () => {
+  it("returns null for empty or null srcset", () => {
+    expect(extractHighestResolutionFromSrcset(null)).toBe(null);
+    expect(extractHighestResolutionFromSrcset("")).toBe(null);
+  });
+
+  it("extracts the highest width descriptor", () => {
+    const srcset =
+      "https://example.com/img-300.jpg 300w, https://example.com/img-1200.jpg 1200w, https://example.com/img-600.jpg 600w";
+    expect(extractHighestResolutionFromSrcset(srcset)).toBe(
+      "https://example.com/img-1200.jpg",
+    );
+  });
+
+  it("extracts the highest pixel density descriptor", () => {
+    const srcset =
+      "https://example.com/img-1x.jpg 1x, https://example.com/img-3x.jpg 3x, https://example.com/img-2x.jpg 2x";
+    expect(extractHighestResolutionFromSrcset(srcset)).toBe(
+      "https://example.com/img-3x.jpg",
+    );
+  });
+
+  it("splits a minified candidate list with no space after the comma (#1361)", () => {
+    const srcset =
+      "https://cdn.example.com/photo-640.jpg 640w,https://cdn.example.com/photo-1400.jpg 1400w";
+    expect(extractHighestResolutionFromSrcset(srcset)).toBe(
+      "https://cdn.example.com/photo-1400.jpg",
+    );
+  });
+
+  it("splits minified candidates whose URLs have no scheme", () => {
+    expect(
+      extractHighestResolutionFromSrcset(
+        "/photo-640.jpg 640w,/photo-1400.jpg 1400w",
+      ),
+    ).toBe("/photo-1400.jpg");
+  });
+
+  it("keeps a candidate URL that itself contains commas whole", () => {
+    const substack =
+      "https://substackcdn.com/image/fetch/$s_!x!,w_424,c_limit/https%3A%2F%2Fexample.com%2Fphoto.png";
+    const srcset = `${substack} 424w, https://cdn.example.com/photo-848.png 848w`;
+
+    expect(extractHighestResolutionFromSrcset(srcset)).toBe(
+      "https://cdn.example.com/photo-848.png",
+    );
+    expect(extractHighestResolutionFromSrcset(`${substack} 424w`)).toBe(
+      substack,
+    );
+  });
+});
+
+describe("promotePictureImageSources", () => {
+  const parse = (html: string): Document =>
+    new DOMParser().parseFromString(html, "text/html");
+
+  it("fills a missing src from the highest-resolution source candidate (Medium)", () => {
+    const doc = parse(`
+      <figure>
+        <div role="button" tabindex="0">
+          <span>Press enter or click to view image in full size</span>
+          <div>
+            <picture>
+              <source srcset="https://cdn.example.com/photo-640.webp 640w,https://cdn.example.com/photo-1400.webp 1400w" type="image/webp">
+              <source srcset="https://cdn.example.com/photo-640.jpg 640w,https://cdn.example.com/photo-1400.jpg 1400w">
+              <img alt="" width="700" height="365" loading="eager" role="presentation">
+            </picture>
+          </div>
+        </div>
+        <figcaption>Caption</figcaption>
+      </figure>
+    `);
+
+    promotePictureImageSources(doc);
+
+    expect(doc.querySelector("img")?.getAttribute("src")).toBe(
+      "https://cdn.example.com/photo-1400.webp",
+    );
+    expect(doc.querySelector('[role="button"] > span')).toBeNull();
+  });
+
+  it("skips a higher non-http candidate in favour of a lower http one", () => {
+    const doc = parse(`
+      <picture>
+        <source srcset="https://cdn.example.com/photo-640.jpg 640w, data:image/gif;base64,AAAA 1400w">
+        <img>
+      </picture>
+    `);
+
+    promotePictureImageSources(doc);
+
+    expect(doc.querySelector("img")?.getAttribute("src")).toBe(
+      "https://cdn.example.com/photo-640.jpg",
+    );
+  });
+
+  it("leaves a standalone image's srcset alone", () => {
+    const doc = parse(
+      '<img srcset="https://cdn.example.com/photo-640.jpg 640w">',
+    );
+
+    promotePictureImageSources(doc);
+
+    expect(doc.querySelector("img")?.hasAttribute("src")).toBe(false);
+  });
+
+  it("uses the first source with a usable candidate, ahead of the image's own srcset", () => {
+    const doc = parse(`
+      <picture>
+        <source srcset="data:image/gif;base64,AAAA 640w">
+        <source srcset="https://cdn.example.com/from-source.jpg 800w">
+        <img srcset="https://cdn.example.com/from-image.jpg 1600w">
+      </picture>
+    `);
+
+    promotePictureImageSources(doc);
+
+    expect(doc.querySelector("img")?.getAttribute("src")).toBe(
+      "https://cdn.example.com/from-source.jpg",
+    );
+  });
+
+  it("falls back to the image's own srcset when no source has a usable candidate", () => {
+    const doc = parse(`
+      <picture>
+        <source srcset="data:image/gif;base64,AAAA 640w">
+        <img srcset="https://cdn.example.com/small.jpg 640w, https://cdn.example.com/large.jpg 1400w">
+      </picture>
+    `);
+
+    promotePictureImageSources(doc);
+
+    expect(doc.querySelector("img")?.getAttribute("src")).toBe(
+      "https://cdn.example.com/large.jpg",
+    );
+  });
+
+  it("leaves an image that already has an http(s) src alone", () => {
+    const doc = parse(`
+      <picture>
+        <source srcset="https://cdn.example.com/other.jpg 1400w">
+        <img src="https://cdn.example.com/real.jpg">
+      </picture>
+    `);
+
+    promotePictureImageSources(doc);
+
+    expect(doc.querySelector("img")?.getAttribute("src")).toBe(
+      "https://cdn.example.com/real.jpg",
+    );
+  });
+
+  it.each([
+    ["an empty source", '<source srcset=""><img>'],
+    [
+      "a data: candidate",
+      '<source srcset="data:image/gif;base64,AAAA 640w"><img>',
+    ],
+    [
+      "a non-http(s) candidate",
+      '<source srcset="app://local/photo.jpg 640w"><img>',
+    ],
+    ["a relative candidate", '<source srcset="/photo.jpg 640w"><img>'],
+  ])("never uses %s as the src", (_name, markup) => {
+    const doc = parse(`<picture>${markup}</picture>`);
+
+    promotePictureImageSources(doc);
 
     expect(doc.querySelector("img")?.hasAttribute("src")).toBe(false);
   });

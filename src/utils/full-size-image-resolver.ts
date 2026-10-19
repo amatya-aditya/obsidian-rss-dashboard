@@ -1,4 +1,7 @@
-import { isLatexFormulaImageElement } from "./image-url-utils";
+import {
+  extractHighestResolutionFromSrcset,
+  isLatexFormulaImageElement,
+} from "./image-url-utils";
 import { normalizeSubstackImageUrl } from "./substack-image-url";
 import { hostMatches, hostPathMatches } from "./url-host";
 
@@ -66,52 +69,6 @@ export function isLightboxEligibleImage(
   }
 
   return true;
-}
-
-/**
- * Parses a srcset attribute and returns the URL corresponding to the highest width or density.
- */
-export function extractHighestResolutionFromSrcset(
-  srcset: string | null | undefined,
-): string | null {
-  const trimmed = (srcset || "").trim();
-  if (!trimmed) return null;
-
-  const entries = trimmed
-    .split(/,\s+(?=(?:https?:\/\/|data:image\/|\/))/i)
-    .map((entry) => entry.trim())
-    .filter(Boolean);
-
-  if (entries.length === 0) return null;
-
-  let bestUrl: string | null = null;
-  let bestScore = -1;
-
-  for (const entry of entries) {
-    const parts = entry.split(/\s+/);
-    const url = parts[0];
-    const descriptor = parts[1] || "";
-
-    let score = 1;
-    if (descriptor.endsWith("w")) {
-      const width = parseInt(descriptor.slice(0, -1), 10);
-      if (!Number.isNaN(width)) {
-        score = width;
-      }
-    } else if (descriptor.endsWith("x")) {
-      const density = parseFloat(descriptor.slice(0, -1));
-      if (!Number.isNaN(density)) {
-        score = density * 1000;
-      }
-    }
-
-    if (score > bestScore) {
-      bestScore = score;
-      bestUrl = url ?? null;
-    }
-  }
-
-  return bestUrl;
 }
 
 /**

@@ -13,6 +13,7 @@ import {
 } from "./platform-utils";
 import { resolveProxyPrefixes } from "./proxy-utils";
 import { stripAdContainers } from "./ad-containers";
+import { promotePictureImageSources } from "./image-url-utils";
 
 /** Markers that indicate the page is a WAF/bot-challenge block rather than real content. */
 const BLOCKED_MARKERS = [
@@ -329,6 +330,11 @@ function parsePageDocument(html: string, pageUrl: string): Document {
   // still has them (#1195).
   stripAdContainers(doc);
   resolveRelativeUrlsForReadability(doc, pageUrl);
+
+  // Readability drops a <picture> whose <img> has no src, which is how some
+  // server-rendered pages ship their body images (#1361). Fill the src from the
+  // sources' srcset first, while the picture is still in the document.
+  promotePictureImageSources(doc);
 
   return doc;
 }
