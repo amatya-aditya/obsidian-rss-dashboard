@@ -93,6 +93,16 @@ longer written as files
 skips the public-summary check, since `docs/releases/` only carries stable
 versions.
 
+### Docs audit (release gate)
+
+`check:release-ready` also runs the documentation audit against
+`origin/master`. It fails when a new or changed Markdown document breaks a rule:
+an ADR missing its status, date, or index row, a stray file outside the
+documented homes, or a filename outside the convention. Historical findings in
+untouched files are recorded, not blocking. The full procedure, rules, and
+sign-off are in [docs-audit-checklist.md](docs-audit-checklist.md). Run
+`npm run check:docs-audit` to see the report before the version bump.
+
 ## Manual
 
 These are either about local/working-tree state (which CI can't see, and

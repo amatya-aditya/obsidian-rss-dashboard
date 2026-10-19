@@ -10,6 +10,7 @@ Internal developer documentation for the RSS Dashboard plugin.
 - [Accessibility Policy and Agent-Friendly Testing Research](./accessibility-research.md)
 - [Accessibility Policy and Incremental Rollout (issue #681)](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/681)
 - [Compliance Patterns and Audit Guardrails](./compliance-patterns.md)
+- [Docs Audit Checklist](./docs-audit-checklist.md)
 - [Feed Data Lifecycle](./data-flow.md)
 - [Feed Validation](./feed-validation.md)
 - [Fixture Vault for Manual Testing](./fixture-vault.md)

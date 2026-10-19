@@ -1,3 +1,10 @@
+---
+status: superseded
+superseded: 2026-09-21
+superseded_by: docs/planning/public-roadmap.md
+issue: unknown
+---
+
 # Public Roadmap (Superseded)
 
 This roadmap was superseded by [`docs/planning/public-roadmap.md`](../../../planning/public-roadmap.md).

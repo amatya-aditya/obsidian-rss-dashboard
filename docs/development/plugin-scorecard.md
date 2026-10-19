@@ -89,7 +89,7 @@ Earlier public scorecard snapshots are archived: [post-2.5.0](../archive/investi
 | 2.2.0   | 46%        | May 15, 2026 | ✅ Remediated — 100% target verified                                                                                                           |
 | 2.3.0   | 72%        | May 26, 2026 | ✅ Remediated — see[audit-remediation-2.3.0.md](../archive/investigations/2026/audit-remediation-2.3.0.md)                                     |
 | 2.4.0   | Risks      | Jul 2, 2026  | 🔄 Remediated in 2.4.1 — pending community rescan                                                                                              |
-| 2.4.1   | TBD        | Jul 2, 2026  | ✅ Local compliance gates pass — see[2.4.0 audit remediation plan](../archive/investigations/2026/2.4.0-audit/2.4.0_audit_remediation_plan.md) |
+| 2.4.1   | TBD        | Jul 2, 2026  | ✅ Local compliance gates pass — see[2.4.0 audit remediation plan](../archive/investigations/2026/2.4.0-audit/2.4.0-audit-remediation-plan.md) |
 | 2.6.0   | Warnings   | Aug 10, 2026 | ✅ Remediated — post-2.6.0 record below                                                                                                        |
 | 2.7.1   | 5 warnings | Oct 11, 2026 | ✅ Remediated locally — pending community rescan ([#933](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/933))                  |
 

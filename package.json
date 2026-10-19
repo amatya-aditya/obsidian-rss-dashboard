@@ -17,6 +17,7 @@
     "check:release-compatibility": "node scripts/check-release-compatibility.mjs",
     "check:pre-release": "node scripts/check-pre-release.mjs",
     "check:doc-links": "node scripts/check-doc-links.mjs",
+    "check:docs-audit": "node scripts/check-docs-audit.mjs",
     "check:release-ready": "node scripts/check-release-ready.mjs",
     "check:stub-drift": "node scripts/check-stub-drift.mjs",
     "build": "npm run check:compliance && npm run lint && tsc -noEmit -skipLibCheck -incremental -tsBuildInfoFile node_modules/.cache/tsc/main.tsbuildinfo && npm run check:test-types && node esbuild.config.mjs production",

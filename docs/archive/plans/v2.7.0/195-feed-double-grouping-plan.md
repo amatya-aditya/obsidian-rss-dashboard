@@ -1,3 +1,11 @@
+---
+status: implemented
+completed: 2026-08-26
+released_in: 2.7.0
+issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/195"
+implementation: "https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/196"
+---
+
 # Implementation Plan: 'Date > Feed' and 'Folder > Feed' Grouping Options
 
 ## Problem & Summary of Changes

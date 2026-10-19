@@ -539,8 +539,8 @@ Added collapsible headers when viewing feeds in "feed" grouping ([GH Issue #149]
 
 ### Plugin Compliance
 
-- Upon submission of 2.4.0, the plugin was flagged with 455 issues found by automated scans. The [2.4.0 audit remediation plan](docs/archive/investigations/2026/2.4.0-audit/2.4.0_audit_remediation_plan.md) was proposed and implemented. The !important warnings all have comments explaining their usage.
-- Upon submission of 2.4.0, the plugin was flagged with 455 issues found by automated scans. The [2.4.0 audit remediation plan](docs/archive/investigations/2026/2.4.0-audit/2.4.0_audit_remediation_plan.md) was proposed and implemented. The !important warnings all have comments explaining their usage.
+- Upon submission of 2.4.0, the plugin was flagged with 455 issues found by automated scans. The [2.4.0 audit remediation plan](docs/archive/investigations/2026/2.4.0-audit/2.4.0-audit-remediation-plan.md) was proposed and implemented. The !important warnings all have comments explaining their usage.
+- Upon submission of 2.4.0, the plugin was flagged with 455 issues found by automated scans. The [2.4.0 audit remediation plan](docs/archive/investigations/2026/2.4.0-audit/2.4.0-audit-remediation-plan.md) was proposed and implemented. The !important warnings all have comments explaining their usage.
 - Additional CI/commit blockers were added to the repo which will disallow future commits that violate eslint rules in order to remain compliant
 
 ## 2.4.0 - July 1, 2026
