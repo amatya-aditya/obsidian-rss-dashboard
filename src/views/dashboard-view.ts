@@ -205,6 +205,13 @@ export class RssDashboardView extends ItemView {
   private inlineArticle: FeedItem | null = null;
   private articleRenderer: ArticleRenderer | null = null;
   private lastClickAnchorKey: string | null = null;
+  /**
+   * The refresh attempt generation whose error icon the user dismissed
+   * (#1353). In memory per view: a re-render at the same generation keeps the
+   * icon hidden, the next refresh attempt brings it back, and reopening the
+   * dashboard starts fresh.
+   */
+  private dismissedRefreshErrorGeneration: number | null = null;
 
   // ── Highlight match stats ─────────────────────────────────────────────────
   // Populated by computeHighlightMatchCounts() on every render cycle (before
@@ -1539,6 +1546,11 @@ export class RssDashboardView extends ItemView {
     row: HTMLElement,
     refreshStatus: RefreshStatus,
   ): void {
+    // A dismissed icon stays hidden through non-refresh re-renders; a new
+    // refresh attempt bumps the generation and brings it back (#1353).
+    if (this.isRefreshErrorDismissed()) {
+      return;
+    }
     const scope = this.getCurrentRefreshScope();
     const failingFeeds = getFailingFeeds(scope);
     const count = refreshStatus.failingCount;
@@ -1552,6 +1564,9 @@ export class RssDashboardView extends ItemView {
       attr: { type: "button", "aria-label": label },
     });
     setIcon(button, "alert-circle");
+    // Attached before the click handler: a long press swallows the trailing
+    // click before it can reach the dialog.
+    this.attachRefreshErrorDismissGestures(button);
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       new RefreshDetailsModal(this.app, {
@@ -1560,6 +1575,88 @@ export class RssDashboardView extends ItemView {
         errors: failingFeeds.map(getFeedErrorDetail),
       }).open();
     });
+  }
+
+  /**
+   * Right-click, the platform context-menu key, and a 500 ms touch long-press
+   * hide the error icon until the next refresh attempt (#1353). Left click,
+   * Enter, and Space keep opening the Feed error dialog.
+   */
+  private attachRefreshErrorDismissGestures(button: HTMLButtonElement): void {
+    const dismiss = (event: Event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      this.dismissRefreshErrorButton(button);
+    };
+    button.addEventListener("contextmenu", dismiss);
+
+    // Shift+F10 and the Menu key normally dispatch `contextmenu` on the
+    // focused button; handle the key itself as a fallback so keyboard
+    // dismissal never depends on that.
+    button.addEventListener("keydown", (event) => {
+      if (
+        event.key === "ContextMenu" ||
+        (event.shiftKey && event.key === "F10")
+      ) {
+        dismiss(event);
+      }
+    });
+
+    let longPressTimer: number | null = null;
+    let longPressTriggered = false;
+    const clearLongPressTimer = () => {
+      if (longPressTimer !== null) {
+        window.clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    };
+    button.addEventListener("pointerdown", (event) => {
+      if (event.pointerType === "mouse") return;
+
+      longPressTriggered = false;
+      clearLongPressTimer();
+      longPressTimer = window.setTimeout(() => {
+        longPressTimer = null;
+        longPressTriggered = true;
+        this.dismissRefreshErrorButton(button);
+      }, 500);
+    });
+    button.addEventListener("pointerup", clearLongPressTimer);
+    button.addEventListener("pointercancel", clearLongPressTimer);
+    button.addEventListener("pointermove", clearLongPressTimer);
+    button.addEventListener("click", (event) => {
+      if (longPressTriggered) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        longPressTriggered = false;
+      }
+    });
+  }
+
+  /**
+   * Hides the icon alone: the status text and its live region stay. Idempotent,
+   * because a touch long-press and native Android may both fire the dismissal.
+   */
+  private dismissRefreshErrorButton(button: HTMLElement): void {
+    if (this.isRefreshErrorDismissed()) {
+      return;
+    }
+    this.dismissedRefreshErrorGeneration = this.plugin.refreshAttemptGeneration;
+    const hadFocus = button.ownerDocument.activeElement === button;
+    button.remove();
+    if (hadFocus) {
+      this.containerEl.focus({ preventScroll: true });
+    }
+    new Notice("Feed error icon hidden until the next refresh.");
+  }
+
+  /** Whether the current refresh attempt's icon has been dismissed (#1353). */
+  private isRefreshErrorDismissed(): boolean {
+    return (
+      this.dismissedRefreshErrorGeneration !== null &&
+      this.dismissedRefreshErrorGeneration ===
+        this.plugin.refreshAttemptGeneration
+    );
   }
 
   private renderKeywordStatsRow(subheaderContent: HTMLElement): void {

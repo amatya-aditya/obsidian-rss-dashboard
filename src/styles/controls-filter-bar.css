@@ -140,7 +140,7 @@
  * `<button>`, and Obsidian's own `button:not(.clickable-icon)` sets `color` and
  * `background` at 0-1-1, which beats a single class at 0-1-0. Unscoped, the
  * button takes Obsidian's grey text and its grey button background instead of
- * the red error colour and the transparent reset below.
+ * the row's muted text colour and the transparent reset below.
  */
 .rss-dashboard-refresh-status-row .rss-dashboard-refresh-error-btn {
   --icon-size: 16px;
@@ -158,7 +158,7 @@
   border-radius: 4px;
   background: transparent;
   box-shadow: none;
-  color: var(--color-red, #e74c3c);
+  color: inherit;
   cursor: pointer;
 }
 

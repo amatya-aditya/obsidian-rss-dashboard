@@ -788,6 +788,14 @@ export default class RssDashboardPlugin extends Plugin {
     return this.feedOperationTracker.progress;
   }
 
+  /**
+   * The refresh runner's monotonic attempt count (#1353). Dashboard views read
+   * it read-only to keep a dismissed error icon hidden until the next attempt.
+   */
+  public get refreshAttemptGeneration(): number {
+    return this.feedRefreshRunner.refreshAttemptGeneration;
+  }
+
   public cancelGlobalRefresh(): void {
     this.feedOperationTracker.cancel();
   }
