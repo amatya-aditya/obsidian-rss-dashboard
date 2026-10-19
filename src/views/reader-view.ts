@@ -2168,20 +2168,45 @@ export class ReaderView extends ItemView {
 
     // Add classes to images for styling
     container.querySelectorAll("img").forEach((img) => {
-      img.addClass("rss-reader-responsive-img");
-      // Before the error listener below, so a failed image is revealed before
-      // Substack recovery clones it.
-      applyReaderImageLoading(img);
-      this.setupReaderImageTooltip(img, title);
-      this.setupLightboxForImage(img);
-      img.addEventListener("error", () => {
-        recoverFailedSubstackImageElement(img);
-      });
+      this.decorateReaderImage(img, title);
     });
 
     void scheduleProcessMathElements(container, {
       app: this.app,
       component: this,
+    });
+  }
+
+  /**
+   * Applies the reader's image affordances — responsive class, lazy loading,
+   * tooltip and lightbox — and keeps the Substack error recovery attached. The
+   * recovery path replaces a failed `<img>` with a clone, which does not inherit
+   * event listeners, so a replacement is reset and decorated again rather than
+   * losing its click and keyboard handlers.
+   */
+  private decorateReaderImage(
+    img: HTMLImageElement,
+    title: string | undefined,
+    recovered = false,
+  ): void {
+    if (recovered) {
+      // cloneNode copies these classes but none of the loading state behind
+      // them, so clear them for a fresh pass.
+      img.removeClass("rss-reader-responsive-img");
+      img.removeClass("rss-reader-lazy-img");
+      img.removeClass("rss-reader-zoomable-img");
+      img.removeClass("is-loading");
+      img.removeClass("is-revealed");
+    }
+    img.addClass("rss-reader-responsive-img");
+    // Before the error listener below, so a failed image is revealed before
+    // Substack recovery clones it.
+    applyReaderImageLoading(img);
+    this.setupReaderImageTooltip(img, title);
+    this.setupLightboxForImage(img);
+    img.addEventListener("error", () => {
+      const replacement = recoverFailedSubstackImageElement(img);
+      if (replacement) this.decorateReaderImage(replacement, title, true);
     });
   }
 
@@ -2223,7 +2248,9 @@ export class ReaderView extends ItemView {
 
     if (tooltipText) {
       setTooltip(img, tooltipText);
-      if (opensLightbox) {
+      // A recovered replacement lands inside the tooltip host already built for
+      // the image it replaced, so only wrap the picture the first time.
+      if (opensLightbox && !img.closest(".rss-reader-image-tooltip-host")) {
         const tooltipTarget = img.closest("picture") ?? img;
         const parent = tooltipTarget.parentElement;
         if (parent) {
