@@ -501,6 +501,31 @@ describe("ReaderView – summary de-duplication", () => {
     expect(markdown).toContain(`![Hero image](${hero})`);
   });
 
+  it("drops the publisher's image-expand control from a saved fetched note (#1362)", () => {
+    const hero = "https://img.example.com/images/hero.jpg";
+    const imageUrl = "https://img.example.com/images/medium-photo.jpg";
+    const label = "Press enter or click to view image in full size";
+    const bodyText = "Body sentence of the article. ".repeat(8);
+    const harness = getHarness(readerView);
+    harness.currentFullContent = `<p>${bodyText}</p>
+      <figure>
+        <div role="button" tabindex="0">
+          <span>${label}</span>
+          <picture><source srcset="${imageUrl} 640w"><img src="${imageUrl}" alt=""></picture>
+        </div>
+        <figcaption>A caption under the picture</figcaption>
+      </figure>`;
+    harness.currentContentIsFullArticle = true;
+
+    const markdown = harness.buildReaderSaveMarkdown(
+      makeItem({ coverImage: hero }),
+    );
+
+    expect(markdown).not.toContain(label);
+    expect(markdown).toContain(imageUrl);
+    expect(markdown).toContain("A caption under the picture");
+  });
+
   it("RED: no callout when description equals content except for HTML entity encoding", async () => {
     const item = makeItem({
       description: "<p>Rocks &amp; Minerals: a survey</p>",

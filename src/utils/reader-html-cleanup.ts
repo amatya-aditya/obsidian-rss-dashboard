@@ -402,6 +402,163 @@ export function stripSkipLinksFromDocument(doc: Document): void {
   });
 }
 
+/** The media an image-expand control wraps; a wrapper without one is not a control. */
+const IMAGE_CONTROL_MEDIA_SELECTOR = "img, picture";
+
+/**
+ * Semantic text elements that are never the expand control's text-only label.
+ * Kept even when they sit inside a focusable wrapper around a picture.
+ */
+const IMAGE_CONTROL_TEXT_BLOCK_TAGS = new Set([
+  "blockquote",
+  "figcaption",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+  "li",
+  "ol",
+  "pre",
+  "table",
+  "tbody",
+  "td",
+  "tfoot",
+  "th",
+  "thead",
+  "tr",
+  "ul",
+]);
+
+/**
+ * A publisher image control is a focusable wrapper around a picture or image.
+ * Medium uses `div[role="button"][tabindex="0"]`; its label is the only text in
+ * that wrapper. A native `<button>` has the same role without attributes. An
+ * anchor — a native link or a `role="link"` wrapper — and a figure are content,
+ * not controls, so neither is unwrapped even when it is focusable and holds an
+ * image. `tabindex="-1"` is not a keyboard control, so it is left alone.
+ */
+function isImageExpandControl(el: Element): boolean {
+  const tag = el.tagName.toLowerCase();
+  if (tag === "a" || tag === "figure") return false;
+
+  const role = (el.getAttribute("role") || "").trim().toLowerCase();
+  // A link is an anchor, even when it is a div with a role; it stays.
+  if (role === "link") return false;
+
+  if (!el.querySelector(IMAGE_CONTROL_MEDIA_SELECTOR)) return false;
+
+  const tabIndex = (el.getAttribute("tabindex") || "").trim();
+  const isKeyboardFocusable = tabIndex !== "" && tabIndex !== "-1";
+  return tag === "button" || isKeyboardFocusable || role === "button";
+}
+
+/**
+ * The wrapper's own text label, which the publisher's CSS normally hides. Only
+ * text that is not part of a semantic block, a link, or the media is dropped,
+ * so a caption, a heading, or navigation inside the control survives with the
+ * picture.
+ */
+function isImageControlLabel(el: Element): boolean {
+  const tag = el.tagName.toLowerCase();
+  if (IMAGE_CONTROL_TEXT_BLOCK_TAGS.has(tag) || tag === "a") {
+    return false;
+  }
+  if (el.querySelector(IMAGE_CONTROL_MEDIA_SELECTOR)) return false;
+  return (el.textContent || "").trim().length > 0;
+}
+
+function containsImageControlLabel(el: Element): boolean {
+  return Array.from(el.querySelectorAll("*")).some(isImageControlLabel);
+}
+
+/**
+ * Readability drops the focusable attributes and rewrites some controls as a
+ * `<p>` when the wrapper holds only phrasing content (the localized Medium
+ * shape in #1362). A direct child of a figure that wraps media and still
+ * carries a text-only label element is therefore a control too. A figure's
+ * anchor, picture, image, and caption are content, never wrappers.
+ */
+function isFigureImageControl(el: Element): boolean {
+  if (el.parentElement?.tagName.toLowerCase() !== "figure") return false;
+  const tag = el.tagName.toLowerCase();
+  if (["a", "figcaption", "figure", "img", "picture"].includes(tag)) {
+    return false;
+  }
+  if ((el.getAttribute("role") || "").trim().toLowerCase() === "link") {
+    return false;
+  }
+  if ((el.getAttribute("tabindex") || "").trim() === "-1") return false;
+  if (!el.querySelector(IMAGE_CONTROL_MEDIA_SELECTOR)) return false;
+  return containsImageControlLabel(el);
+}
+
+function removeImageControlLabels(control: Element): void {
+  // A label can sit directly in the control as a bare text node.
+  Array.from(control.childNodes).forEach((node) => {
+    if (node.nodeType === Node.TEXT_NODE && (node.textContent || "").trim()) {
+      node.remove();
+    }
+  });
+
+  // Remove the outermost label in each non-media branch, so a nested
+  // `<div><span>label</span></div>` goes in one step and leaves no shell.
+  const labels = Array.from(control.querySelectorAll("*")).filter(
+    isImageControlLabel,
+  );
+  const labelSet = new Set(labels);
+  labels.forEach((label) => {
+    for (
+      let parent = label.parentElement;
+      parent && parent !== control;
+      parent = parent.parentElement
+    ) {
+      if (labelSet.has(parent)) return;
+    }
+    label.remove();
+  });
+}
+
+function unwrapElement(el: Element): void {
+  const parent = el.parentNode;
+  if (!parent) return;
+  while (el.firstChild) {
+    parent.insertBefore(el.firstChild, el);
+  }
+  el.remove();
+}
+
+/**
+ * Removes a publisher's image-expand control from a fetched article (#1362).
+ * The publisher styles the control's text label out of sight, but no publisher
+ * CSS is loaded in the reader, so the label would render as body copy above the
+ * picture. A focusable wrapper around media is unwrapped and its text-only
+ * label is dropped, keeping the picture and any `figcaption` where they were.
+ * The same happens to a figure child that still wraps media and a label after
+ * Readability has stripped the control's attributes.
+ *
+ * A wrapper with no media is left alone, and so is an anchor around an image:
+ * neither is a publisher image control. The label match is structural, not
+ * textual, so a localized label is removed too.
+ */
+export function stripImageExpandControlsFromDocument(doc: Document): void {
+  const body = doc.body;
+  if (!body) return;
+
+  const focusable = Array.from(
+    body.querySelectorAll<HTMLElement>("button, [tabindex], [role]"),
+  ).filter(isImageExpandControl);
+  const figureWrappers = Array.from(
+    body.querySelectorAll<HTMLElement>("figure > *"),
+  ).filter(isFigureImageControl);
+
+  new Set([...focusable, ...figureWrappers]).forEach((control) => {
+    removeImageControlLabels(control);
+    unwrapElement(control);
+  });
+}
+
 export function stripDuplicateLeadMediaMatchingHero(
   doc: Document,
   heroUrl: string,
@@ -527,10 +684,11 @@ export interface FetchedArticleCleanupOptions {
  *
  * Order matters. Navigation chrome and the top headline go first, then the
  * single root element Readability wraps a fetched page in is flattened so the
- * body-child scans below see its blocks. The duplicate lead and the skip links
- * follow. Lead media and its captions run last, and only when a hero is set:
- * the credit captions are collected before the lead media is removed, so a
- * caption-only `<figure>` is paired with the paragraph that repeats it.
+ * body-child scans below see its blocks. Publisher image-expand controls are
+ * unwrapped next, before the duplicate lead and skip-link scans. Lead media and
+ * its captions run last, and only when a hero is set: the credit captions are
+ * collected before the lead media is removed, so a caption-only `<figure>` is
+ * paired with the paragraph that repeats it.
  */
 export function cleanFetchedArticleDocument(
   doc: Document,
@@ -539,6 +697,7 @@ export function cleanFetchedArticleDocument(
   stripNavigationChromeFromDocument(doc);
   stripTopHeadlineFromDocument(doc);
   flattenSingleRootWrapper(doc);
+  stripImageExpandControlsFromDocument(doc);
   stripDuplicateLeadContentFromDocument(doc, options.feedDescriptionHtml);
   stripSkipLinksFromDocument(doc);
   // Inline SVGs are publisher UI decorations (section icons, share buttons)
