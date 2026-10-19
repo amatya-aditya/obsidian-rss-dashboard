@@ -335,6 +335,138 @@ function isPlaceholderSrc(src: string | null): boolean {
   return !trimmed || trimmed === "about:blank" || trimmed.startsWith("data:");
 }
 
+/** An absolute http(s) URL, the only candidate allowed to become a `src`. */
+function isHttpUrl(value: string): boolean {
+  return sanitizeImageUrl(value) !== "";
+}
+
+interface SrcsetCandidate {
+  url: string;
+  score: number;
+}
+
+/** A width/density descriptor as a comparable score; no descriptor is the baseline. */
+function scoreSrcsetDescriptor(descriptor: string): number {
+  const token = descriptor.trim().split(/\s+/)[0] ?? "";
+  if (token.endsWith("w")) {
+    const width = Number.parseInt(token.slice(0, -1), 10);
+    if (!Number.isNaN(width)) return width;
+  }
+  if (token.endsWith("x")) {
+    const density = Number.parseFloat(token.slice(0, -1));
+    if (!Number.isNaN(density)) return density * 1000;
+  }
+  return 1;
+}
+
+/**
+ * Reads a `srcset` list into candidates. A URL runs to the next whitespace, so
+ * a URL that itself contains commas stays whole; the separator can follow a
+ * descriptor with or without a space (`a.jpg 640w, b.jpg 1400w` and
+ * `a.jpg 640w,b.jpg 1400w` both split) (#1361).
+ */
+function parseSrcsetCandidates(srcset: string): SrcsetCandidate[] {
+  const candidates: SrcsetCandidate[] = [];
+  let index = 0;
+
+  while (index < srcset.length) {
+    while (index < srcset.length && /[\s,]/.test(srcset.charAt(index)))
+      index += 1;
+    if (index >= srcset.length) break;
+
+    const urlStart = index;
+    while (index < srcset.length && !/\s/.test(srcset.charAt(index)))
+      index += 1;
+    let url = srcset.slice(urlStart, index);
+    let descriptor = "";
+
+    if (url.endsWith(",")) {
+      url = url.replace(/,+$/, "");
+    } else {
+      const descriptorStart = index;
+      while (index < srcset.length && srcset.charAt(index) !== ",") index += 1;
+      descriptor = srcset.slice(descriptorStart, index);
+    }
+
+    if (url) {
+      candidates.push({ url, score: scoreSrcsetDescriptor(descriptor) });
+    }
+
+    while (index < srcset.length && srcset.charAt(index) === ",") index += 1;
+  }
+
+  return candidates;
+}
+
+/**
+ * Picks the highest-resolution candidate from a `srcset` list, optionally
+ * ignoring candidates `accept` refuses before ranking them (#1361).
+ */
+export function extractHighestResolutionFromSrcset(
+  srcset: string | null | undefined,
+  accept: (url: string) => boolean = () => true,
+): string | null {
+  let bestUrl: string | null = null;
+  let bestScore = -1;
+
+  for (const candidate of parseSrcsetCandidates((srcset || "").trim())) {
+    if (!accept(candidate.url) || candidate.score <= bestScore) continue;
+    bestScore = candidate.score;
+    bestUrl = candidate.url;
+  }
+
+  return bestUrl;
+}
+
+/**
+ * Removes the "view image in full size" control label a server-rendered
+ * picture sits behind. The label drives a client-side zoom that a fetch never
+ * runs, so it is noise once the image is kept (#1361).
+ */
+function removePictureControlLabel(picture: Element): void {
+  const control = picture.closest('[role="button"]');
+  if (!control) return;
+  for (const child of Array.from(control.children)) {
+    if (child.tagName === "SPAN" && !child.querySelector("img, picture")) {
+      child.remove();
+    }
+  }
+}
+
+/**
+ * Gives a `<picture>` whose `<img>` has no usable `src` the best candidate from
+ * its sources' `srcset` lists, or from the image's own `srcset`. Server-rendered
+ * pages (Medium, for one) leave the `src` to a client script that a fetch never
+ * runs, and Readability drops the whole `<picture>` when the `img` has no `src`
+ * (#1361). A real `src`, and any non-http(s) candidate, is left alone.
+ */
+export function promotePictureImageSources(root: ParentNode): void {
+  root.querySelectorAll("img").forEach((img) => {
+    const picture = img.closest("picture");
+    if (!picture || !isPlaceholderSrc(img.getAttribute("src"))) return;
+
+    const sourceCandidate = Array.from(
+      picture.querySelectorAll<HTMLSourceElement>("source[srcset]"),
+    )
+      .map((source) =>
+        extractHighestResolutionFromSrcset(
+          source.getAttribute("srcset"),
+          isHttpUrl,
+        ),
+      )
+      .find((url): url is string => !!url);
+    const imageCandidate = extractHighestResolutionFromSrcset(
+      img.getAttribute("srcset"),
+      isHttpUrl,
+    );
+    const candidate = sourceCandidate ?? imageCandidate;
+
+    if (!candidate) return;
+    img.setAttribute("src", candidate);
+    removePictureControlLabel(picture);
+  });
+}
+
 /** A single URL or path, not a flag such as `true` or `lazy` or a list. */
 function isLazyUrlValue(value: string): boolean {
   return (
