@@ -11,6 +11,12 @@ import {
   connectYouTubePlayerChannel,
   YouTubePlayerUpdate,
 } from "../utils/youtube-player-channel";
+import {
+  TWITCH_PLAYER_ALLOW,
+  twitchPlayerSourceUrl,
+  twitchVodIdFor,
+  twitchVodWatchUrl,
+} from "../utils/twitch-embed";
 import { resolveDisplayDate } from "../services/feed-parser/feed-retention";
 
 export class VideoPlayer {
@@ -71,7 +77,7 @@ export class VideoPlayer {
   }
 
   loadVideo(item: FeedItem): void {
-    if (!item.videoId) {
+    if (!item.videoId && !twitchVodIdFor(item)) {
       new Notice("No video id provided");
       return;
     }
@@ -95,7 +101,9 @@ export class VideoPlayer {
   }
 
   private render(): void {
-    if (!this.currentItem || !this.currentItem.videoId) return;
+    if (!this.currentItem) return;
+    const twitchVodId = twitchVodIdFor(this.currentItem);
+    if (!this.currentItem.videoId && !twitchVodId) return;
 
     this.container.empty();
     this.playerEl = this.container.createDiv({ cls: "rss-video-player" });
@@ -103,31 +111,53 @@ export class VideoPlayer {
     const videoContainer = this.playerEl.createDiv({
       cls: "rss-video-container",
     });
-    const iframeId = `yt-player-${Math.random().toString(36).substring(2, 11)}`;
+    const iframe = twitchVodId
+      ? this.createTwitchIframe(videoContainer, twitchVodId)
+      : this.createYouTubeIframe(
+          videoContainer,
+          this.currentItem.videoId ?? "",
+        );
+    this.iframeEl = iframe;
 
-    this.iframeEl = videoContainer.win.createEl("iframe");
-    this.iframeEl.id = iframeId;
-    // Obsidian's embed host from a non-https origin, the plain nocookie embed
-    // otherwise. The host is what makes desktop and iOS play; a direct embed
-    // from Obsidian's `app://` origin is refused by YouTube (#1173, #1178).
-    this.iframeEl.src = youTubePlayerSourceUrl(this.currentItem.videoId, {
-      autoplay: true,
-      startSeconds: this.resumeSeconds(),
-    });
-    this.iframeEl.setAttribute("allow", YOUTUBE_PLAYER_ALLOW);
-    this.iframeEl.setAttribute(
-      "referrerpolicy",
-      YOUTUBE_PLAYER_REFERRER_POLICY,
-    );
-    this.iframeEl.allowFullscreen = true;
-
-    videoContainer.appendChild(this.iframeEl);
+    videoContainer.appendChild(iframe);
     this.renderWatchLink();
-    this.connectPlayer(this.iframeEl);
+    // Twitch's embed has no position channel, so only YouTube reports progress.
+    if (!twitchVodId) this.connectPlayer(iframe);
 
     this.tags = this.currentItem.tags;
     this.renderDetails();
     this.renderRelatedVideos();
+  }
+
+  private createYouTubeIframe(
+    videoContainer: HTMLElement,
+    videoId: string,
+  ): HTMLIFrameElement {
+    const iframe = videoContainer.win.createEl("iframe");
+    iframe.id = `yt-player-${Math.random().toString(36).substring(2, 11)}`;
+    // Obsidian's embed host from a non-https origin, the plain nocookie embed
+    // otherwise. The host is what makes desktop and iOS play; a direct embed
+    // from Obsidian's `app://` origin is refused by YouTube (#1173, #1178).
+    iframe.src = youTubePlayerSourceUrl(videoId, {
+      autoplay: true,
+      startSeconds: this.resumeSeconds(),
+    });
+    iframe.setAttribute("allow", YOUTUBE_PLAYER_ALLOW);
+    iframe.setAttribute("referrerpolicy", YOUTUBE_PLAYER_REFERRER_POLICY);
+    iframe.allowFullscreen = true;
+    return iframe;
+  }
+
+  private createTwitchIframe(
+    videoContainer: HTMLElement,
+    vodId: string,
+  ): HTMLIFrameElement {
+    const iframe = videoContainer.win.createEl("iframe");
+    iframe.id = `twitch-player-${Math.random().toString(36).substring(2, 11)}`;
+    iframe.src = twitchPlayerSourceUrl(vodId, { autoplay: true });
+    iframe.setAttribute("allow", TWITCH_PLAYER_ALLOW);
+    iframe.allowFullscreen = true;
+    return iframe;
   }
 
   /**
@@ -145,15 +175,22 @@ export class VideoPlayer {
    * host is undocumented, so the link must work on its own.
    */
   private renderWatchLink(): void {
-    if (!this.playerEl || !this.currentItem?.videoId) return;
+    if (!this.playerEl || !this.currentItem) return;
+    const twitchVodId = twitchVodIdFor(this.currentItem);
+    const videoId = this.currentItem.videoId;
+    if (!twitchVodId && !videoId) return;
     const link = this.playerEl.createEl("a", { cls: "rss-video-watch" });
-    link.href = youTubeWatchUrl(this.currentItem.videoId);
+    link.href = twitchVodId
+      ? twitchVodWatchUrl(twitchVodId)
+      : youTubeWatchUrl(videoId ?? "");
     link.target = "_blank";
     link.rel = "noopener noreferrer";
     const icon = link.createSpan({ cls: "rss-video-watch-icon" });
     setIcon(icon, "play");
     link.appendChild(
-      this.playerEl.ownerDocument.createTextNode("Watch on YouTube"),
+      this.playerEl.ownerDocument.createTextNode(
+        twitchVodId ? "Watch on Twitch" : "Watch on YouTube",
+      ),
     );
   }
 
@@ -351,7 +388,7 @@ export class VideoPlayer {
         (v) =>
           this.currentItem &&
           v.guid !== this.currentItem.guid &&
-          v.videoId &&
+          (v.videoId || twitchVodIdFor(v)) &&
           v.feedUrl === this.currentItem.feedUrl,
       )
       .slice(0, 5);
@@ -367,15 +404,15 @@ export class VideoPlayer {
           cls: "rss-video-related-item",
         });
 
-        if (video.videoId) {
+        const thumbnailSrc = video.videoId
+          ? `https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`
+          : video.coverImage;
+        if (thumbnailSrc) {
           const thumbnail = videoItem.createDiv({
             cls: "rss-video-related-thumbnail",
           });
           thumbnail.createEl("img", {
-            attr: {
-              src: `https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`,
-              alt: video.title,
-            },
+            attr: { src: thumbnailSrc, alt: video.title },
           });
         }
 

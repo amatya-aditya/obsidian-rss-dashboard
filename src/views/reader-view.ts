@@ -30,6 +30,7 @@ import {
 } from "../utils/math-copy";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { enhanceYouTubeEmbeds } from "../utils/youtube-inline-embed";
+import { twitchVodIdFor } from "../utils/twitch-embed";
 import { type FullArticleFetchResult } from "../utils/fetch-helpers";
 import {
   persistFetchedCoverImage,
@@ -1516,7 +1517,7 @@ export class ReaderView extends ItemView {
     const container = this.readingContainer.createDiv({
       cls: "rss-reader-video-container enhanced",
     });
-    if (item.videoId) {
+    if (item.videoId || twitchVodIdFor(item)) {
       this.videoPlayer = new VideoPlayer(
         container,
         (selectedVideo) => {

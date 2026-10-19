@@ -10,6 +10,7 @@ import {
 } from "../utils/reader-tag-chips";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { enhanceYouTubeEmbeds } from "../utils/youtube-inline-embed";
+import { twitchVodIdFor } from "../utils/twitch-embed";
 import { scheduleProcessMathElements } from "../utils/math-rendering";
 import { FeedItem, RssDashboardSettings, Tag } from "../types/types";
 import { HighlightService } from "../services/highlight-service";
@@ -165,7 +166,7 @@ export class ArticleRenderer {
       if (vid) item.videoId = vid;
     }
 
-    if (item.mediaType === "video" && item.videoId) {
+    if (item.mediaType === "video" && (item.videoId || twitchVodIdFor(item))) {
       await this.displayVideo(container, item);
     } else if (item.mediaType === "video" && item.videoUrl) {
       await this.displayVideoPodcast(container, item);
@@ -264,7 +265,7 @@ export class ArticleRenderer {
     const videoContainer = container.createDiv({
       cls: "rss-reader-video-container enhanced",
     });
-    if (item.videoId) {
+    if (item.videoId || twitchVodIdFor(item)) {
       this.videoPlayer = new VideoPlayer(
         videoContainer,
         (selectedVideo) => {
