@@ -493,6 +493,7 @@ export class FeedParser {
     if (resolvedSiteUrl) {
       newFeed.siteUrl = resolvedSiteUrl;
     }
+    const itemLinkBaseUrl = resolvedSiteUrl || url;
 
     const existingItems = new Map<string, FeedItem>();
     if (existingFeed) {
@@ -532,14 +533,17 @@ export class FeedParser {
       const audioUrl = isAudioEnclosure
         ? this.convertToAbsoluteUrl(item.enclosure?.url || "", url)
         : isAudioLink
-          ? this.convertToAbsoluteUrl(item.link || "", url)
+          ? this.convertToAbsoluteUrl(item.link || "", itemLinkBaseUrl)
           : undefined;
 
       const enclosure =
         item.enclosure ||
         (isAudioLink
           ? {
-              url: this.convertToAbsoluteUrl(item.link || "", url),
+              url: this.convertToAbsoluteUrl(
+                item.link || "",
+                itemLinkBaseUrl,
+              ),
               type: "audio/mpeg",
               length: "",
             }
@@ -601,7 +605,7 @@ export class FeedParser {
           ...existingItem,
           guid: itemGuid,
           link:
-            this.convertToAbsoluteUrl(item.link || "", url) ||
+            this.convertToAbsoluteUrl(item.link || "", itemLinkBaseUrl) ||
             existingItem.link,
           title: item.title || existingItem.title,
           description: this.convertRelativeUrlsInContent(
@@ -718,7 +722,7 @@ export class FeedParser {
         );
         const newItem: FeedItem = {
           title: item.title || "No title",
-          link: this.convertToAbsoluteUrl(item.link || "", url),
+          link: this.convertToAbsoluteUrl(item.link || "", itemLinkBaseUrl),
           description: this.convertRelativeUrlsInContent(
             item.description || "",
             url,

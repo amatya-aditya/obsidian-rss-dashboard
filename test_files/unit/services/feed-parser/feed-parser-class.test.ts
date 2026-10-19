@@ -1102,4 +1102,152 @@ describe("FeedParser.parseFeed", () => {
 
     requestUrlSpy.mockRestore();
   });
+
+  it("resolves root-relative Atom entry links against the feed's alternate site URL when the feed is hosted on a separate domain", async () => {
+    const feedUrl = "http://feeds.harvardbusiness.org/harvardbusiness/";
+    const atomXml = `<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Harvard Business Review</title>
+  <link href="http://hbr.org" rel="alternate" type="text/html"/>
+  <entry>
+    <id>tag:blogs.harvardbusiness.org,2007-03-31:999.435735</id>
+    <title>The Most Consequential Move a New CEO Can Make</title>
+    <link href="/2026/10/the-most-consequential-move-a-new-ceo-can-make" rel="alternate" type="text/html"/>
+    <summary>Summary text</summary>
+    <published>2026-10-15T12:00:00Z</published>
+  </entry>
+</feed>`;
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy.mockResolvedValueOnce(mockResponse(200, atomXml));
+
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
+    const parsed = await parser.parseFeed(feedUrl, null);
+
+    expect(parsed.siteUrl).toBe("http://hbr.org");
+    expect(parsed.items).toHaveLength(1);
+    expect(parsed.items[0].link).toBe(
+      "http://hbr.org/2026/10/the-most-consequential-move-a-new-ceo-can-make",
+    );
+    expect(parsed.items[0].guid).toBe(
+      "tag:blogs.harvardbusiness.org,2007-03-31:999.435735",
+    );
+
+    requestUrlSpy.mockRestore();
+  });
+
+  it("resolves relative RSS 2.0 item links against <channel><link> when the feed host differs from the site host, including across refresh", async () => {
+    const feedUrl = "https://feeds.publisher-cdn.net/main.xml";
+    const rssXml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Publisher Site</title>
+    <link>https://www.publisher.org/news/</link>
+    <description>News feed</description>
+    <item>
+      <title>Root Relative Story</title>
+      <link>/2026/10/root-story</link>
+      <guid isPermaLink="false">story-1</guid>
+      <pubDate>Mon, 12 Oct 2026 10:00:00 GMT</pubDate>
+    </item>
+    <item>
+      <title>Path Relative Story</title>
+      <link>october/path-story</link>
+      <guid isPermaLink="false">story-2</guid>
+      <pubDate>Mon, 12 Oct 2026 11:00:00 GMT</pubDate>
+    </item>
+  </channel>
+</rss>`;
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy
+      .mockResolvedValueOnce(mockResponse(200, rssXml))
+      .mockResolvedValueOnce(mockResponse(200, rssXml));
+
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
+    const first = await parser.parseFeed(feedUrl, null);
+
+    expect(first.siteUrl).toBe("https://www.publisher.org/news/");
+    expect(first.items).toHaveLength(2);
+    const rootItem = first.items.find((i) => i.title === "Root Relative Story");
+    const pathItem = first.items.find((i) => i.title === "Path Relative Story");
+    expect(rootItem?.link).toBe("https://www.publisher.org/2026/10/root-story");
+    expect(pathItem?.link).toBe(
+      "https://www.publisher.org/news/october/path-story",
+    );
+
+    const refreshed = await parser.parseFeed(feedUrl, first);
+    expect(
+      refreshed.items.find((i) => i.title === "Root Relative Story")?.link,
+    ).toBe("https://www.publisher.org/2026/10/root-story");
+
+    requestUrlSpy.mockRestore();
+  });
+
+  it("falls back to the feed URL when the feed declares no home page or a non-http(s) home page, and preserves absolute and protocol-relative item links", async () => {
+    const feedUrl = "https://feeds.example.net/rss.xml";
+    const noHomeXml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>No Home Link Feed</title>
+    <description>No channel link</description>
+    <item>
+      <title>Relative Item</title>
+      <link>/posts/relative-1</link>
+      <guid isPermaLink="false">item-rel</guid>
+    </item>
+    <item>
+      <title>Absolute Item</title>
+      <link>https://external.example.com/posts/abs-1?ref=rss#top</link>
+      <guid isPermaLink="false">item-abs</guid>
+    </item>
+    <item>
+      <title>Protocol Relative Item</title>
+      <link>//cdn.example.org/posts/proto-1</link>
+      <guid isPermaLink="false">item-proto</guid>
+    </item>
+  </channel>
+</rss>`;
+
+    const nonHttpHomeXml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Non-HTTP Home Link Feed</title>
+    <link>mailto:editor@example.org</link>
+    <description>Non-http channel link</description>
+    <item>
+      <title>Relative Item</title>
+      <link>/posts/relative-2</link>
+      <guid isPermaLink="false">item-non-http</guid>
+    </item>
+  </channel>
+</rss>`;
+
+    const requestUrlSpy = vi.spyOn(obsidian, "requestUrl");
+    requestUrlSpy
+      .mockResolvedValueOnce(mockResponse(200, noHomeXml))
+      .mockResolvedValueOnce(mockResponse(200, nonHttpHomeXml));
+
+    const parser = new FeedParser(DEFAULT_SETTINGS.display, [], mediaSettings);
+
+    const parsedNoHome = await parser.parseFeed(feedUrl, null);
+    expect(
+      parsedNoHome.items.find((i) => i.title === "Relative Item")?.link,
+    ).toBe("https://feeds.example.net/posts/relative-1");
+    expect(
+      parsedNoHome.items.find((i) => i.title === "Absolute Item")?.link,
+    ).toBe("https://external.example.com/posts/abs-1?ref=rss#top");
+    expect(
+      parsedNoHome.items.find((i) => i.title === "Protocol Relative Item")
+        ?.link,
+    ).toBe("https://cdn.example.org/posts/proto-1");
+
+    const parsedNonHttpHome = await parser.parseFeed(feedUrl, null);
+    expect(parsedNonHttpHome.siteUrl).toBeUndefined();
+    expect(
+      parsedNonHttpHome.items.find((i) => i.title === "Relative Item")?.link,
+    ).toBe("https://feeds.example.net/posts/relative-2");
+
+    requestUrlSpy.mockRestore();
+  });
 });
