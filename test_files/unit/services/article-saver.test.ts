@@ -2888,6 +2888,18 @@ describe("ArticleSaver RSS-content saves write Markdown (#1190)", () => {
     );
   });
 
+  it("resolves a relative image against the item's own link, whatever host the feed came from (#1337)", async () => {
+    const written = await saveRss(
+      createItem({
+        link: "https://hbr.example.com/2026/10/story",
+        feedUrl: "https://feeds.hbr.example.com/harvardbusiness/",
+        content: '<p>Body.</p><img src="/img/body.png" alt="Body">',
+      }),
+    );
+
+    expect(written).toContain("![Body](https://hbr.example.com/img/body.png)");
+  });
+
   it("matches the fetch-failure fallback's Markdown for the same feed HTML", async () => {
     // Ad containers and relative images are handled on every save path, so the
     // RSS save and the fallback stay byte-identical (#1195).

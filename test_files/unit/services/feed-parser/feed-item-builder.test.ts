@@ -96,6 +96,7 @@ function requestFor(
   return {
     parsed,
     feedUrl: FEED_URL,
+    itemLinkBaseUrl: FEED_URL,
     existingFeed,
     newFeed: existingFeed ?? feedOf([]),
     existingItems: indexExistingItems(existingFeed, FEED_URL, ctx),
@@ -213,6 +214,26 @@ describe("feed-item-builder", () => {
       ]);
       expect([...result.seenGuids]).toEqual(["https://example.com/hello-1"]);
       expect(result.skippedByRefreshCutoffCount).toBe(0);
+    });
+
+    it("resolves an item link against its own base while identity keeps the feed url (#1337)", () => {
+      const ctx = makeContext();
+      const result = collectRefreshedItems(
+        requestFor(
+          [pitem({ title: "A", link: "/2026/10/story", pubDate: RECENT })],
+          null,
+          ctx,
+          { itemLinkBaseUrl: "https://hbr.example.com" },
+        ),
+        ctx,
+      );
+
+      expect(result.newItems[0]?.link).toBe(
+        "https://hbr.example.com/2026/10/story",
+      );
+      expect(result.newItems[0]?.guid).toBe(
+        "https://example.com/2026/10/story",
+      );
     });
 
     it("treats an audio enclosure as a podcast episode with the podcast cover", () => {

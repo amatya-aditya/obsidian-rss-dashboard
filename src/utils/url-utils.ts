@@ -123,6 +123,47 @@ export function resolveAbsoluteHttpUrl(
   }
 }
 
+/**
+ * The base a feed's own relative item link resolves against (#1337).
+ *
+ * A feed hosted away from the site it describes (HBR's
+ * `feeds.harvardbusiness.org`, FeedBurner, FeedPress, a CDN) publishes
+ * root-relative article paths such as `/2026/10/...`, and they belong to the
+ * site: resolved against the feed's own host they 404. The feed's declared
+ * home page is therefore the base, with a plain-http scheme upgraded to https
+ * because publishers declare it as http.
+ *
+ * A feed served from the same host as its home page keeps `feedUrl`: its
+ * relative links already land on the right host, and the feed document is the
+ * base a non-root relative path was written for. A missing or non-http(s) home
+ * page also falls back to `feedUrl`.
+ */
+export function resolveItemLinkBaseUrl(
+  declaredHomePage: string | null,
+  feedUrl: string,
+): string {
+  if (
+    !declaredHomePage ||
+    !isOpenableHttpUrl(declaredHomePage) ||
+    !isHomePageOnAnotherHost(declaredHomePage, feedUrl)
+  ) {
+    return feedUrl;
+  }
+  return declaredHomePage.replace(/^http:\/\//i, "https://");
+}
+
+/**
+ * Whether the home page parses and sits on a host other than the feed's own. A
+ * pair that cannot be parsed is not known to differ, so it keeps `feedUrl`.
+ */
+function isHomePageOnAnotherHost(homePage: string, feedUrl: string): boolean {
+  try {
+    return new URL(homePage).host !== new URL(feedUrl).host;
+  } catch {
+    return false;
+  }
+}
+
 export function normalizeUrlForComparison(rawUrl: string): string | null {
   try {
     const parsedUrl = new URL(rawUrl);

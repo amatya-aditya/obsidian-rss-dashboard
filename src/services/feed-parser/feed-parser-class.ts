@@ -8,7 +8,10 @@ import {
 } from "../../types/types.js";
 import { MediaService } from "../media-service.js";
 import { MastodonService } from "../mastodon-service.js";
-import { resolveAbsoluteHttpUrl } from "../../utils/url-utils.js";
+import {
+  resolveAbsoluteHttpUrl,
+  resolveItemLinkBaseUrl,
+} from "../../utils/url-utils.js";
 import { htmlToReadableText } from "../../utils/html-text.js";
 import { fetchFeedXml } from "./feed-fetch.js";
 import { parseFetchErrorMessage } from "./feed-errors.js";
@@ -377,6 +380,11 @@ export class FeedParser {
     if (resolvedSiteUrl) {
       newFeed.siteUrl = resolvedSiteUrl;
     }
+    // The base a relative item link resolves against (#1337): the feed's own
+    // home page when the feed is hosted away from it, else the feed url.
+    // Nothing else moves: identity, content urls and images all keep resolving
+    // against the feed url.
+    const itemLinkBaseUrl = resolveItemLinkBaseUrl(resolvedSiteUrl, url);
     // A refresh keeps the stored language when the feed stops declaring one.
     if (parsed.language) {
       newFeed.language = parsed.language;
@@ -401,6 +409,7 @@ export class FeedParser {
         {
           parsed,
           feedUrl: url,
+          itemLinkBaseUrl,
           existingFeed,
           newFeed,
           existingItems,
