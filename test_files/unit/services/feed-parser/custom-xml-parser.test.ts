@@ -20,6 +20,9 @@ import {
   ATOM_BASIC,
   ATOM_WITH_AUTHOR,
   ATOM_WITH_LOGO,
+  ATOM_PREFIXED,
+  RSS2_PREFIXED,
+  RSS1_PREFIXED,
   JSON_FEED_BASIC,
   JSON_FEED_EMPTY_ITEMS,
   JSON_FEED_WITHOUT_DATE,
@@ -525,6 +528,84 @@ describe("CustomXMLParser - Atom Parsing", () => {
     expect(
       resolveAbsoluteHttpUrl(result.link, "https://example.com/atom.xml"),
     ).toBe("https://example.com");
+  });
+});
+
+describe("CustomXMLParser - namespace-prefixed feeds", () => {
+  let parser: CustomXMLParser;
+
+  beforeEach(() => {
+    parser = new CustomXMLParser();
+  });
+
+  it("parses an Atom feed whose elements carry a namespace prefix", () => {
+    const result = parser.parseString(ATOM_PREFIXED);
+
+    expect(result.type).toBe("atom");
+    expect(result.title).toBe("Prefixed Atom Feed");
+    expect(result.items).toHaveLength(1);
+
+    const entry = result.items[0];
+    expect(entry.title).toBe("Prefixed Atom Entry");
+    expect(entry.link).toBe("https://example.com/prefixed-entry");
+    expect(entry.guid).toBe("https://example.com/prefixed-entry");
+    expect(entry.pubDate).toBe("2024-01-01T00:00:00Z");
+    expect(entry.description).toBe("Prefixed entry summary");
+    expect(entry.author).toBe("Ada Lovelace");
+    expect(entry.authors).toEqual(["Ada Lovelace"]);
+  });
+
+  it("parses an RSS 2.0 feed whose elements carry a namespace prefix", () => {
+    const result = parser.parseString(RSS2_PREFIXED);
+
+    expect(result.type).toBe("rss");
+    expect(result.title).toBe("Prefixed RSS Feed");
+    expect(result.link).toBe("https://example.com");
+    expect(result.image).toEqual({ url: "https://example.com/logo.png" });
+    expect(result.items).toHaveLength(1);
+
+    const item = result.items[0];
+    expect(item.title).toBe("Prefixed Item");
+    expect(item.link).toBe("https://example.com/prefixed-1");
+    expect(item.pubDate).toBe("Mon, 01 Jan 2024 00:00:00 GMT");
+    expect(item.category).toBe("News");
+    expect(item.author).toBe("Ada Lovelace");
+    expect(item.authors).toEqual(["Ada Lovelace"]);
+  });
+
+  it("parses an RSS 1.0 feed whose elements carry a namespace prefix", () => {
+    const result = parser.parseString(RSS1_PREFIXED);
+
+    expect(result.type).toBe("rss");
+    expect(result.title).toBe("Prefixed RSS 1.0 Feed");
+    expect(result.image).toEqual({ url: "https://example.com/logo.png" });
+    expect(result.items).toHaveLength(1);
+
+    const item = result.items[0];
+    expect(item.title).toBe("Prefixed RDF Item");
+    expect(item.link).toBe("https://example.com/prefixed-rdf-1");
+    expect(item.author).toBe("Grace Hopper");
+    expect(item.authors).toEqual(["Grace Hopper"]);
+  });
+
+  it("does not collect a prefixed <item> nested inside a description", () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<ns6:rss version="2.0" xmlns:ns6="http://backend.userland.com/rss2">
+  <ns6:channel>
+    <ns6:title>Nested Item Feed</ns6:title>
+    <ns6:link>https://example.com</ns6:link>
+    <ns6:item>
+      <ns6:title>Outer</ns6:title>
+      <ns6:link>https://example.com/outer</ns6:link>
+      <ns6:description>Body with <ns6:item><ns6:title>Inner</ns6:title></ns6:item> markup</ns6:description>
+    </ns6:item>
+  </ns6:channel>
+</ns6:rss>`;
+
+    const result = parser.parseString(xml);
+
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0].title).toBe("Outer");
   });
 });
 
