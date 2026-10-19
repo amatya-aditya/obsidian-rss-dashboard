@@ -401,7 +401,7 @@
   {
     "id": "feed-027",
     "title": "Harvard Business Review",
-    "url": "http://feeds.harvardbusiness.org/harvardbusiness/",
+    "url": "https://hbr.org/resources/xml/atom/latest-abridged.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=hbr.org&sz=128",
     "domain": ["Business"],
     "subdomain": ["Management"],
