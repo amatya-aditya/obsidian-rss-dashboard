@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { buildDocsAudit, findDocsAuditIssues } from "./check-docs-audit.mjs";
 import {
   findMissingNoteIssue,
   isMajorMinorRelease,
@@ -227,7 +228,16 @@ function main() {
   }
 
   const changelogSource = readFileOrEmpty(join(ROOT_DIR, "CHANGELOG.md"));
+  // The docs audit compares against the last release (master). Without that
+  // ref it cannot run, so it skips with a notice rather than passing silently.
+  const docsAudit = buildDocsAudit({ base: "origin/master", head: "HEAD" });
+  if (!docsAudit) {
+    console.log(
+      "check:release-ready: origin/master is not available, so the docs audit is skipped. Run git fetch origin first.",
+    );
+  }
   const issues = [
+    ...(docsAudit ? findDocsAuditIssues(docsAudit) : []),
     findChangelogHeadingIssue(changelogSource, targetVersion),
     findUnreleasedLeftoverIssue(changelogSource),
     findPublicReleaseNotesIssue(
