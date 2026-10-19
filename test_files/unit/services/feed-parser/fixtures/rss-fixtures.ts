@@ -312,6 +312,64 @@ export const ATOM_WITH_LOGO = `<?xml version="1.0" encoding="UTF-8"?>
   </entry>
 </feed>`;
 
+// ─── Namespace-prefixed feeds (#1338) ─────────────────────────────────────────
+// A feed may bind the Atom, RSS 2.0 or RSS 1.0 namespace to any prefix. The
+// prefix carries no meaning, so `<ns6:entry>` is the same element as `<entry>`
+// and these fixtures must parse exactly like their unprefixed siblings.
+
+export const ATOM_PREFIXED = `<?xml version="1.0" encoding="UTF-8"?>
+<ns6:feed xmlns:ns6="http://www.w3.org/2005/Atom">
+  <ns6:title>Prefixed Atom Feed</ns6:title>
+  <ns6:subtitle>An atom feed with a namespace prefix</ns6:subtitle>
+  <ns6:link href="https://example.com" rel="alternate"/>
+  <ns6:entry>
+    <ns6:title>Prefixed Atom Entry</ns6:title>
+    <ns6:link href="https://example.com/prefixed-entry" rel="alternate"/>
+    <ns6:id>https://example.com/prefixed-entry</ns6:id>
+    <ns6:published>2024-01-01T00:00:00Z</ns6:published>
+    <ns6:summary>Prefixed entry summary</ns6:summary>
+    <ns6:author><ns6:name>Ada Lovelace</ns6:name></ns6:author>
+  </ns6:entry>
+</ns6:feed>`;
+
+export const RSS2_PREFIXED = `<?xml version="1.0" encoding="UTF-8"?>
+<ns6:rss version="2.0" xmlns:ns6="http://backend.userland.com/rss2">
+  <ns6:channel>
+    <ns6:title>Prefixed RSS Feed</ns6:title>
+    <ns6:description>A prefixed RSS 2.0 feed</ns6:description>
+    <ns6:link>https://example.com</ns6:link>
+    <ns6:image>
+      <ns6:url>https://example.com/logo.png</ns6:url>
+    </ns6:image>
+    <ns6:item>
+      <ns6:title>Prefixed Item</ns6:title>
+      <ns6:link>https://example.com/prefixed-1</ns6:link>
+      <ns6:description>Prefixed item body</ns6:description>
+      <ns6:pubDate>Mon, 01 Jan 2024 00:00:00 GMT</ns6:pubDate>
+      <ns6:guid>prefixed-1</ns6:guid>
+      <ns6:author>Ada Lovelace</ns6:author>
+      <ns6:category>News</ns6:category>
+    </ns6:item>
+  </ns6:channel>
+</ns6:rss>`;
+
+export const RSS1_PREFIXED = `<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:ns6="http://purl.org/rss/1.0/" xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <ns6:channel rdf:about="https://example.com">
+    <ns6:title>Prefixed RSS 1.0 Feed</ns6:title>
+    <ns6:description>A prefixed RSS 1.0 feed</ns6:description>
+    <ns6:link>https://example.com</ns6:link>
+    <ns6:image rdf:resource="https://example.com/logo.png"/>
+  </ns6:channel>
+  <ns6:item rdf:about="https://example.com/prefixed-rdf-1">
+    <ns6:title>Prefixed RDF Item</ns6:title>
+    <ns6:link>https://example.com/prefixed-rdf-1</ns6:link>
+    <ns6:description>RDF item body</ns6:description>
+    <dc:date>2024-01-01T00:00:00Z</dc:date>
+    <dc:creator>Grace Hopper</dc:creator>
+  </ns6:item>
+</rdf:RDF>`;
+
 // ─── JSON Feed Fixtures ───────────────────────────────────────────────────────
 
 export const JSON_FEED_BASIC = JSON.stringify({

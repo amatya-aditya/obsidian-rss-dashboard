@@ -149,9 +149,11 @@ export class CustomXMLParser {
     const children = Array.from(element.children);
     const exactMatch =
       children.find((child) => child.tagName === normalizedTagName) ?? null;
-    if (exactMatch || !normalizedTagName.includes(":")) return exactMatch;
+    if (exactMatch) return exactMatch;
 
-    const localName = normalizedTagName.split(":")[1];
+    // Fall back to the local name so a namespace prefix is ignored: a prefixed
+    // `<ns6:title>` is the `title` element the callers mean (#1338).
+    const localName = normalizedTagName.split(":").pop() ?? normalizedTagName;
     return children.find((child) => child.localName === localName) ?? null;
   }
 

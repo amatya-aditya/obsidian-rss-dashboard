@@ -79,7 +79,7 @@ export function parseAtom(doc: Document, deps: AtomParserDeps): ParsedFeed {
   const image = imageUrl ? { url: imageUrl } : undefined;
 
   const items: ParsedItem[] = [];
-  const entryElements = Array.from(feed.getElementsByTagName("entry"));
+  const entryElements = Array.from(feed.getElementsByTagNameNS("*", "entry"));
 
   entryElements.forEach((entry, _idx) => {
     const entryTitle = deps.getTextContent(entry, "title");
@@ -94,7 +94,7 @@ export function parseAtom(doc: Document, deps: AtomParserDeps): ParsedFeed {
     const guid = deps.getTextContent(entry, "id") || entryLink;
     const entryAuthors = splitAuthorElements(
       Array.from(entry.children)
-        .filter((child) => child.tagName === "author")
+        .filter((child) => child.localName === "author")
         .map((author) => deps.getTextContent(author, "name")),
     );
     const content =
