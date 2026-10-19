@@ -11,6 +11,7 @@ import { describe, it, expect } from "vitest";
 import type { Feed, FeedItem } from "../../../src/types/types";
 import {
   resolveFallbackHeroUrl,
+  resolveFeedHeroUrl,
   resolveFetchedHeroUrl,
   resolvePageImageHeroUrl,
 } from "../../../src/utils/reader-article-render";
@@ -155,5 +156,68 @@ describe("resolvePageImageHeroUrl (#812)", () => {
 
   it("returns undefined when the item has no page image", () => {
     expect(resolvePageImageHeroUrl(makeItem(), [])).toBeUndefined();
+  });
+});
+
+describe("resolveFeedHeroUrl (#1354)", () => {
+  const PAGE_COVER = "https://img.example.com/page-cover.jpg";
+  const FEED_IMAGE = "https://img.example.com/feed-own.jpg";
+  const FEED_BODY_IMAGE = "https://img.example.com/feed-body.jpg";
+
+  it("keeps the displayed cover while the feed supplied it", () => {
+    expect(resolveFeedHeroUrl(makeItem({ coverImage: PHOTO }), [])).toBe(PHOTO);
+  });
+
+  it("ignores a page-derived cover and takes the feed's own item image", () => {
+    expect(
+      resolveFeedHeroUrl(
+        makeItem({
+          coverImage: PAGE_COVER,
+          coverImageFromPage: true,
+          image: FEED_IMAGE,
+        }),
+        [],
+      ),
+    ).toBe(FEED_IMAGE);
+  });
+
+  it("recomputes the feed image from the blurb when that is where it lives", () => {
+    expect(
+      resolveFeedHeroUrl(
+        makeItem({
+          coverImage: PAGE_COVER,
+          coverImageFromPage: true,
+          content: `<p>Feed body text.</p><img src="${FEED_BODY_IMAGE}">`,
+        }),
+        [],
+      ),
+    ).toBe(FEED_BODY_IMAGE);
+  });
+
+  it("returns no hero when the feed supplies no image of its own", () => {
+    expect(
+      resolveFeedHeroUrl(
+        makeItem({ coverImage: PAGE_COVER, coverImageFromPage: true }),
+        [],
+      ),
+    ).toBeUndefined();
+  });
+
+  it("still excludes a displayed cover that is the feed's own icon", () => {
+    expect(
+      resolveFeedHeroUrl(makeItem({ coverImage: PHOTO }), [makeFeed(PHOTO)]),
+    ).toBeUndefined();
+  });
+
+  it("leaves the fetched version's fallback on the displayed cover", () => {
+    // The RSS hero ignores the page cover, but the fetched version still reads
+    // it when the page declared no page image of its own.
+    const item = makeItem({
+      coverImage: PAGE_COVER,
+      coverImageFromPage: true,
+      image: FEED_IMAGE,
+    });
+    expect(resolveFallbackHeroUrl(item, [])).toBe(PAGE_COVER);
+    expect(resolveFetchedHeroUrl(item, [])).toBe(PAGE_COVER);
   });
 });

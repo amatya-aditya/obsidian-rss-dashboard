@@ -19,6 +19,7 @@ import {
   FIXTURE_PAGES_DIR,
   FIXTURE_SERVER_ORIGIN,
   OG_IMAGE_BODY_FILE,
+  OG_IMAGE_BODY_URL,
   OG_IMAGE_FILE,
   OG_IMAGE_HERO_LINK,
   OG_IMAGE_HERO_PAGE,
@@ -41,6 +42,7 @@ import {
 } from "../../src/utils/article-metadata";
 import { applyArticleMetadata } from "../../src/utils/article-metadata-persistence";
 import { hasMeaningfulArticleContent } from "../../src/utils/reader-html-cleanup";
+import { resolveFeedHeroUrl } from "../../src/utils/reader-article-render";
 import { isValidFeed } from "../../src/services/feed-parser/feed-validation";
 import type { FeedItem } from "../../src/types/types";
 
@@ -289,6 +291,33 @@ describe("Page-image hero fixture scenarios (#812)", () => {
       expect(image.status, file).toBe(200);
       expect(image.contentType, file).toContain("image/png");
     }
+  });
+});
+
+// The page-cover-fetch scenario (#1354): the card's cover is the page image the
+// manual action stores, with its provenance marker, while the item still holds
+// the feed's own image. The RSS version's hero must resolve to the feed image;
+// the fetched version keeps the page image.
+describe("Page cover fetch fixture scenario (#1354)", () => {
+  function seededItem(): FeedItem {
+    const item = seededItems().find(
+      (entry) =>
+        entry.title === "Article whose card cover was fetched from the page",
+    );
+    if (!item) throw new Error("Seeded page-cover article not found.");
+    return item;
+  }
+
+  it("seeds the card cover from the page with its provenance marker", () => {
+    const item = seededItem();
+
+    expect(item.coverImage).toBe(OG_IMAGE_URL);
+    expect(item.coverImageFromPage).toBe(true);
+    expect(item.image).toBe(OG_IMAGE_BODY_URL);
+  });
+
+  it("resolves the RSS hero to the feed's own image, not the page cover", () => {
+    expect(resolveFeedHeroUrl(seededItem(), [])).toBe(OG_IMAGE_BODY_URL);
   });
 });
 

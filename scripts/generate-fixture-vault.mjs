@@ -642,6 +642,23 @@ ${htmlParagraphs("rss-tech-15-outro", 1)}`,
       author: "Fixture Author",
       ...articleText("rss-tech-og-image-no-feed-image", 2),
     }),
+    item(feed, {
+      // #1354: the card's cover is the page's image, stored by "Fetch and
+      // replace cover image" with its provenance marker. The RSS version's hero
+      // must be the feed's own image (`image` here), while the fetched version
+      // still shows the page's og:image. Serve it with `npm run fixture:serve`.
+      title: "Article whose card cover was fetched from the page",
+      link: OG_IMAGE_HERO_LINK,
+      guid: `${LINK_BASE}/rss-tech/page-cover-fetched`,
+      pubDate: at(21),
+      coverImage: OG_IMAGE_URL,
+      author: "Fixture Author",
+      ...articleText("rss-tech-page-cover-fetched", 2),
+      extra: {
+        coverImageFromPage: true,
+        image: OG_IMAGE_BODY_URL,
+      },
+    }),
   ];
 }
 

@@ -567,7 +567,7 @@ result must come from a known build and a clean vault.
 
 ## Seeded scenarios
 
-12 feeds, 166 articles: 48 read, 9 starred, 9 tagged, 1 saved, 2 with playback
+12 feeds, 167 articles: 48 read, 9 starred, 9 tagged, 1 saved, 2 with playback
 progress. The automated test in
 `test_files/unit/main/fixture-vault-loading.test.ts` checks these counts.
 
@@ -612,6 +612,7 @@ progress. The automated test in
 | Tags                                           | Important, Read later, Video, Podcast, Research, Reference, RSS (all used, in different colors) and Unused (defined, never applied)                                                                                                                                                                     |
 | Page image over the feed cover                 | GitHub Blog: "Article whose page declares a hero image" (#812): the page's `og:image` is the fetched version's hero, while the card and the RSS version keep the feed cover. Open it with `npm run fixture:serve` running.                                                                              |
 | Page image with no feed image                  | GitHub Blog: "Article with no feed image but a page image" (#812): the card stays imageless; opening the article makes the page's `og:image` the fetched version's hero, above the body image. Serve it with `npm run fixture:serve`.                                                                   |
+| Card cover fetched from the page               | GitHub Blog: "Article whose card cover was fetched from the page" (#1354): the card shows the page's `og:image` and the fetched version uses it, while the RSS version's hero stays the feed's own image and a note saved from RSS content uses that image. Serve it with `npm run fixture:serve`.      |
 
 The "Stored tracking pixel as the preview image" row seeds the URL-pattern
 variant only. Its size-only twin (The Conversation's `count.gif`) carries no

@@ -58,8 +58,13 @@ version.
 
 - The fetched version's hero is `pageImage` first, then the existing cover chain
   (`coverImage`, `image`, an iTunes image), then the first image in the body.
-- The RSS version and the card keep reading the cover chain and never read
-  `pageImage`, so a card that already shows a feed image does not change.
+- The RSS version never reads `pageImage` and keeps the feed's own image, not
+  the displayed cover: when a [[Cover image fetch]] or the automatic card fill
+  replaced `coverImage` with a page image, the RSS version recomputes the
+  [[Feed hero]] from the item's stored fields (amended 2026-10-19,
+  [#1354](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1354)).
+- The card keeps reading the cover chain, so a card that already shows a feed
+  image does not change.
 - `pageImage` is first-write-wins on its own presence rather than the
   `metadataFetchedAt` gate the other fetched metadata shares, so an item stored
   before the field existed still gains its page image on the next open, and a
@@ -81,8 +86,11 @@ version.
 
 - The fetched version shows the image the publisher declared for the article,
   not the feed's image or an unrelated body image.
-- The card, the RSS version, and an RSS-content save are unchanged, so a feed
-  that ships its own picture keeps it everywhere it already showed.
+- The card, the RSS version, and an RSS-content save are unchanged by the
+  automatic path, so a feed that ships its own picture keeps it everywhere it
+  already showed. The RSS version and its save keep it even after a page image
+  replaces the card's cover (amended 2026-10-19,
+  [#1354](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1354)).
 - The fetched hero no longer depends on the stored cover, so a cover that
   changes (a manual fetch, a refresh) cannot leave it stale.
 
@@ -93,7 +101,10 @@ version.
   other fetched metadata.
 - The page image is stored for every fetched article, including ones whose feed
   already supplied a picture, so an item can hold two covers that differ. The
-  fetched version reads the page image; every other surface reads `coverImage`.
+  fetched version reads the page image; the card, the feed-view hero and
+  `{{image}}` read `coverImage`; the RSS version reads the [[Feed hero]] and
+  recomputes it when `coverImage` came from the page (amended 2026-10-19,
+  [#1354](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1354)).
 - The image survives on the item even after the fetched content itself is gone
   (nothing stores the page body), so it is the last trace of the page on the
   item. That is intended: it is what a later save or render reuses.
@@ -137,9 +148,12 @@ which ADR 0031 anticipated.
   response's head as well as a parsed page (#1342). `isAvatarImageUrl` in
   `src/utils/image-url-utils.ts` is the avatar-host guard.
 - `resolveFetchedHeroUrl` (`src/utils/reader-article-render.ts`) is the shared
-  fetched hero resolver; `resolveFallbackHeroUrl` and `resolvePageImageHeroUrl`
-  are its two halves, and `placeHeroImage` still fills any remaining slot from
-  the first body image.
+  fetched hero resolver; `resolvePageImageHeroUrl` is its page half and
+  `resolveFallbackHeroUrl` its displayed-cover half, and `placeHeroImage` still
+  fills any remaining slot from the first body image. `resolveFeedHeroUrl` is
+  the RSS version's resolver: it reads the displayed cover while the feed
+  supplied it, and recomputes the feed cover when the marker says a page image
+  replaced it (#1354).
 - `feed-item-builder.ts` carries `pageImage` through a refresh like the other
   fetched metadata.
 
