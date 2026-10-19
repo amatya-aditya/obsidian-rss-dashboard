@@ -66,7 +66,7 @@ export function parseRSS(doc: Document, deps: RssParserDeps): ParsedFeed {
   // Use only direct child <item> nodes to avoid accidentally parsing nested
   // <item> tags that may appear in malformed feeds (e.g., inside description HTML).
   const itemElements = Array.from(channel.children).filter(
-    (el) => el.tagName.toLowerCase() === "item",
+    (el) => el.localName.toLowerCase() === "item",
   );
 
   itemElements.forEach((item) => {
@@ -117,7 +117,7 @@ export function parseRSS1(doc: Document, deps: RssParserDeps): ParsedFeed {
 
   const items: ParsedItem[] = [];
 
-  const itemElements = Array.from(doc.getElementsByTagName("item"));
+  const itemElements = Array.from(doc.getElementsByTagNameNS("*", "item"));
 
   itemElements.forEach((item, _index) => {
     const guid =

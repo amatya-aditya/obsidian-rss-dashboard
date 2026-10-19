@@ -28,10 +28,15 @@ export function joinAuthors(names: readonly string[]): string {
   return names.join(", ");
 }
 
-/** The text of each direct child of `parent` with the given tag name. */
+/**
+ * The text of each direct child of `parent` whose local name is `tagName`.
+ * A namespace prefix is ignored, so `<ns6:author>` is the `author` element
+ * the callers mean (#1338).
+ */
 export function childElementTexts(parent: Element, tagName: string): string[] {
+  const localName = tagName.split(":").pop() ?? tagName;
   return Array.from(parent.children)
-    .filter((child) => child.tagName === tagName)
+    .filter((child) => child.localName === localName)
     .map((child) => child.textContent ?? "");
 }
 
