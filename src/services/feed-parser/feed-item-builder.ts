@@ -37,6 +37,13 @@ export interface FeedItemContext {
 export interface RefreshedItemsRequest {
   parsed: ParsedFeed;
   feedUrl: string;
+  /**
+   * The base a feed's own relative item link resolves against: the feed's
+   * declared home page when the feed is hosted away from it, else `feedUrl`
+   * (#1337). Item identity keeps `feedUrl`, so a stored item is never
+   * re-keyed.
+   */
+  itemLinkBaseUrl: string;
   existingFeed: Feed | null;
   newFeed: Feed;
   existingItems: ReadonlyMap<string, FeedItem>;
@@ -81,7 +88,12 @@ function firstSanitizedArticleImageUrl(candidates: unknown[]): string {
   return "";
 }
 
-/** The canonical identity key of an item as the feed would give it. */
+/**
+ * The canonical identity key of an item as the feed would give it. Identity
+ * always resolves against the feed url, never `itemLinkBaseUrl`: a stored
+ * item's guid or link is already absolute, so re-keying it on the site host
+ * would duplicate every stored item (#1337).
+ */
 function itemIdentityKey(
   item: Pick<FeedItem, "guid" | "link">,
   url: string,
@@ -407,7 +419,9 @@ function buildUpdatedItemCore(
   const url = request.feedUrl;
   return {
     guid: itemGuid,
-    link: ctx.convertToAbsoluteUrl(item.link || "", url) || existingItem.link,
+    link:
+      ctx.convertToAbsoluteUrl(item.link || "", request.itemLinkBaseUrl) ||
+      existingItem.link,
     title: item.title || existingItem.title,
     description: ctx.convertRelativeUrlsInContent(item.description || "", url),
     content: ctx.convertRelativeUrlsInContent(item.content || "", url),
@@ -534,7 +548,7 @@ function buildNewItemCore(work: ItemWork, ctx: FeedItemContext): NewItemCore {
   const summary = ctx.extractSummary(item.content || item.description || "");
   return {
     title: item.title || "No title",
-    link: ctx.convertToAbsoluteUrl(item.link || "", url),
+    link: ctx.convertToAbsoluteUrl(item.link || "", request.itemLinkBaseUrl),
     description: ctx.convertRelativeUrlsInContent(item.description || "", url),
     content: ctx.convertRelativeUrlsInContent(item.content || "", url),
     pubDate: item.pubDate || "",
@@ -630,6 +644,7 @@ function processParsedItem(
 ): void {
   const audio = resolveItemAudio(item, request.feedUrl, ctx);
 
+  // Identity, unlike the resolved link, keeps the feed url (#1337).
   const rawItemGuid = ctx.convertToAbsoluteUrl(
     item.guid || item.link || "",
     request.feedUrl,
