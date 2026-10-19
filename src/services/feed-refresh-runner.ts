@@ -83,10 +83,25 @@ export interface FeedRefreshRunnerOptions {
 export class FeedRefreshRunner {
   private readonly feedOperationTracker: FeedOperationTracker;
   private readonly previewImageCache: PreviewImageCache;
+  /**
+   * A monotonic count of refresh attempts started. Views read it read-only to
+   * tell a fresh attempt from the one a dismissal acknowledged (#1353); it is
+   * in memory per plugin session and is never persisted.
+   */
+  private refreshAttemptGenerationValue = 0;
 
   constructor(private readonly options: FeedRefreshRunnerOptions) {
     this.feedOperationTracker = options.feedOperationTracker;
     this.previewImageCache = options.previewImageCache;
+  }
+
+  /** Bumped at the entry of every refresh attempt, before any early return. */
+  public get refreshAttemptGeneration(): number {
+    return this.refreshAttemptGenerationValue;
+  }
+
+  private beginRefreshAttempt(): void {
+    this.refreshAttemptGenerationValue += 1;
   }
 
   private get settings(): RssDashboardSettings {
@@ -109,6 +124,7 @@ export class FeedRefreshRunner {
     selectedFeeds?: Feed[],
     intent: FeedRefreshIntent = selectedFeeds ? "targeted" : "global",
   ) {
+    this.beginRefreshAttempt();
     try {
       const candidateFeeds = selectedFeeds || this.settings.feeds;
       if (candidateFeeds.length === 0) {
@@ -193,6 +209,7 @@ export class FeedRefreshRunner {
   }
 
   public async refreshSelectedFeed(feed: Feed) {
+    this.beginRefreshAttempt();
     try {
       if (!this.feedParser) {
         console.warn(
