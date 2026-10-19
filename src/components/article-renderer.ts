@@ -2,7 +2,7 @@ import type {
   ReaderContentVersion,
   ReaderContentVersions,
 } from "./reader-content-versions";
-import { runFeedFirstDisplay } from "./reader-feed-first";
+import { resolveFeedFetchPlan, runFeedFirstDisplay } from "./reader-feed-first";
 import { App, type Component, TFile } from "obsidian";
 import {
   refreshReaderHeaderTags,
@@ -181,7 +181,15 @@ export class ArticleRenderer {
     } else {
       const feedContent = item.content || item.description || "";
       this.currentFullContent = feedContent;
-      if (this.shouldSkipFullArticleFetch(item) || !item.link) {
+      // A rich Substack feed ships the full body, so the automatic fetch is
+      // skipped. Still offer the fetched version, fetched on first request.
+      const prefersFeedContent = this.prefersFeedContent(item);
+      const plan = resolveFeedFetchPlan(
+        Boolean(item.link),
+        prefersFeedContent,
+        hasActiveFetchFailure(item) || this.isVideoMediaItem(item),
+      );
+      if (plan === "display") {
         await this.displayArticle(container, item, feedContent);
         return;
       }
@@ -190,6 +198,7 @@ export class ArticleRenderer {
         container,
         item,
         feedContent,
+        onDemand: plan === "onDemand",
         renderVersion: (parent, version, content) =>
           this.renderArticle(parent, item, content, version),
         onSelectVersion: (version, fetchedContent) => {
@@ -683,13 +692,6 @@ export class ArticleRenderer {
         failureReason: "unexpected",
       };
     }
-  }
-
-  private shouldSkipFullArticleFetch(item: FeedItem): boolean {
-    // A fetch that failed earlier waits for an explicit "Try again" (#1110).
-    if (hasActiveFetchFailure(item)) return true;
-    if (this.isVideoMediaItem(item)) return true;
-    return this.prefersFeedContent(item);
   }
 
   private isVideoMediaItem(item: FeedItem): boolean {

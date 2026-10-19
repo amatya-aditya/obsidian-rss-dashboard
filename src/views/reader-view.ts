@@ -3,6 +3,7 @@ import type {
   ReaderContentVersions,
 } from "../components/reader-content-versions";
 import {
+  resolveFeedFetchPlan,
   runFeedFirstDisplay,
   visitReaderContent,
 } from "../components/reader-feed-first";
@@ -1402,7 +1403,17 @@ export class ReaderView extends ItemView {
   ): Promise<void> {
     const feedContent = item.content || item.description || "";
     this.currentFullContent = feedContent;
-    if (this.shouldSkipFullArticleFetch(item) || !item.link) {
+    // A rich Substack feed ships the full body, so the automatic fetch is
+    // skipped. Still offer the fetched version, fetched on first request.
+    const prefersFeedContent = this.prefersFeedContent(item);
+    const plan = resolveFeedFetchPlan(
+      Boolean(item.link),
+      prefersFeedContent,
+      this.isStarredImportCachedPreview(item) ||
+        hasActiveFetchFailure(item) ||
+        this.isVideoMediaItem(item),
+    );
+    if (plan === "display") {
       await this.displayArticle(item, feedContent);
       return;
     }
@@ -1416,6 +1427,7 @@ export class ReaderView extends ItemView {
       container: this.readingContainer,
       item,
       feedContent,
+      onDemand: plan === "onDemand",
       renderVersion: (parent, version, content) =>
         this.renderArticle(item, content, parent, version),
       onSelectVersion: (version, fetched) => {
@@ -1485,6 +1497,7 @@ export class ReaderView extends ItemView {
     });
     if (!versions) return;
     if (
+      plan !== "onDemand" &&
       this.settings.useWebViewer &&
       this.webViewerIntegration &&
       identity === this.displayIdentity &&
@@ -1725,23 +1738,6 @@ export class ReaderView extends ItemView {
     }
 
     return this.prefersFeedContent(item, feedHtml);
-  }
-
-  private shouldSkipFullArticleFetch(item: FeedItem): boolean {
-    if (this.isStarredImportCachedPreview(item)) {
-      return true;
-    }
-
-    // A fetch that failed earlier waits for an explicit "Try again" (#1110).
-    if (hasActiveFetchFailure(item)) {
-      return true;
-    }
-
-    if (this.isVideoMediaItem(item)) {
-      return true;
-    }
-
-    return this.prefersFeedContent(item);
   }
 
   /**
