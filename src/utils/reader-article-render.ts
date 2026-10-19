@@ -5,7 +5,7 @@ import {
   getPubDateMs,
   resolveDisplayDate,
 } from "../services/feed-parser/feed-retention";
-import { twitchVodIdFor } from "./twitch-embed";
+import { resolveVideoSource } from "./video-source";
 import { isDuplicateIntro } from "./duplicate-intro-detection";
 import { stripFeedBlurbFooter } from "./feed-blurb-footer";
 import {
@@ -34,7 +34,7 @@ export function resolveReaderMediaRoute(item: FeedItem): ReaderMediaRoute {
   }
 
   // A Twitch VOD has no `videoId`: its player takes the id from the link.
-  if (item.mediaType === "video" && (item.videoId || twitchVodIdFor(item))) {
+  if (item.mediaType === "video" && resolveVideoSource(item)) {
     return "video";
   }
   if (item.mediaType === "video" && item.videoUrl) {

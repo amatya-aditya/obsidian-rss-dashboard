@@ -124,4 +124,13 @@ describe("reader routing for a Twitch VOD", () => {
   it("does not show the missing-source banner for a playable VOD", () => {
     expect(shouldRenderVideoSourceBanner(vodItem())).toBe(false);
   });
+
+  it("still explains a missing player for a VOD link on an item not typed as video", () => {
+    // The route only opens the player for mediaType "video", so the banner
+    // must not claim a player is coming for an item that will not get one.
+    const item = vodItem({ mediaType: undefined });
+
+    expect(resolveReaderMediaRoute(item)).toBe("article");
+    expect(shouldRenderVideoSourceBanner(item)).toBe(true);
+  });
 });

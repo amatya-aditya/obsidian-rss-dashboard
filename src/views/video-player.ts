@@ -14,9 +14,9 @@ import {
 import {
   TWITCH_PLAYER_ALLOW,
   twitchPlayerSourceUrl,
-  twitchVodIdFor,
   twitchVodWatchUrl,
 } from "../utils/twitch-embed";
+import { resolveVideoSource, type VideoSource } from "../utils/video-source";
 import { resolveDisplayDate } from "../services/feed-parser/feed-retention";
 
 export class VideoPlayer {
@@ -77,7 +77,7 @@ export class VideoPlayer {
   }
 
   loadVideo(item: FeedItem): void {
-    if (!item.videoId && !twitchVodIdFor(item)) {
+    if (!resolveVideoSource(item)) {
       new Notice("No video id provided");
       return;
     }
@@ -101,9 +101,8 @@ export class VideoPlayer {
   }
 
   private render(): void {
-    if (!this.currentItem) return;
-    const twitchVodId = twitchVodIdFor(this.currentItem);
-    if (!this.currentItem.videoId && !twitchVodId) return;
+    const source = this.currentItem && resolveVideoSource(this.currentItem);
+    if (!this.currentItem || !source) return;
 
     this.container.empty();
     this.playerEl = this.container.createDiv({ cls: "rss-video-player" });
@@ -111,18 +110,16 @@ export class VideoPlayer {
     const videoContainer = this.playerEl.createDiv({
       cls: "rss-video-container",
     });
-    const iframe = twitchVodId
-      ? this.createTwitchIframe(videoContainer, twitchVodId)
-      : this.createYouTubeIframe(
-          videoContainer,
-          this.currentItem.videoId ?? "",
-        );
+    const iframe =
+      source.kind === "twitch"
+        ? this.createTwitchIframe(videoContainer, source.id)
+        : this.createYouTubeIframe(videoContainer, source.id);
     this.iframeEl = iframe;
 
     videoContainer.appendChild(iframe);
-    this.renderWatchLink();
+    this.renderWatchLink(source);
     // Twitch's embed has no position channel, so only YouTube reports progress.
-    if (!twitchVodId) this.connectPlayer(iframe);
+    if (source.kind === "youtube") this.connectPlayer(iframe);
 
     this.tags = this.currentItem.tags;
     this.renderDetails();
@@ -174,22 +171,20 @@ export class VideoPlayer {
    * The always-visible fallback, shown whether or not the player loads. The
    * host is undocumented, so the link must work on its own.
    */
-  private renderWatchLink(): void {
-    if (!this.playerEl || !this.currentItem) return;
-    const twitchVodId = twitchVodIdFor(this.currentItem);
-    const videoId = this.currentItem.videoId;
-    if (!twitchVodId && !videoId) return;
+  private renderWatchLink(source: VideoSource): void {
+    if (!this.playerEl) return;
     const link = this.playerEl.createEl("a", { cls: "rss-video-watch" });
-    link.href = twitchVodId
-      ? twitchVodWatchUrl(twitchVodId)
-      : youTubeWatchUrl(videoId ?? "");
+    link.href =
+      source.kind === "twitch"
+        ? twitchVodWatchUrl(source.id)
+        : youTubeWatchUrl(source.id);
     link.target = "_blank";
     link.rel = "noopener noreferrer";
     const icon = link.createSpan({ cls: "rss-video-watch-icon" });
     setIcon(icon, "play");
     link.appendChild(
       this.playerEl.ownerDocument.createTextNode(
-        twitchVodId ? "Watch on Twitch" : "Watch on YouTube",
+        source.kind === "twitch" ? "Watch on Twitch" : "Watch on YouTube",
       ),
     );
   }
@@ -388,7 +383,7 @@ export class VideoPlayer {
         (v) =>
           this.currentItem &&
           v.guid !== this.currentItem.guid &&
-          (v.videoId || twitchVodIdFor(v)) &&
+          resolveVideoSource(v) &&
           v.feedUrl === this.currentItem.feedUrl,
       )
       .slice(0, 5);

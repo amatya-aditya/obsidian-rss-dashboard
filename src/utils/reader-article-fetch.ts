@@ -12,7 +12,7 @@ import {
 import { firstNonFormulaImageUrl, isAvatarImageUrl } from "./image-url-utils";
 import { isFeedIconUrl } from "./reader-article-render";
 import { isLikelyVideoItem } from "./video-detection";
-import { twitchVodIdFor } from "./twitch-embed";
+import { resolveVideoSource } from "./video-source";
 import { getOpenableHttpHref } from "./url-utils";
 
 const VIDEO_ARTICLE_BANNER =
@@ -152,7 +152,8 @@ export function shouldRenderVideoSourceBanner(item: FeedItem): boolean {
     isLikelyVideoItem(item) &&
     !item.videoId &&
     !item.videoUrl &&
-    !twitchVodIdFor(item)
+    // The route only opens the player for a video-typed item.
+    !(item.mediaType === "video" && resolveVideoSource(item))
   );
 }
 
