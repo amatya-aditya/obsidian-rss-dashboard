@@ -90,9 +90,10 @@ export function persistFetchedPageImage(
 
 /**
  * Gives an item with no usable picture the fetched page's own image as its
- * cover, so the Reader shows the page's hero instead of promoting whatever
- * image comes first in the extracted body (an ad, for one feed). The feed's
- * own picture always wins. `emit` persists the update.
+ * cover, so the card shows the page's hero instead of staying blank. The feed's
+ * own picture always wins. The value is stored with the provenance marker, so
+ * the RSS content version's hero keeps the feed's image (#1354). `emit`
+ * persists the update.
  */
 export function persistFetchedCoverImage(
   item: FeedItem,
@@ -109,7 +110,8 @@ export function persistFetchedCoverImage(
   ]);
   if (hasPicture) return;
   item.coverImage = cover;
-  emit({ coverImage: cover });
+  item.coverImageFromPage = true;
+  emit({ coverImage: cover, coverImageFromPage: true });
 }
 
 /** Banner for fetched content that looks truncated, restricted or paywalled. */

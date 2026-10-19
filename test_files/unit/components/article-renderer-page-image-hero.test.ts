@@ -125,4 +125,29 @@ describe("ArticleRenderer – fetched hero uses the page image (#812)", () => {
     expect(heroImg()?.getAttribute("src")).toBe(COVER_IMAGE);
     expect(item.pageImage).toBeUndefined();
   });
+
+  it("keeps the feed's own image as the RSS hero after a page cover fetch (#1354)", async () => {
+    const internal = renderer as unknown as ArticleRendererWithPrivate;
+    internal.fetchFullArticleContent = vi.fn().mockResolvedValue({
+      content: `<p>${LONG_TEXT}</p>`,
+      failureType: "none",
+      pageImage: PAGE_IMAGE,
+    });
+    // The card's cover was replaced from the page; `image` holds the feed's own
+    // picture, so the RSS version has a feed image to keep.
+    const item = makeItem({
+      content: `<p>${LONG_TEXT}</p>`,
+      coverImage: PAGE_IMAGE,
+      coverImageFromPage: true,
+      image: COVER_IMAGE,
+    });
+
+    await renderer.render(container, item);
+
+    expect(heroImg()?.getAttribute("src")).toBe(COVER_IMAGE);
+
+    findContentToggle(container)?.click();
+
+    expect(heroImg()?.getAttribute("src")).toBe(PAGE_IMAGE);
+  });
 });

@@ -41,8 +41,12 @@ storage of feed data, and no refresh.
 ## Decision
 
 - A manual fetch records its provenance in one new optional field,
-  `coverImageFromPage`, written together with the image. Absent means the cover
-  is the feed's own, so items stored before the field existed need no migration.
+  `coverImageFromPage`, written together with the image. The automatic card fill
+  writes it too when it copies the fetched page's image onto an item with no
+  picture of its own, because that cover is page-derived as well (amended
+  2026-10-19, [#1354](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1354)).
+  Absent means the cover is the feed's own, so items stored before the field
+  existed need no migration.
 - The marker is dropped by every writer that puts a feed image back: a refresh
   that finds the feed's own cover, the YouTube-thumbnail step, the feed's shared
   logo blanking, and the settings dedupe that keeps one of two covers. The
@@ -68,9 +72,12 @@ storage of feed data, and no refresh.
   Feed views, while cover-image display is on. List view renders no cover, so it
   offers neither role.
 - Cover surfaces read `coverImage` before `image`, so the image a fetch stored is
-  the one the card, the feed-view hero, the Reader hero and a saved note show.
-  The feed-view hero read `image` first, which this decision corrects; the card,
-  the Reader hero and the save template already read `coverImage` first.
+  the one the card, the feed-view hero and a saved note's `{{image}}` show. The
+  feed-view hero read `image` first, which this decision corrects; the card and
+  the save template already read `coverImage` first. The Reader's RSS content
+  version does not follow it once the marker is set: that version's hero is the
+  feed's own image, recomputed the same way restore does (amended 2026-10-19,
+  [#1354](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1354)).
 
 ## Consequences
 
@@ -82,7 +89,9 @@ storage of feed data, and no refresh.
   relies on ("the feed wins, otherwise the stored value stays").
 - Restore touches only the cover and the marker: the item is not marked read, no
   page content is stored, and no success Notice is shown. The card, the feed-view
-  hero, the Reader hero and a saved note's `{{image}}` all follow the field.
+  hero and a saved note's `{{image}}` all follow the field; the Reader's RSS
+  content version keeps the feed's own image (amended 2026-10-19,
+  [#1354](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1354)).
 - Existing items need no migration and are not backfilled.
 
 ### Trade-offs
@@ -92,8 +101,8 @@ storage of feed data, and no refresh.
   offer a restore that reverts its own value.
 - Deciding between the two restore labels means knowing whether the feed
   supplies an image, so a marker-carrying card runs the blurb scan on render.
-  The marker keeps that cost to manually fetched items only, instead of every
-  card on every render.
+  The marker keeps that cost to page-derived covers only — a manual fetch or the
+  automatic fill — instead of every card on every render.
 - Restore applies the parser's article precedence to every item, including
   podcasts and videos. For a podcast whose blurb image and `itunes.image` differ,
   the restored image can differ from the one the parser originally picked; the

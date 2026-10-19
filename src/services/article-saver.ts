@@ -20,6 +20,7 @@ import { replaceYouTubeEmbedsInHtmlNote } from "../utils/youtube-embed";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
 import {
   feedDescriptionToStripFromBody,
+  resolveFeedHeroUrl,
   resolvePageImageHeroUrl,
 } from "../utils/reader-article-render";
 import { pageImageToStore } from "../utils/reader-article-fetch";
@@ -275,6 +276,17 @@ export class ArticleSaver {
     return normalizeSubstackImageUrl((heroUrl || "").trim());
   }
 
+  /**
+   * The hero of a note saved from [[RSS content]] (#1354): the image the feed
+   * supplied, never a cover the page replaced. `getFallbackHeroUrl` stays the
+   * displayed cover, which `{{image}}` and the fetched save still read.
+   */
+  private getFeedHeroUrl(item: FeedItem): string {
+    return normalizeSubstackImageUrl(
+      resolveFeedHeroUrl(item, this.getFeeds()) || "",
+    ).trim();
+  }
+
   private htmlAlreadyContainsImage(html: string, imageUrl: string): boolean {
     try {
       const doc = new DOMParser().parseFromString(html, "text/html");
@@ -287,10 +299,12 @@ export class ArticleSaver {
     }
   }
 
-  private prependFallbackHeroHtml(item: FeedItem, html: string): string {
+  private prependFallbackHeroHtml(
+    item: FeedItem,
+    html: string,
+    heroUrl = this.getFallbackHeroUrl(item),
+  ): string {
     if (!html) return html;
-
-    const heroUrl = this.getFallbackHeroUrl(item);
     if (!heroUrl) return html;
     if (this.htmlAlreadyContainsImage(html, heroUrl)) return html;
 
@@ -417,6 +431,7 @@ guid: "{{guid}}"
       item,
       articleHtmlToMarkdown(sanitizedHtml),
       sanitizedHtml,
+      this.getFeedHeroUrl(item),
     );
 
     if (markdown.trim()) {
@@ -426,6 +441,7 @@ guid: "{{guid}}"
     return this.prependFallbackHeroHtml(
       item,
       this.cleanHtml(feedHtml, item.link),
+      this.getFeedHeroUrl(item),
     );
   }
 
@@ -554,7 +570,12 @@ guid: "{{guid}}"
       ? articleHtmlToMarkdown(sanitizedHtml)
       : "";
     const fallbackWithHero = fallbackMarkdown
-      ? this.prependFallbackHeroMarkdown(item, fallbackMarkdown, sanitizedHtml)
+      ? this.prependFallbackHeroMarkdown(
+          item,
+          fallbackMarkdown,
+          sanitizedHtml,
+          this.getFeedHeroUrl(item),
+        )
       : "";
     const markedFallback = fallbackWithHero.trim()
       ? `${RSS_FALLBACK_MARKER}\n\n${fallbackWithHero}`

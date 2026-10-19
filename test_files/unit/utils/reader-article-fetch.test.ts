@@ -17,23 +17,29 @@ function makeItem(overrides: Partial<FeedItem> = {}): FeedItem {
 }
 
 describe("persistFetchedCoverImage", () => {
-  it("adopts the page image for an item with no picture", () => {
+  it("adopts the page image for an item with no picture, recording provenance", () => {
     const item = makeItem();
     const emit = vi.fn();
 
     persistFetchedCoverImage(item, PAGE_IMAGE, [], emit);
 
     expect(item.coverImage).toBe(PAGE_IMAGE);
-    expect(emit).toHaveBeenCalledWith({ coverImage: PAGE_IMAGE });
+    // The marker keeps the page-derived cover out of the RSS hero (#1354).
+    expect(item.coverImageFromPage).toBe(true);
+    expect(emit).toHaveBeenCalledWith({
+      coverImage: PAGE_IMAGE,
+      coverImageFromPage: true,
+    });
   });
 
-  it("keeps the feed's own cover image", () => {
+  it("keeps the feed's own cover image, recording no provenance", () => {
     const item = makeItem({ coverImage: "https://cdn.example.com/feed.jpg" });
     const emit = vi.fn();
 
     persistFetchedCoverImage(item, PAGE_IMAGE, [], emit);
 
     expect(item.coverImage).toBe("https://cdn.example.com/feed.jpg");
+    expect(item.coverImageFromPage).toBeUndefined();
     expect(emit).not.toHaveBeenCalled();
   });
 

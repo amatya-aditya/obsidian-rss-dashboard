@@ -45,7 +45,7 @@ import { isDuplicateIntro } from "../utils/duplicate-intro-detection";
 import {
   descriptionToStripFromBody,
   hasMeaningfulFeedDescription,
-  resolveFallbackHeroUrl,
+  resolveFeedHeroUrl,
   resolveFetchedHeroUrl,
   selectCalloutDescription,
 } from "../utils/reader-article-render";
@@ -423,7 +423,7 @@ export class ArticleRenderer {
     const fallbackHeroUrl =
       version === "full"
         ? resolveFetchedHeroUrl(item, this.settings.feeds)
-        : resolveFallbackHeroUrl(item, this.settings.feeds);
+        : resolveFeedHeroUrl(item, this.settings.feeds);
 
     const hasDistinctMainContent =
       mainHtml !== "" &&

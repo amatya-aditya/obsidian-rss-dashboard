@@ -204,6 +204,22 @@
       "mediaType": "article"
     },
     {
+      "title": "Article whose card cover was fetched from the page",
+      "link": "http://127.0.0.1:8787/og-image-hero.html",
+      "description": "<p>Notebook compass pebble corridor table gallery ribbon table finds planner notebook corridor lantern. Outline curious reader rapid marks folder yarrow opens compass module. Summit beacon radar metric binder archive cipher draft finds timber linen calm tangent. Clover atlas moves pilot reader orbit pilot amber yarrow meadow sample reader sample linen marks draft.</p>\n<p>Tests keeps yarrow table builds plain marks sorts river notebook field notebook. Mirror mirror sketch trail linen crescent simple stanza table compass cipher granite ledger curious anchor shows. Reads patient garden compass summit rapid forest steady copper summit paper delta metric planner tangent spindle. Amber sorts fixture outline ember granite pebble meadow trail trail trail.</p>",
+      "content": "<p>Notebook compass pebble corridor table gallery ribbon table finds planner notebook corridor lantern. Outline curious reader rapid marks folder yarrow opens compass module. Summit beacon radar metric binder archive cipher draft finds timber linen calm tangent. Clover atlas moves pilot reader orbit pilot amber yarrow meadow sample reader sample linen marks draft.</p>\n<p>Tests keeps yarrow table builds plain marks sorts river notebook field notebook. Mirror mirror sketch trail linen crescent simple stanza table compass cipher granite ledger curious anchor shows. Reads patient garden compass summit rapid forest steady copper summit paper delta metric planner tangent spindle. Amber sorts fixture outline ember granite pebble meadow trail trail trail.</p>",
+      "pubDate": "Mon, 31 Aug 2026 15:00:00 GMT",
+      "guid": "https://example.com/rss-dashboard-fixture/rss-tech/page-cover-fetched",
+      "feedTitle": "GitHub Blog (fixture)",
+      "feedUrl": "https://github.blog/feed/",
+      "coverImage": "http://127.0.0.1:8787/og-image.png",
+      "summary": "Notebook compass pebble corridor table gallery ribbon table finds planner notebook corridor lantern. Outline curious reader rapid marks folder yarrow opens compass module. Summit beacon radar metric binder archive cipher draft finds timber linen calm tangent. Clover atlas moves pilot reader orbit pilot amber yarrow meadow sample reader sample linen marks draft.",
+      "author": "Fixture Author",
+      "mediaType": "article",
+      "coverImageFromPage": true,
+      "image": "http://127.0.0.1:8787/og-image-body.png"
+    },
+    {
       "title": "Fixture guide to offline reading",
       "link": "https://example.com/rss-dashboard-fixture/rss-tech/4",
       "description": "<p>Finds cipher paper sample simple calm opens bramble calm meadow fixture keeps beacon. Calm trail velvet meadow trail vector quiet orbit moves gallery reads patient. Sketch steady timber vector pixel garden river patient patient engine sketch module pilot. Steady sorts moves meadow moves draft ledger delta gallery patient steady checks lantern engine summit corridor.</p>\n<p>Anchor bramble quiet reads quiet island clover orbit sorts. Signal mirror mirror builds pilot trail vector ember yarrow table vector outline amber rapid moves. Tangent trail reader outline paper quiet ribbon mirror pixel module zephyr. Gallery velvet signal planner stanza metric channel copper reader archive planner garden zephyr sample.</p>\n<p>Tests summit field careful shows corridor brief forest river. Lantern copper pilot folder table steady quarry summit checks quill. Atlas patient pebble calm harbor yarrow marble marble binder beacon radar timber amber token notebook. Granite harbor spindle marble granite pebble delta atlas quill.</p>",

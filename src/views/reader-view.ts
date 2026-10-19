@@ -70,7 +70,7 @@ import {
   getReaderImageFilename,
   isFeedIconUrl,
   placeHeroImage,
-  resolveFallbackHeroUrl,
+  resolveFeedHeroUrl,
   resolveFetchedHeroUrl,
   resolveReaderMediaRoute,
   resolveRelativeUrlsInDocument,
@@ -1870,7 +1870,7 @@ export class ReaderView extends ItemView {
     const fallbackHeroUrl =
       version === "full"
         ? resolveFetchedHeroUrl(item, this.settings.feeds)
-        : resolveFallbackHeroUrl(item, this.settings.feeds);
+        : resolveFeedHeroUrl(item, this.settings.feeds);
 
     if (hasDistinctMainContent && hasMeaningfulDescription) {
       const descriptionCallout = container.createEl("details", {

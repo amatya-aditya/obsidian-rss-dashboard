@@ -72,8 +72,11 @@ declared image, and stores it in the item's existing `coverImage` field.
 
 ### Benefits
 
-- The image appears everywhere a cover already appears — the card, the feed-view
-  hero, the Reader hero, and `{{image}}` in a saved note — with no other change.
+- The image appears on the card, the feed-view hero, and `{{image}}` in a saved
+  note, with no other change. It does **not** change the Reader's RSS content
+  version: that version's [[Feed hero]] stays the feed's own image, even after a
+  fetch replaced the displayed cover (amended 2026-10-19,
+  [#1354](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1354)).
 - An existing value survives a refresh while the feed still ships no image,
   because the refresh already prefers a feed image but falls back to the stored
   one.

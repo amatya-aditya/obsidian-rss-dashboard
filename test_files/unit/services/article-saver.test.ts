@@ -1739,6 +1739,37 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
     expect(written).not.toContain("https://page.example.com/hero.jpg");
   });
 
+  it("keeps the feed's own image as the RSS save's hero after a page cover fetch (#1354)", async () => {
+    const app = App.createMock();
+    const settings = createSettings({
+      defaultTemplate: "image: {{image}}\n\n{{content}}",
+      includeFrontmatter: false,
+      saveVersion: "rss",
+    });
+    const saver = new ArticleSaver(app, settings, "https://proxy/?url=");
+
+    const pageCover = "https://img.example.com/page-cover.jpg";
+    const feedImage = "https://img.example.com/feed-own.jpg";
+    const item = createItem({
+      coverImage: pageCover,
+      coverImageFromPage: true,
+      image: feedImage,
+      content: "<p>Feed body text.</p>",
+    });
+
+    const file = await saver.saveArticle(item);
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    const written = await app.vault.read(file);
+
+    // The note body's hero is the feed's own image...
+    expect(written).toContain(`![Hero image](${feedImage})`);
+    expect(written).not.toContain(`![Hero image](${pageCover})`);
+    // ...while {{image}} still means the displayed cover.
+    expect(written).toContain(`image: ${pageCover}`);
+  });
+
   it("stores the fetched page's metadata on the item once, leaving description alone (#247)", async () => {
     const app = App.createMock();
     const settings = createSettings({

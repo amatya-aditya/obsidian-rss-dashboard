@@ -1,5 +1,6 @@
 import type { Feed, FeedItem } from "../types/types";
 import { MediaService } from "../services/media-service";
+import { resolveStoredItemFeedCover } from "../services/feed-parser/feed-item-builder";
 import {
   getPubDateMs,
   resolveDisplayDate,
@@ -65,8 +66,11 @@ export function formatReaderDateText(
 }
 
 /**
- * The item's cover image, or undefined when there is none or it is the feed's
- * own icon (a logo, not an article picture).
+ * The item's displayed cover image, or undefined when there is none or it is
+ * the feed's own icon (a logo, not an article picture). This is what the card
+ * and the feed-view hero show, and the fetched version's fallback when the page
+ * declared no image of its own. The RSS content version uses
+ * {@link resolveFeedHeroUrl} instead, so a page-derived cover never changes it.
  */
 export function resolveFallbackHeroUrl(
   item: FeedItem,
@@ -79,6 +83,30 @@ export function resolveFallbackHeroUrl(
   ]);
 
   return excludeFeedIcon(fallbackHeroUrl, item, feeds);
+}
+
+/**
+ * The hero of the [[RSS content]] version (#1354): the image the feed supplied.
+ * While the displayed cover came from the feed, that cover is the answer. Once
+ * a page-derived cover replaced it (`coverImageFromPage`), `coverImage` no
+ * longer speaks for the feed, so the feed's own cover is recomputed from the
+ * fields the item stores, exactly as the cover-image restore does. No page
+ * image is ever a candidate here; with no feed image the caller falls back to
+ * the first body image.
+ */
+export function resolveFeedHeroUrl(
+  item: FeedItem,
+  feeds: readonly Feed[],
+): string | undefined {
+  const feedCover = item.coverImageFromPage
+    ? resolveStoredItemFeedCover(item)
+    : firstNonFormulaImageUrl([
+        item.coverImage,
+        item.image,
+        item.itunes?.image?.href,
+      ]);
+
+  return excludeFeedIcon(feedCover || undefined, item, feeds);
 }
 
 /**
@@ -99,11 +127,11 @@ export function resolvePageImageHeroUrl(
 
 /**
  * The hero of the [[Fetched content]] version (#812): the page's own image
- * first, then the feed's cover chain, then (at the call site) the first body
- * image. The page's image outranks the feed's here so the fetched article shows
- * the page's own hero even when the feed ships a different picture. The RSS
- * version and the card use {@link resolveFallbackHeroUrl} instead, so neither
- * changes.
+ * first, then the displayed cover chain, then (at the call site) the first body
+ * image. The page's image outranks the displayed cover here so the fetched
+ * article shows the page's own hero even when the feed ships a different
+ * picture. The RSS version uses {@link resolveFeedHeroUrl} instead, so a cover
+ * fetched from the page never changes it.
  */
 export function resolveFetchedHeroUrl(
   item: FeedItem,

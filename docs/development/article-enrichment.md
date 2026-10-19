@@ -107,10 +107,13 @@ A reader can ask for the page's image by hand, though: **Fetch and replace cover
 image** in an article's right-click menu, or the same control at the right end of
 a card's or feed item's tag row. That action fetches the page once, takes its
 declared image (`og:image`, then `twitter:image`), and stores it in `coverImage`
-with the `coverImageFromPage` marker, so every cover surface picks it up. It
-reads no page body — a body's first image is usually a byline avatar or a site
-logo — stores no page content, and changes no other field. It is manual and one
-request per activation; the automatic alternatives remain
+with the `coverImageFromPage` marker, so the card, the feed-view hero and a saved
+note's `{{image}}` pick it up. The Reader's RSS content version does not: its
+hero is the feed's own image, recomputed from the stored fields when the marker
+says a page image replaced the cover (#1354). It reads no page body — a body's
+first image is usually a byline avatar or a site logo — stores no page content,
+and changes no other field. It is manual and one request per activation; the
+automatic alternatives remain
 [#812](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/812) and
 [#1030](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1030).
 See [ADR 0031](../adr/0031-store-a-manually-fetched-page-cover-image-in-coverimage.md).
