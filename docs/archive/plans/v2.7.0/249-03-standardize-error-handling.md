@@ -1,3 +1,11 @@
+---
+status: implemented
+completed: 2026-09-11
+released_in: 2.7.0
+issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/249"
+implementation: "https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/250"
+---
+
 # 03: Standardize error handling across services
 
 **Parent:** #249
