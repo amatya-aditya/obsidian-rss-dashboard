@@ -44,7 +44,7 @@
   {
     "id": "feed-003",
     "title": "World History Encyclopedia",
-    "url": "http://www.ancient.eu.com/rss/",
+    "url": "https://www.worldhistory.org/rss/",
     "imageUrl": "https://pbs.twimg.com/profile_images/1365290462383198212/TzOD8oZj_400x400.jpg",
     "domain": ["History"],
     "subdomain": ["World History"],
@@ -116,7 +116,7 @@
   {
     "id": "feed-008",
     "title": "TechCrunch",
-    "url": "http://feeds.feedburner.com/TechCrunch/",
+    "url": "https://feeds.feedburner.com/TechCrunch/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=techcrunch.com&sz=128",
     "domain": ["Technology"],
     "subdomain": ["Startup News"],
@@ -1074,21 +1074,6 @@
     "rating": 3
   },
   {
-    "id": "feed-072",
-    "title": "RemoteOK - Remote Jobs",
-    "url": "https://remoteok.com/rss",
-    "imageUrl": "https://www.google.com/s2/favicons?domain=remoteok.com&sz=128",
-    "domain": ["Career"],
-    "subdomain": ["Tech Jobs"],
-    "area": ["Employment"],
-    "topic": ["Job Postings"],
-    "tags": ["jobs", "tech"],
-    "type": "Job Board",
-    "createdAt": "2025-06-25T16:55:00.000Z",
-    "summary": "Latest remote tech job listings from the RemoteOK job board.",
-    "rating": 3
-  },
-  {
     "id": "feed-073",
     "title": "The Atlantic - Latest",
     "url": "https://www.theatlantic.com/feed/all/",
@@ -1121,7 +1106,7 @@
   {
     "id": "feed-075",
     "title": "Long Now Foundation (Blog)",
-    "url": "http://feeds.feedburner.com/longnow",
+    "url": "https://feeds.feedburner.com/longnow",
     "imageUrl": "https://www.google.com/s2/favicons?domain=longnow.org&sz=128",
     "domain": ["Society"],
     "subdomain": ["Futurism"],
@@ -1226,7 +1211,7 @@
   {
     "id": "feed-082",
     "title": "Open Culture",
-    "url": "http://www.openculture.com/feed",
+    "url": "https://www.openculture.com/feed",
     "imageUrl": "https://www.google.com/s2/favicons?domain=openculture.com&sz=128",
     "domain": ["Education"],
     "subdomain": ["Culture"],
@@ -1421,7 +1406,7 @@
   {
     "id": "feed-095",
     "title": "NASA Breaking News",
-    "url": "http://www.nasa.gov/rss/dyn/breaking_news.rss",
+    "url": "https://www.nasa.gov/news-release/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=nasa.gov&sz=128",
     "domain": ["Science"],
     "subdomain": ["Space Agency"],
@@ -1511,7 +1496,7 @@
   {
     "id": "feed-101",
     "title": "LessWrong",
-    "url": "http://lesserwrong.com/feed.xml",
+    "url": "https://www.lesswrong.com/feed.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=lesserwrong.com&sz=128",
     "domain": ["Philosophy"],
     "subdomain": ["Rationality"],
@@ -1706,7 +1691,7 @@
   {
     "id": "feed-114",
     "title": "SMBC",
-    "url": "http://www.smbc-comics.com/rss.php",
+    "url": "https://www.smbc-comics.com/comic/rss",
     "imageUrl": "https://www.google.com/s2/favicons?domain=smbc-comics.com&sz=128",
     "domain": ["Humor"],
     "subdomain": ["Webcomic"],
@@ -1796,7 +1781,7 @@
   {
     "id": "feed-120",
     "title": "McSweeney's Internet Tendency",
-    "url": "http://feeds.feedburner.com/mcsweeneys/",
+    "url": "https://feeds.feedburner.com/mcsweeneys/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=mcsweeneys.net&sz=128",
     "domain": ["Humor"],
     "subdomain": ["Satire"],
@@ -1851,21 +1836,6 @@
     "type": "Magazine",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Essays on technology, ethics, and society.",
-    "rating": 4
-  },
-  {
-    "id": "feed-124",
-    "title": "Symmetry Magazine",
-    "url": "https://www.symmetrymagazine.org/feed",
-    "imageUrl": "https://www.google.com/s2/favicons?domain=symmetrymagazine.org&sz=128",
-    "domain": ["Science"],
-    "subdomain": ["Particle Physics"],
-    "area": ["Research Highlights"],
-    "topic": ["Fundamental Physics"],
-    "tags": ["physics", "research"],
-    "type": "Magazine",
-    "createdAt": "2025-06-26T09:01:29Z",
-    "summary": "Accessible magazine about particle physics and its people.",
     "rating": 4
   },
   {
@@ -2051,7 +2021,7 @@
   {
     "id": "feed-137",
     "title": "APOD",
-    "url": "http://www.acme.com/jef/apod/rss.xml",
+    "url": "https://www.acme.com/jef/apod/rss.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=nasa.gov&sz=128",
     "domain": ["Science"],
     "subdomain": ["Astronomy"],
@@ -2066,7 +2036,7 @@
   {
     "id": "feed-138",
     "title": "ScienceDaily Astronomy",
-    "url": "http://www.sciencedaily.com/rss/space_time/astronomy.xml",
+    "url": "https://www.sciencedaily.com/rss/space_time/astronomy.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=sciencedaily.com&sz=128",
     "domain": ["Science"],
     "subdomain": ["Astronomy"],
@@ -2091,21 +2061,6 @@
     "type": "News",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "Breaking astronomy and space exploration stories.",
-    "rating": 4
-  },
-  {
-    "id": "feed-140",
-    "title": "A Philosopher's Blog",
-    "url": "http://aphilosopher.drmcl.com/feed/",
-    "imageUrl": "https://www.google.com/s2/favicons?domain=drmcl.com&sz=128",
-    "domain": ["Philosophy"],
-    "subdomain": ["Personal Blog"],
-    "area": ["Applied Ethics"],
-    "topic": ["Opinion"],
-    "tags": ["ethics"],
-    "type": "Blog",
-    "createdAt": "2025-06-26T09:01:29Z",
-    "summary": "Commentary on philosophy, politics, and ethics.",
     "rating": 4
   },
   {
@@ -2231,7 +2186,7 @@
   {
     "id": "feed-149",
     "title": "Daily JSTOR",
-    "url": "http://daily.jstor.org/feed/",
+    "url": "https://daily.jstor.org/feed/",
     "imageUrl": "https://www.google.com/s2/favicons?domain=daily.jstor.org&sz=128",
     "domain": ["Education"],
     "subdomain": ["Digital Library"],
@@ -2321,7 +2276,7 @@
   {
     "id": "feed-155",
     "title": "The Skeptics' Guide to the Universe",
-    "url": "http://feed.theskepticsguide.org/feed/rss.aspx?feed=sgu",
+    "url": "https://feed.theskepticsguide.org/feed/rss.aspx?feed=sgu",
     "imageUrl": "https://www.google.com/s2/favicons?domain=theskepticsguide.org&sz=128",
     "domain": ["Science"],
     "subdomain": ["Critical Thinking"],
@@ -2351,7 +2306,7 @@
   {
     "id": "feed-157",
     "title": "Philosophize This!",
-    "url": "http://philosophizethis.libsyn.com/rss",
+    "url": "https://rss.libsyn.com/shows/44756/destinations/144660.xml",
     "imageUrl": "https://www.google.com/s2/favicons?domain=philosophizethis.org&sz=128",
     "domain": ["Philosophy"],
     "subdomain": ["History of Ideas"],
@@ -2801,7 +2756,7 @@
   {
     "id": "feed-187",
     "title": "Stuff You Missed in History Class",
-    "url": "https://www.omnycontent.com/d/playlist/e73c998e-6e60-432f-8610-ae210140c5b1/9f8c20b3-9f78-4b6f-8bf1-aac9015d1f3a/2b1f2e8f-7e3e-4e92-9d65-aac9015d1fb1/podcast.rss",
+    "url": "https://podcasts.apple.com/us/podcast/stuff-you-missed-in-history-class/id283605519",
     "imageUrl": "https://i.scdn.co/image/ab67656300005f1f7a1606494e24613eb8c4d990",
     "domain": ["History"],
     "subdomain": ["Education"],
@@ -3041,7 +2996,7 @@
   {
     "id": "feed-204",
     "title": "The Orbital Mechanics Podcast",
-    "url": "http://feeds.feedburner.com/orbitalpodcast",
+    "url": "https://feeds.feedburner.com/orbitalpodcast",
     "imageUrl": "https://www.google.com/s2/favicons?domain=theorbitalmechanics.com&sz=128",
     "domain": ["Science"],
     "subdomain": ["Spaceflight"],
