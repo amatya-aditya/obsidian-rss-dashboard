@@ -1674,6 +1674,7 @@ export class ReaderView extends ItemView {
   private async displayArticle(
     item: FeedItem,
     fullContent?: string,
+    version: ReaderContentVersion = "rss",
   ): Promise<void> {
     if (this.podcastPlayer) {
       this.podcastPlayer.destroy();
@@ -1702,17 +1703,17 @@ export class ReaderView extends ItemView {
         );
         if (identity !== this.displayIdentity) return;
         if (!success) {
-          this.renderArticle(item, fullContent);
+          this.renderArticle(item, fullContent, this.readingContainer, version);
         }
       } catch {
         if (identity !== this.displayIdentity) return;
-        this.renderArticle(item, fullContent);
+        this.renderArticle(item, fullContent, this.readingContainer, version);
       }
 
       return;
     }
 
-    this.renderArticle(item, fullContent);
+    this.renderArticle(item, fullContent, this.readingContainer, version);
   }
 
   private shouldBypassWebViewerForFeedContent(
@@ -2045,6 +2046,19 @@ export class ReaderView extends ItemView {
       }
       item.content = result.content;
       item.starredImportContentState = undefined;
+      // The page's own image (#812), stored with the same gate this path uses
+      // for the fetched content: kept in memory for this session, persisted only
+      // for a starred or saved article.
+      persistFetchedPageImage(
+        item,
+        result.pageImage,
+        this.settings.feeds,
+        (update) => {
+          if (shouldPersist) {
+            this.persistBackgroundUpdate(item, update, false);
+          }
+        },
+      );
       if (shouldPersist) {
         this.persistBackgroundUpdate(
           item,
@@ -2084,7 +2098,13 @@ export class ReaderView extends ItemView {
     if (this.readingContainer) {
       this.readingContainer.empty();
     }
-    await this.displayArticle(item, this.currentFullContent);
+    // The reader now shows the fetched content, so the hero comes from the
+    // fetched version (#812), not the RSS cover chain.
+    await this.displayArticle(
+      item,
+      this.currentFullContent,
+      this.currentContentIsFullArticle ? "full" : "rss",
+    );
   }
 
   private populateArticleHtml(
