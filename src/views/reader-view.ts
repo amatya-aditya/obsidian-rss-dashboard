@@ -80,19 +80,11 @@ import {
   stripEmbeddedTooltipAttributes,
 } from "../utils/reader-article-render";
 import {
-  collectLeadCaptionTexts,
+  cleanFetchedArticleDocument,
   cleanFetchedArticleHtml,
   extractDisplayTitleFromHtml,
-  flattenSingleRootWrapper,
   hasMeaningfulArticleContent,
   isLikelySameImageSource,
-  stripDuplicateLeadCaptionBlocks,
-  stripDuplicateLeadContentFromDocument,
-  stripDuplicateLeadMediaMatchingHero,
-  stripLeadMediaBeforeContent,
-  stripNavigationChromeFromDocument,
-  stripSkipLinksFromDocument,
-  stripTopHeadlineFromDocument,
 } from "../utils/reader-html-cleanup";
 import { stripAdContainersFromHtml } from "../utils/ad-containers";
 import TurndownService from "turndown";
@@ -2140,24 +2132,13 @@ export class ReaderView extends ItemView {
         .forEach((el) => el.remove());
 
       // Clean up fetched full-article HTML before hero extraction so we don't pick
-      // navigation icons / breadcrumbs as the hero image.
+      // navigation icons / breadcrumbs as the hero image. The shared cleanup is
+      // the same one the inline reader and the save path run (#1362).
       if (stripTopHeadline) {
-        stripNavigationChromeFromDocument(doc);
-        stripTopHeadlineFromDocument(doc);
-        // Readability wraps the fetched article in one root element; hoist its
-        // blocks so the body-child scans below see them directly (#1304).
-        flattenSingleRootWrapper(doc);
-        stripDuplicateLeadContentFromDocument(doc, feedDescriptionHtml);
-        stripSkipLinksFromDocument(doc);
-        if (fallbackHeroUrl) {
-          const leadCaptionTexts = collectLeadCaptionTexts(doc);
-          stripLeadMediaBeforeContent(doc);
-          stripDuplicateLeadMediaMatchingHero(doc, fallbackHeroUrl);
-          stripDuplicateLeadCaptionBlocks(doc, leadCaptionTexts);
-        }
-        // Strip inline SVGs from fetched articles — these are publisher UI
-        // decorations (section icons, share buttons) never present in RSS payloads.
-        doc.body.querySelectorAll("svg").forEach((el) => el.remove());
+        cleanFetchedArticleDocument(doc, {
+          feedDescriptionHtml,
+          fallbackHeroUrl,
+        });
       }
 
       // Attempt to extract and place hero image

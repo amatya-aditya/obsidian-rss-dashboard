@@ -211,6 +211,34 @@ describe("ArticleRenderer fetched-article HTML cleanup", () => {
     expect(body?.querySelector("p")?.textContent).toBe(LONG_A);
   });
 
+  it("removes the publisher's image-expand control from the fetched body (#1362)", async () => {
+    const imageUrl = "https://img.example.com/medium-photo.jpg";
+    const label = "Press enter or click to view image in full size";
+    const full = await renderFetched(
+      `<p>${LONG_A}</p>
+       <figure>
+         <div role="button" tabindex="0">
+           <span>${label}</span>
+           <picture><source srcset="${imageUrl} 640w"><img src="${imageUrl}" alt=""></picture>
+         </div>
+         <figcaption>A caption under the picture</figcaption>
+       </figure>
+       <p>${LONG_B}</p>`,
+      makeItem({ coverImage: "https://img.example.com/hero.jpg" }),
+    );
+    const body = full.querySelector(".rss-reader-article-content");
+    const figure = body?.querySelector("figure");
+
+    expect(body?.textContent).not.toContain(label);
+    expect(figure?.querySelector("[role='button']")).toBeNull();
+    expect(figure?.querySelector("picture img")?.getAttribute("src")).toBe(
+      imageUrl,
+    );
+    expect(figure?.querySelector("figcaption")?.textContent).toBe(
+      "A caption under the picture",
+    );
+  });
+
   it("strips lead media inside a single root wrapper exactly as unwrapped", async () => {
     const full = await renderFetched(
       `<div id="readability-page-1"><figure><img src="https://img.example.com/other.jpg"></figure>

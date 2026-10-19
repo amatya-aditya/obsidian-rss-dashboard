@@ -2268,6 +2268,36 @@ describe("ReaderView article rendering (characterization)", () => {
         expect(cleaned.textContent).toContain(LONG_TEXT);
       });
 
+      it("removes the publisher's image-expand control from the fetched body (#1362)", () => {
+        const imageUrl = "https://img.example.com/medium-photo.jpg";
+        const label = "Press enter or click to view image in full size";
+        const cleaned = populate(
+          `<p>${LONG_TEXT}</p>
+           <figure>
+             <div role="button" tabindex="0">
+               <span>${label}</span>
+               <picture><source srcset="${imageUrl} 640w"><img src="${imageUrl}" alt=""></picture>
+             </div>
+             <figcaption>A caption under the picture</figcaption>
+           </figure>`,
+          "https://example.com/",
+          {
+            stripTopHeadline: true,
+            fallbackHeroUrl: "https://img.example.com/hero.jpg",
+          },
+        );
+        const figure = cleaned.querySelector("figure");
+
+        expect(cleaned.textContent).not.toContain(label);
+        expect(figure?.querySelector("div[role='button']")).toBeNull();
+        expect(figure?.querySelector("picture img")?.getAttribute("src")).toBe(
+          imageUrl,
+        );
+        expect(figure?.querySelector("figcaption")?.textContent).toBe(
+          "A caption under the picture",
+        );
+      });
+
       it("strips lead media and captions only when there is also a fallback hero", () => {
         const html = `<figure><img src="/lead.jpg"></figure><figcaption>Photo: Jane Doe</figcaption><p>${LONG_TEXT}</p>`;
         const withoutFallback = populate(html, "https://example.com/", {
