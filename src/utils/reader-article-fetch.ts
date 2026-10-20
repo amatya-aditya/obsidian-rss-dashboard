@@ -150,6 +150,21 @@ export function shouldRenderVideoSourceBanner(item: FeedItem): boolean {
   return isLikelyVideoItem(item) && !item.videoId && !item.videoUrl;
 }
 
+/**
+ * True for a starred.json-imported article (234-09) that has never had a
+ * full-content fetch attempted, or whose last attempt failed. The reader's
+ * automatic fetch-on-open is skipped in both cases - a fetch only happens
+ * when the user clicks "Fetch now" on the cached-preview banner. Articles
+ * that never came from a starred import (no `starredImportContentState` at
+ * all) always return false here.
+ */
+export function isStarredImportCachedPreview(item: FeedItem): boolean {
+  return (
+    item.starredImportContentState === "unfetched" ||
+    item.starredImportContentState === "failed"
+  );
+}
+
 /** Banner for a video item that carries no playable source of its own. */
 export function renderVideoSourceBanner(
   container: HTMLElement,

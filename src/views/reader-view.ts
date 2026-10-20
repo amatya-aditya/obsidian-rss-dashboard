@@ -33,6 +33,7 @@ import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { enhanceYouTubeEmbeds } from "../utils/youtube-inline-embed";
 import { type FullArticleFetchResult } from "../utils/fetch-helpers";
 import {
+  isStarredImportCachedPreview,
   persistFetchedCoverImage,
   persistFetchedMetadata,
   persistFetchedPageImage,
@@ -1409,7 +1410,7 @@ export class ReaderView extends ItemView {
     const plan = resolveFeedFetchPlan(
       Boolean(item.link),
       prefersFeedContent,
-      this.isStarredImportCachedPreview(item) ||
+      isStarredImportCachedPreview(item) ||
         hasActiveFetchFailure(item) ||
         this.isVideoMediaItem(item),
     );
@@ -1740,22 +1741,6 @@ export class ReaderView extends ItemView {
     return this.prefersFeedContent(item, feedHtml);
   }
 
-  /**
-   * True for a starred.json-imported article (234-09) that has never had a
-   * full-content fetch attempted, or whose last attempt failed. The reader's
-   * automatic fetch-on-open is skipped in both cases — a fetch only happens
-   * when the user clicks "Fetch now" on the cached-preview banner. Articles
-   * that never came from a starred import (no `starredImportContentState`
-   * at all) always return false here, so their automatic fetch-on-open is
-   * completely unaffected.
-   */
-  private isStarredImportCachedPreview(item: FeedItem): boolean {
-    return (
-      item.starredImportContentState === "unfetched" ||
-      item.starredImportContentState === "failed"
-    );
-  }
-
   private isVideoMediaItem(item: FeedItem): boolean {
     return isLikelyVideoItem(item);
   }
@@ -1903,7 +1888,7 @@ export class ReaderView extends ItemView {
       renderRestrictedBanner(container, item);
     } else if (shouldRenderVideoSourceBanner(item)) {
       renderVideoSourceBanner(container, item);
-    } else if (this.isStarredImportCachedPreview(item)) {
+    } else if (isStarredImportCachedPreview(item)) {
       this.renderStarredImportBanner(item, container);
     }
     // Independent of the banners above: the fetch is skipped while a failure

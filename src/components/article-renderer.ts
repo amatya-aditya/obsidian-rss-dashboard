@@ -20,6 +20,7 @@ import {
 import { MediaService } from "../services/media-service";
 import { type FullArticleFetchResult } from "../utils/fetch-helpers";
 import {
+  isStarredImportCachedPreview,
   persistFetchedCoverImage,
   persistFetchedMetadata,
   persistFetchedPageImage,
@@ -187,7 +188,7 @@ export class ArticleRenderer {
       const plan = resolveFeedFetchPlan(
         Boolean(item.link),
         prefersFeedContent,
-        hasActiveFetchFailure(item) || this.isVideoMediaItem(item),
+        this.shouldSkipFeedFirstFetch(item, prefersFeedContent),
       );
       if (plan === "display") {
         await this.displayArticle(container, item, feedContent);
@@ -696,6 +697,24 @@ export class ArticleRenderer {
 
   private isVideoMediaItem(item: FeedItem): boolean {
     return isLikelyVideoItem(item);
+  }
+
+  /**
+   * Reasons the feed-first article stays on a single, display-only version: a
+   * remembered fetch failure waits for Try again, video items have their own
+   * routes, and a rich starred-import cached preview was display-only here
+   * before the on-demand toggle existed. A plain starred-import preview keeps
+   * its eager fetch.
+   */
+  private shouldSkipFeedFirstFetch(
+    item: FeedItem,
+    prefersFeedContent: boolean,
+  ): boolean {
+    return (
+      hasActiveFetchFailure(item) ||
+      this.isVideoMediaItem(item) ||
+      (prefersFeedContent && isStarredImportCachedPreview(item))
+    );
   }
 
   /**
