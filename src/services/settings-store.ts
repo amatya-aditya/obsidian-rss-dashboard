@@ -33,6 +33,19 @@ function storageError(
 ): void {}
 
 /**
+ * How long a queued article-state change waits for the next one before it is
+ * written. The window starts at the first change and is not restarted by
+ * later ones, so continuous playback still gets a flush every window.
+ */
+const ARTICLE_STATE_FLUSH_WINDOW_MS = 2_000;
+
+/**
+ * Queued changes that force a flush before the window ends, so a long burst is
+ * not held in memory indefinitely.
+ */
+const ARTICLE_STATE_FLUSH_THRESHOLD = 25;
+
+/**
  * Serializes settings for the "did loading change anything" comparison,
  * leaving out each feed's articles. In shard storage `data.json` holds no
  * articles and loading fills them in from the shards, so counting them would
@@ -98,6 +111,9 @@ export class SettingsStore {
   private settingsLoadGeneration = 0;
   private vaultMetadataReloadTimer: number | null = null;
   private suppressWatcherUntil = 0;
+  private articleStateFlushTimer: number | null = null;
+  private queuedArticleStateChanges = 0;
+  private articleStateFlush: Promise<void> | null = null;
 
   constructor(
     private readonly app: App,
@@ -134,6 +150,33 @@ export class SettingsStore {
       window.clearTimeout(this.vaultMetadataReloadTimer);
       this.vaultMetadataReloadTimer = null;
     }
+    this.clearArticleStateFlushTimer();
+  }
+
+  /**
+   * The one gate every write path checks. The 3.0 read-only cutoff joins
+   * `settingsLoadFailed` here when that predicate lands (ADR 0024), so every
+   * path that consults this method inherits it.
+   */
+  private isPersistenceSuppressed(): boolean {
+    return this.settingsLoadFailed;
+  }
+
+  private clearArticleStateFlushTimer(): void {
+    if (this.articleStateFlushTimer === null) return;
+    window.clearTimeout(this.articleStateFlushTimer);
+    this.articleStateFlushTimer = null;
+  }
+
+  /**
+   * Shard storage v1 keeps article state inside shard content, so an
+   * article-state-only pass cannot carry a change there. That mode keeps the
+   * full save rather than dropping the read mark.
+   */
+  private queuedArticleStateScope(): PersistSettingsOptions {
+    return this.settings.storageMode === "vault-shards"
+      ? {}
+      : { scope: "article-state" };
   }
 
   private async readBootstrapSettings(): Promise<{
@@ -402,7 +445,7 @@ export class SettingsStore {
   }
   getMetadataSaveCallback(): (data: unknown) => Promise<void> {
     return async (data: unknown): Promise<void> => {
-      if (this.settingsLoadFailed) return;
+      if (this.isPersistenceSuppressed()) return;
       const settingsData = data as RssDashboardSettings;
       const metadataPath = getMetadataPath(this.settings);
       if (metadataPath) {
@@ -438,7 +481,7 @@ export class SettingsStore {
   }
 
   async saveSettings(options: PersistSettingsOptions = {}): Promise<void> {
-    if (this.settingsLoadFailed) return;
+    if (this.isPersistenceSuppressed()) return;
     storageLog("saveSettings invoked", {
       mode: this.settings.storageMode,
       folder: this.settings.storageFolder,
@@ -466,6 +509,62 @@ export class SettingsStore {
         metadataMode: this.settings.metadataStorageMode,
       });
       throw error;
+    }
+  }
+
+  /**
+   * Records that article state changed (read, starred, tags, saved, or
+   * playback progress). The write runs after the interaction: changes inside
+   * one window share one persistence pass, and passing the size threshold
+   * flushes without waiting for the window. Callers never await this.
+   */
+  queueArticleStateSave(): void {
+    if (this.isPersistenceSuppressed()) return;
+    this.queuedArticleStateChanges += 1;
+    if (this.queuedArticleStateChanges >= ARTICLE_STATE_FLUSH_THRESHOLD) {
+      void this.flushPendingWrites();
+      return;
+    }
+    if (this.articleStateFlushTimer !== null) return;
+    this.articleStateFlushTimer = window.setTimeout(() => {
+      this.articleStateFlushTimer = null;
+      void this.flushPendingWrites();
+    }, ARTICLE_STATE_FLUSH_WINDOW_MS);
+  }
+
+  /**
+   * Writes every queued article-state change now and resolves only once the
+   * write has landed. Unload, export, migration, and repair use it for a
+   * consistent snapshot. A failed write shows one Notice and never rejects:
+   * the next load reconciles from the last persisted snapshot.
+   */
+  async flushPendingWrites(): Promise<void> {
+    this.clearArticleStateFlushTimer();
+    if (this.articleStateFlush) await this.articleStateFlush;
+    if (this.queuedArticleStateChanges === 0) return;
+    this.queuedArticleStateChanges = 0;
+    if (this.isPersistenceSuppressed()) return;
+    const flush = this.persistQueuedArticleState();
+    this.articleStateFlush = flush;
+    try {
+      await flush;
+    } finally {
+      if (this.articleStateFlush === flush) this.articleStateFlush = null;
+    }
+  }
+
+  private async persistQueuedArticleState(): Promise<void> {
+    try {
+      await this.saveSettings(this.queuedArticleStateScope());
+    } catch (error) {
+      storageError("Queued article-state save failed", error, {
+        mode: this.settings.storageMode,
+      });
+      new Notice(
+        `RSS Dashboard: Failed to save article state changes: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
+      );
     }
   }
 

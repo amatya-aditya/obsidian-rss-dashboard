@@ -217,7 +217,6 @@ export default class RssDashboardPlugin extends Plugin {
   private hasShownStorageDeprecationPromptThisSession = false;
   private whatsNewHandledThisSession = false;
   private startupRefreshTimeoutId: number | null = null;
-  private progressSaveDebounce: number | null = null;
   private autoRefreshScheduler: FeedRefreshScheduler | null = null;
   private readonly feedStorageRepository: FeedStorageRepository;
   private readonly settingsStore: SettingsStore;
@@ -1907,11 +1906,13 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   public async exportDataJson(): Promise<void> {
+    await this.flushPendingWrites();
     const result = await this.importExportService.exportDataJson();
     this.showExportNotice(result, "data.json");
   }
 
   public async exportPortableDataBundle(): Promise<void> {
+    await this.flushPendingWrites();
     const result = await this.importExportService.exportPortableDataBundle();
     this.showExportNotice(result, "rss-dashboard-portable-bundle.json");
   }
@@ -1930,6 +1931,7 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   public async exportFeedBundle(): Promise<void> {
+    await this.flushPendingWrites();
     const result = await this.importExportService.exportFeedBundle();
     this.showExportNotice(result, "rss-dashboard-feed-bundle.json");
   }
@@ -1969,6 +1971,7 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   public async copyDataJsonToClipboard(): Promise<void> {
+    await this.flushPendingWrites();
     const result = await this.importExportService.copyDataJsonToClipboard();
     this.showCopyNotice(result, "data.json");
   }
@@ -2080,6 +2083,7 @@ export default class RssDashboardPlugin extends Plugin {
 
   public async migrateToVaultStorage(): Promise<void> {
     if (this.settingsLoadFailed) return;
+    await this.flushPendingWrites();
     storageLog("Plugin migration requested", {
       currentMode: this.settings.storageMode,
       folder: this.settings.storageFolder,
@@ -2109,6 +2113,7 @@ export default class RssDashboardPlugin extends Plugin {
 
   public async migrateToVaultShardsV2(): Promise<void> {
     if (this.settingsLoadFailed) return;
+    await this.flushPendingWrites();
     storageLog("Plugin migration v2 requested", {
       currentMode: this.settings.storageMode,
       folder: this.settings.storageFolder,
@@ -2160,6 +2165,7 @@ export default class RssDashboardPlugin extends Plugin {
     if (this.settingsLoadFailed) {
       return { skippedFeedCount: this.settings.feeds.length };
     }
+    await this.flushPendingWrites();
     storageLog("Plugin repair requested", {
       currentMode: this.settings.storageMode,
       folder: this.settings.storageFolder,
@@ -2197,6 +2203,7 @@ export default class RssDashboardPlugin extends Plugin {
     deleteShardFolder?: boolean;
   }): Promise<void> {
     if (this.settingsLoadFailed) return;
+    await this.flushPendingWrites();
     storageLog("Plugin revert requested", {
       currentMode: this.settings.storageMode,
       folder: this.settings.storageFolder,
@@ -2451,30 +2458,17 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     if (flush) {
-      if (this.progressSaveDebounce !== null) {
-        window.clearTimeout(this.progressSaveDebounce);
-        this.progressSaveDebounce = null;
-      }
-      void this.saveSettings();
+      this.queueArticleStateSave();
+      void this.flushPendingWrites();
       return;
     }
 
-    // Throttle progress persistence: schedule one save at a time.
-    // A reset-on-every-event debounce can starve saves during active playback.
-    if (this.progressSaveDebounce === null) {
-      this.progressSaveDebounce = window.setTimeout(() => {
-        void this.saveSettings();
-        this.progressSaveDebounce = null;
-      }, 2000);
-    }
+    // One coalesced article-state queue owns playback progress persistence, so
+    // a burst of progress events shares one write after the interaction.
+    this.queueArticleStateSave();
   }
 
   public async clearPlaybackProgress(): Promise<number> {
-    if (this.progressSaveDebounce !== null) {
-      window.clearTimeout(this.progressSaveDebounce);
-      this.progressSaveDebounce = null;
-    }
-
     let clearedCount = 0;
     for (const feed of this.settings.feeds) {
       for (const item of feed.items) {
@@ -2498,7 +2492,8 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     if (clearedCount > 0) {
-      await this.saveSettings();
+      this.queueArticleStateSave();
+      await this.flushPendingWrites();
     }
 
     return clearedCount;
@@ -2556,6 +2551,20 @@ export default class RssDashboardPlugin extends Plugin {
     return this.settingsStore.saveSettings(options);
   }
 
+  /**
+   * Queues an article-state change (read, starred, tags, saved, playback) for
+   * one coalesced write. Callers update memory and the UI first and never
+   * await persistence here.
+   */
+  public queueArticleStateSave(): void {
+    this.settingsStore.queueArticleStateSave();
+  }
+
+  /** Writes queued article-state changes now and resolves after they land. */
+  public flushPendingWrites(): Promise<void> {
+    return this.settingsStore.flushPendingWrites();
+  }
+
   migrateMetadataToVaultLocation(): Promise<void> {
     return this.settingsStore.migrateMetadataToVaultLocation();
   }
@@ -2580,12 +2589,7 @@ export default class RssDashboardPlugin extends Plugin {
     this.versionStatusBar = null;
     this.autoRefreshScheduler?.stop();
     const flushBackups = async (): Promise<void> => {
-      if (this.progressSaveDebounce !== null) {
-        window.clearTimeout(this.progressSaveDebounce);
-        this.progressSaveDebounce = null;
-        await this.saveSettings();
-      }
-
+      await this.flushPendingWrites();
       await this.autoBackupCoordinator.flushOnUnload();
     };
 
