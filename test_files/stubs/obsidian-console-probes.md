@@ -1395,3 +1395,80 @@ pins that subset and records the divergence (#431).
 - `format("")`, which moment treats as its default `YYYY-MM-DDTHH:mm:ssZ` format (unreachable through `render-template.ts`'s `/{{date:(.+?)}}/g`, which needs a non-empty format);
 - an invalid moment's `"Invalid date"` (production always passes a real `Date`);
 - the non-`format` members `locale()`, `isMoment`, `isValid`, `duration().humanize()`, `fromNow`, `calendar`, `utcOffset()` and `zone()` — observed here, not modeled because no production path needs them.
+
+## External writes and vault events
+
+**Probe:** `test_files/stubs/probes/external-writes.repl` (#1403, DEC-004 of
+#1401). **Observed on Obsidian 1.14.4 desktop (Windows 11, 10.0.26200,
+Electron 43.7.7) on 2026-10-20.** An Obsidian Sync delivery reaches the plugin
+as a file that changed behind the vault adapter, so the driver writes through
+Node `fs` from inside Obsidian and records what Obsidian reports. It rewrites
+the fixture's storage files and restores them, so run it only on a fresh
+`npm run fixture:vault` copy, in an Obsidian on its own debug port and profile:
+
+```sh
+node scripts/obsidian-cdp.mjs --port 9333 --expect-vault <fixture-vault> repl test_files/stubs/probes/external-writes.repl
+```
+
+`npm run stub:probes` also runs it, like every driver under `probes/`, so the
+driver refuses a vault that lacks the marker file `npm run fixture:vault`
+writes. Unlike the other drivers it writes to the vault, so it belongs in the
+fixture vault and not in the scratch vault the rest of the library uses.
+
+Vault arrangement: the default v2 fixture (`vault-location` metadata folder
+`rss-dashboard-data/`, visible, Shard storage v2). Two consecutive runs gave the
+same table; only the millisecond delays and the number of `raw` events
+vary. Each step waits 2.5 s, and an operation does not start until 3.3 s after
+the plugin's last storage write, so the plugin's own-write suppression never
+hides a reload.
+
+| Case                                             | Operation                                     | `vault.on` events (path)                                                          | `onExternalSettingsChange` | Plugin reload                      | `adapter.stat`                 |
+| ------------------------------------------------ | --------------------------------------------- | --------------------------------------------------------------------------------- | -------------------------- | ---------------------------------- | ------------------------------ |
+| a1 `data.json`                                   | modify, +1 byte                               | `modify` at about 5 ms                                                            | no                         | yes, `loadSettings` at about 1.5 s | mtime changes, size +1         |
+| a1                                               | restore                                       | `modify`                                                                          | no                         | yes                                | size −1                        |
+| a2 `user-state.json`                             | modify, +1 byte                               | `modify`                                                                          | no                         | yes, at about 1.5 s                | mtime changes, size +1         |
+| a2                                               | restore                                       | `modify`                                                                          | no                         | yes                                | size −1                        |
+| a3 `feeds/fx-single.json`                        | modify, +1 byte                               | `modify`                                                                          | no                         | no                                 | mtime changes, size +1         |
+| a4 `feeds/__sync-probe.json`                     | create                                        | `create`                                                                          | no                         | no                                 | absent, then 14 bytes          |
+| a4                                               | modify                                        | `modify`                                                                          | no                         | no                                 | mtime and size change          |
+| a4                                               | rename to `__sync-probe-2.json`               | `create` (new path), then `delete` (old path) about 100 ms later; **no `rename`** | no                         | no                                 | old path gone                  |
+| a4                                               | delete                                        | `delete`, about 100 ms later                                                      | no                         | no                                 | gone                           |
+| a4                                               | delete then create, same path, back to back   | one `modify`; no `delete`, no `create`                                            | no                         | no                                 | new size                       |
+| a5 `data.json`                                   | write identical bytes                         | `modify` still fires                                                              | no                         | yes                                | mtime changes, size same       |
+| b1 `.sync-probe/`                                | create folder, create, modify, rename, delete | **none**                                                                          | no                         | no                                 | `adapter.stat` sees every step |
+| c1 `<configDir>/plugins/rss-dashboard/data.json` | modify, +1 byte                               | **none**                                                                          | **yes, once, about 60 ms** | no                                 | mtime changes, size +1         |
+| c1                                               | restore                                       | none                                                                              | yes, once                  | no                                 | size −1                        |
+
+What the table means:
+
+- **`raw` fires for every case**, including the dot-folder and the bootstrap
+  pointer, with the changed path as its only argument (several per operation,
+  and the parent folder too). It is the only vault event for a hidden path.
+  Nothing in the plugin listens to it today.
+- **A rename from outside arrives as `create` plus `delete`**, never `rename`.
+  The plugin's `rename` listener and its folder-rename handling therefore do not
+  run for a synced rename.
+- **A delete-then-create inside one watcher tick collapses to a single `modify`.**
+- **The plugin reloads for `data.json` and `user-state.json` only** (its watched
+  paths), 1.5 s after the last event, even when the bytes are identical (a5).
+  Shards are not watched (a3), so a synced shard edit does not reach the
+  running plugin.
+- **A reload makes the plugin write `user-state.json` itself** (temp file
+  create, delete, rename), which fires `create`, `delete` and `rename` events
+  of its own about 50 ms after the reload. The plugin then ignores watcher
+  events for 3 s, so a second external change inside that window is dropped
+  (an operation started sooner showed no reload).
+- **`onExternalSettingsChange` is the only signal for the bootstrap pointer**
+  (c1): no `vault.on` event fires for it, and the plugin does not reload.
+- The bootstrap pointer, shards and the dot-folder never fire a reload on
+  their own. Delays quoted here are for a foreground window; a throttled
+  window saw the same events 1 to 2 s later.
+
+**Restore and byte identity.** Every file the probe touched was restored to the
+exact bytes it started with, and `rss-dashboard-data/data.json`, all twelve
+shards and the bootstrap pointer hash identically before and after. The
+exception is `user-state.json`: the plugin rewrites it on a reload and on load
+(the same size, different bytes), so a run leaves the plugin disabled with the
+original bytes restored, and the next run enables it again. Hashes the run
+prints: `data.json` `958e0b08…`, bootstrap pointer `530e1b62…`. File a `bug` if
+the user-state rewrite should be stable; this ticket does not change it.
