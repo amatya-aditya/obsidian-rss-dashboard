@@ -89,11 +89,18 @@ export function normalizeSubstackImageUrlsInElement(root: ParentNode): void {
   normalizeSubstackImageUrlsInRoot(root);
 }
 
+/**
+ * Recovers a failed Substack image by normalizing its URL or, when the chosen
+ * source cannot be decoded, by replacing the image with a clone pointed at the
+ * original. Returns the replacement element when one was created, so the caller
+ * can re-apply its event listeners; a clone does not inherit them. Returns null
+ * when the image was fixed in place (listeners survive) or left alone.
+ */
 export function recoverFailedSubstackImageElement(
   img: HTMLImageElement,
-): boolean {
+): HTMLImageElement | null {
   if (img.dataset.rssSubstackRecoverAttempted === "true") {
-    return false;
+    return null;
   }
 
   const rawSrc = img.getAttribute("src");
@@ -115,7 +122,7 @@ export function recoverFailedSubstackImageElement(
   ].some((value) => hasRecoverableSubstackImageUrl(value));
   if (!hasRecoverableUrl) {
     if (!currentSrc || !normalizedRawSrc || normalizedRawSrc === currentSrc) {
-      return false;
+      return null;
     }
   }
 
@@ -127,11 +134,11 @@ export function recoverFailedSubstackImageElement(
   ) {
     // Continue into fallback recovery below using the already-normalized img src.
   } else if (!hasRecoverableUrl) {
-    return false;
+    return null;
   }
 
   img.dataset.rssSubstackRecoverAttempted = "true";
-  let didRecover = false;
+  let replacementElement: HTMLImageElement | null = null;
   const normalizedCurrentSrc = normalizeSubstackImageUrl(currentSrc);
 
   if (picture) {
@@ -142,7 +149,6 @@ export function recoverFailedSubstackImageElement(
       const normalizedSrcset = normalizeSubstackImageSrcset(srcset);
       if (normalizedSrcset && normalizedSrcset !== srcset) {
         source.setAttribute("srcset", normalizedSrcset);
-        didRecover = true;
       }
     }
   }
@@ -151,14 +157,12 @@ export function recoverFailedSubstackImageElement(
     const normalizedSrcset = normalizeSubstackImageSrcset(rawSrcset);
     if (normalizedSrcset && normalizedSrcset !== rawSrcset) {
       img.setAttribute("srcset", normalizedSrcset);
-      didRecover = true;
     }
   }
 
   const normalizedSrc = normalizeSubstackImageUrl(rawSrc || currentSrc);
   if (normalizedSrc && normalizedSrc !== (rawSrc || "")) {
     img.setAttribute("src", normalizedSrc);
-    didRecover = true;
   }
 
   if (
@@ -180,10 +184,10 @@ export function recoverFailedSubstackImageElement(
         : normalizedRawSrc;
     replacement.setAttribute("src", recoverySrc);
     img.replaceWith(replacement);
-    didRecover = true;
+    replacementElement = replacement;
   }
 
-  return didRecover;
+  return replacementElement;
 }
 
 function normalizeSubstackImageUrlsInRoot(root: ParentNode): void {
