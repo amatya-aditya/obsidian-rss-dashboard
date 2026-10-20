@@ -45,6 +45,7 @@ import { withSyncNonce } from "../../../src/services/storage-json";
 import {
   DEFAULT_SETTINGS,
   type Feed,
+  type FeedItem,
   type RssDashboardSettings,
 } from "../../../src/types/types";
 
@@ -98,6 +99,22 @@ function feed(title: string, folder: string, extra: Partial<Feed> = {}): Feed {
     items: [],
     lastUpdated: 0,
     ...extra,
+  };
+}
+
+function item(guid: string, title = "Item"): FeedItem {
+  return {
+    title,
+    link: `https://example.com/${guid}`,
+    description: "",
+    pubDate: "2026-01-01T00:00:00Z",
+    guid,
+    read: false,
+    starred: false,
+    tags: [],
+    feedTitle: "Feed",
+    feedUrl: "https://example.com/rss.xml",
+    coverImage: "",
   };
 }
 
@@ -938,7 +955,7 @@ describe("settings store (issue #563)", () => {
 
     describe("with metadata in the plugin folder", () => {
       beforeEach(async () => {
-        await start(savedSettings());
+        await start(savedSettings({ storageMode: "vault-shards-v2" }));
       });
 
       it.each([
@@ -946,7 +963,12 @@ describe("settings store (issue #563)", () => {
         ["modify", ".rss-dashboard-data/user-state.json", true],
         ["create", ".rss-dashboard-data/data.json", true],
         ["modify", "/.rss-dashboard-data/data.json/", true],
-        ["modify", ".rss-dashboard-data/feeds/feed-1.json", false],
+        ["modify", `${PLUGIN_DIR}/data.json`, false],
+        ["modify", ".rss-dashboard-data/feeds/feed-1.json", true],
+        ["create", ".rss-dashboard-data/feeds/feed-1.json", true],
+        ["modify", ".rss-dashboard-data/feeds/sub/feed-1.json", false],
+        ["modify", ".rss-dashboard-data/feeds/feed-1.txt", false],
+        ["delete", ".rss-dashboard-data/feeds/feed-1.json", false],
         ["modify", ".rss-dashboard-data/backup.json", false],
         ["modify", "notes/data.json", false],
       ])("on %s of %s, reloads: %s", async (event, path, reloads) => {
@@ -1002,7 +1024,10 @@ describe("settings store (issue #563)", () => {
           order.push(`redraw:${plugin.settings.refreshInterval}`);
           return Promise.resolve();
         });
-        storedData = savedSettings({ refreshInterval: 77 });
+        storedData = savedSettings({
+          refreshInterval: 77,
+          storageMode: "vault-shards-v2",
+        });
 
         handlers.modify?.({ path: ".rss-dashboard-data/data.json" });
         await vi.advanceTimersByTimeAsync(1_500);
@@ -1085,6 +1110,177 @@ describe("settings store (issue #563)", () => {
         expect(watcherReloads()).toBe(0);
         expect(redraws).not.toHaveBeenCalled();
       });
+    });
+
+    describe("feed shard watching (#1412)", () => {
+      const feedId = "feed-1";
+      const shardPath = `.rss-dashboard-data/feeds/${feedId}.json`;
+
+      beforeEach(async () => {
+        await adapter().mkdir(".rss-dashboard-data/feeds");
+      });
+
+      function makeShardJson(items: unknown[]): string {
+        return JSON.stringify(
+          {
+            version: 2,
+            feedId,
+            feedUrl: "https://example.com/rss.xml",
+            updatedAt: Date.now(),
+            items,
+          },
+          null,
+          2,
+        );
+      }
+
+      it("reloads and redraws when an external modify brings new shard content", async () => {
+        const initialShard = makeShardJson([
+          { guid: "item-1", title: "Item 1" },
+        ]);
+        await adapter().write(shardPath, initialShard);
+
+        const current = savedSettings({
+          storageMode: "vault-shards-v2",
+          feeds: [feed("Feed 1", "RSS", { feedId })],
+        });
+        await start(current);
+
+        const updatedShard = makeShardJson([
+          { guid: "item-1", title: "Item 1" },
+          { guid: "item-2", title: "Item 2" },
+        ]);
+        await adapter().write(shardPath, updatedShard);
+
+        handlers.modify?.({ path: shardPath });
+        await vi.advanceTimersByTimeAsync(1_500);
+
+        expect(watcherReloads()).toBe(1);
+        expect(redraws).toHaveBeenCalledTimes(1);
+        expect(plugin.settings.feeds[0]?.items).toHaveLength(2);
+      });
+
+      it("ignores a shard event when the file text matches the hydration baseline", async () => {
+        const initialShard = makeShardJson([
+          { guid: "item-1", title: "Item 1" },
+        ]);
+        await adapter().write(shardPath, initialShard);
+
+        const current = savedSettings({
+          storageMode: "vault-shards-v2",
+          feeds: [feed("Feed 1", "RSS", { feedId })],
+        });
+        await start(current);
+
+        handlers.modify?.({ path: shardPath });
+        await vi.advanceTimersByTimeAsync(1_500);
+
+        expect(watcherReloads()).toBe(0);
+        expect(redraws).not.toHaveBeenCalled();
+      });
+
+      it("does not reload on the plugin's own shard writes", async () => {
+        const initialShard = makeShardJson([
+          { guid: "item-1", title: "Item 1" },
+        ]);
+        await adapter().write(shardPath, initialShard);
+
+        const current = savedSettings({
+          storageMode: "vault-shards-v2",
+          feeds: [
+            feed("Feed 1", "RSS", {
+              feedId,
+              items: [item("item-1", "Item 1")],
+            }),
+          ],
+        });
+        await start(current);
+
+        // Simulate plugin updating items and saving
+        plugin.settings.feeds[0].items = [
+          item("item-1", "Item 1"),
+          item("item-2", "Item 2"),
+        ];
+        await plugin.saveSettings();
+
+        // Shard write fires modify event
+        handlers.modify?.({ path: shardPath });
+        await vi.advanceTimersByTimeAsync(1_500);
+
+        expect(watcherReloads()).toBe(0);
+      });
+
+      it("reloads when a synced shard changes within the 3 s suppression window of a plugin save", async () => {
+        const initialShard = makeShardJson([
+          { guid: "item-1", title: "Item 1" },
+        ]);
+        await adapter().write(shardPath, initialShard);
+
+        const current = savedSettings({
+          storageMode: "vault-shards-v2",
+          feeds: [feed("Feed 1", "RSS", { feedId })],
+        });
+        await start(current);
+
+        await plugin.writeWithWatcherSuppressed(() => Promise.resolve());
+
+        const updatedShard = makeShardJson([
+          { guid: "item-2", title: "Item 2" },
+        ]);
+        await adapter().write(shardPath, updatedShard);
+
+        handlers.modify?.({ path: shardPath });
+        await vi.advanceTimersByTimeAsync(1_500);
+
+        expect(watcherReloads()).toBe(1);
+      });
+
+      it("collapses a burst of multiple shard events and a data.json event inside 1.5 s into one reload", async () => {
+        const current = savedSettings({
+          storageMode: "vault-shards-v2",
+          feeds: [
+            feed("Feed 1", "RSS", { feedId: "feed-1" }),
+            feed("Feed 2", "RSS", { feedId: "feed-2" }),
+          ],
+        });
+        await start(current);
+
+        await adapter().write(
+          ".rss-dashboard-data/feeds/feed-1.json",
+          makeShardJson([{ guid: "item-1" }]),
+        );
+        await adapter().write(
+          ".rss-dashboard-data/feeds/feed-2.json",
+          makeShardJson([{ guid: "item-2" }]),
+        );
+
+        handlers.modify?.({ path: ".rss-dashboard-data/feeds/feed-1.json" });
+        await vi.advanceTimersByTimeAsync(500);
+        handlers.modify?.({ path: ".rss-dashboard-data/feeds/feed-2.json" });
+        await vi.advanceTimersByTimeAsync(500);
+        handlers.modify?.({ path: ".rss-dashboard-data/data.json" });
+        await vi.advanceTimersByTimeAsync(1_499);
+        expect(watcherReloads()).toBe(0);
+
+        await vi.advanceTimersByTimeAsync(1);
+        expect(watcherReloads()).toBe(1);
+      });
+
+      it.each(["legacy-json", "vault-shards"] as const)(
+        "does not react to shard paths in %s mode",
+        async (storageMode) => {
+          const current = savedSettings({
+            storageMode,
+            feeds: [feed("Feed 1", "RSS", { feedId })],
+          });
+          await start(current);
+
+          handlers.modify?.({ path: shardPath });
+          await vi.advanceTimersByTimeAsync(1_500);
+
+          expect(watcherReloads()).toBe(0);
+        },
+      );
     });
 
     it("watches the configured vault folder, not the default one, and reads it at event time", async () => {

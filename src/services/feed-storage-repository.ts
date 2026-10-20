@@ -1,4 +1,4 @@
-import { App, TFolder } from "obsidian";
+import { App, TFolder, normalizePath } from "obsidian";
 import type {
   Feed,
   FeedBundle,
@@ -117,6 +117,7 @@ export class FeedStorageRepository {
   private readonly state: FeedStorageRunnerState = {
     lastPersistedMetadataJson: null,
     lastPersistedShardJsonByFeedId: new Map<string, string>(),
+    lastPersistedShardContentByPath: new Map<string, string>(),
     lastStorageFolderPath: null,
     feedShardHealthById: new Map<string, FeedShardHealth>(),
     shardFolderHiddenFromSync: false,
@@ -196,6 +197,16 @@ export class FeedStorageRepository {
 
   public clearFeedShardHealth(feed: Feed): void {
     if (feed.feedId) this.state.feedShardHealthById.delete(feed.feedId);
+  }
+
+  /**
+   * Compares the on-disk content of a shard with the text this device last
+   * read or wrote at that path (#1412).
+   */
+  public isLastSeenShardContent(path: string, content: string): boolean {
+    const normalized = normalizePath(path.trim().replace(/\\/g, "/"));
+    const baseline = this.state.lastPersistedShardContentByPath.get(normalized);
+    return baseline !== undefined && baseline === content;
   }
 
   /**
@@ -989,6 +1000,8 @@ export class FeedStorageRepository {
   }
 
   private async removeShardFile(shardPath: string): Promise<boolean> {
+    const normalized = normalizePath(shardPath.trim().replace(/\\/g, "/"));
+    this.state.lastPersistedShardContentByPath.delete(normalized);
     const indexed = this.app.vault.getAbstractFileByPath(shardPath);
     if (indexed) {
       await this.app.fileManager.trashFile(indexed);
