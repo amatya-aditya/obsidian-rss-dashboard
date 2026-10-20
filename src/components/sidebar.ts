@@ -2018,6 +2018,7 @@ export class Sidebar {
       item
         .setTitle("Delete selection")
         .setIcon("trash")
+        .setWarning(true)
         .onClick(() => {
           this.deleteSelection();
         });
@@ -2310,6 +2311,10 @@ export class Sidebar {
       callbacks: this.callbacks,
       plugin: this.plugin,
       render: () => this.render(),
+      toggleFolderCollapse: (folderPath) => {
+        this.callbacks.onToggleFolderCollapse(folderPath, false);
+        this.render();
+      },
       showRefreshDetails: (anchor, feeds, scope) =>
         this.showRefreshDetails(anchor, feeds, scope),
       getAllDescendantFolderPaths: (path) =>
@@ -2907,6 +2912,7 @@ export class Sidebar {
       item
         .setTitle("Delete tag")
         .setIcon("trash")
+        .setWarning(true)
         .onClick(() => {
           this.showConfirmModal(
             `Are you sure you want to delete the tag "${tag.name}"? This will remove the tag from all articles.`,
@@ -3735,6 +3741,7 @@ export class Sidebar {
       item
         .setTitle("Delete feed")
         .setIcon("trash")
+        .setWarning(true)
         .onClick(() => {
           this.showConfirmModal(
             `Are you sure you want to delete the feed "${feed.title}"?`,

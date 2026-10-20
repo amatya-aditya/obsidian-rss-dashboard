@@ -22,6 +22,8 @@ export interface SidebarFolderMenuHost {
     refreshFeeds: () => Promise<void>;
   };
   render: () => void;
+  /** Expands or collapses one folder, saving nothing itself. */
+  toggleFolderCollapse: (folderPath: string) => void;
   showRefreshDetails: (
     anchor: HTMLElement,
     feeds: Feed[],
@@ -55,6 +57,18 @@ export interface SidebarFolderMenuHost {
   showConfirmModal: (message: string, onConfirm: () => void) => void;
 }
 
+function addRefreshAllFeedsItem(menu: Menu, host: SidebarFolderMenuHost): void {
+  menu.addItem((item: MenuItem) => {
+    item
+      .setTitle("Refresh all feeds")
+      .setIcon("refresh-cw")
+      .onClick(() => {
+        host.plugin.cancelPendingStartupRefresh();
+        void host.plugin.refreshFeeds();
+      });
+  });
+}
+
 function addRefreshDetailsItem(
   menu: Menu,
   anchor: EventTarget | null,
@@ -76,6 +90,27 @@ function addRefreshDetailsItem(
           }),
           "aggregate",
         );
+      });
+  });
+}
+
+function addCollapseFolderItem(
+  menu: Menu,
+  folderObj: Folder,
+  fullPath: string,
+  host: SidebarFolderMenuHost,
+): void {
+  const hasSubfolders = (folderObj.subfolders?.length ?? 0) > 0;
+  const hasFeeds = host.settings.feeds.some((feed) => feed.folder === fullPath);
+  if (!hasSubfolders && !hasFeeds) return;
+
+  const isCollapsed = (host.settings.collapsedFolders ?? []).includes(fullPath);
+  menu.addItem((item: MenuItem) => {
+    item
+      .setTitle(isCollapsed ? "Expand folder" : "Collapse folder")
+      .setIcon(isCollapsed ? "chevron-right" : "chevron-down")
+      .onClick(() => {
+        host.toggleFolderCollapse(fullPath);
       });
   });
 }
@@ -223,15 +258,6 @@ function addRefreshAndAutoTagItems(
         host.showFolderAutoTagModal(fullPath);
       });
   });
-  menu.addItem((item: MenuItem) => {
-    item
-      .setTitle("Refresh all feeds")
-      .setIcon("refresh-cw")
-      .onClick(() => {
-        host.plugin.cancelPendingStartupRefresh();
-        void host.plugin.refreshFeeds();
-      });
-  });
 }
 
 function addPinFolderItem(
@@ -262,6 +288,7 @@ function addDeleteFolderItem(
     item
       .setTitle("Delete folder")
       .setIcon("trash")
+      .setWarning(true)
       .onClick(() => {
         host.showConfirmModal(
           `Are you sure you want to delete the folder '${folderName}' and all its subfolders and feeds?`,
@@ -283,13 +310,16 @@ export function showSidebarFolderContextMenu(
   const menu = new Menu();
   const anchor = event.currentTarget;
 
-  addRefreshDetailsItem(menu, anchor, fullPath, host);
-
   if (host.isMultiSelectionTarget("folder", fullPath)) {
+    addRefreshDetailsItem(menu, anchor, fullPath, host);
     host.appendSelectionContextMenu(menu);
     menu.showAtMouseEvent(event);
     return;
   }
+
+  addRefreshAllFeedsItem(menu, host);
+  addRefreshDetailsItem(menu, anchor, fullPath, host);
+  addCollapseFolderItem(menu, folderObj, fullPath, host);
   addAddFeedItem(menu, fullPath, host);
   addAddSubfolderItem(menu, fullPath, host);
   addRenameFolderItem(menu, fullPath, folderName, host);

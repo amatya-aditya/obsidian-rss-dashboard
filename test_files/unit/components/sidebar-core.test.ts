@@ -217,6 +217,16 @@ describe("Sidebar Core", () => {
       expect(
         ObsidianStubs.Menu.lastItems.map((menuItem) => menuItem.title),
       ).toEqual(["Edit tag", "Delete tag"]);
+      expect(
+        ObsidianStubs.Menu.lastItems.find(
+          (menuItem) => menuItem.title === "Delete tag",
+        )?.isWarning,
+      ).toBe(true);
+      expect(
+        ObsidianStubs.Menu.lastItems.find(
+          (menuItem) => menuItem.title === "Edit tag",
+        )?.isWarning,
+      ).toBe(false);
     });
 
     it("opens the edit modal from the tag menu and saves the selected tag", async () => {
@@ -464,6 +474,24 @@ describe("Sidebar Core", () => {
         "Edit feed",
         "Refresh details",
       ]);
+    });
+
+    it("marks Delete feed as a warning so its title and icon turn red", () => {
+      renderSidebar([createFeed()]);
+
+      container
+        .querySelector(".rss-dashboard-feed")
+        ?.dispatchEvent(
+          new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+        );
+
+      const items = ObsidianStubs.Menu.lastItems;
+      expect(
+        items.find((menuItem) => menuItem.title === "Delete feed")?.isWarning,
+      ).toBe(true);
+      expect(
+        items.find((menuItem) => menuItem.title === "Edit feed")?.isWarning,
+      ).toBe(false);
     });
 
     it("offers Retry import for a feed whose background import failed", () => {
