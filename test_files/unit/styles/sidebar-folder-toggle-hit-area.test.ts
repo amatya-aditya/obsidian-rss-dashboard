@@ -69,6 +69,9 @@ describe("Sidebar folder chevron hit area", () => {
     expect(declarationsFor(".rss-dashboard-feed-folder").get("overflow")).toBe(
       "visible",
     );
+    expect(declarationsFor(".rss-dashboard-folder-feeds").get("overflow")).toBe(
+      "visible",
+    );
     expect(
       declarationsFor(".rss-dashboard-feed-folder-header").get("min-height"),
     ).toBe("32px");

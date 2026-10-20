@@ -783,7 +783,8 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
 }
 
 .rss-dashboard-folder-feeds {
-  overflow: hidden;
+  /* Like the folder box above, this must not clip a nested chevron's target. */
+  overflow: visible;
   background-color: var(--background-primary);
   padding-left: var(--sidebar-row-indentation);
   flex: 0 0 auto;
