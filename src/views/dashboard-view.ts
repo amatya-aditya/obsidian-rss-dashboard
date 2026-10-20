@@ -682,7 +682,7 @@ export class RssDashboardView extends ItemView {
     const count = this.updateFilteredArticleReadStatus(true);
 
     if (count > 0) {
-      void this.plugin.saveSettings();
+      this.plugin.queueArticleStateSave();
       this.scheduleRender();
       new Notice(
         `Marked ${count} items as read in ${this.getArticlesTitleInfo().title}`,
@@ -700,7 +700,7 @@ export class RssDashboardView extends ItemView {
     const count = this.updateFilteredArticleReadStatus(false);
 
     if (count > 0) {
-      void this.plugin.saveSettings();
+      this.plugin.queueArticleStateSave();
       this.scheduleRender();
       new Notice(
         `Marked ${count} items as unread in ${this.getArticlesTitleInfo().title}`,
@@ -3259,13 +3259,9 @@ export class RssDashboardView extends ItemView {
       article.tags = normalizedUpdates.tags;
     }
 
-    await this.plugin.updateArticle(
-      originalArticle.guid,
-      feed.url,
-      normalizedUpdates,
-      false,
-    );
-
+    // Reflect the change in the list, sidebar, and filter counts first. The
+    // plugin facade owns persistence and its coalesced queue, so the write is
+    // requested after this interaction and never awaited here (#1385).
     if (shouldRerender) {
       void this.render();
     } else {
@@ -3277,6 +3273,17 @@ export class RssDashboardView extends ItemView {
       }
       this.syncArticleListAfterUpdate(article, feed);
     }
+
+    try {
+      void this.plugin
+        .updateArticle(originalArticle.guid, feed.url, normalizedUpdates, false)
+        .catch((error: unknown) => {
+          console.error("Failed to persist dashboard article update", error);
+        });
+    } catch (error) {
+      console.error("Failed to persist dashboard article update", error);
+    }
+
     return true;
   }
 
@@ -3417,6 +3424,7 @@ export class RssDashboardView extends ItemView {
         article.guid,
         feedInScope ? article.feedUrl : feed.url,
       );
+      this.reconcilePageAfterInPlaceRemoval();
       this.refreshFilterStatusBarOnly();
       return;
     }
@@ -3460,6 +3468,37 @@ export class RssDashboardView extends ItemView {
     this.refreshFilterStatusBarOnly();
   }
 
+  /**
+   * A row that leaves the filtered list can empty the current page or remove
+   * the last page. Clamp the page the way a pagination render would, and
+   * rebuild only for those boundary cases, so an ordinary in-place removal
+   * keeps its animation (#1385). The rebuild recomputes the empty state and
+   * the page footer for the smaller result set.
+   */
+  private reconcilePageAfterInPlaceRemoval(): void {
+    if (!this.articleList) return;
+
+    const filtered = this.getFilteredArticles();
+    const pageSize = this.getCurrentPageSize();
+    const currentPage = this.getCurrentPage();
+    const pagination = computePagination({
+      totalItems: filtered.length,
+      pageSize,
+      requestedPage: currentPage,
+    });
+
+    const pageEmptied = pagination.currentPage !== currentPage;
+    const lastPageDisappeared =
+      filtered.length === 0 ||
+      (pageSize > 0 && filtered.length % pageSize === 0);
+    if (!pageEmptied && !lastPageDisappeared) return;
+
+    if (pageEmptied) {
+      this.setCurrentPageState(pagination.currentPage);
+    }
+    void this.render();
+  }
+
   private markPageArticlesAsRead(
     currentPageArticles: FeedItem[],
     previousPage: number,
@@ -3492,7 +3531,7 @@ export class RssDashboardView extends ItemView {
       return;
     }
 
-    void this.plugin.saveSettings();
+    this.plugin.queueArticleStateSave();
 
     const filtered = this.getFilteredArticles();
     const pagination = computePagination({

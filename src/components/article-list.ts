@@ -709,11 +709,22 @@ export class ArticleList {
     );
     const scrollPos = listEl?.scrollTop ?? 0;
 
+    // A keyboard user loses their place when the focused row leaves. Pick the
+    // destination before removing it, then move focus after it is gone (#1385).
+    const hadFocus = targetEl.contains(targetEl.doc.activeElement);
+    const focusTarget = hadFocus
+      ? this.resolveFocusAfterRemoval(targetEl, listEl)
+      : null;
+    const moveFocus = (): void => {
+      focusTarget?.focus({ preventScroll: true });
+    };
+
     // Script-driven collapse ignores the stylesheet's reduced-motion rules, so
     // honor the preference here: drop the row at once, no collapse.
     if (prefersReducedMotion(targetEl.win)) {
       targetEl.remove();
       if (listEl) listEl.scrollTop = scrollPos;
+      moveFocus();
       return;
     }
 
@@ -739,7 +750,37 @@ export class ArticleList {
     window.setTimeout(() => {
       targetEl.remove();
       if (listEl) listEl.scrollTop = scrollPos;
+      moveFocus();
     }, 320);
+  }
+
+  /**
+   * The control focus should land on when `targetEl` leaves the list: the next
+   * article's read control, else the previous one, else the list itself so
+   * keyboard navigation continues (#1385).
+   */
+  private resolveFocusAfterRemoval(
+    targetEl: HTMLElement,
+    listEl: HTMLElement | null,
+  ): HTMLElement | null {
+    if (!listEl) return null;
+
+    const rows = Array.from(
+      listEl.querySelectorAll<HTMLElement>(
+        ".rss-dashboard-article-item, .rss-dashboard-article-card, .rss-dashboard-feed-item",
+      ),
+    ).filter((row) => !row.classList.contains("rss-dashboard-search-hidden"));
+    const index = rows.indexOf(targetEl);
+
+    for (const row of [rows[index + 1], rows[index - 1]]) {
+      const control = row?.querySelector<HTMLElement>(
+        ".rss-dashboard-read-toggle",
+      );
+      if (control) return control;
+    }
+
+    listEl.setAttr("tabindex", "-1");
+    return listEl;
   }
 
   public hasArticle(guid: string, feedUrl?: string): boolean {

@@ -565,9 +565,18 @@ export class SettingsStore {
     }
   }
 
+  /**
+   * The persistence options that carry article state for the current storage
+   * mode. The coalesced queue uses them; a caller that must observe failure
+   * (the Reader's rollback) passes them to `saveSettings` directly.
+   */
+  articleStatePersistOptions(): PersistSettingsOptions {
+    return this.queuedArticleStateScope();
+  }
+
   private async persistQueuedArticleState(): Promise<void> {
     try {
-      await this.saveSettings(this.queuedArticleStateScope());
+      await this.saveSettings(this.articleStatePersistOptions());
     } catch (error) {
       storageError("Queued article-state save failed", error, {
         mode: this.settings.storageMode,

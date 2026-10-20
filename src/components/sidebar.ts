@@ -2061,7 +2061,8 @@ export class Sidebar {
 
     if (count > 0) {
       new Notice(`Marked ${count} items as ${read ? "read" : "unread"}`);
-      void this.plugin.saveSettings().then(() => this.render());
+      this.plugin.queueArticleStateSave();
+      this.render();
     } else {
       new Notice(`No items to mark as ${read ? "read" : "unread"}`);
     }
@@ -2998,7 +2999,7 @@ export class Sidebar {
     });
 
     if (count > 0) {
-      await this.plugin.saveSettings();
+      this.plugin.queueArticleStateSave();
       this.render();
       new Notice(`Marked ${count} items as read`);
     } else {
@@ -3018,7 +3019,7 @@ export class Sidebar {
     });
 
     if (count > 0) {
-      await this.plugin.saveSettings();
+      this.plugin.queueArticleStateSave();
       this.render();
       new Notice(`Marked ${count} items as unread`);
     } else {
@@ -3682,7 +3683,8 @@ export class Sidebar {
           feed.items.forEach((item) => {
             item.read = true;
           });
-          void this.plugin.saveSettings().then(() => this.render());
+          this.plugin.queueArticleStateSave();
+          this.render();
         });
     });
 
