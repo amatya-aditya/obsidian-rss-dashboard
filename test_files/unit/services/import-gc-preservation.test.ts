@@ -242,6 +242,15 @@ describe.each(BUNDLE_KINDS)(
       const fixture = await prepareRestore(kind);
       fixture.atDay(89);
       await fixture.restore();
+      // An import that changes nothing no longer rewrites user-state.json
+      // (#1411), so give the failing import a real change to write.
+      const persisted = await fixture.state();
+      if (!persisted) throw new Error("Expected persisted state fixture");
+      persisted.states[STATE_KEY] = { ...RESTORED_STATE, starred: false };
+      await fixture.app.vault.adapter.write(
+        USER_STATE_PATH,
+        JSON.stringify(persisted),
+      );
       failNextStateWrite(fixture.app, USER_STATE_PATH);
       await expect(fixture.restore()).rejects.toThrow("state write failed");
       fixture.atDay(181);
