@@ -291,11 +291,11 @@ export class UserStateStore {
     | { status: "ok"; file: UserStateFile }
   > {
     const path = this.getUserStatePath(settings);
-    if (!(await this.app.vault.adapter.exists(path))) {
+    const raw = await this.readSnapshotRecoveringTemp(path);
+    if (raw === null) {
       return { status: "missing" };
     }
     try {
-      const raw = await this.app.vault.adapter.read(path);
       const parsed = JSON.parse(raw) as UserStateFile;
       if (parsed && typeof parsed.states === "object") {
         return { status: "ok", file: parsed };
@@ -304,6 +304,27 @@ export class UserStateStore {
       storageError("Failed to parse user-state.json", e);
     }
     return { status: "unreadable" };
+  }
+
+  /**
+   * Reads the snapshot, recovering a completed sibling `.tmp` left behind when
+   * a checkpoint crashed between removing the old snapshot and renaming the
+   * new one into place. In that window `user-state.json` is gone and the
+   * journal already lost the records a previous checkpoint folded in, so the
+   * `.tmp` — written whole before the remove — is the only copy of the state
+   * (#1380).
+   */
+  private async readSnapshotRecoveringTemp(
+    path: string,
+  ): Promise<string | null> {
+    if (await this.app.vault.adapter.exists(path)) {
+      return this.app.vault.adapter.read(path);
+    }
+    const tempPath = `${path}.tmp`;
+    if (await this.app.vault.adapter.exists(tempPath)) {
+      return this.app.vault.adapter.read(tempPath);
+    }
+    return null;
   }
 
   public async load(

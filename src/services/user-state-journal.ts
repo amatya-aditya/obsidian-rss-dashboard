@@ -288,6 +288,7 @@ export class UserStateJournal {
   /** Every complete record on disk, ordered by sequence. Missing is empty. */
   public async read(): Promise<UserStateJournalRecord[]> {
     this.loaded = true;
+    await this.promoteInterruptedRewrite();
     const exists = await this.app.vault.adapter.exists(this.path);
     if (!exists) return [];
     try {
@@ -300,6 +301,23 @@ export class UserStateJournal {
     } catch (error) {
       storageError("Failed to read the user-state journal", error);
       return [];
+    }
+  }
+
+  /**
+   * A `rewrite` replaces the journal by removing it and renaming a completed
+   * `.tmp` into place. A crash in that gap leaves the journal missing with the
+   * whole content still in the `.tmp`; promote it so the records a truncation
+   * was about to drop — or the tail repair just rewrote — are not lost (#1380).
+   */
+  private async promoteInterruptedRewrite(): Promise<void> {
+    if (await this.app.vault.adapter.exists(this.path)) return;
+    const tempPath = `${this.path}.tmp`;
+    if (!(await this.app.vault.adapter.exists(tempPath))) return;
+    try {
+      await this.app.vault.adapter.rename(tempPath, this.path);
+    } catch (error) {
+      storageError("Failed to recover the user-state journal rewrite", error);
     }
   }
 
