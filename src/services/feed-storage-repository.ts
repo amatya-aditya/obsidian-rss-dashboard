@@ -171,7 +171,7 @@ export class FeedStorageRepository {
    */
   public configureDeviceLocalJournal(options: {
     pluginDir: string;
-    isPersistenceSuppressed?: () => boolean;
+    isPersistenceSuppressed: () => boolean;
     getStorageMode: () => RssDashboardSettings["storageMode"];
   }): void {
     this.userState.configureDeviceLocalJournal(options);

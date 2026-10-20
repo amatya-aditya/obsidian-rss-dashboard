@@ -110,9 +110,9 @@ export class UserStateStore {
   private onUserStateHealthChange?: () => void;
   private app: App;
   private journal: UserStateJournal | null = null;
-  private isPersistenceSuppressed: () => boolean = () => false;
-  private getStorageMode: () => RssDashboardSettings["storageMode"] = () =>
-    "legacy-json";
+  /** Configured by the settings store, which owns the one write gate. */
+  private isPersistenceSuppressed!: () => boolean;
+  private getStorageMode!: () => RssDashboardSettings["storageMode"];
 
   constructor(app: App, options: UserStateStoreOptions) {
     this.app = app;
@@ -128,11 +128,10 @@ export class UserStateStore {
    */
   public configureDeviceLocalJournal(options: {
     pluginDir: string;
-    isPersistenceSuppressed?: () => boolean;
+    isPersistenceSuppressed: () => boolean;
     getStorageMode: () => RssDashboardSettings["storageMode"];
   }): void {
-    this.isPersistenceSuppressed =
-      options.isPersistenceSuppressed ?? (() => false);
+    this.isPersistenceSuppressed = options.isPersistenceSuppressed;
     this.getStorageMode = options.getStorageMode;
     const pluginDir = options.pluginDir.trim();
     this.journal = pluginDir
