@@ -558,14 +558,7 @@ export class UserStateStore {
     // A save that changes nothing must leave the file untouched: the fresh
     // sync nonce alone would make Obsidian Sync see a changed file after every
     // plugin load (#1411). The journal bookkeeping below still runs.
-    // A snapshot recovered from the sibling `.tmp` is not yet in place, so it
-    // is always written.
-    const unchanged =
-      existing.status === "ok" &&
-      comparableSnapshotJson(existing.file) ===
-        comparableSnapshotJson(userStateFile) &&
-      (await this.app.vault.adapter.exists(this.getUserStatePath(settings)));
-    if (!unchanged) {
+    if (!(await this.isSnapshotUnchanged(settings, existing, userStateFile))) {
       await this.writeUserState(settings, userStateFile);
     }
     // Keep the records this checkpoint just folded in: a sync client can
@@ -580,6 +573,29 @@ export class UserStateStore {
     storageLog(
       "Saved user-state.json with " + Object.keys(states).length + " entries.",
     );
+  }
+
+  /**
+   * Whether `userStateFile` holds exactly what is already in place on disk.
+   * A snapshot recovered from the sibling `.tmp` is not yet in place, so it
+   * never counts as unchanged.
+   */
+  private async isSnapshotUnchanged(
+    settings: RssDashboardSettings,
+    existing:
+      | { status: "missing" }
+      | { status: "unreadable" }
+      | { status: "ok"; file: UserStateFile },
+    userStateFile: UserStateFile,
+  ): Promise<boolean> {
+    if (existing.status !== "ok") return false;
+    if (
+      comparableSnapshotJson(existing.file) !==
+      comparableSnapshotJson(userStateFile)
+    ) {
+      return false;
+    }
+    return this.app.vault.adapter.exists(this.getUserStatePath(settings));
   }
 
   private createUserStateFile(options: {

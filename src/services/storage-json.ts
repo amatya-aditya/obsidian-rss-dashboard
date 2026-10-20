@@ -26,9 +26,7 @@ export function withSyncNonce<T extends object>(
  * content, whatever nonce each was stamped with (#1411).
  */
 export function comparableSnapshotJson(value: object): string {
-  const stripped: Record<string, unknown> = {
-    ...(value as Record<string, unknown>),
-  };
+  const stripped: Record<string, unknown> = { ...value };
   delete stripped._syncNonce;
   delete stripped._syncPad;
   return JSON.stringify(stripped, (_key, nested: unknown) => {

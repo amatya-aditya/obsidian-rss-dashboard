@@ -13,7 +13,6 @@ import {
   it,
   vi,
   type Mock,
-  type MockInstance,
 } from "vitest";
 import { App, type PluginManifest } from "obsidian";
 import RssDashboardPlugin from "../../../main";
@@ -30,6 +29,7 @@ const SHARD_PATH = `${SHARD_FOLDER}/feed-1.json`;
 const USER_STATE_PATH = `${METADATA_FOLDER}/user-state.json`;
 const USER_STATE_TEMP_PATH = `${USER_STATE_PATH}.tmp`;
 const PLUGIN_DIR = "plugins/rss-dashboard";
+const JOURNAL_PATH = `${PLUGIN_DIR}/device-local/user-state-journal.jsonl`;
 const FEED_URL = "https://example.com/feed.xml";
 const GUID = "guid-1";
 const SECOND_GUID = "guid-2";
@@ -40,6 +40,7 @@ interface VaultAdapterStub {
   write(path: string, content: string): Promise<void>;
   append(path: string, content: string): Promise<void>;
   rename(oldPath: string, newPath: string): Promise<void>;
+  remove(path: string): Promise<void>;
   mkdir(path: string): Promise<void>;
 }
 
@@ -130,6 +131,14 @@ function snapshot(app: App): SnapshotStub {
   ) as SnapshotStub;
 }
 
+function journalRecords(app: App): Record<string, unknown>[] {
+  const raw = adapterFiles(app).get(JOURNAL_PATH) ?? "";
+  return raw
+    .split("\n")
+    .filter((line) => line.trim().length > 0)
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
+}
+
 let app: App;
 
 beforeEach(async () => {
@@ -171,12 +180,26 @@ async function startPlugin(
   return { plugin, saveData };
 }
 
-function snapshotWrites(): number {
-  return writeSpy.mock.calls.filter(([path]) => path === USER_STATE_TEMP_PATH)
-    .length;
+/** Records every vault call that would touch the snapshot's bytes. */
+function spyOnSnapshotWrites() {
+  const write = vi.spyOn(adapter(app), "write");
+  const rename = vi.spyOn(adapter(app), "rename");
+  const remove = vi.spyOn(adapter(app), "remove");
+  return {
+    count(): number {
+      const wrote = write.mock.calls.filter(
+        ([path]) => path === USER_STATE_TEMP_PATH || path === USER_STATE_PATH,
+      );
+      const renamed = rename.mock.calls.filter(
+        ([, to]) => to === USER_STATE_PATH,
+      );
+      const removed = remove.mock.calls.filter(
+        ([path]) => path === USER_STATE_PATH || path === USER_STATE_TEMP_PATH,
+      );
+      return wrote.length + renamed.length + removed.length;
+    },
+  };
 }
-
-let writeSpy: MockInstance<VaultAdapterStub["write"]>;
 
 describe("user-state.json byte stability (#1411)", () => {
   it("leaves the snapshot byte-identical when a save changes no state", async () => {
@@ -186,13 +209,13 @@ describe("user-state.json byte stability (#1411)", () => {
     ]);
     await plugin.flushPendingWrites();
     const before = adapterFiles(app).get(USER_STATE_PATH);
-    writeSpy = vi.spyOn(adapter(app), "write");
+    const writes = spyOnSnapshotWrites();
 
     await plugin.saveSettings();
     await plugin.saveSettings();
 
     expect(adapterFiles(app).get(USER_STATE_PATH)).toBe(before);
-    expect(snapshotWrites()).toBe(0);
+    expect(writes.count()).toBe(0);
   });
 
   it("leaves the snapshot byte-identical across a plugin reload", async () => {
@@ -210,18 +233,49 @@ describe("user-state.json byte stability (#1411)", () => {
     expect(adapterFiles(app).get(USER_STATE_PATH)).toBe(before);
   });
 
+  it("still truncates the journal through the on-disk checkpoint when the write is skipped", async () => {
+    const { plugin } = await startPlugin();
+    await plugin.queueArticleStateSave([
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
+    ]);
+    await plugin.flushPendingWrites();
+    // The checkpoint is kept in the journal until a later save reads it back.
+    expect(journalRecords(app)).toHaveLength(1);
+    const before = adapterFiles(app).get(USER_STATE_PATH);
+
+    await plugin.saveSettings();
+
+    expect(adapterFiles(app).get(USER_STATE_PATH)).toBe(before);
+    expect(journalRecords(app)).toEqual([]);
+  });
+
   it("still writes when an article's state really changes", async () => {
     const { plugin } = await startPlugin();
     await plugin.saveSettings();
     const before = adapterFiles(app).get(USER_STATE_PATH);
 
+    plugin.settings.feeds[0].items[0].starred = true;
     await plugin.queueArticleStateSave([
       { feedUrl: FEED_URL, guid: GUID, changes: { starred: true } },
     ]);
     await plugin.flushPendingWrites();
 
     expect(adapterFiles(app).get(USER_STATE_PATH)).not.toBe(before);
-    expect(snapshot(app).states).toBeDefined();
-    expect(JSON.stringify(snapshot(app).states)).toContain("starred");
+    expect(snapshot(app).states["feed-1:" + GUID]).toMatchObject({
+      starred: true,
+    });
+  });
+
+  it("still writes when a journal fold advances the checkpoint", async () => {
+    const { plugin } = await startPlugin();
+    await plugin.saveSettings();
+    expect(snapshot(app).checkpointSequence).toBeUndefined();
+
+    await plugin.queueArticleStateSave([
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
+    ]);
+    await plugin.flushPendingWrites();
+
+    expect(snapshot(app).checkpointSequence).toBe(1);
   });
 });
