@@ -405,6 +405,34 @@ describe("coalesced article-state persistence (#1384)", () => {
     ).toBe(42);
   });
 
+  it("writes queued changes before an export snapshot", async () => {
+    const { plugin } = await startPlugin();
+    seams(plugin).initializeSettingsBackedServices();
+    const order: string[] = [];
+    const writeToVault = adapter(app).write.bind(adapter(app));
+    vi.spyOn(adapter(app), "write").mockImplementation(
+      async (path, content) => {
+        if (path === USER_STATE_PATH) order.push("write");
+        await writeToVault(path, content);
+      },
+    );
+    const exportService = (
+      plugin as unknown as {
+        importExportService: { exportDataJson(): Promise<string> };
+      }
+    ).importExportService;
+    vi.spyOn(exportService, "exportDataJson").mockImplementation(() => {
+      order.push("export");
+      return Promise.resolve("downloaded");
+    });
+    plugin.settings.feeds[0].items[0].read = true;
+
+    plugin.queueArticleStateSave();
+    await plugin.exportDataJson();
+
+    expect(order).toEqual(["write", "export"]);
+  });
+
   it("keeps a full save for Shard storage v1, where state lives in shard content", async () => {
     const { plugin, saveData } = await startPlugin({
       storageMode: "vault-shards",
