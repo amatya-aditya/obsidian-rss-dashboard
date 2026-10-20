@@ -414,8 +414,12 @@ Where and how feed content (articles and episodes) is persisted, independent of 
 _Avoid_: Storage (unqualified), article storage
 
 **Metadata storage**:
-Where the plugin's `data.json` (settings, feed definitions, folder organization, cleanup rules) is persisted: either the plugin's own directory or a user-chosen vault folder. Configured independently of feed storage, though Shard storage v2 forces it to a vault folder.
+Where the plugin's `data.json` (settings, feed definitions, folder organization, cleanup rules) is persisted: either the plugin's own directory or a user-chosen vault folder. Configured independently of feed storage. Shard storage v2 uses the plugin folder by default, and a vault folder is the supported setup for sync.
 _Avoid_: Storage (unqualified), config storage
+
+**Bootstrap pointer**:
+The plugin's own `data.json` when Metadata storage is a vault folder. It holds only the metadata mode and folder, so the plugin can find the full `data.json` at startup.
+_Avoid_: Pointer file, stub data.json
 
 **Shard storage**:
 A feed storage mode that persists one file per feed in a vault folder instead of one monolithic `data.json`, improving sync behavior over Legacy JSON. Comes in two versions: v1 keeps each article's state inside its feed's shard file; v2 moves article state into a separate file, leaving only feed content in the shard. v2 is the supported version; v1 is a [[deprecated storage mode]].
