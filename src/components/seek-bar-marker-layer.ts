@@ -126,8 +126,10 @@ export class SeekBarMarkerLayer {
   }
 
   /**
-   * Seek to the marker nearest the pointer, so a dense list still picks the
-   * tick the reader aimed at when 32 px targets overlap (DEC-012).
+   * Seek to the activated marker. A pointer click resolves to the marker
+   * nearest the pointer, so a dense list still picks the tick the reader
+   * aimed at when 32 px targets overlap (DEC-012); keyboard activation keeps
+   * the focused marker.
    */
   private activate(marker: SeekBarMarker, event: MouseEvent): void {
     const target = this.nearestMarker(marker, event);
@@ -145,6 +147,12 @@ export class SeekBarMarkerLayer {
     if (!root || duration === null || !windowInstanceOf(event, MouseEvent)) {
       return fallback;
     }
+    // A keyboard or assistive-technology activation dispatches a click with
+    // detail 0 and no pointer coordinates, and so does a programmatic
+    // `click()`. Treating clientX 0 as the far left of the bar would jump to
+    // the first chapter instead of the focused one, so only pointer input
+    // resolves the nearest tick.
+    if (event.detail === 0) return fallback;
     const rect = root.getBoundingClientRect();
     if (rect.width <= 0) return fallback;
 

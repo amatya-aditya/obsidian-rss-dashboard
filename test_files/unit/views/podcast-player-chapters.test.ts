@@ -251,10 +251,41 @@ describe("PodcastPlayer chapter markers", () => {
     } as DOMRect);
 
     // 98 px is 49 s: nearer the 50 s marker than the 10 s one whose button
-    // painted first and would otherwise win the click.
+    // painted first and would otherwise win the click. detail 1 marks a real
+    // pointer click; a keyboard activation carries detail 0.
     markers()[1].dispatchEvent(
-      new MouseEvent("click", { clientX: 98, bubbles: true }),
+      new MouseEvent("click", { clientX: 98, detail: 1, bubbles: true }),
     );
+
+    expect(audio.currentTime).toBe(50);
+  });
+
+  it("seeks to the focused chapter on keyboard activation at a real layout width", () => {
+    const { container, audio, markers } = load();
+    withDuration(audio, 100);
+    const layer = container.querySelector<HTMLElement>(
+      ".seek-bar-marker-layer",
+    )!;
+    // jsdom has no layout, and nearestMarker() falls back to the clicked
+    // marker when the layer has no width, which would hide this defect.
+    vi.spyOn(layer, "getBoundingClientRect").mockReturnValue({
+      left: 0,
+      top: 0,
+      right: 200,
+      bottom: 32,
+      width: 200,
+      height: 32,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    // Enter and Space on a focused button dispatch a click with no pointer
+    // coordinates and detail 0. Chapter 1 sits at 0 s, so any nearest-tick
+    // resolution of clientX 0 would seek there instead of to chapter 3.
+    const focused = markers()[2];
+    focused.focus();
+    focused.click();
 
     expect(audio.currentTime).toBe(50);
   });
