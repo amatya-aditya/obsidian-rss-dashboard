@@ -510,6 +510,54 @@ describe("coalesced article-state persistence (#1384)", () => {
     expect(order).toEqual(["write", "export"]);
   });
 
+  it("keeps a synced user-state change visible right after a journal append (#1380)", async () => {
+    const handlers: Record<string, (file: { path: string }) => void> = {};
+    (app.vault as unknown as { on: unknown }).on = (
+      event: string,
+      callback: (file: { path: string }) => void,
+    ) => {
+      handlers[event] = callback;
+      return {};
+    };
+    const { plugin } = await startPlugin();
+    const store = (
+      plugin as unknown as {
+        settingsStore: {
+          registerVaultMetadataChangeListeners(
+            register: (ref: unknown) => void,
+          ): void;
+          recordArticleStateChanges(
+            changes: readonly {
+              feedId: string;
+              guid: string;
+              changes: { read: boolean };
+            }[],
+          ): Promise<void>;
+        };
+      }
+    ).settingsStore;
+    store.registerVaultMetadataChangeListeners(() => undefined);
+    vi.useFakeTimers();
+    // Let the startup save's own writer-suppression window expire.
+    await vi.advanceTimersByTimeAsync(3_001);
+    const reload = vi
+      .spyOn(plugin, "loadSettings")
+      .mockResolvedValue(undefined);
+
+    // The append is the change's first durable write. It must not make the
+    // plugin deaf to a synced snapshot change arriving behind it, because the
+    // queued checkpoint would then overwrite that change (#1380).
+    await store.recordArticleStateChanges([
+      { feedId: "feed-1", guid: GUID, changes: { read: true } },
+    ]);
+    // The plugin-default metadata mode watches the dot-folder alias; the
+    // suppression window is what this test measures, not path resolution.
+    handlers.modify?.({ path: ".rss-dashboard-data/user-state.json" });
+    await vi.advanceTimersByTimeAsync(1_500);
+
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps a full save for Shard storage v1, where state lives in shard content", async () => {
     const { plugin, saveData } = await startPlugin({
       storageMode: "vault-shards",

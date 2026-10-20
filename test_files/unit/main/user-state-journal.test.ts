@@ -581,7 +581,7 @@ describe("device-local user-state journal (#1386)", () => {
     expect(journalPaths).toEqual([JOURNAL_PATH]);
   });
 
-  it("routes journal writes through the write wrapper", async () => {
+  it("keeps the watcher-suppressing write wrapper off the device-local journal", async () => {
     const calls: string[] = [];
     const repositoryApi = new FeedStorageRepository(app, {
       writeWrapper: async (write) => {
@@ -599,7 +599,9 @@ describe("device-local user-state journal (#1386)", () => {
       { feedId: "feed-1", guid: GUID, changes: { read: true } },
     ]);
 
-    expect(calls).toEqual(["wrapped"]);
+    // The wrapper also suppresses the vault watcher for 3 s. A journal append
+    // is device-local and must not hide a synced snapshot change (#1380).
+    expect(calls).toEqual([]);
     expect(await adapter(app).exists(JOURNAL_PATH)).toBe(true);
   });
 });

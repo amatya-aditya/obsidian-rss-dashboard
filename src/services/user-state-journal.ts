@@ -34,7 +34,6 @@ export interface UserStateJournalRecord {
 export interface UserStateJournalOptions {
   /** Device-local plugin folder (`manifest.dir`), never a shared folder. */
   pluginDir: string;
-  writeWrapper?: <T>(fn: () => Promise<T>) => Promise<T>;
 }
 
 function storageError(_message: string, _error: unknown): void {}
@@ -269,7 +268,6 @@ export class UserStateJournal {
   private readonly path: string;
   private readonly folder: string;
   private readonly deviceId: string;
-  private readonly writeWrapper?: <T>(fn: () => Promise<T>) => Promise<T>;
   private loaded = false;
   /**
    * Serializes file operations so an append and a checkpoint's truncation
@@ -285,7 +283,6 @@ export class UserStateJournal {
     this.path = getUserStateJournalPath(options.pluginDir);
     this.folder = getUserStateJournalFolder(options.pluginDir);
     this.deviceId = createDeviceId(app);
-    this.writeWrapper = options.writeWrapper;
   }
 
   /** Every complete record on disk, ordered by sequence. Missing is empty. */
@@ -361,15 +358,8 @@ export class UserStateJournal {
         ? `${records.map((record) => JSON.stringify(record)).join("\n")}\n`
         : "";
     const tempPath = `${this.path}.tmp`;
-    const write = async (): Promise<void> => {
-      await this.app.vault.adapter.write(tempPath, content);
-      await replaceFileWithTemp(this.app.vault.adapter, tempPath, this.path);
-    };
-    if (this.writeWrapper) {
-      await this.writeWrapper(write);
-    } else {
-      await write();
-    }
+    await this.app.vault.adapter.write(tempPath, content);
+    await replaceFileWithTemp(this.app.vault.adapter, tempPath, this.path);
   }
 
   /**
@@ -420,17 +410,10 @@ export class UserStateJournal {
       }
       if (lines.length === 0) return;
 
-      const write = async (): Promise<void> => {
-        if (!(await this.app.vault.adapter.exists(this.folder))) {
-          await this.app.vault.adapter.mkdir(this.folder);
-        }
-        await this.app.vault.adapter.append(this.path, `${lines.join("\n")}\n`);
-      };
-      if (this.writeWrapper) {
-        await this.writeWrapper(write);
-      } else {
-        await write();
+      if (!(await this.app.vault.adapter.exists(this.folder))) {
+        await this.app.vault.adapter.mkdir(this.folder);
       }
+      await this.app.vault.adapter.append(this.path, `${lines.join("\n")}\n`);
     });
   }
 

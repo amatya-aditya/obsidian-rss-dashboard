@@ -135,11 +135,13 @@ export class UserStateStore {
     this.isPersistenceSuppressed = options.isPersistenceSuppressed;
     this.getStorageMode = options.getStorageMode;
     const pluginDir = options.pluginDir.trim();
+    // Deliberately no `writeWrapper`: that wrapper suppresses the vault
+    // watcher for 3 s, and the journal is device-local, so wrapping it would
+    // blind this device to a synced `user-state.json` change arriving behind
+    // a local read. The next checkpoint would then overwrite that change
+    // (#1380). Journal writes are serialized by the journal's own chain.
     this.journal = pluginDir
-      ? new UserStateJournal(this.app, {
-          pluginDir,
-          writeWrapper: this.writeWrapper,
-        })
+      ? new UserStateJournal(this.app, { pluginDir })
       : null;
   }
 
