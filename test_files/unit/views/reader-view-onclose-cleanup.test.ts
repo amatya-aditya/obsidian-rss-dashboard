@@ -91,6 +91,24 @@ describe("ReaderView onClose cleanup", () => {
     ).toBeNull();
   });
 
+  it("flushes queued article state on close", async () => {
+    const flushPendingWrites = vi.fn(async () => {});
+    const flushingView = new ReaderView(
+      mockLeaf as never,
+      { ...DEFAULT_SETTINGS, useWebViewer: false },
+      { saveArticle: vi.fn() } as never,
+      vi.fn(),
+      vi.fn(),
+      { flushPendingWrites },
+    );
+
+    getInternals(flushingView).contentEl = createDiv();
+    await flushingView.onOpen();
+    await flushingView.onClose();
+
+    expect(flushPendingWrites).toHaveBeenCalledTimes(1);
+  });
+
   it("flushes inline video progress on close", async () => {
     const onPlaybackProgress = vi.fn();
     const inlineReaderView = new ReaderView(

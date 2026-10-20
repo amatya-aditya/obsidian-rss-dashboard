@@ -4035,6 +4035,10 @@ export class RssDashboardView extends ItemView {
       this.dashboardMultiFiltersDirty = false;
       await this.plugin.saveSettings();
     }
+    // Article-state changes are queued after the interaction, so a close is the
+    // last chance to write them before the view's in-memory list goes away
+    // (#1380). A partial view double in tests may not expose the facade.
+    void this.plugin.flushPendingWrites?.();
     if (this.articleList) {
       this.articleList.destroy();
     }

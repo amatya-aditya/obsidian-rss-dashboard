@@ -100,11 +100,13 @@ async function fixture(options: FixtureOptions = {}) {
   const persistence = deferred();
   const updateArticle = vi.fn(() => persistence.promise);
   const queueArticleStateSave = vi.fn();
+  const flushPendingWrites = vi.fn(async () => {});
   const plugin = {
     settings,
     saveSettings: vi.fn(async () => {}),
     updateArticle,
     queueArticleStateSave,
+    flushPendingWrites,
     resolveCachedImageUrl: () => undefined,
   };
   const view = new RssDashboardView(
@@ -151,6 +153,7 @@ async function fixture(options: FixtureOptions = {}) {
     items,
     updateArticle,
     queueArticleStateSave,
+    flushPendingWrites,
     persistence,
     row,
     rowIds,
@@ -270,6 +273,14 @@ describe("dashboard write-back article state", () => {
       .row("a1")
       ?.querySelector<HTMLElement>(".rss-dashboard-read-toggle");
     expect(document.activeElement).toBe(next);
+  });
+
+  it("flushes queued article state when the dashboard closes", async () => {
+    const f = await fixture();
+
+    await f.view.onClose();
+
+    expect(f.flushPendingWrites).toHaveBeenCalledTimes(1);
   });
 
   it("starts the card collapse immediately and removes it after the animation", async () => {

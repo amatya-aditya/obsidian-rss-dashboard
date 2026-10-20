@@ -1110,6 +1110,7 @@ export default class RssDashboardPlugin extends Plugin {
           },
           {
             saveSettings: () => this.saveSettings(),
+            flushPendingWrites: () => this.flushPendingWrites(),
             onPlaybackProgress: (item, position, duration, flush) => {
               this.updatePlaybackProgress(
                 item.feedUrl,
