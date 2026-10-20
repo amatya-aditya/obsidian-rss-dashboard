@@ -22,6 +22,10 @@ function createFolders(): Folder[] {
         },
       ],
     },
+    {
+      name: "videos",
+      subfolders: [],
+    },
   ];
 }
 
@@ -49,7 +53,7 @@ describe("FolderSuggest", () => {
     vi.restoreAllMocks();
   });
 
-  it("omits the add-new row when the query is empty or matches an existing folder", () => {
+  it("lists every folder for an empty query", () => {
     const inputEl = document.body.appendChild(createEl("input"));
     const suggest = new FolderSuggest(
       obsidian.App.createMock(),
@@ -61,11 +65,36 @@ describe("FolderSuggest", () => {
       "Alpha",
       "Media",
       "Media/YouTube",
+      "videos",
     ]);
+  });
+
+  it("narrows the list when the query is a full folder name, without an add-new row", () => {
+    const inputEl = document.body.appendChild(createEl("input"));
+    const suggest = new FolderSuggest(
+      obsidian.App.createMock(),
+      inputEl,
+      createFolders(),
+    );
+
+    expect(folderPaths(getSuggestions(suggest, "videos"))).toEqual(["videos"]);
+    // Case-insensitive, and a parent folder also lists the folders inside it.
     expect(folderPaths(getSuggestions(suggest, "media"))).toEqual([
-      "Alpha",
       "Media",
       "Media/YouTube",
+    ]);
+  });
+
+  it("offers only the add-new row when the query matches no folder", () => {
+    const inputEl = document.body.appendChild(createEl("input"));
+    const suggest = new FolderSuggest(
+      obsidian.App.createMock(),
+      inputEl,
+      createFolders(),
+    );
+
+    expect(folderPaths(getSuggestions(suggest, "nope"))).toEqual([
+      "add-new:nope",
     ]);
   });
 
@@ -95,6 +124,7 @@ describe("FolderSuggest", () => {
       "Alpha",
       "Media",
       "Media/YouTube",
+      "videos",
     ]);
     expect(folderPaths(getSuggestions(suggest, "does-not-exist"))).toEqual([]);
   });

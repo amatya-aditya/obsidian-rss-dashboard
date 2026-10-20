@@ -35,6 +35,7 @@ import { copyTextToClipboard } from "../../utils/export-utils";
 import { renderFeedErrorKinds } from "../../components/feed-error-section";
 import { getFeedErrorDetail } from "../../utils/feed-error";
 import { addInputClearButton } from "../../utils/input-clear-button";
+import { decorateFolderSelectorInput } from "./folder-selector-field";
 import { addTagMultiSelectControl } from "../../components/tag-multi-select-control";
 import { TagApplicationConfirmModal } from "./tag-application-confirm-modal";
 import { ConfirmTemplateReplacementModal } from "../../settings/modals/settings-modals";
@@ -377,10 +378,6 @@ export class EditFeedModal extends AccessibleModal {
         this.folderInput.autocomplete = "off";
         this.folderInput.spellcheck = false;
         this.folderInput.addClass("folder-input");
-        addInputClearButton(this.folderInput, {
-          fill: true,
-          label: "Clear folder",
-        });
         this.folderInput.addEventListener("focus", () =>
           this.folderInput.select(),
         );
@@ -391,6 +388,7 @@ export class EditFeedModal extends AccessibleModal {
           this.plugin.settings.folders,
         );
       });
+    decorateFolderSelectorInput(folderSetting, this.folderInput);
     folderSetting.settingEl.addClass("rss-feed-form-row");
   }
 

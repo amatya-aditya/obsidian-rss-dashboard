@@ -195,12 +195,11 @@ export class FolderSuggest extends LegacyInputSuggest<FolderSuggestOption> {
       (folder) => folder.toLowerCase() === lowerQuery,
     );
 
-    // An exact match (the user finished typing a valid existing folder name)
-    // shows the full folder list again, same as an empty query — there's
-    // nothing left to narrow down, and browsing the rest is more useful
-    // than a substring-filtered list containing just that one folder.
+    // Only an empty query lists every folder. A non-empty query narrows the
+    // list, including when it equals an existing folder exactly; the exact
+    // match only suppresses the add-new row below.
     const matches =
-      lowerQuery === "" || exactMatch
+      lowerQuery === ""
         ? this.folders
         : this.folders.filter((folder) =>
             folder.toLowerCase().includes(lowerQuery),

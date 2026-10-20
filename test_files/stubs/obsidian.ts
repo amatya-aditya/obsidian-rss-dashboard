@@ -420,7 +420,8 @@ function setIconImpl(el: HTMLElement, iconName: string): void {
 
 // `getIcon` and `getIconIds` are not modeled: no production code imports them
 // and no test needs them. Model either when a consumer appears, the way
-// `AbstractInputSuggest` stays thin until one does (obsidian-console-probes.md).
+// `AbstractInputSuggest` was modeled once folder suggesters needed it
+// (obsidian-console-probes.md).
 
 /** Mirrors Obsidian: the tooltip text is stored as the element's aria-label. */
 function setTooltipImpl(el: HTMLElement, tooltip: string): void {
@@ -2409,20 +2410,228 @@ class ModalStub {
   }
 }
 
+/**
+ * jsdom has no layout, so "shown" is approximated: connected, with no
+ * `display: none` on the element or an ancestor.
+ */
+function isInputShown(el: HTMLElement): boolean {
+  if (!el.isConnected) return false;
+  const view = el.ownerDocument.defaultView;
+  for (let node: HTMLElement | null = el; node; node = node.parentElement) {
+    if (view?.getComputedStyle(node).display === "none") return false;
+  }
+  return true;
+}
+
+/**
+ * Models `AbstractInputSuggest` as probed on Obsidian 1.14.4 desktop (Windows),
+ * `probes/abstract-input-suggest.repl`, with the running implementation read
+ * over the same connection (obsidian-console-probes.md, "Step 3:
+ * AbstractInputSuggest"). `PopoverSuggest` is folded in, because a consumer
+ * only ever extends the combined class.
+ *
+ * Not modeled: reposition geometry (`reposition` and `autoReposition` do
+ * nothing, so the container carries no `left`/`top` style), the open
+ * animation, `PageUp`/`PageDown`, the touch-device deferral of
+ * `onInputFocus`, the app keymap's scope stack, and the 500 ms poll that
+ * closes the popover once the input leaves the document.
+ */
 class AbstractInputSuggestStub<T> {
   app: AppStub;
-  protected inputEl: HTMLInputElement;
-  constructor(app: AppStub, inputEl: HTMLInputElement) {
+  scope: ScopeStub;
+  /** Limit to the number of elements rendered at once; 0 disables it. */
+  limit = 100;
+  isOpen = false;
+  /** The real class names its input `textInputEl`; it has no `inputEl`. */
+  textInputEl: HTMLInputElement | HTMLDivElement;
+  suggestEl: HTMLDivElement;
+  suggestInnerEl: HTMLDivElement;
+  /** Set by the 1.14.4 renderer: hovering a row (mousemove) selects it. */
+  selectOnHover = true;
+  autoReposition = (): void => {};
+  private suggestionValues: T[] = [];
+  private selectedItem = 0;
+  private selectCb:
+    ((value: T, evt: MouseEvent | KeyboardEvent) => unknown) | null = null;
+  private pendingQuery: { cancelled: boolean } | null = null;
+
+  // `getSuggestions` and `renderSuggestion` are abstract in the real class:
+  // its prototype has neither, so a subclass that omits one throws a
+  // TypeError the first time it is needed. Declared without a body to match.
+  declare protected getSuggestions: (query: string) => T[] | Promise<T[]>;
+  declare renderSuggestion: (value: T, el: HTMLElement) => void;
+
+  constructor(app: AppStub, textInputEl: HTMLInputElement | HTMLDivElement) {
     this.app = app;
-    this.inputEl = inputEl;
+    this.textInputEl = textInputEl;
+    // The real scope's parent is the app scope; the stub has no app keymap.
+    this.scope = new ScopeStub();
+    this.suggestEl = createDiv({ cls: "suggestion-container" });
+    this.suggestInnerEl = this.suggestEl.createDiv({ cls: "suggestion" });
+
+    // Observed on 1.14.4: the listeners are bound at construction through the
+    // instance, so a subclass override of `onInputChange`, `onInputFocus` or
+    // `close` takes part. The blur listener is `close`.
+    textInputEl.addEventListener("input", this.onInputChange.bind(this));
+    textInputEl.addEventListener("focus", this.onInputFocus.bind(this));
+    textInputEl.addEventListener("blur", this.close.bind(this));
+    // A mousedown on a row is cancelled, so the input keeps focus.
+    this.suggestEl.addEventListener("mousedown", (evt) => {
+      if (
+        evt.target instanceof Element &&
+        evt.target.closest(".suggestion-item")
+      ) {
+        evt.preventDefault();
+      }
+    });
+    this.registerKeys();
   }
 
-  protected getSuggestions(_query: string): T[] {
-    return [];
+  setValue(value: string): void {
+    if (this.textInputEl instanceof HTMLInputElement) {
+      this.textInputEl.value = value;
+    } else {
+      // The real class sets `innerText`, which jsdom does not implement.
+      this.textInputEl.textContent = value;
+    }
   }
-  renderSuggestion(_value: T, _el: HTMLElement): void {}
-  selectSuggestion(_value: T, _evt: MouseEvent | KeyboardEvent): void {}
-  close(): void {}
+
+  getValue(): string {
+    return this.textInputEl instanceof HTMLInputElement
+      ? this.textInputEl.value
+      : (this.textInputEl.textContent ?? "");
+  }
+
+  /** Runs on `input`, but only while the input is the active element. */
+  onInputChange(): void {
+    if (this.textInputEl.ownerDocument.activeElement !== this.textInputEl) {
+      return;
+    }
+    if (this.pendingQuery) this.pendingQuery.cancelled = true;
+    const query = { cancelled: false };
+    this.pendingQuery = query;
+    const result = this.getSuggestions(this.getValue());
+    if (Array.isArray(result)) {
+      this.showSuggestions(result);
+      return;
+    }
+    // A falsy non-array result is ignored: the popover is left as it was. The
+    // type forbids it, but a subclass can return `undefined` or `null`.
+    const pending = result as Promise<T[]> | null | undefined;
+    if (!pending) return;
+    // A query superseded by a newer one is dropped when it resolves.
+    void pending.then((values) => {
+      if (!query.cancelled) this.showSuggestions(values);
+    });
+  }
+
+  /** Runs on `focus`. Touch devices without a keyboard defer it; not modeled. */
+  onInputFocus(): void {
+    this.onInputChange();
+  }
+
+  /**
+   * Renders the values (selecting the first row), then opens the popover. An
+   * empty list closes it; an input that is not shown does nothing.
+   */
+  showSuggestions(values: T[]): void {
+    if (values.length === 0) {
+      this.close();
+      return;
+    }
+    if (!isInputShown(this.textInputEl)) return;
+    this.setSuggestions(this.limit > 0 ? values.slice(0, this.limit) : values);
+    this.open();
+  }
+
+  selectSuggestion(value: T, evt: MouseEvent | KeyboardEvent): void {
+    // The base implementation only calls the `onSelect` callback: it neither
+    // sets the input's value nor closes the popover, so a consumer does both.
+    this.selectCb?.(value, evt);
+  }
+
+  /** A second call replaces the first callback. */
+  onSelect(
+    callback: (value: T, evt: MouseEvent | KeyboardEvent) => unknown,
+  ): this {
+    this.selectCb = callback;
+    return this;
+  }
+
+  open(): void {
+    if (this.isOpen) return;
+    this.isOpen = true;
+    activeDocument.body.appendChild(this.suggestEl);
+  }
+
+  close(): void {
+    if (!this.isOpen) return;
+    this.isOpen = false;
+    this.setSuggestions([]);
+    this.suggestEl.remove();
+  }
+
+  reposition(_rect?: unknown): void {}
+
+  onEscapeKey(_evt: KeyboardEvent): void {
+    this.close();
+  }
+
+  private setSuggestions(values: T[]): void {
+    this.suggestionValues = values;
+    this.suggestInnerEl.replaceChildren();
+    values.forEach((value, index) => {
+      const item = this.suggestInnerEl.createDiv({ cls: "suggestion-item" });
+      this.renderSuggestion(value, item);
+      item.addEventListener("click", (evt) => {
+        this.setSelectedItem(index);
+        this.selectSuggestion(value, evt);
+      });
+      item.addEventListener("mousemove", () => {
+        if (this.selectOnHover) this.setSelectedItem(index);
+      });
+    });
+    this.setSelectedItem(0);
+  }
+
+  /** An index past either end wraps to the other end. */
+  private setSelectedItem(index: number): void {
+    const count = this.suggestionValues.length;
+    if (count === 0) return;
+    this.selectedItem = index < 0 ? count - 1 : index >= count ? 0 : index;
+    Array.from(this.suggestInnerEl.children).forEach((row, rowIndex) => {
+      row.classList.toggle("is-selected", rowIndex === this.selectedItem);
+    });
+  }
+
+  private registerKeys(): void {
+    const move = (delta: number) => (): false => {
+      this.setSelectedItem(this.selectedItem + delta);
+      return false;
+    };
+    this.scope.register([], "ArrowUp", move(-1));
+    this.scope.register([], "ArrowDown", move(1));
+    this.scope.register([], "Home", () => {
+      this.setSelectedItem(0);
+      return false;
+    });
+    this.scope.register([], "End", () => {
+      this.setSelectedItem(this.suggestionValues.length - 1);
+      return false;
+    });
+    this.scope.register(["Ctrl"], "P", move(-1));
+    this.scope.register(["Ctrl"], "N", move(1));
+    this.scope.register([], "Enter", (evt) => {
+      if (evt.isComposing) return undefined;
+      const value = this.suggestionValues[this.selectedItem];
+      if (value !== undefined) this.selectSuggestion(value, evt);
+      return false;
+    });
+    this.scope.register([], "Escape", (evt) => {
+      this.onEscapeKey(evt);
+      return false;
+    });
+  }
 }
 class ScopeStub {
   public handlers: ObsidianApi.KeymapEventHandler[] = [];

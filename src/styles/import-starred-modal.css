@@ -106,6 +106,17 @@
   padding: 0.35rem 0;
 }
 
+/* New-feed folder field: its control shrinks to the input's own width beside a
+ * long description, and the folder icon's start padding then leaves too little
+ * room for the default "Starred imports" (it was cut by the clear button).
+ * Hold the input at a width that fits it, so it also stays the same width
+ * whether or not the clear button shows. */
+.import-options-panel
+  .rss-dashboard-folder-combobox
+  > input.rss-dashboard-folder-combobox-input {
+  min-width: 12rem;
+}
+
 /* Dims an Options-panel toggle's own description text while that toggle is
  * off, per the spec's per-option disabled-state visual cue. Scoped to this
  * panel's description elements (no `!important`) so it can't leak into
