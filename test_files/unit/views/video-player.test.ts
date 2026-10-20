@@ -184,6 +184,8 @@ describe("VideoPlayer", () => {
     expect(link?.target).toBe("_blank");
     expect(link?.rel).toContain("noopener");
     expect(link?.textContent).toContain("Watch on YouTube");
+    // Only a Twitch link swaps the play glyph to Twitch purple.
+    expect(link?.classList.contains("rss-video-watch--twitch")).toBe(false);
 
     expect(container.querySelector(".rss-video-links")).toBeNull();
     expect(container.querySelector(".rss-video-youtube-button")).toBeNull();

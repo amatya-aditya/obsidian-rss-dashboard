@@ -174,6 +174,9 @@ export class VideoPlayer {
   private renderWatchLink(source: VideoSource): void {
     if (!this.playerEl) return;
     const link = this.playerEl.createEl("a", { cls: "rss-video-watch" });
+    // The play glyph takes the player's brand color, so a Twitch link must not
+    // carry YouTube's red.
+    if (source.kind === "twitch") link.addClass("rss-video-watch--twitch");
     link.href =
       source.kind === "twitch"
         ? twitchVodWatchUrl(source.id)

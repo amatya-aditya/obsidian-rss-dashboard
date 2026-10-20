@@ -61,6 +61,7 @@ describe("VideoPlayer with a Twitch VOD", () => {
     const link = container.querySelector<HTMLAnchorElement>(".rss-video-watch");
     expect(link?.getAttribute("href")).toBe(VOD_LINK);
     expect(link?.textContent).toContain("Watch on Twitch");
+    expect(link?.classList.contains("rss-video-watch--twitch")).toBe(true);
   });
 
   it("lists other VODs from the same channel using their cover images", () => {

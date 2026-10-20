@@ -49,6 +49,9 @@
   display: flex;
   color: var(--rss-color-youtube-badge, #ff0000);
 }
+.rss-video-watch--twitch .rss-video-watch-icon {
+  color: var(--rss-color-twitch-purple, #451093);
+}
 .rss-video-details {
   padding: 15px;
 }
