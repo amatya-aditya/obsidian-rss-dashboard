@@ -137,6 +137,27 @@ describe("computeHighlightMatchCounts", () => {
       expect(test).not.toHaveBeenCalled();
     });
 
+    it("hits the cache when the scope layer returns fresh copies of the same items", () => {
+      const hs = highlights([word("zebra")]);
+      const originals = [
+        article({ title: "zebra", feedUrl: "https://a.example/feed" }),
+        article({ content: "<p>plain</p>", feedUrl: "https://a.example/feed" }),
+      ];
+      const first = counts(
+        originals.map((a) => ({ ...a })),
+        hs,
+      );
+
+      const test = vi.spyOn(RegExp.prototype, "test");
+      const second = counts(
+        originals.map((a) => ({ ...a, read: true })),
+        hs,
+      );
+
+      expect(second).toEqual(first);
+      expect(test).not.toHaveBeenCalled();
+    });
+
     it("drops an article from the count when it leaves the set and restores it on return", () => {
       const hs = highlights([word("zebra")]);
       const a = article({ title: "zebra" });
