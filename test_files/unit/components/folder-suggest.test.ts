@@ -1,4 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import postcss from "postcss";
 import * as obsidian from "obsidian";
 import {
   FOLDER_SUGGEST_CONTAINER_CLASS,
@@ -504,5 +508,43 @@ describe("VaultFolderSuggest", () => {
     inputEl.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
     expect(rowTexts()).toEqual(["Notes", "Notes/Articles", "Inbox"]);
+  });
+});
+
+describe("folder suggest list stacking", () => {
+  const testDir = path.dirname(fileURLToPath(import.meta.url));
+  const css = readFileSync(
+    path.resolve(testDir, "../../../src/styles/modals.css"),
+    "utf-8",
+  );
+
+  function tokenValue(name: string): number {
+    let value = Number.NaN;
+    postcss.parse(css).walkDecls(name, (decl) => {
+      value = Number.parseInt(decl.value, 10);
+    });
+    return value;
+  }
+
+  // The saved-template editor raises its own modal container to
+  // --z-index-modal-child. The list lives under <body>, so it only shows
+  // above that dialog when its z-index is higher still (#1377).
+  it("keeps the list above the saved-template dialog it can open from", () => {
+    let zIndex = "";
+    postcss.parse(css).walkRules((rule) => {
+      if (
+        rule.selector.replace(/\s+/g, " ").trim() ===
+        `.suggestion-container.${FOLDER_SUGGEST_CONTAINER_CLASS}`
+      ) {
+        rule.walkDecls("z-index", (decl) => {
+          zIndex = decl.value;
+        });
+      }
+    });
+
+    expect(zIndex).toBe("var(--z-index-folder-suggest-container)");
+    expect(tokenValue("--z-index-folder-suggest-container")).toBeGreaterThan(
+      tokenValue("--z-index-modal-child"),
+    );
   });
 });

@@ -23,6 +23,7 @@
   --z-index-modal-dropdown-backdrop: 100001; /* tag popover backdrop mounted inside a modal */
   --z-index-modal-dropdown: 100002; /* tag popover mounted inside a modal, above that modal */
   --z-index-modal-child: 100104;
+  --z-index-folder-suggest-container: 100105; /* folder type-ahead list, above the saved-template dialog (--z-index-modal-child) it can open from */
   --z-index-folder-popup: 100102; /* above modal and feed-manager overlays so the folder selector popup renders on top */
 
   /* RSS Dashboard semantic palette */
@@ -604,7 +605,14 @@ body .modal.rss-dashboard-template-editor-dialog {
  * flipping above the input when there is no room below, so the rules here
  * stay on the plugin's own container class: position, background and border
  * come from Obsidian. Rows are plain text that starts at the left edge, not
- * the right alignment a Setting control passes down. */
+ * the right alignment a Setting control passes down. The list sits under
+ * <body>, outside any modal's stacking context, so it needs its own z-index
+ * to stay above a dialog that raises its container (the saved-template
+ * editor), which Obsidian's default layer would leave covering the list. */
+.suggestion-container.rss-folder-suggest-container {
+  z-index: var(--z-index-folder-suggest-container);
+}
+
 .rss-folder-suggest-container .suggestion-item {
   text-align: start;
 }
