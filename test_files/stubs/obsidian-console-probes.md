@@ -1189,13 +1189,163 @@ modeled (#431).
 ## Step 3: AbstractInputSuggest
 
 **Probe:** `test_files/stubs/probes/abstract-input-suggest.repl`.
-**Observed on 1.14.4 (Windows):** `AbstractInputSuggest` extends
-`PopoverSuggest`. Its prototype has `showSuggestions`, `setValue`, `getValue`,
-`onInputFocus`, `onInputChange`, `selectSuggestion`, `onSelect`, `close`,
-`reposition`, `open`, `autoReposition`; `getSuggestions` and `renderSuggestion`
-are abstract. The stub stays thin by design and the contract test pins that
-surface; there is no production consumer, so model it faithfully when one
-appears (#431).
+**Observed on Obsidian 1.14.4 desktop (Windows 11; Settings → About: Version
+1.14.4, Installer version 1.14.4; `apiVersion` `"1.14.4"`) on 2026-10-19**, in
+the repo's fixture vault (#1376). The first record, the prototype, dates from
+the original probe (#431) and reproduced unchanged.
+
+The popover renders into the **active** window's `<body>`, so close the
+Settings popout that `version-and-platform.repl` leaves open before probing
+(`app.setting.close()`; the driver's second step does it and reports
+`mainWindowActive`). Real keys go through `@key`; the CDP harness has no mouse
+step, so clicks, `mousedown` and `mousemove` are synthetic events dispatched on
+the rows. A class declaration in a `repl` step collides with a `const` of the
+same name in another step, so the driver gives every subclass its own name and
+wraps each step in an awaited async function. A backgrounded window clamps
+timers (a 100 ms wait took about 570 ms here), so the driver resolves its
+promises by hand and avoids timers except two deliberate waits (300 ms after a
+blur, 1.2 s for the removed input); a full run takes about six seconds.
+
+**Surface.** `AbstractInputSuggest` extends `PopoverSuggest`. The prototype
+has `showSuggestions`, `setValue`, `getValue`, `onInputFocus`, `onInputChange`,
+`selectSuggestion`, `onSelect`, `close`, `reposition`, `open`, and
+`autoReposition` (bound per instance, so also an own key). `PopoverSuggest`
+adds `onEscapeKey`, `onHistoryBack`, `attachDom`, `detachDom`, `open`,
+`close`, `reposition`, `setAutoDestroy`. **`getSuggestions` and
+`renderSuggestion` are on neither prototype** (abstract): a subclass that omits
+`getSuggestions` throws `TypeError` ("this.getSuggestions is not a function")
+from `onInputChange`, and one that omits `renderSuggestion` throws `TypeError`
+from `showSuggestions`. The constructor takes `(app, textInputEl)`
+(`length` 2). An instance's own keys are `isOpen`, `win`, `app`, `scope`,
+`suggestEl`, `suggestInnerEl`, `suggestions`, `runnable`, `limit`,
+`textInputEl`, `autoReposition`: the input is **`textInputEl`; there is no
+`inputEl`**. `limit` is `100`, `isOpen` starts `false`, `scope.parent` is
+`app.scope`, and construction leaves the input's attributes alone and calls
+nothing. `suggestEl` is `div.suggestion-container` holding
+`div.suggestion` (`suggestInnerEl`), not yet in the document.
+
+**setValue / getValue.** `setValue("be")` returns `undefined`, writes the
+input's `value`, and fires **no** `input` or `change` event, queries nothing and
+does not open the popover. `getValue()` reads the input's live `value`. On a
+`contenteditable` div the real class uses `innerText` (the probe set `"hello"`
+and read it back; the div has no `value` property).
+
+**Input wiring.** The constructor listens for `input` (`onInputChange`),
+`focus` (`onInputFocus`) and `blur` (`close`), each bound through the instance,
+so a subclass override of `close` runs on blur.
+
+- `onInputChange` returns at once unless the input is the active element: an
+  `input` event on a blurred input queried nothing.
+- On focus, with the input holding `"gam"`, the order is `getSuggestions("gam")`,
+  `renderSuggestion` for each row, then `open()`. Typing (a real `a` key, and a
+  dispatched `input` event) repeats it, and calls `open()` again while open. An
+  empty input queries `""` and shows every row.
+- Rendering is synchronous for a sync `getSuggestions`: the rows exist when
+  `dispatchEvent` returns.
+- A **click on an already-focused input does not reopen** a closed popover (no
+  click listener); typing does.
+- **Blur closes the popover at once**, through `close()`, with no delay (still
+  closed 300 ms later); the container leaves the document.
+- `onInputFocus` calls `onInputChange` on a desktop with a physical keyboard; a
+  touch device without one defers it. Not probed: read from the running
+  implementation.
+
+**showSuggestions(values).** Returns `undefined`. An **empty list calls
+`close()`**. For a non-empty list it renders the rows (`renderSuggestion` per
+row, no `getSuggestions` call), then `open()`; it first slices to `limit` (100;
+`limit = 3` rendered 3, `limit = 0` rendered all 150). It does nothing when the
+input is not shown (`display: none` on the input: not open).
+
+**getSuggestions results.** An array is shown at once. A promise is awaited: the
+old rows stay until it resolves, then the new ones replace them; when a newer
+`onInputChange` ran meanwhile, the **superseded** promise's result is dropped
+(query `"1"` slow, `"2"` fast: only `a:2` rendered). A **falsy non-array**
+(`undefined` or `null`) is ignored: the old rows and the open popover stay. An
+empty array closes the popover.
+
+**open / close.** `open()` appends `suggestEl` to the active window's `<body>`
+and registers `scope` on the keymap; it is a no-op while open. `close()`
+empties the rows (`.suggestion` has no children), detaches `suggestEl` and
+unregisters the scope; it returns `undefined` and is a no-op while closed. The
+popover also closes itself within about a second (a 500 ms poll) once the
+input is removed from the document (probe: closed after 1200 ms).
+
+**Container DOM.** While open, `div.suggestion-container` is a direct child of
+`<body>` and holds `div.suggestion`, which holds one `div.suggestion-item` per
+row, rendered by `renderSuggestion(value, el)` into that row. The first row has
+class `is-selected`, and exactly one row has it. Positioning is by inline
+style (`left: 10px; bottom: 15px`, plus a transient `opacity: 0` while it
+animates in), which is not modeled.
+
+**Keys (real `@key`).** With rows `alpha`, `beta`, `gamma` and the first
+selected: `ArrowDown` moves to `beta`, again to `gamma`, again wraps to
+`alpha`; `ArrowUp` from `alpha` wraps to `gamma`; `Home` goes to the first row,
+`End` to the last; `Ctrl+N` and `Ctrl+P` move down and up. `PageDown` from the
+first row of three went to `beta` (not modeled). `Escape` closes the popover and
+leaves the input focused; a later `ArrowDown` does nothing, and typing reopens
+it. `Enter` runs the selected row's `selectSuggestion` with the `keydown`
+event. `scope.keys` is `ArrowUp`, `ArrowDown`, `PageUp`, `PageDown`, `Home`,
+`End`, `Ctrl+P`, `Ctrl+N`, `Enter`, `Escape`; `modifiers` is the string `""`
+or `"Ctrl"`. Calling each handler's `func` directly returned `false` for every
+key except `PageUp` and `PageDown`, which read the selected row's layout and
+throw on a handler called with no rows laid out. `Enter` ignores a composing
+event.
+
+**Mouse (synthetic events).** `mousemove` on a row selects it; `mouseover` and
+`mouseenter` do not. A `mousedown` on a row is `preventDefault`ed, so the input
+keeps focus. A `click` on a row selects it and calls
+`this.selectSuggestion(value, event)` (the subclass override, with the `click`
+event).
+
+**selectSuggestion and onSelect.** The base `selectSuggestion(value, evt)` does
+exactly one thing: it calls the callback given to `onSelect`, if any. It does
+**not** set the input's value and does **not** close the popover (called
+directly with the popover closed: the callback ran, `input.value` stayed `""`;
+`Enter` on an open popover: the callback ran and the popover stayed open).
+`onSelect(cb)` returns the suggest and **replaces** any earlier callback (a
+second registration ran alone). A subclass `selectSuggestion` that does not call
+`super` runs on a click and the `onSelect` callback is **never** called; one
+that calls `super.selectSuggestion`, then `setValue(value)` and `close()`, ran
+in that order, set the input and closed.
+
+```js
+class AisProbe extends api.AbstractInputSuggest {
+  getSuggestions(q) {
+    return ["alpha", "beta", "gamma"].filter((v) => v.includes(q));
+  }
+  renderSuggestion(v, el) {
+    el.setText(v);
+  }
+}
+const s = new AisProbe(app, input);
+s.onSelect((v, evt) => console.log("onSelect", v, evt.type));
+input.focus(); // getSuggestions, renderSuggestion x3, open
+s.selectSuggestion("beta", new MouseEvent("click")); // onSelect beta click
+```
+
+**Modeled (#1376):** `AbstractInputSuggestStub` in `obsidian.ts` models every
+record above: `textInputEl` (no `inputEl`), `limit`, `isOpen`, `suggestEl`,
+`suggestInnerEl`, `scope` with the same keys, `setValue`/`getValue`, the
+focus/input/blur wiring gated on the active element, `showSuggestions`,
+`open`/`close`, the base `selectSuggestion`/`onSelect`, hover and click
+selection, the promise and superseded-query handling, and abstract
+`getSuggestions`/`renderSuggestion` (absent from the prototype). The contract
+test pins each one.
+
+**Divergences, not modeled:**
+
+- Reposition geometry: `reposition` and `autoReposition` do nothing, so the
+  container has no `left`/`top` style and no `opacity: 0` animation.
+- `PageUp`/`PageDown` are not registered; the scope's `modifiers` stay an array
+  (the real scope stores a comma-joined string), and the scope has no parent.
+- jsdom has no `innerText`, so a `contenteditable` div uses `textContent`.
+- jsdom has no layout, so "shown" is connected with no `display: none` ancestor.
+- The deferral of `onInputFocus` on a touch device without a keyboard, the app
+  keymap's scope stack, and the 500 ms poll that closes the popover when the
+  input leaves the document.
+- The `TypeError` messages differ (the stub's name the missing member, the real
+  ones name `this.getSuggestions` and `this.chooser.renderSuggestion`); the
+  contract test asserts the error type only.
 
 ## Step 3: MarkdownRenderer (the 1.14 math DOM)
 
