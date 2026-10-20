@@ -3,10 +3,10 @@
  *
  * The producer appends a device-local journal record when an article-state
  * change is queued. A coalesced checkpoint folds those records into the shared
- * `user-state.json` snapshot, advances `checkpointSequence`, and only then
- * truncates the journal. These tests drive the settings-store load/save surface
- * through the plugin facade and assert what is on disk and what survives a
- * reload.
+ * `user-state.json` snapshot, advances the per-device checkpoint, and keeps the
+ * journal until a later load or checkpoint reads that checkpoint back from
+ * disk. These tests drive the settings-store load/save surface through the
+ * plugin facade and assert what is on disk and what survives a reload.
  */
 import {
   afterEach,
@@ -19,6 +19,7 @@ import {
 } from "vitest";
 import { App, type PluginManifest } from "obsidian";
 import RssDashboardPlugin from "../../../main";
+import { UserStateJournal } from "../../../src/services/user-state-journal";
 import {
   DEFAULT_SETTINGS,
   type Feed,
@@ -123,6 +124,7 @@ function shardJson(items: FeedItem[]): string {
 interface SnapshotStub {
   version: number;
   checkpointSequence?: number;
+  checkpointByDevice?: Record<string, number>;
   states: Record<string, Record<string, unknown>>;
 }
 
@@ -181,14 +183,9 @@ async function startPlugin(
   return { plugin, saveData };
 }
 
-function readOf(plugin: RssDashboardPlugin): boolean | undefined {
-  return plugin.settings.feeds[0].items.find((entry) => entry.guid === GUID)
+function readOf(plugin: RssDashboardPlugin, guid = GUID): boolean | undefined {
+  return plugin.settings.feeds[0].items.find((entry) => entry.guid === guid)
     ?.read;
-}
-
-function starredOf(plugin: RssDashboardPlugin): boolean | undefined {
-  return plugin.settings.feeds[0].items.find((entry) => entry.guid === GUID)
-    ?.starred;
 }
 
 function playbackOf(
@@ -235,8 +232,13 @@ interface PluginSeams {
   };
 }
 
+/** The device id the journal derives for the stub vault's base path. */
+function thisDeviceId(): string {
+  return new UserStateJournal(app, { pluginDir: PLUGIN_DIR }).deviceId;
+}
+
 describe("journal checkpoints (#1387)", () => {
-  it("writes the shared snapshot, advances the checkpoint, and truncates the journal", async () => {
+  it("writes the shared snapshot and advances the checkpoint, keeping the journal until it is seen on disk", async () => {
     const { plugin } = await startPlugin();
     plugin.settings.feeds[0].items[0].read = true;
     plugin.settings.feeds[0].items[1].starred = true;
@@ -255,11 +257,76 @@ describe("journal checkpoints (#1387)", () => {
     await plugin.flushPendingWrites();
 
     const written = snapshot(app);
-    expect(written.version).toBe(4);
+    expect(written.version).toBe(5);
     expect(written.checkpointSequence).toBe(2);
+    expect(written.checkpointByDevice).toBeDefined();
     expect(written.states["feed-1:guid-1"]?.read).toBe(true);
     expect(written.states["feed-1:guid-2"]?.starred).toBe(true);
+    // The checkpoint has not yet been read back from disk, so the records
+    // covering it stay as the only copy a sync overwrite cannot reach (#1380).
+    expect(journalRecords(app)).toHaveLength(2);
+  });
+
+  it("restores a read after a sync client replaces the snapshot with an older copy", async () => {
+    const { plugin } = await startPlugin();
+    plugin.settings.feeds[0].items[0].read = true;
+    await plugin.queueArticleStateSave([
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
+    ]);
+    await plugin.flushPendingWrites();
+    expect(snapshot(app).checkpointSequence).toBe(1);
+
+    // A device on an older build uploads its version-3 snapshot late and the
+    // sync client writes it over the checkpoint this device just made.
+    await adapter(app).write(
+      USER_STATE_PATH,
+      JSON.stringify({
+        version: 3,
+        states: { "feed-1:guid-1": { read: false, starred: false } },
+      }),
+    );
+
+    await plugin.loadSettings();
+
+    expect(readOf(plugin)).toBe(true);
+    // The next checkpoint writes the restored read back to the shared file.
+    await plugin.queueArticleStateSave([
+      { feedUrl: FEED_URL, guid: SECOND_GUID, changes: { starred: true } },
+    ]);
+    await plugin.flushPendingWrites();
+    expect(snapshot(app).states["feed-1:guid-1"]?.read).toBe(true);
+  });
+
+  it("drops records once a later load reads the checkpoint back from disk", async () => {
+    const { plugin } = await startPlugin();
+    plugin.settings.feeds[0].items[0].read = true;
+    await plugin.queueArticleStateSave([
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
+    ]);
+    await plugin.flushPendingWrites();
+    expect(journalRecords(app)).toHaveLength(1);
+
+    await plugin.loadSettings();
+
+    expect(readOf(plugin)).toBe(true);
     expect(journalRecords(app)).toEqual([]);
+  });
+
+  it("drops the previous checkpoint's records when the next checkpoint finds it intact", async () => {
+    const { plugin } = await startPlugin();
+    plugin.settings.feeds[0].items[0].read = true;
+    await plugin.queueArticleStateSave([
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
+    ]);
+    await plugin.flushPendingWrites();
+    plugin.settings.feeds[0].items[1].starred = true;
+    await plugin.queueArticleStateSave([
+      { feedUrl: FEED_URL, guid: SECOND_GUID, changes: { starred: true } },
+    ]);
+    await plugin.flushPendingWrites();
+
+    expect(snapshot(app).checkpointSequence).toBe(2);
+    expect(journalRecords(app).map((record) => record.seq)).toEqual([2]);
   });
 
   it("coalesces a burst of queued changes into one checkpoint", async () => {
@@ -286,22 +353,26 @@ describe("journal checkpoints (#1387)", () => {
 
     expect(snapshotWrites()).toHaveLength(1);
     expect(snapshot(app).checkpointSequence).toBe(5);
-    expect(journalRecords(app)).toEqual([]);
+    expect(journalRecords(app)).toHaveLength(5);
   });
 
-  it("replays pending local records over a synced reload before the next render", async () => {
+  it("keeps and replays this device's records when only a foreign device has a checkpoint", async () => {
     const { plugin } = await startPlugin();
     vi.useFakeTimers();
     await plugin.queueArticleStateSave([
       { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
+      { feedUrl: FEED_URL, guid: SECOND_GUID, changes: { read: true } },
     ]);
+    expect(journalRecords(app)).toHaveLength(2);
 
-    // Another device's snapshot arrives without this device's pending read.
+    // A phone checkpoints to seq 5 and syncs; its map has no entry for this
+    // device, so its checkpoint must not suppress or truncate our records.
     await adapter(app).write(
       USER_STATE_PATH,
       JSON.stringify({
-        version: 4,
-        checkpointSequence: 0,
+        version: 5,
+        checkpointSequence: 5,
+        checkpointByDevice: { "device-phone": 5 },
         states: {
           "feed-1:guid-1": { read: false, starred: true, saved: false },
         },
@@ -311,7 +382,79 @@ describe("journal checkpoints (#1387)", () => {
     await plugin.loadSettings();
 
     expect(readOf(plugin)).toBe(true);
-    expect(starredOf(plugin)).toBe(true);
+    expect(readOf(plugin, SECOND_GUID)).toBe(true);
+    expect(journalRecords(app)).toHaveLength(2);
+  });
+
+  it("truncates through this device's entry after it is read back, leaving the foreign entry", async () => {
+    // A phone checkpoints to seq 5 before this device ever writes.
+    await adapter(app).write(
+      USER_STATE_PATH,
+      JSON.stringify({
+        version: 5,
+        checkpointSequence: 5,
+        checkpointByDevice: { "device-phone": 5 },
+        states: {
+          "feed-1:guid-1": { read: false, starred: false, saved: false },
+        },
+      }),
+    );
+    const { plugin } = await startPlugin();
+
+    // This device checkpoints its own change.
+    plugin.settings.feeds[0].items[0].read = true;
+    await plugin.queueArticleStateSave([
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
+    ]);
+    await plugin.flushPendingWrites();
+
+    const written = snapshot(app);
+    expect(written.checkpointByDevice?.["device-phone"]).toBe(5);
+    expect(written.checkpointSequence).toBe(5);
+    // The record stays until a load reads this device's checkpoint back.
+    expect(journalRecords(app)).toHaveLength(1);
+
+    await plugin.loadSettings();
+
+    // A later load truncates through this device's entry only.
+    expect(journalRecords(app)).toEqual([]);
+    expect(readOf(plugin)).toBe(true);
+  });
+
+  it("treats a legacy v3 checkpoint as this device's own checkpoint when truncating", async () => {
+    // A v3 snapshot only has the global counter; that value is this device's
+    // checkpoint. A stale record at or below it must be skipped (the snapshot
+    // already folded the real value) and the journal truncated.
+    await adapter(app).write(
+      USER_STATE_PATH,
+      JSON.stringify({
+        version: 3,
+        checkpointSequence: 2,
+        states: {
+          "feed-1:guid-1": { read: true, starred: false, saved: false },
+        },
+      }),
+    );
+    const deviceId = thisDeviceId();
+    await adapter(app).mkdir(`${PLUGIN_DIR}/device-local`);
+    await adapter(app).write(
+      JOURNAL_PATH,
+      `${JSON.stringify({
+        seq: 1,
+        deviceId,
+        timestamp: 1_760_000_000_000,
+        feedId: "feed-1",
+        guid: GUID,
+        changes: { read: false },
+      })}\n`,
+    );
+
+    const { plugin } = await startPlugin();
+
+    // The stale read:false is skipped because the legacy checkpoint covers it,
+    // so the snapshot's read:true wins, and the journal is dropped.
+    expect(readOf(plugin)).toBe(true);
+    expect(journalRecords(app)).toEqual([]);
   });
 
   it("never appends or checkpoints after a failed settings load", async () => {
@@ -386,7 +529,7 @@ describe("journal checkpoints (#1387)", () => {
 
     await vi.waitFor(() => expect(snapshot(app).checkpointSequence).toBe(1));
     expect(snapshot(app).states["feed-1:guid-1"]?.read).toBe(true);
-    expect(journalRecords(app)).toEqual([]);
+    expect(journalRecords(app)).toHaveLength(1);
   });
 
   it("writes the snapshot through a temporary file and renames it into place", async () => {

@@ -119,7 +119,7 @@ describe("Shard storage v2 article state (characterization, #465)", () => {
       expect(Object.keys(written).sort()).toEqual(
         ["_syncNonce", "_syncPad", "states", "version"].sort(),
       );
-      expect(written.version).toBe(4);
+      expect(written.version).toBe(5);
       expect(typeof written._syncNonce).toBe("string");
       expect(written._syncPad).toEqual(
         expect.stringContaining("sync-size-anchor"),

@@ -22,7 +22,6 @@ const SHARD_PATH = `${SHARD_FOLDER}/feed-1.json`;
 const USER_STATE_PATH = `${METADATA_FOLDER}/user-state.json`;
 const USER_STATE_TEMP_PATH = `${USER_STATE_PATH}.tmp`;
 const PLUGIN_DIR = "plugins/rss-dashboard";
-const JOURNAL_PATH = `${PLUGIN_DIR}/device-local/user-state-journal.jsonl`;
 const FEED_URL = "https://example.com/feed.xml";
 const GUID = "guid-1";
 const SECOND_GUID = "guid-2";
@@ -96,11 +95,6 @@ function adapter(app: App): VaultAdapterStub {
   return app.vault.adapter as unknown as VaultAdapterStub;
 }
 
-function adapterFiles(app: App): Map<string, string> {
-  return (app.vault as unknown as { adapterFiles: Map<string, string> })
-    .adapterFiles;
-}
-
 function shardJson(items: FeedItem[]): string {
   return JSON.stringify({
     version: 1,
@@ -159,38 +153,28 @@ function starredOf(
     ?.starred;
 }
 
-function journalRecords(app: App): Record<string, unknown>[] {
-  const raw = adapterFiles(app).get(JOURNAL_PATH) ?? "";
-  return raw
-    .split("\n")
-    .filter((line) => line.trim().length > 0)
-    .map((line) => JSON.parse(line) as Record<string, unknown>);
-}
-
 describe("user-state temp recovery (#1380)", () => {
-  it("recovers already-checkpointed state from a completed temp snapshot after an interrupted replace", async () => {
-    // Checkpoint 1 folds read + starred into the snapshot and truncates the
-    // journal, so the snapshot is now the only copy of that state.
-    const plugin = await startPlugin();
-    plugin.settings.feeds[0].items[0].read = true;
-    plugin.settings.feeds[0].items[1].starred = true;
-    await plugin.queueArticleStateSave([
-      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
-      { feedUrl: FEED_URL, guid: SECOND_GUID, changes: { starred: true } },
-    ]);
-    await plugin.flushPendingWrites();
-    expect(journalRecords(app)).toEqual([]);
-
-    // A later checkpoint writes a completed `.tmp`, removes the old snapshot,
-    // and crashes before the rename: `user-state.json` is gone, the `.tmp`
-    // holds the whole state, and the journal only has the delta.
-    const whole = adapterFiles(app).get(USER_STATE_PATH);
-    expect(whole).toBeTruthy();
-    await adapter(app).write(USER_STATE_TEMP_PATH, whole as string);
+  it("recovers state from a completed temp snapshot left by an interrupted replace", async () => {
+    // A checkpoint wrote the `.tmp`, removed `user-state.json`, and crashed
+    // before the rename, so only the completed `.tmp` survives with the whole
+    // snapshot. Recovery must read it rather than replay over an empty file.
+    await adapter(app).write(
+      USER_STATE_TEMP_PATH,
+      JSON.stringify({
+        version: 5,
+        checkpointSequence: 2,
+        checkpointByDevice: { "device-x": 2 },
+        states: {
+          "feed-1:guid-1": { read: true, starred: false, saved: false },
+          "feed-1:guid-2": { read: false, starred: true, saved: false },
+        },
+      }),
+    );
     await adapter(app).remove(USER_STATE_PATH);
 
-    const reloaded = await startPlugin();
-    expect(readOf(reloaded)).toBe(true);
-    expect(starredOf(reloaded, SECOND_GUID)).toBe(true);
+    const plugin = await startPlugin();
+
+    expect(readOf(plugin)).toBe(true);
+    expect(starredOf(plugin, SECOND_GUID)).toBe(true);
   });
 });
