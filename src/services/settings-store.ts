@@ -47,6 +47,13 @@ const ARTICLE_STATE_FLUSH_WINDOW_MS = 2_000;
 const ARTICLE_STATE_FLUSH_THRESHOLD = 25;
 
 /**
+ * How long playback-progress journal records are coalesced by article. Progress
+ * events arrive several times a second; journaling each one would add a write
+ * path per event (#1380). The snapshot write keeps its own, longer window.
+ */
+const PLAYBACK_JOURNAL_WINDOW_MS = 500;
+
+/**
  * Serializes settings for the "did loading change anything" comparison,
  * leaving out each feed's articles. In shard storage `data.json` holds no
  * articles and loading fills them in from the shards, so counting them would
@@ -116,6 +123,12 @@ export class SettingsStore {
   private queuedArticleStateChanges = 0;
   private articleStateFlush: Promise<void> | null = null;
   /**
+   * Latest playback-progress change per article, journaled once per short
+   * window instead of once per player event (#1380).
+   */
+  private pendingPlaybackChanges = new Map<string, UserStateJournalChange>();
+  private playbackJournalTimer: number | null = null;
+  /**
    * Serialized journal appends from queued changes. A checkpoint, a settings
    * load, and an unload all wait for this before reading or rewriting the
    * snapshot, so a change is either folded in or replayed, never lost (#1387).
@@ -173,6 +186,7 @@ export class SettingsStore {
       this.vaultMetadataReloadTimer = null;
     }
     this.clearArticleStateFlushTimer();
+    this.clearPlaybackJournalTimer();
   }
 
   /**
@@ -188,6 +202,12 @@ export class SettingsStore {
     if (this.articleStateFlushTimer === null) return;
     window.clearTimeout(this.articleStateFlushTimer);
     this.articleStateFlushTimer = null;
+  }
+
+  private clearPlaybackJournalTimer(): void {
+    if (this.playbackJournalTimer === null) return;
+    window.clearTimeout(this.playbackJournalTimer);
+    this.playbackJournalTimer = null;
   }
 
   /**
@@ -556,6 +576,18 @@ export class SettingsStore {
   ): Promise<void> {
     if (changes.length === 0) return this.journalAppendChain;
     if (this.isPersistenceSuppressed()) return this.journalAppendChain;
+    return this.appendAcceptedJournalChanges(changes);
+  }
+
+  /**
+   * Queues a change that was accepted while the write gate was open. Callers
+   * have already checked the gate; the append must still land if the gate
+   * closes before it runs (#1380).
+   */
+  private appendAcceptedJournalChanges(
+    changes: readonly UserStateJournalChange[],
+  ): Promise<void> {
+    if (changes.length === 0) return this.journalAppendChain;
     const run = this.journalAppendChain.then(async () => {
       try {
         await this.feedStorageRepository.recordArticleStateChanges(changes);
@@ -567,9 +599,34 @@ export class SettingsStore {
     return run;
   }
 
+  /**
+   * Remembers the latest playback position for one article. Player events
+   * arrive far too often to journal each one, so articles are coalesced and
+   * appended after a short window; a flush, a load, or a save settles them
+   * immediately (#1380).
+   */
+  public recordPlaybackProgressChange(change: UserStateJournalChange): void {
+    if (this.isPersistenceSuppressed()) return;
+    this.pendingPlaybackChanges.set(`${change.feedId}:${change.guid}`, change);
+    if (this.playbackJournalTimer !== null) return;
+    this.playbackJournalTimer = window.setTimeout(() => {
+      this.playbackJournalTimer = null;
+      void this.flushPlaybackChanges();
+    }, PLAYBACK_JOURNAL_WINDOW_MS);
+  }
+
+  private flushPlaybackChanges(): Promise<void> {
+    this.clearPlaybackJournalTimer();
+    if (this.pendingPlaybackChanges.size === 0) return this.journalAppendChain;
+    const changes = [...this.pendingPlaybackChanges.values()];
+    this.pendingPlaybackChanges.clear();
+    return this.appendAcceptedJournalChanges(changes);
+  }
+
   /** Resolves once every journal append requested so far has finished. */
-  private settleJournalAppends(): Promise<void> {
-    return this.journalAppendChain;
+  private async settleJournalAppends(): Promise<void> {
+    await this.flushPlaybackChanges();
+    await this.journalAppendChain;
   }
 
   /**

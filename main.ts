@@ -2558,16 +2558,22 @@ export default class RssDashboardPlugin extends Plugin {
     const changes = articleStateChanges(feedForItem.feedId, item.guid, {
       playbackProgress: { ...item.playbackProgress },
     });
+    const journalChange = changes[0];
+    if (journalChange) {
+      // Progress events are coalesced by article before the journal append, so
+      // continuous playback does not add one write per event (#1380).
+      this.settingsStore.recordPlaybackProgressChange(journalChange);
+    }
 
     if (flush) {
-      void this.queueArticleStateSave(changes);
+      void this.queueArticleStateSave();
       void this.flushPendingWrites();
       return;
     }
 
     // One coalesced article-state queue owns playback progress persistence, so
     // a burst of progress events shares one write after the interaction.
-    void this.queueArticleStateSave(changes);
+    void this.queueArticleStateSave();
   }
 
   public async clearPlaybackProgress(): Promise<number> {

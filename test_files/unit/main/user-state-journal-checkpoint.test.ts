@@ -450,9 +450,12 @@ describe("journal checkpoints (#1387)", () => {
 
   it("journals playback progress from the player before any flush", async () => {
     const { plugin } = await startPlugin();
+    vi.useFakeTimers();
     plugin.updatePlaybackProgress(FEED_URL, SECOND_GUID, 33, 90, false);
-    // Wait for the append the queue requested, without writing a snapshot.
-    await plugin.queueArticleStateSave();
+    // The journal coalesces progress events, so the record lands at the end
+    // of the short journal window rather than on the first event.
+    await vi.advanceTimersByTimeAsync(500);
+    vi.useRealTimers();
 
     const records = journalRecords(app);
     expect(records).toHaveLength(1);
@@ -463,6 +466,31 @@ describe("journal checkpoints (#1387)", () => {
 
     const { plugin: reloaded } = await startPlugin();
     expect(playbackOf(reloaded)?.position).toBe(33);
+  });
+
+  it("coalesces a burst of playback progress into one journal record with the last position", async () => {
+    const { plugin } = await startPlugin();
+    vi.useFakeTimers();
+
+    for (let position = 10; position <= 50; position += 10) {
+      plugin.updatePlaybackProgress(
+        FEED_URL,
+        SECOND_GUID,
+        position,
+        100,
+        false,
+      );
+    }
+    expect(journalRecords(app)).toEqual([]);
+
+    await vi.advanceTimersByTimeAsync(500);
+
+    const records = journalRecords(app);
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({
+      guid: SECOND_GUID,
+      changes: { playbackProgress: { position: 50, duration: 100 } },
+    });
   });
 
   it("does not replay or overwrite an unreadable snapshot", async () => {
