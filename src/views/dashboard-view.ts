@@ -30,6 +30,7 @@ import type {
   FiltersUpdatedEventPayload,
   default as RssDashboardPlugin,
 } from "../../main";
+import type { UserStateJournalChange } from "../services/user-state-journal";
 import { Sidebar, type SidebarOptions } from "../components/sidebar";
 import { ArticleList } from "../components/article-list";
 import { openFilterMenuFrom } from "../components/article-filter-menu";
@@ -679,10 +680,10 @@ export class RssDashboardView extends ItemView {
    * @internal
    */
   public actionMarkAllAsRead(): void {
-    const count = this.updateFilteredArticleReadStatus(true);
+    const { count, changes } = this.updateFilteredArticleReadStatus(true);
 
     if (count > 0) {
-      this.plugin.queueArticleStateSave();
+      void this.plugin.queueArticleStateSave(changes);
       this.scheduleRender();
       new Notice(
         `Marked ${count} items as read in ${this.getArticlesTitleInfo().title}`,
@@ -697,10 +698,10 @@ export class RssDashboardView extends ItemView {
    * @internal
    */
   public actionMarkAllAsUnread(): void {
-    const count = this.updateFilteredArticleReadStatus(false);
+    const { count, changes } = this.updateFilteredArticleReadStatus(false);
 
     if (count > 0) {
-      this.plugin.queueArticleStateSave();
+      void this.plugin.queueArticleStateSave(changes);
       this.scheduleRender();
       new Notice(
         `Marked ${count} items as unread in ${this.getArticlesTitleInfo().title}`,
@@ -710,8 +711,12 @@ export class RssDashboardView extends ItemView {
     }
   }
 
-  private updateFilteredArticleReadStatus(read: boolean): number {
+  private updateFilteredArticleReadStatus(read: boolean): {
+    count: number;
+    changes: UserStateJournalChange[];
+  } {
     let count = 0;
+    const changes: UserStateJournalChange[] = [];
 
     this.getFilteredArticles().forEach((article) => {
       const backingArticle = this.findBackingArticleForDisplayItem(article);
@@ -719,10 +724,39 @@ export class RssDashboardView extends ItemView {
         backingArticle.read = read;
         article.read = read;
         count++;
+        const feed = this.findFeedForBackingArticle(article, backingArticle);
+        if (feed?.feedId) {
+          changes.push({
+            feedId: feed.feedId,
+            guid: backingArticle.guid,
+            changes: { read },
+          });
+        }
       }
     });
 
-    return count;
+    return { count, changes };
+  }
+
+  /** The feed that owns a display item's backing article, for its identity. */
+  private findFeedForBackingArticle(
+    displayArticle: FeedItem,
+    backingArticle: FeedItem,
+  ): Feed | null {
+    if (this.currentFeed?.items.includes(backingArticle)) {
+      return this.currentFeed;
+    }
+    const byUrl = this.settings.feeds.find(
+      (feed) => feed.url === displayArticle.feedUrl,
+    );
+    if (byUrl?.items.includes(backingArticle)) return byUrl;
+    if (byUrl?.items.some((item) => item.guid === backingArticle.guid)) {
+      return byUrl;
+    }
+    return (
+      this.settings.feeds.find((feed) => feed.items.includes(backingArticle)) ??
+      null
+    );
   }
 
   /**
@@ -3496,7 +3530,76 @@ export class RssDashboardView extends ItemView {
     if (pageEmptied) {
       this.setCurrentPageState(pagination.currentPage);
     }
+    // The rebuild below replaces the list, including whatever control the
+    // in-place removal had chosen. Remember the keyboard user's place and
+    // restore an equivalent target once the new page is rendered (#1387).
+    const focusTarget = this.captureListFocus();
     void this.render();
+    this.restoreListFocus(focusTarget);
+  }
+
+  private captureListFocus():
+    { guid: string; feedUrl: string | undefined } | { list: true } | null {
+    const active = activeDocument.activeElement;
+    if (!(active instanceof HTMLElement)) return null;
+    const list = this.containerEl.querySelector<HTMLElement>(
+      ".rss-dashboard-articles-list",
+    );
+    if (!list) return null;
+    if (active === list) return { list: true };
+    if (!list.contains(active)) return null;
+
+    const row = active.closest<HTMLElement>(
+      ".rss-dashboard-article-item, .rss-dashboard-article-card, .rss-dashboard-feed-item",
+    );
+    if (!row || !list.contains(row)) return { list: true };
+    return {
+      guid: row.id.replace(/^article-/, ""),
+      feedUrl: row.dataset.feedUrl,
+    };
+  }
+
+  private restoreListFocus(
+    target:
+      { guid: string; feedUrl: string | undefined } | { list: true } | null,
+  ): void {
+    if (!target) return;
+    const list = this.containerEl.querySelector<HTMLElement>(
+      ".rss-dashboard-articles-list",
+    );
+    if (!list) return;
+
+    if ("guid" in target) {
+      const row = Array.from(
+        list.querySelectorAll<HTMLElement>(
+          ".rss-dashboard-article-item, .rss-dashboard-article-card, .rss-dashboard-feed-item",
+        ),
+      ).find(
+        (candidate) =>
+          candidate.id === `article-${target.guid}` &&
+          (target.feedUrl === undefined ||
+            candidate.dataset.feedUrl === target.feedUrl),
+      );
+      const control = row?.querySelector<HTMLElement>(
+        ".rss-dashboard-read-toggle",
+      );
+      if (control) {
+        control.focus({ preventScroll: true });
+        return;
+      }
+      // The focused row left this page entirely; the first row of the clamped
+      // page is the nearest place to continue from.
+      const first = list.querySelector<HTMLElement>(
+        ".rss-dashboard-article-item .rss-dashboard-read-toggle, .rss-dashboard-article-card .rss-dashboard-read-toggle, .rss-dashboard-feed-item .rss-dashboard-read-toggle",
+      );
+      if (first) {
+        first.focus({ preventScroll: true });
+        return;
+      }
+    }
+
+    list.setAttr("tabindex", "-1");
+    list.focus({ preventScroll: true });
   }
 
   private markPageArticlesAsRead(
@@ -3511,6 +3614,7 @@ export class RssDashboardView extends ItemView {
     }
 
     const updatedArticles: FeedItem[] = [];
+    const changes: UserStateJournalChange[] = [];
     currentPageArticles.forEach((article) => {
       if (article.read) {
         return;
@@ -3524,6 +3628,14 @@ export class RssDashboardView extends ItemView {
       originalArticle.read = true;
       article.read = true;
       updatedArticles.push(article);
+      const feed = this.findFeedForBackingArticle(article, originalArticle);
+      if (feed?.feedId) {
+        changes.push({
+          feedId: feed.feedId,
+          guid: originalArticle.guid,
+          changes: { read: true },
+        });
+      }
     });
 
     if (updatedArticles.length === 0) {
@@ -3531,7 +3643,7 @@ export class RssDashboardView extends ItemView {
       return;
     }
 
-    this.plugin.queueArticleStateSave();
+    void this.plugin.queueArticleStateSave(changes);
 
     const filtered = this.getFilteredArticles();
     const pagination = computePagination({
