@@ -472,6 +472,26 @@ describe("device-local user-state journal (#1386)", () => {
     expect(append).not.toHaveBeenCalled();
   });
 
+  it("shows one notice when journal appends keep failing", async () => {
+    const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
+    const { plugin } = await startPlugin();
+    vi.spyOn(adapter(app), "append").mockRejectedValue(new Error("disk full"));
+
+    await plugin.queueArticleStateSave([
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
+    ]);
+    await plugin.queueArticleStateSave([
+      { feedUrl: FEED_URL, guid: SECOND_GUID, changes: { starred: true } },
+    ]);
+
+    const notices = debug.mock.calls
+      .filter((args) => args[0] === "[Stub Notice]")
+      .map((args) => String(args[1]))
+      .filter((message) => message.includes("article state change"));
+    expect(notices).toHaveLength(1);
+    expect(notices[0]).toContain("disk full");
+  });
+
   it("omits journal records from every export bundle and still round-trips article state", async () => {
     const { plugin } = await startPlugin();
     await repository(plugin).recordArticleStateChanges([

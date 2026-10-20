@@ -128,6 +128,8 @@ export class SettingsStore {
    */
   private pendingPlaybackChanges = new Map<string, UserStateJournalChange>();
   private playbackJournalTimer: number | null = null;
+  /** One journal-failure notice per run of failures, not per append (#1380). */
+  private warnedJournalAppendFailure = false;
   /**
    * Serialized journal appends from queued changes. A checkpoint, a settings
    * load, and an unload all wait for this before reading or rewriting the
@@ -591,8 +593,19 @@ export class SettingsStore {
     const run = this.journalAppendChain.then(async () => {
       try {
         await this.feedStorageRepository.recordArticleStateChanges(changes);
+        this.warnedJournalAppendFailure = false;
       } catch (error) {
         storageError("Failed to append to the user-state journal", error);
+        // A silent failure would leave the user believing a change is durable.
+        // Notify once per run of failures rather than on every event (#1380).
+        if (!this.warnedJournalAppendFailure) {
+          this.warnedJournalAppendFailure = true;
+          new Notice(
+            `RSS Dashboard: Failed to record an article state change: ${
+              error instanceof Error ? error.message : "Unknown error"
+            }`,
+          );
+        }
       }
     });
     this.journalAppendChain = run;

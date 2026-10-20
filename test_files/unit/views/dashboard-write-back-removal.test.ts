@@ -298,6 +298,23 @@ describe("dashboard write-back article state", () => {
     );
   });
 
+  it("notifies once when persisting a dashboard change fails", async () => {
+    reduceMotion();
+    const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
+    const f = await fixture({ viewStyle: "card", articleCount: 1 });
+    f.updateArticle.mockRejectedValueOnce(new Error("disk full"));
+
+    f.clickRead("a1");
+
+    await vi.waitFor(() => {
+      const notices = debug.mock.calls
+        .filter((args) => args[0] === "[Stub Notice]")
+        .map((args) => String(args[1]))
+        .filter((message) => message.includes("disk full"));
+      expect(notices).toHaveLength(1);
+    });
+  });
+
   it("flushes queued article state when the dashboard closes", async () => {
     const f = await fixture();
 

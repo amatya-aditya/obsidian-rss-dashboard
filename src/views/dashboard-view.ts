@@ -3313,9 +3313,19 @@ export class RssDashboardView extends ItemView {
         .updateArticle(originalArticle.guid, feed.url, normalizedUpdates, false)
         .catch((error: unknown) => {
           console.error("Failed to persist dashboard article update", error);
+          new Notice(
+            `RSS Dashboard: Failed to save article changes: ${
+              error instanceof Error ? error.message : "Unknown error"
+            }`,
+          );
         });
     } catch (error) {
       console.error("Failed to persist dashboard article update", error);
+      new Notice(
+        `RSS Dashboard: Failed to save article changes: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
+      );
     }
 
     return true;
