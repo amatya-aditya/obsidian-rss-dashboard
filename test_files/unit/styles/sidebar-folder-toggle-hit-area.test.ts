@@ -62,6 +62,18 @@ describe("Sidebar folder chevron hit area", () => {
     expect(hitArea.get("inset")).toBe("-8px");
   });
 
+  it("keeps the expanded target out of a clipping ancestor and reserves the row height", () => {
+    // The toggle starts 5px into the folder, so the 8px left overhang is only
+    // reachable while the folder itself does not clip. A 32px row keeps the
+    // 32px target inside the folder vertically at the default spacing.
+    expect(declarationsFor(".rss-dashboard-feed-folder").get("overflow")).toBe(
+      "visible",
+    );
+    expect(
+      declarationsFor(".rss-dashboard-feed-folder-header").get("min-height"),
+    ).toBe("32px");
+  });
+
   it("grows the target to 40px tall on touch, inside the row's 44px height", () => {
     const hitArea = declarationsInCoarsePointerMedia(
       ".rss-dashboard-feed-folder-toggle::after",

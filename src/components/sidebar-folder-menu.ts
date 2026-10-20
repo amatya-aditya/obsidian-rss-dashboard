@@ -1,5 +1,6 @@
 import { Menu, type MenuItem } from "obsidian";
 import type { Feed, Folder, RssDashboardSettings } from "../types/types";
+import { markMenuItemDestructive } from "../utils/destructive-menu-item";
 import { isDomNode } from "../utils/dom-node";
 
 /**
@@ -285,10 +286,9 @@ function addDeleteFolderItem(
   host: SidebarFolderMenuHost,
 ): void {
   menu.addItem((item: MenuItem) => {
-    item
+    markMenuItemDestructive(item)
       .setTitle("Delete folder")
       .setIcon("trash")
-      .setWarning(true)
       .onClick(() => {
         host.showConfirmModal(
           `Are you sure you want to delete the folder '${folderName}' and all its subfolders and feeds?`,

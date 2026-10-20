@@ -655,7 +655,12 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
 }
 
 .rss-dashboard-feed-folder {
-  overflow: hidden;
+  /*
+   * The chevron's expanded hit area reaches 3px past the header's content
+   * inset. Child rows clip themselves, and names truncate, so this box does
+   * not need to clip; keeping it visible makes the full target clickable.
+   */
+  overflow: visible;
   flex: 0 0 auto;
 }
 
@@ -673,6 +678,8 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
   padding-left: var(--sidebar-item-padding-left);
   padding-right: var(--sidebar-item-padding-right);
   flex-shrink: 0;
+  /* Holds the chevron's full 32x32 target at the default 10px row spacing. */
+  min-height: 32px;
 }
 
 .rss-dashboard-feed-folder-header:hover {

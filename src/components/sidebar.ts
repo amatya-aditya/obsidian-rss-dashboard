@@ -24,6 +24,7 @@ import { showEditTagModal } from "../utils/tag-utils";
 import { deleteTagFromSettings } from "../utils/tag-settings";
 import { windowInstanceOf } from "../utils/platform-utils";
 import { addInputClearButton } from "../utils/input-clear-button";
+import { markMenuItemDestructive } from "../utils/destructive-menu-item";
 import { isDomNode } from "../utils/dom-node";
 import {
   SidebarSearchService,
@@ -2015,10 +2016,9 @@ export class Sidebar {
     });
     menu.addSeparator();
     menu.addItem((item: MenuItem) => {
-      item
+      markMenuItemDestructive(item)
         .setTitle("Delete selection")
         .setIcon("trash")
-        .setWarning(true)
         .onClick(() => {
           this.deleteSelection();
         });
@@ -2909,10 +2909,9 @@ export class Sidebar {
     });
 
     menu.addItem((item: MenuItem) => {
-      item
+      markMenuItemDestructive(item)
         .setTitle("Delete tag")
         .setIcon("trash")
-        .setWarning(true)
         .onClick(() => {
           this.showConfirmModal(
             `Are you sure you want to delete the tag "${tag.name}"? This will remove the tag from all articles.`,
@@ -3738,10 +3737,9 @@ export class Sidebar {
     });
 
     menu.addItem((item: MenuItem) => {
-      item
+      markMenuItemDestructive(item)
         .setTitle("Delete feed")
         .setIcon("trash")
-        .setWarning(true)
         .onClick(() => {
           this.showConfirmModal(
             `Are you sure you want to delete the feed "${feed.title}"?`,
