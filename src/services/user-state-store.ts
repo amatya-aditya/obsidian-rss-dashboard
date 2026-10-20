@@ -6,14 +6,20 @@ import type {
   UserStateFile,
 } from "../types/types";
 import { cloneJson, withSyncNonce } from "./storage-json";
+import {
+  UserStateJournal,
+  foldUserStateJournalRecords,
+  type UserStateJournalChange,
+} from "./user-state-journal";
 
 /**
  * `user-state.json` schema version. Version 2 keys `states` by
  * `${feedId}:${guid}` instead of a bare GUID, so two feeds carrying the same
  * GUID no longer overwrite each other's article state (issue #278). Version 3
- * adds hydration-gated garbage-collection timestamps (issue #315).
+ * adds hydration-gated garbage-collection timestamps (issue #315). Version 4
+ * adds the device-local journal checkpoint sequence (#1386).
  */
-const USER_STATE_KEY_VERSION = 3;
+const USER_STATE_KEY_VERSION = 4;
 const USER_STATE_QUALIFIED_VERSION = 2;
 const USER_STATE_GC_HORIZON_MS = 90 * 24 * 60 * 60 * 1000;
 
@@ -103,12 +109,63 @@ export class UserStateStore {
   private userStateUnreadable = false;
   private onUserStateHealthChange?: () => void;
   private app: App;
+  private journal: UserStateJournal | null = null;
+  private isPersistenceSuppressed: () => boolean = () => false;
+  private getStorageMode: () => RssDashboardSettings["storageMode"] = () =>
+    "legacy-json";
+  /**
+   * Highest journal sequence seen this session, whether read from disk or
+   * appended. A save writes it as the snapshot's `checkpointSequence` once the
+   * record's state is folded into the snapshot.
+   */
+  private lastJournalSequence = 0;
 
   constructor(app: App, options: UserStateStoreOptions) {
     this.app = app;
     this.writeWrapper = options.writeWrapper;
     this.onUserStateHealthChange = options.onUserStateHealthChange;
     this.hydratedShardGuidsByFeedId = options.hydratedShardGuidsByFeedId;
+  }
+
+  /**
+   * Points the store at the device-local journal folder. The settings store
+   * owns the plugin folder and the one persistence gate (ADR 0024), so it
+   * configures both here rather than the repository duplicating that policy.
+   */
+  public configureDeviceLocalJournal(options: {
+    pluginDir: string;
+    isPersistenceSuppressed?: () => boolean;
+    getStorageMode: () => RssDashboardSettings["storageMode"];
+  }): void {
+    this.isPersistenceSuppressed =
+      options.isPersistenceSuppressed ?? (() => false);
+    this.getStorageMode = options.getStorageMode;
+    const pluginDir = options.pluginDir.trim();
+    this.journal = pluginDir
+      ? new UserStateJournal(this.app, {
+          pluginDir,
+          writeWrapper: this.writeWrapper,
+        })
+      : null;
+  }
+
+  /**
+   * Appends article-state changes to the device-local journal so they survive
+   * an abrupt close before the shared snapshot is rewritten. Callers pass
+   * changes already applied to the in-memory items. This does not persist the
+   * snapshot; #1387 calls it from the coalesced queue.
+   */
+  public async appendChanges(
+    changes: readonly UserStateJournalChange[],
+  ): Promise<void> {
+    if (!this.journal) return;
+    if (this.getStorageMode() !== "vault-shards-v2") return;
+    if (this.isPersistenceSuppressed()) return;
+    await this.journal.append(changes);
+    this.lastJournalSequence = Math.max(
+      this.lastJournalSequence,
+      this.journal.lastSequence,
+    );
   }
 
   public isUnreadable(): boolean {
@@ -147,6 +204,7 @@ export class UserStateStore {
       userState,
       settings,
     );
+    await this.replayJournal(settings, userState, resolvedStates);
     for (const feed of settings.feeds) {
       const feedId = feed.feedId ?? "";
       for (const item of feed.items) {
@@ -175,6 +233,26 @@ export class UserStateStore {
 
   private getUserStatePath(settings: RssDashboardSettings): string {
     return normalizePath(`${this.getMetadataFolder(settings)}/user-state.json`);
+  }
+
+  /**
+   * Replays journal records newer than the snapshot's checkpoint over the
+   * snapshot's state before it is applied to loaded items. Replay is ordered
+   * by sequence and idempotent: the same journal over the same snapshot
+   * produces the same state.
+   */
+  private async replayJournal(
+    settings: RssDashboardSettings,
+    snapshot: UserStateFile | null,
+    states: Record<string, ArticleUserState>,
+  ): Promise<void> {
+    if (!this.journal || settings.storageMode !== "vault-shards-v2") return;
+    const records = await this.journal.read();
+    const checkpointSequence = snapshot?.checkpointSequence ?? 0;
+    this.lastJournalSequence = Math.max(
+      this.lastJournalSequence,
+      foldUserStateJournalRecords(states, records, checkpointSequence),
+    );
   }
 
   /**
@@ -308,6 +386,14 @@ export class UserStateStore {
       existing.status === "ok" ? existing.file : null,
       settings,
     );
+    // Fold pending journal records into the state this save writes, so the
+    // checkpoint it records really covers every replayed record — including
+    // one whose article is no longer loaded in memory.
+    const checkpointSequence = await this.foldJournalIntoSnapshot(
+      settings,
+      states,
+      existing.status === "ok" ? existing.file : null,
+    );
     const missingSinceByStateKey =
       existing.status === "ok"
         ? cloneJson(existing.file.missingSinceByStateKey ?? {})
@@ -376,9 +462,43 @@ export class UserStateStore {
       return;
     }
 
-    const userStateFile: UserStateFile = withSyncNonce({
+    const userStateFile = this.createUserStateFile({
+      states,
+      unattributed,
+      checkpointSequence,
+      missingSinceByStateKey,
+      unattributedFirstObservedAtByGuid,
+      unrecognizedFeedSinceByFeedId,
+    });
+
+    await this.writeUserState(settings, userStateFile);
+    this.restoredUserStateKeys = stagedRestoredKeys;
+    settleRemovals();
+    storageLog(
+      "Saved user-state.json with " + Object.keys(states).length + " entries.",
+    );
+  }
+
+  private createUserStateFile(options: {
+    states: Record<string, ArticleUserState>;
+    unattributed: Record<string, ArticleUserState>;
+    checkpointSequence: number;
+    missingSinceByStateKey: Record<string, number>;
+    unattributedFirstObservedAtByGuid: Record<string, number>;
+    unrecognizedFeedSinceByFeedId: Record<string, number>;
+  }): UserStateFile {
+    const {
+      states,
+      unattributed,
+      checkpointSequence,
+      missingSinceByStateKey,
+      unattributedFirstObservedAtByGuid,
+      unrecognizedFeedSinceByFeedId,
+    } = options;
+    return withSyncNonce({
       version: USER_STATE_KEY_VERSION,
       states,
+      ...(checkpointSequence > 0 ? { checkpointSequence } : {}),
       ...(Object.keys(unattributed).length > 0
         ? { unattributedLegacyStates: unattributed }
         : {}),
@@ -392,13 +512,6 @@ export class UserStateStore {
         ? { unrecognizedFeedSinceByFeedId }
         : {}),
     });
-
-    await this.writeUserState(settings, userStateFile);
-    this.restoredUserStateKeys = stagedRestoredKeys;
-    settleRemovals();
-    storageLog(
-      "Saved user-state.json with " + Object.keys(states).length + " entries.",
-    );
   }
 
   private mergeLoadedItems(
@@ -625,6 +738,24 @@ export class UserStateStore {
         });
       }
     }
+  }
+
+  private async foldJournalIntoSnapshot(
+    settings: RssDashboardSettings,
+    states: Record<string, ArticleUserState>,
+    snapshot: UserStateFile | null,
+  ): Promise<number> {
+    const checkpointSequence = snapshot?.checkpointSequence ?? 0;
+    if (!this.journal || settings.storageMode !== "vault-shards-v2") {
+      return Math.max(this.lastJournalSequence, checkpointSequence);
+    }
+    const records = await this.journal.read();
+    const folded = foldUserStateJournalRecords(
+      states,
+      records,
+      checkpointSequence,
+    );
+    return Math.max(this.lastJournalSequence, folded);
   }
 
   private async writeUserState(
