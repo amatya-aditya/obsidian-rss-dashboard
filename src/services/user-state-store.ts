@@ -113,12 +113,6 @@ export class UserStateStore {
   private isPersistenceSuppressed: () => boolean = () => false;
   private getStorageMode: () => RssDashboardSettings["storageMode"] = () =>
     "legacy-json";
-  /**
-   * Highest journal sequence seen this session, whether read from disk or
-   * appended. A save writes it as the snapshot's `checkpointSequence` once the
-   * record's state is folded into the snapshot.
-   */
-  private lastJournalSequence = 0;
 
   constructor(app: App, options: UserStateStoreOptions) {
     this.app = app;
@@ -162,10 +156,6 @@ export class UserStateStore {
     if (this.getStorageMode() !== "vault-shards-v2") return;
     if (this.isPersistenceSuppressed()) return;
     await this.journal.append(changes);
-    this.lastJournalSequence = Math.max(
-      this.lastJournalSequence,
-      this.journal.lastSequence,
-    );
   }
 
   public isUnreadable(): boolean {
@@ -204,7 +194,16 @@ export class UserStateStore {
       userState,
       settings,
     );
-    await this.replayJournal(settings, userState, resolvedStates);
+    // An unreadable snapshot cannot be rewritten, so its file also refuses
+    // every save. Replaying pending records over it would show state this
+    // session can never persist, so replay is skipped and the default state is
+    // shown until the file is fixed or removed (#1387).
+    await this.replayJournal(
+      settings,
+      userState,
+      resolvedStates,
+      userStateResult.status !== "unreadable",
+    );
     for (const feed of settings.feeds) {
       const feedId = feed.feedId ?? "";
       for (const item of feed.items) {
@@ -245,14 +244,13 @@ export class UserStateStore {
     settings: RssDashboardSettings,
     snapshot: UserStateFile | null,
     states: Record<string, ArticleUserState>,
+    replay: boolean,
   ): Promise<void> {
     if (!this.journal || settings.storageMode !== "vault-shards-v2") return;
     const records = await this.journal.read();
     const checkpointSequence = snapshot?.checkpointSequence ?? 0;
-    this.lastJournalSequence = Math.max(
-      this.lastJournalSequence,
-      foldUserStateJournalRecords(states, records, checkpointSequence),
-    );
+    if (!replay) return;
+    foldUserStateJournalRecords(states, records, checkpointSequence);
   }
 
   /**
@@ -472,6 +470,9 @@ export class UserStateStore {
     });
 
     await this.writeUserState(settings, userStateFile);
+    // Only a successful snapshot write may drop records: the checkpoint
+    // sequence now on disk covers them (#1387).
+    await this.truncateJournal(checkpointSequence);
     this.restoredUserStateKeys = stagedRestoredKeys;
     settleRemovals();
     storageLog(
@@ -747,15 +748,32 @@ export class UserStateStore {
   ): Promise<number> {
     const checkpointSequence = snapshot?.checkpointSequence ?? 0;
     if (!this.journal || settings.storageMode !== "vault-shards-v2") {
-      return Math.max(this.lastJournalSequence, checkpointSequence);
+      return checkpointSequence;
     }
     const records = await this.journal.read();
-    const folded = foldUserStateJournalRecords(
-      states,
-      records,
-      checkpointSequence,
-    );
-    return Math.max(this.lastJournalSequence, folded);
+    // The checkpoint covers exactly the records read here and folded below.
+    // An append that lands after this read gets a higher sequence and replays
+    // next time instead of being truncated unseen (#1387).
+    return foldUserStateJournalRecords(states, records, checkpointSequence);
+  }
+
+  /**
+   * Drops the records a successful snapshot write just folded in. A failure is
+   * logged, not surfaced: the snapshot is already correct, and leftover
+   * records are skipped by replay through its checkpoint (#1387).
+   */
+  private async truncateJournal(checkpointSequence: number): Promise<void> {
+    if (!this.journal || this.getStorageMode() !== "vault-shards-v2") return;
+    if (checkpointSequence <= 0) return;
+    if (this.isPersistenceSuppressed()) return;
+    try {
+      await this.journal.truncateThrough(checkpointSequence);
+    } catch (error) {
+      storageError(
+        "Failed to truncate the user-state journal after checkpoint",
+        error,
+      );
+    }
   }
 
   private async writeUserState(
@@ -776,14 +794,38 @@ export class UserStateStore {
     }
 
     const writeUserState = () =>
-      this.app.vault.adapter.write(
-        path,
-        JSON.stringify(userStateFile, null, 2),
-      );
+      this.writeUserStateAtomically(path, userStateFile);
     if (this.writeWrapper) {
       await this.writeWrapper(writeUserState);
     } else {
       await writeUserState();
+    }
+  }
+
+  /**
+   * Writes the snapshot to a sibling temporary file and renames it into place,
+   * so a sync tool or crash never observes a partially written
+   * `user-state.json` (#1387).
+   */
+  private async writeUserStateAtomically(
+    path: string,
+    userStateFile: UserStateFile,
+  ): Promise<void> {
+    const tempPath = `${path}.tmp`;
+    await this.app.vault.adapter.write(
+      tempPath,
+      JSON.stringify(userStateFile, null, 2),
+    );
+    try {
+      await this.app.vault.adapter.rename(tempPath, path);
+    } catch (error) {
+      try {
+        await this.app.vault.adapter.remove(tempPath);
+      } catch {
+        // The failed write already left an artifact; a lingering temp file is
+        // harmless and never read as the snapshot.
+      }
+      throw error;
     }
   }
 }

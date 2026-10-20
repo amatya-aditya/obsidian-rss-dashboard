@@ -1,5 +1,5 @@
 import { App, normalizePath } from "obsidian";
-import type { ArticleUserState, Tag } from "../types/types";
+import type { ArticleUserState, FeedItem, Tag } from "../types/types";
 import { cloneJson } from "./storage-json";
 
 /**
@@ -52,6 +52,58 @@ export function getUserStateJournalPath(pluginDir: string): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+/**
+ * The article-state fields of an in-memory update, ready to journal. Fields the
+ * update does not carry are omitted so replay leaves them as the snapshot has
+ * them (#1387).
+ */
+export function articleStateFromUpdates(
+  updates: Partial<FeedItem>,
+): ArticleUserState {
+  const state: ArticleUserState = {};
+  if (typeof updates.read === "boolean") state.read = updates.read;
+  if (typeof updates.starred === "boolean") state.starred = updates.starred;
+  if (typeof updates.saved === "boolean") state.saved = updates.saved;
+  if (typeof updates.savedFilePath === "string") {
+    state.savedFilePath = updates.savedFilePath;
+  }
+  if (Array.isArray(updates.tags)) {
+    state.tags = updates.tags.map((tag) => ({
+      name: tag.name,
+      color: tag.color,
+    }));
+  }
+  if (updates.playbackProgress) {
+    state.playbackProgress = {
+      position: updates.playbackProgress.position,
+      duration: updates.playbackProgress.duration,
+      lastUpdated: updates.playbackProgress.lastUpdated,
+    };
+  }
+  return state;
+}
+
+/** The article state an item currently holds, for a save-path journal record. */
+export function articleStateFromItem(item: FeedItem): ArticleUserState {
+  const state: ArticleUserState = {
+    read: Boolean(item.read),
+    starred: Boolean(item.starred),
+    saved: Boolean(item.saved),
+  };
+  if (item.tags && item.tags.length > 0) {
+    state.tags = item.tags.map((tag) => ({ name: tag.name, color: tag.color }));
+  }
+  if (item.savedFilePath) state.savedFilePath = item.savedFilePath;
+  if (item.playbackProgress) {
+    state.playbackProgress = {
+      position: item.playbackProgress.position,
+      duration: item.playbackProgress.duration,
+      lastUpdated: item.playbackProgress.lastUpdated,
+    };
+  }
+  return state;
 }
 
 function isTag(value: unknown): value is Tag {
@@ -163,7 +215,12 @@ export function foldUserStateJournalRecords(
     if (record.seq <= checkpointSequence) continue;
     const key = `${record.feedId}:${record.guid}`;
     const base = states[key] ? cloneJson(states[key]) : {};
-    states[key] = { ...base, ...cloneJson(record.changes) };
+    const merged = { ...base, ...cloneJson(record.changes) };
+    // Unsaving clears the note association, but a self-contained record cannot
+    // carry an absent field. Treat `saved: false` as removing the old path so a
+    // replay never resurrects a note the user detached (#1387).
+    if (record.changes.saved === false) delete merged.savedFilePath;
+    states[key] = merged;
   }
   return lastSequence;
 }
@@ -211,6 +268,12 @@ export class UserStateJournal {
   private readonly deviceId: string;
   private readonly writeWrapper?: <T>(fn: () => Promise<T>) => Promise<T>;
   private loaded = false;
+  /**
+   * Serializes file operations so an append and a checkpoint's truncation
+   * cannot interleave: a rewrite must never drop a record appended while it
+   * was reading the file (#1387).
+   */
+  private operationChain: Promise<unknown> = Promise.resolve();
   /** Highest sequence assigned or read, so appended records stay ordered. */
   lastSequence = 0;
 
@@ -245,6 +308,15 @@ export class UserStateJournal {
     await this.read();
   }
 
+  private runExclusive<T>(operation: () => Promise<T>): Promise<T> {
+    const run = this.operationChain.then(operation, operation);
+    this.operationChain = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  }
+
   /**
    * Appends one self-contained record per change. Invalid changes are skipped
    * rather than failing the append of valid ones.
@@ -253,39 +325,75 @@ export class UserStateJournal {
     changes: readonly UserStateJournalChange[],
   ): Promise<void> {
     if (changes.length === 0) return;
-    await this.ensureLoaded();
+    await this.runExclusive(async () => {
+      await this.ensureLoaded();
 
-    const timestamp = Date.now();
-    const lines: string[] = [];
-    for (const change of changes) {
-      const feedId = change.feedId.trim();
-      const guid = change.guid.trim();
-      const changedFields = readChangedFields(change.changes);
-      if (!feedId || !guid || !changedFields) continue;
-      this.lastSequence += 1;
-      lines.push(
-        JSON.stringify({
-          seq: this.lastSequence,
-          deviceId: this.deviceId,
-          timestamp,
-          feedId,
-          guid,
-          changes: changedFields,
-        }),
-      );
-    }
-    if (lines.length === 0) return;
-
-    const write = async (): Promise<void> => {
-      if (!(await this.app.vault.adapter.exists(this.folder))) {
-        await this.app.vault.adapter.mkdir(this.folder);
+      const timestamp = Date.now();
+      const lines: string[] = [];
+      for (const change of changes) {
+        const feedId = change.feedId.trim();
+        const guid = change.guid.trim();
+        const changedFields = readChangedFields(change.changes);
+        if (!feedId || !guid || !changedFields) continue;
+        this.lastSequence += 1;
+        lines.push(
+          JSON.stringify({
+            seq: this.lastSequence,
+            deviceId: this.deviceId,
+            timestamp,
+            feedId,
+            guid,
+            changes: changedFields,
+          }),
+        );
       }
-      await this.app.vault.adapter.append(this.path, `${lines.join("\n")}\n`);
-    };
-    if (this.writeWrapper) {
-      await this.writeWrapper(write);
-    } else {
-      await write();
-    }
+      if (lines.length === 0) return;
+
+      const write = async (): Promise<void> => {
+        if (!(await this.app.vault.adapter.exists(this.folder))) {
+          await this.app.vault.adapter.mkdir(this.folder);
+        }
+        await this.app.vault.adapter.append(this.path, `${lines.join("\n")}\n`);
+      };
+      if (this.writeWrapper) {
+        await this.writeWrapper(write);
+      } else {
+        await write();
+      }
+    });
+  }
+
+  /**
+   * Drops every record at or below `sequence`, which a checkpoint has already
+   * folded into the shared snapshot. The rewrite goes through a temporary file
+   * plus rename so a crash leaves either the old journal or the new one, never
+   * a half-written file; an absent journal stays valid and does nothing
+   * (#1387).
+   */
+  public async truncateThrough(sequence: number): Promise<void> {
+    if (sequence <= 0) return;
+    await this.runExclusive(async () => {
+      await this.ensureLoaded();
+      if (!(await this.app.vault.adapter.exists(this.path))) return;
+      const raw = await this.app.vault.adapter.read(this.path);
+      const records = parseUserStateJournal(raw);
+      const remaining = records.filter((record) => record.seq > sequence);
+      if (remaining.length === records.length) return;
+
+      const content =
+        remaining.length > 0
+          ? `${remaining.map((record) => JSON.stringify(record)).join("\n")}\n`
+          : "";
+      const tempPath = `${this.path}.tmp`;
+      const write = async (): Promise<void> => {
+        await this.app.vault.adapter.write(tempPath, content);
+        await this.app.vault.adapter.rename(tempPath, this.path);
+      };
+      if (this.writeWrapper) {
+        await this.writeWrapper(write);
+      } else {
+        await write();
+      }
+    });
   }
 }

@@ -804,6 +804,7 @@ interface MockVaultAdapter {
   readBinary(path: string): Promise<ArrayBuffer>;
   write(path: string, content: string): Promise<void>;
   append(path: string, content: string): Promise<void>;
+  rename(oldPath: string, newPath: string): Promise<void>;
   mkdir(path: string): Promise<void>;
   on(name: string, callback: (...args: unknown[]) => unknown): unknown;
   list(path: string): Promise<{ files: string[]; folders: string[] }>;
@@ -893,6 +894,52 @@ export class MockDataVault {
         );
         if (!this.files.has(path)) {
           this.files.set(path, new TFileStub(path));
+        }
+      },
+      // Not yet observed against Obsidian: modeled on Node's `fs.rename` (and
+      // Obsidian's documented adapter member): the source must exist, the
+      // destination's parent must exist, and an existing destination file is
+      // replaced. A folder is not modeled because this repo only renames files.
+      rename: async (oldPath: string, newPath: string) => {
+        const newParentPath = newPath.includes("/")
+          ? newPath.slice(0, newPath.lastIndexOf("/"))
+          : "";
+        if (newParentPath && !this.folderExistsOnDisk(newParentPath)) {
+          throw enoentError(
+            "rename",
+            `${this.adapter.getBasePath()}/${newPath}`,
+          );
+        }
+        const oldKey = this.diskKey(oldPath);
+        const sourcePath = [...this.adapterFiles.keys()].find(
+          (filePath) => this.diskKey(filePath) === oldKey,
+        );
+        if (sourcePath === undefined) {
+          throw enoentError(
+            "rename",
+            `${this.adapter.getBasePath()}/${oldPath}`,
+          );
+        }
+        if (this.folderExistsOnDisk(oldPath)) {
+          throw Object.assign(
+            new Error(
+              `EPERM: operation not permitted, rename '${this.adapter.getBasePath()}/${oldPath}'`,
+            ),
+            { code: "EPERM" },
+          );
+        }
+        const content = this.adapterFiles.get(sourcePath) ?? "";
+        const file = this.files.get(sourcePath);
+        this.adapterFiles.delete(sourcePath);
+        this.files.delete(sourcePath);
+        this.adapterFiles.set(newPath, content);
+        if (file) {
+          file.path = newPath;
+          const parts = fileNameParts(newPath);
+          file.name = parts.name;
+          file.basename = parts.basename;
+          file.extension = parts.extension;
+          this.files.set(newPath, file);
         }
       },
       // Observed on Obsidian 1.14.4 desktop (Windows): creates missing parent

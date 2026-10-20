@@ -27,6 +27,7 @@ import {
   FeedIngestionResult,
   FeedEncoding,
   FeedShardHealth,
+  ArticleUserState,
 } from "./src/types/types";
 import { RssDashboardSettingTab } from "./src/settings/settings-tab";
 import {
@@ -113,6 +114,11 @@ import {
   isArticleStateOnlyUpdate,
   snapshotArticleFields,
 } from "./src/utils/article-update";
+import {
+  articleStateFromItem,
+  articleStateFromUpdates,
+  type UserStateJournalChange,
+} from "./src/services/user-state-journal";
 import { applyAutomaticArticleTags } from "./src/utils/tag-utils";
 import { ProxyCheckStore } from "./src/utils/proxy-check";
 import { registerPaletteCommands } from "./src/commands/palette-commands";
@@ -132,6 +138,16 @@ function storageError(
   _error: unknown,
   _details?: unknown,
 ): void {}
+
+/** One journal record for a known article, or none when nothing stateful changed. */
+function articleStateChanges(
+  feedId: string | undefined,
+  guid: string,
+  changes: ArticleUserState,
+): UserStateJournalChange[] {
+  if (!feedId || !guid || Object.keys(changes).length === 0) return [];
+  return [{ feedId, guid, changes }];
+}
 
 type DesktopRequire = (moduleName: string) => unknown;
 type DesktopShell = { openPath: (path: string) => Promise<string> };
@@ -1415,9 +1431,16 @@ export default class RssDashboardPlugin extends Plugin {
       ),
     );
 
-    // Saved-note association is article state: queue it, and wait for this one
-    // flush so the new path is on disk before the save flow reports success.
-    this.queueArticleStateSave();
+    // Saved-note association is article state: journal it, queue the checkpoint,
+    // and wait for this one flush so the new path is on disk before the save
+    // flow reports success.
+    void this.queueArticleStateSave(
+      articleStateChanges(
+        feed.feedId,
+        originalItem.guid,
+        articleStateFromItem(originalItem),
+      ),
+    );
     await this.flushPendingWrites();
 
     // Resolve the association after persistence and each deferred leaf load.
@@ -1471,13 +1494,20 @@ export default class RssDashboardPlugin extends Plugin {
         resolvedFeedUrl,
         normalizedUpdates,
       );
+      const changes = articleStateChanges(
+        resolvedFeed.feedId,
+        originalItem.guid,
+        articleStateFromUpdates(normalizedUpdates),
+      );
       if (isArticleStateOnlyUpdate(normalizedUpdates)) {
         // The Reader rolls its controls back when a write fails, so this path
         // keeps an awaited, article-state-scoped write instead of the
         // fire-and-forget queue the dashboard uses. It is still not a full
-        // feed pass (#1385).
-        await this.saveArticleStateNow();
+        // feed pass (#1385), and the change is journaled before the write
+        // (#1387).
+        await this.saveArticleStateNow(changes);
       } else {
+        await this.settingsStore.recordArticleStateChanges(changes);
         await this.saveSettings();
       }
     } catch (error) {
@@ -1608,9 +1638,17 @@ export default class RssDashboardPlugin extends Plugin {
     // Article state goes through the coalesced queue, so a dashboard click is
     // never held on a full settings pass. Feed-content fields (cover image,
     // restricted reason) still need the full save that writes shards (#1385).
+    // The changed identity and fields are journaled at the mutation site, so a
+    // checkpoint never has to scan the feed list to derive them (#1387).
+    const changes = articleStateChanges(
+      feed.feedId,
+      article.guid,
+      articleStateFromUpdates(updates),
+    );
     if (isArticleStateOnlyUpdate(updates)) {
-      this.queueArticleStateSave();
+      void this.queueArticleStateSave(changes);
     } else {
+      await this.settingsStore.recordArticleStateChanges(changes);
       await this.saveSettings();
     }
 
@@ -1674,7 +1712,9 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     // The renamed note's saved association is article state (#1385).
-    this.queueArticleStateSave();
+    void this.queueArticleStateSave(
+      this.savedAssociationJournalChanges(updates),
+    );
     await this.flushPendingWrites();
   }
 
@@ -1693,8 +1733,32 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     // Clearing a deleted note's association is article state (#1385).
-    this.queueArticleStateSave();
+    void this.queueArticleStateSave(
+      this.savedAssociationJournalChanges(updates),
+    );
     await this.flushPendingWrites();
+  }
+
+  /** Journal records for the articles a saved-note path change affected. */
+  private savedAssociationJournalChanges(
+    updates: readonly { feedUrl: string; guid: string }[],
+  ): UserStateJournalChange[] {
+    const changes: UserStateJournalChange[] = [];
+    for (const update of updates) {
+      const feed = this.settings.feeds.find(
+        (candidate) => candidate.url === update.feedUrl,
+      );
+      const article = feed?.items.find((item) => item.guid === update.guid);
+      if (!feed || !article) continue;
+      changes.push(
+        ...articleStateChanges(
+          feed.feedId,
+          article.guid,
+          articleStateFromItem(article),
+        ),
+      );
+    }
+    return changes;
   }
 
   private async syncSavedArticleAssociationUpdate(
@@ -2396,6 +2460,74 @@ export default class RssDashboardPlugin extends Plugin {
     return migrateSettings(this.settings);
   }
 
+  /**
+   * Finds the stored item a player reports progress for, preferring the feed
+   * that supplied its URL or GUID and falling back to a video identity match.
+   * Returns the owning feed too, so the change carries its identity without a
+   * second scan (#1387).
+   */
+  private resolvePlaybackTarget(
+    feedUrl: string,
+    itemGuid: string,
+    sourceItem?: FeedItem,
+  ): { feed: Feed; item: FeedItem } | null {
+    const resolveVideoMatch = (
+      candidateFeed?: Feed,
+    ): { feed: Feed; item: FeedItem } | undefined => {
+      if (!sourceItem || sourceItem.mediaType !== "video") {
+        return undefined;
+      }
+
+      const feedsToSearch = candidateFeed
+        ? [candidateFeed]
+        : this.settings.feeds;
+
+      for (const feed of feedsToSearch) {
+        const exactRef = feed.items.find((entry) => entry === sourceItem);
+        if (exactRef) {
+          return { feed, item: exactRef };
+        }
+
+        const byVideoId = sourceItem.videoId
+          ? feed.items.find((entry) => entry.videoId === sourceItem.videoId)
+          : undefined;
+        if (byVideoId) {
+          return { feed, item: byVideoId };
+        }
+
+        if (sourceItem.link) {
+          const byLink = feed.items.find(
+            (entry) => entry.link === sourceItem.link,
+          );
+          if (byLink) {
+            return { feed, item: byLink };
+          }
+        }
+      }
+
+      return undefined;
+    };
+
+    if (feedUrl) {
+      const feed = this.settings.feeds.find((f) => f.url === feedUrl);
+      const match = feed?.items.find((i) => i.guid === itemGuid);
+      if (feed && match) {
+        return { feed, item: match };
+      }
+      const videoMatch = resolveVideoMatch(feed);
+      if (videoMatch) return videoMatch;
+    }
+
+    for (const feed of this.settings.feeds) {
+      const match = feed.items.find((i) => i.guid === itemGuid);
+      if (match) {
+        return { feed, item: match };
+      }
+    }
+
+    return resolveVideoMatch() ?? null;
+  }
+
   public updatePlaybackProgress(
     feedUrl: string,
     itemGuid: string,
@@ -2408,69 +2540,10 @@ export default class RssDashboardPlugin extends Plugin {
       return;
     }
 
-    let item: FeedItem | undefined;
+    const target = this.resolvePlaybackTarget(feedUrl, itemGuid, sourceItem);
+    if (!target) return;
 
-    const resolveVideoMatch = (
-      candidateFeed?: (typeof this.settings.feeds)[number],
-    ) => {
-      if (!sourceItem || sourceItem.mediaType !== "video") {
-        return undefined;
-      }
-
-      const feedsToSearch = candidateFeed
-        ? [candidateFeed]
-        : this.settings.feeds;
-
-      for (const feed of feedsToSearch) {
-        const exactRef = feed.items.find((entry) => entry === sourceItem);
-        if (exactRef) {
-          return exactRef;
-        }
-
-        const byVideoId = sourceItem.videoId
-          ? feed.items.find((entry) => entry.videoId === sourceItem.videoId)
-          : undefined;
-        if (byVideoId) {
-          return byVideoId;
-        }
-
-        if (sourceItem.link) {
-          const byLink = feed.items.find(
-            (entry) => entry.link === sourceItem.link,
-          );
-          if (byLink) {
-            return byLink;
-          }
-        }
-      }
-
-      return undefined;
-    };
-
-    if (feedUrl) {
-      const feed = this.settings.feeds.find((f) => f.url === feedUrl);
-      item = feed?.items.find((i) => i.guid === itemGuid);
-      if (!item) {
-        item = resolveVideoMatch(feed);
-      }
-    }
-
-    if (!item) {
-      for (const feed of this.settings.feeds) {
-        const match = feed.items.find((i) => i.guid === itemGuid);
-        if (match) {
-          item = match;
-          break;
-        }
-      }
-    }
-
-    if (!item) {
-      item = resolveVideoMatch();
-    }
-
-    if (!item) return;
-
+    const { feed: feedForItem, item } = target;
     if (!(duration > 0) || position < 0) return;
 
     item.playbackProgress = { position, duration, lastUpdated: Date.now() };
@@ -2482,15 +2555,19 @@ export default class RssDashboardPlugin extends Plugin {
       sourceItem.playbackProgress = { ...item.playbackProgress };
     }
 
+    const changes = articleStateChanges(feedForItem.feedId, item.guid, {
+      playbackProgress: { ...item.playbackProgress },
+    });
+
     if (flush) {
-      this.queueArticleStateSave();
+      void this.queueArticleStateSave(changes);
       void this.flushPendingWrites();
       return;
     }
 
     // One coalesced article-state queue owns playback progress persistence, so
     // a burst of progress events shares one write after the interaction.
-    this.queueArticleStateSave();
+    void this.queueArticleStateSave(changes);
   }
 
   public async clearPlaybackProgress(): Promise<number> {
@@ -2517,7 +2594,7 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     if (clearedCount > 0) {
-      this.queueArticleStateSave();
+      void this.queueArticleStateSave();
       await this.flushPendingWrites();
     }
 
@@ -2578,11 +2655,15 @@ export default class RssDashboardPlugin extends Plugin {
 
   /**
    * Queues an article-state change (read, starred, tags, saved, playback) for
-   * one coalesced write. Callers update memory and the UI first and never
-   * await persistence here.
+   * one coalesced write. The changed identity and fields are appended to the
+   * device-local journal before the interaction returns, so an abrupt close
+   * keeps them. Callers update memory and the UI first and never await
+   * persistence here.
    */
-  public queueArticleStateSave(): void {
-    this.settingsStore.queueArticleStateSave();
+  public queueArticleStateSave(
+    changes: readonly UserStateJournalChange[] = [],
+  ): Promise<void> {
+    return this.settingsStore.queueArticleStateSave(changes);
   }
 
   /** Writes queued article-state changes now and resolves after they land. */
@@ -2593,11 +2674,15 @@ export default class RssDashboardPlugin extends Plugin {
   /**
    * Writes article state now for a caller that must know the write failed (the
    * Reader rolls its controls back). Dashboard changes use the coalesced queue
-   * instead. Goes through `saveSettings` so the scope and the suppressed-write
-   * gate match the queue, and shard v1 keeps its full save.
+   * instead. The changed fields are journaled before the write. Goes through
+   * `saveSettings` so the scope and the suppressed-write gate match the queue,
+   * and shard v1 keeps its full save.
    */
-  saveArticleStateNow(): Promise<void> {
-    return this.saveSettings(this.settingsStore.articleStatePersistOptions());
+  async saveArticleStateNow(
+    changes: readonly UserStateJournalChange[] = [],
+  ): Promise<void> {
+    await this.settingsStore.recordArticleStateChanges(changes);
+    await this.saveSettings(this.settingsStore.articleStatePersistOptions());
   }
 
   migrateMetadataToVaultLocation(): Promise<void> {

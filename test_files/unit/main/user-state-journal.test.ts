@@ -359,7 +359,7 @@ describe("device-local user-state journal (#1386)", () => {
     ]);
     plugin.settings.feeds[0].items[0].read = true;
 
-    plugin.queueArticleStateSave();
+    void plugin.queueArticleStateSave();
     await plugin.flushPendingWrites();
 
     const written = snapshot(app);
@@ -405,7 +405,7 @@ describe("device-local user-state journal (#1386)", () => {
       { feedId: "feed-1", guid: GUID, changes: { read: true } },
     ]);
     plugin.settings.feeds[0].items[0].read = true;
-    plugin.queueArticleStateSave();
+    void plugin.queueArticleStateSave();
     await plugin.flushPendingWrites();
 
     const repositoryApi = repository(plugin);
@@ -432,16 +432,19 @@ describe("device-local user-state journal (#1386)", () => {
     expect(roundTripped.shards[0].items[0]?.read).toBe(true);
   });
 
-  it("leaves the journal untouched across a storage migration", async () => {
+  it("folds the journal into the snapshot during a storage migration", async () => {
     const { plugin, saveData } = await startPlugin();
     await repository(plugin).recordArticleStateChanges([
       { feedId: "feed-1", guid: GUID, changes: { read: true } },
     ]);
-    const before = adapterFiles(app).get(JOURNAL_PATH);
+    plugin.settings.feeds[0].items[0].read = true;
 
     await repository(plugin).migrateToVaultShardsV2(plugin.settings, saveData);
 
-    expect(adapterFiles(app).get(JOURNAL_PATH)).toBe(before);
+    // A migration needs one consistent snapshot, so the pending record is
+    // folded in and its checkpoint truncates the journal (#1387).
+    expect(journalRecords(app)).toEqual([]);
+    expect(snapshot(app).states["feed-1:guid-1"]?.read).toBe(true);
     const journalPaths = [...adapterFiles(app).keys()].filter((path) =>
       path.includes("user-state-journal"),
     );

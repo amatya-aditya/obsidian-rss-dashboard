@@ -29,6 +29,9 @@ const METADATA_FOLDER = "rss-dashboard-data";
 const SHARD_FOLDER = `${METADATA_FOLDER}/feeds`;
 const SHARD_PATH = `${SHARD_FOLDER}/feed-1.json`;
 const USER_STATE_PATH = `${METADATA_FOLDER}/user-state.json`;
+// The snapshot is written through this sibling temporary file and renamed
+// into place (#1387), so write spies see the temporary path.
+const USER_STATE_TEMP_PATH = `${USER_STATE_PATH}.tmp`;
 const FEED_URL = "https://example.com/feed.xml";
 const GUID = "guid-1";
 const WINDOW_MS = 2_000;
@@ -138,7 +141,7 @@ function userState(): UserStateStub {
 }
 
 function userStateWrites(spy: MockInstance): unknown[][] {
-  return spy.mock.calls.filter(([path]) => path === USER_STATE_PATH);
+  return spy.mock.calls.filter(([path]) => path === USER_STATE_TEMP_PATH);
 }
 
 function shardCalls(spy: MockInstance): string[] {
@@ -243,7 +246,7 @@ describe("coalesced article-state persistence (#1384)", () => {
     const read = vi.spyOn(adapter(app), "read");
     plugin.settings.feeds[0].items[0].read = true;
 
-    plugin.queueArticleStateSave();
+    void plugin.queueArticleStateSave();
     await plugin.flushPendingWrites();
 
     expect(shardCalls(write)).toEqual([]);
@@ -261,7 +264,7 @@ describe("coalesced article-state persistence (#1384)", () => {
 
     for (let index = 0; index < 5; index += 1) {
       plugin.settings.feeds[0].items[0].read = index % 2 === 0;
-      plugin.queueArticleStateSave();
+      void plugin.queueArticleStateSave();
     }
     await vi.advanceTimersByTimeAsync(WINDOW_MS - 1);
     expect(userStateWrites(write)).toEqual([]);
@@ -277,7 +280,7 @@ describe("coalesced article-state persistence (#1384)", () => {
 
     for (let index = 0; index < 30; index += 1) {
       plugin.settings.feeds[0].items[0].read = index % 2 === 0;
-      plugin.queueArticleStateSave();
+      void plugin.queueArticleStateSave();
     }
     await vi.advanceTimersByTimeAsync(0);
 
@@ -294,12 +297,12 @@ describe("coalesced article-state persistence (#1384)", () => {
     const write = vi
       .spyOn(adapter(app), "write")
       .mockImplementation(async (path, content) => {
-        if (path === USER_STATE_PATH) await gate;
+        if (path === USER_STATE_TEMP_PATH) await gate;
         await writeToVault(path, content);
       });
     plugin.settings.feeds[0].items[0].read = true;
 
-    plugin.queueArticleStateSave();
+    void plugin.queueArticleStateSave();
     let settled = false;
     const flush = plugin.flushPendingWrites().then(() => {
       settled = true;
@@ -322,7 +325,7 @@ describe("coalesced article-state persistence (#1384)", () => {
     vi.useFakeTimers();
     plugin.settings.feeds[0].items[0].read = true;
 
-    plugin.queueArticleStateSave();
+    void plugin.queueArticleStateSave();
     await vi.advanceTimersByTimeAsync(WINDOW_MS);
 
     expect(userStateWrites(write)).toHaveLength(1);
@@ -348,7 +351,7 @@ describe("coalesced article-state persistence (#1384)", () => {
     const writeToVault = adapter(app).write.bind(adapter(app));
     vi.spyOn(adapter(app), "write").mockImplementation(
       async (path, content) => {
-        if (path === USER_STATE_PATH) order.push("write");
+        if (path === USER_STATE_TEMP_PATH) order.push("write");
         await writeToVault(path, content);
       },
     );
@@ -364,7 +367,7 @@ describe("coalesced article-state persistence (#1384)", () => {
     });
     plugin.settings.feeds[0].items[0].read = true;
 
-    plugin.queueArticleStateSave();
+    void plugin.queueArticleStateSave();
     await plugin.flushPendingWrites();
 
     expect(order).toEqual(["write", "backup", "reschedule"]);
@@ -386,7 +389,7 @@ describe("coalesced article-state persistence (#1384)", () => {
       "persistSettings",
     );
 
-    plugin.queueArticleStateSave();
+    void plugin.queueArticleStateSave();
     await plugin.flushPendingWrites();
 
     expect(persist).not.toHaveBeenCalled();
@@ -403,7 +406,7 @@ describe("coalesced article-state persistence (#1384)", () => {
     const write = vi.spyOn(adapter(app), "write");
     vi.useFakeTimers();
     plugin.settings.feeds[0].items[0].read = true;
-    plugin.queueArticleStateSave();
+    void plugin.queueArticleStateSave();
 
     plugin.onunload();
     await vi.advanceTimersByTimeAsync(0);
@@ -450,7 +453,7 @@ describe("coalesced article-state persistence (#1384)", () => {
     const writeToVault = adapter(app).write.bind(adapter(app));
     vi.spyOn(adapter(app), "write").mockImplementation(
       async (path, content) => {
-        if (path === USER_STATE_PATH) order.push("write");
+        if (path === USER_STATE_TEMP_PATH) order.push("write");
         await writeToVault(path, content);
       },
     );
@@ -465,7 +468,7 @@ describe("coalesced article-state persistence (#1384)", () => {
     });
     plugin.settings.feeds[0].items[0].read = true;
 
-    plugin.queueArticleStateSave();
+    void plugin.queueArticleStateSave();
     await plugin.exportDataJson();
 
     expect(order).toEqual(["write", "export"]);
@@ -478,7 +481,7 @@ describe("coalesced article-state persistence (#1384)", () => {
     const write = vi.spyOn(adapter(app), "write");
     plugin.settings.feeds[0].items[0].read = true;
 
-    plugin.queueArticleStateSave();
+    void plugin.queueArticleStateSave();
     await plugin.flushPendingWrites();
 
     expect(write).toHaveBeenCalledWith(
