@@ -138,6 +138,7 @@ const PALETTE_COMMAND_LOG = [
   "addCommand:reader-open-original",
   "addCommand:show-keyboard-shortcuts",
   "addCommand:toggle-youtube-focus-mode",
+  "addCommand:toggle-podcast-chapter-markers",
 ];
 
 const STARTUP_SEQUENCE = [

@@ -7,6 +7,16 @@ The shortcut reference opens in several ways:
 - Open the dashboard ☰ menu and choose **Keyboard shortcuts** (shown with its `?` key).
 - In **Settings → General**, choose **View** in the **Keyboard shortcuts** row.
 
+## Commands without default hotkeys
+
+These command-palette commands are always listed. Assign a hotkey in
+**Settings → Hotkeys** if you want one.
+
+| Command                        | Action                                       |
+| ------------------------------ | -------------------------------------------- |
+| Toggle YouTube focus mode      | Show only the video, hiding its description  |
+| Toggle podcast chapter markers | Show or hide chapter markers on the seek bar |
+
 ## General Navigation
 
 | Shortcut | Action           |

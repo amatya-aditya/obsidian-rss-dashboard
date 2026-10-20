@@ -28,6 +28,18 @@ _Avoid_: Current article, selected row
 A bounded, ordered set of episode rows from one feed. It is read-only and does not imply a saved or customizable playlist.
 _Avoid_: Playlist, queue
 
+**Chapter list**:
+The ordered, titled start times of the [[Active episode]], read from the timestamps in the episode's notes text. A list needs at least three ascending timestamps inside the episode's duration; anything shorter is treated as no chapters.
+_Avoid_: Timestamps (the raw text), table of contents
+
+**Chapter marker**:
+A read-only tick on the player's seek bar at one chapter's start, built from the [[Chapter list]]. Activating it seeks to that start and leaves play or pause as it was; its preview shows the start time, title, and chapter length as plain text. Distinct from a [[Note marker]].
+_Avoid_: Bookmark, tick (unqualified), chapter button
+
+**Note marker**:
+A tick on the seek bar that comes from a timestamp in the user's own saved note rather than from the publisher. Defined by the media-notes ticket (#1357); this term reserves the name so it is never confused with a [[Chapter marker]].
+_Avoid_: Chapter marker (the publisher-supplied kind), bookmark
+
 **Episode order**:
 The current sequence of episodes after the player's selected sort or shuffle behavior has been applied. It determines an episode's before and after neighbors.
 _Avoid_: Publication order, feed order

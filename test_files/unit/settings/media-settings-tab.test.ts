@@ -224,6 +224,43 @@ describe("renderMediaSettingsTab()", () => {
     });
   });
 
+  it("offers chapter markers on by default and applies the toggle to open players", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const settings = cloneSettings();
+    const applyPodcastChapterMarkers = vi.fn(async () => {});
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 0),
+      applyYouTubeFocusMode: vi.fn(async () => {}),
+      applyPodcastChapterMarkers,
+    } as unknown as RssDashboardPlugin;
+
+    renderMediaSettingsTab(containerEl, plugin);
+
+    const setting = getSettingByName(
+      containerEl,
+      "Show chapter markers on the seek bar",
+    );
+    expect(
+      setting.querySelector(".setting-item-description")?.textContent,
+    ).toBe(
+      "Markers appear for episodes whose description lists timestamps in a recognized form. Many shows list none, so most episodes have no markers.",
+    );
+    const toggle = setting.querySelector(
+      'input[type="checkbox"]',
+    ) as HTMLInputElement;
+    expect(isToggleOn(toggle)).toBe(true);
+
+    setToggle(toggle, false);
+    await flushPromises();
+
+    expect(settings.media.showPodcastChapterMarkers).toBe(false);
+    expect(applyPodcastChapterMarkers).toHaveBeenCalledWith(false);
+    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
+  });
+
   it("persists Focus mode and applies it to open players", async () => {
     const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();

@@ -47,6 +47,7 @@ export interface PaletteCommandPlugin {
   openSettingsToTab: (tabName: string) => Promise<void>;
   openShortcutHelp: () => void;
   toggleYouTubeFocusMode: () => void;
+  togglePodcastChapterMarkers: () => void;
 }
 
 /** Turns a settings tab name into its command id segment. */
@@ -221,9 +222,24 @@ function registerFocusModeCommand(plugin: PaletteCommandPlugin): void {
 }
 
 /**
- * Registers the settings, dashboard, reader, shortcut-help, and focus-mode
- * palette commands. The ids are a test contract (see the testing docs); none
- * sets a default hotkey (DEC-004).
+ * Adds the global command that flips podcast chapter markers. It is always
+ * listed, like the focus-mode command, and delegates the flip to the plugin so
+ * the Settings → Media toggle and every open player stay in step.
+ */
+function registerChapterMarkersCommand(plugin: PaletteCommandPlugin): void {
+  plugin.addCommand({
+    id: "toggle-podcast-chapter-markers",
+    name: "Toggle podcast chapter markers",
+    callback: () => {
+      void plugin.togglePodcastChapterMarkers();
+    },
+  });
+}
+
+/**
+ * Registers the settings, dashboard, reader, shortcut-help, focus-mode and
+ * chapter-marker palette commands. The ids are a test contract (see the
+ * testing docs); none sets a default hotkey (DEC-004).
  */
 export function registerPaletteCommands(plugin: PaletteCommandPlugin): void {
   registerSettingsCommands(plugin);
@@ -231,4 +247,5 @@ export function registerPaletteCommands(plugin: PaletteCommandPlugin): void {
   registerReaderCommands(plugin);
   registerShortcutHelpCommand(plugin);
   registerFocusModeCommand(plugin);
+  registerChapterMarkersCommand(plugin);
 }

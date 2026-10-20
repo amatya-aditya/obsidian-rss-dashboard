@@ -24,6 +24,7 @@ interface MediaSettingsPlugin {
     updatePodcastTheme: (theme: PodcastTheme) => void;
   } | null>;
   applyYouTubeFocusMode(hide: boolean): Promise<void>;
+  applyPodcastChapterMarkers?(enabled: boolean): Promise<void> | void;
 }
 
 export function renderMediaSettingsTab(
@@ -111,6 +112,21 @@ export function renderMediaSettingsTab(
         .setValue(String(plugin.settings.media.defaultPlaySpeed ?? 1))
         .onChange(async (value) => {
           plugin.settings.media.defaultPlaySpeed = parseFloat(value);
+          await plugin.saveSettings();
+        }),
+    );
+
+  new Setting(containerEl)
+    .setName("Show chapter markers on the seek bar")
+    .setDesc(
+      "Markers appear for episodes whose description lists timestamps in a recognized form. Many shows list none, so most episodes have no markers.",
+    )
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.media.showPodcastChapterMarkers ?? true)
+        .onChange(async (value) => {
+          plugin.settings.media.showPodcastChapterMarkers = value;
+          await plugin.applyPodcastChapterMarkers?.(value);
           await plugin.saveSettings();
         }),
     );

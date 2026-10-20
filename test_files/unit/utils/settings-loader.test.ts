@@ -92,6 +92,25 @@ describe("settings-loader", () => {
       expect(explicitlyDisabled.display.showVersionInStatusBar).toBe(false);
     });
 
+    it("defaults chapter markers on and repairs a non-boolean saved value", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      expect(
+        loadAndNormalizeSettings({ media: {} }).media.showPodcastChapterMarkers,
+      ).toBe(true);
+      expect(
+        loadAndNormalizeSettings({
+          media: { showPodcastChapterMarkers: false },
+        }).media.showPodcastChapterMarkers,
+      ).toBe(false);
+      expect(
+        loadAndNormalizeSettings({
+          media: { showPodcastChapterMarkers: "false" as unknown as boolean },
+        }).media.showPodcastChapterMarkers,
+      ).toBe(true);
+    });
+
     it("defaults invalid image cache limits while retaining a valid unlimited preference", async () => {
       const { loadAndNormalizeSettings } =
         await import("../../../src/utils/settings-loader");

@@ -184,6 +184,10 @@ function normalizeSettingGroups(settings: RssDashboardSettings): void {
     DEFAULT_SETTINGS.media,
     withLegacyYouTubeFocusMode(settings.media),
   );
+  if (typeof settings.media.showPodcastChapterMarkers !== "boolean") {
+    settings.media.showPodcastChapterMarkers =
+      DEFAULT_SETTINGS.media.showPodcastChapterMarkers;
+  }
   settings.availableTags = Array.isArray(settings.availableTags)
     ? settings.availableTags
     : [...DEFAULT_SETTINGS.availableTags];

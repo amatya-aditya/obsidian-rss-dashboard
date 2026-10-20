@@ -879,6 +879,40 @@ export default class RssDashboardPlugin extends Plugin {
     return hide;
   }
 
+  /**
+   * Applies the chapter-marker setting to every open Reader and dashboard so
+   * a player already on screen updates without reloading.
+   */
+  public async applyPodcastChapterMarkers(enabled: boolean): Promise<void> {
+    const types = [RSS_READER_VIEW_TYPE, RSS_DASHBOARD_VIEW_TYPE];
+    for (const type of types) {
+      for (const leaf of this.app.workspace.getLeavesOfType(type)) {
+        if (requireApiVersion("1.7.2")) {
+          await leaf.loadIfDeferred();
+        }
+        const view = leaf.view;
+        if (view instanceof ReaderView || view instanceof RssDashboardView) {
+          view.setPodcastChapterMarkers(enabled);
+        }
+      }
+    }
+  }
+
+  /**
+   * Flips podcast chapter markers, applies the change to every open player,
+   * persists it, refreshes an open settings tab, and announces the new state.
+   * The palette command and the Settings → Media toggle share this path.
+   */
+  public async togglePodcastChapterMarkers(): Promise<boolean> {
+    const enabled = !this.settings.media.showPodcastChapterMarkers;
+    this.settings.media.showPodcastChapterMarkers = enabled;
+    await this.applyPodcastChapterMarkers(enabled);
+    await this.saveSettings();
+    this.settingTab?.refresh();
+    new Notice(enabled ? "Chapter markers on" : "Chapter markers off");
+    return enabled;
+  }
+
   public async refreshOpenTagColorViews(): Promise<void> {
     const dashboardLeaves = this.app.workspace.getLeavesOfType(
       RSS_DASHBOARD_VIEW_TYPE,

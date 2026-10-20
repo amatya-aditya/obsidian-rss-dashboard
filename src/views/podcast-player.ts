@@ -2,10 +2,20 @@ import { FeedItem } from "../types/types";
 import { App, setIcon, Menu, Notice } from "obsidian";
 import { PodcastEpisodeList } from "../components/podcast-episode-list";
 import { MediaService } from "../services/media-service";
-import { renderEpisodeDetails } from "./podcast-episode-details";
+import {
+  renderEpisodeDetails,
+  selectEpisodeNotesHtml,
+} from "./podcast-episode-details";
 import { onActivate } from "../utils/keyboard-activation";
 import { windowInstanceOf } from "../utils/platform-utils";
 import { itemAuthorText } from "../utils/item-author";
+import {
+  formatChapterTime,
+  parsePodcastChapters,
+  shortenChapterTitle,
+  type PodcastChapter,
+} from "../utils/podcast-chapters";
+import { SeekBarMarkerLayer } from "../components/seek-bar-marker-layer";
 
 /** The speeds the player's control offers, in menu order. */
 const PLAY_SPEEDS: readonly number[] = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3];
@@ -30,6 +40,13 @@ export class PodcastPlayer {
   private progressTrackingEnabled: boolean;
   private defaultPlaySpeed: number;
   private useFirstSeenDateFallback: boolean;
+  private chapterMarkersEnabled: boolean;
+  private chapters: PodcastChapter[] = [];
+  private currentNotesHtml = "";
+  private markerLayer: SeekBarMarkerLayer | null = null;
+  private progressWrapperEl: HTMLElement | null = null;
+  private progressAreaEl: HTMLElement | null = null;
+  private chapterLabelEl: HTMLElement | null = null;
   private isAutoplayEnabled = false;
   private playlistWindowStart: number | undefined;
   private episodeVisibleCount = 20;
@@ -83,6 +100,7 @@ export class PodcastPlayer {
     defaultPlaySpeed = 1,
     useFirstSeenDateFallback = false,
     onPlaySpeedChange?: (speed: number) => void,
+    chapterMarkersEnabled = true,
   ) {
     this.container = container;
     this.app = app;
@@ -90,6 +108,7 @@ export class PodcastPlayer {
     this.progressTrackingEnabled = progressTrackingEnabled;
     this.defaultPlaySpeed = defaultPlaySpeed ?? 1;
     this.useFirstSeenDateFallback = useFirstSeenDateFallback;
+    this.chapterMarkersEnabled = chapterMarkersEnabled;
     if (playlist) {
       this.setPlaylist(playlist);
     }
@@ -138,6 +157,10 @@ export class PodcastPlayer {
 
     this.currentItem = item;
     this.hasAudioForCurrentItem = !!resolvedAudioUrl;
+    this.currentNotesHtml = selectEpisodeNotesHtml(item);
+    this.chapters = this.chapterMarkersEnabled
+      ? parsePodcastChapters(this.currentNotesHtml)
+      : [];
     this.currentPlaylistIndex = this.playlist.findIndex(
       (ep) => ep.guid === item.guid,
     );
@@ -239,6 +262,11 @@ export class PodcastPlayer {
     const item = this.currentItem;
     if (!item) return;
     this.endSeekDrag?.();
+    this.markerLayer?.destroy();
+    this.markerLayer = null;
+    this.progressWrapperEl = null;
+    this.progressAreaEl = null;
+    this.chapterLabelEl = null;
     this.container.empty();
 
     const podcastContainer = this.container.createDiv({
@@ -292,7 +320,10 @@ export class PodcastPlayer {
       this.saveProgress(true);
     };
     this.audioElement.ontimeupdate = () => this.updateProgressDisplay();
-    this.audioElement.onloadedmetadata = () => this.updateProgressDisplay();
+    this.audioElement.onloadedmetadata = () => {
+      this.updateProgressDisplay();
+      this.syncChapterMarkers();
+    };
     this.audioElement.onended = () => {
       this.stopProgressTracking();
       this.saveProgress(true);
@@ -627,6 +658,7 @@ export class PodcastPlayer {
     const progressArea = this.playerEl.createDiv({
       cls: "podcast-progress-area",
     });
+    this.progressAreaEl = progressArea;
 
     const seekbarRow = progressArea.createDiv({ cls: "podcast-seekbar-row" });
     this.currentTimeEl = seekbarRow.createDiv({
@@ -637,6 +669,7 @@ export class PodcastPlayer {
     const progressBarWrapper = seekbarRow.createDiv({
       cls: "podcast-progress-bar-wrapper",
     });
+    this.progressWrapperEl = progressBarWrapper;
     this.progressBarEl = progressBarWrapper.createEl("progress", {
       cls: "podcast-progress-bar",
     });
@@ -651,7 +684,13 @@ export class PodcastPlayer {
       text: "-0:00",
     });
 
+    this.chapterLabelEl = progressArea.createDiv({
+      cls: "podcast-chapter-label",
+    });
+    this.chapterLabelEl.hidden = true;
+
     this.bindSeekHandlers();
+    this.syncChapterMarkers();
   }
 
   private bindSeekHandlers(): void {
@@ -1079,6 +1118,113 @@ export class PodcastPlayer {
     }
   }
 
+  /**
+   * Rebuild the chapter markers for the current audio duration (AC-005,
+   * AC-011). Markers are dropped while the duration is unknown: a percentage
+   * needs a finite length. The setting and the command both land here.
+   */
+  private syncChapterMarkers(): void {
+    this.markerLayer?.destroy();
+    this.markerLayer = null;
+    this.progressAreaEl?.removeAttribute("aria-label");
+    if (this.chapterLabelEl) {
+      this.chapterLabelEl.textContent = "";
+      this.chapterLabelEl.hidden = true;
+    }
+    if (
+      !this.chapterMarkersEnabled ||
+      !this.progressWrapperEl ||
+      !this.progressAreaEl
+    ) {
+      return;
+    }
+
+    const duration = this.getFiniteDuration();
+    if (duration === null) return;
+
+    // Parse again with the duration so a timestamp at or past the end is
+    // dropped (DEC-005); the pre-metadata parse ran without it.
+    this.chapters = parsePodcastChapters(this.currentNotesHtml, duration);
+    if (this.chapters.length === 0) return;
+
+    const layer = new SeekBarMarkerLayer(this.progressWrapperEl, {
+      getDuration: () => this.getFiniteDuration(),
+      onSeek: (start) => this.seekToChapter(start),
+      groupLabel: "Chapters",
+    });
+    layer.setMarkers(
+      this.chapters.map((chapter, index) => ({
+        start: chapter.start,
+        title: chapter.title,
+        label: `Chapter ${index + 1}, ${formatChapterTime(chapter.start)}, ${chapter.title}`,
+        detail: this.chapterLength(index, duration),
+      })),
+    );
+    this.markerLayer = layer;
+    this.updateChapterState();
+  }
+
+  /** Length of one chapter: the next start, or the media duration at the end. */
+  private chapterLength(index: number, duration: number): string {
+    const chapter = this.chapters[index];
+    if (!chapter) return "";
+    const end = this.chapters[index + 1]?.start ?? duration;
+    return formatChapterTime(Math.max(0, end - chapter.start));
+  }
+
+  /** The chapter containing `seconds`, or -1 before the first one. */
+  private chapterIndexAt(seconds: number): number {
+    let current = -1;
+    for (let index = 0; index < this.chapters.length; index += 1) {
+      const chapter = this.chapters[index];
+      if (chapter && chapter.start <= seconds) current = index;
+      else break;
+    }
+    return current;
+  }
+
+  /**
+   * Dim passed markers and move the one-line current-chapter label
+   * (AC-008, AC-009). The label is also the progress area's accessible name.
+   */
+  private updateChapterState(): void {
+    const seconds = this.audioElement?.currentTime ?? 0;
+    this.markerLayer?.setActiveTime(seconds);
+    const label = this.chapterLabelEl;
+    if (!label || !this.markerLayer) return;
+
+    const index = this.chapterIndexAt(seconds);
+    if (index < 0) {
+      label.textContent = "";
+      label.hidden = true;
+      this.progressAreaEl?.removeAttribute("aria-label");
+      return;
+    }
+
+    const chapter = this.chapters[index];
+    if (!chapter) return;
+    const shortTitle = shortenChapterTitle(chapter.title);
+    label.textContent = shortTitle;
+    label.hidden = false;
+    this.progressAreaEl?.setAttribute(
+      "aria-label",
+      `Chapter ${index + 1} of ${this.chapters.length}: ${shortTitle}`,
+    );
+  }
+
+  /** Seek to a chapter without changing play or pause state (DEC-006). */
+  private seekToChapter(start: number): void {
+    if (!this.audioElement) return;
+    this.audioElement.currentTime = start;
+    this.updateProgressDisplay();
+  }
+
+  /** Apply the persisted setting to an open player at once (AC-011, AC-012). */
+  setChapterMarkersEnabled(enabled: boolean): void {
+    this.chapterMarkersEnabled = enabled;
+    this.syncChapterMarkers();
+  }
+
   private updateProgressDisplay(): void {
     if (!this.audioElement) return;
     const currentTime = this.formatTime(this.audioElement.currentTime);
@@ -1113,6 +1259,8 @@ export class PodcastPlayer {
         `${percent}%`,
       );
     }
+
+    this.updateChapterState();
   }
 
   /** Audio duration when known and finite (> 0); null for NaN, 0 or Infinity. */
@@ -1175,6 +1323,8 @@ export class PodcastPlayer {
     this.endSeekDrag?.();
     this.stopProgressTracking();
     this.clearSleepTimer();
+    this.markerLayer?.destroy();
+    this.markerLayer = null;
 
     if (this.audioElement) {
       this.saveProgress(true);
