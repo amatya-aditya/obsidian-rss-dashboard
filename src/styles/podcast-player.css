@@ -888,20 +888,23 @@
   font-weight: 700;
 }
 
+/* Text-labelled chips: the box grows to the label, keeping an icon-sized
+   minimum target. A fixed width/height clipped "Load 20 more episodes". */
 .episode-list-current,
 .episode-list-load-more {
-  width: 32px;
-  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 6px 12px;
   border: 1px solid var(--background-modifier-border);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  white-space: nowrap;
   cursor: pointer;
 }
 
 .episode-list-load-more {
   margin: 12px auto 0;
-  padding: 6px 12px;
 }
 
 /* .active { theme specific styles apply via podcast-themes.css } */
