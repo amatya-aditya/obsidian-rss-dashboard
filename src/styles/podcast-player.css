@@ -391,6 +391,11 @@
 /* ROW 2: Progress Area */
 .podcast-progress-area {
   width: 100%;
+  /* The group's `aria-label` is the current chapter title, which the visible
+     label below repeats. Obsidian draws a native tooltip from it; that tooltip
+     lingers under the marker preview when the pointer moves from the label
+     onto a marker, so switch it off while keeping the accessible name. */
+  --no-tooltip: true;
 }
 
 .podcast-seekbar-row {
