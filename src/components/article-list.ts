@@ -19,6 +19,7 @@ import type { FilterContext } from "../utils/filter-detection";
 import { HighlightService } from "../services/highlight-service";
 import { getEffectiveDateMs } from "../services/feed-parser/feed-retention";
 import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
+import { resolveFocusAfterRemoval } from "../utils/article-list-focus";
 import {
   groupArticles as groupArticlesUtil,
   getFeedFolder as getFeedFolderUtil,
@@ -713,7 +714,7 @@ export class ArticleList {
     // destination before removing it, then move focus after it is gone (#1385).
     const hadFocus = targetEl.contains(targetEl.doc.activeElement);
     const focusTarget = hadFocus
-      ? this.resolveFocusAfterRemoval(targetEl, listEl)
+      ? resolveFocusAfterRemoval(targetEl, listEl)
       : null;
     const moveFocus = (): void => {
       focusTarget?.focus({ preventScroll: true });
@@ -752,35 +753,6 @@ export class ArticleList {
       if (listEl) listEl.scrollTop = scrollPos;
       moveFocus();
     }, 320);
-  }
-
-  /**
-   * The control focus should land on when `targetEl` leaves the list: the next
-   * article's read control, else the previous one, else the list itself so
-   * keyboard navigation continues (#1385).
-   */
-  private resolveFocusAfterRemoval(
-    targetEl: HTMLElement,
-    listEl: HTMLElement | null,
-  ): HTMLElement | null {
-    if (!listEl) return null;
-
-    const rows = Array.from(
-      listEl.querySelectorAll<HTMLElement>(
-        ".rss-dashboard-article-item, .rss-dashboard-article-card, .rss-dashboard-feed-item",
-      ),
-    ).filter((row) => !row.classList.contains("rss-dashboard-search-hidden"));
-    const index = rows.indexOf(targetEl);
-
-    for (const row of [rows[index + 1], rows[index - 1]]) {
-      const control = row?.querySelector<HTMLElement>(
-        ".rss-dashboard-read-toggle",
-      );
-      if (control) return control;
-    }
-
-    listEl.setAttr("tabindex", "-1");
-    return listEl;
   }
 
   public hasArticle(guid: string, feedUrl?: string): boolean {

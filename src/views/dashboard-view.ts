@@ -31,6 +31,10 @@ import type {
   default as RssDashboardPlugin,
 } from "../../main";
 import type { ArticleStateChange } from "../utils/article-update";
+import {
+  captureArticleListFocus,
+  restoreArticleListFocus,
+} from "../utils/article-list-focus";
 import { Sidebar, type SidebarOptions } from "../components/sidebar";
 import { ArticleList } from "../components/article-list";
 import { openFilterMenuFrom } from "../components/article-filter-menu";
@@ -3543,73 +3547,9 @@ export class RssDashboardView extends ItemView {
     // The rebuild below replaces the list, including whatever control the
     // in-place removal had chosen. Remember the keyboard user's place and
     // restore an equivalent target once the new page is rendered (#1387).
-    const focusTarget = this.captureListFocus();
+    const focusTarget = captureArticleListFocus(this.containerEl);
     void this.render();
-    this.restoreListFocus(focusTarget);
-  }
-
-  private captureListFocus():
-    { guid: string; feedUrl: string | undefined } | { list: true } | null {
-    const active = activeDocument.activeElement;
-    if (!(active instanceof HTMLElement)) return null;
-    const list = this.containerEl.querySelector<HTMLElement>(
-      ".rss-dashboard-articles-list",
-    );
-    if (!list) return null;
-    if (active === list) return { list: true };
-    if (!list.contains(active)) return null;
-
-    const row = active.closest<HTMLElement>(
-      ".rss-dashboard-article-item, .rss-dashboard-article-card, .rss-dashboard-feed-item",
-    );
-    if (!row || !list.contains(row)) return { list: true };
-    return {
-      guid: row.id.replace(/^article-/, ""),
-      feedUrl: row.dataset.feedUrl,
-    };
-  }
-
-  private restoreListFocus(
-    target:
-      { guid: string; feedUrl: string | undefined } | { list: true } | null,
-  ): void {
-    if (!target) return;
-    const list = this.containerEl.querySelector<HTMLElement>(
-      ".rss-dashboard-articles-list",
-    );
-    if (!list) return;
-
-    if ("guid" in target) {
-      const row = Array.from(
-        list.querySelectorAll<HTMLElement>(
-          ".rss-dashboard-article-item, .rss-dashboard-article-card, .rss-dashboard-feed-item",
-        ),
-      ).find(
-        (candidate) =>
-          candidate.id === `article-${target.guid}` &&
-          (target.feedUrl === undefined ||
-            candidate.dataset.feedUrl === target.feedUrl),
-      );
-      const control = row?.querySelector<HTMLElement>(
-        ".rss-dashboard-read-toggle",
-      );
-      if (control) {
-        control.focus({ preventScroll: true });
-        return;
-      }
-      // The focused row left this page entirely; the first row of the clamped
-      // page is the nearest place to continue from.
-      const first = list.querySelector<HTMLElement>(
-        ".rss-dashboard-article-item .rss-dashboard-read-toggle, .rss-dashboard-article-card .rss-dashboard-read-toggle, .rss-dashboard-feed-item .rss-dashboard-read-toggle",
-      );
-      if (first) {
-        first.focus({ preventScroll: true });
-        return;
-      }
-    }
-
-    list.setAttr("tabindex", "-1");
-    list.focus({ preventScroll: true });
+    restoreArticleListFocus(this.containerEl, focusTarget);
   }
 
   private markPageArticlesAsRead(
