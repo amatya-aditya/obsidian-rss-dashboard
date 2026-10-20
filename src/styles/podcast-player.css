@@ -473,6 +473,18 @@
   transition: opacity 0.15s ease;
 }
 
+/* The 32 px hit area is deliberately invisible: only the tick shows. Obsidian's
+   global `button` styling paints a background and shadow here, so this scoped
+   selector out-specifies it without !important (#1374 v1, WCAG trade-off
+   accepted). The keyboard focus outline still marks the target when focused. */
+.rss-reader-podcast-container
+  .podcast-progress-bar-wrapper
+  .seek-bar-marker[type="button"] {
+  appearance: none;
+  background: transparent;
+  box-shadow: none;
+}
+
 /* The visible tick: a 2 px core with a one-pixel ring so it keeps a 3:1 edge
    against both the unfilled track and the accent fill (WCAG 1.4.11). */
 .seek-bar-marker::before {
