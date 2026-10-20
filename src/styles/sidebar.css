@@ -678,8 +678,12 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
   padding-left: var(--sidebar-item-padding-left);
   padding-right: var(--sidebar-item-padding-right);
   flex-shrink: 0;
-  /* Holds the chevron's full 32x32 target at the default 10px row spacing. */
-  min-height: 32px;
+  /*
+   * Back to the pre-change compact row (~27px at the default spacing). The
+   * chevron's 32px target overlaps about 2.5px into the rows above and below;
+   * the toggle's stacking keeps that full target clickable.
+   */
+  min-height: 27px;
 }
 
 .rss-dashboard-feed-folder-header:hover {
@@ -755,6 +759,11 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
   align-items: center;
   justify-content: center;
   position: relative;
+  /*
+   * The 32px target is taller than the ~27px row. Stack the toggle above the
+   * neighbouring rows so the 2.5px overhang at each edge still hits it.
+   */
+  z-index: 1;
   margin-right: 8px;
   color: var(--text-muted);
   cursor: pointer;

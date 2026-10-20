@@ -46,12 +46,13 @@ function declarationsInCoarsePointerMedia(
 }
 
 describe("Sidebar folder chevron hit area", () => {
-  it("keeps the visible chevron at 16x16 and makes it the positioning context", () => {
+  it("keeps the visible chevron at 16x16, above the row, and makes it the positioning context", () => {
     const toggle = declarationsFor(".rss-dashboard-feed-folder-toggle");
 
     expect(toggle.get("width")).toBe("16px");
     expect(toggle.get("height")).toBe("16px");
     expect(toggle.get("position")).toBe("relative");
+    expect(toggle.get("z-index")).toBe("1");
   });
 
   it("expands the pointer target to 32x32 without changing the layout", () => {
@@ -62,10 +63,10 @@ describe("Sidebar folder chevron hit area", () => {
     expect(hitArea.get("inset")).toBe("-8px");
   });
 
-  it("keeps the expanded target out of a clipping ancestor and reserves the row height", () => {
+  it("keeps the expanded target out of a clipping ancestor at the compact row height", () => {
     // The toggle starts 5px into the folder, so the 8px left overhang is only
-    // reachable while the folder itself does not clip. A 32px row keeps the
-    // 32px target inside the folder vertically at the default spacing.
+    // reachable while the folder itself does not clip. The row stays compact
+    // (~27px) and the 32px target hangs into the rows above and below.
     expect(declarationsFor(".rss-dashboard-feed-folder").get("overflow")).toBe(
       "visible",
     );
@@ -74,7 +75,7 @@ describe("Sidebar folder chevron hit area", () => {
     );
     expect(
       declarationsFor(".rss-dashboard-feed-folder-header").get("min-height"),
-    ).toBe("32px");
+    ).toBe("27px");
   });
 
   it("grows the target to 40px tall on touch, inside the row's 44px height", () => {
