@@ -126,18 +126,20 @@ describe("Shard storage v2 article state (characterization, #465)", () => {
       );
     });
 
-    it("gets a new sync nonce on every save, even when the state is unchanged", async () => {
+    it("leaves the file byte-identical when a save changes no state, and stamps a new sync nonce when it does (#1411)", async () => {
       const repository = new FeedStorageRepository(app);
       const settings = settingsFor("vault-shards-v2", [
         makeFeed("feed-1", [makeItem({ read: true })]),
       ]);
 
       await repository.saveUserStateFromFeeds(settings);
-      const first = (await readJson(app))._syncNonce;
+      const first = await readJson(app);
       await repository.saveUserStateFromFeeds(settings);
-      const second = (await readJson(app))._syncNonce;
+      expect(await readJson(app)).toEqual(first);
 
-      expect(second).not.toBe(first);
+      settings.feeds[0].items[0].starred = true;
+      await repository.saveUserStateFromFeeds(settings);
+      expect((await readJson(app))._syncNonce).not.toBe(first._syncNonce);
     });
 
     it("records read, starred and saved on every entry, and tags, saved path and playback only when set", async () => {

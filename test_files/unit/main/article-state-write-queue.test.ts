@@ -303,7 +303,7 @@ describe("coalesced article-state persistence (#1384)", () => {
     const write = vi.spyOn(adapter(app), "write");
 
     for (let index = 0; index < 30; index += 1) {
-      plugin.settings.feeds[0].items[0].read = index % 2 === 0;
+      plugin.settings.feeds[0].items[0].read = index % 2 === 1;
       void plugin.queueArticleStateSave();
     }
     await vi.advanceTimersByTimeAsync(0);

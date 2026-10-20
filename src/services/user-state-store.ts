@@ -5,7 +5,11 @@ import type {
   RssDashboardSettings,
   UserStateFile,
 } from "../types/types";
-import { cloneJson, withSyncNonce } from "./storage-json";
+import {
+  cloneJson,
+  comparableSnapshotJson,
+  withSyncNonce,
+} from "./storage-json";
 import { replaceFileWithTemp } from "../utils/file-replace";
 import {
   UserStateJournal,
@@ -551,7 +555,19 @@ export class UserStateStore {
       unrecognizedFeedSinceByFeedId,
     });
 
-    await this.writeUserState(settings, userStateFile);
+    // A save that changes nothing must leave the file untouched: the fresh
+    // sync nonce alone would make Obsidian Sync see a changed file after every
+    // plugin load (#1411). The journal bookkeeping below still runs.
+    // A snapshot recovered from the sibling `.tmp` is not yet in place, so it
+    // is always written.
+    const unchanged =
+      existing.status === "ok" &&
+      comparableSnapshotJson(existing.file) ===
+        comparableSnapshotJson(userStateFile) &&
+      (await this.app.vault.adapter.exists(this.getUserStatePath(settings)));
+    if (!unchanged) {
+      await this.writeUserState(settings, userStateFile);
+    }
     // Keep the records this checkpoint just folded in: a sync client can
     // replace the snapshot with an older copy right after the write, and the
     // journal is the only copy of that change until a later read shows the
