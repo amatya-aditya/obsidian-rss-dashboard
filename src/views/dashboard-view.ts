@@ -3536,10 +3536,12 @@ export class RssDashboardView extends ItemView {
     });
 
     const pageEmptied = pagination.currentPage !== currentPage;
-    const lastPageDisappeared =
-      filtered.length === 0 ||
-      (pageSize > 0 && filtered.length % pageSize === 0);
-    if (!pageEmptied && !lastPageDisappeared) return;
+    const listEmptied = filtered.length === 0;
+    const pageGone = currentPage > pagination.totalPages;
+    // A total that happens to be a page multiple is not itself a boundary:
+    // page 1 can lose a row and still have rows. Rebuild only when the page
+    // emptied, the list emptied, or the current page no longer exists (#1380).
+    if (!pageEmptied && !listEmptied && !pageGone) return;
 
     if (pageEmptied) {
       this.setCurrentPageState(pagination.currentPage);

@@ -298,6 +298,25 @@ describe("dashboard write-back article state", () => {
     );
   });
 
+  it("does not rebuild the page when a removal leaves it non-empty", async () => {
+    reduceMotion();
+    const f = await fixture({
+      viewStyle: "card",
+      articleCount: 5,
+      pageSize: 2,
+      page: 1,
+    });
+    const render = vi.spyOn(f.view, "render");
+    const firstRowId = f.rowIds()[0];
+    if (!firstRowId) throw new Error("Expected a rendered row");
+
+    f.clickRead(firstRowId.replace(/^article-/, ""));
+
+    // The total fell from 5 to 4, a page multiple, but page 1 still has rows.
+    // Only an emptied page or list needs the full rebuild (#1380).
+    expect(render).not.toHaveBeenCalled();
+  });
+
   it("notifies once when persisting a dashboard change fails", async () => {
     reduceMotion();
     const debug = vi.spyOn(console, "debug").mockImplementation(() => {});
