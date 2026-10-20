@@ -205,6 +205,36 @@ async function drainMicrotasks(): Promise<void> {
   }
 }
 
+interface Deferred {
+  promise: Promise<void>;
+  resolve: () => void;
+}
+
+function deferred(): Deferred {
+  let resolve!: () => void;
+  const promise = new Promise<void>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
+interface SettingsStoreSeam {
+  recordArticleStateChanges(
+    changes: readonly {
+      feedId: string;
+      guid: string;
+      changes: Record<string, unknown>;
+    }[],
+  ): Promise<void>;
+}
+
+interface PluginSeams {
+  settingsStore: SettingsStoreSeam;
+  feedStorageRepository: {
+    persistSettings(...args: unknown[]): Promise<unknown>;
+  };
+}
+
 describe("journal checkpoints (#1387)", () => {
   it("writes the shared snapshot, advances the checkpoint, and truncates the journal", async () => {
     const { plugin } = await startPlugin();
@@ -301,6 +331,48 @@ describe("journal checkpoints (#1387)", () => {
     expect(write).not.toHaveBeenCalled();
     expect(rename).not.toHaveBeenCalled();
     expect(adapterFiles(app).get(USER_STATE_PATH)).toBe(before);
+  });
+
+  it("closes the load gate before settling appends so a racing save is suppressed", async () => {
+    const { plugin } = await startPlugin();
+    const seams = plugin as unknown as PluginSeams;
+    const appendGate = deferred();
+    const appendToVault = adapter(app).append.bind(adapter(app));
+    const append = vi
+      .spyOn(adapter(app), "append")
+      .mockImplementation(async (path, content) => {
+        if (path === JOURNAL_PATH) await appendGate.promise;
+        await appendToVault(path, content);
+      });
+    const loadGate = deferred();
+    plugin.loadData = vi.fn(() =>
+      loadGate.promise.then(() => structuredClone(settings())),
+    );
+
+    // Accepted while the write gate is still open.
+    const accepted = seams.settingsStore.recordArticleStateChanges([
+      { feedId: "feed-1", guid: GUID, changes: { read: true } },
+    ]);
+    await vi.waitFor(() =>
+      expect(append).toHaveBeenCalledWith(JOURNAL_PATH, expect.any(String)),
+    );
+    const persist = vi.spyOn(seams.feedStorageRepository, "persistSettings");
+
+    const load = plugin.loadSettings();
+    await Promise.resolve();
+    const save = plugin.saveSettings();
+    appendGate.resolve();
+    await accepted;
+    await save;
+
+    // The append accepted by the previous state still lands...
+    expect(journalRecords(app)).toHaveLength(1);
+    // ...but a save requested while the load settles is suppressed instead of
+    // writing the previous state over the load.
+    expect(persist).not.toHaveBeenCalled();
+
+    loadGate.resolve();
+    await load;
   });
 
   it("flushes pending records through the unload path", async () => {

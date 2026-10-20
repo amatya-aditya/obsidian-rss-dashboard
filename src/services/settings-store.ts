@@ -277,10 +277,12 @@ export class SettingsStore {
       // A synced reload replaces the in-memory snapshot. Pending local changes
       // must already be in the journal before it is read, or this load would
       // drop them; replay then applies them over the reloaded snapshot
-      // (#1387). Settle before the failed-load gate closes so an append
-      // accepted by the previous state can still land.
-      await this.settleJournalAppends();
+      // (#1387). Close the failed-load write gate before waiting, so a save
+      // requested while an append settles cannot write over the load. An
+      // append accepted by the previous state still lands: its gate check ran
+      // when it was queued (#1380).
       this.settingsLoadFailed = true;
+      await this.settleJournalAppends();
       storageLog("Loading plugin settings");
       const { data, vaultMetadataUnreadable } =
         await this.readBootstrapSettings();
@@ -542,16 +544,19 @@ export class SettingsStore {
 
   /**
    * Appends the change to the device-local journal, serially and behind the
-   * same gate as every other write. Errors are logged rather than rejecting:
-   * the coalesced snapshot write that follows still carries the change while
-   * this session lasts, and callers ignore this promise.
+   * same gate as every other write. The gate is read synchronously here, when
+   * the change is queued, so a load that closes it while an earlier append is
+   * still settling does not discard the change that was already accepted
+   * (#1380). Errors are logged rather than rejecting: the coalesced snapshot
+   * write that follows still carries the change while this session lasts, and
+   * callers ignore this promise.
    */
   private appendJournalChanges(
     changes: readonly UserStateJournalChange[],
   ): Promise<void> {
     if (changes.length === 0) return this.journalAppendChain;
+    if (this.isPersistenceSuppressed()) return this.journalAppendChain;
     const run = this.journalAppendChain.then(async () => {
-      if (this.isPersistenceSuppressed()) return;
       try {
         await this.feedStorageRepository.recordArticleStateChanges(changes);
       } catch (error) {
