@@ -210,3 +210,31 @@ describe("Folder field stylesheet", () => {
     expect(input.has("padding-right")).toBe(false);
   });
 });
+
+describe("Import Starred folder field stylesheet", () => {
+  const testDir = path.dirname(fileURLToPath(import.meta.url));
+  const css = readFileSync(
+    path.resolve(testDir, "../../../src/styles/import-starred-modal.css"),
+    "utf-8",
+  );
+
+  // The folder icon's start padding leaves the default "Starred imports" too
+  // little room in a control that shrinks beside a long description, so the
+  // input keeps a floor width (#1378).
+  it("holds the New-feed folder input at a width that fits the default folder", () => {
+    let minWidth = "";
+    postcss.parse(css).walkRules((rule) => {
+      const matches = rule.selectors.some(
+        (selector) =>
+          selector.replace(/\s+/g, " ").trim() ===
+          ".import-options-panel .rss-dashboard-folder-combobox > input.rss-dashboard-folder-combobox-input",
+      );
+      if (!matches) return;
+      rule.walkDecls("min-width", (decl) => {
+        minWidth = decl.value;
+      });
+    });
+
+    expect(minWidth).toBe("12rem");
+  });
+});
