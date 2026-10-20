@@ -1518,6 +1518,16 @@ export default class RssDashboardPlugin extends Plugin {
         previousValues,
         !!shouldRerender,
       );
+      // The journal already holds the failed intent. Journal the restored
+      // fields too, so replay lands on the rolled-back state instead of
+      // resurrecting a change the user was told was not saved (#1380).
+      await this.settingsStore.recordArticleStateChanges(
+        articleStateChanges(
+          resolvedFeed.feedId,
+          originalItem.guid,
+          articleStateFromUpdates(previousValues),
+        ),
+      );
       return false;
     }
 

@@ -493,6 +493,40 @@ describe("journal checkpoints (#1387)", () => {
     });
   });
 
+  it("journals a compensating record when the Reader rolls a failed save back", async () => {
+    const { plugin } = await startPlugin();
+    const item = plugin.settings.feeds[0].items.find(
+      (entry) => entry.guid === GUID,
+    );
+    if (!item) throw new Error("Expected the seeded article");
+    vi.spyOn(plugin, "saveSettings").mockRejectedValueOnce(
+      new Error("disk full"),
+    );
+
+    const updateFromReader = (
+      plugin as unknown as {
+        updateArticleFromReader(
+          article: FeedItem,
+          updates: Partial<FeedItem>,
+        ): Promise<boolean>;
+      }
+    ).updateArticleFromReader.bind(plugin);
+    const applied = await updateFromReader(item, { read: true });
+
+    expect(applied).toBe(false);
+    expect(item.read).toBe(false);
+    // The failed intent and the restored state are both durable, in order.
+    const records = journalRecords(app);
+    expect(records.length).toBeGreaterThanOrEqual(2);
+    expect(records[0]).toMatchObject({ changes: { read: true } });
+    expect(records[records.length - 1]).toMatchObject({
+      changes: { read: false },
+    });
+
+    const { plugin: reloaded } = await startPlugin();
+    expect(readOf(reloaded)).toBe(false);
+  });
+
   it("does not replay or overwrite an unreadable snapshot", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     await adapter(app).write(USER_STATE_PATH, "{not valid json");
