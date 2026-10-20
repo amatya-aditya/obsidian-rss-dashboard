@@ -451,6 +451,10 @@
   inset: -10px 0;
   z-index: 3;
   pointer-events: none;
+  /* Obsidian draws its own hover tooltip from `aria-label` and skips it when
+     this computes to "true". The plugin shows a richer preview on hover and
+     focus, so the two must not stack. The property inherits to the markers. */
+  --no-tooltip: true;
 }
 
 .seek-bar-marker {
@@ -529,6 +533,7 @@
   left: var(--seek-bar-marker-position, 0%);
   transform: translateX(-50%);
   z-index: 5;
+  width: max-content;
   max-width: min(320px, 90%);
   padding: 4px 8px;
   border: 1px solid var(--background-modifier-border);
@@ -537,9 +542,9 @@
   color: var(--text-normal);
   font-size: 0.75rem;
   line-height: 1.3;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
   overflow: hidden;
-  text-overflow: ellipsis;
   box-shadow: var(--shadow-s);
   pointer-events: none;
 }

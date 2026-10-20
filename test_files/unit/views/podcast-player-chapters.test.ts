@@ -121,10 +121,10 @@ describe("PodcastPlayer chapter markers", () => {
     ).toEqual(["0%", "10%", "50%", "90%"]);
     expect(rendered.map((marker) => marker.getAttribute("aria-label"))).toEqual(
       [
-        "Chapter 1, 0:00, Intro, 0:10 long",
-        "Chapter 2, 0:10, Second, 0:40 long",
-        "Chapter 3, 0:50, Third, 0:40 long",
-        "Chapter 4, 1:30, Last, 0:10 long",
+        "Chapter 1, 0:00, Intro (0:10)",
+        "Chapter 2, 0:10, Second (0:40)",
+        "Chapter 3, 0:50, Third (0:40)",
+        "Chapter 4, 1:30, Last (0:10)",
       ],
     );
     expect(container.querySelector(".seek-bar-marker-layer")).not.toBeNull();
@@ -139,10 +139,10 @@ describe("PodcastPlayer chapter markers", () => {
     expect(rendered.every((marker) => marker.tabIndex === 0)).toBe(true);
     expect(rendered.map((marker) => marker.getAttribute("aria-label"))).toEqual(
       [
-        "Chapter 1, 0:00, Intro, 0:10 long",
-        "Chapter 2, 0:10, Second, 0:40 long",
-        "Chapter 3, 0:50, Third, 0:40 long",
-        "Chapter 4, 1:30, Last, 0:10 long",
+        "Chapter 1, 0:00, Intro (0:10)",
+        "Chapter 2, 0:10, Second (0:40)",
+        "Chapter 3, 0:50, Third (0:40)",
+        "Chapter 4, 1:30, Last (0:10)",
       ],
     );
   });

@@ -1159,7 +1159,7 @@ export class PodcastPlayer {
         const shortTitle = shortenChapterTitle(chapter.title);
         return {
           start: chapter.start,
-          label: `Chapter ${index + 1}, ${time}, ${chapter.title}, ${detail} long`,
+          label: `Chapter ${index + 1}, ${time}, ${chapter.title} (${detail})`,
           preview: `${time} — ${shortTitle} (${detail})`,
         };
       }),
