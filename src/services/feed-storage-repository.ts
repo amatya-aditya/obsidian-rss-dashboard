@@ -18,6 +18,7 @@ import {
   parseSettingsBundle,
 } from "./storage-bundle-parsers";
 import { UserStateStore } from "./user-state-store";
+import type { UserStateJournalChange } from "./user-state-journal";
 import { mergeImportedSettingsGroups } from "../utils/settings-group-merge";
 import {
   createComparableFeedShardJson,
@@ -161,6 +162,30 @@ export class FeedStorageRepository {
 
   public isUserStateUnreadable(): boolean {
     return this.userState.isUnreadable();
+  }
+
+  /**
+   * Points the article-state store at the device-local journal folder and the
+   * settings store's one persistence gate. Called by the settings store, which
+   * owns the plugin folder and that gate.
+   */
+  public configureDeviceLocalJournal(options: {
+    pluginDir: string;
+    isPersistenceSuppressed?: () => boolean;
+    getStorageMode: () => RssDashboardSettings["storageMode"];
+  }): void {
+    this.userState.configureDeviceLocalJournal(options);
+  }
+
+  /**
+   * Appends article-state changes to the device-local journal so they survive
+   * an abrupt close before the shared snapshot is rewritten. #1387 calls this
+   * from the coalesced article-state queue.
+   */
+  public async recordArticleStateChanges(
+    changes: readonly UserStateJournalChange[],
+  ): Promise<void> {
+    return this.userState.appendChanges(changes);
   }
 
   public getFeedShardHealth(feed: Feed): FeedShardHealth | null {

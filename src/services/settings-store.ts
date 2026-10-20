@@ -118,7 +118,22 @@ export class SettingsStore {
   constructor(
     private readonly app: App,
     private readonly options: SettingsStoreOptions,
-  ) {}
+  ) {
+    // The journal is device-local and obeys this store's one write gate, so
+    // the store that owns the plugin folder and the gate configures it.
+    this.options.feedStorageRepository.configureDeviceLocalJournal({
+      pluginDir: this.resolvePluginDir(),
+      isPersistenceSuppressed: () => this.isPersistenceSuppressed(),
+      getStorageMode: () => this.settings.storageMode,
+    });
+  }
+
+  private resolvePluginDir(): string {
+    return (
+      this.options.manifest.dir ??
+      `${this.app.vault.configDir}/plugins/${this.options.manifest.id}`
+    );
+  }
 
   private get settings(): RssDashboardSettings {
     return this.options.getSettings();
@@ -280,10 +295,7 @@ export class SettingsStore {
       // null load is changed: existing installs keep the vault folder they
       // already use, and a synced data.json that arrives later replaces this.
       if (data === null) {
-        const pluginDir = normalizePath(
-          this.options.manifest.dir ??
-            `${this.app.vault.configDir}/plugins/${this.options.manifest.id}`,
-        );
+        const pluginDir = normalizePath(this.resolvePluginDir());
         this.settings.metadataStorageFolder = `${pluginDir}/data`;
         this.settings.storageFolder = `${pluginDir}/data/feeds`;
       }
