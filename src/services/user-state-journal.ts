@@ -11,16 +11,35 @@ import { replaceFileWithTemp } from "../utils/file-replace";
 export const USER_STATE_JOURNAL_FOLDER = "device-local";
 export const USER_STATE_JOURNAL_FILE = "user-state-journal.jsonl";
 
+/**
+ * Article-state fields that can be absent on an article and therefore need an
+ * explicit tombstone to clear on replay: `read`, `starred`, and `saved` are
+ * booleans whose `false` value is itself the cleared state, but `tags`,
+ * `savedFilePath`, and `playbackProgress` have no "empty" JSON value.
+ */
+export type ClearedArticleStateField =
+  "tags" | "savedFilePath" | "playbackProgress";
+
+/**
+ * The changed fields of one article plus the fields a change explicitly clears.
+ * `clearedFields` is a tombstone: JSON drops `undefined`, so a rollback that
+ * restores "this article never had tags" cannot be expressed by omitting
+ * `tags` — replay must be told to delete it (#1380).
+ */
+export interface UserStateJournalChanges extends ArticleUserState {
+  clearedFields?: readonly ClearedArticleStateField[];
+}
+
 /** The changed fields of one article, appended as one journal record. */
 export interface UserStateJournalChange {
   feedId: string;
   guid: string;
-  changes: ArticleUserState;
+  changes: UserStateJournalChanges;
 }
 
 /**
  * One self-contained, append-only journal record. `seq` orders records and is
- * compared with the shared snapshot's `checkpointSequence` on replay.
+ * compared with the shared snapshot's per-device checkpoint on replay.
  */
 export interface UserStateJournalRecord {
   seq: number;
@@ -28,7 +47,7 @@ export interface UserStateJournalRecord {
   timestamp: number;
   feedId: string;
   guid: string;
-  changes: ArticleUserState;
+  changes: UserStateJournalChanges;
 }
 
 export interface UserStateJournalOptions {
@@ -57,23 +76,33 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 /**
  * The article-state fields of an in-memory update, ready to journal. Fields the
  * update does not carry are omitted so replay leaves them as the snapshot has
- * them (#1387).
+ * them (#1387). A field the update carries with an explicit `undefined` value
+ * becomes a tombstone in `clearedFields`, so replay removes it instead of
+ * leaving a stale value (#1380).
  */
 export function articleStateFromUpdates(
   updates: Partial<FeedItem>,
-): ArticleUserState {
-  const state: ArticleUserState = {};
+): UserStateJournalChanges {
+  const state: UserStateJournalChanges = {};
+  const clearedFields: ClearedArticleStateField[] = [];
   if (typeof updates.read === "boolean") state.read = updates.read;
   if (typeof updates.starred === "boolean") state.starred = updates.starred;
   if (typeof updates.saved === "boolean") state.saved = updates.saved;
   if (typeof updates.savedFilePath === "string") {
     state.savedFilePath = updates.savedFilePath;
+  } else if (
+    "savedFilePath" in updates &&
+    updates.savedFilePath === undefined
+  ) {
+    clearedFields.push("savedFilePath");
   }
   if (Array.isArray(updates.tags)) {
     state.tags = updates.tags.map((tag) => ({
       name: tag.name,
       color: tag.color,
     }));
+  } else if ("tags" in updates && updates.tags === undefined) {
+    clearedFields.push("tags");
   }
   if (updates.playbackProgress) {
     state.playbackProgress = {
@@ -81,7 +110,13 @@ export function articleStateFromUpdates(
       duration: updates.playbackProgress.duration,
       lastUpdated: updates.playbackProgress.lastUpdated,
     };
+  } else if (
+    "playbackProgress" in updates &&
+    updates.playbackProgress === undefined
+  ) {
+    clearedFields.push("playbackProgress");
   }
+  if (clearedFields.length > 0) state.clearedFields = clearedFields;
   return state;
 }
 
@@ -114,15 +149,41 @@ function isTag(value: unknown): value is Tag {
   );
 }
 
+const CLEARABLE_FIELDS = new Set<ClearedArticleStateField>([
+  "tags",
+  "savedFilePath",
+  "playbackProgress",
+]);
+
+/**
+ * Validates a record's `clearedFields` tombstone list, rejecting an entry that
+ * is not a clearable article-state field. Absent is an empty list.
+ */
+function parseClearedFields(value: unknown): ClearedArticleStateField[] | null {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) return null;
+  const fields: ClearedArticleStateField[] = [];
+  for (const field of value) {
+    if (
+      typeof field !== "string" ||
+      !CLEARABLE_FIELDS.has(field as ClearedArticleStateField)
+    ) {
+      return null;
+    }
+    fields.push(field as ClearedArticleStateField);
+  }
+  return fields;
+}
+
 /**
  * Keeps only the known article-state fields a record carries, and rejects the
  * record when a present field has the wrong shape. Rejecting rather than
  * coercing keeps a partially written record from corrupting replay.
  */
-function readChangedFields(value: unknown): ArticleUserState | null {
+function readChangedFields(value: unknown): UserStateJournalChanges | null {
   if (!isRecord(value)) return null;
 
-  const changes: ArticleUserState = {};
+  const changes: UserStateJournalChanges = {};
   for (const field of ["read", "starred", "saved"] as const) {
     if (!(field in value)) continue;
     if (typeof value[field] !== "boolean") return null;
@@ -158,6 +219,10 @@ function readChangedFields(value: unknown): ArticleUserState | null {
       lastUpdated: progress.lastUpdated,
     };
   }
+
+  const clearedFields = parseClearedFields(value.clearedFields);
+  if (clearedFields === null) return null;
+  if (clearedFields.length > 0) changes.clearedFields = clearedFields;
 
   return Object.keys(changes).length > 0 ? changes : null;
 }
@@ -198,38 +263,61 @@ export function parseUserStateJournal(raw: string): UserStateJournalRecord[] {
 
 /**
  * Applies replayable records onto a snapshot-keyed state map in sequence order.
- * A record at or below `checkpointSequence` is already folded into the
- * snapshot, so replay skips it; applying the same journal twice therefore
- * produces the same state. Returns the highest sequence seen.
+ * A record is already folded into the snapshot when its own device's checkpoint
+ * is at or above its sequence; replay skips it, so applying the same journal
+ * twice produces the same state. Another device's checkpoint never suppresses a
+ * record. Returns the per-device checkpoint map after folding (#1380).
  */
 export function foldUserStateJournalRecords(
   states: Record<string, ArticleUserState>,
   records: readonly UserStateJournalRecord[],
-  checkpointSequence: number,
-): number {
-  let lastSequence = checkpointSequence;
+  checkpointByDevice: Readonly<Record<string, number>>,
+): Record<string, number> {
+  const foldedByDevice: Record<string, number> = { ...checkpointByDevice };
   for (const record of records) {
-    if (record.seq > lastSequence) {
-      lastSequence = record.seq;
-    }
-    if (record.seq <= checkpointSequence) continue;
+    const deviceCheckpoint = checkpointByDevice[record.deviceId] ?? 0;
+    if (record.seq <= deviceCheckpoint) continue;
+
     const key = `${record.feedId}:${record.guid}`;
     const base = states[key] ? cloneJson(states[key]) : {};
-    const merged = { ...base, ...cloneJson(record.changes) };
+    const changes = cloneJson(record.changes);
+    const clearedFields = changes.clearedFields ?? [];
+    delete changes.clearedFields;
+    const merged = { ...base, ...changes };
     // Unsaving clears the note association, but a self-contained record cannot
     // carry an absent field. Treat `saved: false` as removing the old path so a
-    // replay never resurrects a note the user detached (#1387).
+    // replay never resurrects a note the user detached (#1387). A tombstoned
+    // field is removed outright (#1380).
     if (record.changes.saved === false) delete merged.savedFilePath;
+    for (const field of clearedFields) delete merged[field];
     states[key] = merged;
+
+    const deviceFloor = foldedByDevice[record.deviceId] ?? 0;
+    if (record.seq > deviceFloor) foldedByDevice[record.deviceId] = record.seq;
   }
-  return lastSequence;
+  return foldedByDevice;
+}
+
+/** The highest sequence in a per-device checkpoint map, for legacy readers. */
+export function maxCheckpointSequence(
+  checkpointByDevice: Readonly<Record<string, number>>,
+): number {
+  let max = 0;
+  for (const sequence of Object.values(checkpointByDevice)) {
+    if (Number.isFinite(sequence) && sequence > max) {
+      max = Math.floor(sequence);
+    }
+  }
+  return max;
 }
 
 /**
  * A stable identifier for this device. It is derived from the vault's base
  * path when the adapter exposes one, so it does not change across restarts,
- * and falls back to a random identifier where it does not (mobile). The value
- * is informational: the journal is device-local and never synced.
+ * and falls back to a random identifier where it does not (mobile). The
+ * journal is device-local and never synced, but the identifier is recorded on
+ * each record and keyed in the shared snapshot's `checkpointByDevice`, so it
+ * must be stable across restarts for the per-device checkpoint to hold (#1380).
  */
 function createDeviceId(app: App): string {
   let basePath = "";
@@ -267,7 +355,8 @@ export class UserStateJournal {
   private readonly app: App;
   private readonly path: string;
   private readonly folder: string;
-  private readonly deviceId: string;
+  /** Stable identifier for this device, recorded on every appended record. */
+  readonly deviceId: string;
   private loaded = false;
   /**
    * Serializes file operations so an append and a checkpoint's truncation
@@ -288,6 +377,7 @@ export class UserStateJournal {
   /** Every complete record on disk, ordered by sequence. Missing is empty. */
   public async read(): Promise<UserStateJournalRecord[]> {
     this.loaded = true;
+    await this.promoteInterruptedRewrite();
     const exists = await this.app.vault.adapter.exists(this.path);
     if (!exists) return [];
     try {
@@ -304,8 +394,25 @@ export class UserStateJournal {
   }
 
   /**
-   * Raises the next sequence above a value the journal cannot see, such as the
-   * shared snapshot's `checkpointSequence` or records a checkpoint just
+   * A `rewrite` replaces the journal by removing it and renaming a completed
+   * `.tmp` into place. A crash in that gap leaves the journal missing with the
+   * whole content still in the `.tmp`; promote it so the records a truncation
+   * was about to drop — or the tail repair just rewrote — are not lost (#1380).
+   */
+  private async promoteInterruptedRewrite(): Promise<void> {
+    if (await this.app.vault.adapter.exists(this.path)) return;
+    const tempPath = `${this.path}.tmp`;
+    if (!(await this.app.vault.adapter.exists(tempPath))) return;
+    try {
+      await this.app.vault.adapter.rename(tempPath, this.path);
+    } catch (error) {
+      storageError("Failed to recover the user-state journal rewrite", error);
+    }
+  }
+
+  /**
+   * Raises the next sequence above a value the journal cannot see, such as this
+   * device's checkpoint in the shared snapshot or records a checkpoint just
    * truncated. Without this, a fresh or emptied journal starts at 1 again and
    * replay skips every new record as already folded in (#1380).
    */

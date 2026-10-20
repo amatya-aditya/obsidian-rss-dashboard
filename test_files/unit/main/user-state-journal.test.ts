@@ -19,9 +19,14 @@ import {
 import { App, type PluginManifest } from "obsidian";
 import RssDashboardPlugin from "../../../main";
 import { FeedStorageRepository } from "../../../src/services/feed-storage-repository";
-import { UserStateJournal } from "../../../src/services/user-state-journal";
+import {
+  UserStateJournal,
+  articleStateFromUpdates,
+  foldUserStateJournalRecords,
+} from "../../../src/services/user-state-journal";
 import {
   DEFAULT_SETTINGS,
+  type ArticleUserState,
   type Feed,
   type FeedItem,
   type PortableDataBundle,
@@ -151,6 +156,7 @@ function shardJson(items: FeedItem[]): string {
 interface SnapshotStub {
   version: number;
   checkpointSequence?: number;
+  checkpointByDevice?: Record<string, number>;
   states: Record<string, Record<string, unknown>>;
 }
 
@@ -338,12 +344,13 @@ describe("device-local user-state journal (#1386)", () => {
     expect(starredOf(plugin, SECOND_GUID)).toBe(true);
   });
 
-  it("applies only records newer than the snapshot's checkpoint sequence", async () => {
+  it("applies only records newer than this device's checkpoint", async () => {
     await adapter(app).write(
       USER_STATE_PATH,
       JSON.stringify({
-        version: 4,
+        version: 5,
         checkpointSequence: 2,
+        checkpointByDevice: { "device-test": 2 },
         states: {
           "feed-1:guid-1": { read: false, starred: false, saved: false },
         },
@@ -359,6 +366,37 @@ describe("device-local user-state journal (#1386)", () => {
 
     expect(starredOf(plugin)).toBe(false);
     expect(readOf(plugin)).toBe(true);
+  });
+
+  it("tombstones a field a failed change added to a previously-absent article", () => {
+    const states: Record<string, ArticleUserState> = {};
+    const compensating = articleStateFromUpdates({ tags: undefined });
+    expect(compensating.clearedFields).toContain("tags");
+
+    foldUserStateJournalRecords(
+      states,
+      [
+        {
+          seq: 1,
+          deviceId: "device-test",
+          timestamp: 0,
+          feedId: "feed-1",
+          guid: GUID,
+          changes: { tags: [{ name: "new", color: "#f00" }] },
+        },
+        {
+          seq: 2,
+          deviceId: "device-test",
+          timestamp: 0,
+          feedId: "feed-1",
+          guid: GUID,
+          changes: compensating,
+        },
+      ],
+      {},
+    );
+
+    expect(states["feed-1:guid-1"]?.tags).toBeUndefined();
   });
 
   it("numbers a new record above the snapshot checkpoint even with an empty journal", async () => {
@@ -453,13 +491,17 @@ describe("device-local user-state journal (#1386)", () => {
     ]);
 
     const { plugin: first } = await startPlugin();
-    const firstJournal = adapterFiles(app).get(JOURNAL_PATH);
     const { plugin: second } = await startPlugin();
 
     expect(second.settings.feeds[0].items).toEqual(
       first.settings.feeds[0].items,
     );
-    expect(adapterFiles(app).get(JOURNAL_PATH)).toBe(firstJournal);
+    // The second start reads the first start's checkpoint back, which is the
+    // point at which the journal may drop the records it covers (#1380); it
+    // never invents or rewrites one.
+    expect(journalRecords(app).every((record) => Number(record.seq) <= 3)).toBe(
+      true,
+    );
   });
 
   it("writes the shared snapshot with a bumped schema version and the journal checkpoint", async () => {
@@ -473,8 +515,9 @@ describe("device-local user-state journal (#1386)", () => {
     await plugin.flushPendingWrites();
 
     const written = snapshot(app);
-    expect(written.version).toBe(4);
+    expect(written.version).toBe(5);
     expect(written.checkpointSequence).toBe(1);
+    expect(written.checkpointByDevice).toBeDefined();
     expect(written.states["feed-1:guid-1"]?.read).toBe(true);
   });
 
@@ -572,8 +615,9 @@ describe("device-local user-state journal (#1386)", () => {
     await repository(plugin).migrateToVaultShardsV2(plugin.settings, saveData);
 
     // A migration needs one consistent snapshot, so the pending record is
-    // folded in and its checkpoint truncates the journal (#1387).
-    expect(journalRecords(app)).toEqual([]);
+    // folded in. The journal keeps it until a later load reads the checkpoint
+    // back from disk (#1387, #1380).
+    expect(journalRecords(app)).toHaveLength(1);
     expect(snapshot(app).states["feed-1:guid-1"]?.read).toBe(true);
     const journalPaths = [...adapterFiles(app).keys()].filter((path) =>
       path.includes("user-state-journal"),

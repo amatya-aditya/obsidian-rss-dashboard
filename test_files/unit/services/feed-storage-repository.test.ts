@@ -1774,7 +1774,7 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
     await repository.saveUserStateFromFeeds(settings);
 
     const written = await readUserState();
-    expect(written.version).toBe(4);
+    expect(written.version).toBe(5);
     expect(written.states["feed-1:guid-1"]).toEqual(state);
   });
 
@@ -2570,7 +2570,7 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
     await repository.saveUserStateFromFeeds(settings);
     const written = await readUserState();
 
-    expect(written.version).toBe(4);
+    expect(written.version).toBe(5);
     expect(written.states["guid-legacy"]).toBeUndefined();
     expect(written.states["feed-1:guid-legacy"]).toMatchObject({
       starred: true,
