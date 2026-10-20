@@ -214,13 +214,30 @@ const out = [];
 try {
   out.push(await ext.op("create", rel, () => fs.writeFileSync(abs, body)));
   out.push(await ext.op("modify", rel, () => fs.writeFileSync(abs, body + "\n")));
+} finally {
+  if (fs.existsSync(abs)) fs.unlinkSync(abs);
+  await new Promise((r) => window.setTimeout(r, 2500));
+}
+JSON.stringify({ case: "a4 feeds/__sync-probe.json, create and modify", results: out }, null, 1)
+
+@eval
+const ext = window.__ext;
+const fs = require("fs");
+const rel = "rss-dashboard-data/feeds/__sync-probe.json";
+const rel2 = "rss-dashboard-data/feeds/__sync-probe-2.json";
+const abs = app.vault.adapter.getFullPath(rel);
+const abs2 = app.vault.adapter.getFullPath(rel2);
+const out = [];
+try {
+  fs.writeFileSync(abs, JSON.stringify({ probe: true }));
+  await new Promise((r) => window.setTimeout(r, 2500));
   out.push(await ext.op("rename to __sync-probe-2.json", rel, () => fs.renameSync(abs, abs2)));
   out.push(await ext.op("delete", rel2, () => fs.unlinkSync(abs2)));
 } finally {
   for (const p of [abs, abs2]) if (fs.existsSync(p)) fs.unlinkSync(p);
   await new Promise((r) => window.setTimeout(r, 2500));
 }
-JSON.stringify({ case: "a4 feeds/__sync-probe.json", results: out }, null, 1)
+JSON.stringify({ case: "a4 feeds/__sync-probe.json, rename and delete", results: out }, null, 1)
 
 @eval
 const ext = window.__ext;
