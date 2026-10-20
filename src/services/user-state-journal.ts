@@ -258,8 +258,10 @@ function createDeviceId(app: App): string {
 
 /**
  * Append-only, device-local journal for the shared article-state snapshot.
- * Owned by `UserStateStore`; callers append through that store so the write
- * gate stays in one place.
+ * It intentionally covers only Shard storage v2's `user-state.json`: Shard
+ * storage v1 keeps state in shard content and Legacy JSON keeps it in
+ * `data.json`, both deprecated by ADR 0006 (#1380). Owned by `UserStateStore`;
+ * callers append through that store so the write gate stays in one place.
  */
 export class UserStateJournal {
   private readonly app: App;

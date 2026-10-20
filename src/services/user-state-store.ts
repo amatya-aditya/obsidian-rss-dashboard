@@ -147,6 +147,10 @@ export class UserStateStore {
    * an abrupt close before the shared snapshot is rewritten. Callers pass
    * changes already applied to the in-memory items. This does not persist the
    * snapshot; #1387 calls it from the coalesced queue.
+   *
+   * The journal intentionally covers only the v2 shared snapshot (#1380).
+   * Shard storage v1 keeps state in shard content and Legacy JSON keeps it in
+   * `data.json`, so those deprecated modes write no journal record.
    */
   public async appendChanges(
     changes: readonly UserStateJournalChange[],

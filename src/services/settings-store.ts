@@ -213,9 +213,17 @@ export class SettingsStore {
   }
 
   /**
-   * Shard storage v1 keeps article state inside shard content, so an
-   * article-state-only pass cannot carry a change there. That mode keeps the
-   * full save rather than dropping the read mark.
+   * The persistence options that carry article state for the current storage
+   * mode.
+   *
+   * Intentional exceptions (#1380):
+   * - Shard storage v1 keeps state inside shard content, so an
+   *   article-state-only pass cannot carry a change. That mode keeps the full
+   *   save rather than dropping the read mark (deprecated by ADR 0006).
+   * - Legacy JSON serializes the whole live settings object, so its state can
+   *   only be written by the full `data.json` save.
+   * - The device-local journal covers only the v2 shared `user-state.json`
+   *   snapshot; the deprecated modes get no journal entry.
    */
   private queuedArticleStateScope(): PersistSettingsOptions {
     return this.settings.storageMode === "vault-shards"
