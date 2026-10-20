@@ -275,6 +275,29 @@ describe("dashboard write-back article state", () => {
     expect(document.activeElement).toBe(next);
   });
 
+  it("hands UI article-state descriptors to the plugin facade when marking all as read", async () => {
+    reduceMotion();
+    const f = await fixture({ viewStyle: "card", articleCount: 2 });
+
+    f.view.actionMarkAllAsRead();
+
+    expect(f.queueArticleStateSave).toHaveBeenCalledTimes(1);
+    expect(f.queueArticleStateSave.mock.calls[0]?.[0]).toEqual(
+      expect.arrayContaining([
+        {
+          feedUrl: "https://example.com/feed",
+          guid: "a1",
+          changes: { read: true },
+        },
+        {
+          feedUrl: "https://example.com/feed",
+          guid: "a2",
+          changes: { read: true },
+        },
+      ]),
+    );
+  });
+
   it("flushes queued article state when the dashboard closes", async () => {
     const f = await fixture();
 

@@ -1,4 +1,15 @@
-import type { FeedItem } from "../types/types";
+import type { Feed, FeedItem } from "../types/types";
+
+/**
+ * A UI-facing article-state change. UI modules know the feed by URL and the
+ * article's fields; the plugin facade maps it to the device-local journal's
+ * feed-ID identity, so views never import storage internals (#1380).
+ */
+export interface ArticleStateChange {
+  feedUrl: string;
+  guid: string;
+  changes: Partial<FeedItem>;
+}
 
 /**
  * The fields that live in the shared article-state snapshot rather than in feed
@@ -38,4 +49,71 @@ export function snapshotArticleFields(
     snapshot[key] = article[key];
   }
   return snapshot as Partial<FeedItem>;
+}
+
+/**
+ * Finds the stored item a player reports progress for, preferring the feed
+ * that supplied its URL or GUID and falling back to a video identity match.
+ * Returns the owning feed too, so the change carries its identity without a
+ * second scan (#1387, #1380).
+ */
+export function resolvePlaybackTarget(
+  feeds: readonly Feed[],
+  feedUrl: string,
+  itemGuid: string,
+  sourceItem?: FeedItem,
+): { feed: Feed; item: FeedItem } | null {
+  const resolveVideoMatch = (
+    candidateFeed?: Feed,
+  ): { feed: Feed; item: FeedItem } | undefined => {
+    if (!sourceItem || sourceItem.mediaType !== "video") {
+      return undefined;
+    }
+
+    const feedsToSearch = candidateFeed ? [candidateFeed] : feeds;
+
+    for (const feed of feedsToSearch) {
+      const exactRef = feed.items.find((entry) => entry === sourceItem);
+      if (exactRef) {
+        return { feed, item: exactRef };
+      }
+
+      const byVideoId = sourceItem.videoId
+        ? feed.items.find((entry) => entry.videoId === sourceItem.videoId)
+        : undefined;
+      if (byVideoId) {
+        return { feed, item: byVideoId };
+      }
+
+      if (sourceItem.link) {
+        const byLink = feed.items.find(
+          (entry) => entry.link === sourceItem.link,
+        );
+        if (byLink) {
+          return { feed, item: byLink };
+        }
+      }
+    }
+
+    return undefined;
+  };
+
+  if (feedUrl) {
+    const feed = feeds.find((candidate) => candidate.url === feedUrl);
+    const match = feed?.items.find((item) => item.guid === itemGuid);
+    if (feed && match) {
+      return { feed, item: match };
+    }
+    const videoMatch = resolveVideoMatch(feed);
+    if (videoMatch) return videoMatch;
+  }
+
+  for (const feed of feeds) {
+    const match = feed.items.find((item) => item.guid === itemGuid);
+    if (match) {
+      return { feed, item: match };
+    }
+  }
+
+  return resolveVideoMatch() ?? null;
 }

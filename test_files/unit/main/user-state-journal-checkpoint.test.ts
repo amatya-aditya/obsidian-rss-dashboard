@@ -242,9 +242,9 @@ describe("journal checkpoints (#1387)", () => {
     plugin.settings.feeds[0].items[1].starred = true;
 
     await plugin.queueArticleStateSave([
-      { feedId: "feed-1", guid: GUID, changes: { read: true } },
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
       {
-        feedId: "feed-1",
+        feedUrl: FEED_URL,
         guid: SECOND_GUID,
         changes: { starred: true },
       },
@@ -270,7 +270,7 @@ describe("journal checkpoints (#1387)", () => {
     for (let index = 0; index < 5; index += 1) {
       await plugin.queueArticleStateSave([
         {
-          feedId: "feed-1",
+          feedUrl: FEED_URL,
           guid: `guid-burst-${index}`,
           changes: { read: true },
         },
@@ -293,7 +293,7 @@ describe("journal checkpoints (#1387)", () => {
     const { plugin } = await startPlugin();
     vi.useFakeTimers();
     await plugin.queueArticleStateSave([
-      { feedId: "feed-1", guid: GUID, changes: { read: true } },
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
     ]);
 
     // Another device's snapshot arrives without this device's pending read.
@@ -323,7 +323,7 @@ describe("journal checkpoints (#1387)", () => {
     const rename = vi.spyOn(adapter(app), "rename");
 
     await plugin.queueArticleStateSave([
-      { feedId: "feed-1", guid: GUID, changes: { read: true } },
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
     ]);
     await plugin.flushPendingWrites();
 
@@ -379,7 +379,7 @@ describe("journal checkpoints (#1387)", () => {
     const { plugin } = await startPlugin();
     plugin.settings.feeds[0].items[0].read = true;
     await plugin.queueArticleStateSave([
-      { feedId: "feed-1", guid: GUID, changes: { read: true } },
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
     ]);
 
     plugin.onunload();
@@ -393,7 +393,7 @@ describe("journal checkpoints (#1387)", () => {
     const { plugin } = await startPlugin();
     const rename = vi.spyOn(adapter(app), "rename");
     await plugin.queueArticleStateSave([
-      { feedId: "feed-1", guid: GUID, changes: { read: true } },
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
     ]);
 
     await plugin.flushPendingWrites();
@@ -409,7 +409,7 @@ describe("journal checkpoints (#1387)", () => {
   it("keeps the journal when the snapshot write fails", async () => {
     const { plugin } = await startPlugin();
     await plugin.queueArticleStateSave([
-      { feedId: "feed-1", guid: GUID, changes: { read: true } },
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
     ]);
     vi.spyOn(adapter(app), "rename").mockImplementation(
       async (_oldPath, newPath) => {
@@ -428,9 +428,9 @@ describe("journal checkpoints (#1387)", () => {
   it("restores a queued read and playback position after a reload without a checkpoint", async () => {
     const { plugin } = await startPlugin();
     await plugin.queueArticleStateSave([
-      { feedId: "feed-1", guid: GUID, changes: { read: true } },
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
       {
-        feedId: "feed-1",
+        feedUrl: FEED_URL,
         guid: SECOND_GUID,
         changes: {
           playbackProgress: { position: 42, duration: 120, lastUpdated: 7 },

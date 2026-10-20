@@ -27,7 +27,6 @@ import {
   FeedIngestionResult,
   FeedEncoding,
   FeedShardHealth,
-  ArticleUserState,
 } from "./src/types/types";
 import { RssDashboardSettingTab } from "./src/settings/settings-tab";
 import {
@@ -112,13 +111,15 @@ import {
 } from "./src/utils/settings-loader";
 import {
   isArticleStateOnlyUpdate,
+  resolvePlaybackTarget,
   snapshotArticleFields,
+  type ArticleStateChange,
 } from "./src/utils/article-update";
 import {
-  articleStateFromItem,
-  articleStateFromUpdates,
-  type UserStateJournalChange,
-} from "./src/services/user-state-journal";
+  articleStateChanges,
+  articleStateJournalChanges,
+  savedAssociationJournalChanges,
+} from "./src/services/article-state-journal";
 import { applyAutomaticArticleTags } from "./src/utils/tag-utils";
 import { ProxyCheckStore } from "./src/utils/proxy-check";
 import { registerPaletteCommands } from "./src/commands/palette-commands";
@@ -138,16 +139,6 @@ function storageError(
   _error: unknown,
   _details?: unknown,
 ): void {}
-
-/** One journal record for a known article, or none when nothing stateful changed. */
-function articleStateChanges(
-  feedId: string | undefined,
-  guid: string,
-  changes: ArticleUserState,
-): UserStateJournalChange[] {
-  if (!feedId || !guid || Object.keys(changes).length === 0) return [];
-  return [{ feedId, guid, changes }];
-}
 
 type DesktopRequire = (moduleName: string) => unknown;
 type DesktopShell = { openPath: (path: string) => Promise<string> };
@@ -1435,13 +1426,9 @@ export default class RssDashboardPlugin extends Plugin {
     // Saved-note association is article state: journal it, queue the checkpoint,
     // and wait for this one flush so the new path is on disk before the save
     // flow reports success.
-    void this.queueArticleStateSave(
-      articleStateChanges(
-        feed.feedId,
-        originalItem.guid,
-        articleStateFromItem(originalItem),
-      ),
-    );
+    void this.queueArticleStateSave([
+      { feedUrl: feed.url, guid: originalItem.guid, changes: originalItem },
+    ]);
     await this.flushPendingWrites();
 
     // Resolve the association after persistence and each deferred leaf load.
@@ -1495,20 +1482,24 @@ export default class RssDashboardPlugin extends Plugin {
         resolvedFeedUrl,
         normalizedUpdates,
       );
-      const changes = articleStateChanges(
-        resolvedFeed.feedId,
-        originalItem.guid,
-        articleStateFromUpdates(normalizedUpdates),
-      );
+      const descriptors: ArticleStateChange[] = [
+        {
+          feedUrl: resolvedFeedUrl,
+          guid: originalItem.guid,
+          changes: normalizedUpdates,
+        },
+      ];
       if (isArticleStateOnlyUpdate(normalizedUpdates)) {
         // The Reader rolls its controls back when a write fails, so this path
         // keeps an awaited, article-state-scoped write instead of the
         // fire-and-forget queue the dashboard uses. It is still not a full
         // feed pass (#1385), and the change is journaled before the write
         // (#1387).
-        await this.saveArticleStateNow(changes);
+        await this.saveArticleStateNow(descriptors);
       } else {
-        await this.settingsStore.recordArticleStateChanges(changes);
+        await this.settingsStore.recordArticleStateChanges(
+          articleStateJournalChanges(this.settings.feeds, descriptors),
+        );
         await this.saveSettings();
       }
     } catch (error) {
@@ -1523,11 +1514,13 @@ export default class RssDashboardPlugin extends Plugin {
       // fields too, so replay lands on the rolled-back state instead of
       // resurrecting a change the user was told was not saved (#1380).
       await this.settingsStore.recordArticleStateChanges(
-        articleStateChanges(
-          resolvedFeed.feedId,
-          originalItem.guid,
-          articleStateFromUpdates(previousValues),
-        ),
+        articleStateJournalChanges(this.settings.feeds, [
+          {
+            feedUrl: resolvedFeedUrl,
+            guid: originalItem.guid,
+            changes: previousValues,
+          },
+        ]),
       );
       return false;
     }
@@ -1651,15 +1644,15 @@ export default class RssDashboardPlugin extends Plugin {
     // restricted reason) still need the full save that writes shards (#1385).
     // The changed identity and fields are journaled at the mutation site, so a
     // checkpoint never has to scan the feed list to derive them (#1387).
-    const changes = articleStateChanges(
-      feed.feedId,
-      article.guid,
-      articleStateFromUpdates(updates),
-    );
+    const descriptors: ArticleStateChange[] = [
+      { feedUrl, guid: article.guid, changes: updates },
+    ];
     if (isArticleStateOnlyUpdate(updates)) {
-      void this.queueArticleStateSave(changes);
+      void this.queueArticleStateSave(descriptors);
     } else {
-      await this.settingsStore.recordArticleStateChanges(changes);
+      await this.settingsStore.recordArticleStateChanges(
+        articleStateJournalChanges(this.settings.feeds, descriptors),
+      );
       await this.saveSettings();
     }
 
@@ -1723,8 +1716,8 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     // The renamed note's saved association is article state (#1385).
-    void this.queueArticleStateSave(
-      this.savedAssociationJournalChanges(updates),
+    void this.settingsStore.queueArticleStateSave(
+      savedAssociationJournalChanges(this.settings.feeds, updates),
     );
     await this.flushPendingWrites();
   }
@@ -1744,32 +1737,10 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     // Clearing a deleted note's association is article state (#1385).
-    void this.queueArticleStateSave(
-      this.savedAssociationJournalChanges(updates),
+    void this.settingsStore.queueArticleStateSave(
+      savedAssociationJournalChanges(this.settings.feeds, updates),
     );
     await this.flushPendingWrites();
-  }
-
-  /** Journal records for the articles a saved-note path change affected. */
-  private savedAssociationJournalChanges(
-    updates: readonly { feedUrl: string; guid: string }[],
-  ): UserStateJournalChange[] {
-    const changes: UserStateJournalChange[] = [];
-    for (const update of updates) {
-      const feed = this.settings.feeds.find(
-        (candidate) => candidate.url === update.feedUrl,
-      );
-      const article = feed?.items.find((item) => item.guid === update.guid);
-      if (!feed || !article) continue;
-      changes.push(
-        ...articleStateChanges(
-          feed.feedId,
-          article.guid,
-          articleStateFromItem(article),
-        ),
-      );
-    }
-    return changes;
   }
 
   private async syncSavedArticleAssociationUpdate(
@@ -2472,73 +2443,10 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   /**
-   * Finds the stored item a player reports progress for, preferring the feed
-   * that supplied its URL or GUID and falling back to a video identity match.
-   * Returns the owning feed too, so the change carries its identity without a
-   * second scan (#1387).
+   * Finds the stored item a player reports progress for. The matching policy
+   * lives in `resolvePlaybackTarget`; the composition root only supplies the
+   * current feed list (#1380).
    */
-  private resolvePlaybackTarget(
-    feedUrl: string,
-    itemGuid: string,
-    sourceItem?: FeedItem,
-  ): { feed: Feed; item: FeedItem } | null {
-    const resolveVideoMatch = (
-      candidateFeed?: Feed,
-    ): { feed: Feed; item: FeedItem } | undefined => {
-      if (!sourceItem || sourceItem.mediaType !== "video") {
-        return undefined;
-      }
-
-      const feedsToSearch = candidateFeed
-        ? [candidateFeed]
-        : this.settings.feeds;
-
-      for (const feed of feedsToSearch) {
-        const exactRef = feed.items.find((entry) => entry === sourceItem);
-        if (exactRef) {
-          return { feed, item: exactRef };
-        }
-
-        const byVideoId = sourceItem.videoId
-          ? feed.items.find((entry) => entry.videoId === sourceItem.videoId)
-          : undefined;
-        if (byVideoId) {
-          return { feed, item: byVideoId };
-        }
-
-        if (sourceItem.link) {
-          const byLink = feed.items.find(
-            (entry) => entry.link === sourceItem.link,
-          );
-          if (byLink) {
-            return { feed, item: byLink };
-          }
-        }
-      }
-
-      return undefined;
-    };
-
-    if (feedUrl) {
-      const feed = this.settings.feeds.find((f) => f.url === feedUrl);
-      const match = feed?.items.find((i) => i.guid === itemGuid);
-      if (feed && match) {
-        return { feed, item: match };
-      }
-      const videoMatch = resolveVideoMatch(feed);
-      if (videoMatch) return videoMatch;
-    }
-
-    for (const feed of this.settings.feeds) {
-      const match = feed.items.find((i) => i.guid === itemGuid);
-      if (match) {
-        return { feed, item: match };
-      }
-    }
-
-    return resolveVideoMatch() ?? null;
-  }
-
   public updatePlaybackProgress(
     feedUrl: string,
     itemGuid: string,
@@ -2551,7 +2459,12 @@ export default class RssDashboardPlugin extends Plugin {
       return;
     }
 
-    const target = this.resolvePlaybackTarget(feedUrl, itemGuid, sourceItem);
+    const target = resolvePlaybackTarget(
+      this.settings.feeds,
+      feedUrl,
+      itemGuid,
+      sourceItem,
+    );
     if (!target) return;
 
     const { feed: feedForItem, item } = target;
@@ -2671,16 +2584,19 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   /**
-   * Queues an article-state change (read, starred, tags, saved, playback) for
-   * one coalesced write. The changed identity and fields are appended to the
-   * device-local journal before the interaction returns, so an abrupt close
-   * keeps them. Callers update memory and the UI first and never await
-   * persistence here.
+   * Queues a UI-facing article-state change (read, starred, tags, saved,
+   * playback) for one coalesced write. Views know a feed by URL; the facade
+   * maps the descriptor to the journal's device-local identity. The change is
+   * appended to the device-local journal before the interaction returns, so an
+   * abrupt close keeps it. Callers update memory and the UI first and never
+   * await persistence here (#1380).
    */
   public queueArticleStateSave(
-    changes: readonly UserStateJournalChange[] = [],
+    changes: readonly ArticleStateChange[] = [],
   ): Promise<void> {
-    return this.settingsStore.queueArticleStateSave(changes);
+    return this.settingsStore.queueArticleStateSave(
+      articleStateJournalChanges(this.settings.feeds, changes),
+    );
   }
 
   /** Writes queued article-state changes now and resolves after they land. */
@@ -2696,9 +2612,11 @@ export default class RssDashboardPlugin extends Plugin {
    * and shard v1 keeps its full save.
    */
   async saveArticleStateNow(
-    changes: readonly UserStateJournalChange[] = [],
+    changes: readonly ArticleStateChange[] = [],
   ): Promise<void> {
-    await this.settingsStore.recordArticleStateChanges(changes);
+    await this.settingsStore.recordArticleStateChanges(
+      articleStateJournalChanges(this.settings.feeds, changes),
+    );
     await this.saveSettings(this.settingsStore.articleStatePersistOptions());
   }
 

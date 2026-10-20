@@ -30,7 +30,7 @@ import type {
   FiltersUpdatedEventPayload,
   default as RssDashboardPlugin,
 } from "../../main";
-import type { UserStateJournalChange } from "../services/user-state-journal";
+import type { ArticleStateChange } from "../utils/article-update";
 import { Sidebar, type SidebarOptions } from "../components/sidebar";
 import { ArticleList } from "../components/article-list";
 import { openFilterMenuFrom } from "../components/article-filter-menu";
@@ -713,10 +713,10 @@ export class RssDashboardView extends ItemView {
 
   private updateFilteredArticleReadStatus(read: boolean): {
     count: number;
-    changes: UserStateJournalChange[];
+    changes: ArticleStateChange[];
   } {
     let count = 0;
-    const changes: UserStateJournalChange[] = [];
+    const changes: ArticleStateChange[] = [];
 
     this.getFilteredArticles().forEach((article) => {
       const backingArticle = this.findBackingArticleForDisplayItem(article);
@@ -725,9 +725,9 @@ export class RssDashboardView extends ItemView {
         article.read = read;
         count++;
         const feed = this.findFeedForBackingArticle(article, backingArticle);
-        if (feed?.feedId) {
+        if (feed) {
           changes.push({
-            feedId: feed.feedId,
+            feedUrl: feed.url,
             guid: backingArticle.guid,
             changes: { read },
           });
@@ -3614,7 +3614,7 @@ export class RssDashboardView extends ItemView {
     }
 
     const updatedArticles: FeedItem[] = [];
-    const changes: UserStateJournalChange[] = [];
+    const changes: ArticleStateChange[] = [];
     currentPageArticles.forEach((article) => {
       if (article.read) {
         return;
@@ -3629,9 +3629,9 @@ export class RssDashboardView extends ItemView {
       article.read = true;
       updatedArticles.push(article);
       const feed = this.findFeedForBackingArticle(article, originalArticle);
-      if (feed?.feedId) {
+      if (feed) {
         changes.push({
-          feedId: feed.feedId,
+          feedUrl: feed.url,
           guid: originalArticle.guid,
           changes: { read: true },
         });
