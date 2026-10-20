@@ -15,6 +15,7 @@ related:
 
 ## Update History
 
+- 2026-10-20: Folder fields use Obsidian's `AbstractInputSuggest` list, styled only through `.rss-folder-suggest-container`, replacing the hand-built dropdown (#1377)
 - 2026-10-13: Add **Input Clear Buttons**: every free-text input gets Obsidian's own circle-x clear button through `addInputClearButton`, replacing the plain Lucide `x` buttons; record Obsidian's clear button as a core surface
 - 2026-10-12: Pin the keyboard shortcut help rows to the text baseline with the key flush right, remove the native close button so only the header one shows, and stack the help header on mobile (#1013)
 - 2026-10-10: Record the native Reader icon-button pattern verified on desktop and Android (#801), with the scoped Reader button reset and the Android Shift+Tab unknown
@@ -108,6 +109,11 @@ Current governed surfaces:
   - Canonical selector / owner: `.modal.rss-mobile-navigation-modal .rss-dashboard-header`, `.modal.rss-mobile-discover-filters-modal .rss-discover-header`, `.rss-dashboard-header-close-button` in `src/styles/modals.css`
   - Purpose: mobile-specific top bar layout, safe-area ownership, dismiss action
   - Visual hierarchy role: structural shell controls
+- Folder suggestion list
+  - Canonical selector / owner: `.rss-folder-suggest-container` in `src/styles/modals.css`, added to the container of `FolderSuggest` and `VaultFolderSuggest` in `src/components/folder-suggest.ts`
+  - Purpose: type-ahead folder choices under a Folder field (Add Feed, Edit Feed, Import Starred, Custom Save, storage and article-saving settings)
+  - Visual hierarchy role: transient overlay owned by Obsidian
+  - Breakpoint notes: Obsidian mounts the list under `<body>`, opens it below the input, and flips it above when there is no room, on desktop and phone. The plugin adds only left-aligned (`text-align: start`) rows and the tint on the `Add "<name>"` row; it adds no global `.suggestion-container` rule and no keyboard shim
 - Keyboard shortcut help rows
   - Canonical selector / owner: `.rss-shortcut-row`, `.rss-shortcut-key-container` and the `.rss-shortcut-help-modal .rss-dashboard-header` override in `src/styles/modals.css`
   - Purpose: a shortcut description with its key pinned to the row's right edge, staying flush when the description wraps

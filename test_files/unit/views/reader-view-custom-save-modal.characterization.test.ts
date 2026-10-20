@@ -109,7 +109,11 @@ function createHarness(options?: {
     );
   const onArticleSave = vi.fn();
   const onArticleUpdate = vi.fn();
-  const app = { workspace: {}, vault: {} };
+  // The folder field's suggester lists vault folders as soon as it gains focus.
+  const app = {
+    workspace: {},
+    vault: { getRoot: () => ({ children: [] }) },
+  };
   const view = new ReaderView(
     new MockLeaf(app) as never,
     settings,

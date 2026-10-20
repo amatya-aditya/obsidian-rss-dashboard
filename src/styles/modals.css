@@ -16,7 +16,6 @@
   --z-index-close-button: 10;
   --z-index-filter-menu: 9999;
   --z-index-folder-dropdown: 10000;
-  --z-index-folder-suggestion-container: 100103; /* above all modals and folder popups */
   --z-index-dropdown-backdrop: 99998;
   --z-index-dropdown: 99999;
   --z-index-drawer: 99999;
@@ -592,22 +591,6 @@ body .modal.rss-dashboard-template-editor-dialog {
  * Edit Feed, Storage, Status, Tag modals
  * ============================================ */
 
-/* Suggestion container */
-.rss-dashboard-folder-suggestion-container {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  left: 0;
-  max-height: min(16rem, 40vh);
-  overflow-y: auto;
-  padding: 4px;
-  background: var(--background-primary, #fff);
-  border: 1px solid var(--background-modifier-border, #ccc);
-  border-radius: 6px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  z-index: var(--z-index-folder-suggestion-container);
-}
-
 .edit-feed-folder-input {
   width: 100%;
   min-width: 0;
@@ -615,40 +598,36 @@ body .modal.rss-dashboard-template-editor-dialog {
   box-sizing: border-box;
   position: relative;
 }
-.edit-feed-folder-option {
-  padding: 8px 16px;
-  cursor: pointer;
-  color: var(--text-normal, #222);
-  font-size: 1em;
-  transition:
-    background 0.15s,
-    color 0.15s;
-}
-.edit-feed-folder-option:hover,
-.edit-feed-folder-option:focus,
-.edit-feed-folder-option.is-selected {
-  background: var(--background-modifier-hover, #f0f0f0);
-  color: var(--interactive-accent, #3498db);
+
+/* Folder type-ahead list (`FolderSuggest`, `VaultFolderSuggest`). Obsidian's
+ * `AbstractInputSuggest` mounts the container under <body> and positions it,
+ * flipping above the input when there is no room below, so the rules here
+ * stay on the plugin's own container class: position, background and border
+ * come from Obsidian. Rows are plain text that starts at the left edge, not
+ * the right alignment a Setting control passes down. */
+.rss-folder-suggest-container .suggestion-item {
+  text-align: start;
 }
 
 /* "Add \"<name>\"" row (`FolderSuggest`'s add-new option) — icon + text laid
  * out like a normal option, tinted to read as an action rather than an
  * existing folder. */
-.edit-feed-folder-option.rss-dashboard-add-new-suggestion {
+.rss-folder-suggest-container
+  .suggestion-item.rss-dashboard-add-new-suggestion {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--interactive-accent, #3498db);
+  color: var(--interactive-accent);
 }
 
-.rss-dashboard-add-new-suggestion-icon {
+.rss-folder-suggest-container .rss-dashboard-add-new-suggestion-icon {
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-.rss-dashboard-add-new-suggestion-icon svg {
+.rss-folder-suggest-container .rss-dashboard-add-new-suggestion-icon svg {
   width: 14px;
   height: 14px;
 }
