@@ -109,7 +109,17 @@ import {
   FACTORY_RESET_LOCAL_STORAGE_KEYS,
   migrateSettings,
 } from "./src/utils/settings-loader";
-import { snapshotArticleFields } from "./src/utils/article-update";
+import {
+  isArticleStateOnlyUpdate,
+  resolvePlaybackTarget,
+  snapshotArticleFields,
+  type ArticleStateChange,
+} from "./src/utils/article-update";
+import {
+  articleStateChanges,
+  articleStateJournalChanges,
+  savedAssociationJournalChanges,
+} from "./src/services/article-state-journal";
 import { applyAutomaticArticleTags } from "./src/utils/tag-utils";
 import { ProxyCheckStore } from "./src/utils/proxy-check";
 import { registerPaletteCommands } from "./src/commands/palette-commands";
@@ -217,7 +227,6 @@ export default class RssDashboardPlugin extends Plugin {
   private hasShownStorageDeprecationPromptThisSession = false;
   private whatsNewHandledThisSession = false;
   private startupRefreshTimeoutId: number | null = null;
-  private progressSaveDebounce: number | null = null;
   private autoRefreshScheduler: FeedRefreshScheduler | null = null;
   private readonly feedStorageRepository: FeedStorageRepository;
   private readonly settingsStore: SettingsStore;
@@ -1092,6 +1101,7 @@ export default class RssDashboardPlugin extends Plugin {
           },
           {
             saveSettings: () => this.saveSettings(),
+            flushPendingWrites: () => this.flushPendingWrites(),
             onPlaybackProgress: (item, position, duration, flush) => {
               this.updatePlaybackProgress(
                 item.feedUrl,
@@ -1413,7 +1423,13 @@ export default class RssDashboardPlugin extends Plugin {
       ),
     );
 
-    await this.saveSettings();
+    // Saved-note association is article state: journal it, queue the checkpoint,
+    // and wait for this one flush so the new path is on disk before the save
+    // flow reports success.
+    void this.queueArticleStateSave([
+      { feedUrl: feed.url, guid: originalItem.guid, changes: originalItem },
+    ]);
+    await this.flushPendingWrites();
 
     // Resolve the association after persistence and each deferred leaf load.
     await this.syncSavedArticleAssociationUpdate(feed.url, item.guid);
@@ -1466,7 +1482,26 @@ export default class RssDashboardPlugin extends Plugin {
         resolvedFeedUrl,
         normalizedUpdates,
       );
-      await this.saveSettings();
+      const descriptors: ArticleStateChange[] = [
+        {
+          feedUrl: resolvedFeedUrl,
+          guid: originalItem.guid,
+          changes: normalizedUpdates,
+        },
+      ];
+      if (isArticleStateOnlyUpdate(normalizedUpdates)) {
+        // The Reader rolls its controls back when a write fails, so this path
+        // keeps an awaited, article-state-scoped write instead of the
+        // fire-and-forget queue the dashboard uses. It is still not a full
+        // feed pass (#1385), and the change is journaled before the write
+        // (#1387).
+        await this.saveArticleStateNow(descriptors);
+      } else {
+        await this.settingsStore.recordArticleStateChanges(
+          articleStateJournalChanges(this.settings.feeds, descriptors),
+        );
+        await this.saveSettings();
+      }
     } catch (error) {
       console.error("Failed to save Reader article update", error);
       await this.rollbackReaderArticleUpdate(
@@ -1474,6 +1509,18 @@ export default class RssDashboardPlugin extends Plugin {
         resolvedFeedUrl,
         previousValues,
         !!shouldRerender,
+      );
+      // The journal already holds the failed intent. Journal the restored
+      // fields too, so replay lands on the rolled-back state instead of
+      // resurrecting a change the user was told was not saved (#1380).
+      await this.settingsStore.recordArticleStateChanges(
+        articleStateJournalChanges(this.settings.feeds, [
+          {
+            feedUrl: resolvedFeedUrl,
+            guid: originalItem.guid,
+            changes: previousValues,
+          },
+        ]),
       );
       return false;
     }
@@ -1592,7 +1639,22 @@ export default class RssDashboardPlugin extends Plugin {
 
     Object.assign(article, updates);
 
-    await this.saveSettings();
+    // Article state goes through the coalesced queue, so a dashboard click is
+    // never held on a full settings pass. Feed-content fields (cover image,
+    // restricted reason) still need the full save that writes shards (#1385).
+    // The changed identity and fields are journaled at the mutation site, so a
+    // checkpoint never has to scan the feed list to derive them (#1387).
+    const descriptors: ArticleStateChange[] = [
+      { feedUrl, guid: article.guid, changes: updates },
+    ];
+    if (isArticleStateOnlyUpdate(updates)) {
+      void this.queueArticleStateSave(descriptors);
+    } else {
+      await this.settingsStore.recordArticleStateChanges(
+        articleStateJournalChanges(this.settings.feeds, descriptors),
+      );
+      await this.saveSettings();
+    }
 
     if (shouldRefreshView) {
       const view = await this.getActiveDashboardView();
@@ -1653,7 +1715,11 @@ export default class RssDashboardPlugin extends Plugin {
       await this.syncSavedArticleAssociationUpdate(update.feedUrl, update.guid);
     }
 
-    await this.saveSettings();
+    // The renamed note's saved association is article state (#1385).
+    void this.settingsStore.queueArticleStateSave(
+      savedAssociationJournalChanges(this.settings.feeds, updates),
+    );
+    await this.flushPendingWrites();
   }
 
   private async handleSavedArticlePathDeleted(file: {
@@ -1670,7 +1736,11 @@ export default class RssDashboardPlugin extends Plugin {
       await this.syncSavedArticleAssociationUpdate(update.feedUrl, update.guid);
     }
 
-    await this.saveSettings();
+    // Clearing a deleted note's association is article state (#1385).
+    void this.settingsStore.queueArticleStateSave(
+      savedAssociationJournalChanges(this.settings.feeds, updates),
+    );
+    await this.flushPendingWrites();
   }
 
   private async syncSavedArticleAssociationUpdate(
@@ -1907,11 +1977,13 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   public async exportDataJson(): Promise<void> {
+    await this.flushPendingWrites();
     const result = await this.importExportService.exportDataJson();
     this.showExportNotice(result, "data.json");
   }
 
   public async exportPortableDataBundle(): Promise<void> {
+    await this.flushPendingWrites();
     const result = await this.importExportService.exportPortableDataBundle();
     this.showExportNotice(result, "rss-dashboard-portable-bundle.json");
   }
@@ -1930,6 +2002,7 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   public async exportFeedBundle(): Promise<void> {
+    await this.flushPendingWrites();
     const result = await this.importExportService.exportFeedBundle();
     this.showExportNotice(result, "rss-dashboard-feed-bundle.json");
   }
@@ -1969,6 +2042,7 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   public async copyDataJsonToClipboard(): Promise<void> {
+    await this.flushPendingWrites();
     const result = await this.importExportService.copyDataJsonToClipboard();
     this.showCopyNotice(result, "data.json");
   }
@@ -2080,6 +2154,7 @@ export default class RssDashboardPlugin extends Plugin {
 
   public async migrateToVaultStorage(): Promise<void> {
     if (this.settingsLoadFailed) return;
+    await this.flushPendingWrites();
     storageLog("Plugin migration requested", {
       currentMode: this.settings.storageMode,
       folder: this.settings.storageFolder,
@@ -2109,6 +2184,7 @@ export default class RssDashboardPlugin extends Plugin {
 
   public async migrateToVaultShardsV2(): Promise<void> {
     if (this.settingsLoadFailed) return;
+    await this.flushPendingWrites();
     storageLog("Plugin migration v2 requested", {
       currentMode: this.settings.storageMode,
       folder: this.settings.storageFolder,
@@ -2160,6 +2236,7 @@ export default class RssDashboardPlugin extends Plugin {
     if (this.settingsLoadFailed) {
       return { skippedFeedCount: this.settings.feeds.length };
     }
+    await this.flushPendingWrites();
     storageLog("Plugin repair requested", {
       currentMode: this.settings.storageMode,
       folder: this.settings.storageFolder,
@@ -2197,6 +2274,7 @@ export default class RssDashboardPlugin extends Plugin {
     deleteShardFolder?: boolean;
   }): Promise<void> {
     if (this.settingsLoadFailed) return;
+    await this.flushPendingWrites();
     storageLog("Plugin revert requested", {
       currentMode: this.settings.storageMode,
       folder: this.settings.storageFolder,
@@ -2364,6 +2442,11 @@ export default class RssDashboardPlugin extends Plugin {
     return migrateSettings(this.settings);
   }
 
+  /**
+   * Finds the stored item a player reports progress for. The matching policy
+   * lives in `resolvePlaybackTarget`; the composition root only supplies the
+   * current feed list (#1380).
+   */
   public updatePlaybackProgress(
     feedUrl: string,
     itemGuid: string,
@@ -2376,69 +2459,15 @@ export default class RssDashboardPlugin extends Plugin {
       return;
     }
 
-    let item: FeedItem | undefined;
+    const target = resolvePlaybackTarget(
+      this.settings.feeds,
+      feedUrl,
+      itemGuid,
+      sourceItem,
+    );
+    if (!target) return;
 
-    const resolveVideoMatch = (
-      candidateFeed?: (typeof this.settings.feeds)[number],
-    ) => {
-      if (!sourceItem || sourceItem.mediaType !== "video") {
-        return undefined;
-      }
-
-      const feedsToSearch = candidateFeed
-        ? [candidateFeed]
-        : this.settings.feeds;
-
-      for (const feed of feedsToSearch) {
-        const exactRef = feed.items.find((entry) => entry === sourceItem);
-        if (exactRef) {
-          return exactRef;
-        }
-
-        const byVideoId = sourceItem.videoId
-          ? feed.items.find((entry) => entry.videoId === sourceItem.videoId)
-          : undefined;
-        if (byVideoId) {
-          return byVideoId;
-        }
-
-        if (sourceItem.link) {
-          const byLink = feed.items.find(
-            (entry) => entry.link === sourceItem.link,
-          );
-          if (byLink) {
-            return byLink;
-          }
-        }
-      }
-
-      return undefined;
-    };
-
-    if (feedUrl) {
-      const feed = this.settings.feeds.find((f) => f.url === feedUrl);
-      item = feed?.items.find((i) => i.guid === itemGuid);
-      if (!item) {
-        item = resolveVideoMatch(feed);
-      }
-    }
-
-    if (!item) {
-      for (const feed of this.settings.feeds) {
-        const match = feed.items.find((i) => i.guid === itemGuid);
-        if (match) {
-          item = match;
-          break;
-        }
-      }
-    }
-
-    if (!item) {
-      item = resolveVideoMatch();
-    }
-
-    if (!item) return;
-
+    const { feed: feedForItem, item } = target;
     if (!(duration > 0) || position < 0) return;
 
     item.playbackProgress = { position, duration, lastUpdated: Date.now() };
@@ -2450,31 +2479,28 @@ export default class RssDashboardPlugin extends Plugin {
       sourceItem.playbackProgress = { ...item.playbackProgress };
     }
 
+    const changes = articleStateChanges(feedForItem.feedId, item.guid, {
+      playbackProgress: { ...item.playbackProgress },
+    });
+    const journalChange = changes[0];
+    if (journalChange) {
+      // Progress events are coalesced by article before the journal append, so
+      // continuous playback does not add one write per event (#1380).
+      this.settingsStore.recordPlaybackProgressChange(journalChange);
+    }
+
     if (flush) {
-      if (this.progressSaveDebounce !== null) {
-        window.clearTimeout(this.progressSaveDebounce);
-        this.progressSaveDebounce = null;
-      }
-      void this.saveSettings();
+      void this.queueArticleStateSave();
+      void this.flushPendingWrites();
       return;
     }
 
-    // Throttle progress persistence: schedule one save at a time.
-    // A reset-on-every-event debounce can starve saves during active playback.
-    if (this.progressSaveDebounce === null) {
-      this.progressSaveDebounce = window.setTimeout(() => {
-        void this.saveSettings();
-        this.progressSaveDebounce = null;
-      }, 2000);
-    }
+    // One coalesced article-state queue owns playback progress persistence, so
+    // a burst of progress events shares one write after the interaction.
+    void this.queueArticleStateSave();
   }
 
   public async clearPlaybackProgress(): Promise<number> {
-    if (this.progressSaveDebounce !== null) {
-      window.clearTimeout(this.progressSaveDebounce);
-      this.progressSaveDebounce = null;
-    }
-
     let clearedCount = 0;
     for (const feed of this.settings.feeds) {
       for (const item of feed.items) {
@@ -2498,7 +2524,8 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     if (clearedCount > 0) {
-      await this.saveSettings();
+      void this.queueArticleStateSave();
+      await this.flushPendingWrites();
     }
 
     return clearedCount;
@@ -2556,6 +2583,43 @@ export default class RssDashboardPlugin extends Plugin {
     return this.settingsStore.saveSettings(options);
   }
 
+  /**
+   * Queues a UI-facing article-state change (read, starred, tags, saved,
+   * playback) for one coalesced write. Views know a feed by URL; the facade
+   * maps the descriptor to the journal's device-local identity. The change is
+   * appended to the device-local journal before the interaction returns, so an
+   * abrupt close keeps it. Callers update memory and the UI first and never
+   * await persistence here (#1380).
+   */
+  public queueArticleStateSave(
+    changes: readonly ArticleStateChange[] = [],
+  ): Promise<void> {
+    return this.settingsStore.queueArticleStateSave(
+      articleStateJournalChanges(this.settings.feeds, changes),
+    );
+  }
+
+  /** Writes queued article-state changes now and resolves after they land. */
+  public flushPendingWrites(): Promise<void> {
+    return this.settingsStore.flushPendingWrites();
+  }
+
+  /**
+   * Writes article state now for a caller that must know the write failed (the
+   * Reader rolls its controls back). Dashboard changes use the coalesced queue
+   * instead. The changed fields are journaled before the write. Goes through
+   * `saveSettings` so the scope and the suppressed-write gate match the queue,
+   * and shard v1 keeps its full save.
+   */
+  async saveArticleStateNow(
+    changes: readonly ArticleStateChange[] = [],
+  ): Promise<void> {
+    await this.settingsStore.recordArticleStateChanges(
+      articleStateJournalChanges(this.settings.feeds, changes),
+    );
+    await this.saveSettings(this.settingsStore.articleStatePersistOptions());
+  }
+
   migrateMetadataToVaultLocation(): Promise<void> {
     return this.settingsStore.migrateMetadataToVaultLocation();
   }
@@ -2580,12 +2644,7 @@ export default class RssDashboardPlugin extends Plugin {
     this.versionStatusBar = null;
     this.autoRefreshScheduler?.stop();
     const flushBackups = async (): Promise<void> => {
-      if (this.progressSaveDebounce !== null) {
-        window.clearTimeout(this.progressSaveDebounce);
-        this.progressSaveDebounce = null;
-        await this.saveSettings();
-      }
-
+      await this.flushPendingWrites();
       await this.autoBackupCoordinator.flushOnUnload();
     };
 

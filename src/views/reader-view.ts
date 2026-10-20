@@ -156,6 +156,8 @@ export class ReaderView extends ItemView {
   private settingsProvider: () => RssDashboardSettings;
   private onArticleSave: (item: FeedItem) => void;
   private persistSettings: () => Promise<void>;
+  /** Settles queued article state before the Reader closes (#1380). */
+  private flushPendingWrites?: () => Promise<void>;
   private readonly onPodcastPlaySpeedChange = (speed: number): void => {
     // Remember the speed the user picked in the player so later players, and
     // the Settings → Media control, start from it (#1269).
@@ -278,6 +280,8 @@ export class ReaderView extends ItemView {
     ) => void | boolean | Promise<void | boolean>,
     options?: {
       saveSettings?: () => Promise<void>;
+      /** Writes queued article state before the view closes (#1380). */
+      flushPendingWrites?: () => Promise<void>;
       onPlaybackProgress?: (
         item: FeedItem,
         position: number,
@@ -293,6 +297,7 @@ export class ReaderView extends ItemView {
       typeof articleSaver === "function" ? articleSaver : () => articleSaver;
     this.onArticleSave = onArticleSave;
     this.persistSettings = options?.saveSettings ?? (() => Promise.resolve());
+    this.flushPendingWrites = options?.flushPendingWrites;
     this.onArticleUpdate = onArticleUpdate;
     this.onPlaybackProgress = options?.onPlaybackProgress;
     addMathTurndownRule(this.turndownService);
@@ -1261,6 +1266,11 @@ export class ReaderView extends ItemView {
       this.videoPlayer.destroy();
       this.videoPlayer = null;
     }
+
+    // The Reader's own changes are awaited, but playback captured on close is
+    // queued; settle every pending article-state write before the view is gone
+    // (#1380).
+    await this.flushPendingWrites?.();
 
     return Promise.resolve();
   }

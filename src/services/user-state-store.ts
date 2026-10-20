@@ -6,14 +6,24 @@ import type {
   UserStateFile,
 } from "../types/types";
 import { cloneJson, withSyncNonce } from "./storage-json";
+import { replaceFileWithTemp } from "../utils/file-replace";
+import {
+  UserStateJournal,
+  foldUserStateJournalRecords,
+  maxCheckpointSequence,
+  type UserStateJournalChange,
+} from "./user-state-journal";
 
 /**
  * `user-state.json` schema version. Version 2 keys `states` by
  * `${feedId}:${guid}` instead of a bare GUID, so two feeds carrying the same
  * GUID no longer overwrite each other's article state (issue #278). Version 3
- * adds hydration-gated garbage-collection timestamps (issue #315).
+ * adds hydration-gated garbage-collection timestamps (issue #315). Version 4
+ * adds the device-local journal checkpoint sequence (#1386). Version 5 adds the
+ * per-device checkpoint map so one device's checkpoint never suppresses another
+ * device's pending records (#1380).
  */
-const USER_STATE_KEY_VERSION = 3;
+const USER_STATE_KEY_VERSION = 5;
 const USER_STATE_QUALIFIED_VERSION = 2;
 const USER_STATE_GC_HORIZON_MS = 90 * 24 * 60 * 60 * 1000;
 
@@ -103,12 +113,58 @@ export class UserStateStore {
   private userStateUnreadable = false;
   private onUserStateHealthChange?: () => void;
   private app: App;
+  private journal: UserStateJournal | null = null;
+  /** Configured by the settings store, which owns the one write gate. */
+  private isPersistenceSuppressed!: () => boolean;
+  private getStorageMode!: () => RssDashboardSettings["storageMode"];
 
   constructor(app: App, options: UserStateStoreOptions) {
     this.app = app;
     this.writeWrapper = options.writeWrapper;
     this.onUserStateHealthChange = options.onUserStateHealthChange;
     this.hydratedShardGuidsByFeedId = options.hydratedShardGuidsByFeedId;
+  }
+
+  /**
+   * Points the store at the device-local journal folder. The settings store
+   * owns the plugin folder and the one persistence gate (ADR 0024), so it
+   * configures both here rather than the repository duplicating that policy.
+   */
+  public configureDeviceLocalJournal(options: {
+    pluginDir: string;
+    isPersistenceSuppressed: () => boolean;
+    getStorageMode: () => RssDashboardSettings["storageMode"];
+  }): void {
+    this.isPersistenceSuppressed = options.isPersistenceSuppressed;
+    this.getStorageMode = options.getStorageMode;
+    const pluginDir = options.pluginDir.trim();
+    // Deliberately no `writeWrapper`: that wrapper suppresses the vault
+    // watcher for 3 s, and the journal is device-local, so wrapping it would
+    // blind this device to a synced `user-state.json` change arriving behind
+    // a local read. The next checkpoint would then overwrite that change
+    // (#1380). Journal writes are serialized by the journal's own chain.
+    this.journal = pluginDir
+      ? new UserStateJournal(this.app, { pluginDir })
+      : null;
+  }
+
+  /**
+   * Appends article-state changes to the device-local journal so they survive
+   * an abrupt close before the shared snapshot is rewritten. Callers pass
+   * changes already applied to the in-memory items. This does not persist the
+   * snapshot; #1387 calls it from the coalesced queue.
+   *
+   * The journal intentionally covers only the v2 shared snapshot (#1380).
+   * Shard storage v1 keeps state in shard content and Legacy JSON keeps it in
+   * `data.json`, so those deprecated modes write no journal record.
+   */
+  public async appendChanges(
+    changes: readonly UserStateJournalChange[],
+  ): Promise<void> {
+    if (!this.journal) return;
+    if (this.getStorageMode() !== "vault-shards-v2") return;
+    if (this.isPersistenceSuppressed()) return;
+    await this.journal.append(changes);
   }
 
   public isUnreadable(): boolean {
@@ -147,6 +203,16 @@ export class UserStateStore {
       userState,
       settings,
     );
+    // An unreadable snapshot cannot be rewritten, so its file also refuses
+    // every save. Replaying pending records over it would show state this
+    // session can never persist, so replay is skipped and the default state is
+    // shown until the file is fixed or removed (#1387).
+    await this.replayJournal(
+      settings,
+      userState,
+      resolvedStates,
+      userStateResult.status !== "unreadable",
+    );
     for (const feed of settings.feeds) {
       const feedId = feed.feedId ?? "";
       for (const item of feed.items) {
@@ -178,6 +244,77 @@ export class UserStateStore {
   }
 
   /**
+   * Replays journal records newer than the snapshot's checkpoint over the
+   * snapshot's state before it is applied to loaded items. Replay is ordered
+   * by sequence and idempotent: the same journal over the same snapshot
+   * produces the same state. A record is skipped only when its own device's
+   * checkpoint covers it, so another device's checkpoint never suppresses this
+   * device's pending records (#1380).
+   */
+  private async replayJournal(
+    settings: RssDashboardSettings,
+    snapshot: UserStateFile | null,
+    states: Record<string, ArticleUserState>,
+    replay: boolean,
+  ): Promise<void> {
+    if (!this.journal || settings.storageMode !== "vault-shards-v2") return;
+    const checkpointByDevice = this.resolvedCheckpointByDevice(snapshot);
+    // Seed this device's appends above its own checkpoint. Another device's
+    // higher checkpoint must not inflate this device's sequence, or a record
+    // this device never folded could later be mistaken for already-folded
+    // (#1380).
+    this.journal.ensureSequenceFloor(
+      checkpointByDevice[this.journal.deviceId] ?? 0,
+    );
+    const records = await this.journal.read();
+    if (!replay) return;
+    foldUserStateJournalRecords(states, records, checkpointByDevice);
+    // This load read the snapshot back with its checkpoint intact, so this
+    // device's records that checkpoint covers are no longer the only copy; drop
+    // them now. A foreign device's checkpoint never bounds this device's
+    // journal (#1380).
+    await this.truncateJournal(checkpointByDevice[this.journal.deviceId] ?? 0);
+  }
+
+  /**
+   * The per-device folded-sequence floor a snapshot records. A v5 snapshot
+   * carries `checkpointByDevice` directly; a v3/v4 snapshot has only the legacy
+   * global `checkpointSequence`, which is treated as this device's own
+   * checkpoint (the journal is device-local, so that was the only device it
+   * tracked) (#1380).
+   */
+  private resolvedCheckpointByDevice(
+    snapshot: UserStateFile | null,
+  ): Record<string, number> {
+    if (snapshot?.checkpointByDevice) {
+      return cloneJson(snapshot.checkpointByDevice);
+    }
+    const legacy = snapshot?.checkpointSequence ?? 0;
+    const deviceId = this.journal?.deviceId;
+    if (!legacy || !deviceId) return {};
+    return { [deviceId]: legacy };
+  }
+
+  /**
+   * This device's checkpoint that a previously-read snapshot held, or 0. Used by
+   * `save` to bound truncation by a checkpoint that survived on disk rather than
+   * the one being written right now (#1380).
+   */
+  private checkpointReadBack(
+    existing:
+      | { status: "missing" }
+      | { status: "unreadable" }
+      | { status: "ok"; file: UserStateFile },
+  ): number {
+    if (existing.status !== "ok") return 0;
+    return (
+      this.resolvedCheckpointByDevice(existing.file)[
+        this.journal?.deviceId ?? ""
+      ] ?? 0
+    );
+  }
+
+  /**
    * Path of a `user-state.json` left behind by a previous Shard storage v2
    * setup, or null when none applies.
    *
@@ -204,11 +341,11 @@ export class UserStateStore {
     | { status: "ok"; file: UserStateFile }
   > {
     const path = this.getUserStatePath(settings);
-    if (!(await this.app.vault.adapter.exists(path))) {
+    const raw = await this.readSnapshotRecoveringTemp(path);
+    if (raw === null) {
       return { status: "missing" };
     }
     try {
-      const raw = await this.app.vault.adapter.read(path);
       const parsed = JSON.parse(raw) as UserStateFile;
       if (parsed && typeof parsed.states === "object") {
         return { status: "ok", file: parsed };
@@ -217,6 +354,27 @@ export class UserStateStore {
       storageError("Failed to parse user-state.json", e);
     }
     return { status: "unreadable" };
+  }
+
+  /**
+   * Reads the snapshot, recovering a completed sibling `.tmp` left behind when
+   * a checkpoint crashed between removing the old snapshot and renaming the
+   * new one into place. In that window `user-state.json` is gone and the
+   * journal already lost the records a previous checkpoint folded in, so the
+   * `.tmp` — written whole before the remove — is the only copy of the state
+   * (#1380).
+   */
+  private async readSnapshotRecoveringTemp(
+    path: string,
+  ): Promise<string | null> {
+    if (await this.app.vault.adapter.exists(path)) {
+      return this.app.vault.adapter.read(path);
+    }
+    const tempPath = `${path}.tmp`;
+    if (await this.app.vault.adapter.exists(tempPath)) {
+      return this.app.vault.adapter.read(tempPath);
+    }
+    return null;
   }
 
   public async load(
@@ -308,6 +466,14 @@ export class UserStateStore {
       existing.status === "ok" ? existing.file : null,
       settings,
     );
+    // Fold pending journal records into the state this save writes, so the
+    // checkpoint it records really covers every replayed record — including
+    // one whose article is no longer loaded in memory.
+    const checkpointByDevice = await this.foldJournalIntoSnapshot(
+      settings,
+      states,
+      existing.status === "ok" ? existing.file : null,
+    );
     const missingSinceByStateKey =
       existing.status === "ok"
         ? cloneJson(existing.file.missingSinceByStateKey ?? {})
@@ -376,9 +542,54 @@ export class UserStateStore {
       return;
     }
 
-    const userStateFile: UserStateFile = withSyncNonce({
+    const userStateFile = this.createUserStateFile({
+      states,
+      unattributed,
+      checkpointByDevice,
+      missingSinceByStateKey,
+      unattributedFirstObservedAtByGuid,
+      unrecognizedFeedSinceByFeedId,
+    });
+
+    await this.writeUserState(settings, userStateFile);
+    // Keep the records this checkpoint just folded in: a sync client can
+    // replace the snapshot with an older copy right after the write, and the
+    // journal is the only copy of that change until a later read shows the
+    // checkpoint on disk. Truncate through this device's checkpoint that the
+    // existing file already held before this write, never the one just written
+    // and never a foreign device's entry (#1380).
+    await this.truncateJournal(this.checkpointReadBack(existing));
+    this.restoredUserStateKeys = stagedRestoredKeys;
+    settleRemovals();
+    storageLog(
+      "Saved user-state.json with " + Object.keys(states).length + " entries.",
+    );
+  }
+
+  private createUserStateFile(options: {
+    states: Record<string, ArticleUserState>;
+    unattributed: Record<string, ArticleUserState>;
+    checkpointByDevice: Readonly<Record<string, number>>;
+    missingSinceByStateKey: Record<string, number>;
+    unattributedFirstObservedAtByGuid: Record<string, number>;
+    unrecognizedFeedSinceByFeedId: Record<string, number>;
+  }): UserStateFile {
+    const {
+      states,
+      unattributed,
+      checkpointByDevice,
+      missingSinceByStateKey,
+      unattributedFirstObservedAtByGuid,
+      unrecognizedFeedSinceByFeedId,
+    } = options;
+    const checkpointSequence = maxCheckpointSequence(checkpointByDevice);
+    return withSyncNonce({
       version: USER_STATE_KEY_VERSION,
       states,
+      ...(checkpointSequence > 0 ? { checkpointSequence } : {}),
+      ...(Object.keys(checkpointByDevice).length > 0
+        ? { checkpointByDevice: { ...checkpointByDevice } }
+        : {}),
       ...(Object.keys(unattributed).length > 0
         ? { unattributedLegacyStates: unattributed }
         : {}),
@@ -392,13 +603,6 @@ export class UserStateStore {
         ? { unrecognizedFeedSinceByFeedId }
         : {}),
     });
-
-    await this.writeUserState(settings, userStateFile);
-    this.restoredUserStateKeys = stagedRestoredKeys;
-    settleRemovals();
-    storageLog(
-      "Saved user-state.json with " + Object.keys(states).length + " entries.",
-    );
   }
 
   private mergeLoadedItems(
@@ -627,6 +831,49 @@ export class UserStateStore {
     }
   }
 
+  private async foldJournalIntoSnapshot(
+    settings: RssDashboardSettings,
+    states: Record<string, ArticleUserState>,
+    snapshot: UserStateFile | null,
+  ): Promise<Record<string, number>> {
+    const checkpointByDevice = this.resolvedCheckpointByDevice(snapshot);
+    if (!this.journal || settings.storageMode !== "vault-shards-v2") {
+      return checkpointByDevice;
+    }
+    // Seed this device's appends above its own checkpoint. Another device's
+    // higher checkpoint must not inflate this device's sequence (#1380).
+    this.journal.ensureSequenceFloor(
+      checkpointByDevice[this.journal.deviceId] ?? 0,
+    );
+    const records = await this.journal.read();
+    // The checkpoint covers exactly the records read here and folded below.
+    // An append that lands after this read gets a higher sequence and replays
+    // next time instead of being truncated unseen (#1387).
+    return foldUserStateJournalRecords(states, records, checkpointByDevice);
+  }
+
+  /**
+   * Drops the records a checkpoint that survived on disk already covers. Callers
+   * pass this device's checkpoint read back from the snapshot, never one just
+   * written, so the journal stays the only copy of a change until the shared
+   * file has been seen holding it (#1380). A failure is logged, not surfaced:
+   * leftover records are skipped by replay through the snapshot's checkpoint
+   * (#1387).
+   */
+  private async truncateJournal(checkpointSequence: number): Promise<void> {
+    if (!this.journal || this.getStorageMode() !== "vault-shards-v2") return;
+    if (checkpointSequence <= 0) return;
+    if (this.isPersistenceSuppressed()) return;
+    try {
+      await this.journal.truncateThrough(checkpointSequence);
+    } catch (error) {
+      storageError(
+        "Failed to truncate the user-state journal after checkpoint",
+        error,
+      );
+    }
+  }
+
   private async writeUserState(
     settings: RssDashboardSettings,
     userStateFile: UserStateFile,
@@ -645,14 +892,38 @@ export class UserStateStore {
     }
 
     const writeUserState = () =>
-      this.app.vault.adapter.write(
-        path,
-        JSON.stringify(userStateFile, null, 2),
-      );
+      this.writeUserStateAtomically(path, userStateFile);
     if (this.writeWrapper) {
       await this.writeWrapper(writeUserState);
     } else {
       await writeUserState();
+    }
+  }
+
+  /**
+   * Writes the snapshot to a sibling temporary file and renames it into place,
+   * so a sync tool or crash never observes a partially written
+   * `user-state.json` (#1387).
+   */
+  private async writeUserStateAtomically(
+    path: string,
+    userStateFile: UserStateFile,
+  ): Promise<void> {
+    const tempPath = `${path}.tmp`;
+    await this.app.vault.adapter.write(
+      tempPath,
+      JSON.stringify(userStateFile, null, 2),
+    );
+    try {
+      await replaceFileWithTemp(this.app.vault.adapter, tempPath, path);
+    } catch (error) {
+      try {
+        await this.app.vault.adapter.remove(tempPath);
+      } catch {
+        // The failed write already left an artifact; a lingering temp file is
+        // harmless and never read as the snapshot.
+      }
+      throw error;
     }
   }
 }

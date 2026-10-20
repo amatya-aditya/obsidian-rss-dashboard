@@ -19,6 +19,7 @@ import type { FilterContext } from "../utils/filter-detection";
 import { HighlightService } from "../services/highlight-service";
 import { getEffectiveDateMs } from "../services/feed-parser/feed-retention";
 import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
+import { resolveFocusAfterRemoval } from "../utils/article-list-focus";
 import {
   groupArticles as groupArticlesUtil,
   getFeedFolder as getFeedFolderUtil,
@@ -709,11 +710,22 @@ export class ArticleList {
     );
     const scrollPos = listEl?.scrollTop ?? 0;
 
+    // A keyboard user loses their place when the focused row leaves. Pick the
+    // destination before removing it, then move focus after it is gone (#1385).
+    const hadFocus = targetEl.contains(targetEl.doc.activeElement);
+    const focusTarget = hadFocus
+      ? resolveFocusAfterRemoval(targetEl, listEl)
+      : null;
+    const moveFocus = (): void => {
+      focusTarget?.focus({ preventScroll: true });
+    };
+
     // Script-driven collapse ignores the stylesheet's reduced-motion rules, so
     // honor the preference here: drop the row at once, no collapse.
     if (prefersReducedMotion(targetEl.win)) {
       targetEl.remove();
       if (listEl) listEl.scrollTop = scrollPos;
+      moveFocus();
       return;
     }
 
@@ -739,6 +751,7 @@ export class ArticleList {
     window.setTimeout(() => {
       targetEl.remove();
       if (listEl) listEl.scrollTop = scrollPos;
+      moveFocus();
     }, 320);
   }
 

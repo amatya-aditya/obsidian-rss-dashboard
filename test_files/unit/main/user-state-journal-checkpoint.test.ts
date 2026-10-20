@@ -1,0 +1,697 @@
+/**
+ * Journal checkpoints and synced-reload preservation (#1387).
+ *
+ * The producer appends a device-local journal record when an article-state
+ * change is queued. A coalesced checkpoint folds those records into the shared
+ * `user-state.json` snapshot, advances the per-device checkpoint, and keeps the
+ * journal until a later load or checkpoint reads that checkpoint back from
+ * disk. These tests drive the settings-store load/save surface through the
+ * plugin facade and assert what is on disk and what survives a reload.
+ */
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+  type Mock,
+} from "vitest";
+import { App, type PluginManifest } from "obsidian";
+import RssDashboardPlugin from "../../../main";
+import { UserStateJournal } from "../../../src/services/user-state-journal";
+import {
+  DEFAULT_SETTINGS,
+  type Feed,
+  type FeedItem,
+  type RssDashboardSettings,
+} from "../../../src/types/types";
+
+const METADATA_FOLDER = "rss-dashboard-data";
+const SHARD_FOLDER = `${METADATA_FOLDER}/feeds`;
+const SHARD_PATH = `${SHARD_FOLDER}/feed-1.json`;
+const USER_STATE_PATH = `${METADATA_FOLDER}/user-state.json`;
+const USER_STATE_TEMP_PATH = `${USER_STATE_PATH}.tmp`;
+const PLUGIN_DIR = "plugins/rss-dashboard";
+const JOURNAL_PATH = `${PLUGIN_DIR}/device-local/user-state-journal.jsonl`;
+const FEED_URL = "https://example.com/feed.xml";
+const GUID = "guid-1";
+const SECOND_GUID = "guid-2";
+
+interface VaultAdapterStub {
+  exists(path: string): Promise<boolean>;
+  read(path: string): Promise<string>;
+  write(path: string, content: string): Promise<void>;
+  append(path: string, content: string): Promise<void>;
+  rename(oldPath: string, newPath: string): Promise<void>;
+  mkdir(path: string): Promise<void>;
+}
+
+function manifest(): PluginManifest {
+  return {
+    id: "rss-dashboard",
+    name: "RSS Dashboard",
+    version: "2.7.0",
+    minAppVersion: "1.8.7",
+    author: "test",
+    description: "test",
+    dir: PLUGIN_DIR,
+  };
+}
+
+function item(overrides: Partial<FeedItem> = {}): FeedItem {
+  return {
+    title: "Article",
+    link: "https://example.com/a",
+    description: "",
+    pubDate: "2026-01-01T00:00:00Z",
+    guid: GUID,
+    read: false,
+    starred: false,
+    tags: [],
+    feedTitle: "Example Feed",
+    feedUrl: FEED_URL,
+    coverImage: "",
+    ...overrides,
+  };
+}
+
+function feed(items: FeedItem[]): Feed {
+  return {
+    title: "Example Feed",
+    url: FEED_URL,
+    folder: "",
+    lastUpdated: 0,
+    feedId: "feed-1",
+    items,
+  };
+}
+
+function settings(
+  overrides: Partial<RssDashboardSettings> = {},
+): RssDashboardSettings {
+  const base = JSON.parse(
+    JSON.stringify(DEFAULT_SETTINGS),
+  ) as RssDashboardSettings;
+  base.storageMode = "vault-shards-v2";
+  base.storageFolder = SHARD_FOLDER;
+  base.metadataStorageMode = "plugin-default";
+  base.metadataStorageFolder = METADATA_FOLDER;
+  base.startupRefreshDelaySeconds = 3600;
+  base.feeds = [feed([item(), item({ guid: SECOND_GUID })])];
+  return { ...base, ...overrides };
+}
+
+function adapter(app: App): VaultAdapterStub {
+  return app.vault.adapter as unknown as VaultAdapterStub;
+}
+
+function adapterFiles(app: App): Map<string, string> {
+  return (app.vault as unknown as { adapterFiles: Map<string, string> })
+    .adapterFiles;
+}
+
+function shardJson(items: FeedItem[]): string {
+  return JSON.stringify({
+    version: 1,
+    feedId: "feed-1",
+    feedUrl: FEED_URL,
+    updatedAt: 0,
+    items,
+  });
+}
+
+interface SnapshotStub {
+  version: number;
+  checkpointSequence?: number;
+  checkpointByDevice?: Record<string, number>;
+  states: Record<string, Record<string, unknown>>;
+}
+
+function snapshot(app: App): SnapshotStub {
+  return JSON.parse(
+    adapterFiles(app).get(USER_STATE_PATH) ?? "{}",
+  ) as SnapshotStub;
+}
+
+function journalRecords(app: App): Record<string, unknown>[] {
+  const raw = adapterFiles(app).get(JOURNAL_PATH) ?? "";
+  return raw
+    .split("\n")
+    .filter((line) => line.trim().length > 0)
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
+}
+
+let app: App;
+
+beforeEach(async () => {
+  vi.restoreAllMocks();
+  app = App.createMock();
+  await adapter(app).mkdir(SHARD_FOLDER);
+  await adapter(app).write(
+    SHARD_PATH,
+    shardJson([item(), item({ guid: SECOND_GUID })]),
+  );
+  await adapter(app).write(
+    USER_STATE_PATH,
+    JSON.stringify({ version: 3, states: {} }),
+  );
+  vi.spyOn(console, "debug").mockImplementation(() => undefined);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
+
+async function startPlugin(
+  overrides: Partial<RssDashboardSettings> = {},
+): Promise<{
+  plugin: RssDashboardPlugin;
+  saveData: Mock<(data: unknown) => Promise<void>>;
+}> {
+  const plugin = new RssDashboardPlugin(app, manifest());
+  plugin.loadData = vi
+    .fn()
+    .mockImplementation(() =>
+      Promise.resolve(structuredClone(settings(overrides))),
+    );
+  const saveData = vi.fn<(data: unknown) => Promise<void>>();
+  saveData.mockResolvedValue(undefined);
+  plugin.saveData = saveData;
+  await plugin.loadSettings();
+  return { plugin, saveData };
+}
+
+function readOf(plugin: RssDashboardPlugin, guid = GUID): boolean | undefined {
+  return plugin.settings.feeds[0].items.find((entry) => entry.guid === guid)
+    ?.read;
+}
+
+function playbackOf(
+  plugin: RssDashboardPlugin,
+  guid = SECOND_GUID,
+): FeedItem["playbackProgress"] {
+  return plugin.settings.feeds[0].items.find((entry) => entry.guid === guid)
+    ?.playbackProgress;
+}
+
+async function drainMicrotasks(): Promise<void> {
+  for (let index = 0; index < 50; index += 1) {
+    await Promise.resolve();
+  }
+}
+
+interface Deferred {
+  promise: Promise<void>;
+  resolve: () => void;
+}
+
+function deferred(): Deferred {
+  let resolve!: () => void;
+  const promise = new Promise<void>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
+
+interface SettingsStoreSeam {
+  recordArticleStateChanges(
+    changes: readonly {
+      feedId: string;
+      guid: string;
+      changes: Record<string, unknown>;
+    }[],
+  ): Promise<void>;
+}
+
+interface PluginSeams {
+  settingsStore: SettingsStoreSeam;
+  feedStorageRepository: {
+    persistSettings(...args: unknown[]): Promise<unknown>;
+  };
+}
+
+/** The device id the journal derives for the stub vault's base path. */
+function thisDeviceId(): string {
+  return new UserStateJournal(app, { pluginDir: PLUGIN_DIR }).deviceId;
+}
+
+describe("journal checkpoints (#1387)", () => {
+  it("writes the shared snapshot and advances the checkpoint, keeping the journal until it is seen on disk", async () => {
+    const { plugin } = await startPlugin();
+    plugin.settings.feeds[0].items[0].read = true;
+    plugin.settings.feeds[0].items[1].starred = true;
+
+    await plugin.queueArticleStateSave([
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
+      {
+        feedUrl: FEED_URL,
+        guid: SECOND_GUID,
+        changes: { starred: true },
+      },
+    ]);
+    // The records are durable before any snapshot write.
+    expect(journalRecords(app)).toHaveLength(2);
+
+    await plugin.flushPendingWrites();
+
+    const written = snapshot(app);
+    expect(written.version).toBe(5);
+    expect(written.checkpointSequence).toBe(2);
+    expect(written.checkpointByDevice).toBeDefined();
+    expect(written.states["feed-1:guid-1"]?.read).toBe(true);
+    expect(written.states["feed-1:guid-2"]?.starred).toBe(true);
+    // The checkpoint has not yet been read back from disk, so the records
+    // covering it stay as the only copy a sync overwrite cannot reach (#1380).
+    expect(journalRecords(app)).toHaveLength(2);
+  });
+
+  it("restores a read after a sync client replaces the snapshot with an older copy", async () => {
+    const { plugin } = await startPlugin();
+    plugin.settings.feeds[0].items[0].read = true;
+    await plugin.queueArticleStateSave([
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
+    ]);
+    await plugin.flushPendingWrites();
+    expect(snapshot(app).checkpointSequence).toBe(1);
+
+    // A device on an older build uploads its version-3 snapshot late and the
+    // sync client writes it over the checkpoint this device just made.
+    await adapter(app).write(
+      USER_STATE_PATH,
+      JSON.stringify({
+        version: 3,
+        states: { "feed-1:guid-1": { read: false, starred: false } },
+      }),
+    );
+
+    await plugin.loadSettings();
+
+    expect(readOf(plugin)).toBe(true);
+    // The next checkpoint writes the restored read back to the shared file.
+    await plugin.queueArticleStateSave([
+      { feedUrl: FEED_URL, guid: SECOND_GUID, changes: { starred: true } },
+    ]);
+    await plugin.flushPendingWrites();
+    expect(snapshot(app).states["feed-1:guid-1"]?.read).toBe(true);
+  });
+
+  it("drops records once a later load reads the checkpoint back from disk", async () => {
+    const { plugin } = await startPlugin();
+    plugin.settings.feeds[0].items[0].read = true;
+    await plugin.queueArticleStateSave([
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
+    ]);
+    await plugin.flushPendingWrites();
+    expect(journalRecords(app)).toHaveLength(1);
+
+    await plugin.loadSettings();
+
+    expect(readOf(plugin)).toBe(true);
+    expect(journalRecords(app)).toEqual([]);
+  });
+
+  it("drops the previous checkpoint's records when the next checkpoint finds it intact", async () => {
+    const { plugin } = await startPlugin();
+    plugin.settings.feeds[0].items[0].read = true;
+    await plugin.queueArticleStateSave([
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
+    ]);
+    await plugin.flushPendingWrites();
+    plugin.settings.feeds[0].items[1].starred = true;
+    await plugin.queueArticleStateSave([
+      { feedUrl: FEED_URL, guid: SECOND_GUID, changes: { starred: true } },
+    ]);
+    await plugin.flushPendingWrites();
+
+    expect(snapshot(app).checkpointSequence).toBe(2);
+    expect(journalRecords(app).map((record) => record.seq)).toEqual([2]);
+  });
+
+  it("coalesces a burst of queued changes into one checkpoint", async () => {
+    const { plugin } = await startPlugin();
+    vi.useFakeTimers();
+    const rename = vi.spyOn(adapter(app), "rename");
+
+    for (let index = 0; index < 5; index += 1) {
+      await plugin.queueArticleStateSave([
+        {
+          feedUrl: FEED_URL,
+          guid: `guid-burst-${index}`,
+          changes: { read: true },
+        },
+      ]);
+    }
+    const snapshotWrites = () =>
+      rename.mock.calls.filter(([, newPath]) => newPath === USER_STATE_PATH);
+    expect(snapshotWrites()).toHaveLength(0);
+    expect(journalRecords(app)).toHaveLength(5);
+
+    await vi.advanceTimersByTimeAsync(2_000);
+    await drainMicrotasks();
+
+    expect(snapshotWrites()).toHaveLength(1);
+    expect(snapshot(app).checkpointSequence).toBe(5);
+    expect(journalRecords(app)).toHaveLength(5);
+  });
+
+  it("keeps and replays this device's records when only a foreign device has a checkpoint", async () => {
+    const { plugin } = await startPlugin();
+    vi.useFakeTimers();
+    await plugin.queueArticleStateSave([
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
+      { feedUrl: FEED_URL, guid: SECOND_GUID, changes: { read: true } },
+    ]);
+    expect(journalRecords(app)).toHaveLength(2);
+
+    // A phone checkpoints to seq 5 and syncs; its map has no entry for this
+    // device, so its checkpoint must not suppress or truncate our records.
+    await adapter(app).write(
+      USER_STATE_PATH,
+      JSON.stringify({
+        version: 5,
+        checkpointSequence: 5,
+        checkpointByDevice: { "device-phone": 5 },
+        states: {
+          "feed-1:guid-1": { read: false, starred: true, saved: false },
+        },
+      }),
+    );
+
+    await plugin.loadSettings();
+
+    expect(readOf(plugin)).toBe(true);
+    expect(readOf(plugin, SECOND_GUID)).toBe(true);
+    expect(journalRecords(app)).toHaveLength(2);
+  });
+
+  it("truncates through this device's entry after it is read back, leaving the foreign entry", async () => {
+    // A phone checkpoints to seq 5 before this device ever writes.
+    await adapter(app).write(
+      USER_STATE_PATH,
+      JSON.stringify({
+        version: 5,
+        checkpointSequence: 5,
+        checkpointByDevice: { "device-phone": 5 },
+        states: {
+          "feed-1:guid-1": { read: false, starred: false, saved: false },
+        },
+      }),
+    );
+    const { plugin } = await startPlugin();
+
+    // This device checkpoints its own change.
+    plugin.settings.feeds[0].items[0].read = true;
+    await plugin.queueArticleStateSave([
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
+    ]);
+    await plugin.flushPendingWrites();
+
+    const written = snapshot(app);
+    expect(written.checkpointByDevice?.["device-phone"]).toBe(5);
+    expect(written.checkpointSequence).toBe(5);
+    // The record stays until a load reads this device's checkpoint back.
+    expect(journalRecords(app)).toHaveLength(1);
+
+    await plugin.loadSettings();
+
+    // A later load truncates through this device's entry only.
+    expect(journalRecords(app)).toEqual([]);
+    expect(readOf(plugin)).toBe(true);
+  });
+
+  it("treats a legacy v3 checkpoint as this device's own checkpoint when truncating", async () => {
+    // A v3 snapshot only has the global counter; that value is this device's
+    // checkpoint. A stale record at or below it must be skipped (the snapshot
+    // already folded the real value) and the journal truncated.
+    await adapter(app).write(
+      USER_STATE_PATH,
+      JSON.stringify({
+        version: 3,
+        checkpointSequence: 2,
+        states: {
+          "feed-1:guid-1": { read: true, starred: false, saved: false },
+        },
+      }),
+    );
+    const deviceId = thisDeviceId();
+    await adapter(app).mkdir(`${PLUGIN_DIR}/device-local`);
+    await adapter(app).write(
+      JOURNAL_PATH,
+      `${JSON.stringify({
+        seq: 1,
+        deviceId,
+        timestamp: 1_760_000_000_000,
+        feedId: "feed-1",
+        guid: GUID,
+        changes: { read: false },
+      })}\n`,
+    );
+
+    const { plugin } = await startPlugin();
+
+    // The stale read:false is skipped because the legacy checkpoint covers it,
+    // so the snapshot's read:true wins, and the journal is dropped.
+    expect(readOf(plugin)).toBe(true);
+    expect(journalRecords(app)).toEqual([]);
+  });
+
+  it("never appends or checkpoints after a failed settings load", async () => {
+    const { plugin } = await startPlugin();
+    plugin.loadData = vi.fn().mockRejectedValue(new Error("Load failed"));
+    await plugin.loadSettings();
+    const before = adapterFiles(app).get(USER_STATE_PATH);
+    const write = vi.spyOn(adapter(app), "write");
+    const rename = vi.spyOn(adapter(app), "rename");
+
+    await plugin.queueArticleStateSave([
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
+    ]);
+    await plugin.flushPendingWrites();
+
+    expect(await adapter(app).exists(JOURNAL_PATH)).toBe(false);
+    expect(write).not.toHaveBeenCalled();
+    expect(rename).not.toHaveBeenCalled();
+    expect(adapterFiles(app).get(USER_STATE_PATH)).toBe(before);
+  });
+
+  it("closes the load gate before settling appends so a racing save is suppressed", async () => {
+    const { plugin } = await startPlugin();
+    const seams = plugin as unknown as PluginSeams;
+    const appendGate = deferred();
+    const appendToVault = adapter(app).append.bind(adapter(app));
+    const append = vi
+      .spyOn(adapter(app), "append")
+      .mockImplementation(async (path, content) => {
+        if (path === JOURNAL_PATH) await appendGate.promise;
+        await appendToVault(path, content);
+      });
+    const loadGate = deferred();
+    plugin.loadData = vi.fn(() =>
+      loadGate.promise.then(() => structuredClone(settings())),
+    );
+
+    // Accepted while the write gate is still open.
+    const accepted = seams.settingsStore.recordArticleStateChanges([
+      { feedId: "feed-1", guid: GUID, changes: { read: true } },
+    ]);
+    await vi.waitFor(() =>
+      expect(append).toHaveBeenCalledWith(JOURNAL_PATH, expect.any(String)),
+    );
+    const persist = vi.spyOn(seams.feedStorageRepository, "persistSettings");
+
+    const load = plugin.loadSettings();
+    await Promise.resolve();
+    const save = plugin.saveSettings();
+    appendGate.resolve();
+    await accepted;
+    await save;
+
+    // The append accepted by the previous state still lands...
+    expect(journalRecords(app)).toHaveLength(1);
+    // ...but a save requested while the load settles is suppressed instead of
+    // writing the previous state over the load.
+    expect(persist).not.toHaveBeenCalled();
+
+    loadGate.resolve();
+    await load;
+  });
+
+  it("flushes pending records through the unload path", async () => {
+    const { plugin } = await startPlugin();
+    plugin.settings.feeds[0].items[0].read = true;
+    await plugin.queueArticleStateSave([
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
+    ]);
+
+    plugin.onunload();
+
+    await vi.waitFor(() => expect(snapshot(app).checkpointSequence).toBe(1));
+    expect(snapshot(app).states["feed-1:guid-1"]?.read).toBe(true);
+    expect(journalRecords(app)).toHaveLength(1);
+  });
+
+  it("writes the snapshot through a temporary file and renames it into place", async () => {
+    const { plugin } = await startPlugin();
+    const rename = vi.spyOn(adapter(app), "rename");
+    await plugin.queueArticleStateSave([
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
+    ]);
+
+    await plugin.flushPendingWrites();
+
+    const snapshotRename = rename.mock.calls.find(
+      ([, newPath]) => newPath === USER_STATE_PATH,
+    );
+    expect(snapshotRename?.[0]).toBe(USER_STATE_TEMP_PATH);
+    expect(await adapter(app).exists(USER_STATE_TEMP_PATH)).toBe(false);
+    expect(snapshot(app).checkpointSequence).toBe(1);
+  });
+
+  it("keeps the journal when the snapshot write fails", async () => {
+    const { plugin } = await startPlugin();
+    await plugin.queueArticleStateSave([
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
+    ]);
+    vi.spyOn(adapter(app), "rename").mockImplementation(
+      async (_oldPath, newPath) => {
+        if (newPath === USER_STATE_PATH) {
+          throw new Error("rename failed");
+        }
+      },
+    );
+
+    await plugin.flushPendingWrites();
+
+    expect(journalRecords(app)).toHaveLength(1);
+    expect(snapshot(app).checkpointSequence).toBeUndefined();
+  });
+
+  it("restores a queued read and playback position after a reload without a checkpoint", async () => {
+    const { plugin } = await startPlugin();
+    await plugin.queueArticleStateSave([
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
+      {
+        feedUrl: FEED_URL,
+        guid: SECOND_GUID,
+        changes: {
+          playbackProgress: { position: 42, duration: 120, lastUpdated: 7 },
+        },
+      },
+    ]);
+
+    const { plugin: reloaded } = await startPlugin();
+
+    expect(readOf(reloaded)).toBe(true);
+    expect(playbackOf(reloaded)).toEqual({
+      position: 42,
+      duration: 120,
+      lastUpdated: 7,
+    });
+  });
+
+  it("journals playback progress from the player before any flush", async () => {
+    const { plugin } = await startPlugin();
+    vi.useFakeTimers();
+    plugin.updatePlaybackProgress(FEED_URL, SECOND_GUID, 33, 90, false);
+    // The journal coalesces progress events, so the record lands at the end
+    // of the short journal window rather than on the first event.
+    await vi.advanceTimersByTimeAsync(500);
+    vi.useRealTimers();
+
+    const records = journalRecords(app);
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({
+      guid: SECOND_GUID,
+      changes: { playbackProgress: { position: 33, duration: 90 } },
+    });
+
+    const { plugin: reloaded } = await startPlugin();
+    expect(playbackOf(reloaded)?.position).toBe(33);
+  });
+
+  it("coalesces a burst of playback progress into one journal record with the last position", async () => {
+    const { plugin } = await startPlugin();
+    vi.useFakeTimers();
+
+    for (let position = 10; position <= 50; position += 10) {
+      plugin.updatePlaybackProgress(
+        FEED_URL,
+        SECOND_GUID,
+        position,
+        100,
+        false,
+      );
+    }
+    expect(journalRecords(app)).toEqual([]);
+
+    await vi.advanceTimersByTimeAsync(500);
+
+    const records = journalRecords(app);
+    expect(records).toHaveLength(1);
+    expect(records[0]).toMatchObject({
+      guid: SECOND_GUID,
+      changes: { playbackProgress: { position: 50, duration: 100 } },
+    });
+  });
+
+  it("journals a compensating record when the Reader rolls a failed save back", async () => {
+    const { plugin } = await startPlugin();
+    const item = plugin.settings.feeds[0].items.find(
+      (entry) => entry.guid === GUID,
+    );
+    if (!item) throw new Error("Expected the seeded article");
+    vi.spyOn(plugin, "saveSettings").mockRejectedValueOnce(
+      new Error("disk full"),
+    );
+
+    const updateFromReader = (
+      plugin as unknown as {
+        updateArticleFromReader(
+          article: FeedItem,
+          updates: Partial<FeedItem>,
+        ): Promise<boolean>;
+      }
+    ).updateArticleFromReader.bind(plugin);
+    const applied = await updateFromReader(item, { read: true });
+
+    expect(applied).toBe(false);
+    expect(item.read).toBe(false);
+    // The failed intent and the restored state are both durable, in order.
+    const records = journalRecords(app);
+    expect(records.length).toBeGreaterThanOrEqual(2);
+    expect(records[0]).toMatchObject({ changes: { read: true } });
+    expect(records[records.length - 1]).toMatchObject({
+      changes: { read: false },
+    });
+
+    const { plugin: reloaded } = await startPlugin();
+    expect(readOf(reloaded)).toBe(false);
+  });
+
+  it("does not replay or overwrite an unreadable snapshot", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await adapter(app).write(USER_STATE_PATH, "{not valid json");
+    await adapter(app).mkdir(`${PLUGIN_DIR}/device-local`);
+    await adapter(app).write(
+      JOURNAL_PATH,
+      `${JSON.stringify({
+        seq: 1,
+        deviceId: "device-test",
+        timestamp: 1_760_000_000_000,
+        feedId: "feed-1",
+        guid: GUID,
+        changes: { read: true },
+      })}\n`,
+    );
+
+    const { plugin } = await startPlugin();
+
+    // The snapshot cannot be saved, so its pending state is not presented as
+    // durable: the item keeps the snapshot's default (unread) state.
+    expect(readOf(plugin)).toBe(false);
+    expect(adapterFiles(app).get(USER_STATE_PATH)).toBe("{not valid json");
+    expect(journalRecords(app)).toHaveLength(1);
+  });
+});

@@ -26,6 +26,15 @@ function storageError(
 ): void {}
 
 export interface PersistSettingsOptions {
+  /**
+   * Persist article state (read, starred, tags, saved, playback) only. This
+   * scope never enumerates feeds for shards, deep-clones feed items, reads
+   * shard files, or writes/deletes shards: Shard storage v2 writes its
+   * article-state snapshot, Legacy JSON writes the `data.json` that holds the
+   * state, and Shard storage v1 (whose state lives in shard content) writes
+   * nothing.
+   */
+  scope?: "article-state";
   forceMetadata?: boolean;
   forceAllShards?: boolean;
   /**
@@ -302,6 +311,9 @@ export async function persistFeedStorage(
   host: FeedStorageRunnerHost,
 ): Promise<FeedStoragePersistResult> {
   host.ensureFeedIds(settings);
+  if (options.scope === "article-state") {
+    return persistArticleState(settings, saveData, host);
+  }
   storageLog("Persisting settings", {
     mode: settings.storageMode,
     folder: normalizeFolderPath(settings.storageFolder),
@@ -394,6 +406,37 @@ export async function persistFeedStorage(
     shardWriteCount,
     shardDeleteCount,
   };
+}
+
+/**
+ * Writes only the snapshot that holds article state. Shard-backed feeds are
+ * not visited at all, so a read, star, tag, saved, or playback change does not
+ * wait on feed content (issue #1384).
+ */
+async function persistArticleState(
+  settings: RssDashboardSettings,
+  saveData: (data: unknown) => Promise<void>,
+  host: FeedStorageRunnerHost,
+): Promise<FeedStoragePersistResult> {
+  if (settings.storageMode === "vault-shards-v2") {
+    await host.userState.save(settings);
+    storageLog("Saved article state to user-state.json");
+    return { metadataSaved: false, shardWriteCount: 0, shardDeleteCount: 0 };
+  }
+
+  if (!isShardBackedMode(settings.storageMode)) {
+    // Legacy JSON keeps article state inside the settings snapshot itself.
+    await saveData(withSyncNonce(cloneJson(settings)));
+    host.capturePersistedState(settings);
+    storageLog("Saved article state to legacy data.json");
+    return { metadataSaved: true, shardWriteCount: 0, shardDeleteCount: 0 };
+  }
+
+  // Shard storage v1 keeps article state inside shard content, which this
+  // scope must not write. Nothing to persist; the caller decides whether a
+  // full save is needed for that mode.
+  storageLog("Skipped article-state-only write in shard storage v1");
+  return { metadataSaved: false, shardWriteCount: 0, shardDeleteCount: 0 };
 }
 
 interface FeedShardWriteContext {

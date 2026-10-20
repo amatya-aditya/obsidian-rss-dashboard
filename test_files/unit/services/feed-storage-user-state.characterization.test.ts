@@ -107,7 +107,7 @@ describe("Shard storage v2 article state (characterization, #465)", () => {
   });
 
   describe("the user-state.json it writes", () => {
-    it("is version 3 with a sync nonce and padding, and omits empty bookkeeping maps", async () => {
+    it("is version 4 with a sync nonce and padding, and omits empty bookkeeping maps", async () => {
       const repository = new FeedStorageRepository(app);
       const settings = settingsFor("vault-shards-v2", [
         makeFeed("feed-1", [makeItem({ read: true })]),
@@ -119,7 +119,7 @@ describe("Shard storage v2 article state (characterization, #465)", () => {
       expect(Object.keys(written).sort()).toEqual(
         ["_syncNonce", "_syncPad", "states", "version"].sort(),
       );
-      expect(written.version).toBe(3);
+      expect(written.version).toBe(5);
       expect(typeof written._syncNonce).toBe("string");
       expect(written._syncPad).toEqual(
         expect.stringContaining("sync-size-anchor"),

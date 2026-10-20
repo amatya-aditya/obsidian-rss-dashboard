@@ -30,6 +30,11 @@ import type {
   FiltersUpdatedEventPayload,
   default as RssDashboardPlugin,
 } from "../../main";
+import type { ArticleStateChange } from "../utils/article-update";
+import {
+  captureArticleListFocus,
+  restoreArticleListFocus,
+} from "../utils/article-list-focus";
 import { Sidebar, type SidebarOptions } from "../components/sidebar";
 import { ArticleList } from "../components/article-list";
 import { openFilterMenuFrom } from "../components/article-filter-menu";
@@ -679,10 +684,10 @@ export class RssDashboardView extends ItemView {
    * @internal
    */
   public actionMarkAllAsRead(): void {
-    const count = this.updateFilteredArticleReadStatus(true);
+    const { count, changes } = this.updateFilteredArticleReadStatus(true);
 
     if (count > 0) {
-      void this.plugin.saveSettings();
+      void this.plugin.queueArticleStateSave(changes);
       this.scheduleRender();
       new Notice(
         `Marked ${count} items as read in ${this.getArticlesTitleInfo().title}`,
@@ -697,10 +702,10 @@ export class RssDashboardView extends ItemView {
    * @internal
    */
   public actionMarkAllAsUnread(): void {
-    const count = this.updateFilteredArticleReadStatus(false);
+    const { count, changes } = this.updateFilteredArticleReadStatus(false);
 
     if (count > 0) {
-      void this.plugin.saveSettings();
+      void this.plugin.queueArticleStateSave(changes);
       this.scheduleRender();
       new Notice(
         `Marked ${count} items as unread in ${this.getArticlesTitleInfo().title}`,
@@ -710,8 +715,12 @@ export class RssDashboardView extends ItemView {
     }
   }
 
-  private updateFilteredArticleReadStatus(read: boolean): number {
+  private updateFilteredArticleReadStatus(read: boolean): {
+    count: number;
+    changes: ArticleStateChange[];
+  } {
     let count = 0;
+    const changes: ArticleStateChange[] = [];
 
     this.getFilteredArticles().forEach((article) => {
       const backingArticle = this.findBackingArticleForDisplayItem(article);
@@ -719,10 +728,39 @@ export class RssDashboardView extends ItemView {
         backingArticle.read = read;
         article.read = read;
         count++;
+        const feed = this.findFeedForBackingArticle(article, backingArticle);
+        if (feed) {
+          changes.push({
+            feedUrl: feed.url,
+            guid: backingArticle.guid,
+            changes: { read },
+          });
+        }
       }
     });
 
-    return count;
+    return { count, changes };
+  }
+
+  /** The feed that owns a display item's backing article, for its identity. */
+  private findFeedForBackingArticle(
+    displayArticle: FeedItem,
+    backingArticle: FeedItem,
+  ): Feed | null {
+    if (this.currentFeed?.items.includes(backingArticle)) {
+      return this.currentFeed;
+    }
+    const byUrl = this.settings.feeds.find(
+      (feed) => feed.url === displayArticle.feedUrl,
+    );
+    if (byUrl?.items.includes(backingArticle)) return byUrl;
+    if (byUrl?.items.some((item) => item.guid === backingArticle.guid)) {
+      return byUrl;
+    }
+    return (
+      this.settings.feeds.find((feed) => feed.items.includes(backingArticle)) ??
+      null
+    );
   }
 
   /**
@@ -3198,13 +3236,9 @@ export class RssDashboardView extends ItemView {
       article.tags = normalizedUpdates.tags;
     }
 
-    await this.plugin.updateArticle(
-      originalArticle.guid,
-      feed.url,
-      normalizedUpdates,
-      false,
-    );
-
+    // Reflect the change in the list, sidebar, and filter counts first. The
+    // plugin facade owns persistence and its coalesced queue, so the write is
+    // requested after this interaction and never awaited here (#1385).
     if (shouldRerender) {
       void this.render();
     } else {
@@ -3216,6 +3250,27 @@ export class RssDashboardView extends ItemView {
       }
       this.syncArticleListAfterUpdate(article, feed);
     }
+
+    try {
+      void this.plugin
+        .updateArticle(originalArticle.guid, feed.url, normalizedUpdates, false)
+        .catch((error: unknown) => {
+          console.error("Failed to persist dashboard article update", error);
+          new Notice(
+            `RSS Dashboard: Failed to save article changes: ${
+              error instanceof Error ? error.message : "Unknown error"
+            }`,
+          );
+        });
+    } catch (error) {
+      console.error("Failed to persist dashboard article update", error);
+      new Notice(
+        `RSS Dashboard: Failed to save article changes: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
+      );
+    }
+
     return true;
   }
 
@@ -3356,6 +3411,7 @@ export class RssDashboardView extends ItemView {
         article.guid,
         feedInScope ? article.feedUrl : feed.url,
       );
+      this.reconcilePageAfterInPlaceRemoval();
       this.refreshFilterStatusBarOnly();
       return;
     }
@@ -3399,6 +3455,44 @@ export class RssDashboardView extends ItemView {
     this.refreshFilterStatusBarOnly();
   }
 
+  /**
+   * A row that leaves the filtered list can empty the current page or remove
+   * the last page. Clamp the page the way a pagination render would, and
+   * rebuild only for those boundary cases, so an ordinary in-place removal
+   * keeps its animation (#1385). The rebuild recomputes the empty state and
+   * the page footer for the smaller result set.
+   */
+  private reconcilePageAfterInPlaceRemoval(): void {
+    if (!this.articleList) return;
+
+    const filtered = this.getFilteredArticles();
+    const pageSize = this.getCurrentPageSize();
+    const currentPage = this.getCurrentPage();
+    const pagination = computePagination({
+      totalItems: filtered.length,
+      pageSize,
+      requestedPage: currentPage,
+    });
+
+    const pageEmptied = pagination.currentPage !== currentPage;
+    const listEmptied = filtered.length === 0;
+    const pageGone = currentPage > pagination.totalPages;
+    // A total that happens to be a page multiple is not itself a boundary:
+    // page 1 can lose a row and still have rows. Rebuild only when the page
+    // emptied, the list emptied, or the current page no longer exists (#1380).
+    if (!pageEmptied && !listEmptied && !pageGone) return;
+
+    if (pageEmptied) {
+      this.setCurrentPageState(pagination.currentPage);
+    }
+    // The rebuild below replaces the list, including whatever control the
+    // in-place removal had chosen. Remember the keyboard user's place and
+    // restore an equivalent target once the new page is rendered (#1387).
+    const focusTarget = captureArticleListFocus(this.containerEl);
+    void this.render();
+    restoreArticleListFocus(this.containerEl, focusTarget);
+  }
+
   private markPageArticlesAsRead(
     currentPageArticles: FeedItem[],
     previousPage: number,
@@ -3411,6 +3505,7 @@ export class RssDashboardView extends ItemView {
     }
 
     const updatedArticles: FeedItem[] = [];
+    const changes: ArticleStateChange[] = [];
     currentPageArticles.forEach((article) => {
       if (article.read) {
         return;
@@ -3424,6 +3519,14 @@ export class RssDashboardView extends ItemView {
       originalArticle.read = true;
       article.read = true;
       updatedArticles.push(article);
+      const feed = this.findFeedForBackingArticle(article, originalArticle);
+      if (feed) {
+        changes.push({
+          feedUrl: feed.url,
+          guid: originalArticle.guid,
+          changes: { read: true },
+        });
+      }
     });
 
     if (updatedArticles.length === 0) {
@@ -3431,7 +3534,7 @@ export class RssDashboardView extends ItemView {
       return;
     }
 
-    void this.plugin.saveSettings();
+    void this.plugin.queueArticleStateSave(changes);
 
     const filtered = this.getFilteredArticles();
     const pagination = computePagination({
@@ -3823,6 +3926,10 @@ export class RssDashboardView extends ItemView {
       this.dashboardMultiFiltersDirty = false;
       await this.plugin.saveSettings();
     }
+    // Article-state changes are queued after the interaction, so a close is the
+    // last chance to write them before the view's in-memory list goes away
+    // (#1380). A partial view double in tests may not expose the facade.
+    void this.plugin.flushPendingWrites?.();
     if (this.articleList) {
       this.articleList.destroy();
     }

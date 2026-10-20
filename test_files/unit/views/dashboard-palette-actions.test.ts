@@ -87,6 +87,7 @@ describe("dashboard actions behind palette commands", () => {
       app,
       settings: structuredClone(DEFAULT_SETTINGS),
       saveSettings: vi.fn(),
+      queueArticleStateSave: vi.fn(),
       toggleYouTubeFocusMode: toggleFocusSpy,
     } as unknown as RssDashboardPlugin;
     view = new RssDashboardView(leaf, plugin);

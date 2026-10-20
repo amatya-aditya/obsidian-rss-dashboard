@@ -102,6 +102,7 @@ describe("Dashboard multi-filter persistence (TDD)", () => {
     const plugin = {
       settings,
       saveSettings: vi.fn(async () => {}),
+      queueArticleStateSave: vi.fn(),
     };
 
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
@@ -127,6 +128,7 @@ describe("Dashboard multi-filter persistence (TDD)", () => {
     const plugin = {
       settings,
       saveSettings: vi.fn(async () => {}),
+      queueArticleStateSave: vi.fn(),
     };
 
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
@@ -166,6 +168,7 @@ describe("Dashboard multi-filter persistence (TDD)", () => {
     const plugin = {
       settings,
       saveSettings: vi.fn(async () => {}),
+      queueArticleStateSave: vi.fn(),
     };
 
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
@@ -213,6 +216,7 @@ describe("Dashboard multi-filter persistence (TDD)", () => {
     const plugin = {
       settings,
       saveSettings: vi.fn(async () => {}),
+      queueArticleStateSave: vi.fn(),
     };
 
     const leaf = { app } as unknown as import("obsidian").WorkspaceLeaf;
@@ -227,7 +231,8 @@ describe("Dashboard multi-filter persistence (TDD)", () => {
 
     expect(settings.feeds[0].items[0].read).toBe(true);
     expect(settings.feeds[0].items[1].read).toBe(true);
-    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+    expect(plugin.queueArticleStateSave).toHaveBeenCalledTimes(1);
+    expect(plugin.saveSettings).not.toHaveBeenCalled();
 
     (
       view as unknown as { activeStatusFilters: Set<string> }
@@ -237,6 +242,7 @@ describe("Dashboard multi-filter persistence (TDD)", () => {
 
     expect(settings.feeds[0].items[0].read).toBe(false);
     expect(settings.feeds[0].items[1].read).toBe(false);
-    expect(plugin.saveSettings).toHaveBeenCalledTimes(2);
+    expect(plugin.queueArticleStateSave).toHaveBeenCalledTimes(2);
+    expect(plugin.saveSettings).not.toHaveBeenCalled();
   });
 });

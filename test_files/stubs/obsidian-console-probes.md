@@ -943,6 +943,13 @@ the content follows the rename, the old path is unindexed, the double-slash
 rename normalizes to `probe-rename/r3.md`, and both `renameFile` and
 `vault.rename` throw `Destination file already exists!` onto an existing path.
 
+`adapter.rename`, which the article-state snapshot and journal atomic writes
+use, was probed separately on 1.14.4 desktop (Windows): renaming a temporary
+file onto an existing `user-state.json` also throws `Destination file already
+exists!`; it does not replace the destination as Node's `fs.rename` does.
+Renaming onto a path that does not exist succeeds. The repository stub models
+this, and `replaceFileWithTemp` removes the destination first (#1380).
+
 ## Step 3: version and Platform
 
 **Probe:** `test_files/stubs/probes/version-and-platform.repl`.

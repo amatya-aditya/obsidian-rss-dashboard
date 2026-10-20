@@ -18,6 +18,7 @@ import type {
 } from "./feed-storage-repository";
 import type { FeedRefreshScheduler } from "./feed-refresh-scheduler";
 import type { SavedArticleAssociationUpdate } from "./saved-article-association-service";
+import type { UserStateJournalChange } from "./user-state-journal";
 import {
   ensureMetadataFolderExists,
   getMetadataPath,
@@ -31,6 +32,26 @@ function storageError(
   _error: unknown,
   _details?: unknown,
 ): void {}
+
+/**
+ * How long a queued article-state change waits for the next one before it is
+ * written. The window starts at the first change and is not restarted by
+ * later ones, so continuous playback still gets a flush every window.
+ */
+const ARTICLE_STATE_FLUSH_WINDOW_MS = 2_000;
+
+/**
+ * Queued changes that force a flush before the window ends, so a long burst is
+ * not held in memory indefinitely.
+ */
+const ARTICLE_STATE_FLUSH_THRESHOLD = 25;
+
+/**
+ * How long playback-progress journal records are coalesced by article. Progress
+ * events arrive several times a second; journaling each one would add a write
+ * path per event (#1380). The snapshot write keeps its own, longer window.
+ */
+const PLAYBACK_JOURNAL_WINDOW_MS = 500;
 
 /**
  * Serializes settings for the "did loading change anything" comparison,
@@ -98,11 +119,43 @@ export class SettingsStore {
   private settingsLoadGeneration = 0;
   private vaultMetadataReloadTimer: number | null = null;
   private suppressWatcherUntil = 0;
+  private articleStateFlushTimer: number | null = null;
+  private queuedArticleStateChanges = 0;
+  private articleStateFlush: Promise<void> | null = null;
+  /**
+   * Latest playback-progress change per article, journaled once per short
+   * window instead of once per player event (#1380).
+   */
+  private pendingPlaybackChanges = new Map<string, UserStateJournalChange>();
+  private playbackJournalTimer: number | null = null;
+  /** One journal-failure notice per run of failures, not per append (#1380). */
+  private warnedJournalAppendFailure = false;
+  /**
+   * Serialized journal appends from queued changes. A checkpoint, a settings
+   * load, and an unload all wait for this before reading or rewriting the
+   * snapshot, so a change is either folded in or replayed, never lost (#1387).
+   */
+  private journalAppendChain: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly app: App,
     private readonly options: SettingsStoreOptions,
-  ) {}
+  ) {
+    // The journal is device-local and obeys this store's one write gate, so
+    // the store that owns the plugin folder and the gate configures it.
+    this.options.feedStorageRepository.configureDeviceLocalJournal({
+      pluginDir: this.resolvePluginDir(),
+      isPersistenceSuppressed: () => this.isPersistenceSuppressed(),
+      getStorageMode: () => this.settings.storageMode,
+    });
+  }
+
+  private resolvePluginDir(): string {
+    return (
+      this.options.manifest.dir ??
+      `${this.app.vault.configDir}/plugins/${this.options.manifest.id}`
+    );
+  }
 
   private get settings(): RssDashboardSettings {
     return this.options.getSettings();
@@ -134,6 +187,48 @@ export class SettingsStore {
       window.clearTimeout(this.vaultMetadataReloadTimer);
       this.vaultMetadataReloadTimer = null;
     }
+    this.clearArticleStateFlushTimer();
+    this.clearPlaybackJournalTimer();
+  }
+
+  /**
+   * The one gate every write path checks. The 3.0 read-only cutoff joins
+   * `settingsLoadFailed` here when that predicate lands (ADR 0024), so every
+   * path that consults this method inherits it.
+   */
+  private isPersistenceSuppressed(): boolean {
+    return this.settingsLoadFailed;
+  }
+
+  private clearArticleStateFlushTimer(): void {
+    if (this.articleStateFlushTimer === null) return;
+    window.clearTimeout(this.articleStateFlushTimer);
+    this.articleStateFlushTimer = null;
+  }
+
+  private clearPlaybackJournalTimer(): void {
+    if (this.playbackJournalTimer === null) return;
+    window.clearTimeout(this.playbackJournalTimer);
+    this.playbackJournalTimer = null;
+  }
+
+  /**
+   * The persistence options that carry article state for the current storage
+   * mode.
+   *
+   * Intentional exceptions (#1380):
+   * - Shard storage v1 keeps state inside shard content, so an
+   *   article-state-only pass cannot carry a change. That mode keeps the full
+   *   save rather than dropping the read mark (deprecated by ADR 0006).
+   * - Legacy JSON serializes the whole live settings object, so its state can
+   *   only be written by the full `data.json` save.
+   * - The device-local journal covers only the v2 shared `user-state.json`
+   *   snapshot; the deprecated modes get no journal entry.
+   */
+  private queuedArticleStateScope(): PersistSettingsOptions {
+    return this.settings.storageMode === "vault-shards"
+      ? {}
+      : { scope: "article-state" };
   }
 
   private async readBootstrapSettings(): Promise<{
@@ -208,8 +303,16 @@ export class SettingsStore {
   async loadSettings(): Promise<void> {
     const loadGeneration = ++this.settingsLoadGeneration;
     this.wasNullSettingsLoad = false;
-    this.settingsLoadFailed = true;
     try {
+      // A synced reload replaces the in-memory snapshot. Pending local changes
+      // must already be in the journal before it is read, or this load would
+      // drop them; replay then applies them over the reloaded snapshot
+      // (#1387). Close the failed-load write gate before waiting, so a save
+      // requested while an append settles cannot write over the load. An
+      // append accepted by the previous state still lands: its gate check ran
+      // when it was queued (#1380).
+      this.settingsLoadFailed = true;
+      await this.settleJournalAppends();
       storageLog("Loading plugin settings");
       const { data, vaultMetadataUnreadable } =
         await this.readBootstrapSettings();
@@ -237,10 +340,7 @@ export class SettingsStore {
       // null load is changed: existing installs keep the vault folder they
       // already use, and a synced data.json that arrives later replaces this.
       if (data === null) {
-        const pluginDir = normalizePath(
-          this.options.manifest.dir ??
-            `${this.app.vault.configDir}/plugins/${this.options.manifest.id}`,
-        );
+        const pluginDir = normalizePath(this.resolvePluginDir());
         this.settings.metadataStorageFolder = `${pluginDir}/data`;
         this.settings.storageFolder = `${pluginDir}/data/feeds`;
       }
@@ -402,7 +502,7 @@ export class SettingsStore {
   }
   getMetadataSaveCallback(): (data: unknown) => Promise<void> {
     return async (data: unknown): Promise<void> => {
-      if (this.settingsLoadFailed) return;
+      if (this.isPersistenceSuppressed()) return;
       const settingsData = data as RssDashboardSettings;
       const metadataPath = getMetadataPath(this.settings);
       if (metadataPath) {
@@ -438,7 +538,10 @@ export class SettingsStore {
   }
 
   async saveSettings(options: PersistSettingsOptions = {}): Promise<void> {
-    if (this.settingsLoadFailed) return;
+    if (this.isPersistenceSuppressed()) return;
+    // Any queued change must be on disk before this write folds the journal
+    // into the snapshot and advances its checkpoint (#1387).
+    await this.settleJournalAppends();
     storageLog("saveSettings invoked", {
       mode: this.settings.storageMode,
       folder: this.settings.storageFolder,
@@ -466,6 +569,170 @@ export class SettingsStore {
         metadataMode: this.settings.metadataStorageMode,
       });
       throw error;
+    }
+  }
+
+  /**
+   * Appends the change to the device-local journal, serially and behind the
+   * same gate as every other write. The gate is read synchronously here, when
+   * the change is queued, so a load that closes it while an earlier append is
+   * still settling does not discard the change that was already accepted
+   * (#1380). Errors are logged rather than rejecting: the coalesced snapshot
+   * write that follows still carries the change while this session lasts, and
+   * callers ignore this promise.
+   */
+  private appendJournalChanges(
+    changes: readonly UserStateJournalChange[],
+  ): Promise<void> {
+    if (changes.length === 0) return this.journalAppendChain;
+    if (this.isPersistenceSuppressed()) return this.journalAppendChain;
+    return this.appendAcceptedJournalChanges(changes);
+  }
+
+  /**
+   * Queues a change that was accepted while the write gate was open. Callers
+   * have already checked the gate; the append must still land if the gate
+   * closes before it runs (#1380).
+   */
+  private appendAcceptedJournalChanges(
+    changes: readonly UserStateJournalChange[],
+  ): Promise<void> {
+    if (changes.length === 0) return this.journalAppendChain;
+    const run = this.journalAppendChain.then(async () => {
+      try {
+        await this.feedStorageRepository.recordArticleStateChanges(changes);
+        this.warnedJournalAppendFailure = false;
+      } catch (error) {
+        storageError("Failed to append to the user-state journal", error);
+        // A silent failure would leave the user believing a change is durable.
+        // Notify once per run of failures rather than on every event (#1380).
+        if (!this.warnedJournalAppendFailure) {
+          this.warnedJournalAppendFailure = true;
+          new Notice(
+            `RSS Dashboard: Failed to record an article state change: ${
+              error instanceof Error ? error.message : "Unknown error"
+            }`,
+          );
+        }
+      }
+    });
+    this.journalAppendChain = run;
+    return run;
+  }
+
+  /**
+   * Remembers the latest playback position for one article. Player events
+   * arrive far too often to journal each one, so articles are coalesced and
+   * appended after a short window; a flush, a load, or a save settles them
+   * immediately (#1380).
+   */
+  public recordPlaybackProgressChange(change: UserStateJournalChange): void {
+    if (this.isPersistenceSuppressed()) return;
+    this.pendingPlaybackChanges.set(`${change.feedId}:${change.guid}`, change);
+    if (this.playbackJournalTimer !== null) return;
+    this.playbackJournalTimer = window.setTimeout(() => {
+      this.playbackJournalTimer = null;
+      void this.flushPlaybackChanges();
+    }, PLAYBACK_JOURNAL_WINDOW_MS);
+  }
+
+  private flushPlaybackChanges(): Promise<void> {
+    this.clearPlaybackJournalTimer();
+    if (this.pendingPlaybackChanges.size === 0) return this.journalAppendChain;
+    const changes = [...this.pendingPlaybackChanges.values()];
+    this.pendingPlaybackChanges.clear();
+    return this.appendAcceptedJournalChanges(changes);
+  }
+
+  /** Resolves once every journal append requested so far has finished. */
+  private async settleJournalAppends(): Promise<void> {
+    await this.flushPlaybackChanges();
+    await this.journalAppendChain;
+  }
+
+  /**
+   * Records that article state changed (read, starred, tags, saved, or
+   * playback progress). The changed identity and fields are appended to the
+   * device-local journal immediately so they survive an abrupt close, then the
+   * snapshot write runs after the interaction: changes inside one window share
+   * one checkpoint, and passing the size threshold flushes without waiting for
+   * the window (#1387). Callers never await this.
+   *
+   * @returns the journal append, which resolves even on failure; production
+   * callers ignore it, tests may await it to observe durability.
+   */
+  queueArticleStateSave(
+    changes: readonly UserStateJournalChange[] = [],
+  ): Promise<void> {
+    if (this.isPersistenceSuppressed()) return Promise.resolve();
+    const appended = this.appendJournalChanges(changes);
+    this.queuedArticleStateChanges += 1;
+    if (this.queuedArticleStateChanges >= ARTICLE_STATE_FLUSH_THRESHOLD) {
+      void this.flushPendingWrites();
+      return appended;
+    }
+    if (this.articleStateFlushTimer !== null) return appended;
+    this.articleStateFlushTimer = window.setTimeout(() => {
+      this.articleStateFlushTimer = null;
+      void this.flushPendingWrites();
+    }, ARTICLE_STATE_FLUSH_WINDOW_MS);
+    return appended;
+  }
+
+  /**
+   * Writes every queued article-state change now and resolves only once the
+   * write has landed. Unload, export, migration, and repair use it for a
+   * consistent snapshot. A failed write shows one Notice and never rejects:
+   * the next load reconciles from the last persisted snapshot.
+   */
+  async flushPendingWrites(): Promise<void> {
+    this.clearArticleStateFlushTimer();
+    await this.settleJournalAppends();
+    if (this.articleStateFlush) await this.articleStateFlush;
+    if (this.queuedArticleStateChanges === 0) return;
+    this.queuedArticleStateChanges = 0;
+    if (this.isPersistenceSuppressed()) return;
+    const flush = this.persistQueuedArticleState();
+    this.articleStateFlush = flush;
+    try {
+      await flush;
+    } finally {
+      if (this.articleStateFlush === flush) this.articleStateFlush = null;
+    }
+  }
+
+  /**
+   * Appends article-state changes to the device-local journal and resolves when
+   * they are durable. Callers that are followed by a full save use this so the
+   * save can fold the records it just queued (#1387).
+   */
+  recordArticleStateChanges(
+    changes: readonly UserStateJournalChange[],
+  ): Promise<void> {
+    return this.appendJournalChanges(changes);
+  }
+
+  /**
+   * The persistence options that carry article state for the current storage
+   * mode. The coalesced queue uses them; a caller that must observe failure
+   * (the Reader's rollback) passes them to `saveSettings` directly.
+   */
+  articleStatePersistOptions(): PersistSettingsOptions {
+    return this.queuedArticleStateScope();
+  }
+
+  private async persistQueuedArticleState(): Promise<void> {
+    try {
+      await this.saveSettings(this.articleStatePersistOptions());
+    } catch (error) {
+      storageError("Queued article-state save failed", error, {
+        mode: this.settings.storageMode,
+      });
+      new Notice(
+        `RSS Dashboard: Failed to save article state changes: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
+      );
     }
   }
 
