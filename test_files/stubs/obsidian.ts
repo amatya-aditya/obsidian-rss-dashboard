@@ -803,6 +803,7 @@ interface MockVaultAdapter {
   read(path: string): Promise<string>;
   readBinary(path: string): Promise<ArrayBuffer>;
   write(path: string, content: string): Promise<void>;
+  append(path: string, content: string): Promise<void>;
   mkdir(path: string): Promise<void>;
   on(name: string, callback: (...args: unknown[]) => unknown): unknown;
   list(path: string): Promise<{ files: string[]; folders: string[] }>;
@@ -872,6 +873,24 @@ export class MockDataVault {
           throw enoentError("open", `${this.adapter.getBasePath()}/${path}`);
         }
         this.adapterFiles.set(path, content);
+        if (!this.files.has(path)) {
+          this.files.set(path, new TFileStub(path));
+        }
+      },
+      // Not yet observed against Obsidian: `append` creates the file when it
+      // is missing, requires the parent folder like `write`, and joins the
+      // index the same way.
+      append: async (path: string, content: string) => {
+        const parentPath = path.includes("/")
+          ? path.slice(0, path.lastIndexOf("/"))
+          : "";
+        if (parentPath && !this.folderExistsOnDisk(parentPath)) {
+          throw enoentError("open", `${this.adapter.getBasePath()}/${path}`);
+        }
+        this.adapterFiles.set(
+          path,
+          (this.adapterFiles.get(path) ?? "") + content,
+        );
         if (!this.files.has(path)) {
           this.files.set(path, new TFileStub(path));
         }
