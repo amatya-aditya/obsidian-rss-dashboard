@@ -10,6 +10,7 @@ import { replaceFileWithTemp } from "../utils/file-replace";
 import {
   UserStateJournal,
   foldUserStateJournalRecords,
+  maxCheckpointSequence,
   type UserStateJournalChange,
 } from "./user-state-journal";
 
@@ -18,9 +19,11 @@ import {
  * `${feedId}:${guid}` instead of a bare GUID, so two feeds carrying the same
  * GUID no longer overwrite each other's article state (issue #278). Version 3
  * adds hydration-gated garbage-collection timestamps (issue #315). Version 4
- * adds the device-local journal checkpoint sequence (#1386).
+ * adds the device-local journal checkpoint sequence (#1386). Version 5 adds the
+ * per-device checkpoint map so one device's checkpoint never suppresses another
+ * device's pending records (#1380).
  */
-const USER_STATE_KEY_VERSION = 4;
+const USER_STATE_KEY_VERSION = 5;
 const USER_STATE_QUALIFIED_VERSION = 2;
 const USER_STATE_GC_HORIZON_MS = 90 * 24 * 60 * 60 * 1000;
 
@@ -244,7 +247,9 @@ export class UserStateStore {
    * Replays journal records newer than the snapshot's checkpoint over the
    * snapshot's state before it is applied to loaded items. Replay is ordered
    * by sequence and idempotent: the same journal over the same snapshot
-   * produces the same state.
+   * produces the same state. A record is skipped only when its own device's
+   * checkpoint covers it, so another device's checkpoint never suppresses this
+   * device's pending records (#1380).
    */
   private async replayJournal(
     settings: RssDashboardSettings,
@@ -253,15 +258,60 @@ export class UserStateStore {
     replay: boolean,
   ): Promise<void> {
     if (!this.journal || settings.storageMode !== "vault-shards-v2") return;
-    const checkpointSequence = snapshot?.checkpointSequence ?? 0;
-    // The journal may be missing or empty while the shared snapshot already
-    // holds a checkpoint (another device wrote it, or a checkpoint truncated
-    // this one). Start numbering above it so new records are not skipped
+    const checkpointByDevice = this.resolvedCheckpointByDevice(snapshot);
+    // Seed this device's appends above its own checkpoint. Another device's
+    // higher checkpoint must not inflate this device's sequence, or a record
+    // this device never folded could later be mistaken for already-folded
     // (#1380).
-    this.journal.ensureSequenceFloor(checkpointSequence);
+    this.journal.ensureSequenceFloor(
+      checkpointByDevice[this.journal.deviceId] ?? 0,
+    );
     const records = await this.journal.read();
     if (!replay) return;
-    foldUserStateJournalRecords(states, records, checkpointSequence);
+    foldUserStateJournalRecords(states, records, checkpointByDevice);
+    // This load read the snapshot back with its checkpoint intact, so this
+    // device's records that checkpoint covers are no longer the only copy; drop
+    // them now. A foreign device's checkpoint never bounds this device's
+    // journal (#1380).
+    await this.truncateJournal(checkpointByDevice[this.journal.deviceId] ?? 0);
+  }
+
+  /**
+   * The per-device folded-sequence floor a snapshot records. A v5 snapshot
+   * carries `checkpointByDevice` directly; a v3/v4 snapshot has only the legacy
+   * global `checkpointSequence`, which is treated as this device's own
+   * checkpoint (the journal is device-local, so that was the only device it
+   * tracked) (#1380).
+   */
+  private resolvedCheckpointByDevice(
+    snapshot: UserStateFile | null,
+  ): Record<string, number> {
+    if (snapshot?.checkpointByDevice) {
+      return cloneJson(snapshot.checkpointByDevice);
+    }
+    const legacy = snapshot?.checkpointSequence ?? 0;
+    const deviceId = this.journal?.deviceId;
+    if (!legacy || !deviceId) return {};
+    return { [deviceId]: legacy };
+  }
+
+  /**
+   * This device's checkpoint that a previously-read snapshot held, or 0. Used by
+   * `save` to bound truncation by a checkpoint that survived on disk rather than
+   * the one being written right now (#1380).
+   */
+  private checkpointReadBack(
+    existing:
+      | { status: "missing" }
+      | { status: "unreadable" }
+      | { status: "ok"; file: UserStateFile },
+  ): number {
+    if (existing.status !== "ok") return 0;
+    return (
+      this.resolvedCheckpointByDevice(existing.file)[
+        this.journal?.deviceId ?? ""
+      ] ?? 0
+    );
   }
 
   /**
@@ -419,7 +469,7 @@ export class UserStateStore {
     // Fold pending journal records into the state this save writes, so the
     // checkpoint it records really covers every replayed record — including
     // one whose article is no longer loaded in memory.
-    const checkpointSequence = await this.foldJournalIntoSnapshot(
+    const checkpointByDevice = await this.foldJournalIntoSnapshot(
       settings,
       states,
       existing.status === "ok" ? existing.file : null,
@@ -495,16 +545,20 @@ export class UserStateStore {
     const userStateFile = this.createUserStateFile({
       states,
       unattributed,
-      checkpointSequence,
+      checkpointByDevice,
       missingSinceByStateKey,
       unattributedFirstObservedAtByGuid,
       unrecognizedFeedSinceByFeedId,
     });
 
     await this.writeUserState(settings, userStateFile);
-    // Only a successful snapshot write may drop records: the checkpoint
-    // sequence now on disk covers them (#1387).
-    await this.truncateJournal(checkpointSequence);
+    // Keep the records this checkpoint just folded in: a sync client can
+    // replace the snapshot with an older copy right after the write, and the
+    // journal is the only copy of that change until a later read shows the
+    // checkpoint on disk. Truncate through this device's checkpoint that the
+    // existing file already held before this write, never the one just written
+    // and never a foreign device's entry (#1380).
+    await this.truncateJournal(this.checkpointReadBack(existing));
     this.restoredUserStateKeys = stagedRestoredKeys;
     settleRemovals();
     storageLog(
@@ -515,7 +569,7 @@ export class UserStateStore {
   private createUserStateFile(options: {
     states: Record<string, ArticleUserState>;
     unattributed: Record<string, ArticleUserState>;
-    checkpointSequence: number;
+    checkpointByDevice: Readonly<Record<string, number>>;
     missingSinceByStateKey: Record<string, number>;
     unattributedFirstObservedAtByGuid: Record<string, number>;
     unrecognizedFeedSinceByFeedId: Record<string, number>;
@@ -523,15 +577,19 @@ export class UserStateStore {
     const {
       states,
       unattributed,
-      checkpointSequence,
+      checkpointByDevice,
       missingSinceByStateKey,
       unattributedFirstObservedAtByGuid,
       unrecognizedFeedSinceByFeedId,
     } = options;
+    const checkpointSequence = maxCheckpointSequence(checkpointByDevice);
     return withSyncNonce({
       version: USER_STATE_KEY_VERSION,
       states,
       ...(checkpointSequence > 0 ? { checkpointSequence } : {}),
+      ...(Object.keys(checkpointByDevice).length > 0
+        ? { checkpointByDevice: { ...checkpointByDevice } }
+        : {}),
       ...(Object.keys(unattributed).length > 0
         ? { unattributedLegacyStates: unattributed }
         : {}),
@@ -777,23 +835,30 @@ export class UserStateStore {
     settings: RssDashboardSettings,
     states: Record<string, ArticleUserState>,
     snapshot: UserStateFile | null,
-  ): Promise<number> {
-    const checkpointSequence = snapshot?.checkpointSequence ?? 0;
+  ): Promise<Record<string, number>> {
+    const checkpointByDevice = this.resolvedCheckpointByDevice(snapshot);
     if (!this.journal || settings.storageMode !== "vault-shards-v2") {
-      return checkpointSequence;
+      return checkpointByDevice;
     }
-    this.journal.ensureSequenceFloor(checkpointSequence);
+    // Seed this device's appends above its own checkpoint. Another device's
+    // higher checkpoint must not inflate this device's sequence (#1380).
+    this.journal.ensureSequenceFloor(
+      checkpointByDevice[this.journal.deviceId] ?? 0,
+    );
     const records = await this.journal.read();
     // The checkpoint covers exactly the records read here and folded below.
     // An append that lands after this read gets a higher sequence and replays
     // next time instead of being truncated unseen (#1387).
-    return foldUserStateJournalRecords(states, records, checkpointSequence);
+    return foldUserStateJournalRecords(states, records, checkpointByDevice);
   }
 
   /**
-   * Drops the records a successful snapshot write just folded in. A failure is
-   * logged, not surfaced: the snapshot is already correct, and leftover
-   * records are skipped by replay through its checkpoint (#1387).
+   * Drops the records a checkpoint that survived on disk already covers. Callers
+   * pass this device's checkpoint read back from the snapshot, never one just
+   * written, so the journal stays the only copy of a change until the shared
+   * file has been seen holding it (#1380). A failure is logged, not surfaced:
+   * leftover records are skipped by replay through the snapshot's checkpoint
+   * (#1387).
    */
   private async truncateJournal(checkpointSequence: number): Promise<void> {
     if (!this.journal || this.getStorageMode() !== "vault-shards-v2") return;
