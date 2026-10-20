@@ -2731,8 +2731,16 @@ export class RssDashboardView extends ItemView {
         onRangeSelect: this.handleSidebarRangeSelect.bind(this),
         onFolderMultiSelect: this.handleFolderMultiSelect.bind(this),
         onSelectionCleared: this.handleSelectionCleared.bind(this),
-        onTagToggle: this.handleTagToggle.bind(this),
-        onClearTags: this.handleClearTags.bind(this),
+        // The dashboard owns the selection and may replace its array, so hand
+        // the drawer the current one before the sidebar redraws from it.
+        onTagToggle: (tag) => {
+          this.handleTagToggle(tag);
+          drawerOptions.selectedTags = this.selectedTags;
+        },
+        onClearTags: () => {
+          this.handleClearTags();
+          drawerOptions.selectedTags = this.selectedTags;
+        },
         onTagFilterModeChange: this.handleTagFilterModeChange.bind(this),
         onToggleTagsCollapse: this.handleToggleTagsCollapse.bind(this),
         onToggleFolderCollapse: this.handleToggleFolderCollapse.bind(this),
