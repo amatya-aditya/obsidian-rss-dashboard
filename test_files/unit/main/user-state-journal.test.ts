@@ -46,6 +46,7 @@ interface VaultAdapterStub {
   write(path: string, content: string): Promise<void>;
   append(path: string, content: string): Promise<void>;
   mkdir(path: string): Promise<void>;
+  rename(oldPath: string, newPath: string): Promise<void>;
 }
 
 interface RepositorySeam extends FeedStorageRepository {
@@ -250,6 +251,28 @@ async function seedRawJournal(app: App, raw: string): Promise<void> {
   await adapter(app).write(JOURNAL_PATH, raw);
 }
 
+/**
+ * Observed on Obsidian 1.14.4 desktop: `adapter.rename` refuses an existing
+ * destination with "Destination file already exists!". A rewrite of an existing
+ * journal replaces one, so it cannot rely on rename overwriting it.
+ */
+function refuseRenameOntoExisting(app: App): void {
+  const files = adapterFiles(app);
+  vi.spyOn(adapter(app), "rename").mockImplementation(
+    async (oldPath, newPath) => {
+      if (files.has(newPath)) {
+        throw new Error("Destination file already exists!");
+      }
+      const content = files.get(oldPath);
+      if (content === undefined) {
+        throw new Error(`ENOENT: ${oldPath}`);
+      }
+      files.delete(oldPath);
+      files.set(newPath, content);
+    },
+  );
+}
+
 describe("device-local user-state journal (#1386)", () => {
   it("keeps the journal out of the shared metadata and shard folders", async () => {
     const { plugin } = await startPlugin();
@@ -376,6 +399,20 @@ describe("device-local user-state journal (#1386)", () => {
 
     expect(journal.lastSequence).toBe(10);
     expect(journalRecords(app).map((record) => record.seq)).toEqual([10]);
+  });
+
+  it("truncates a journal file that already exists", async () => {
+    await seedJournal(app, [
+      journalRecord(1, GUID, { read: true }),
+      journalRecord(2, SECOND_GUID, { starred: true }),
+    ]);
+    refuseRenameOntoExisting(app);
+    const journal = new UserStateJournal(app, { pluginDir: PLUGIN_DIR });
+
+    await journal.truncateThrough(1);
+
+    expect(journalRecords(app).map((record) => record.seq)).toEqual([2]);
+    expect(adapterFiles(app).has(`${JOURNAL_PATH}.tmp`)).toBe(false);
   });
 
   it("repairs a torn final line before appending so both records survive", async () => {

@@ -1,6 +1,7 @@
 import { App, normalizePath } from "obsidian";
 import type { ArticleUserState, FeedItem, Tag } from "../types/types";
 import { cloneJson } from "./storage-json";
+import { replaceFileWithTemp } from "../utils/file-replace";
 
 /**
  * Device-local folder inside the plugin directory (#1386). It is deliberately
@@ -362,7 +363,7 @@ export class UserStateJournal {
     const tempPath = `${this.path}.tmp`;
     const write = async (): Promise<void> => {
       await this.app.vault.adapter.write(tempPath, content);
-      await this.app.vault.adapter.rename(tempPath, this.path);
+      await replaceFileWithTemp(this.app.vault.adapter, tempPath, this.path);
     };
     if (this.writeWrapper) {
       await this.writeWrapper(write);

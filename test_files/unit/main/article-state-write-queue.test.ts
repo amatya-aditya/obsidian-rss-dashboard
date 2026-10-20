@@ -42,6 +42,30 @@ interface VaultAdapterStub {
   write(path: string, content: string): Promise<void>;
   mkdir(path: string): Promise<void>;
   remove(path: string): Promise<void>;
+  rename(oldPath: string, newPath: string): Promise<void>;
+}
+
+/**
+ * Observed on Obsidian 1.14.4 desktop: `adapter.rename` refuses an existing
+ * destination with "Destination file already exists!", unlike Node's
+ * `fs.rename`. The fixture vault already holds a snapshot and a journal, so
+ * every atomic write replaces an existing file.
+ */
+function refuseRenameOntoExisting(app: App): void {
+  const files = adapterFiles(app);
+  vi.spyOn(adapter(app), "rename").mockImplementation(
+    async (oldPath, newPath) => {
+      if (files.has(newPath)) {
+        throw new Error("Destination file already exists!");
+      }
+      const content = files.get(oldPath);
+      if (content === undefined) {
+        throw new Error(`ENOENT: ${oldPath}`);
+      }
+      files.delete(oldPath);
+      files.set(newPath, content);
+    },
+  );
 }
 
 /** Members that stay on the plugin, reached here as test seams. */
@@ -315,6 +339,18 @@ describe("coalesced article-state persistence (#1384)", () => {
 
     expect(settled).toBe(true);
     expect(userState().states[`feed-1:${GUID}`]?.read).toBe(true);
+  });
+
+  it("replaces an existing snapshot when the adapter refuses to rename onto it", async () => {
+    const { plugin } = await startPlugin();
+    refuseRenameOntoExisting(app);
+    plugin.settings.feeds[0].items[0].read = true;
+
+    void plugin.queueArticleStateSave();
+    await plugin.flushPendingWrites();
+
+    expect(userState().states[`feed-1:${GUID}`]?.read).toBe(true);
+    expect(adapterFiles(app).has(USER_STATE_TEMP_PATH)).toBe(false);
   });
 
   it("shows a notice when a queued write fails and leaves no rejection", async () => {

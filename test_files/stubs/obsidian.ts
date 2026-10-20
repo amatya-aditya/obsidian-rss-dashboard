@@ -897,10 +897,12 @@ export class MockDataVault {
           this.files.set(path, new TFileStub(path));
         }
       },
-      // Not yet observed against Obsidian: modeled on Node's `fs.rename` (and
-      // Obsidian's documented adapter member): the source must exist, the
-      // destination's parent must exist, and an existing destination file is
-      // replaced. A folder is not modeled because this repo only renames files.
+      // Observed on Obsidian 1.14.4 desktop (Windows): the source must exist,
+      // the destination's parent must exist, and renaming onto an existing
+      // destination throws "Destination file already exists!" (unlike Node's
+      // `fs.rename`). A folder is not modeled because this repo only renames
+      // files. `test_files/stubs/obsidian-console-probes.md` records the
+      // matching `vault.rename` probe.
       rename: async (oldPath: string, newPath: string) => {
         const newParentPath = newPath.includes("/")
           ? newPath.slice(0, newPath.lastIndexOf("/"))
@@ -928,6 +930,14 @@ export class MockDataVault {
             ),
             { code: "EPERM" },
           );
+        }
+        const existingDestination = [...this.adapterFiles.keys()].find(
+          (filePath) =>
+            this.diskKey(filePath) === this.diskKey(newPath) &&
+            this.diskKey(newPath) !== this.diskKey(oldPath),
+        );
+        if (existingDestination !== undefined) {
+          throw new Error("Destination file already exists!");
         }
         const content = this.adapterFiles.get(sourcePath) ?? "";
         const file = this.files.get(sourcePath);

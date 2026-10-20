@@ -6,6 +6,7 @@ import type {
   UserStateFile,
 } from "../types/types";
 import { cloneJson, withSyncNonce } from "./storage-json";
+import { replaceFileWithTemp } from "../utils/file-replace";
 import {
   UserStateJournal,
   foldUserStateJournalRecords,
@@ -826,7 +827,7 @@ export class UserStateStore {
       JSON.stringify(userStateFile, null, 2),
     );
     try {
-      await this.app.vault.adapter.rename(tempPath, path);
+      await replaceFileWithTemp(this.app.vault.adapter, tempPath, path);
     } catch (error) {
       try {
         await this.app.vault.adapter.remove(tempPath);
