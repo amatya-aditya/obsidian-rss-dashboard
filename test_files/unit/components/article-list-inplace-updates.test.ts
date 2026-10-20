@@ -429,6 +429,109 @@ describe("Phase 7 - ArticleList in-place updates", () => {
   );
 });
 
+// Keyboard users keep their place when the row they were on leaves the list
+// (#1385). Focus lands on the next or previous row's read control, or on the
+// list itself when no row remains.
+describe("ArticleList in-place removal keeps focus in the list (#1385)", () => {
+  afterEach(() => {
+    document.body.empty();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  function listFixture(guidCount: number) {
+    // The harness container is detached; jsdom only moves focus for a
+    // connected subtree, so attach one for these tests.
+    const container = createDiv();
+    document.body.appendChild(container);
+    const h = createArticleListHarness({
+      container,
+      settings: {
+        viewStyle: "list",
+        articleGroupBy: "none",
+        articleSort: "newest",
+      },
+      articles: Array.from({ length: guidCount }, (_, index) =>
+        buildArticle({ guid: String(index + 1), title: `One ${index + 1}` }),
+      ),
+    });
+    h.list.render();
+    return h;
+  }
+
+  const readControl = (h: ReturnType<typeof listFixture>, guid: string) =>
+    h
+      .getArticleEl(guid)
+      ?.querySelector<HTMLElement>(".rss-dashboard-read-toggle") ?? null;
+
+  it("moves focus to the next article's read control", () => {
+    vi.useFakeTimers();
+    const h = listFixture(3);
+    readControl(h, "2")?.focus();
+
+    h.list.removeArticleInPlace("2");
+    vi.advanceTimersByTime(320);
+
+    expect(document.activeElement).toBe(readControl(h, "3"));
+    h.cleanup();
+  });
+
+  it("moves focus to the previous article's read control when the last row leaves", () => {
+    vi.useFakeTimers();
+    const h = listFixture(3);
+    readControl(h, "3")?.focus();
+
+    h.list.removeArticleInPlace("3");
+    vi.advanceTimersByTime(320);
+
+    expect(document.activeElement).toBe(readControl(h, "2"));
+    h.cleanup();
+  });
+
+  it("moves focus to the article list when no row remains", () => {
+    vi.useFakeTimers();
+    const h = listFixture(1);
+    readControl(h, "1")?.focus();
+
+    h.list.removeArticleInPlace("1");
+    vi.advanceTimersByTime(320);
+
+    expect(document.activeElement).toBe(h.getArticlesListEl());
+    h.cleanup();
+  });
+
+  it("leaves focus alone when the removed row did not hold it", () => {
+    vi.useFakeTimers();
+    const h = listFixture(2);
+    const other = createEl("button");
+    document.body.appendChild(other);
+    other.focus();
+
+    h.list.removeArticleInPlace("1");
+    vi.advanceTimersByTime(320);
+
+    expect(document.activeElement).toBe(other);
+    h.cleanup();
+  });
+
+  it("moves focus at once when reduced motion skips the collapse", () => {
+    vi.useFakeTimers();
+    vi.spyOn(window, "matchMedia").mockImplementation(
+      (query: string) =>
+        ({
+          matches: query === "(prefers-reduced-motion: reduce)",
+        }) as MediaQueryList,
+    );
+    const h = listFixture(2);
+    readControl(h, "1")?.focus();
+
+    h.list.removeArticleInPlace("1");
+
+    expect(document.activeElement).toBe(readControl(h, "2"));
+    h.cleanup();
+  });
+});
+
 // #867: the row collapse and expand are driven by inline styles, which the
 // reduced-motion stylesheet cannot override, so the list asks for the
 // preference itself.
