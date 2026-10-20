@@ -198,6 +198,44 @@ function seams(plugin: RssDashboardPlugin): PluginSeams {
   return plugin as unknown as PluginSeams;
 }
 
+describe("facade article-state persistence (#1385)", () => {
+  it("updateArticle queues a read change without a full settings pass", async () => {
+    const { plugin, saveData } = await startPlugin();
+    const write = vi.spyOn(adapter(app), "write");
+
+    await plugin.updateArticle(GUID, FEED_URL, { read: true }, false);
+
+    // Nothing is written inside the interaction; the queue owns the timing.
+    expect(saveData).not.toHaveBeenCalled();
+    expect(userStateWrites(write)).toEqual([]);
+
+    await plugin.flushPendingWrites();
+
+    expect(userStateWrites(write)).toHaveLength(1);
+    expect(userState().states[`feed-1:${GUID}`]?.read).toBe(true);
+    expect(shardCalls(write)).toEqual([]);
+    expect(saveData).not.toHaveBeenCalled();
+  });
+
+  it("updateArticle still writes feed content for a cover image change", async () => {
+    const { plugin } = await startPlugin();
+    const write = vi.spyOn(adapter(app), "write");
+
+    await plugin.updateArticle(
+      GUID,
+      FEED_URL,
+      { coverImage: "https://example.com/cover.jpg" },
+      false,
+    );
+
+    // Cover images live in feed content, so this change needs a shard write.
+    expect(shardCalls(write)).toContain(SHARD_PATH);
+    expect(plugin.settings.feeds[0].items[0].coverImage).toBe(
+      "https://example.com/cover.jpg",
+    );
+  });
+});
+
 describe("coalesced article-state persistence (#1384)", () => {
   it("an article-state-only save performs no feed-shard reads or writes", async () => {
     const { plugin, saveData } = await startPlugin();

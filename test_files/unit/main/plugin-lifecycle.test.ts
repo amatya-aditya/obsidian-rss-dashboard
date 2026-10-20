@@ -87,6 +87,22 @@ function flushPromises(): Promise<void> {
   });
 }
 
+/**
+ * Saved-note association is article state, so it persists through the coalesced
+ * queue into the article-state snapshot rather than a metadata save (#1385).
+ */
+async function waitForUserStateWrite(
+  write: ReturnType<typeof vi.spyOn>,
+): Promise<void> {
+  await vi.waitFor(() => {
+    expect(
+      write.mock.calls.some(([path]) =>
+        String(path).endsWith("user-state.json"),
+      ),
+    ).toBe(true);
+  });
+}
+
 // Create mock App using stubs
 function createMockApp(): MockApp {
   return App.createMock();
@@ -568,12 +584,11 @@ describe("onload() initialization", () => {
       { name: "Research", color: "green" },
     ];
     vi.clearAllMocks();
+    const write = vi.spyOn(app.vault.adapter, "write");
 
     deleteHandler?.({ path: "Articles/Saved article.md" });
 
-    await vi.waitFor(() => {
-      expect(plugin.saveData).toHaveBeenCalledTimes(1);
-    });
+    await waitForUserStateWrite(write);
     expect(app.workspace.getLeavesOfType("rss-dashboard-view")).toHaveLength(0);
     expect(article.saved).toBe(false);
     expect(article.savedFilePath).toBeUndefined();
@@ -601,6 +616,7 @@ describe("onload() initialization", () => {
       { name: "Research", color: "green" },
     ];
     vi.clearAllMocks();
+    const write = vi.spyOn(app.vault.adapter, "write");
 
     for (const handler of renameHandlers) {
       handler(
@@ -609,9 +625,7 @@ describe("onload() initialization", () => {
       );
     }
 
-    await vi.waitFor(() => {
-      expect(plugin.saveData).toHaveBeenCalledTimes(1);
-    });
+    await waitForUserStateWrite(write);
     expect(article.saved).toBe(true);
     expect(article.savedFilePath).toBe("Archive/Renamed article.md");
     expect(article.tags).toEqual([
@@ -653,6 +667,7 @@ describe("onload() initialization", () => {
     article.saved = true;
     article.savedFilePath = "Articles/Saved article.md";
     article.tags = [{ name: "Saved", color: "blue" }];
+    const write = vi.spyOn(app.vault.adapter, "write");
 
     renameHandler?.(
       { path: "Archive/Renamed article.md" },
@@ -670,9 +685,7 @@ describe("onload() initialization", () => {
         article.feedUrl,
       );
     });
-    await vi.waitFor(() => {
-      expect(plugin.saveData).toHaveBeenCalledTimes(1);
-    });
+    await waitForUserStateWrite(write);
   });
 
   it("updates recorded saved-note paths when their folder is renamed", async () => {
@@ -694,11 +707,10 @@ describe("onload() initialization", () => {
 
     const movedFolder = new TFolder();
     movedFolder.path = "Archive/New";
+    const write = vi.spyOn(app.vault.adapter, "write");
     renameHandler?.(movedFolder, "Articles/Old");
 
-    await vi.waitFor(() => {
-      expect(plugin.saveData).toHaveBeenCalledTimes(1);
-    });
+    await waitForUserStateWrite(write);
     expect(article.saved).toBe(true);
     expect(article.savedFilePath).toBe("Archive/New/Saved article.md");
   });

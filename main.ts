@@ -109,7 +109,10 @@ import {
   FACTORY_RESET_LOCAL_STORAGE_KEYS,
   migrateSettings,
 } from "./src/utils/settings-loader";
-import { snapshotArticleFields } from "./src/utils/article-update";
+import {
+  isArticleStateOnlyUpdate,
+  snapshotArticleFields,
+} from "./src/utils/article-update";
 import { applyAutomaticArticleTags } from "./src/utils/tag-utils";
 import { ProxyCheckStore } from "./src/utils/proxy-check";
 import { registerPaletteCommands } from "./src/commands/palette-commands";
@@ -1412,7 +1415,10 @@ export default class RssDashboardPlugin extends Plugin {
       ),
     );
 
-    await this.saveSettings();
+    // Saved-note association is article state: queue it, and wait for this one
+    // flush so the new path is on disk before the save flow reports success.
+    this.queueArticleStateSave();
+    await this.flushPendingWrites();
 
     // Resolve the association after persistence and each deferred leaf load.
     await this.syncSavedArticleAssociationUpdate(feed.url, item.guid);
@@ -1465,7 +1471,15 @@ export default class RssDashboardPlugin extends Plugin {
         resolvedFeedUrl,
         normalizedUpdates,
       );
-      await this.saveSettings();
+      if (isArticleStateOnlyUpdate(normalizedUpdates)) {
+        // The Reader rolls its controls back when a write fails, so this path
+        // keeps an awaited, article-state-scoped write instead of the
+        // fire-and-forget queue the dashboard uses. It is still not a full
+        // feed pass (#1385).
+        await this.saveArticleStateNow();
+      } else {
+        await this.saveSettings();
+      }
     } catch (error) {
       console.error("Failed to save Reader article update", error);
       await this.rollbackReaderArticleUpdate(
@@ -1591,7 +1605,14 @@ export default class RssDashboardPlugin extends Plugin {
 
     Object.assign(article, updates);
 
-    await this.saveSettings();
+    // Article state goes through the coalesced queue, so a dashboard click is
+    // never held on a full settings pass. Feed-content fields (cover image,
+    // restricted reason) still need the full save that writes shards (#1385).
+    if (isArticleStateOnlyUpdate(updates)) {
+      this.queueArticleStateSave();
+    } else {
+      await this.saveSettings();
+    }
 
     if (shouldRefreshView) {
       const view = await this.getActiveDashboardView();
@@ -1652,7 +1673,9 @@ export default class RssDashboardPlugin extends Plugin {
       await this.syncSavedArticleAssociationUpdate(update.feedUrl, update.guid);
     }
 
-    await this.saveSettings();
+    // The renamed note's saved association is article state (#1385).
+    this.queueArticleStateSave();
+    await this.flushPendingWrites();
   }
 
   private async handleSavedArticlePathDeleted(file: {
@@ -1669,7 +1692,9 @@ export default class RssDashboardPlugin extends Plugin {
       await this.syncSavedArticleAssociationUpdate(update.feedUrl, update.guid);
     }
 
-    await this.saveSettings();
+    // Clearing a deleted note's association is article state (#1385).
+    this.queueArticleStateSave();
+    await this.flushPendingWrites();
   }
 
   private async syncSavedArticleAssociationUpdate(
@@ -2563,6 +2588,16 @@ export default class RssDashboardPlugin extends Plugin {
   /** Writes queued article-state changes now and resolves after they land. */
   public flushPendingWrites(): Promise<void> {
     return this.settingsStore.flushPendingWrites();
+  }
+
+  /**
+   * Writes article state now for a caller that must know the write failed (the
+   * Reader rolls its controls back). Dashboard changes use the coalesced queue
+   * instead. Goes through `saveSettings` so the scope and the suppressed-write
+   * gate match the queue, and shard v1 keeps its full save.
+   */
+  saveArticleStateNow(): Promise<void> {
+    return this.saveSettings(this.settingsStore.articleStatePersistOptions());
   }
 
   migrateMetadataToVaultLocation(): Promise<void> {

@@ -187,14 +187,18 @@ describe("Reader save/delete continuations", () => {
       const deleted = vi.spyOn(callbacks, "handleSavedArticlePathDeleted");
       const readerUpdated = vi.spyOn(callbacks, "updateArticleFromReader");
       let persistenceHeld = false;
-      const persist = currentPlugin.saveSettings.bind(currentPlugin);
-      vi.spyOn(currentPlugin, "saveSettings").mockImplementation(async () => {
-        await persist();
-        if (!persistenceHeld) {
-          persistenceHeld = true;
-          await persistence.pending;
-        }
-      });
+      // Saved association now persists through the coalesced queue; hold its
+      // flush so the older save notification stays pending across the delete.
+      const persist = currentPlugin.flushPendingWrites.bind(currentPlugin);
+      vi.spyOn(currentPlugin, "flushPendingWrites").mockImplementation(
+        async () => {
+          await persist();
+          if (!persistenceHeld) {
+            persistenceHeld = true;
+            await persistence.pending;
+          }
+        },
+      );
       await source.actionSaveCurrentArticle();
       expect(saveButton.classList.contains("saved")).toBe(true);
       await vi.waitFor(() => {
