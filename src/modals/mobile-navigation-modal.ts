@@ -65,18 +65,6 @@ export class MobileNavigationModal extends AccessibleModal {
         }
         this.close();
       },
-      onTagToggle: (tag: string) => {
-        // Mirror the toggle into the local options BEFORE calling the dashboard
-        // callback, so the sidebar's own render() (called by the click handler
-        // immediately after this callback returns) reads the updated state.
-        const idx = this.options.selectedTags.indexOf(tag);
-        if (idx !== -1) {
-          this.options.selectedTags.splice(idx, 1);
-        } else {
-          this.options.selectedTags.push(tag);
-        }
-        this.callbacks.onTagToggle(tag);
-      },
       onFolderMultiSelect: (folders: string[]) => {
         // Mirror multi-select into local options so the modal's sidebar
         // shows the updated selection immediately.
