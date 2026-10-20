@@ -1,0 +1,351 @@
+@eval
+// External writes (#1403): what Obsidian fires when a file in the plugin's
+// storage changes from outside Obsidian, which is what an Obsidian Sync
+// delivery looks like to the plugin. Writes go through Node `fs`, behind the
+// vault adapter, and the log comes from listeners installed here.
+//
+// Run it on a FRESH `npm run fixture:vault` (a disposable copy with the
+// RSS Dashboard plugin enabled), in an Obsidian started on its own debug port
+// and profile. Never a real vault: it rewrites the fixture's storage files
+// (restoring them) and creates and deletes `__sync-probe*.json` and
+// `.sync-probe/`. Do not trigger plugin saves during the run, so the plugin's
+// own-write suppression window cannot hide a reload: each operation waits until
+// 3.3 s have passed since the last adapter write under the storage folders.
+// A reload makes the plugin write `user-state.json` itself; those `adapter.*`
+// lines are the plugin reacting, and appear in the log of the operation that
+// caused them.
+//
+// Each step stays under the harness's 30 s call limit, so the matrix is split
+// into one @eval per case. The last step unregisters every listener, unwraps
+// every method, restores every file, and prints SHA-256 hashes of the storage
+// files before and after.
+const fs = require("fs");
+const nodePath = require("path");
+const crypto = require("crypto");
+const A = app.vault.adapter;
+const base = A.getBasePath();
+// A previous run leaves the plugin disabled (see the last step). Enabling it
+// saves user-state.json, so let that settle before the "before" snapshot.
+if (!app.plugins.plugins["rss-dashboard"]) {
+  await app.plugins.enablePlugin("rss-dashboard");
+  await new Promise((r) => window.setTimeout(r, 5000));
+}
+const plugin = app.plugins.plugins["rss-dashboard"];
+if (!plugin) throw new Error("rss-dashboard is not enabled in this vault");
+if (window.__ext) throw new Error("a previous run was not cleaned up");
+const full = (p) => A.getFullPath(p);
+// `npm run stub:probes` runs every driver, and this one rewrites storage files.
+// Refuse any vault that `npm run fixture:vault` did not create.
+if (!fs.existsSync(full(".rss-dashboard-fixture-vault.json"))) {
+  throw new Error("not a fixture vault (no .rss-dashboard-fixture-vault.json)");
+}
+const sleep = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
+const sha = (buf) => crypto.createHash("sha256").update(buf).digest("hex");
+const dataDir = "rss-dashboard-data";
+const pluginData = `${app.vault.configDir}/plugins/rss-dashboard/data.json`;
+const hashTree = (rel) => {
+  const out = {};
+  const walk = (abs, key) => {
+    if (fs.statSync(abs).isDirectory()) {
+      for (const n of fs.readdirSync(abs).sort()) walk(nodePath.join(abs, n), `${key}/${n}`);
+    } else {
+      out[key] = sha(fs.readFileSync(abs));
+    }
+  };
+  walk(full(rel), rel);
+  return out;
+};
+const readTree = (rel) => {
+  const out = {};
+  const walk = (abs, key) => {
+    if (fs.statSync(abs).isDirectory()) {
+      for (const n of fs.readdirSync(abs).sort()) walk(nodePath.join(abs, n), `${key}/${n}`);
+    } else {
+      out[key] = fs.readFileSync(abs);
+    }
+  };
+  walk(full(rel), rel);
+  return out;
+};
+const ext = {
+  log: [],
+  t0: 0,
+  extCalls: 0,
+  reloads: 0,
+  pluginWrites: 0,
+  lastStorageWrite: 0,
+  originals: { ...readTree(dataDir), ...readTree(pluginData) },
+  hashBefore: { ...hashTree(dataDir), ...hashTree(pluginData) },
+  unhook: [],
+};
+window.__ext = ext;
+const note = (kind, args) =>
+  ext.log.push({ ms: Date.now() - ext.t0, kind, args });
+const describe = (v) =>
+  typeof v === "string"
+    ? v
+    : v && typeof v === "object" && "path" in v
+      ? `${"children" in v ? "TFolder" : "TFile"}:${v.path}`
+      : String(v);
+for (const name of ["create", "modify", "delete", "rename", "raw"]) {
+  const ref = app.vault.on(name, (...args) => note(name, args.map(describe)));
+  ext.unhook.push(() => app.vault.offref(ref));
+}
+{
+  const had = Object.prototype.hasOwnProperty.call(plugin, "onExternalSettingsChange");
+  const prev = plugin.onExternalSettingsChange;
+  plugin.onExternalSettingsChange = (...args) => {
+    ext.extCalls += 1;
+    note("onExternalSettingsChange", []);
+    return prev?.apply(plugin, args);
+  };
+  ext.unhook.push(() => {
+    if (had) plugin.onExternalSettingsChange = prev;
+    else delete plugin.onExternalSettingsChange;
+  });
+}
+{
+  const had = Object.prototype.hasOwnProperty.call(plugin, "loadSettings");
+  const prev = plugin.loadSettings;
+  plugin.loadSettings = function (...args) {
+    ext.reloads += 1;
+    note("plugin.loadSettings", []);
+    return prev.apply(this, args);
+  };
+  ext.unhook.push(() => {
+    if (had) plugin.loadSettings = prev;
+    else delete plugin.loadSettings;
+  });
+}
+for (const method of ["write", "writeBinary", "rename", "remove"]) {
+  const prev = A[method];
+  A[method] = function (...args) {
+    const target = String(args[0]);
+    // Obsidian's own bookkeeping (workspace.json and the like) is not the
+    // plugin's, and does not open the plugin's own-write suppression window.
+    if (target.startsWith(dataDir) || target.startsWith(`${app.vault.configDir}/plugins/`)) {
+      ext.pluginWrites += 1;
+      ext.lastStorageWrite = Date.now();
+    }
+    note(`adapter.${method}`, [target]);
+    return prev.apply(this, args);
+  };
+  ext.unhook.push(() => {
+    A[method] = prev;
+  });
+}
+ext.stat = async (p) => {
+  const s = await A.stat(p);
+  return s ? { type: s.type, mtime: s.mtime, size: s.size } : null;
+};
+// One operation: record stat before, run `fn`, wait for the watcher and the
+// plugin's 1500 ms debounce, then collect events and stat after.
+ext.op = async (label, statPath, fn) => {
+  // The plugin ignores vault events for 3 s after its own write. Wait that
+  // out, so a missing reload is never the suppression window hiding it.
+  while (Date.now() - ext.lastStorageWrite < 3300) await sleep(200);
+  ext.log = [];
+  ext.extCalls = 0;
+  ext.reloads = 0;
+  const before = statPath ? await ext.stat(statPath) : null;
+  ext.t0 = Date.now();
+  fn();
+  await sleep(2500);
+  return {
+    op: label,
+    statBefore: before,
+    statAfter: statPath ? await ext.stat(statPath) : null,
+    events: ext.log.map((e) => `${e.ms}ms ${e.kind} ${JSON.stringify(e.args)}`),
+    onExternalSettingsChange: ext.extCalls,
+    pluginReloads: ext.reloads,
+  };
+};
+// Rewrites a file's original bytes plus one trailing newline, then restores.
+ext.modifyAndRestore = async (rel, withNewline = true) => {
+  const abs = full(rel);
+  const original = fs.readFileSync(abs);
+  ext.originals[rel] = original;
+  const out = [];
+  try {
+    out.push(
+      await ext.op(withNewline ? "modify (+newline)" : "modify (same bytes)", rel, () =>
+        fs.writeFileSync(abs, withNewline ? Buffer.concat([original, Buffer.from("\n")]) : original),
+      ),
+    );
+  } finally {
+    out.push(await ext.op("restore", rel, () => fs.writeFileSync(abs, original)));
+  }
+  return out;
+};
+JSON.stringify({
+  base: base.replace(/^.*[\\/]/, ""),
+  obsidianApi: app.plugins.manifests["rss-dashboard"]?.version,
+  platform: process.platform,
+  electron: process.versions.electron,
+  hashBeforeFiles: Object.keys(ext.hashBefore).length,
+})
+
+@eval
+JSON.stringify({
+  obsidianVersion: (navigator.userAgent.match(/obsidian\/([0-9.]+)/) ?? [])[1],
+  userAgent: navigator.userAgent,
+  platform: process.platform,
+  osRelease: require("os").release(),
+})
+
+@eval
+JSON.stringify({ case: "a1 data.json", results: await window.__ext.modifyAndRestore("rss-dashboard-data/data.json") }, null, 1)
+
+@eval
+JSON.stringify({ case: "a2 user-state.json", results: await window.__ext.modifyAndRestore("rss-dashboard-data/user-state.json") }, null, 1)
+
+@eval
+JSON.stringify({ case: "a3 feeds/fx-single.json", results: await window.__ext.modifyAndRestore("rss-dashboard-data/feeds/fx-single.json") }, null, 1)
+
+@eval
+const ext = window.__ext;
+const fs = require("fs");
+const rel = "rss-dashboard-data/feeds/__sync-probe.json";
+const rel2 = "rss-dashboard-data/feeds/__sync-probe-2.json";
+const abs = app.vault.adapter.getFullPath(rel);
+const abs2 = app.vault.adapter.getFullPath(rel2);
+const body = JSON.stringify({ probe: true });
+const out = [];
+try {
+  out.push(await ext.op("create", rel, () => fs.writeFileSync(abs, body)));
+  out.push(await ext.op("modify", rel, () => fs.writeFileSync(abs, body + "\n")));
+} finally {
+  if (fs.existsSync(abs)) fs.unlinkSync(abs);
+  await new Promise((r) => window.setTimeout(r, 2500));
+}
+JSON.stringify({ case: "a4 feeds/__sync-probe.json, create and modify", results: out }, null, 1)
+
+@eval
+const ext = window.__ext;
+const fs = require("fs");
+const rel = "rss-dashboard-data/feeds/__sync-probe.json";
+const rel2 = "rss-dashboard-data/feeds/__sync-probe-2.json";
+const abs = app.vault.adapter.getFullPath(rel);
+const abs2 = app.vault.adapter.getFullPath(rel2);
+const out = [];
+try {
+  fs.writeFileSync(abs, JSON.stringify({ probe: true }));
+  await new Promise((r) => window.setTimeout(r, 2500));
+  out.push(await ext.op("rename to __sync-probe-2.json", rel, () => fs.renameSync(abs, abs2)));
+  out.push(await ext.op("delete", rel2, () => fs.unlinkSync(abs2)));
+} finally {
+  for (const p of [abs, abs2]) if (fs.existsSync(p)) fs.unlinkSync(p);
+  await new Promise((r) => window.setTimeout(r, 2500));
+}
+JSON.stringify({ case: "a4 feeds/__sync-probe.json, rename and delete", results: out }, null, 1)
+
+@eval
+const ext = window.__ext;
+const fs = require("fs");
+const rel = "rss-dashboard-data/feeds/__sync-probe.json";
+const abs = app.vault.adapter.getFullPath(rel);
+const body = JSON.stringify({ probe: true });
+const out = [];
+try {
+  out.push(await ext.op("create (setup)", rel, () => fs.writeFileSync(abs, body)));
+  out.push(
+    await ext.op("delete-then-create (same path, back to back)", rel, () => {
+      fs.unlinkSync(abs);
+      fs.writeFileSync(abs, body + "\n\n");
+    }),
+  );
+} finally {
+  if (fs.existsSync(abs)) fs.unlinkSync(abs);
+  await new Promise((r) => window.setTimeout(r, 2500));
+}
+JSON.stringify({ case: "a4 feeds/__sync-probe.json, delete-then-create", results: out }, null, 1)
+
+@eval
+const ext = window.__ext;
+const rel = "rss-dashboard-data/data.json";
+const abs = app.vault.adapter.getFullPath(rel);
+const fs = require("fs");
+const original = fs.readFileSync(abs);
+ext.originals[rel] = original;
+const out = [];
+try {
+  out.push(await ext.op("modify (identical bytes)", rel, () => fs.writeFileSync(abs, original)));
+} finally {
+  fs.writeFileSync(abs, original);
+}
+JSON.stringify({ case: "a5 data.json, identical bytes", results: out }, null, 1)
+
+@eval
+const ext = window.__ext;
+const fs = require("fs");
+const dir = ".sync-probe";
+const rel = ".sync-probe/probe.json";
+const rel2 = ".sync-probe/probe-2.json";
+const A = app.vault.adapter;
+const abs = A.getFullPath(rel);
+const abs2 = A.getFullPath(rel2);
+const body = JSON.stringify({ probe: true });
+const out = [];
+try {
+  out.push(await ext.op("create folder", dir, () => fs.mkdirSync(A.getFullPath(dir))));
+  out.push(await ext.op("create", rel, () => fs.writeFileSync(abs, body)));
+  out.push(await ext.op("modify", rel, () => fs.writeFileSync(abs, body + "\n")));
+  out.push(await ext.op("rename to probe-2.json", rel, () => fs.renameSync(abs, abs2)));
+  out.push(await ext.op("delete", rel2, () => fs.unlinkSync(abs2)));
+} finally {
+  fs.rmSync(A.getFullPath(dir), { recursive: true, force: true });
+}
+JSON.stringify({ case: "b1 .sync-probe/probe.json", results: out }, null, 1)
+
+@eval
+JSON.stringify({ case: "c1 <configDir>/plugins/rss-dashboard/data.json", results: await window.__ext.modifyAndRestore(`${app.vault.configDir}/plugins/rss-dashboard/data.json`) }, null, 1)
+
+@eval
+const ext = window.__ext;
+const fs = require("fs");
+const nodePath = require("path");
+const crypto = require("crypto");
+const A = app.vault.adapter;
+const sha = (buf) => crypto.createHash("sha256").update(buf).digest("hex");
+// The observations are over. The plugin rewrites user-state.json after a
+// reload (see a1 and a2) and again on load, so restoring the original bytes
+// under a running plugin would be undone by its own save. Disable the plugin
+// and restore. The plugin stays disabled so the restored bytes stand: every
+// load saves user-state.json again with different bytes (same size). The next
+// run enables it in its first step.
+await app.plugins.disablePlugin("rss-dashboard");
+for (const [rel, original] of Object.entries(ext.originals)) {
+  if (!fs.readFileSync(A.getFullPath(rel)).equals(original)) {
+    fs.writeFileSync(A.getFullPath(rel), original);
+  }
+}
+for (const rel of [
+  "rss-dashboard-data/feeds/__sync-probe.json",
+  "rss-dashboard-data/feeds/__sync-probe-2.json",
+]) {
+  fs.rmSync(A.getFullPath(rel), { force: true });
+}
+fs.rmSync(A.getFullPath(".sync-probe"), { recursive: true, force: true });
+await new Promise((r) => window.setTimeout(r, 2500));
+const pluginWrites = ext.pluginWrites;
+for (const unhook of ext.unhook.reverse()) unhook();
+const hashTree = (rel) => {
+  const out = {};
+  const walk = (abs, key) => {
+    if (fs.statSync(abs).isDirectory()) {
+      for (const n of fs.readdirSync(abs).sort()) walk(nodePath.join(abs, n), `${key}/${n}`);
+    } else {
+      out[key] = sha(fs.readFileSync(abs));
+    }
+  };
+  walk(A.getFullPath(rel), rel);
+  return out;
+};
+const after = {
+  ...hashTree("rss-dashboard-data"),
+  ...hashTree(`${app.vault.configDir}/plugins/rss-dashboard/data.json`),
+};
+const before = ext.hashBefore;
+const differing = Object.keys({ ...before, ...after }).filter((k) => before[k] !== after[k]);
+delete window.__ext;
+JSON.stringify({ cleanup: "done", pluginWritesDuringRun: pluginWrites, filesHashed: Object.keys(before).length, byteIdentical: differing.length === 0, differing, sha256Before: before, sha256After: after }, null, 1)
