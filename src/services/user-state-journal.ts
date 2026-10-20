@@ -294,13 +294,25 @@ export class UserStateJournal {
       const raw = await this.app.vault.adapter.read(this.path);
       const records = parseUserStateJournal(raw);
       for (const record of records) {
-        if (record.seq > this.lastSequence) this.lastSequence = record.seq;
+        this.ensureSequenceFloor(record.seq);
       }
       return records;
     } catch (error) {
       storageError("Failed to read the user-state journal", error);
       return [];
     }
+  }
+
+  /**
+   * Raises the next sequence above a value the journal cannot see, such as the
+   * shared snapshot's `checkpointSequence` or records a checkpoint just
+   * truncated. Without this, a fresh or emptied journal starts at 1 again and
+   * replay skips every new record as already folded in (#1380).
+   */
+  public ensureSequenceFloor(sequence: number): void {
+    if (!Number.isFinite(sequence)) return;
+    const floor = Math.floor(sequence);
+    if (floor > this.lastSequence) this.lastSequence = floor;
   }
 
   private async ensureLoaded(): Promise<void> {
@@ -317,6 +329,61 @@ export class UserStateJournal {
     return run;
   }
 
+  /** True when the journal can safely receive another appended line. */
+  private hasCompleteTail(raw: string): boolean {
+    if (raw.length === 0) return true;
+    if (!raw.endsWith("\n")) return false;
+
+    const lines = raw.split("\n");
+    const lastLine = lines[lines.length - 2] ?? "";
+    if (lastLine.trim().length === 0) return true;
+    try {
+      JSON.parse(lastLine);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Rewrites the journal with every complete record through a temporary file
+   * plus rename, so a crash leaves either the old file or the new one. The
+   * caller has already validated that a rewrite is needed.
+   */
+  private async rewrite(
+    records: readonly UserStateJournalRecord[],
+  ): Promise<void> {
+    const content =
+      records.length > 0
+        ? `${records.map((record) => JSON.stringify(record)).join("\n")}\n`
+        : "";
+    const tempPath = `${this.path}.tmp`;
+    const write = async (): Promise<void> => {
+      await this.app.vault.adapter.write(tempPath, content);
+      await this.app.vault.adapter.rename(tempPath, this.path);
+    };
+    if (this.writeWrapper) {
+      await this.writeWrapper(write);
+    } else {
+      await write();
+    }
+  }
+
+  /**
+   * Drops a partial final line left by an interrupted append. Leaving it in
+   * place would concatenate the next append onto the fragment, losing the
+   * fragment and the new record together (#1380).
+   */
+  private async repairTornTail(): Promise<void> {
+    if (!(await this.app.vault.adapter.exists(this.path))) return;
+    const raw = await this.app.vault.adapter.read(this.path);
+    if (this.hasCompleteTail(raw)) return;
+
+    const records = parseUserStateJournal(raw);
+    for (const record of records) this.ensureSequenceFloor(record.seq);
+    await this.rewrite(records);
+  }
+
   /**
    * Appends one self-contained record per change. Invalid changes are skipped
    * rather than failing the append of valid ones.
@@ -327,6 +394,7 @@ export class UserStateJournal {
     if (changes.length === 0) return;
     await this.runExclusive(async () => {
       await this.ensureLoaded();
+      await this.repairTornTail();
 
       const timestamp = Date.now();
       const lines: string[] = [];
@@ -365,14 +433,16 @@ export class UserStateJournal {
 
   /**
    * Drops every record at or below `sequence`, which a checkpoint has already
-   * folded into the shared snapshot. The rewrite goes through a temporary file
-   * plus rename so a crash leaves either the old journal or the new one, never
-   * a half-written file; an absent journal stays valid and does nothing
-   * (#1387).
+   * folded into the shared snapshot, and keeps the sequence floor above it so
+   * records appended later are replayed. The rewrite goes through a temporary
+   * file plus rename so a crash leaves either the old journal or the new one,
+   * never a half-written file; an absent journal stays valid and only raises
+   * the floor (#1387, #1380).
    */
   public async truncateThrough(sequence: number): Promise<void> {
     if (sequence <= 0) return;
     await this.runExclusive(async () => {
+      this.ensureSequenceFloor(sequence);
       await this.ensureLoaded();
       if (!(await this.app.vault.adapter.exists(this.path))) return;
       const raw = await this.app.vault.adapter.read(this.path);
@@ -380,20 +450,7 @@ export class UserStateJournal {
       const remaining = records.filter((record) => record.seq > sequence);
       if (remaining.length === records.length) return;
 
-      const content =
-        remaining.length > 0
-          ? `${remaining.map((record) => JSON.stringify(record)).join("\n")}\n`
-          : "";
-      const tempPath = `${this.path}.tmp`;
-      const write = async (): Promise<void> => {
-        await this.app.vault.adapter.write(tempPath, content);
-        await this.app.vault.adapter.rename(tempPath, this.path);
-      };
-      if (this.writeWrapper) {
-        await this.writeWrapper(write);
-      } else {
-        await write();
-      }
+      await this.rewrite(remaining);
     });
   }
 }

@@ -247,8 +247,13 @@ export class UserStateStore {
     replay: boolean,
   ): Promise<void> {
     if (!this.journal || settings.storageMode !== "vault-shards-v2") return;
-    const records = await this.journal.read();
     const checkpointSequence = snapshot?.checkpointSequence ?? 0;
+    // The journal may be missing or empty while the shared snapshot already
+    // holds a checkpoint (another device wrote it, or a checkpoint truncated
+    // this one). Start numbering above it so new records are not skipped
+    // (#1380).
+    this.journal.ensureSequenceFloor(checkpointSequence);
+    const records = await this.journal.read();
     if (!replay) return;
     foldUserStateJournalRecords(states, records, checkpointSequence);
   }
@@ -750,6 +755,7 @@ export class UserStateStore {
     if (!this.journal || settings.storageMode !== "vault-shards-v2") {
       return checkpointSequence;
     }
+    this.journal.ensureSequenceFloor(checkpointSequence);
     const records = await this.journal.read();
     // The checkpoint covers exactly the records read here and folded below.
     // An append that lands after this read gets a higher sequence and replays

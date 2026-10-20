@@ -19,6 +19,7 @@ import {
 import { App, type PluginManifest } from "obsidian";
 import RssDashboardPlugin from "../../../main";
 import { FeedStorageRepository } from "../../../src/services/feed-storage-repository";
+import { UserStateJournal } from "../../../src/services/user-state-journal";
 import {
   DEFAULT_SETTINGS,
   type Feed,
@@ -244,6 +245,11 @@ async function seedJournal(app: App, lines: string[]): Promise<void> {
   await adapter(app).write(JOURNAL_PATH, `${lines.join("\n")}\n`);
 }
 
+async function seedRawJournal(app: App, raw: string): Promise<void> {
+  await adapter(app).mkdir(`${PLUGIN_DIR}/device-local`);
+  await adapter(app).write(JOURNAL_PATH, raw);
+}
+
 describe("device-local user-state journal (#1386)", () => {
   it("keeps the journal out of the shared metadata and shard folders", async () => {
     const { plugin } = await startPlugin();
@@ -330,6 +336,73 @@ describe("device-local user-state journal (#1386)", () => {
 
     expect(starredOf(plugin)).toBe(false);
     expect(readOf(plugin)).toBe(true);
+  });
+
+  it("numbers a new record above the snapshot checkpoint even with an empty journal", async () => {
+    await adapter(app).write(
+      USER_STATE_PATH,
+      JSON.stringify({
+        version: 4,
+        checkpointSequence: 5,
+        states: {
+          "feed-1:guid-1": { read: false, starred: false, saved: false },
+        },
+      }),
+    );
+    const { plugin } = await startPlugin();
+
+    await repository(plugin).recordArticleStateChanges([
+      { feedId: "feed-1", guid: GUID, changes: { read: true } },
+    ]);
+
+    // The journal starts empty, so it has no record to derive the sequence
+    // from; the snapshot's checkpoint is the floor (#1380).
+    expect(journalRecords(app).map((record) => record.seq)).toEqual([6]);
+
+    const { plugin: reloaded } = await startPlugin();
+    expect(readOf(reloaded)).toBe(true);
+  });
+
+  it("raises the sequence floor when a checkpoint truncates past the journal", async () => {
+    const journal = new UserStateJournal(app, { pluginDir: PLUGIN_DIR });
+    await journal.append([
+      { feedId: "feed-1", guid: GUID, changes: { read: true } },
+    ]);
+
+    await journal.truncateThrough(9);
+    await journal.append([
+      { feedId: "feed-1", guid: SECOND_GUID, changes: { starred: true } },
+    ]);
+
+    expect(journal.lastSequence).toBe(10);
+    expect(journalRecords(app).map((record) => record.seq)).toEqual([10]);
+  });
+
+  it("repairs a torn final line before appending so both records survive", async () => {
+    await seedRawJournal(
+      app,
+      `${journalRecord(1, GUID, { read: true })}\n` +
+        '{"seq":2,"deviceId":"device-test","timestamp":1760000000',
+    );
+    const { plugin } = await startPlugin();
+
+    await repository(plugin).recordArticleStateChanges([
+      { feedId: "feed-1", guid: SECOND_GUID, changes: { starred: true } },
+    ]);
+
+    const raw = adapterFiles(app).get(JOURNAL_PATH) ?? "";
+    expect(raw.endsWith("\n")).toBe(true);
+    expect(raw).not.toContain('"timestamp":1760000000{"seq"');
+    const records = journalRecords(app);
+    expect(records[records.length - 1]?.seq).toBeGreaterThan(1);
+    expect(records[records.length - 1]).toMatchObject({
+      guid: SECOND_GUID,
+      changes: { starred: true },
+    });
+
+    const { plugin: reloaded } = await startPlugin();
+    expect(readOf(reloaded)).toBe(true);
+    expect(starredOf(reloaded, SECOND_GUID)).toBe(true);
   });
 
   it("replaying the same journal twice produces the same state", async () => {
