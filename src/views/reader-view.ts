@@ -3,6 +3,7 @@ import type {
   ReaderContentVersions,
 } from "../components/reader-content-versions";
 import {
+  resolveFeedFetchPlan,
   runFeedFirstDisplay,
   visitReaderContent,
 } from "../components/reader-feed-first";
@@ -32,6 +33,7 @@ import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { enhanceYouTubeEmbeds } from "../utils/youtube-inline-embed";
 import { type FullArticleFetchResult } from "../utils/fetch-helpers";
 import {
+  isStarredImportCachedPreview,
   persistFetchedCoverImage,
   persistFetchedMetadata,
   persistFetchedPageImage,
@@ -1402,7 +1404,17 @@ export class ReaderView extends ItemView {
   ): Promise<void> {
     const feedContent = item.content || item.description || "";
     this.currentFullContent = feedContent;
-    if (this.shouldSkipFullArticleFetch(item) || !item.link) {
+    // A rich Substack feed ships the full body, so the automatic fetch is
+    // skipped. Still offer the fetched version, fetched on first request.
+    const prefersFeedContent = this.prefersFeedContent(item);
+    const plan = resolveFeedFetchPlan(
+      Boolean(item.link),
+      prefersFeedContent,
+      isStarredImportCachedPreview(item) ||
+        hasActiveFetchFailure(item) ||
+        this.isVideoMediaItem(item),
+    );
+    if (plan === "display") {
       await this.displayArticle(item, feedContent);
       return;
     }
@@ -1416,6 +1428,7 @@ export class ReaderView extends ItemView {
       container: this.readingContainer,
       item,
       feedContent,
+      onDemand: plan === "onDemand",
       renderVersion: (parent, version, content) =>
         this.renderArticle(item, content, parent, version),
       onSelectVersion: (version, fetched) => {
@@ -1485,6 +1498,7 @@ export class ReaderView extends ItemView {
     });
     if (!versions) return;
     if (
+      plan !== "onDemand" &&
       this.settings.useWebViewer &&
       this.webViewerIntegration &&
       identity === this.displayIdentity &&
@@ -1727,39 +1741,6 @@ export class ReaderView extends ItemView {
     return this.prefersFeedContent(item, feedHtml);
   }
 
-  private shouldSkipFullArticleFetch(item: FeedItem): boolean {
-    if (this.isStarredImportCachedPreview(item)) {
-      return true;
-    }
-
-    // A fetch that failed earlier waits for an explicit "Try again" (#1110).
-    if (hasActiveFetchFailure(item)) {
-      return true;
-    }
-
-    if (this.isVideoMediaItem(item)) {
-      return true;
-    }
-
-    return this.prefersFeedContent(item);
-  }
-
-  /**
-   * True for a starred.json-imported article (234-09) that has never had a
-   * full-content fetch attempted, or whose last attempt failed. The reader's
-   * automatic fetch-on-open is skipped in both cases — a fetch only happens
-   * when the user clicks "Fetch now" on the cached-preview banner. Articles
-   * that never came from a starred import (no `starredImportContentState`
-   * at all) always return false here, so their automatic fetch-on-open is
-   * completely unaffected.
-   */
-  private isStarredImportCachedPreview(item: FeedItem): boolean {
-    return (
-      item.starredImportContentState === "unfetched" ||
-      item.starredImportContentState === "failed"
-    );
-  }
-
   private isVideoMediaItem(item: FeedItem): boolean {
     return isLikelyVideoItem(item);
   }
@@ -1907,7 +1888,7 @@ export class ReaderView extends ItemView {
       renderRestrictedBanner(container, item);
     } else if (shouldRenderVideoSourceBanner(item)) {
       renderVideoSourceBanner(container, item);
-    } else if (this.isStarredImportCachedPreview(item)) {
+    } else if (isStarredImportCachedPreview(item)) {
       this.renderStarredImportBanner(item, container);
     }
     // Independent of the banners above: the fetch is skipped while a failure

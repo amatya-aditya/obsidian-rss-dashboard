@@ -24,6 +24,13 @@ export interface FeedFirstDisplayOptions {
   hasMeaningfulContent: (html: string) => boolean;
   /** Runs right after the versions exist, before the fetch is awaited. */
   onVersions: (versions: ReaderContentVersions) => void;
+  /**
+   * Offer the fetched version without fetching now. The fetch runs the first
+   * time the reader picks the fetched version. Used where the feed body is
+   * preferred and the automatic fetch is skipped, so the RSS/fetched toggle
+   * still exists.
+   */
+  onDemand?: boolean;
   fetch: () => Promise<FullArticleFetchResult>;
   /** Runs for every settled fetch, even when the display went stale. */
   persistMetadata: (result: FullArticleFetchResult) => void;
@@ -53,6 +60,23 @@ export interface FeedFirstDisplayOptions {
 }
 
 /**
+ * Chooses how a feed-first article reaches the fetched version. A missing link
+ * or another skip reason keeps the single-version display; preferred feed
+ * content offers the fetched version on demand; everything else fetches eagerly.
+ */
+export type FeedFetchPlan = "display" | "eager" | "onDemand";
+
+export function resolveFeedFetchPlan(
+  hasLink: boolean,
+  prefersFeedContent: boolean,
+  skipForAnotherReason: boolean,
+): FeedFetchPlan {
+  if (!hasLink) return "display";
+  if (skipForAnotherReason) return "display";
+  return prefersFeedContent ? "onDemand" : "eager";
+}
+
+/**
  * Feed-first display shared by the inline and dedicated readers: show the
  * RSS version at once, fetch the article, then offer or fail the fetched one.
  * Returns the live versions whatever the fetch outcome (failed fetches
@@ -62,6 +86,7 @@ export async function runFeedFirstDisplay(
   options: FeedFirstDisplayOptions,
 ): Promise<ReaderContentVersions | null> {
   const { container, item, feedContent } = options;
+  const onDemand = options.onDemand === true;
   let fetchedContent = "";
   const versions = new ReaderContentVersions(
     container,
@@ -73,41 +98,72 @@ export async function runFeedFirstDisplay(
       ),
     (version) => options.onSelectVersion(version, fetchedContent),
     !options.hasMeaningfulContent(feedContent),
+    onDemand,
   );
   options.onVersions(versions);
-  const result = await options.fetch();
-  // Metadata belongs to the fetched item even after navigation or close.
-  // Keep the substantial-body gate: a short extraction must not lock metadata.
-  if (options.hasMeaningfulContent(result.content)) {
-    options.persistMetadata(result);
-  }
-  // The page's own image is not body metadata: a restricted head declares one
-  // even when nothing readable was extracted (#1342).
-  if (result.pageImage) {
-    options.persistPageImage(result);
-  }
-  const remembered = options.rememberOutcome(result);
-  if (!options.isCurrent() || !versions.isActive()) return null;
-  fetchedContent = result.content;
-  options.onSettled?.(result);
-  if (result.failureType === "none" && fetchedContent.trim().length > 0) {
-    applyRestrictedReason(item, undefined, options.persistRestrictedReason);
-    versions.ready();
-  } else {
-    if (result.failureType === "restricted") {
-      applyRestrictedReason(
-        item,
-        RESTRICTED_ARTICLE_REASON,
-        options.persistRestrictedReason,
-      );
-      if (!container.querySelector(".rss-reader-paywall-banner"))
-        options.renderRestrictedBanner();
-    } else if (remembered) {
-      options.renderFetchFailureBanner();
+
+  const settle = (result: FullArticleFetchResult): boolean => {
+    // Metadata belongs to the fetched item even after navigation or close.
+    // Keep the substantial-body gate: a short extraction must not lock metadata.
+    if (options.hasMeaningfulContent(result.content)) {
+      options.persistMetadata(result);
     }
-    versions.failed(result);
+    // The page's own image is not body metadata: a restricted head declares one
+    // even when nothing readable was extracted (#1342).
+    if (result.pageImage) {
+      options.persistPageImage(result);
+    }
+    // A fetch the reader asked for is not remembered: it already reported its
+    // outcome, and remembering it would replace the on-demand toggle with the
+    // automatic-retry banner on the next open.
+    const remembered = onDemand ? false : options.rememberOutcome(result);
+    if (!options.isCurrent() || !versions.isActive()) return false;
+    fetchedContent = result.content;
+    options.onSettled?.(result);
+    if (result.failureType === "none" && fetchedContent.trim().length > 0) {
+      applyRestrictedReason(item, undefined, options.persistRestrictedReason);
+      if (onDemand) {
+        versions.showFetchedContent();
+      } else {
+        versions.ready();
+      }
+    } else {
+      if (result.failureType === "restricted") {
+        applyRestrictedReason(
+          item,
+          RESTRICTED_ARTICLE_REASON,
+          options.persistRestrictedReason,
+        );
+        if (!container.querySelector(".rss-reader-paywall-banner"))
+          options.renderRestrictedBanner();
+      } else if (remembered) {
+        options.renderFetchFailureBanner();
+      }
+      versions.failed(result);
+    }
+    return true;
+  };
+
+  if (onDemand) {
+    versions.offerFetchedContent(() => {
+      void (async () => {
+        let result: FullArticleFetchResult;
+        try {
+          result = await options.fetch();
+        } catch {
+          result = {
+            content: "",
+            failureType: "network",
+            failureReason: "unexpected",
+          };
+        }
+        settle(result);
+      })();
+    });
+    return versions;
   }
-  return versions;
+
+  return settle(await options.fetch()) ? versions : null;
 }
 
 /**
