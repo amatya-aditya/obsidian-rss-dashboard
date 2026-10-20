@@ -140,6 +140,16 @@ describe.each(MODALS)("%s modal Folder field", (_name, open) => {
     expect(document.activeElement).toBe(input);
   });
 
+  it("lays the Folder row out as a form row, so the field fills its column", () => {
+    const combobox = getFolderCombobox(open().contentEl);
+
+    expect(
+      combobox
+        .closest(".setting-item")
+        ?.classList.contains("rss-feed-form-row"),
+    ).toBe(true);
+  });
+
   it("keeps the clear button after the input, labelled Clear folder", () => {
     const combobox = getFolderCombobox(open().contentEl);
 
