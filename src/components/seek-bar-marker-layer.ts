@@ -3,17 +3,16 @@
  *
  * Renders one button per marker on top of a player's progress wrapper. The
  * layer is marker-agnostic so the media-notes ticket (#1357) can reuse it for
- * note markers: callers supply the position, accessible name and preview
- * text. Chapter-specific wording stays in `PodcastPlayer`.
+ * note markers: callers supply the position, accessible name and preview text.
+ * Chapter-specific wording stays in `PodcastPlayer`.
  *
- * Markers are real `<button>` elements in the tab order (DEC-008). Hover or
- * keyboard focus shows a plain-text preview; activating a marker seeks and
- * leaves play/pause untouched (DEC-006, DEC-007).
+ * Markers are real `<button>` elements in the tab order (DEC-008), so Enter
+ * and Space activate them natively. Hover or keyboard focus shows the
+ * plain-text preview; activating a marker seeks and leaves play/pause
+ * untouched (DEC-006, DEC-007). When markers overlap, the click goes to the
+ * marker nearest the pointer rather than the last one painted (DEC-012).
  */
-import {
-  formatChapterTime,
-  shortenChapterTitle,
-} from "../utils/podcast-chapters";
+import { windowInstanceOf } from "../utils/platform-utils";
 
 /** One marker on the bar. */
 export interface SeekBarMarker {
@@ -21,10 +20,8 @@ export interface SeekBarMarker {
   start: number;
   /** Full accessible name, for example "Chapter 3, 12:30, Title". */
   label: string;
-  /** Title shown in the preview; shortened here for display. */
-  title: string;
-  /** Plain-text detail shown after the title, for example a length. */
-  detail?: string;
+  /** Plain-text preview, for example "12:30 — Title (4:21)". */
+  preview: string;
 }
 
 export interface SeekBarMarkerLayerOptions {
@@ -39,7 +36,6 @@ export interface SeekBarMarkerLayerOptions {
 interface RenderedMarker {
   marker: SeekBarMarker;
   button: HTMLButtonElement;
-  percent: number;
 }
 
 /** How long a touch tap keeps its preview visible. */
@@ -81,37 +77,17 @@ export class SeekBarMarkerLayer {
           marker.start < duration,
       )
       .map((marker) => {
-        const percent = (marker.start / duration) * 100;
         const button = root.createEl("button", {
           cls: "seek-bar-marker",
           attr: { type: "button", "aria-label": marker.label },
         });
+        const percent = (marker.start / duration) * 100;
         button.style.setProperty("--seek-bar-marker-position", `${percent}%`);
 
-        const activate = (): void => {
-          this.options.onSeek(marker.start);
-          this.showPreview(marker, percent);
-          this.schedulePreviewHide();
-        };
-
-        button.addEventListener("mousedown", (event) => {
-          // A mousedown on a marker must not start the bar's drag (U-004).
-          event.stopPropagation();
-        });
-        button.addEventListener("touchstart", (event) => {
-          event.stopPropagation();
-        });
         button.addEventListener("click", (event) => {
           event.preventDefault();
           event.stopPropagation();
-          activate();
-        });
-        button.addEventListener("keydown", (event) => {
-          if (event.key !== "Enter" && event.key !== " ") return;
-          // Cancel the native activation so Enter and Space seek once.
-          event.preventDefault();
-          event.stopPropagation();
-          activate();
+          this.activate(marker, event);
         });
         button.addEventListener("mouseenter", () =>
           this.showPreview(marker, percent),
@@ -122,7 +98,7 @@ export class SeekBarMarkerLayer {
         );
         button.addEventListener("blur", () => this.hidePreview());
 
-        return { marker, button, percent };
+        return { marker, button };
       });
 
     this.previewEl = root.createDiv({
@@ -141,11 +117,6 @@ export class SeekBarMarkerLayer {
     }
   }
 
-  /** Remove every marker and the preview. */
-  clear(): void {
-    this.destroy();
-  }
-
   destroy(): void {
     this.clearPreviewTimer();
     this.rendered = [];
@@ -154,14 +125,56 @@ export class SeekBarMarkerLayer {
     this.previewEl = null;
   }
 
+  /**
+   * Seek to the marker nearest the pointer, so a dense list still picks the
+   * tick the reader aimed at when 32 px targets overlap (DEC-012).
+   */
+  private activate(marker: SeekBarMarker, event: MouseEvent): void {
+    const target = this.nearestMarker(marker, event);
+    this.options.onSeek(target.start);
+    this.showPreview(target, this.percentOf(target));
+    this.schedulePreviewHide();
+  }
+
+  private nearestMarker(
+    fallback: SeekBarMarker,
+    event: MouseEvent,
+  ): SeekBarMarker {
+    const root = this.rootEl;
+    const duration = this.options.getDuration();
+    if (!root || duration === null || !windowInstanceOf(event, MouseEvent)) {
+      return fallback;
+    }
+    const rect = root.getBoundingClientRect();
+    if (rect.width <= 0) return fallback;
+
+    const percent = Math.max(
+      0,
+      Math.min(1, (event.clientX - rect.left) / rect.width),
+    );
+    const seconds = percent * duration;
+    let nearest = fallback;
+    let distance = Number.POSITIVE_INFINITY;
+    for (const { marker } of this.rendered) {
+      const candidate = Math.abs(marker.start - seconds);
+      if (candidate < distance) {
+        distance = candidate;
+        nearest = marker;
+      }
+    }
+    return nearest;
+  }
+
+  private percentOf(marker: SeekBarMarker): number {
+    const duration = this.options.getDuration();
+    return duration === null ? 0 : (marker.start / duration) * 100;
+  }
+
   private showPreview(marker: SeekBarMarker, percent: number): void {
     const preview = this.previewEl;
     if (!preview) return;
     this.clearPreviewTimer();
-    const time = formatChapterTime(marker.start);
-    const title = shortenChapterTitle(marker.title);
-    const detail = marker.detail ? ` (${marker.detail})` : "";
-    preview.textContent = `${time} — ${title}${detail}`;
+    preview.textContent = marker.preview;
     // Keep the floating preview inside the bar's width at the two edges.
     preview.style.setProperty(
       "--seek-bar-marker-position",

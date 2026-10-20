@@ -52,6 +52,13 @@ const LEADING_TIME =
 const TRAILING_TIME =
   /^(.*)\s*[([]\s*(\d{1,4}):([0-5]\d)(?::([0-5]\d))?\s*[)\]]\s*$/;
 
+/**
+ * A bare trailing time after an explicit separator, as in `Title - 12:30`.
+ * The separator is what keeps runtime prose such as "runs 45:00" out.
+ */
+const TRAILING_TIME_AFTER_SEPARATOR =
+  /^(.*?)\s*[-–—:]\s*(\d{1,4}):([0-5]\d)(?::([0-5]\d))?\s*$/;
+
 const NAMED_ENTITIES: Record<string, string> = {
   amp: "&",
   apos: "'",
@@ -125,6 +132,17 @@ function parseLine(text: string): PodcastChapter | null {
     if (title) {
       return {
         start: toSeconds(trailing[2] ?? "", trailing[3] ?? "", trailing[4]),
+        title,
+      };
+    }
+  }
+
+  const separated = TRAILING_TIME_AFTER_SEPARATOR.exec(text);
+  if (separated) {
+    const title = (separated[1] ?? "").trim();
+    if (title) {
+      return {
+        start: toSeconds(separated[2] ?? "", separated[3] ?? "", separated[4]),
         title,
       };
     }

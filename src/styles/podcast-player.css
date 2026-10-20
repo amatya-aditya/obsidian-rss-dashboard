@@ -438,16 +438,17 @@
   background: var(--rss-podcast-progress-color, #1db954);
   border-radius: inherit;
   overflow: hidden;
-  pointer-events: none;
   transition: width 0.1s linear;
 }
 
-/* Shared marker layer (#1374, reused by #1357). Sits above the progress
+/* Shared marker layer (#1374, reused by #1357). It sits above the progress
    element so each marker button takes its own click, while the layer itself
-   lets pointer events through to the bar between markers. */
+   lets pointer events through to the bar between markers. The 32 px hit area
+   is the design-spec baseline; dense lists overlap, and the layer resolves a
+   click to the nearest tick (DEC-012). */
 .seek-bar-marker-layer {
   position: absolute;
-  inset: -6px 0;
+  inset: -10px 0;
   z-index: 3;
   pointer-events: none;
 }
@@ -456,8 +457,8 @@
   position: absolute;
   top: 50%;
   left: var(--seek-bar-marker-position, 0%);
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   margin: 0;
   border: none;
@@ -483,13 +484,23 @@
   box-shadow:
     0 0 0 1px var(--background-primary),
     0 0 0 2px currentColor;
+  transition: height 0.15s ease;
 }
 
+/* Passed markers dim and shorten, so the state is not carried by opacity
+   alone. Focus restores full opacity so its ring stays visible. */
 .seek-bar-marker.is-passed {
   opacity: 0.5;
 }
 
-.seek-bar-marker:hover,
+.seek-bar-marker.is-passed::before {
+  height: 8px;
+}
+
+.seek-bar-marker:hover {
+  z-index: 1;
+}
+
 .seek-bar-marker:focus-visible {
   opacity: 1;
   z-index: 1;

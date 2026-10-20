@@ -425,6 +425,7 @@
   .rss-sleep-timer-btn,
   .podcast-progress-bar-filled,
   .seek-bar-marker,
+  .seek-bar-marker::before,
   .podcast-episode-details > summary,
   .podcast-episode-details > summary::before,
   .episode-list-sort,

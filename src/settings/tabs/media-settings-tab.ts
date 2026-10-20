@@ -24,7 +24,7 @@ interface MediaSettingsPlugin {
     updatePodcastTheme: (theme: PodcastTheme) => void;
   } | null>;
   applyYouTubeFocusMode(hide: boolean): Promise<void>;
-  applyPodcastChapterMarkers?(enabled: boolean): Promise<void> | void;
+  applyPodcastChapterMarkers(enabled: boolean): Promise<void>;
 }
 
 export function renderMediaSettingsTab(
@@ -126,7 +126,7 @@ export function renderMediaSettingsTab(
         .setValue(plugin.settings.media.showPodcastChapterMarkers ?? true)
         .onChange(async (value) => {
           plugin.settings.media.showPodcastChapterMarkers = value;
-          await plugin.applyPodcastChapterMarkers?.(value);
+          await plugin.applyPodcastChapterMarkers(value);
           await plugin.saveSettings();
         }),
     );

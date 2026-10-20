@@ -848,7 +848,13 @@ export default class RssDashboardPlugin extends Plugin {
     return null;
   }
 
-  public async applyYouTubeFocusMode(hide: boolean): Promise<void> {
+  /**
+   * Visits every open Reader and dashboard, the two views that own a podcast
+   * player. Shared by the media settings that apply to open players.
+   */
+  private async forEachPlayerHostView(
+    run: (view: ReaderView | RssDashboardView) => void,
+  ): Promise<void> {
     const types = [RSS_READER_VIEW_TYPE, RSS_DASHBOARD_VIEW_TYPE];
     for (const type of types) {
       for (const leaf of this.app.workspace.getLeavesOfType(type)) {
@@ -857,10 +863,14 @@ export default class RssDashboardPlugin extends Plugin {
         }
         const view = leaf.view;
         if (view instanceof ReaderView || view instanceof RssDashboardView) {
-          view.setYouTubeFocusMode(hide);
+          run(view);
         }
       }
     }
+  }
+
+  public async applyYouTubeFocusMode(hide: boolean): Promise<void> {
+    await this.forEachPlayerHostView((view) => view.setYouTubeFocusMode(hide));
   }
 
   /**
@@ -884,18 +894,9 @@ export default class RssDashboardPlugin extends Plugin {
    * a player already on screen updates without reloading.
    */
   public async applyPodcastChapterMarkers(enabled: boolean): Promise<void> {
-    const types = [RSS_READER_VIEW_TYPE, RSS_DASHBOARD_VIEW_TYPE];
-    for (const type of types) {
-      for (const leaf of this.app.workspace.getLeavesOfType(type)) {
-        if (requireApiVersion("1.7.2")) {
-          await leaf.loadIfDeferred();
-        }
-        const view = leaf.view;
-        if (view instanceof ReaderView || view instanceof RssDashboardView) {
-          view.setPodcastChapterMarkers(enabled);
-        }
-      }
-    }
+    await this.forEachPlayerHostView((view) =>
+      view.setPodcastChapterMarkers(enabled),
+    );
   }
 
   /**

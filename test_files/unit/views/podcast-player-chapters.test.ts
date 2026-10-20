@@ -121,10 +121,10 @@ describe("PodcastPlayer chapter markers", () => {
     ).toEqual(["0%", "10%", "50%", "90%"]);
     expect(rendered.map((marker) => marker.getAttribute("aria-label"))).toEqual(
       [
-        "Chapter 1, 0:00, Intro",
-        "Chapter 2, 0:10, Second",
-        "Chapter 3, 0:50, Third",
-        "Chapter 4, 1:30, Last",
+        "Chapter 1, 0:00, Intro, 0:10 long",
+        "Chapter 2, 0:10, Second, 0:40 long",
+        "Chapter 3, 0:50, Third, 0:40 long",
+        "Chapter 4, 1:30, Last, 0:10 long",
       ],
     );
     expect(container.querySelector(".seek-bar-marker-layer")).not.toBeNull();
@@ -139,10 +139,10 @@ describe("PodcastPlayer chapter markers", () => {
     expect(rendered.every((marker) => marker.tabIndex === 0)).toBe(true);
     expect(rendered.map((marker) => marker.getAttribute("aria-label"))).toEqual(
       [
-        "Chapter 1, 0:00, Intro",
-        "Chapter 2, 0:10, Second",
-        "Chapter 3, 0:50, Third",
-        "Chapter 4, 1:30, Last",
+        "Chapter 1, 0:00, Intro, 0:10 long",
+        "Chapter 2, 0:10, Second, 0:40 long",
+        "Chapter 3, 0:50, Third, 0:40 long",
+        "Chapter 4, 1:30, Last, 0:10 long",
       ],
     );
   });
@@ -171,30 +171,19 @@ describe("PodcastPlayer chapter markers", () => {
     expect(off.label()?.hidden).toBe(true);
   });
 
-  it.each([["click"], ["Enter"], [" "]])(
-    "seeks exactly to the chapter on %s and leaves play/pause untouched",
-    (activation) => {
-      const { audio, markers } = load();
-      withDuration(audio, 100);
-      const play = vi.spyOn(HTMLMediaElement.prototype, "play");
-      const pause = vi.spyOn(HTMLMediaElement.prototype, "pause");
-      const marker = markers()[2];
+  it("seeks exactly to the chapter on activation and leaves play/pause untouched", () => {
+    const { audio, markers } = load();
+    withDuration(audio, 100);
+    const play = vi.spyOn(HTMLMediaElement.prototype, "play");
+    const pause = vi.spyOn(HTMLMediaElement.prototype, "pause");
+    const marker = markers()[2];
 
-      if (activation === "click") marker.click();
-      else
-        marker.dispatchEvent(
-          new KeyboardEvent("keydown", {
-            key: activation,
-            bubbles: true,
-            cancelable: true,
-          }),
-        );
+    marker.click();
 
-      expect(audio.currentTime).toBe(50);
-      expect(play).not.toHaveBeenCalled();
-      expect(pause).not.toHaveBeenCalled();
-    },
-  );
+    expect(audio.currentTime).toBe(50);
+    expect(play).not.toHaveBeenCalled();
+    expect(pause).not.toHaveBeenCalled();
+  });
 
   it("does not start a bar drag from a mousedown on a marker", () => {
     const { container, audio, markers } = load();
@@ -243,6 +232,63 @@ describe("PodcastPlayer chapter markers", () => {
     expect(previewOf(container).hidden).toBe(true);
   });
 
+  it("seeks to the nearest tick when dense markers overlap", () => {
+    const { container, audio, markers } = load();
+    withDuration(audio, 100);
+    const layer = container.querySelector<HTMLElement>(
+      ".seek-bar-marker-layer",
+    )!;
+    vi.spyOn(layer, "getBoundingClientRect").mockReturnValue({
+      left: 0,
+      top: 0,
+      right: 200,
+      bottom: 32,
+      width: 200,
+      height: 32,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    } as DOMRect);
+
+    // 98 px is 49 s: nearer the 50 s marker than the 10 s one whose button
+    // painted first and would otherwise win the click.
+    markers()[1].dispatchEvent(
+      new MouseEvent("click", { clientX: 98, bubbles: true }),
+    );
+
+    expect(audio.currentTime).toBe(50);
+  });
+
+  it("shows the preview briefly after activating a marker", () => {
+    vi.useFakeTimers();
+    try {
+      const { container, audio, markers } = load();
+      withDuration(audio, 100);
+      const preview = previewOf(container);
+
+      markers()[0].click();
+      expect(preview.hidden).toBe(false);
+
+      vi.advanceTimersByTime(1500);
+      expect(preview.hidden).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("labels the first chapter while the playhead is before it", () => {
+    const { audio, label } = load(
+      true,
+      baseEpisode({
+        description: "(00:15) First\n(00:30) Second\n(00:45) Third",
+      }),
+    );
+    withDuration(audio, 100);
+
+    expect(label()?.hidden).toBe(false);
+    expect(label()?.textContent).toBe("First");
+  });
+
   it("renders HTML in a title as text, never as markup", () => {
     const { container, audio, markers } = load(
       true,
@@ -286,16 +332,12 @@ describe("PodcastPlayer chapter markers", () => {
 
     expect(label()?.hidden).toBe(false);
     expect(label()?.textContent).toBe("Intro");
-    expect(progressArea.getAttribute("aria-label")).toBe(
-      "Chapter 1 of 4: Intro",
-    );
+    expect(progressArea.getAttribute("aria-label")).toBe("Intro");
 
     audio.currentTime = 11;
     audio.dispatchEvent(new Event("timeupdate"));
     expect(label()?.textContent).toBe("Second");
-    expect(progressArea.getAttribute("aria-label")).toBe(
-      "Chapter 2 of 4: Second",
-    );
+    expect(progressArea.getAttribute("aria-label")).toBe("Second");
 
     audio.currentTime = 95;
     audio.dispatchEvent(new Event("timeupdate"));

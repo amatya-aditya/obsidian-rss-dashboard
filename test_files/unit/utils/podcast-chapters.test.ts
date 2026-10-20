@@ -62,6 +62,16 @@ describe("parsePodcastChapters", () => {
       ]);
     });
 
+    it("accepts a title-first line with an explicit separator before the time", () => {
+      const html = "Intro - 0:00\nMiddle – 12:30\nEnd: 1:02:03";
+
+      expect(parsePodcastChapters(html)).toEqual([
+        { start: 0, title: "Intro" },
+        { start: 750, title: "Middle" },
+        { start: 3723, title: "End" },
+      ]);
+    });
+
     it("accepts m:ss, mm:ss, [brackets], em dash, colon and <br> line breaks", () => {
       const html =
         "[0:00] First<br>[12:30] Second<br>[1:02:03]: Third<br>[2:00:00] — Fourth";

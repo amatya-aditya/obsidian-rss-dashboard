@@ -158,9 +158,7 @@ export class PodcastPlayer {
     this.currentItem = item;
     this.hasAudioForCurrentItem = !!resolvedAudioUrl;
     this.currentNotesHtml = selectEpisodeNotesHtml(item);
-    this.chapters = this.chapterMarkersEnabled
-      ? parsePodcastChapters(this.currentNotesHtml)
-      : [];
+    this.chapters = [];
     this.currentPlaylistIndex = this.playlist.findIndex(
       (ep) => ep.guid === item.guid,
     );
@@ -657,6 +655,7 @@ export class PodcastPlayer {
     // Row 2: progress area
     const progressArea = this.playerEl.createDiv({
       cls: "podcast-progress-area",
+      attr: { role: "group" },
     });
     this.progressAreaEl = progressArea;
 
@@ -686,6 +685,7 @@ export class PodcastPlayer {
 
     this.chapterLabelEl = progressArea.createDiv({
       cls: "podcast-chapter-label",
+      attr: { "aria-live": "polite", "aria-atomic": "true" },
     });
     this.chapterLabelEl.hidden = true;
 
@@ -1153,12 +1153,16 @@ export class PodcastPlayer {
       groupLabel: "Chapters",
     });
     layer.setMarkers(
-      this.chapters.map((chapter, index) => ({
-        start: chapter.start,
-        title: chapter.title,
-        label: `Chapter ${index + 1}, ${formatChapterTime(chapter.start)}, ${chapter.title}`,
-        detail: this.chapterLength(index, duration),
-      })),
+      this.chapters.map((chapter, index) => {
+        const detail = this.chapterLength(index, duration);
+        const time = formatChapterTime(chapter.start);
+        const shortTitle = shortenChapterTitle(chapter.title);
+        return {
+          start: chapter.start,
+          label: `Chapter ${index + 1}, ${time}, ${chapter.title}, ${detail} long`,
+          preview: `${time} — ${shortTitle} (${detail})`,
+        };
+      }),
     );
     this.markerLayer = layer;
     this.updateChapterState();
@@ -1194,22 +1198,15 @@ export class PodcastPlayer {
     if (!label || !this.markerLayer) return;
 
     const index = this.chapterIndexAt(seconds);
-    if (index < 0) {
-      label.textContent = "";
-      label.hidden = true;
-      this.progressAreaEl?.removeAttribute("aria-label");
-      return;
-    }
-
-    const chapter = this.chapters[index];
+    const chapter = index >= 0 ? this.chapters[index] : this.chapters[0];
     if (!chapter) return;
     const shortTitle = shortenChapterTitle(chapter.title);
-    label.textContent = shortTitle;
+    if (label.textContent !== shortTitle) label.textContent = shortTitle;
     label.hidden = false;
-    this.progressAreaEl?.setAttribute(
-      "aria-label",
-      `Chapter ${index + 1} of ${this.chapters.length}: ${shortTitle}`,
-    );
+    // DEC-009: the visible label is also the progress area's accessible name.
+    if (this.progressAreaEl?.getAttribute("aria-label") !== shortTitle) {
+      this.progressAreaEl?.setAttribute("aria-label", shortTitle);
+    }
   }
 
   /** Seek to a chapter without changing play or pause state (DEC-006). */
