@@ -73,7 +73,7 @@ import {
   formatDashboardMultiFiltersTitle,
 } from "../utils/filter-title-format";
 import { computePagination } from "../utils/pagination-utils";
-import { getArticlePreviewSummaryText } from "../utils/article-preview-utils";
+import { computeHighlightMatchCounts } from "../utils/highlight-match-counts";
 import { removeFolderByPath } from "../utils/folder-tree";
 import { createIconButton, getIconButtonAction } from "../utils/icon-button";
 import { createLiveRegion } from "../utils/live-region";
@@ -1735,86 +1735,17 @@ export class RssDashboardView extends ItemView {
 
   // --- Highlight match counting ---
   /**
-   * HIGHLIGHT MATCH COUNTING
-   * ─────────────────────────
-   * For each enabled highlight word, counts how many articles in the
-   * currently-displayed set contain at least one match. Counts are
-   * per-article (an article is counted once regardless of how many times
-   * the word appears inside it).
-   *
    * Called once per render cycle, after getFilteredArticles() returns and
-   * before renderFilterSubheader() reads this.highlightMatchCounts.
-   *
-   * Field selection mirrors HighlightService behaviour:
-   *   settings.highlights.highlightInTitles    → article.title
-   *   settings.highlights.highlightInSummaries → the preview text the cards
-   *     show (getArticlePreviewSummaryText), and nothing while
-   *     settings.display.showSummary is off
-   *   settings.highlights.highlightInContent   → article.content
-   *
-   * Regex building mirrors HighlightService behaviour per-word: escapes each
-   * word text, applies optional whole-word boundaries, and respects each
-   * word's caseSensitive flag.
+   * before renderFilterSubheader() reads this.highlightMatchCounts. The
+   * per-article matching and its cache live in utils/highlight-match-counts.
    */
   private computeHighlightMatchCounts(articles: FeedItem[]): void {
     // Always reset so stale data from a previous render does not linger.
-    this.highlightMatchCounts = [];
-
-    const hs = this.settings.highlights;
-    if (!hs?.enabled || !hs.words?.length) return;
-
-    const enabledWords = hs.words.filter((w) => w.enabled);
-    if (enabledWords.length === 0) return;
-
-    const previewTexts = this.getHighlightPreviewTexts(articles);
-
-    for (const word of enabledWords) {
-      // Escape special regex characters (same as HighlightService.escapeRegex)
-      const escaped = word.text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      // Optional whole-word boundaries (same logic as HighlightService.buildPattern)
-      const pattern = word.wholeWord
-        ? `(?:^|\\W)(${escaped})(?:$|\\W)`
-        : escaped;
-      // Per-word case sensitivity: add "i" only for case-insensitive words.
-      const regexFlags = word.caseSensitive ? "" : "i";
-      const regex = new RegExp(pattern, regexFlags);
-
-      let count = 0;
-      for (const article of articles) {
-        // Collect the text fields governed by the highlight scope settings
-        const fields: string[] = [];
-        if (hs.highlightInTitles !== false) fields.push(article.title ?? "");
-        if (hs.highlightInSummaries !== false) {
-          fields.push(previewTexts.get(article) ?? "");
-        }
-        if (hs.highlightInContent !== false) fields.push(article.content ?? "");
-
-        // Fallback: always test the title when no scopes are enabled
-        if (fields.length === 0) fields.push(article.title ?? "");
-
-        if (fields.some((f) => regex.test(f))) count++;
-      }
-
-      this.highlightMatchCounts.push({ word, count });
-    }
-  }
-
-  /**
-   * The text the cards display for each article, for the summary highlight
-   * scope. Empty when that scope is off or summaries are hidden, so the scope
-   * adds nothing to the count. Built once per render, not once per word.
-   */
-  private getHighlightPreviewTexts(
-    articles: FeedItem[],
-  ): Map<FeedItem, string> {
-    const previewTexts = new Map<FeedItem, string>();
-    const hs = this.settings.highlights;
-    if (hs.highlightInSummaries === false || !this.settings.display.showSummary)
-      return previewTexts;
-    for (const article of articles) {
-      previewTexts.set(article, getArticlePreviewSummaryText(article));
-    }
-    return previewTexts;
+    this.highlightMatchCounts = computeHighlightMatchCounts(
+      articles,
+      this.settings.highlights,
+      this.settings.display.showSummary,
+    );
   }
 
   // --- Title and article-scope helpers ---
