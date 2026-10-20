@@ -36,10 +36,11 @@ export function importBundle(
 /** Fail the forward state write once, allowing the rollback write to succeed. */
 export function failNextStateWrite(app: App, statePath: string): void {
   const write = app.vault.adapter.write.bind(app.vault.adapter);
+  const temporaryPath = `${statePath}.tmp`;
   let failed = false;
   vi.spyOn(app.vault.adapter, "write").mockImplementation(
     async (path, data) => {
-      if (path === statePath && !failed) {
+      if ((path === statePath || path === temporaryPath) && !failed) {
         failed = true;
         throw new Error("state write failed");
       }

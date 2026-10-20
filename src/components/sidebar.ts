@@ -23,6 +23,7 @@ import { AddTagModal } from "../modals/add-tag-modal";
 import { showEditTagModal } from "../utils/tag-utils";
 import { deleteTagFromSettings } from "../utils/tag-settings";
 import { windowInstanceOf } from "../utils/platform-utils";
+import type { UserStateJournalChange } from "../services/user-state-journal";
 import { addInputClearButton } from "../utils/input-clear-button";
 import { markMenuItemDestructive } from "../utils/destructive-menu-item";
 import { isDomNode } from "../utils/dom-node";
@@ -2049,19 +2050,27 @@ export class Sidebar {
 
   private markSelectionReadStatus(read: boolean): void {
     let count = 0;
+    const changes: UserStateJournalChange[] = [];
 
     for (const feed of this.getEffectiveSelectedFeeds()) {
       for (const item of feed.items) {
         if (item.read !== read) {
           item.read = read;
           count++;
+          if (feed.feedId) {
+            changes.push({
+              feedId: feed.feedId,
+              guid: item.guid,
+              changes: { read },
+            });
+          }
         }
       }
     }
 
     if (count > 0) {
       new Notice(`Marked ${count} items as ${read ? "read" : "unread"}`);
-      this.plugin.queueArticleStateSave();
+      void this.plugin.queueArticleStateSave(changes);
       this.render();
     } else {
       new Notice(`No items to mark as ${read ? "read" : "unread"}`);
@@ -2989,17 +2998,25 @@ export class Sidebar {
 
   private async markAllUnreadAsRead(): Promise<void> {
     let count = 0;
+    const changes: UserStateJournalChange[] = [];
     this.settings.feeds.forEach((feed) => {
       feed.items.forEach((item) => {
         if (!item.read) {
           item.read = true;
           count++;
+          if (feed.feedId) {
+            changes.push({
+              feedId: feed.feedId,
+              guid: item.guid,
+              changes: { read: true },
+            });
+          }
         }
       });
     });
 
     if (count > 0) {
-      this.plugin.queueArticleStateSave();
+      void this.plugin.queueArticleStateSave(changes);
       this.render();
       new Notice(`Marked ${count} items as read`);
     } else {
@@ -3009,17 +3026,25 @@ export class Sidebar {
 
   private async markAllReadAsUnread(): Promise<void> {
     let count = 0;
+    const changes: UserStateJournalChange[] = [];
     this.settings.feeds.forEach((feed) => {
       feed.items.forEach((item) => {
         if (item.read) {
           item.read = false;
           count++;
+          if (feed.feedId) {
+            changes.push({
+              feedId: feed.feedId,
+              guid: item.guid,
+              changes: { read: false },
+            });
+          }
         }
       });
     });
 
     if (count > 0) {
-      this.plugin.queueArticleStateSave();
+      void this.plugin.queueArticleStateSave(changes);
       this.render();
       new Notice(`Marked ${count} items as unread`);
     } else {
@@ -3680,10 +3705,20 @@ export class Sidebar {
         .setTitle("Mark all as read")
         .setIcon("check-circle")
         .onClick(() => {
-          feed.items.forEach((item) => {
-            item.read = true;
+          const changes: UserStateJournalChange[] = [];
+          feed.items.forEach((entry) => {
+            if (!entry.read) {
+              entry.read = true;
+              if (feed.feedId) {
+                changes.push({
+                  feedId: feed.feedId,
+                  guid: entry.guid,
+                  changes: { read: true },
+                });
+              }
+            }
           });
-          this.plugin.queueArticleStateSave();
+          void this.plugin.queueArticleStateSave(changes);
           this.render();
         });
     });

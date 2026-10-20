@@ -18,6 +18,7 @@ import type {
 } from "./feed-storage-repository";
 import type { FeedRefreshScheduler } from "./feed-refresh-scheduler";
 import type { SavedArticleAssociationUpdate } from "./saved-article-association-service";
+import type { UserStateJournalChange } from "./user-state-journal";
 import {
   ensureMetadataFolderExists,
   getMetadataPath,
@@ -114,6 +115,12 @@ export class SettingsStore {
   private articleStateFlushTimer: number | null = null;
   private queuedArticleStateChanges = 0;
   private articleStateFlush: Promise<void> | null = null;
+  /**
+   * Serialized journal appends from queued changes. A checkpoint, a settings
+   * load, and an unload all wait for this before reading or rewriting the
+   * snapshot, so a change is either folded in or replayed, never lost (#1387).
+   */
+  private journalAppendChain: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly app: App,
@@ -266,8 +273,14 @@ export class SettingsStore {
   async loadSettings(): Promise<void> {
     const loadGeneration = ++this.settingsLoadGeneration;
     this.wasNullSettingsLoad = false;
-    this.settingsLoadFailed = true;
     try {
+      // A synced reload replaces the in-memory snapshot. Pending local changes
+      // must already be in the journal before it is read, or this load would
+      // drop them; replay then applies them over the reloaded snapshot
+      // (#1387). Settle before the failed-load gate closes so an append
+      // accepted by the previous state can still land.
+      await this.settleJournalAppends();
+      this.settingsLoadFailed = true;
       storageLog("Loading plugin settings");
       const { data, vaultMetadataUnreadable } =
         await this.readBootstrapSettings();
@@ -494,6 +507,9 @@ export class SettingsStore {
 
   async saveSettings(options: PersistSettingsOptions = {}): Promise<void> {
     if (this.isPersistenceSuppressed()) return;
+    // Any queued change must be on disk before this write folds the journal
+    // into the snapshot and advances its checkpoint (#1387).
+    await this.settleJournalAppends();
     storageLog("saveSettings invoked", {
       mode: this.settings.storageMode,
       folder: this.settings.storageFolder,
@@ -525,23 +541,59 @@ export class SettingsStore {
   }
 
   /**
-   * Records that article state changed (read, starred, tags, saved, or
-   * playback progress). The write runs after the interaction: changes inside
-   * one window share one persistence pass, and passing the size threshold
-   * flushes without waiting for the window. Callers never await this.
+   * Appends the change to the device-local journal, serially and behind the
+   * same gate as every other write. Errors are logged rather than rejecting:
+   * the coalesced snapshot write that follows still carries the change while
+   * this session lasts, and callers ignore this promise.
    */
-  queueArticleStateSave(): void {
-    if (this.isPersistenceSuppressed()) return;
+  private appendJournalChanges(
+    changes: readonly UserStateJournalChange[],
+  ): Promise<void> {
+    if (changes.length === 0) return this.journalAppendChain;
+    const run = this.journalAppendChain.then(async () => {
+      if (this.isPersistenceSuppressed()) return;
+      try {
+        await this.feedStorageRepository.recordArticleStateChanges(changes);
+      } catch (error) {
+        storageError("Failed to append to the user-state journal", error);
+      }
+    });
+    this.journalAppendChain = run;
+    return run;
+  }
+
+  /** Resolves once every journal append requested so far has finished. */
+  private settleJournalAppends(): Promise<void> {
+    return this.journalAppendChain;
+  }
+
+  /**
+   * Records that article state changed (read, starred, tags, saved, or
+   * playback progress). The changed identity and fields are appended to the
+   * device-local journal immediately so they survive an abrupt close, then the
+   * snapshot write runs after the interaction: changes inside one window share
+   * one checkpoint, and passing the size threshold flushes without waiting for
+   * the window (#1387). Callers never await this.
+   *
+   * @returns the journal append, which resolves even on failure; production
+   * callers ignore it, tests may await it to observe durability.
+   */
+  queueArticleStateSave(
+    changes: readonly UserStateJournalChange[] = [],
+  ): Promise<void> {
+    if (this.isPersistenceSuppressed()) return Promise.resolve();
+    const appended = this.appendJournalChanges(changes);
     this.queuedArticleStateChanges += 1;
     if (this.queuedArticleStateChanges >= ARTICLE_STATE_FLUSH_THRESHOLD) {
       void this.flushPendingWrites();
-      return;
+      return appended;
     }
-    if (this.articleStateFlushTimer !== null) return;
+    if (this.articleStateFlushTimer !== null) return appended;
     this.articleStateFlushTimer = window.setTimeout(() => {
       this.articleStateFlushTimer = null;
       void this.flushPendingWrites();
     }, ARTICLE_STATE_FLUSH_WINDOW_MS);
+    return appended;
   }
 
   /**
@@ -552,6 +604,7 @@ export class SettingsStore {
    */
   async flushPendingWrites(): Promise<void> {
     this.clearArticleStateFlushTimer();
+    await this.settleJournalAppends();
     if (this.articleStateFlush) await this.articleStateFlush;
     if (this.queuedArticleStateChanges === 0) return;
     this.queuedArticleStateChanges = 0;
@@ -563,6 +616,17 @@ export class SettingsStore {
     } finally {
       if (this.articleStateFlush === flush) this.articleStateFlush = null;
     }
+  }
+
+  /**
+   * Appends article-state changes to the device-local journal and resolves when
+   * they are durable. Callers that are followed by a full save use this so the
+   * save can fold the records it just queued (#1387).
+   */
+  recordArticleStateChanges(
+    changes: readonly UserStateJournalChange[],
+  ): Promise<void> {
+    return this.appendJournalChanges(changes);
   }
 
   /**

@@ -97,7 +97,7 @@ async function waitForUserStateWrite(
   await vi.waitFor(() => {
     expect(
       write.mock.calls.some((call: unknown[]) =>
-        String(call[0]).endsWith("user-state.json"),
+        String(call[0]).endsWith("user-state.json.tmp"),
       ),
     ).toBe(true);
   });
