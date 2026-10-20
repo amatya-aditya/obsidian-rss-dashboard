@@ -12,6 +12,7 @@ import {
 import { firstNonFormulaImageUrl, isAvatarImageUrl } from "./image-url-utils";
 import { isFeedIconUrl } from "./reader-article-render";
 import { isLikelyVideoItem } from "./video-detection";
+import { resolveVideoSource } from "./video-source";
 import { getOpenableHttpHref } from "./url-utils";
 
 const VIDEO_ARTICLE_BANNER =
@@ -147,7 +148,13 @@ export function renderRestrictedBanner(
 
 /** True for a video item that carries no playable source of its own. */
 export function shouldRenderVideoSourceBanner(item: FeedItem): boolean {
-  return isLikelyVideoItem(item) && !item.videoId && !item.videoUrl;
+  return (
+    isLikelyVideoItem(item) &&
+    !item.videoId &&
+    !item.videoUrl &&
+    // The route only opens the player for a video-typed item.
+    !(item.mediaType === "video" && resolveVideoSource(item))
+  );
 }
 
 /**

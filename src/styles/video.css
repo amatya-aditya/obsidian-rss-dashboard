@@ -49,6 +49,9 @@
   display: flex;
   color: var(--rss-color-youtube-badge, #ff0000);
 }
+.rss-video-watch--twitch .rss-video-watch-icon {
+  color: var(--rss-color-twitch-purple, #451093);
+}
 .rss-video-details {
   padding: 15px;
 }
@@ -56,6 +59,12 @@
   font-size: 1.5em;
   margin: 0 0 10px 0;
   color: var(--text-normal);
+}
+/* Obsidian pads .setting-item-heading by --size-4-4. The title already sits
+   inside .rss-video-details' padding, so the extra indent misaligns it with
+   the channel/date line and the description. */
+.rss-video-title.setting-item-heading {
+  padding: 0;
 }
 .rss-video-meta {
   display: flex;
