@@ -15,22 +15,6 @@
   position: relative;
 }
 
-.edit-feed-folder-option {
-  padding: 8px 16px;
-  cursor: pointer;
-  color: var(--text-normal, #222);
-  font-size: 1em;
-  transition:
-    background 0.15s,
-    color 0.15s;
-}
-
-.edit-feed-folder-option:hover,
-.edit-feed-folder-option:focus {
-  background: var(--background-modifier-hover, #f0f0f0);
-  color: var(--interactive-accent, #3498db);
-}
-
 .rss-dashboard-modal .rss-edit-feed-storage-address-row {
   display: flex;
   align-items: center;

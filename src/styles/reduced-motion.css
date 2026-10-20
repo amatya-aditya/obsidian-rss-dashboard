@@ -219,7 +219,6 @@
   .rss-dashboard-custom-save-modal .rss-dashboard-custom-save-confirm-button,
   .rss-dashboard-danger-button,
   .rss-confirm-modal-cancel,
-  .edit-feed-folder-option,
   .rss-dashboard-tag-modal-name-input,
   .rss-shortcut-help-modal .rss-dashboard-header-close-button {
     transition-duration: 0.01ms;
@@ -274,7 +273,6 @@
   }
 
   /* edit-feed-modal.css */
-  .edit-feed-folder-option,
   .rss-dashboard-modal.rss-edit-feed-modal
     .rss-edit-feed-actions
     .rss-edit-feed-save-button,
