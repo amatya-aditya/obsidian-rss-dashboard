@@ -40,9 +40,14 @@ installObsidianDomPolyfills();
 
 const NOW = 1_700_000_000_000;
 
-/** The menu of an unpinned folder that is not part of a selection, in order. */
+const COLLAPSE_ITEM: [string, string] = ["Collapse folder", "chevron-down"];
+const EXPAND_ITEM: [string, string] = ["Expand folder", "chevron-right"];
+
+/** The menu of an expanded, unpinned folder that is not part of a selection. */
 const FULL_MENU: Array<[string, string]> = [
+  ["Refresh all feeds", "refresh-cw"],
   ["Refresh details", "info"],
+  COLLAPSE_ITEM,
   ["Add feed", "rss"],
   ["Add subfolder", "folder-plus"],
   ["Rename folder", "edit"],
@@ -51,10 +56,14 @@ const FULL_MENU: Array<[string, string]> = [
   ["Mark all as read", "check-circle"],
   ["Refresh feeds in folder", "refresh-cw"],
   ["Auto tag feeds in folder...", "tags"],
-  ["Refresh all feeds", "refresh-cw"],
   ["Pin folder", "lock"],
   ["Delete folder", "trash"],
 ];
+
+/** An empty folder has nothing to collapse, so it gets no collapse action. */
+const EMPTY_FOLDER_MENU = FULL_MENU.filter(
+  ([title]) => title !== COLLAPSE_ITEM[0],
+);
 
 const SELECTION_MENU: Array<[string, string]> = [
   ["Refresh details", "info"],
@@ -362,7 +371,7 @@ describe("Sidebar folder context menu (characterization)", () => {
       build();
 
       rightClick("News");
-      rightClick("Empty");
+      rightClick("Videos");
 
       expect(ObsidianStubs.Menu.lastItems).toHaveLength(FULL_MENU.length);
       expect(atMouseEvent).toHaveBeenCalledTimes(2);
@@ -407,14 +416,14 @@ describe("Sidebar folder context menu (characterization)", () => {
       );
     });
 
-    it("builds the same menu for a nested folder and an empty one", () => {
+    it("builds the full menu for a nested folder and the shorter one for an empty folder", () => {
       build();
 
       rightClick("News/Tech/Releases");
       expect(menuEntries()).toEqual(FULL_MENU);
       titleIconLog = [];
       rightClick("Empty");
-      expect(menuEntries()).toEqual(FULL_MENU);
+      expect(menuEntries()).toEqual(EMPTY_FOLDER_MENU);
     });
 
     it("builds a menu even for a folder that is not in the settings", () => {
@@ -423,7 +432,7 @@ describe("Sidebar folder context menu (characterization)", () => {
 
       callMenu("Ghost", ghost);
 
-      expect(menuEntries()).toEqual(FULL_MENU);
+      expect(menuEntries()).toEqual(EMPTY_FOLDER_MENU);
     });
 
     it("takes the pinned state from the folder object it was given, not from the path", () => {
@@ -447,6 +456,139 @@ describe("Sidebar folder context menu (characterization)", () => {
       rightClick("News");
 
       expect(separator).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("collapsing and expanding from the menu", () => {
+    /** The dashboard's handler: it flips the folder in settings before the redraw. */
+    function syncCollapseState(): void {
+      vi.mocked(callbacks.onToggleFolderCollapse).mockImplementation(
+        (folder) => {
+          settings.collapsedFolders = settings.collapsedFolders.includes(folder)
+            ? settings.collapsedFolders.filter((path) => path !== folder)
+            : [...settings.collapsedFolders, folder];
+        },
+      );
+    }
+
+    it("offers Collapse folder with a down chevron as the third item of an expanded folder", () => {
+      build();
+
+      rightClick("News");
+
+      expect(menuEntries()[2]).toEqual(COLLAPSE_ITEM);
+    });
+
+    it("offers Expand folder with a right chevron as the third item of a collapsed folder", () => {
+      settings.collapsedFolders = ["News/Tech"];
+      build();
+
+      rightClick("News/Tech");
+
+      expect(menuEntries()[2]).toEqual(EXPAND_ITEM);
+    });
+
+    it("collapses the folder and redraws the sidebar without opening it", () => {
+      syncCollapseState();
+      build();
+      const render = vi.spyOn(sidebar, "render");
+
+      rightClick("News");
+      clickItem("Collapse folder");
+
+      expect(callbacks.onToggleFolderCollapse).toHaveBeenCalledWith(
+        "News",
+        false,
+      );
+      expect(callbacks.onFolderClick).not.toHaveBeenCalled();
+      expect(settings.collapsedFolders).toContain("News");
+      expect(render).toHaveBeenCalledTimes(1);
+      expect(folderHeader("News").classList.contains("collapsed")).toBe(true);
+      expect(
+        folderHeader("News")
+          .querySelector(".rss-dashboard-feed-folder-toggle")
+          ?.getAttribute("aria-label"),
+      ).toBe("Expand folder");
+    });
+
+    it("expands the folder and redraws the sidebar without opening it", () => {
+      settings.collapsedFolders = ["News"];
+      syncCollapseState();
+      build();
+      const render = vi.spyOn(sidebar, "render");
+
+      rightClick("News");
+      clickItem("Expand folder");
+
+      expect(callbacks.onToggleFolderCollapse).toHaveBeenCalledWith(
+        "News",
+        false,
+      );
+      expect(callbacks.onFolderClick).not.toHaveBeenCalled();
+      expect(settings.collapsedFolders).not.toContain("News");
+      expect(render).toHaveBeenCalledTimes(1);
+      expect(folderHeader("News").classList.contains("collapsed")).toBe(false);
+      expect(
+        folderHeader("News")
+          .querySelector(".rss-dashboard-feed-folder-toggle")
+          ?.getAttribute("aria-label"),
+      ).toBe("Collapse folder");
+    });
+
+    it("leaves the action out for a folder with nothing inside", () => {
+      build();
+
+      rightClick("Empty");
+
+      expect(menuTitles()).not.toContain("Collapse folder");
+      expect(menuTitles()).not.toContain("Expand folder");
+    });
+
+    it("keeps the action out of a multi-selection menu", () => {
+      options.selectedFolders = ["News"];
+      build();
+
+      rightClick("News");
+
+      expect(menuEntries()).toEqual(SELECTION_MENU);
+    });
+
+    it("keeps the label it opened with when the folder state changes later", () => {
+      build();
+
+      rightClick("News");
+      settings.collapsedFolders = ["News"];
+
+      expect(menuTitles()[2]).toBe("Collapse folder");
+    });
+  });
+
+  describe("destructive actions", () => {
+    it("marks Delete folder as a warning so its title and icon turn red", () => {
+      build();
+
+      rightClick("News");
+
+      const items = ObsidianStubs.Menu.lastItems;
+      expect(
+        items.find((item) => item.title === "Delete folder")?.isWarning,
+      ).toBe(true);
+      expect(items.find((item) => item.title === "Add feed")?.isWarning).toBe(
+        false,
+      );
+    });
+
+    it("marks Delete selection as a warning", () => {
+      options.selectedFolders = ["News"];
+      build();
+
+      rightClick("News");
+
+      expect(
+        ObsidianStubs.Menu.lastItems.find(
+          (item) => item.title === "Delete selection",
+        )?.isWarning,
+      ).toBe(true);
     });
   });
 
@@ -495,7 +637,7 @@ describe("Sidebar folder context menu (characterization)", () => {
 
       rightClick("Empty");
 
-      expect(menuEntries()).toEqual(FULL_MENU);
+      expect(menuEntries()).toEqual(EMPTY_FOLDER_MENU);
     });
 
     it("treats a single selected folder as a multi-selection", () => {

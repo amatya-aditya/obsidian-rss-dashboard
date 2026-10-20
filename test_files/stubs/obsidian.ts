@@ -1673,6 +1673,7 @@ class MenuItemStub {
   // `checked: null` and `disabled: false`.
   checked: boolean | null = null;
   disabled = false;
+  isWarning = false;
   callback: ((evt: MouseEvent) => unknown) | undefined;
 
   setTitle(title: string | DocumentFragment): this {
@@ -1689,6 +1690,10 @@ class MenuItemStub {
   }
   setDisabled(disabled: boolean): this {
     this.disabled = disabled;
+    return this;
+  }
+  setWarning(isWarning: boolean): this {
+    this.isWarning = isWarning;
     return this;
   }
   onClick(cb: (evt: MouseEvent) => unknown): this {

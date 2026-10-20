@@ -24,6 +24,7 @@ import { showEditTagModal } from "../utils/tag-utils";
 import { deleteTagFromSettings } from "../utils/tag-settings";
 import { windowInstanceOf } from "../utils/platform-utils";
 import { addInputClearButton } from "../utils/input-clear-button";
+import { markMenuItemDestructive } from "../utils/destructive-menu-item";
 import { isDomNode } from "../utils/dom-node";
 import {
   SidebarSearchService,
@@ -2015,7 +2016,7 @@ export class Sidebar {
     });
     menu.addSeparator();
     menu.addItem((item: MenuItem) => {
-      item
+      markMenuItemDestructive(item)
         .setTitle("Delete selection")
         .setIcon("trash")
         .onClick(() => {
@@ -2310,6 +2311,10 @@ export class Sidebar {
       callbacks: this.callbacks,
       plugin: this.plugin,
       render: () => this.render(),
+      toggleFolderCollapse: (folderPath) => {
+        this.callbacks.onToggleFolderCollapse(folderPath, false);
+        this.render();
+      },
       showRefreshDetails: (anchor, feeds, scope) =>
         this.showRefreshDetails(anchor, feeds, scope),
       getAllDescendantFolderPaths: (path) =>
@@ -2904,7 +2909,7 @@ export class Sidebar {
     });
 
     menu.addItem((item: MenuItem) => {
-      item
+      markMenuItemDestructive(item)
         .setTitle("Delete tag")
         .setIcon("trash")
         .onClick(() => {
@@ -3732,7 +3737,7 @@ export class Sidebar {
     });
 
     menu.addItem((item: MenuItem) => {
-      item
+      markMenuItemDestructive(item)
         .setTitle("Delete feed")
         .setIcon("trash")
         .onClick(() => {

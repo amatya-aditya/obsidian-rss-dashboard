@@ -655,7 +655,12 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
 }
 
 .rss-dashboard-feed-folder {
-  overflow: hidden;
+  /*
+   * The chevron's expanded hit area reaches 3px past the header's content
+   * inset. Child rows clip themselves, and names truncate, so this box does
+   * not need to clip; keeping it visible makes the full target clickable.
+   */
+  overflow: visible;
   flex: 0 0 auto;
 }
 
@@ -673,6 +678,12 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
   padding-left: var(--sidebar-item-padding-left);
   padding-right: var(--sidebar-item-padding-right);
   flex-shrink: 0;
+  /*
+   * Back to the pre-change compact row (~27px at the default spacing). The
+   * chevron's 32px target overlaps about 2.5px into the rows above and below;
+   * the toggle's stacking keeps that full target clickable.
+   */
+  min-height: 27px;
 }
 
 .rss-dashboard-feed-folder-header:hover {
@@ -747,9 +758,26 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  /*
+   * The 32px target is taller than the ~27px row. Stack the toggle above the
+   * neighbouring rows so the 2.5px overhang at each edge still hits it.
+   */
+  z-index: 1;
   margin-right: 8px;
   color: var(--text-muted);
   cursor: pointer;
+}
+
+/*
+ * The hit area, not the paint: 32x32 around the 16x16 chevron. The right 8px
+ * lands in the existing gap before the folder name, so the larger target never
+ * takes a click meant for the name.
+ */
+.rss-dashboard-feed-folder-toggle::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
 }
 
 .rss-dashboard-folder-pin-icon {
@@ -764,7 +792,8 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
 }
 
 .rss-dashboard-folder-feeds {
-  overflow: hidden;
+  /* Like the folder box above, this must not clip a nested chevron's target. */
+  overflow: visible;
   background-color: var(--background-primary);
   padding-left: var(--sidebar-row-indentation);
   flex: 0 0 auto;
@@ -1436,6 +1465,11 @@ body .rss-folder-name-modal {
   .rss-dashboard-feed,
   .rss-dashboard-all-feeds-button {
     min-height: 44px;
+  }
+
+  /* 40px tall inside the row's 44px height; the right edge still stops at the name. */
+  .rss-dashboard-feed-folder-toggle::after {
+    inset: -12px -8px;
   }
 
   /* Ensure icon containers don't stretch with increased row height */
