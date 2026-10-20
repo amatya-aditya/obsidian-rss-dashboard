@@ -409,6 +409,9 @@ export class AddFeedModal extends AccessibleModal {
         new FolderSuggest(this.app, this.folderInput, this.folders);
       });
     decorateFolderSelectorInput(folderSetting, this.folderInput);
+    // Same form row as Edit Feed's Folder field, so the field fills its column
+    // like the URL and Title inputs instead of shrinking to its own width.
+    folderSetting.settingEl.addClass("rss-feed-form-row");
   }
 
   /* ============================================

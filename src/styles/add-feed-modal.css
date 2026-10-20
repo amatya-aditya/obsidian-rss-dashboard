@@ -171,6 +171,43 @@
   width: 100%;
 }
 
+/* Folder field (decorateFolderSelectorInput): a folder icon at the start of the
+ * input, with the clear button at its end. The wrapper is the positioning box
+ * for both, and the icon ignores pointer input so a click on it reaches the
+ * input. Input start padding makes room for the icon; input-clear-button.css
+ * owns the end padding. */
+.rss-dashboard-folder-combobox {
+  position: relative;
+}
+
+.rss-dashboard-modal .rss-feed-form-row .rss-dashboard-folder-combobox {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+}
+
+.rss-dashboard-folder-combobox > .rss-dashboard-folder-combobox-icon {
+  --icon-size: var(--icon-s, 16px);
+  position: absolute;
+  inset-inline-start: var(--size-4-3, 12px);
+  top: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  color: var(--text-muted);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.rss-dashboard-folder-combobox > input.rss-dashboard-folder-combobox-input {
+  box-sizing: border-box;
+  padding-inline-start: calc(
+    var(--size-4-3, 12px) + var(--icon-s, 16px) + var(--size-4-2, 8px)
+  );
+}
+
 .rss-dashboard-modal .rss-feed-source-row .setting-item-control {
   justify-content: center;
 }
