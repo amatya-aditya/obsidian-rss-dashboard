@@ -53,6 +53,7 @@
 - The Import/Export section headed **Settings bundle** is now **App preferences**, so a settings heading no longer repeats the word "settings". The section's description, buttons, and exported `rss-dashboard-settings-bundle.json` file name are unchanged. [GH Issue #1021](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1021)
 - **Settings → Media → Podcast player** gains an **Apple podcast links** toggle (off by default). When on, a podcast's open menu offers an _Open in Apple Podcasts_ entry. [GH Issue #919](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/919)
 - Click any `{{…}}` in the template variable reference to copy it, and use the new `{{date:YYYY/MM/DD}}` examples for custom date formats. [GH Issue #1060](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1060)
+- The **Folder** field in the Add Feed, Edit Feed, and Import Starred dialogs now shows a folder icon at the start of the input, on desktop and mobile. Typed text and the clear button stay clear of the icon. Edit Feed now builds its Folder field the same way Add Feed does, so the two dialogs match, and its clear button refreshes the folder suggestions without firing a change event. [GH Issue #1378](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1378)
 
 ### Fixes
 
