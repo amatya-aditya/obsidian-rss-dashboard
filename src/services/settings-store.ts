@@ -30,7 +30,12 @@ import {
 } from "./metadata-location";
 import { comparableSnapshotJson } from "./storage-json";
 import { ownWriteKey, type OwnWriteRecord } from "./own-write-record";
-import { mergeSettingsGroups } from "./settings-group-merge";
+import {
+  groupsKeptFromMemory,
+  mergeSettingsAgainstAncestor,
+  mergeSettingsGroups,
+} from "./settings-group-merge";
+import { SettingsAncestorStore } from "./settings-ancestor";
 import { normalizeFolderPath } from "./feed-storage-shard";
 
 function storageLog(_message: string, _details?: unknown): void {}
@@ -77,6 +82,18 @@ function serializeWithoutArticles(settings: RssDashboardSettings): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+/** What a reload needs from before it replaces memory (ADR 0036). */
+interface SettingsBeforeReload {
+  /** The settings object the load is about to replace. */
+  memory: RssDashboardSettings;
+  /** Comparable content of the settings file this device last wrote or loaded. */
+  fileComparable: string | null;
+  /** Where that file is, so a moved metadata folder is not read as a delivery. */
+  filePath: string | null;
+  /** Articles in memory before the load, for a feed the file lacks. */
+  itemsBefore: Map<string, FeedItem[]>;
 }
 
 export interface SettingsStoreOptions {
@@ -191,10 +208,16 @@ export class SettingsStore {
    */
   private journalAppendChain: Promise<void> = Promise.resolve();
 
+  /** The `data.json` state this device last knew to be shared (ADR 0036). */
+  private readonly ancestor: SettingsAncestorStore;
+  /** The settings file the last load read, as an object, before it was changed. */
+  private lastLoadedFile: Record<string, unknown> | null = null;
+
   constructor(
     private readonly app: App,
     private readonly options: SettingsStoreOptions,
   ) {
+    this.ancestor = new SettingsAncestorStore(app);
     // The journal is device-local and obeys this store's one write gate, so
     // the store that owns the plugin folder and the gate configures it.
     this.options.feedStorageRepository.configureDeviceLocalJournal({
@@ -320,6 +343,7 @@ export class SettingsStore {
     // it, whether this load read a pointer or the full settings (#1400).
     this.pluginDataBaseline = this.describePluginData(data);
     this.pluginDataBaselineData = isRecord(data) ? structuredClone(data) : null;
+    this.lastLoadedFile = this.pluginDataBaselineData;
     let vaultMetadataUnreadable = false;
     let keepCurrentSettings = false;
     // Step 2: load full settings from the vault path named by the pointer
@@ -333,10 +357,15 @@ export class SettingsStore {
         const loadedPath = getMetadataPath(vaultData);
         if (loadedPath) {
           this.ownWrites.recordSnapshot(`${loadedPath}/data.json`, vaultData);
+          const loadedFile = structuredClone(vaultData) as unknown as Record<
+            string,
+            unknown
+          >;
           this.vaultDataBaselines.set(
             ownWriteKey(`${loadedPath}/data.json`),
-            structuredClone(vaultData) as unknown as Record<string, unknown>,
+            loadedFile,
           );
+          this.lastLoadedFile = loadedFile;
         }
         data = vaultData;
         storageLog("Metadata loaded from vault location", {
@@ -492,6 +521,7 @@ export class SettingsStore {
       if (!vaultMetadataUnreadable)
         this.hasNotifiedVaultMetadataFailure = false;
       this.settingsLoadFailed = vaultMetadataUnreadable;
+      this.seedAncestor(wasNullLoad, isInitialLoad);
       releaseLoadGate();
       const shouldSave = this.shouldSaveAfterLoad({
         wasNullLoad,
@@ -535,6 +565,22 @@ export class SettingsStore {
       this.loadDepth -= 1;
       releaseLoadGate();
     }
+  }
+
+  /**
+   * A device with no ancestor yet starts from the settings it loaded at
+   * startup, in the form a save writes, so a file that predates a default does
+   * not read as changed (ADR 0036). A later reload never seeds: a delivery's
+   * own load would make the ancestor the delivered file, and the merge would
+   * then read every edit of this device as unshared. Never moves an ancestor
+   * that exists, and a null load holds defaults, not a shared state.
+   */
+  private seedAncestor(wasNullLoad: boolean, isInitialLoad: boolean): void {
+    if (wasNullLoad || !isInitialLoad) return;
+    if (this.settings.storageMode !== "vault-shards-v2") return;
+    this.ancestor.seedIfMissing(
+      this.settings as unknown as Record<string, unknown>,
+    );
   }
 
   /** The articles each feed holds now, so a reload can keep them (#1441). */
@@ -611,7 +657,9 @@ export class SettingsStore {
           );
           if (matches.every(Boolean)) return;
         }
+        const before = this.captureBeforeReload();
         await this.options.loadSettings();
+        if (before !== null) await this.keepEditsAfterDelivery(before);
         await this.options.refreshDashboardViews();
       })();
     }, 1500);
@@ -729,6 +777,120 @@ export class SettingsStore {
     }
     if (this.describePluginData(current) === this.pluginDataBaseline) return;
     this.scheduleMetadataReload();
+  }
+
+  /**
+   * Takes what a reload replaces, before it runs: the settings object, and the
+   * comparable content of the file this device last wrote or loaded. Null
+   * outside Shard v2 and during a load.
+   */
+  private captureBeforeReload(): SettingsBeforeReload | null {
+    if (this.settings.storageMode !== "vault-shards-v2") return null;
+    if (this.loadDepth > 0 || this.loadGate) return null;
+    const metadataPath = getMetadataPath(this.settings);
+    const filePath = metadataPath ? `${metadataPath}/data.json` : null;
+    return {
+      memory: this.settings,
+      fileComparable: filePath
+        ? (this.ownWrites.comparableOf(filePath) ?? null)
+        : this.pluginDataBaseline,
+      filePath,
+      itemsBefore: this.collectLoadedItems(),
+    };
+  }
+
+  /**
+   * Merges a delivered `data.json` with this device's own edits after the
+   * reload has loaded it (#1452, ADR 0036). Sync replaces the file whole, so an
+   * edit this device already saved is gone from disk when the other device's
+   * file arrives; the ancestor tells which side changed what. An entry changed
+   * on one side only takes that side, and one both sides changed takes the
+   * delivered value, which both devices then settle on. The edits of this
+   * device that survive are put back into memory and saved, so the file Sync
+   * carries next holds both devices' edits. The delivered file then becomes
+   * the ancestor. A reload that found only this device's own `data.json`, for
+   * a shard or `user-state.json`, leaves the ancestor where it is. Fails open:
+   * on an error the delivered file stands, as before.
+   */
+  private async keepEditsAfterDelivery(
+    before: SettingsBeforeReload,
+  ): Promise<void> {
+    if (this.settingsLoadFailed) return;
+    const file = this.lastLoadedFile;
+    if (file === null || Object.keys(file).length === 0) return;
+    if (before.fileComparable === null) return;
+    if (comparableSnapshotJson(file) === before.fileComparable) return;
+    const metadataPath = getMetadataPath(this.settings);
+    if ((metadataPath ? `${metadataPath}/data.json` : null) !== before.filePath)
+      return;
+    try {
+      await this.mergeDeliveredFile(before, file);
+    } catch (error) {
+      storageLog("Settings merge failed; the delivered file stands", { error });
+      this.ancestor.record(file);
+    }
+  }
+
+  /**
+   * Runs the load's normalization over the kept groups, so an entry taken from
+   * a delivered file that predates a default gets it as a loaded one would.
+   * Works on a copy, so memory's own objects are not changed.
+   */
+  private normalizeKeptGroups(
+    file: Record<string, unknown>,
+    keptGroups: Record<string, unknown>,
+  ): Record<string, unknown> {
+    const normalized = loadAndNormalizeSettings(
+      structuredClone({ ...file, ...keptGroups }) as unknown as Parameters<
+        typeof loadAndNormalizeSettings
+      >[0],
+    ) as unknown as Record<string, unknown>;
+    return Object.fromEntries(
+      Object.keys(keptGroups).map((group) => [group, normalized[group]]),
+    );
+  }
+
+  private async mergeDeliveredFile(
+    before: SettingsBeforeReload,
+    file: Record<string, unknown>,
+  ): Promise<void> {
+    const ancestor = this.ancestor.load();
+    this.ancestor.record(file);
+    if (ancestor === null) return;
+    const result = mergeSettingsAgainstAncestor(
+      ancestor,
+      file,
+      before.memory as unknown as Record<string, unknown>,
+      { diskWinsConflicts: true },
+    );
+    if (result.conflicts.length > 0 || result.conflictEntries.length > 0) {
+      storageLog("Settings changed on both sides; keeping the delivered", {
+        groups: result.conflicts,
+        entries: result.conflictEntries,
+      });
+      new Notice(
+        "A change synced from another device replaced an edit made on this device.",
+      );
+    }
+    const kept = groupsKeptFromMemory(ancestor, file, result.merged);
+    if (kept.length === 0) return;
+    const keptGroups = Object.fromEntries(
+      kept
+        .filter((group) => group in result.merged)
+        .map((group) => [group, result.merged[group]]),
+    );
+    const applied = this.adoptMergedSettings(
+      this.normalizeKeptGroups(file, keptGroups),
+      {},
+    );
+    for (const feed of this.settings.feeds) {
+      const items = before.itemsBefore.get(feed.feedId ?? "");
+      if (feed.items.length === 0 && items) feed.items = items;
+    }
+    storageLog("Kept edits made here over a delivered settings file", {
+      groups: applied,
+    });
+    await this.options.saveSettings();
   }
 
   private isWatchedShardPath(filePath: string): boolean {

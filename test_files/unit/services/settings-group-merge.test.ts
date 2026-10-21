@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { mergeSettingsGroups } from "../../../src/services/settings-group-merge";
+import {
+  digestSettings,
+  groupsKeptFromMemory,
+  mergeSettingsAgainstAncestor,
+  mergeSettingsGroups,
+} from "../../../src/services/settings-group-merge";
 
 describe("mergeSettingsGroups", () => {
   const baseline = { a: 1, b: { x: 1, y: 2 }, feeds: [{ url: "u" }] };
@@ -347,5 +352,156 @@ describe("mergeSettingsGroups per-entry folders (#1439)", () => {
 
     expect((result.merged.feeds as { folder: string }[])[0].folder).toBe("A");
     expect(result.danglingEntries).toEqual([{ group: "feeds", key: "f1" }]);
+  });
+});
+
+describe("merging a delivered file against an ancestor (ADR 0036)", () => {
+  const feed = (id: string, title: string) => ({
+    feedId: id,
+    title,
+    url: `https://${id}.test/feed.xml`,
+  });
+  const file = (feeds: unknown[], extra: Record<string, unknown> = {}) => ({
+    refreshInterval: 30,
+    feeds,
+    folders: [{ name: "News", subfolders: [] }],
+    ...extra,
+  });
+  const base = file([feed("a", "Alpha"), feed("b", "Beta")]);
+  const ancestor = digestSettings(base);
+
+  it("holds hashes only, never a feed title, url or folder name", () => {
+    const stored = JSON.stringify(ancestor);
+    expect(stored).not.toContain("Alpha");
+    expect(stored).not.toContain("feed.xml");
+    expect(stored).not.toContain("News");
+  });
+
+  it("ignores key order and the sync bookkeeping keys", () => {
+    const reordered = { ...base, _syncNonce: "n", _syncPad: "p" };
+    expect(digestSettings(reordered)).toEqual(ancestor);
+  });
+
+  it("keeps an entry changed here and takes one changed in the delivery", () => {
+    const delivered = file([feed("a", "Alpha"), feed("b", "Beta on B")]);
+    const memory = file([feed("a", "Alpha on A"), feed("b", "Beta")]);
+
+    const result = mergeSettingsAgainstAncestor(ancestor, delivered, memory, {
+      diskWinsConflicts: true,
+    });
+
+    expect(result.merged.feeds).toEqual([
+      feed("a", "Alpha on A"),
+      feed("b", "Beta on B"),
+    ]);
+    expect(result.conflictEntries).toEqual([]);
+  });
+
+  it("takes the delivered value of an entry both sides changed and reports it", () => {
+    const delivered = file([feed("a", "Alpha on B"), feed("b", "Beta")]);
+    const memory = file([feed("a", "Alpha on A"), feed("b", "Beta")]);
+
+    const result = mergeSettingsAgainstAncestor(ancestor, delivered, memory, {
+      diskWinsConflicts: true,
+    });
+
+    expect(result.merged.feeds).toEqual(delivered.feeds);
+    expect(result.conflictEntries).toEqual([{ group: "feeds", key: "a" }]);
+  });
+
+  it("takes the delivered value of a group both sides changed and reports it", () => {
+    const result = mergeSettingsAgainstAncestor(
+      ancestor,
+      { ...base, refreshInterval: 60 },
+      { ...base, refreshInterval: 90 },
+      { diskWinsConflicts: true },
+    );
+
+    expect(result.merged.refreshInterval).toBe(60);
+    expect(result.conflicts).toEqual(["refreshInterval"]);
+  });
+
+  it("keeps memory's value of a conflict when the delivery does not win", () => {
+    const result = mergeSettingsAgainstAncestor(
+      ancestor,
+      { ...base, refreshInterval: 60 },
+      { ...base, refreshInterval: 90 },
+    );
+
+    expect(result.merged.refreshInterval).toBe(90);
+  });
+
+  it("is no conflict when both sides made the same change", () => {
+    const same = file([feed("a", "Alpha both"), feed("b", "Beta")]);
+
+    const result = mergeSettingsAgainstAncestor(ancestor, same, same, {
+      diskWinsConflicts: true,
+    });
+
+    expect(result.conflictEntries).toEqual([]);
+    expect(result.merged.feeds).toEqual(same.feeds);
+  });
+
+  it("keeps a feed edited here when the delivery deleted it", () => {
+    const delivered = file([feed("b", "Beta")]);
+    const memory = file([feed("a", "Alpha on A"), feed("b", "Beta")]);
+
+    const result = mergeSettingsAgainstAncestor(ancestor, delivered, memory, {
+      diskWinsConflicts: true,
+    });
+
+    // The edited feed returns beside the neighbour it had here.
+    expect(result.merged.feeds).toEqual([
+      feed("a", "Alpha on A"),
+      feed("b", "Beta"),
+    ]);
+  });
+
+  it("applies a delivered deletion of a feed not edited here", () => {
+    const delivered = file([feed("b", "Beta")]);
+
+    const result = mergeSettingsAgainstAncestor(ancestor, delivered, base, {
+      diskWinsConflicts: true,
+    });
+
+    expect(result.merged.feeds).toEqual([feed("b", "Beta")]);
+  });
+
+  it("names the groups that hold an edit the delivery lacks", () => {
+    const delivered = file([feed("a", "Alpha"), feed("b", "Beta on B")]);
+    const memory = file([feed("a", "Alpha on A"), feed("b", "Beta")], {
+      refreshInterval: 45,
+    });
+    const { merged } = mergeSettingsAgainstAncestor(
+      ancestor,
+      delivered,
+      memory,
+      { diskWinsConflicts: true },
+    );
+
+    expect(groupsKeptFromMemory(ancestor, delivered, merged).sort()).toEqual([
+      "feeds",
+      "refreshInterval",
+    ]);
+  });
+
+  it("names nothing when the delivery already holds every edit", () => {
+    const delivered = file([feed("a", "Alpha"), feed("b", "Beta on B")]);
+    const { merged } = mergeSettingsAgainstAncestor(ancestor, delivered, base, {
+      diskWinsConflicts: true,
+    });
+
+    expect(groupsKeptFromMemory(ancestor, delivered, merged)).toEqual([]);
+  });
+
+  it("ignores a key only memory holds, which is not part of the file", () => {
+    const { merged } = mergeSettingsAgainstAncestor(
+      ancestor,
+      base,
+      { ...base, memoryOnly: 1 },
+      { diskWinsConflicts: true },
+    );
+
+    expect(groupsKeptFromMemory(ancestor, base, merged)).toEqual([]);
   });
 });

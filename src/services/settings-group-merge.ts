@@ -39,6 +39,17 @@ const FEED_BOOKKEEPING = [
   "lastFetchError",
 ] as const;
 
+/**
+ * Settings every device rewrites on its own refresh or launch. When both sides
+ * changed one, a delivery that wins its conflicts takes the delivered value and
+ * does not report it: no edit was lost, so it must not raise a notice (#1452).
+ */
+const SETTINGS_BOOKKEEPING = new Set([
+  "lastRefreshTimestamp",
+  "lastGlobalRefreshCompletedAt",
+  "lastShownVersion",
+]);
+
 /** Fields the merge owns rather than compares. */
 const FEED_OWNED = ["items"] as const;
 const FOLDER_OWNED = ["subfolders"] as const;
@@ -52,6 +63,43 @@ const FEED_IGNORED = [...FEED_OWNED, ...FEED_BOOKKEEPING];
 const FOLDER_IGNORED = [...FOLDER_OWNED, ...FOLDER_BOOKKEEPING];
 
 type Entry = Record<string, unknown>;
+
+/**
+ * What a device last knew to be shared, as content hashes only: one per
+ * settings group, and one per feed and folder, so a merge can tell which side
+ * changed an entry without keeping any feed title or URL (ADR 0036). Entry
+ * keys are hashed too; `feeds` and `folders` are absent when the file held no
+ * such list.
+ */
+export interface SettingsAncestor {
+  groups: Record<string, string>;
+  feeds?: Record<string, string>;
+  folders?: Record<string, string>;
+}
+
+/** How a merge settles a group or entry both sides changed (ADR 0036). */
+export interface SettingsMergeOptions {
+  /** Take the delivered value, so two devices settle on one in a round. */
+  diskWinsConflicts?: boolean;
+}
+
+/** A 53-bit string hash (cyrb53). It compares content; it is not security. */
+function hashText(text: string): string {
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let index = 0; index < text.length; index += 1) {
+    const code = text.charCodeAt(index);
+    h1 = Math.imul(h1 ^ code, 2654435761);
+    h2 = Math.imul(h2 ^ code, 1597334677);
+  }
+  h1 =
+    Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^
+    Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 =
+    Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^
+    Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
+}
 
 function isRecord(value: unknown): value is Entry {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -68,13 +116,17 @@ function groupJson(value: unknown): string {
   return comparableSnapshotJson({ group: value });
 }
 
+function groupHash(value: unknown): string {
+  return hashText(groupJson(value));
+}
+
 /** Everything about an entry the merge compares, with owned and churn fields removed. */
-function entryJson(
+function entryHash(
   entry: Entry | undefined,
   ignored: readonly string[],
 ): string {
-  if (entry === undefined) return "\u0000missing";
-  return groupJson(withoutKeys(entry, ignored));
+  if (entry === undefined) return hashText("\u0000missing");
+  return groupHash(withoutKeys(entry, ignored));
 }
 
 function entryRef(
@@ -232,41 +284,44 @@ interface EntryMerge {
 }
 
 interface EntryMergeOptions {
-  base: Map<string, Entry>;
+  /** The ancestor's hash for an entry, or undefined when it held none. */
+  baseHash: (key: string, entry: Entry | undefined) => string | undefined;
   disk: Map<string, Entry>;
   memory: Map<string, Entry>;
   group: SettingsEntryGroup;
   ignored: readonly string[];
   /** A folder rename is a removal plus an addition, so removals are final. */
   removalWins: boolean;
+  diskWinsConflicts: boolean;
   project: (entry: Entry, memoryEntry: Entry | undefined) => Entry;
 }
 
 /**
  * Three-way merge of one per-entry group. Per key: changed on one side only
- * takes that side; changed on both keeps memory's value and reports the key.
- * A removal beats an edit when `removalWins`, so a rename is not undone by the
- * other side editing the renamed-away entry; otherwise the edit wins, so a feed
- * is never silently deleted.
+ * takes that side; changed on both keeps memory's value and reports the key,
+ * or the delivered value when `diskWinsConflicts`. Both sides making the same
+ * change is no conflict. A removal beats an edit when `removalWins`, so a
+ * rename is not undone by the other side editing the renamed-away entry;
+ * otherwise the edit wins, so a feed is never silently deleted.
  */
 function mergeEntries(options: EntryMergeOptions): EntryMerge {
-  const { base, disk, memory, ignored } = options;
+  const { disk, memory, ignored } = options;
   const chosen = new Map<string, Entry>();
   const adopted: SettingsGroupEntryRef[] = [];
   const conflicts: SettingsGroupEntryRef[] = [];
-  const keys = new Set([...base.keys(), ...disk.keys(), ...memory.keys()]);
+  const keys = new Set([...disk.keys(), ...memory.keys()]);
+  const missing = entryHash(undefined, ignored);
 
   for (const key of keys) {
-    const before = base.get(key);
     const onDisk = disk.get(key);
     const inMemory = memory.get(key);
-    const diskChanged =
-      entryJson(onDisk, ignored) !== entryJson(before, ignored);
-    const memoryChanged =
-      entryJson(inMemory, ignored) !== entryJson(before, ignored);
+    const before = options.baseHash(key, onDisk ?? inMemory) ?? missing;
+    const diskHash = entryHash(onDisk, ignored);
+    const memoryHash = entryHash(inMemory, ignored);
+    const diskChanged = diskHash !== before;
+    const memoryChanged = memoryHash !== before;
 
-    if (onDisk === undefined && inMemory === undefined) continue;
-    if (!diskChanged) {
+    if (!diskChanged || diskHash === memoryHash) {
       if (inMemory !== undefined)
         chosen.set(key, options.project(inMemory, inMemory));
       continue;
@@ -280,17 +335,9 @@ function mergeEntries(options: EntryMergeOptions): EntryMerge {
     }
 
     conflicts.push(entryRef(options.group, key));
-    if (options.removalWins) {
-      if (onDisk !== undefined && inMemory !== undefined) {
-        chosen.set(key, options.project(inMemory, inMemory));
-      }
-      continue;
-    }
-    if (onDisk === undefined) {
-      chosen.set(key, options.project(inMemory as Entry, inMemory));
-      continue;
-    }
-    chosen.set(key, options.project(inMemory ?? onDisk, inMemory));
+    const winner = chooseConflictWinner(options, onDisk, inMemory);
+    if (winner !== undefined)
+      chosen.set(key, options.project(winner, inMemory));
   }
 
   return {
@@ -298,6 +345,22 @@ function mergeEntries(options: EntryMergeOptions): EntryMerge {
     adopted,
     conflicts,
   };
+}
+
+/** The entry that stands when both sides changed it, or none when it goes. */
+function chooseConflictWinner(
+  options: EntryMergeOptions,
+  onDisk: Entry | undefined,
+  inMemory: Entry | undefined,
+): Entry | undefined {
+  if (options.removalWins) {
+    if (onDisk === undefined || inMemory === undefined) return undefined;
+    return options.diskWinsConflicts ? onDisk : inMemory;
+  }
+  // An edit beats a removal on either side: nothing is silently deleted.
+  if (onDisk === undefined) return inMemory;
+  if (inMemory === undefined) return onDisk;
+  return options.diskWinsConflicts ? onDisk : inMemory;
 }
 
 /**
@@ -330,6 +393,21 @@ function orderMergedKeys(
   return order;
 }
 
+/**
+ * Memory's order is the skeleton, or the delivered order when a delivery wins
+ * its conflicts: both devices then settle on the order that arrived.
+ */
+function orderKeys(
+  chosen: Map<string, Entry>,
+  memoryOrder: readonly string[],
+  diskOrder: readonly string[],
+  options: SettingsMergeOptions,
+): string[] {
+  return options.diskWinsConflicts === true
+    ? orderMergedKeys(chosen, diskOrder, memoryOrder)
+    : orderMergedKeys(chosen, memoryOrder, diskOrder);
+}
+
 /** Keys of an array group in the order that side lists them. */
 function feedOrder(
   list: unknown,
@@ -345,12 +423,15 @@ function feedOrder(
 /** Per-entry merge for a group that has one, or null for any other group. */
 function perEntryMerge(
   key: string,
-  baseline: Record<string, unknown>,
+  ancestor: SettingsAncestor,
   disk: Record<string, unknown>,
   memory: Record<string, unknown>,
+  options: SettingsMergeOptions,
 ): PerEntryGroupMerge | null {
-  if (key === "feeds") return mergeFeedsGroup(baseline, disk, memory);
-  if (key === "folders") return mergeFoldersGroup(baseline, disk, memory);
+  if (key === "feeds") return mergeFeedsGroup(ancestor, disk, memory, options);
+  if (key === "folders") {
+    return mergeFoldersGroup(ancestor, disk, memory, options);
+  }
   return null;
 }
 
@@ -395,64 +476,84 @@ interface PerEntryGroupMerge {
   duplicates: string[];
 }
 
+/** A feed's key in an ancestor: an id and a url hash apart, so neither clashes. */
+function feedAncestorKey(kind: "i" | "u", value: string): string {
+  return hashText(`${kind}:${value}`);
+}
+
+/** The ancestor's hash for a resolved feed key, by id, else by url. */
+function feedBaseHash(
+  stored: Record<string, string>,
+  key: string,
+  entry: Entry | undefined,
+): string | undefined {
+  const url = typeof entry?.url === "string" ? entry.url : undefined;
+  return (
+    stored[feedAncestorKey("i", key)] ??
+    stored[feedAncestorKey("u", key)] ??
+    (url === undefined ? undefined : stored[feedAncestorKey("u", url)])
+  );
+}
+
 function mergeFeedsGroup(
-  baseline: Entry,
+  ancestor: SettingsAncestor,
   disk: Entry,
   memory: Entry,
+  options: SettingsMergeOptions,
 ): PerEntryGroupMerge | null {
-  const idByUrl = feedIdsByUrl([baseline.feeds, disk.feeds, memory.feeds]);
-  const base = feedIndex(baseline.feeds, "base", idByUrl);
+  const stored = ancestor.feeds;
+  const idByUrl = feedIdsByUrl([disk.feeds, memory.feeds]);
   const onDisk = feedIndex(disk.feeds, "disk", idByUrl);
   const inMemory = feedIndex(memory.feeds, "memory", idByUrl);
-  if (base === null || onDisk === null || inMemory === null) return null;
+  if (stored === undefined || onDisk === null || inMemory === null) return null;
 
   const merged = mergeEntries({
-    base: base.entries,
+    baseHash: (key, entry) => feedBaseHash(stored, key, entry),
     disk: onDisk.entries,
     memory: inMemory.entries,
     group: "feeds",
     ignored: FEED_IGNORED,
     removalWins: false,
+    diskWinsConflicts: options.diskWinsConflicts === true,
     project: projectFeed,
   });
-  const order = orderMergedKeys(
+  const order = orderKeys(
     merged.chosen,
     feedOrder(memory.feeds, "memory", idByUrl),
     feedOrder(disk.feeds, "disk", idByUrl),
+    options,
   );
   return {
     value: order.map((key) => merged.chosen.get(key)),
     adopted: merged.adopted,
     conflicts: merged.conflicts,
     dropped: [],
-    duplicates: [
-      ...base.duplicates,
-      ...onDisk.duplicates,
-      ...inMemory.duplicates,
-    ],
+    duplicates: [...onDisk.duplicates, ...inMemory.duplicates],
   };
 }
 
 function mergeFoldersGroup(
-  baseline: Entry,
+  ancestor: SettingsAncestor,
   disk: Entry,
   memory: Entry,
+  options: SettingsMergeOptions,
 ): PerEntryGroupMerge | null {
-  const base = folderMap(baseline.folders);
+  const stored = ancestor.folders;
   const onDisk = folderMap(disk.folders);
   const inMemory = folderMap(memory.folders);
-  if (base === null || onDisk === null || inMemory === null) return null;
+  if (stored === undefined || onDisk === null || inMemory === null) return null;
 
   const merged = mergeEntries({
-    base: base.entries,
+    baseHash: (path) => stored[hashText(path)],
     disk: onDisk.entries,
     memory: inMemory.entries,
     group: "folders",
     ignored: FOLDER_IGNORED,
     removalWins: true,
+    diskWinsConflicts: options.diskWinsConflicts === true,
     project: (entry) => entry,
   });
-  const order = orderMergedKeys(merged.chosen, inMemory.order, onDisk.order);
+  const order = orderKeys(merged.chosen, inMemory.order, onDisk.order, options);
 
   // A synced folder whose parent is gone cannot hang anywhere: drop it rather
   // than inventing the parent, which would duplicate a renamed folder.
@@ -475,11 +576,7 @@ function mergeFoldersGroup(
     ),
     conflicts: merged.conflicts,
     dropped,
-    duplicates: [
-      ...base.duplicates,
-      ...onDisk.duplicates,
-      ...inMemory.duplicates,
-    ],
+    duplicates: [...onDisk.duplicates, ...inMemory.duplicates],
   };
 }
 
@@ -490,7 +587,6 @@ function mergeFoldersGroup(
  */
 function adoptWholeGroup(
   key: string,
-  baseline: Record<string, unknown>,
   disk: Record<string, unknown>,
   memory: Record<string, unknown>,
   merged: Record<string, unknown>,
@@ -505,7 +601,7 @@ function adoptWholeGroup(
     merged[key] = disk[key];
     return;
   }
-  const idByUrl = feedIdsByUrl([baseline.feeds, disk.feeds, memory.feeds]);
+  const idByUrl = feedIdsByUrl([disk.feeds, memory.feeds]);
   const diskFeeds = feedIndex(disk.feeds, "disk", idByUrl);
   if (diskFeeds === null) {
     merged[key] = disk[key];
@@ -522,6 +618,41 @@ function adoptWholeGroup(
 
 /* ------------------------------------------------------------- public API */
 
+/** The hashes a merge compares against, for a settings file as it stands. */
+export function digestSettings(
+  data: Record<string, unknown>,
+): SettingsAncestor {
+  const groups: Record<string, string> = {};
+  for (const key of Object.keys(data)) {
+    if (key === "_syncNonce" || key === "_syncPad") continue;
+    groups[key] = groupHash(data[key]);
+  }
+  const ancestor: SettingsAncestor = { groups };
+
+  const idByUrl = feedIdsByUrl([data.feeds]);
+  const feeds = feedIndex(data.feeds, "ancestor", idByUrl);
+  if (feeds !== null) {
+    ancestor.feeds = {};
+    for (const [key, entry] of feeds.entries) {
+      if (key.startsWith("ancestor#")) continue;
+      const kind =
+        typeof entry.feedId === "string" && entry.feedId.length > 0 ? "i" : "u";
+      ancestor.feeds[feedAncestorKey(kind, key)] = entryHash(
+        entry,
+        FEED_IGNORED,
+      );
+    }
+  }
+  const folders = folderMap(data.folders);
+  if (folders !== null) {
+    ancestor.folders = {};
+    for (const [path, entry] of folders.entries) {
+      ancestor.folders[hashText(path)] = entryHash(entry, FOLDER_IGNORED);
+    }
+  }
+  return ancestor;
+}
+
 /**
  * Three-way merge of the settings file (#1431), per top-level group, with
  * `feeds` and `folders` merged per entry so two devices can each change a
@@ -534,6 +665,27 @@ export function mergeSettingsGroups(
   baseline: Record<string, unknown>,
   disk: Record<string, unknown>,
   memory: Record<string, unknown>,
+  options: SettingsMergeOptions = {},
+): SettingsGroupMerge {
+  return mergeSettingsAgainstAncestor(
+    digestSettings(baseline),
+    disk,
+    memory,
+    options,
+  );
+}
+
+/**
+ * The same merge with the ancestor as hashes (ADR 0036). `disk` is a delivered
+ * file and `memory` this device's settings; with `diskWinsConflicts`, a group
+ * or entry both sides changed takes the delivered value and is still reported
+ * in `conflicts`, so the caller knows a local value was dropped.
+ */
+export function mergeSettingsAgainstAncestor(
+  ancestor: SettingsAncestor,
+  disk: Record<string, unknown>,
+  memory: Record<string, unknown>,
+  options: SettingsMergeOptions = {},
 ): SettingsGroupMerge {
   const merged = { ...memory };
   const adopted: string[] = [];
@@ -543,7 +695,7 @@ export function mergeSettingsGroups(
   const droppedEntries: SettingsGroupEntryRef[] = [];
   const duplicateEntries: SettingsGroupEntryRef[] = [];
   const keys = new Set([
-    ...Object.keys(baseline),
+    ...Object.keys(ancestor.groups),
     ...Object.keys(disk),
     ...Object.keys(memory),
   ]);
@@ -551,17 +703,17 @@ export function mergeSettingsGroups(
   keys.delete("_syncPad");
 
   const feedAdoptions: string[] = [];
+  const missing = groupHash(undefined);
 
   for (const key of keys) {
-    const base = groupJson(baseline[key]);
-    const onDisk = groupJson(disk[key]);
+    const base = ancestor.groups[key] ?? missing;
+    const onDisk = groupHash(disk[key]);
     if (onDisk === base) continue;
-    const inMemory = groupJson(memory[key]);
+    const inMemory = groupHash(memory[key]);
     if (inMemory === onDisk) continue;
     if (inMemory === base) {
       adoptWholeGroup(
         key,
-        baseline,
         disk,
         memory,
         merged,
@@ -571,9 +723,21 @@ export function mergeSettingsGroups(
       adopted.push(key);
       continue;
     }
-    const perEntry = perEntryMerge(key, baseline, disk, memory);
+    const perEntry = perEntryMerge(key, ancestor, disk, memory, options);
     if (perEntry === null) {
-      conflicts.push(key);
+      const quiet =
+        options.diskWinsConflicts === true && SETTINGS_BOOKKEEPING.has(key);
+      if (!quiet) conflicts.push(key);
+      if (options.diskWinsConflicts === true) {
+        adoptWholeGroup(
+          key,
+          disk,
+          memory,
+          merged,
+          feedAdoptions,
+          duplicateEntries,
+        );
+      }
       continue;
     }
     merged[key] = perEntry.value;
@@ -587,6 +751,9 @@ export function mergeSettingsGroups(
     );
     if (key === "feeds") {
       feedAdoptions.push(...perEntry.adopted.map((entry) => entry.key));
+      if (options.diskWinsConflicts === true) {
+        feedAdoptions.push(...perEntry.conflicts.map((entry) => entry.key));
+      }
     }
   }
 
@@ -605,4 +772,51 @@ export function mergeSettingsGroups(
     danglingEntries,
     duplicateEntries,
   };
+}
+
+/** A group's content with the churn the merge ignores, in order. */
+function groupSignature(key: string, value: unknown): string {
+  if (key === "feeds") {
+    const feeds = feedIndex(value, "signature", feedIdsByUrl([value]));
+    if (feeds === null) return groupHash(value);
+    return [...feeds.entries]
+      .map(
+        ([entryKey, entry]) => `${entryKey}:${entryHash(entry, FEED_IGNORED)}`,
+      )
+      .join(",");
+  }
+  if (key === "folders") {
+    const folders = folderMap(value);
+    if (folders === null) return groupHash(value);
+    return folders.order
+      .map((path) => {
+        const entry = folders.entries.get(path);
+        return `${path}:${entryHash(entry, FOLDER_IGNORED)}`;
+      })
+      .join(",");
+  }
+  return groupHash(value);
+}
+
+/**
+ * The groups of a merged result that hold something the delivered file does
+ * not: this device's edits that survived (ADR 0036). A key only in memory, not
+ * in the delivered file or the ancestor, is not part of the file and is left
+ * out. Feed items, feed bookkeeping and folder timestamps do not count.
+ */
+export function groupsKeptFromMemory(
+  ancestor: SettingsAncestor,
+  disk: Record<string, unknown>,
+  merged: Record<string, unknown>,
+): string[] {
+  const kept: string[] = [];
+  const keys = new Set([...Object.keys(ancestor.groups), ...Object.keys(disk)]);
+  keys.delete("_syncNonce");
+  keys.delete("_syncPad");
+  for (const key of keys) {
+    if (groupSignature(key, merged[key]) !== groupSignature(key, disk[key])) {
+      kept.push(key);
+    }
+  }
+  return kept;
 }

@@ -2,11 +2,18 @@ import type { Folder, RssDashboardSettings } from "../types/types";
 import { DEFAULT_SETTINGS } from "../types/types";
 import { LEFT_HANDED_LAYOUT_STORAGE_KEY } from "./left-handed-layout";
 
+/**
+ * Device-local record of the `data.json` state this device last knew to be
+ * shared (ADR 0036). Never synced, so a factory reset clears it too.
+ */
+export const SETTINGS_ANCESTOR_STORAGE_KEY = "rss-settings-ancestor";
+
 export const FACTORY_RESET_LOCAL_STORAGE_KEYS = [
   "rss-discover-filters",
   "rss-podcast-progress",
   "rss-first-launch-coachmark-shown",
   LEFT_HANDED_LAYOUT_STORAGE_KEY,
+  SETTINGS_ANCESTOR_STORAGE_KEY,
 ] as const;
 
 /**

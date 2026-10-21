@@ -441,6 +441,10 @@ _Avoid_: Storage (unqualified), config storage
 A change to a watched file (`data.json` or `user-state.json` in [[Metadata storage]], or a feed shard in [[Shard storage]] v2) whose comparable content matches what this device last wrote or loaded there. Comparable content ignores key order, `_syncNonce` and `_syncPad`. The plugin skips reloading an own write and reloads every other change. It is recognized by content, never by timing. One record, keyed by normalized path, holds them all; the plugin's own `saveData`/`loadData` baseline stays separate.
 _Avoid_: Suppression window, echo
 
+**Ancestor**:
+The `data.json` state this device last knew to be shared with the others: what the last [[Sync delivery]] it loaded held, never what it last saved. A delivery is merged against it per entry, so an edit made here survives a delivery that never saw it. It is device-local and never synced. Without one, the delivery wins whole (#1452).
+_Avoid_: Common base, last synced copy
+
 **Sync delivery**:
 A file that Sync writes to disk from outside Obsidian, so the plugin sees it as a change behind the vault adapter. A delivery of [[Shard storage]] v2 can be `data.json`, `user-state.json`, feed shards, or any mix of them.
 _Avoid_: Sync event, synced write
