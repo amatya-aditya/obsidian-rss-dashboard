@@ -785,6 +785,11 @@ function enoentError(syscall: string, fullPath: string): Error {
   );
 }
 
+/** The size `adapter.stat` reports: the UTF-8 byte length of the content. */
+function byteLength(content: string): number {
+  return new TextEncoder().encode(content).length;
+}
+
 /** True when any segment of `path` starts with a dot (Obsidian doesn't index it). */
 function isHiddenVaultPath(path: string): boolean {
   return path.split("/").some((segment) => segment.startsWith("."));
@@ -796,6 +801,24 @@ function isHiddenVaultPath(path: string): boolean {
  * in the `cachedRead` cache.
  */
 const FILE_CACHE_LIMIT = 65536;
+
+/** What `adapter.stat` reports for a path on disk. */
+interface MockStat {
+  type: "file" | "folder";
+  ctime: number;
+  mtime: number;
+  size: number;
+}
+
+/** A path touched during one external watcher tick, and what it was before. */
+interface ExternalChange {
+  existedBefore: boolean;
+  file: TFileStub | undefined;
+}
+
+interface VaultEventEntry {
+  callback: (...args: unknown[]) => unknown;
+}
 
 interface MockVaultAdapter {
   getBasePath(): string;
@@ -811,6 +834,7 @@ interface MockVaultAdapter {
   list(path: string): Promise<{ files: string[]; folders: string[] }>;
   rmdir(path: string, recursive: boolean): Promise<void>;
   remove(path: string): Promise<void>;
+  stat(path: string): Promise<MockStat | null>;
   trashSystem(path: string): Promise<boolean>;
   trashLocal(path: string): Promise<void>;
 }
@@ -839,8 +863,13 @@ export class MockDataVault {
    * Windows); Linux does, so set this to model a Linux desktop.
    */
   caseSensitiveFileSystem = false;
-  on: (name: string, callback: (...args: unknown[]) => unknown) => unknown =
-    () => ({});
+  private eventHandlers = new Map<string, Set<VaultEventEntry>>();
+  /** Per-path ctime/mtime that `adapter.stat` reports; size comes from content. */
+  private fileTimes = new Map<string, { ctime: number; mtime: number }>();
+  /** Bootstrap-pointer paths (by disk key) mapped to the owner's callback. */
+  private externalSettingsHandlers = new Map<string, () => unknown>();
+  /** Set while an external watcher tick is open; flushed when it closes. */
+  private pendingExternal: Map<string, ExternalChange> | null = null;
 
   // Mirror Obsidian's `vault.adapter` surface area used by this repo
   adapter: MockVaultAdapter;
@@ -874,6 +903,7 @@ export class MockDataVault {
         if (parentPath && !this.folderExistsOnDisk(parentPath)) {
           throw enoentError("open", `${this.adapter.getBasePath()}/${path}`);
         }
+        this.touchFile(path, this.adapterFiles.has(path));
         this.adapterFiles.set(path, content);
         if (!this.files.has(path)) {
           this.files.set(path, new TFileStub(path));
@@ -889,6 +919,7 @@ export class MockDataVault {
         if (parentPath && !this.folderExistsOnDisk(parentPath)) {
           throw enoentError("open", `${this.adapter.getBasePath()}/${path}`);
         }
+        this.touchFile(path, this.adapterFiles.has(path));
         this.adapterFiles.set(
           path,
           (this.adapterFiles.get(path) ?? "") + content,
@@ -944,6 +975,7 @@ export class MockDataVault {
         this.adapterFiles.delete(sourcePath);
         this.files.delete(sourcePath);
         this.adapterFiles.set(newPath, content);
+        this.moveFileTimes(sourcePath, newPath);
         if (file) {
           file.path = newPath;
           const parts = fileNameParts(newPath);
@@ -999,6 +1031,9 @@ export class MockDataVault {
       // Observed on Obsidian 1.14.4 desktop (Windows): a missing path throws
       // Node's ENOENT, and a folder throws EPERM and stays.
       remove: async (path: string) => this.removeFromDisk(path),
+      // `adapter.stat` is typed `Stat | null`; the #1403 ledger records a
+      // missing path as absent, then the new size once it exists.
+      stat: async (path: string) => this.statOnDisk(path),
       // Not yet observed against Obsidian: trashSystem is modeled as always
       // succeeding, and trashLocal as moving a file into the vault's `.trash`.
       trashSystem: async (path: string) => {
@@ -1142,6 +1177,7 @@ export class MockDataVault {
     }
     const file = new TFileStub(path);
     this.files.set(path, file);
+    this.touchFile(path, false);
     this.adapterFiles.set(path, content);
     return file;
   }
@@ -1201,6 +1237,7 @@ export class MockDataVault {
     fn: (data: string) => string,
   ): Promise<string> {
     const next = fn(this.readFromDisk(file.path));
+    this.touchFile(file.path, true);
     this.adapterFiles.set(file.path, next);
     return next;
   }
@@ -1301,6 +1338,7 @@ export class MockDataVault {
     if (content !== undefined) {
       this.adapterFiles.set(newPath, content);
     }
+    this.moveFileTimes(oldPath, newPath);
   }
 
   getAbstractFileByPath(path: string): TFileStub | TFolderStub | null {
@@ -1320,6 +1358,224 @@ export class MockDataVault {
     return Array.from(this.files.values()).filter(
       (file) => !isHiddenVaultPath(file.path),
     );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Events (Obsidian's `Events` class: on, offref, trigger)
+  // ---------------------------------------------------------------------------
+
+  /** Registers a handler and returns the ref `offref` (or `ref.off`) detaches. */
+  on(
+    name: string,
+    callback: (...args: unknown[]) => unknown,
+  ): ObsidianApi.EventRef {
+    const entry: VaultEventEntry = { callback };
+    const entries = this.eventHandlers.get(name) ?? new Set();
+    entries.add(entry);
+    this.eventHandlers.set(name, entries);
+    const ref = {
+      e: this,
+      name,
+      fn: callback,
+      off: () => entries.delete(entry),
+    };
+    return ref as unknown as ObsidianApi.EventRef;
+  }
+
+  offref(ref: ObsidianApi.EventRef): void {
+    const off = (ref as unknown as { off?: unknown } | undefined)?.off;
+    if (typeof off === "function") off();
+  }
+
+  /** Calls every handler registered for `name`. */
+  trigger(name: string, ...args: unknown[]): void {
+    for (const entry of [...(this.eventHandlers.get(name) ?? [])]) {
+      entry.callback(...args);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // External writes (test setup, not Obsidian API). Modeled on the #1403
+  // ledger, "External writes and vault events", observed on 1.14.4 desktop.
+  // The helpers change the adapter's files the way an Obsidian Sync delivery
+  // does and fire only the events the ledger recorded. The stub's own
+  // `modify`/`create`/`delete`/`rename` fire nothing yet. Not modeled: the
+  // delays (a rename's `delete` is synchronous here, about 100 ms later in
+  // Obsidian), the several `raw` events per operation, the parent folder's
+  // `raw`, and the plugin's reload.
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Treats the changes `fn` makes as one watcher tick. Events fire when it
+   * returns, per path: created, modified or deleted by comparing the path
+   * before and after, so a delete then a create of one path is one `modify`.
+   * A helper called alone is its own tick.
+   */
+  externalTick(fn: () => void): void {
+    if (this.pendingExternal) {
+      fn();
+      return;
+    }
+    const pending = new Map<string, ExternalChange>();
+    this.pendingExternal = pending;
+    try {
+      fn();
+    } finally {
+      this.pendingExternal = null;
+    }
+    this.flushExternal(pending);
+  }
+
+  /** Writes `content` to `path` from outside Obsidian (create or modify). */
+  externalWrite(path: string, content: string): void {
+    this.externalTick(() => this.writeExternally(path, content));
+  }
+
+  /** Deletes the file at `path` from outside Obsidian. */
+  externalDelete(path: string): void {
+    this.externalTick(() => this.deleteExternally(path));
+  }
+
+  /**
+   * Renames a file from outside Obsidian. It arrives as a `create` at the new
+   * path, then a `delete` at the old one, and never as a `rename`.
+   */
+  externalRename(oldPath: string, newPath: string): void {
+    this.externalTick(() => {
+      const content = this.readFromDisk(oldPath);
+      this.writeExternally(newPath, content);
+      this.deleteExternally(oldPath);
+    });
+  }
+
+  /**
+   * Test setup, not Obsidian API: the callback Obsidian runs as the plugin's
+   * `onExternalSettingsChange` when the file at `pointerPath` (the plugin's
+   * `<configDir>/plugins/<id>/data.json`) changes behind the plugin. A plugin
+   * stub with a `manifest.dir` registers itself.
+   */
+  watchExternalSettings(pointerPath: string, onChange: () => unknown): void {
+    this.externalSettingsHandlers.set(this.diskKey(pointerPath), onChange);
+  }
+
+  private writeExternally(path: string, content: string): void {
+    const parentPath = path.includes("/")
+      ? path.slice(0, path.lastIndexOf("/"))
+      : "";
+    if (parentPath && !this.folderExistsOnDisk(parentPath)) {
+      throw enoentError("open", `${this.adapter.getBasePath()}/${path}`);
+    }
+    const stored = this.storedDiskPath(path) ?? path;
+    const existed = this.adapterFiles.has(stored);
+    this.markExternal(stored, existed, this.files.get(stored));
+    this.adapterFiles.set(stored, content);
+    const times = this.touchFile(stored, existed);
+    let file = this.files.get(stored);
+    if (!file) {
+      file = new TFileStub(stored);
+      this.files.set(stored, file);
+    }
+    file.stat = { ...times, size: byteLength(content) };
+    this.trigger("raw", stored);
+  }
+
+  private deleteExternally(path: string): void {
+    const stored = this.storedDiskPath(path);
+    if (stored === undefined) {
+      throw enoentError("unlink", `${this.adapter.getBasePath()}/${path}`);
+    }
+    this.markExternal(stored, true, this.files.get(stored));
+    this.adapterFiles.delete(stored);
+    this.files.delete(stored);
+    this.fileTimes.delete(stored);
+    this.trigger("raw", stored);
+  }
+
+  private markExternal(
+    path: string,
+    existedBefore: boolean,
+    file: TFileStub | undefined,
+  ): void {
+    const pending = this.pendingExternal;
+    if (pending && !pending.has(path)) {
+      pending.set(path, { existedBefore, file });
+    }
+  }
+
+  private flushExternal(pending: Map<string, ExternalChange>): void {
+    for (const [path, { existedBefore, file }] of pending) {
+      const existsAfter = this.adapterFiles.has(path);
+      // The bootstrap pointer is signalled by the callback alone. Only a
+      // write was observed, so only a path that still exists calls it.
+      const onSettingsChange = this.externalSettingsHandlers.get(
+        this.diskKey(path),
+      );
+      if (onSettingsChange) {
+        if (existsAfter) onSettingsChange();
+        continue;
+      }
+      // Nothing under a dot folder fires a `vault.on` event, only `raw`.
+      if (isHiddenVaultPath(path)) continue;
+      if (existsAfter) {
+        this.trigger(existedBefore ? "modify" : "create", this.files.get(path));
+      } else if (existedBefore) {
+        this.trigger("delete", file);
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // File times behind `adapter.stat`
+  // ---------------------------------------------------------------------------
+
+  /** The key `adapterFiles` holds for `path`, found as the file system finds it. */
+  private storedDiskPath(path: string): string | undefined {
+    const key = this.diskKey(path);
+    return [...this.adapterFiles.keys()].find(
+      (filePath) => this.diskKey(filePath) === key,
+    );
+  }
+
+  /**
+   * Stamps `path` as written now. The mtime moves on every write, even for
+   * identical bytes (ledger a5), and never repeats, so a write in the same
+   * millisecond as the last one is still a change.
+   */
+  private touchFile(
+    path: string,
+    existedBefore: boolean,
+  ): { ctime: number; mtime: number } {
+    const previous = this.fileTimes.get(path);
+    const now = Date.now();
+    const times = {
+      ctime: existedBefore && previous ? previous.ctime : now,
+      mtime: Math.max(now, (previous?.mtime ?? 0) + 1),
+    };
+    this.fileTimes.set(path, times);
+    return times;
+  }
+
+  private moveFileTimes(oldPath: string, newPath: string): void {
+    const times = this.fileTimes.get(oldPath);
+    this.fileTimes.delete(oldPath);
+    if (times) this.fileTimes.set(newPath, times);
+  }
+
+  private statOnDisk(path: string): MockStat | null {
+    const stored = this.storedDiskPath(path);
+    if (stored !== undefined) {
+      const times = this.fileTimes.get(stored) ?? { ctime: 0, mtime: 0 };
+      return {
+        type: "file",
+        ...times,
+        size: byteLength(this.adapterFiles.get(stored) ?? ""),
+      };
+    }
+    // Not probed: a folder's times.
+    if (this.folderExistsOnDisk(path)) {
+      return { type: "folder", ctime: 0, mtime: 0, size: 0 };
+    }
+    return null;
   }
 
   // Event system
@@ -1565,6 +1821,14 @@ class PluginStub extends ComponentStub {
     // Obsidian loads a plugin from its folder, so the folder exists on disk.
     if (manifest.dir) {
       app.vault.addFolderOnDisk(manifest.dir);
+      // Obsidian calls the plugin's `onExternalSettingsChange` when its
+      // `data.json` changes behind it; looked up at call time so a subclass
+      // method or a test's override is the one that runs.
+      app.vault.watchExternalSettings(`${manifest.dir}/data.json`, () =>
+        (
+          this as unknown as { onExternalSettingsChange?: () => unknown }
+        ).onExternalSettingsChange?.(),
+      );
     }
   }
 

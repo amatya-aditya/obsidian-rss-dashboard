@@ -1484,3 +1484,7 @@ files; #1411 is why `user-state.json` now survives a reload that changed no
 article state. A run still leaves the plugin disabled, and the next run enables
 it again. Hashes the run prints: `data.json` `958e0b08…`, bootstrap pointer
 `530e1b62…`.
+
+**Modeled (#1424):** `MockDataVault` has Obsidian `Events` semantics (`on` returns an `EventRef`, `offref`, `trigger`) and `adapter.stat`. The test-only helpers `externalWrite`, `externalDelete`, `externalRename` and `externalTick` change the adapter's files and fire the rows above: modify, create and delete; a rename as `create` then `delete`; a delete then create inside one `externalTick` as one `modify`; `raw` with the path alone for every change; nothing but `raw` under a dot folder; and, for a plugin stub built with a `manifest.dir`, one `onExternalSettingsChange` for its `data.json` and no `vault.on` event. `obsidian.contract.test.ts` pins each row. The stub's own `modify`/`create`/`delete`/`rename` still fire nothing.
+
+**Unmodeled (documented boundary):** the delays (a rename's `delete` is synchronous, about 100 ms later in Obsidian), the several `raw` events per operation and the parent folder's `raw`, the plugin reload, and folder times in `adapter.stat`.
