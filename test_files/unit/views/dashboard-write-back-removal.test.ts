@@ -258,7 +258,9 @@ describe("dashboard write-back article state", () => {
     expect(f.status()).toContain("Showing 0");
   });
 
-  it("moves focus to the next card's read control after the focused row leaves", async () => {
+  // #1468 replaced "focus the next card's read control": a read control is a
+  // role="button", which the dashboard keymap ignores, so shortcuts went dead.
+  it("returns focus to the dashboard after the focused row leaves", async () => {
     reduceMotion();
     const f = await fixture({ viewStyle: "card", articleCount: 3 });
     const focused = f
@@ -269,10 +271,7 @@ describe("dashboard write-back article state", () => {
 
     f.clickRead("a2");
 
-    const next = f
-      .row("a1")
-      ?.querySelector<HTMLElement>(".rss-dashboard-read-toggle");
-    expect(document.activeElement).toBe(next);
+    expect(document.activeElement).toBe(f.view.containerEl);
   });
 
   it("hands UI article-state descriptors to the plugin facade when marking all as read", async () => {

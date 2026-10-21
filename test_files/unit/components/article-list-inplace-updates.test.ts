@@ -432,9 +432,11 @@ describe("Phase 7 - ArticleList in-place updates", () => {
 });
 
 // Keyboard users keep their place when the row they were on leaves the list
-// (#1385). Focus lands on the next or previous row's read control, or on the
-// list itself when no row remains.
-describe("ArticleList in-place removal keeps focus in the list (#1385)", () => {
+// (#1385). The list tells the dashboard before the row goes and the dashboard
+// takes focus back afterwards (#1468). This replaced "focus the next row's read
+// control": a read control is a role="button", which the dashboard keymap
+// ignores, so the user's shortcuts went dead until they clicked back in.
+describe("ArticleList in-place removal hands focus back to the dashboard (#1468)", () => {
   afterEach(() => {
     document.body.empty();
     vi.restoreAllMocks();
@@ -446,6 +448,9 @@ describe("ArticleList in-place removal keeps focus in the list (#1385)", () => {
     // connected subtree, so attach one for these tests.
     const container = createDiv();
     document.body.appendChild(container);
+    const dashboard = createDiv({ attr: { tabindex: "-1" } });
+    document.body.appendChild(dashboard);
+    const events: string[] = [];
     const h = createArticleListHarness({
       container,
       settings: {
@@ -457,8 +462,17 @@ describe("ArticleList in-place removal keeps focus in the list (#1385)", () => {
         buildArticle({ guid: String(index + 1), title: `One ${index + 1}` }),
       ),
     });
+    Object.assign(h.callbacks, {
+      onFocusedRowRemoval: () => {
+        events.push("before");
+        return () => {
+          events.push("after");
+          dashboard.focus();
+        };
+      },
+    });
     h.list.render();
-    return h;
+    return { ...h, dashboard, events };
   }
 
   const readControl = (h: ReturnType<typeof listFixture>, guid: string) =>
@@ -466,19 +480,21 @@ describe("ArticleList in-place removal keeps focus in the list (#1385)", () => {
       .getArticleEl(guid)
       ?.querySelector<HTMLElement>(".rss-dashboard-read-toggle") ?? null;
 
-  it("moves focus to the next article's read control", () => {
+  it("tells the dashboard before the row leaves and returns focus to it afterwards", () => {
     vi.useFakeTimers();
     const h = listFixture(3);
     readControl(h, "2")?.focus();
 
     h.list.removeArticleInPlace("2");
+    expect(h.events).toEqual(["before"]);
     vi.advanceTimersByTime(320);
 
-    expect(document.activeElement).toBe(readControl(h, "3"));
+    expect(h.events).toEqual(["before", "after"]);
+    expect(document.activeElement).toBe(h.dashboard);
     h.cleanup();
   });
 
-  it("moves focus to the previous article's read control when the last row leaves", () => {
+  it("does not land focus on another card's read control", () => {
     vi.useFakeTimers();
     const h = listFixture(3);
     readControl(h, "3")?.focus();
@@ -486,13 +502,15 @@ describe("ArticleList in-place removal keeps focus in the list (#1385)", () => {
     h.list.removeArticleInPlace("3");
     vi.advanceTimersByTime(320);
 
-    expect(document.activeElement).toBe(readControl(h, "2"));
+    expect(document.activeElement).not.toBe(readControl(h, "2"));
+    expect(document.activeElement).toBe(h.dashboard);
     h.cleanup();
   });
 
-  it("moves focus to the article list when no row remains", () => {
+  it("falls back to the article list when nothing hands focus back", () => {
     vi.useFakeTimers();
     const h = listFixture(1);
+    Object.assign(h.callbacks, { onFocusedRowRemoval: undefined });
     readControl(h, "1")?.focus();
 
     h.list.removeArticleInPlace("1");
@@ -512,6 +530,7 @@ describe("ArticleList in-place removal keeps focus in the list (#1385)", () => {
     h.list.removeArticleInPlace("1");
     vi.advanceTimersByTime(320);
 
+    expect(h.events).toEqual([]);
     expect(document.activeElement).toBe(other);
     h.cleanup();
   });
@@ -529,7 +548,7 @@ describe("ArticleList in-place removal keeps focus in the list (#1385)", () => {
 
     h.list.removeArticleInPlace("1");
 
-    expect(document.activeElement).toBe(readControl(h, "2"));
+    expect(document.activeElement).toBe(h.dashboard);
     h.cleanup();
   });
 });
