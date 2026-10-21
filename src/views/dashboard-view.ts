@@ -159,6 +159,11 @@ export class RssDashboardView extends ItemView {
   private currentFeed: Feed | null = null;
   private selectedTags: string[] = [];
   private selectedArticle: FeedItem | null = null;
+  /**
+   * The article search the list is showing. The list is rebuilt on every
+   * render, so the query lives here and is handed back to the new list (#1465).
+   */
+  private articleSearchQuery = "";
   private tagsCollapsed = true;
   private collapsedFolders: string[] = [];
   private allArticlesPage = 1;
@@ -1256,6 +1261,9 @@ export class RssDashboardView extends ItemView {
         }),
       );
 
+      // The list is rebuilt on every render, so hand it the search the user
+      // typed on the previous one (#1465).
+      this.articleList.setSearchQuery(this.articleSearchQuery);
       this.articleList.render();
 
       this.updateRefreshButtonText();
@@ -1281,8 +1289,10 @@ export class RssDashboardView extends ItemView {
       },
       onToggleViewStyle: this.handleToggleViewStyle.bind(this),
       onRefreshFeeds: this.handleRefreshFeeds.bind(this),
-      onSearch: (_q: string) => {
-        // State is handled by ArticleList locally, but we could sync it here if needed
+      onSearch: (query) => {
+        // The list filters locally; the view keeps the query so the next
+        // render can hand it back to the rebuilt list (#1465).
+        this.articleSearchQuery = query;
       },
       onOpenViewFilters: (opener) => {
         this.openViewingFiltersMenu(opener);
@@ -2344,6 +2354,8 @@ export class RssDashboardView extends ItemView {
     this.selectedTags = [];
 
     if (this.currentFolder !== folder) {
+      // A different scope starts a fresh search (#1465).
+      this.articleSearchQuery = "";
       if (folder === "unread") {
         this.unreadArticlesPage = 1;
       } else if (folder === "read") {
@@ -2419,6 +2431,10 @@ export class RssDashboardView extends ItemView {
     this.currentFolder = null;
     this.selectedTags = [];
     this.selectedArticle = null;
+    // A different feed starts a fresh search (#1465).
+    if (this.currentFeed?.url) {
+      this.articleSearchQuery = "";
+    }
 
     // Update anchor for subsequent Shift+click range selections
     if (feed && feed.url) this.lastClickAnchorKey = `feed:${feed.url}`;

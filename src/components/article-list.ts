@@ -262,6 +262,17 @@ export class ArticleList {
     return this.header?.focusSearch() ?? Promise.resolve(false);
   }
 
+  /**
+   * Restores the article search a rebuilt list has to keep. The dashboard
+   * creates a new list on every render, so a page, filter or refresh change
+   * would otherwise drop the query with the old list (#1465).
+   */
+  public setSearchQuery(query: string): void {
+    this.articleSearchQuery = query.trim().toLowerCase();
+    this.header?.setSearchQuery(query);
+    this.filterArticlesBySearch(this.articleSearchQuery);
+  }
+
   public destroy(): void {
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();

@@ -94,6 +94,7 @@ vi.mock("../../../src/components/article-list", () => ({
     setEmptyStateContext(context: unknown): void {
       this.record.emptyStateContext = context;
     }
+    setSearchQuery(): void {}
     refilter(): void {}
     setSelectedArticle(): void {}
     updateHeaderTitle(): void {}
