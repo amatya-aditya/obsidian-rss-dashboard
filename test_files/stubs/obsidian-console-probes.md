@@ -1623,7 +1623,8 @@ What this shows:
   The search was a scan of both vault folders for any file with "conflict" in
   its name after each run. Where Sync would put such a file for a `.json` is not
   known, and no conflict preset should be built from this run.
-- **The plugin could not recover the losing edit.** In C1 and C2 the loser had
+- **The plugin could not recover the losing edit** (plugin 2.7.1, before any
+  fix for #1452). In C1 and C2 the loser had
   already saved. When the winner's file replaced it, the plugin adopted the
   incoming `data.json` as the only copy, so the per-entry merge of #1439 had
   nothing to merge against. A rename made on one device while another saves is
