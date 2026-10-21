@@ -1,36 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
-import { App } from "obsidian";
+import { App, type MockApp } from "obsidian";
+import { SyncSimulator } from "../sync-simulator";
 import { FeedStorageRepository } from "../../../src/services/feed-storage-repository";
 import {
   DEFAULT_SETTINGS,
   type Feed,
   type RssDashboardSettings,
 } from "../../../src/types/types";
-
-// The in-memory vault stub keeps adapter-written files in a private map; the
-// sync simulation below needs to enumerate and copy them between two vaults.
-function adapterFiles(app: App): Map<string, string> {
-  return (app.vault as unknown as { adapterFiles: Map<string, string> })
-    .adapterFiles;
-}
-
-/**
- * Mirrors Obsidian Sync's documented exclusion rule: files and folders whose
- * name begins with "." are hidden and never synced. The one exception, the
- * vault's config folder, carries the plugin's own data.json, which these
- * tests pass between devices directly rather than through the vault.
- */
-function isSyncedByObsidianSync(path: string): boolean {
-  return path.split("/").every((segment) => !segment.startsWith("."));
-}
-
-function syncVault(from: App, to: App): void {
-  for (const [path, content] of adapterFiles(from)) {
-    if (isSyncedByObsidianSync(path)) {
-      adapterFiles(to).set(path, content);
-    }
-  }
-}
 
 function makeFeed(): Feed {
   return {
@@ -64,7 +40,7 @@ async function setUpSecondDevice(folders: {
   storageFolder: string;
   metadataStorageFolder: string;
 }): Promise<{
-  mobile: App;
+  mobile: MockApp;
   mobileSettings: RssDashboardSettings;
   mobileRepository: FeedStorageRepository;
 }> {
@@ -88,7 +64,7 @@ async function setUpSecondDevice(folders: {
     { forceAllShards: true, forceMetadata: true },
   );
 
-  syncVault(desktop, mobile);
+  await new SyncSimulator(desktop, mobile).deliver();
 
   const mobileSettings = {
     ...JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),
@@ -126,7 +102,7 @@ describe("Shard storage v2 - cross-device sync", () => {
     await mobileRepository.persistSettings(mobileSettings, saveData);
     await mobileRepository.repairVaultShards(mobileSettings, saveData);
 
-    const writtenShards = [...adapterFiles(mobile).keys()].filter((path) =>
+    const writtenShards = [...mobile.vault.filesOnDisk.keys()].filter((path) =>
       path.startsWith(`${DEFAULT_SETTINGS.storageFolder}/`),
     );
     expect(writtenShards).toEqual([]);

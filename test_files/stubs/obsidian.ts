@@ -1263,6 +1263,14 @@ export class MockDataVault {
     this.makeFolders(path);
   }
 
+  /**
+   * Test setup, not Obsidian API: the files on disk by path, as the adapter
+   * holds them. Setting an entry writes a file without events or times.
+   */
+  get filesOnDisk(): Map<string, string> {
+    return this.adapterFiles;
+  }
+
   /** Creates `path` and any missing parent folders, reusing existing ones. */
   private makeFolders(path: string): TFolderStub {
     let currentPath = "";
