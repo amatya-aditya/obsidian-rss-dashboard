@@ -470,9 +470,8 @@
    the timer's projected expiry. It starts a few pixels left of the playhead,
    under the played fill, so the fill's rounded cap covers the join instead of
    leaving the track showing between them (#1447), and it shares the active
-   button's colour at reduced opacity. Mixing toward the text colour keeps a
-   3:1 edge against the empty track in both default light and dark themes;
-   opacity alone falls short on the light track. */
+   button's colour at reduced opacity, mixed toward the text colour so it stays
+   visible on the light track. */
 .podcast-sleep-band {
   /* The played fill's cap has a 6px radius. 8px covers it and leaves 2px of
      band showing beside the cap at the top and bottom rows, which is what makes
@@ -494,7 +493,7 @@
     var(--text-normal)
   );
   border-radius: 0 6px 6px 0;
-  opacity: 0.8;
+  opacity: 0.4;
   pointer-events: none;
   z-index: 0;
   transition:
@@ -658,7 +657,7 @@
   padding: 10px 12px;
   font-weight: 700;
   color: var(--text-normal);
-  background: color-mix(in srgb, var(--background-secondary) 80%, #5a5a5a 20%);
+  background: var(--background-secondary);
   border-bottom: 1px solid transparent;
   user-select: none;
   transition:
@@ -681,7 +680,7 @@
 }
 
 .podcast-episode-details > summary:hover {
-  background: color-mix(in srgb, var(--background-secondary) 70%, #6a6a6a 30%);
+  background: var(--background-modifier-hover);
 }
 
 .podcast-episode-details > summary:focus-visible {

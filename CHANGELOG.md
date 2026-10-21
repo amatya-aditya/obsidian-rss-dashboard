@@ -62,6 +62,7 @@
 
 ### Fixes
 
+- The podcast player's **Episode details** and **Show notes** box now inherits the same theme-aware surface, border and hover colours as the Reader's description callout in the default player theme, instead of the button-style greys it used for its header. Light, dark and community themes colour the box like the rest of the Reader; the other player themes keep their own palettes.
 - A feed's articles no longer vanish from the dashboard when its shard file is renamed or deleted outside Obsidian while the feed is loaded (Shard storage v2). The feed keeps the articles on screen, its sidebar warning reads "Your articles are still loaded", and nothing is written until you run **Settings → Storage → Repair/rebuild storage**, which recreates the shard from them. Put the file back under its original name and the next reload loads it normally. [GH Issue #1441](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1441)
 - Marking an article read or starred right after another device's change to your article state syncs in no longer erases that change. A save now compares `user-state.json` with the copy this device last wrote or loaded, even when no file event has arrived yet, and refreshes your read, starred, and tag state from the synced file first, so both devices' changes survive. A settings change you made just before the save is kept, and a save with nothing new to pick up does no extra work. [GH Issue #1418](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1418)
 
