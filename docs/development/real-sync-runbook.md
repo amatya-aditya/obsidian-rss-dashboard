@@ -107,8 +107,8 @@ Do not treat a quiet log as done. Treat the pass step as not yet started until
 both sides show the text.
 
 "Fully synced" means Sync is idle on that side. It does not mean the files have
-arrived: the same kind of change took about 1 s to about 171 s to land on the
-other device while both sides read "Fully synced" (#1430). Treat it as
+arrived: the first Real Sync pass saw changes land on the other device well
+after both sides read "Fully synced" (#1430). Treat it as
 necessary, never sufficient. A step that waits for a delivery waits for the
 expected file bytes: read the file on the receiving side, from disk (Device B is
 on the same PC) or over CDP, and compare its size and SHA-256 with the sending
@@ -150,7 +150,8 @@ carried to Device B, so Sync must be paused on both devices first.
    `--sync-paused`.
 4. Resume Sync in the real vault. Wait for "Fully synced" on the real vault
    before resuming it in Device B, so the restored files win rather than being
-   merged against stale ones. That text only shows Sync is idle there.
+   merged against stale ones. Device B is still paused, so its log says nothing
+   yet. The text only shows Sync is idle on the real vault.
 5. After resuming Device B, read its restored files and compare them with the
    manifest, as above. Do not treat Device B as restored on "Fully synced"
    alone.
