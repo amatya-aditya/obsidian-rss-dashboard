@@ -63,7 +63,7 @@ export interface FeedStoragePersistResult {
   shardDeleteCount: number;
 }
 
-export interface RemovedFeedShardBaseline {
+interface RemovedFeedShardBaseline {
   shardPath: string;
   content: string;
 }
@@ -217,6 +217,12 @@ export async function hydrateFeedStorage(
   };
 }
 
+/** What hydration read off the workflow state before it replaced it. */
+interface PreHydrationSnapshot {
+  feedIds: readonly string[];
+  contentByPath: ReadonlyMap<string, string>;
+}
+
 /**
  * Notes the shard of each feed an arriving feed list dropped, with the content
  * this device last wrote or read, so a later save can tell an untouched shard
@@ -226,10 +232,7 @@ function recordRemovedFeedShards(
   settings: RssDashboardSettings,
   host: FeedStorageRunnerHost,
   feedsById: ReadonlyMap<string, Feed>,
-  previous: {
-    feedIds: readonly string[];
-    contentByPath: ReadonlyMap<string, string>;
-  },
+  previous: PreHydrationSnapshot,
 ): void {
   const baselines = host.state.removedFeedShardBaselines;
   for (const feedId of feedsById.keys()) {
@@ -466,7 +469,7 @@ export async function persistFeedStorage(
     Boolean(options.replacesFeedList),
     host,
   );
-  shardDeleteCount += await deleteShardsOfFeedsRemovedOnArrival(
+  shardDeleteCount += await deleteOrphanShardsOnRemovalArrival(
     currentFeedIds,
     host,
   );
@@ -712,7 +715,7 @@ async function deleteRemovedFeedShards(
  * what this device last wrote or read. A changed, missing, or unreadable file
  * is left alone; it is an unrecognized shard for the health check (#318).
  */
-async function deleteShardsOfFeedsRemovedOnArrival(
+async function deleteOrphanShardsOnRemovalArrival(
   currentFeedIds: ReadonlySet<string>,
   host: FeedStorageRunnerHost,
 ): Promise<number> {

@@ -457,6 +457,19 @@ describe("Shard storage v2 arrival orders through the real plugin (#1429)", () =
     await desktop.plugin.saveSettings({ forceAllShards: true });
   }
 
+  function readOrThrow(vault: MockApp["vault"], path: string): string {
+    const text = vault.filesOnDisk.get(path);
+    if (text === undefined) throw new Error(`baseline missing: ${path}`);
+    return text;
+  }
+
+  /** The feed-a shard as it is on disk, with one more article appended. */
+  function feedAShardWithA3(vault: MockApp["vault"]): string {
+    const shard = JSON.parse(readOrThrow(vault, shardPath("feed-a")));
+    shard.items.push(item("feed-a", "a3"));
+    return JSON.stringify(shard);
+  }
+
   async function markA1Read(device: Device): Promise<void> {
     await device.plugin.updateArticle(
       "a1",
@@ -509,24 +522,19 @@ describe("Shard storage v2 arrival orders through the real plugin (#1429)", () =
       feed("feed-a", ["a1", "a2"]),
     ]);
     const vault = mobile.app.vault;
-    const original = vault.filesOnDisk.get(shardPath("feed-a"));
-    if (original === undefined) throw new Error("baseline shard missing");
-    const shard = JSON.parse(original);
-    shard.items.push(item("feed-a", "a3"));
+    const rewritten = feedAShardWithA3(vault);
     await desktopRemovesFeedA(desktop);
 
     // Both land inside one reload debounce, so this device never reads the
     // rewritten shard before the feed list drops its feed.
-    vault.externalWrite(shardPath("feed-a"), JSON.stringify(shard));
+    vault.externalWrite(shardPath("feed-a"), rewritten);
     await sync.deliver({ only: [DATA_PATH] });
     await settle();
     expect(mobile.plugin.settings.feeds).toEqual([]);
     await mobile.plugin.saveSettings();
 
     expect(filesIn(vault, SHARD_FOLDER)).toEqual([shardPath("feed-a")]);
-    expect(vault.filesOnDisk.get(shardPath("feed-a"))).toBe(
-      JSON.stringify(shard),
-    );
+    expect(vault.filesOnDisk.get(shardPath("feed-a"))).toBe(rewritten);
   });
 
   it.each([
@@ -608,17 +616,13 @@ describe("Shard storage v2 arrival orders through the real plugin (#1429)", () =
       feed("feed-a", ["a1", "a2"]),
     ]);
     const vault = mobile.app.vault;
-    const withFeedA = vault.filesOnDisk.get(DATA_PATH);
-    if (withFeedA === undefined) throw new Error("baseline data.json missing");
-    const original = vault.filesOnDisk.get(shardPath("feed-a"));
-    if (original === undefined) throw new Error("baseline shard missing");
-    const shard = JSON.parse(original);
-    shard.items.push(item("feed-a", "a3"));
+    const withFeedA = readOrThrow(vault, DATA_PATH);
+    const rewritten = feedAShardWithA3(vault);
     await desktopRemovesFeedA(desktop);
 
     await sync.deliver({ only: [DATA_PATH] });
     await settle();
-    vault.externalWrite(shardPath("feed-a"), JSON.stringify(shard));
+    vault.externalWrite(shardPath("feed-a"), rewritten);
     await settle();
     await mobile.plugin.saveSettings();
 
@@ -635,8 +639,7 @@ describe("Shard storage v2 arrival orders through the real plugin (#1429)", () =
       feed("feed-a", ["a1", "a2"]),
     ]);
     const vault = mobile.app.vault;
-    const withFeedA = vault.filesOnDisk.get(DATA_PATH);
-    if (withFeedA === undefined) throw new Error("baseline data.json missing");
+    const withFeedA = readOrThrow(vault, DATA_PATH);
     await desktopRemovesFeedA(desktop);
 
     await sync.deliver({ only: [DATA_PATH] });
@@ -644,8 +647,9 @@ describe("Shard storage v2 arrival orders through the real plugin (#1429)", () =
     await mobile.plugin.saveSettings();
     expect(filesIn(vault, SHARD_FOLDER)).toEqual([]);
 
-    // Pinned as intended (ADR 0010): only a shard this device left
-    // untouched is deleted; the feed list is the authority for the rest.
+    // Pinned as decided in #1444 (exact-content check): a shard this device
+    // left untouched is deleted, so a feed that a stale data.json hid comes
+    // back without articles. Only a shard another device changed survives.
     vault.externalWrite(DATA_PATH, withFeedA);
     await settle();
     expect(guidsOf(mobile, "feed-a")).toEqual([]);
