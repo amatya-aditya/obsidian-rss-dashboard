@@ -1575,8 +1575,9 @@ two feed titles, 13 feeds and the bootstrap pointer, whose SHA-256 is again
 `0ef5611b…`. Device A and Device B then matched byte for byte: 289 data files,
 `main.js`, `manifest.json`, `styles.css` and the bootstrap pointer. Not
 restored byte for byte: A's `data.json` is 19766 bytes where it was 19748 before
-the run. No test feed or renamed title is left in it. The cause of the 18 bytes
-is unknown (#1455).
+the run. No test feed or renamed title is left in it. The 18 bytes are Sync
+nonces, which are expected and intentional (#1455, closed as wontfix on that
+triage); this run did not check them itself.
 
 ## Real Sync pass, run 2: conflicts, and plugin behavior on late and empty deliveries
 
@@ -1659,8 +1660,8 @@ resumed. After the last restore, Device A and Device B matched on all 289 data
 files and the bootstrap pointer, and a search found no conflict file in either
 vault. After Device B resumed, the Sync instance's server version did not
 change, which is one observation that Sync compared content and not mtime. A's
-`data.json` is 19783 bytes at the end of the pass, 35 more than before it
-(#1455).
+`data.json` is 19783 bytes at the end of the pass, 35 more than before it, which
+is the same Sync nonce growth (#1455).
 
 **Not observed.** A conflict on the plugin's bootstrap `data.json` in the config
 folder. The shard's final content after C2. Notes (Markdown) conflicts and their
@@ -1671,4 +1672,4 @@ another machine, the mobile app, and the Sync conflict UI.
 **Follow-ups filed from this pass:** #1452 (the lost edit), #1453 (the
 new-device steps in `syncing.md`), #1454 (feeding these results back into the
 simulator and presets, including that `data-first` order was not observed) and
-#1455 (the `data.json` size drift).
+#1455 (the `data.json` size drift, closed as wontfix: Sync nonces).
