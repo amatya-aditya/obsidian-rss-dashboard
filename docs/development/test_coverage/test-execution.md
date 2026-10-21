@@ -34,13 +34,12 @@ For each item choose the cheapest route that exercises the real thing:
   (**Simulating Sync** in `docs/development/fixture-vault.md`). Real Obsidian
   Sync is driven only in an attended **Real Sync pass** under
   `docs/development/real-sync-runbook.md`, never from `/test-drive` or in CI.
-  The first pass recorded delivery events, delay, wave order, whole-file
-  `data.json` conflict outcomes and the plugin's late-shard, late-state and
-  empty-`data.json` behavior in `test_files/stubs/obsidian-console-probes.md`
-  ("Real Sync pass"). Keep as hand-off what no pass recorded: Sync's merge of
-  notes and conflict-file naming, its timing guarantees (delivery took from
-  about 1 s to about 171 s), a second device on another machine or the mobile
-  app, and a Sync conflict UI.
+  The first pass's observations are in the probe ledger
+  (`test_files/stubs/obsidian-console-probes.md`, "Real Sync pass"). Keep as
+  hand-off what no pass recorded: Sync's merge of notes and conflict-file
+  naming, a conflict on the plugin's bootstrap `data.json`, Sync's timing
+  guarantees (delivery delay varied widely), a second device on another machine
+  or the mobile app, and a Sync conflict UI.
 - **Out of reach**: a real phone, hardware. Mark it now so it lands in the
   hand-off list instead of silently vanishing.
 

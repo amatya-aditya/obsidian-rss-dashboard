@@ -53,6 +53,22 @@ session, so its actions are bounded.
 
 If a step would need a forbidden action, stop and ask the maintainer to do it by hand.
 
+### Exceptions approved for the first pass
+
+The first Real Sync pass (2026-10-21) used these, each approved in chat for that
+pass. They are not standing permissions, and a later pass needs its own approval
+for any of them:
+
+- Writing files into Device B's vault with Node `fs` from inside Obsidian, and
+  copying Device A's files over Device B to restore it, only while Sync was
+  paused on Device B and only for a scenario named in the approval.
+- Turning on "Create conflict file" in Device B's Sync settings, on the
+  maintainer's instruction in chat.
+- Moving a hidden window back on screen (`setBounds`) and evaluating in the
+  Settings page of a vault through a raw DevTools call, to reach the Pause and
+  Resume button.
+- Starting a run with the backup waived, as described under "Backup and restore".
+
 ## Setup that applies to every run
 
 ### The vault path comes from an environment variable
@@ -108,6 +124,14 @@ window and read the newest entry:
 Do not treat a quiet log as done. Treat the pass step as not yet started until
 both sides show the text.
 
+"Fully synced" means nothing more is queued to upload or download. It does not
+mean a change has reached the other device: in the first pass both sides showed
+it while a delivery was still pending, and deliveries arrived between about 1 s
+and about 171 s after the write (see "Real Sync pass" in the
+[probe ledger](../../test_files/stubs/obsidian-console-probes.md)). Confirm a
+delivery by reading the receiving file or the receiver's event log, not by the
+status text alone.
+
 ## Backup and restore
 
 Write these steps down and rehearse them before the first run. Take a verified backup before the first run, before Device B setup, and before
@@ -124,6 +148,11 @@ npm run vault:backup -- backup --vault $env:RSS_DASHBOARD_VAULT --dest $env:RSS_
 
 A backup counts only when the script reports success. A failed or partial
 backup is not a backup, so do not start a run on it.
+
+A waiver does not change this rule. The maintainer can waive the backup for a
+named pass in chat, and the pass's ledger entry records the waiver as a
+deviation. The first Real Sync pass ran both runs under such a waiver, so
+neither run had a verified backup or a recorded restore drill.
 
 ### Restore
 
@@ -186,11 +215,11 @@ In Device B's Sync settings, before step 5 can finish:
 Community plugins stay in Restricted mode in a new vault. Exiting it is the
 maintainer's step, taken only after "Fully synced".
 
-### Targeting both windows over CDP (open question A1)
+### Targeting both windows over CDP
 
 **A1 is confirmed** (Obsidian 1.14.4, Windows 11, 2026-10-21, first Real Sync
-pass). With the real vault and Device B open in one instance, `targets` on one
-debug port lists a page per vault, plus a separate Settings page for each vault
+pass). With the real vault and Device B open in one instance, the debug port's page
+list (`/json/list`) shows a page per vault, plus a separate Settings page for each vault
 that has Settings open. `--expect-vault` tells the vault pages apart, so one
 port is enough and no second instance is needed.
 
@@ -200,9 +229,10 @@ is off-screen:
 - `obsidian-cdp.mjs open-settings` and `--settings` pin to the first Settings
   window and refuse the other vault's. Reach a specific vault's Settings page
   with a raw CDP `Runtime.evaluate` on the page whose title names that vault.
-- A hidden window is parked off-screen. `require("electron").remote
-.getCurrentWindow()` in that page restores it, and `setBounds` puts it back on
-  screen, so the Pause and Resume button can be clicked.
+- A hidden window is parked off-screen. Calling
+  `require("electron").remote.getCurrentWindow()` in that page restores it, and
+  `setBounds` puts it back on screen, so the Pause and Resume button can be
+  clicked.
 
 **A2 is unconfirmed:** whether a second local vault on the same remote uses a
 remote-vault slot. Check the Sync plan page when setting Device B up.
