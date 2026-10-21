@@ -3,6 +3,9 @@
   padding: 8px;
   position: relative;
   overflow: hidden;
+  /* One colour for the sleep timer's active button and its seek-bar band
+     (#1371, DEC-006), so the two cannot diverge. */
+  --rss-sleep-timer-color: var(--interactive-accent);
 }
 
 @keyframes podcastGradientShift {
@@ -352,7 +355,7 @@
 }
 
 .rss-sleep-timer-btn.is-active {
-  color: var(--interactive-accent);
+  color: var(--rss-sleep-timer-color);
 }
 
 .rss-sleep-timer-inline-value {
@@ -458,6 +461,31 @@
   border-radius: inherit;
   overflow: hidden;
   transition: width 0.1s linear;
+}
+
+/* Sleep timer band (#1371): a preview of the unplayed audio that will stop at
+   the timer's projected expiry. It starts at the playhead, shares the active
+   button's colour at reduced opacity, and lets seek input through to the bar.
+   Mixing toward the text colour keeps a 3:1 edge against the empty track in
+   both default light and dark themes; opacity alone falls short on the light
+   track. */
+.podcast-sleep-band {
+  position: absolute;
+  top: 0;
+  left: var(--sleep-band-start, 0%);
+  height: 100%;
+  width: calc(var(--sleep-band-end, 0%) - var(--sleep-band-start, 0%));
+  background: color-mix(
+    in srgb,
+    var(--rss-sleep-timer-color) 60%,
+    var(--text-normal)
+  );
+  border-radius: 0 6px 6px 0;
+  opacity: 0.8;
+  pointer-events: none;
+  transition:
+    left 0.1s linear,
+    width 0.1s linear;
 }
 
 /* Shared marker layer (#1374, reused by #1357). It sits above the progress

@@ -29,6 +29,7 @@ export class PodcastPlayer {
   private hasAudioForCurrentItem = true;
   private playlist: FeedItem[] = [];
   private progressInterval: number | null = null;
+  private isAudioPlaying = false;
   private endSeekDrag: (() => void) | null = null;
   private progressData: Map<string, { position: number; duration: number }> =
     new Map();
@@ -68,6 +69,7 @@ export class PodcastPlayer {
   private durationEl: HTMLElement | null = null;
   private progressBarEl: HTMLProgressElement | null = null;
   private progressFilledEl: HTMLElement | null = null;
+  private sleepBandEl: HTMLElement | null = null;
   private speedButtonEl: HTMLElement | null = null;
   private shuffleButton: HTMLElement | null = null;
   private repeatButton: HTMLElement | null = null;
@@ -265,6 +267,8 @@ export class PodcastPlayer {
     this.progressWrapperEl = null;
     this.progressAreaEl = null;
     this.chapterLabelEl = null;
+    this.progressFilledEl = null;
+    this.sleepBandEl = null;
     this.container.empty();
 
     const podcastContainer = this.container.createDiv({
@@ -308,23 +312,37 @@ export class PodcastPlayer {
     if (item.audioUrl) {
       this.audioElement.src = item.audioUrl;
     }
+    this.isAudioPlaying = false;
     this.audioElement.onplay = () => {
+      this.isAudioPlaying = true;
       this.updatePlayButtonIcon(true);
       this.startProgressTracking();
+      this.updateSleepBand(true);
     };
     this.audioElement.onpause = () => {
+      this.isAudioPlaying = false;
       this.updatePlayButtonIcon(false);
       this.stopProgressTracking();
       this.saveProgress(true);
     };
     this.audioElement.ontimeupdate = () => this.updateProgressDisplay();
+    this.audioElement.onseeked = () => {
+      this.updateProgressDisplay();
+      this.updateSleepBand(true);
+    };
+    this.audioElement.onratechange = () => this.updateSleepBand(true);
     this.audioElement.onloadedmetadata = () => {
       this.updateProgressDisplay();
       this.syncChapterMarkers();
+      this.updateSleepBand(true);
     };
     this.audioElement.onended = () => {
+      this.isAudioPlaying = false;
       this.stopProgressTracking();
       this.saveProgress(true);
+      // A timed timer stays active after a natural episode end, but the band
+      // is a preview of unplayed audio and must not linger (AC-007).
+      if (this.sleepBandEl) this.sleepBandEl.hidden = true;
       this.handleEpisodeEnd();
     };
     this.audioElement.volume = 1;
@@ -408,22 +426,14 @@ export class PodcastPlayer {
     rewindBtn.createSpan({ cls: "seek-label", text: "30" });
     rewindBtn.onclick = () => {
       if (this.audioElement) {
-        this.audioElement.currentTime = Math.max(
-          0,
-          this.audioElement.currentTime - 30,
-        );
-        this.updateProgressDisplay();
+        this.seekTo(Math.max(0, this.audioElement.currentTime - 30));
       }
     };
     rewindBtn.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
         if (this.audioElement) {
-          this.audioElement.currentTime = Math.max(
-            0,
-            this.audioElement.currentTime - 30,
-          );
-          this.updateProgressDisplay();
+          this.seekTo(Math.max(0, this.audioElement.currentTime - 30));
         }
       }
     });
@@ -472,22 +482,24 @@ export class PodcastPlayer {
     forwardBtn.createSpan({ cls: "seek-label", text: "30" });
     forwardBtn.onclick = () => {
       if (this.audioElement) {
-        this.audioElement.currentTime = Math.min(
-          this.audioElement.duration || Infinity,
-          this.audioElement.currentTime + 30,
+        this.seekTo(
+          Math.min(
+            this.audioElement.duration || Infinity,
+            this.audioElement.currentTime + 30,
+          ),
         );
-        this.updateProgressDisplay();
       }
     };
     forwardBtn.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
         if (this.audioElement) {
-          this.audioElement.currentTime = Math.min(
-            this.audioElement.duration || Infinity,
-            this.audioElement.currentTime + 30,
+          this.seekTo(
+            Math.min(
+              this.audioElement.duration || Infinity,
+              this.audioElement.currentTime + 30,
+            ),
           );
-          this.updateProgressDisplay();
         }
       }
     });
@@ -678,6 +690,11 @@ export class PodcastPlayer {
     this.progressFilledEl = progressBarWrapper.createDiv({
       cls: "podcast-progress-bar-filled",
     });
+    this.sleepBandEl = progressBarWrapper.createDiv({
+      cls: "podcast-sleep-band",
+      attr: { "aria-hidden": "true" },
+    });
+    this.sleepBandEl.hidden = true;
     this.durationEl = seekbarRow.createDiv({
       cls: "rss-duration",
       text: "-0:00",
@@ -691,6 +708,14 @@ export class PodcastPlayer {
 
     this.bindSeekHandlers();
     this.syncChapterMarkers();
+  }
+
+  /** Seek without changing play or pause state, redrawing the sleep band now. */
+  private seekTo(seconds: number): void {
+    if (!this.audioElement) return;
+    this.audioElement.currentTime = seconds;
+    this.updateProgressDisplay();
+    this.updateSleepBand(true);
   }
 
   private bindSeekHandlers(): void {
@@ -718,9 +743,7 @@ export class PodcastPlayer {
 
       progressBar.addEventListener("click", (e) => {
         if (!this.audioElement || this.getFiniteDuration() === null) return;
-        const seekTime = getSeekTime(e);
-        this.audioElement.currentTime = seekTime;
-        this.updateProgressDisplay();
+        this.seekTo(getSeekTime(e));
       });
 
       progressBar.addEventListener("mousedown", (_e) => {
@@ -729,9 +752,7 @@ export class PodcastPlayer {
         const moveHandler = (moveEvent: MouseEvent) => {
           if (!isDragging || !this.audioElement) return;
           if (this.getFiniteDuration() === null) return;
-          const seekTime = getSeekTime(moveEvent);
-          this.audioElement.currentTime = seekTime;
-          this.updateProgressDisplay();
+          this.seekTo(getSeekTime(moveEvent));
         };
         const upHandler = () => {
           isDragging = false;
@@ -751,9 +772,7 @@ export class PodcastPlayer {
         const moveHandler = (moveEvent: TouchEvent) => {
           if (!isDragging || !this.audioElement) return;
           if (this.getFiniteDuration() === null) return;
-          const seekTime = getSeekTime(moveEvent);
-          this.audioElement.currentTime = seekTime;
-          this.updateProgressDisplay();
+          this.seekTo(getSeekTime(moveEvent));
         };
         const upHandler = () => {
           isDragging = false;
@@ -1006,6 +1025,7 @@ export class PodcastPlayer {
 
     this.updateSleepTimerButtonState();
     this.updateSleepTimerDisplay();
+    this.updateSleepBand(true);
   }
 
   private clearSleepTimer(): void {
@@ -1017,11 +1037,16 @@ export class PodcastPlayer {
     this.stopAtEndOfEpisode = false;
     this.updateSleepTimerButtonState();
     this.updateSleepTimerDisplay();
+    this.updateSleepBand(true);
+  }
+
+  private isSleepTimerActive(): boolean {
+    return !!this.sleepTimerEndTime || this.stopAtEndOfEpisode;
   }
 
   private updateSleepTimerButtonState(): void {
     if (this.sleepTimerButton) {
-      const isActive = !!this.sleepTimerEndTime || this.stopAtEndOfEpisode;
+      const isActive = this.isSleepTimerActive();
       this.sleepTimerButton.classList.toggle("is-active", isActive);
       this.sleepTimerButton.classList.toggle("has-countdown", isActive);
     }
@@ -1053,6 +1078,44 @@ export class PodcastPlayer {
     }
   }
 
+  /**
+   * Draw the sleep timer band from the playhead to the projected stop
+   * (DEC-002). The countdown stays wall-clock; playback speed only scales the
+   * media-time preview. A paused player keeps the band it last drew until
+   * play, seek, or a speed change asks for a fresh projection
+   * (AC-003, AC-004).
+   */
+  private updateSleepBand(force = false): void {
+    const band = this.sleepBandEl;
+    if (!band) return;
+
+    const duration = this.getFiniteDuration();
+    if (!this.isSleepTimerActive() || duration === null) {
+      band.hidden = true;
+      return;
+    }
+    if (!force && !this.isAudioPlaying && !band.hidden) return;
+
+    const currentTime = Math.min(
+      Math.max(this.audioElement?.currentTime ?? 0, 0),
+      duration,
+    );
+    let projectedEnd = duration;
+    if (this.sleepTimerEndTime) {
+      const remainingMs = Math.max(0, this.sleepTimerEndTime - Date.now());
+      const rate = this.audioElement?.playbackRate ?? 1;
+      const safeRate = Number.isFinite(rate) && rate > 0 ? rate : 1;
+      projectedEnd = currentTime + (remainingMs / 1000) * safeRate;
+    }
+    const end = Math.min(duration, Math.max(currentTime, projectedEnd));
+    const percent = (seconds: number) =>
+      `${Number(((seconds / duration) * 100).toFixed(4))}%`;
+
+    band.style.setProperty("--sleep-band-start", percent(currentTime));
+    band.style.setProperty("--sleep-band-end", percent(end));
+    band.hidden = false;
+  }
+
   private togglePlayback(): void {
     if (!this.audioElement) return;
     if (!this.currentItem?.audioUrl) return;
@@ -1077,6 +1140,7 @@ export class PodcastPlayer {
     this.audioElement.playbackRate = newSpeed;
     this.defaultPlaySpeed = newSpeed;
     this.onPlaySpeedChange?.(newSpeed);
+    this.updateSleepBand(true);
   }
 
   private cyclePlaybackSpeed(): void {
@@ -1091,6 +1155,7 @@ export class PodcastPlayer {
     const nextSpeed = speeds[nextIndex] ?? 1;
     this.audioElement.playbackRate = nextSpeed;
     this.speedButtonEl.textContent = `${nextSpeed.toFixed(2)}x`;
+    this.updateSleepBand(true);
   }
 
   private startProgressTracking(): void {
@@ -1211,9 +1276,7 @@ export class PodcastPlayer {
 
   /** Seek to a chapter without changing play or pause state (DEC-006). */
   private seekToChapter(start: number): void {
-    if (!this.audioElement) return;
-    this.audioElement.currentTime = start;
-    this.updateProgressDisplay();
+    this.seekTo(start);
   }
 
   /** Apply the persisted setting to an open player at once (AC-011, AC-012). */
@@ -1257,6 +1320,7 @@ export class PodcastPlayer {
       );
     }
 
+    this.updateSleepBand();
     this.updateChapterState();
   }
 
@@ -1322,12 +1386,17 @@ export class PodcastPlayer {
     this.clearSleepTimer();
     this.markerLayer?.destroy();
     this.markerLayer = null;
+    this.sleepBandEl = null;
 
     if (this.audioElement) {
       this.saveProgress(true);
       this.audioElement.onplay = null;
       this.audioElement.onpause = null;
       this.audioElement.onended = null;
+      this.audioElement.onseeked = null;
+      this.audioElement.onratechange = null;
+      this.audioElement.onloadedmetadata = null;
+      this.audioElement.ontimeupdate = null;
       this.audioElement.pause();
       this.audioElement.src = "";
       this.audioElement.remove();

@@ -40,6 +40,14 @@ _Avoid_: Bookmark, tick (unqualified), chapter button
 A tick on the seek bar that comes from a timestamp in the user's own saved note rather than from the publisher. Defined by the media-notes ticket (#1357); this term reserves the name so it is never confused with a [[Chapter marker]].
 _Avoid_: Chapter marker (the publisher-supplied kind), bookmark
 
+**Sleep timer**:
+A player setting that stops playback either after a set time (timed) or at the end of the [[Active episode]]. A timed sleep timer counts wall-clock time, keeps running while playback is paused, and is unaffected by playback speed.
+_Avoid_: Auto-stop, countdown
+
+**Sleep timer band**:
+The part of the seek bar from the playhead to the point where an active [[Sleep timer]] is projected to stop playback, drawn in the sleep timer's colour beside the played fill. It is a projection, clamped to the [[Active episode]], and is recalculated on play, seek and speed change.
+_Avoid_: Sleep timer overlay, expiry marker, timer bar
+
 **Episode order**:
 The current sequence of episodes after the player's selected sort or shuffle behavior has been applied. It determines an episode's before and after neighbors.
 _Avoid_: Publication order, feed order
