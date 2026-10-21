@@ -106,6 +106,15 @@ window and read the newest entry:
 Do not treat a quiet log as done. Treat the pass step as not yet started until
 both sides show the text.
 
+"Fully synced" means Sync is idle on that side. It does not mean the files have
+arrived: the same kind of change took about 1 s to about 171 s to land on the
+other device while both sides read "Fully synced" (#1430). Treat it as
+necessary, never sufficient. A step that waits for a delivery waits for the
+expected file bytes: read the file on the receiving side, from disk (Device B is
+on the same PC) or over CDP, and compare its size and SHA-256 with the sending
+side's file, or with the backup manifest for a restore. Read again until they
+match; the log text alone ends no wait.
+
 ## Backup and restore
 
 Write these steps down and rehearse them before the first run. Take a verified backup before the first run, before Device B setup, and before
@@ -139,10 +148,13 @@ carried to Device B, so Sync must be paused on both devices first.
 3. Wait for the script to report that every restored file matches its manifest
    entry. It reports failure if any file differs, and it refuses to run without
    `--sync-paused`.
-4. Resume Sync in the real vault. Wait for "Fully synced" on both sides before
-   resuming it in Device B, so the restored files win rather than being merged
-   against stale ones.
-5. Reload the plugin and check that the feeds are back.
+4. Resume Sync in the real vault. Wait for "Fully synced" on the real vault
+   before resuming it in Device B, so the restored files win rather than being
+   merged against stale ones. That text only shows Sync is idle there.
+5. After resuming Device B, read its restored files and compare them with the
+   manifest, as above. Do not treat Device B as restored on "Fully synced"
+   alone.
+6. Reload the plugin and check that the feeds are back.
 
 Do a restore drill on a throwaway folder before the first pass, and record it.
 The first pass does not start until the drill is recorded.
@@ -164,7 +176,10 @@ setup, because it needs a sign-in.
    Enabling it before the first pull finishes writes empty defaults that Sync
    then treats as authoritative, which can wipe the feeds on every device. This
    is the new-device order in [Syncing](../user/syncing.md).
-5. **Wait for the first pull.** Read "Fully synced" on both devices, as above.
+5. **Wait for the first pull.** Read "Fully synced" on both devices, as above,
+   then confirm the pull by reading Device B's `data.json`, `user-state.json` and
+   shards and comparing their size and SHA-256 with the real vault's. "Fully
+   synced" alone does not show the files arrived.
 6. **Enable the plugin.** Only now does the maintainer enable RSS Dashboard in Device B.
 7. **Compare storage settings.** Check that the metadata and shard folder paths
    match between the two vaults.
@@ -219,7 +234,8 @@ the list against the approval, and the run proceeds only if they match.
 2. A verified backup exists, taken for this run, and the restore drill is
    recorded.
 3. `--expect-vault` and the environment variables are set.
-4. Both sides read "Fully synced".
+4. Both sides read "Fully synced", and the plugin's storage files on both sides
+   match by size and SHA-256. The text only shows Sync is idle.
 5. The maintainer has approved the run: scenarios, files, Sync paused or not.
 6. The dry run was printed and matches.
 7. Run the scenarios. Install the in-memory event logger first, and remove it

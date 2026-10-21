@@ -458,7 +458,7 @@ An approved, attended run of [[Sync delivery]] scenarios against real Obsidian S
 _Avoid_: Sync test, live sync run
 
 **Device B**:
-The second local vault on the same PC, connected to the same Sync remote as the real vault, so a [[Real Sync pass]] can read both sides over CDP. The maintainer signs it in, and the plugin stays disabled there until the Sync activity log shows "Fully synced".
+The second local vault on the same PC, connected to the same Sync remote as the real vault, so a [[Real Sync pass]] can read both sides over CDP. The maintainer signs it in, and the plugin stays disabled there until the Sync activity log shows "Fully synced". That text means Sync is idle on that side, not that every file has been delivered, so a [[Real Sync pass]] confirms a delivery by reading the expected file on disk.
 _Avoid_: Test vault, fixture vault
 
 **Bootstrap pointer**:
