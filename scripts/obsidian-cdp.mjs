@@ -109,6 +109,7 @@ for (let n = 1; n <= 12; n += 1) {
 const PUNCTUATION_KEYS = {
   "?": ["Slash", 191, true],
   "/": ["Slash", 191, false],
+  "`": ["Backquote", 192, false],
 };
 const STEP_LINE = new RegExp(`^@(?:${STEP_NAMES.join("|")})(?:[ \\t]|$)`);
 
@@ -138,7 +139,7 @@ Batch steps (one per line in a repl script):
   @vault             Switch back to the vault window, checked against
                      --expect-vault.
   @key <key> [n]     Press a real key n times: Tab, Shift+Tab, Enter, Escape,
-                     Shift+F10, ArrowDown, t, and so on.
+                     Shift+F10, ArrowDown, t, \`, and so on.
   @ax <selector>     Print the accessibility node (role, name, state) of the
                      first element matching <selector>.
   @axquery <role> <selector>
@@ -552,8 +553,8 @@ export function parseKeySpec(spec) {
     );
   }
   throw new CdpError(
-    `Unknown key "${keyName}" in "${spec}". Use a letter, a digit, ? or /, or ` +
-      "a named key such as Tab, Enter, Escape, Space, an arrow key, Home, " +
+    `Unknown key "${keyName}" in "${spec}". Use a letter, a digit, ?, / or \`, ` +
+      "or a named key such as Tab, Enter, Escape, Space, an arrow key, Home, " +
       "End, PageUp, PageDown, ContextMenu or F1 to F12.",
   );
 }
