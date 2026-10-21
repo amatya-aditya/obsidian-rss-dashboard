@@ -3339,6 +3339,11 @@ export class RssDashboardView extends ItemView {
     this.syncInlineYouTubeFocusChrome(hide);
   }
 
+  /** Apply the chapter-marker setting to an open inline podcast player. */
+  public setPodcastChapterMarkers(enabled: boolean): void {
+    this.articleRenderer?.setPodcastChapterMarkers(enabled);
+  }
+
   /**
    * In Focus mode an inline YouTube video drops the toolbar and title from the
    * inline header and keeps only the back button.

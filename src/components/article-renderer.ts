@@ -354,6 +354,7 @@ export class ArticleRenderer {
         this.settings.media.defaultPlaySpeed ?? 1,
         this.settings.useFirstSeenDateFallback,
         this.onPodcastPlaySpeedChange,
+        this.settings.media.showPodcastChapterMarkers ?? true,
       );
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
     } else {
@@ -648,6 +649,10 @@ export class ArticleRenderer {
 
   public setYouTubeFocusMode(hide: boolean): void {
     this.videoPlayer?.setFocusMode(hide);
+  }
+
+  public setPodcastChapterMarkers(enabled: boolean): void {
+    this.podcastPlayer?.setChapterMarkersEnabled(enabled);
   }
 
   public setVideoTags(tags: Tag[] | undefined): void {

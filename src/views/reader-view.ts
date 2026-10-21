@@ -1619,6 +1619,7 @@ export class ReaderView extends ItemView {
         this.settings.media.defaultPlaySpeed ?? 1,
         this.settings.useFirstSeenDateFallback,
         this.onPodcastPlaySpeedChange,
+        this.settings.media.showPodcastChapterMarkers ?? true,
       );
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
     } else {
@@ -1639,6 +1640,7 @@ export class ReaderView extends ItemView {
           this.settings.media.defaultPlaySpeed ?? 1,
           this.settings.useFirstSeenDateFallback,
           this.onPodcastPlaySpeedChange,
+          this.settings.media.showPodcastChapterMarkers ?? true,
         );
         this.podcastPlayer.loadEpisode(podcastItem, fullFeedEpisodes);
       } else {
@@ -1671,6 +1673,11 @@ export class ReaderView extends ItemView {
     if (this.podcastPlayer) {
       this.podcastPlayer.updateTheme(theme);
     }
+  }
+
+  /** Apply the chapter-marker setting to the open player without reloading it. */
+  setPodcastChapterMarkers(enabled: boolean): void {
+    this.podcastPlayer?.setChapterMarkersEnabled(enabled);
   }
 
   private async syncDashboardSelectionFromPlayer(

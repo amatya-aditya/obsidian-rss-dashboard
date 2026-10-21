@@ -335,6 +335,8 @@ export interface MediaSettings {
   podcastTheme: PodcastTheme;
   enableApplePodcastsOpen?: boolean;
   defaultPlaySpeed: number;
+  /** Show chapter markers parsed from an episode's notes on the seek bar. */
+  showPodcastChapterMarkers?: boolean;
 }
 
 export interface SavedTemplate {
@@ -867,6 +869,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     podcastTheme: "obsidian",
     enableApplePodcastsOpen: false,
     defaultPlaySpeed: 1,
+    showPodcastChapterMarkers: true,
   },
   articleSaving: {
     addSavedTag: true,

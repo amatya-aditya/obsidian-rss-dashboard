@@ -848,7 +848,13 @@ export default class RssDashboardPlugin extends Plugin {
     return null;
   }
 
-  public async applyYouTubeFocusMode(hide: boolean): Promise<void> {
+  /**
+   * Visits every open Reader and dashboard, the two views that own a podcast
+   * player. Shared by the media settings that apply to open players.
+   */
+  private async forEachPlayerHostView(
+    run: (view: ReaderView | RssDashboardView) => void,
+  ): Promise<void> {
     const types = [RSS_READER_VIEW_TYPE, RSS_DASHBOARD_VIEW_TYPE];
     for (const type of types) {
       for (const leaf of this.app.workspace.getLeavesOfType(type)) {
@@ -857,10 +863,14 @@ export default class RssDashboardPlugin extends Plugin {
         }
         const view = leaf.view;
         if (view instanceof ReaderView || view instanceof RssDashboardView) {
-          view.setYouTubeFocusMode(hide);
+          run(view);
         }
       }
     }
+  }
+
+  public async applyYouTubeFocusMode(hide: boolean): Promise<void> {
+    await this.forEachPlayerHostView((view) => view.setYouTubeFocusMode(hide));
   }
 
   /**
@@ -877,6 +887,31 @@ export default class RssDashboardPlugin extends Plugin {
     this.settingTab?.refresh();
     new Notice(hide ? "Focus mode on" : "Focus mode off");
     return hide;
+  }
+
+  /**
+   * Applies the chapter-marker setting to every open Reader and dashboard so
+   * a player already on screen updates without reloading.
+   */
+  public async applyPodcastChapterMarkers(enabled: boolean): Promise<void> {
+    await this.forEachPlayerHostView((view) =>
+      view.setPodcastChapterMarkers(enabled),
+    );
+  }
+
+  /**
+   * Flips podcast chapter markers, applies the change to every open player,
+   * persists it, refreshes an open settings tab, and announces the new state.
+   * The palette command and the Settings → Media toggle share this path.
+   */
+  public async togglePodcastChapterMarkers(): Promise<boolean> {
+    const enabled = !this.settings.media.showPodcastChapterMarkers;
+    this.settings.media.showPodcastChapterMarkers = enabled;
+    await this.applyPodcastChapterMarkers(enabled);
+    await this.saveSettings();
+    this.settingTab?.refresh();
+    new Notice(enabled ? "Chapter markers on" : "Chapter markers off");
+    return enabled;
   }
 
   public async refreshOpenTagColorViews(): Promise<void> {

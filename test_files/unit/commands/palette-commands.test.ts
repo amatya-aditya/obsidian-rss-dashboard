@@ -66,6 +66,8 @@ const EXPECTED_HELP_IDS = ["show-keyboard-shortcuts"];
 
 const EXPECTED_FOCUS_MODE_IDS = ["toggle-youtube-focus-mode"];
 
+const EXPECTED_CHAPTER_MARKER_IDS = ["toggle-podcast-chapter-markers"];
+
 function createDashboardStub() {
   return {
     actionFocusSearch: vi.fn(),
@@ -110,6 +112,7 @@ function setup(open: { dashboard?: boolean; reader?: boolean } = {}) {
     openSettingsToTab: vi.fn(async () => {}),
     openShortcutHelp: vi.fn(),
     toggleYouTubeFocusMode: vi.fn(),
+    togglePodcastChapterMarkers: vi.fn(),
   };
   registerPaletteCommands(plugin);
   const byId = (id: string): RegisteredCommand => {
@@ -141,6 +144,7 @@ describe("palette command registration", () => {
       ...EXPECTED_READER_IDS,
       ...EXPECTED_HELP_IDS,
       ...EXPECTED_FOCUS_MODE_IDS,
+      ...EXPECTED_CHAPTER_MARKER_IDS,
     ]);
     for (const command of commands) {
       expect(command.id).toMatch(/^[a-z0-9]+(-[a-z0-9]+)*$/);
@@ -329,6 +333,26 @@ describe("focus mode command", () => {
     await run("toggle-youtube-focus-mode");
 
     expect(plugin.toggleYouTubeFocusMode).toHaveBeenCalledTimes(1);
+    expect(plugin.getActiveDashboardView).not.toHaveBeenCalled();
+    expect(plugin.getActiveReaderView).not.toHaveBeenCalled();
+  });
+});
+
+describe("chapter marker command", () => {
+  it("toggles podcast chapter markers from any view and sets no default hotkey", async () => {
+    const { run, byId, plugin } = setup();
+
+    expect(
+      byId("toggle-podcast-chapter-markers").checkCallback,
+    ).toBeUndefined();
+    expect(byId("toggle-podcast-chapter-markers").name).toBe(
+      "Toggle podcast chapter markers",
+    );
+    expect(byId("toggle-podcast-chapter-markers").hotkeys).toBeUndefined();
+
+    await run("toggle-podcast-chapter-markers");
+
+    expect(plugin.togglePodcastChapterMarkers).toHaveBeenCalledTimes(1);
     expect(plugin.getActiveDashboardView).not.toHaveBeenCalled();
     expect(plugin.getActiveReaderView).not.toHaveBeenCalled();
   });

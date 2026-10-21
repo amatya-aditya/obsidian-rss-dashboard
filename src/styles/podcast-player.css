@@ -391,6 +391,11 @@
 /* ROW 2: Progress Area */
 .podcast-progress-area {
   width: 100%;
+  /* The group's `aria-label` is the current chapter title, which the visible
+     label below repeats. Obsidian draws a native tooltip from it; that tooltip
+     lingers under the marker preview when the pointer moves from the label
+     onto a marker, so switch it off while keeping the accessible name. */
+  --no-tooltip: true;
 }
 
 .podcast-seekbar-row {
@@ -412,7 +417,9 @@
   border-radius: 6px;
   position: relative;
   cursor: pointer;
-  overflow: hidden;
+  /* Markers get a taller transparent hit area and a floating preview, so the
+     wrapper must not clip (DEC-011). The fill clips itself. */
+  overflow: visible;
 }
 
 .podcast-progress-bar {
@@ -434,7 +441,137 @@
   height: 100%;
   width: var(--progress-percent, 0%);
   background: var(--rss-podcast-progress-color, #1db954);
+  border-radius: inherit;
+  overflow: hidden;
   transition: width 0.1s linear;
+}
+
+/* Shared marker layer (#1374, reused by #1357). It sits above the progress
+   element so each marker button takes its own click, while the layer itself
+   lets pointer events through to the bar between markers. The 32 px hit area
+   is the design-spec baseline; dense lists overlap, and the layer resolves a
+   click to the nearest tick (DEC-012). */
+.seek-bar-marker-layer {
+  position: absolute;
+  inset: -10px 0;
+  z-index: 3;
+  pointer-events: none;
+  /* Obsidian draws its own hover tooltip from `aria-label` and skips it when
+     this computes to "true". The plugin shows a richer preview on hover and
+     focus, so the two must not stack. The property inherits to the markers. */
+  --no-tooltip: true;
+}
+
+.seek-bar-marker {
+  position: absolute;
+  top: 50%;
+  left: var(--seek-bar-marker-position, 0%);
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-normal);
+  cursor: pointer;
+  pointer-events: auto;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  opacity: 1;
+  transition: opacity 0.15s ease;
+}
+
+/* The 32 px hit area is deliberately invisible: only the tick shows. Obsidian's
+   global `button` styling paints a background and shadow here, so this scoped
+   selector out-specifies it without !important (#1374 v1, WCAG trade-off
+   accepted). The keyboard focus outline still marks the target when focused. */
+.rss-reader-podcast-container
+  .podcast-progress-bar-wrapper
+  .seek-bar-marker[type="button"] {
+  appearance: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* The visible tick: a 2 px core with a one-pixel ring so it keeps a 3:1 edge
+   against both the unfilled track and the accent fill (WCAG 1.4.11). */
+.seek-bar-marker::before {
+  content: "";
+  width: 2px;
+  height: 12px;
+  border-radius: 1px;
+  background: currentColor;
+  box-shadow:
+    0 0 0 1px var(--background-primary),
+    0 0 0 2px currentColor;
+  transition: height 0.15s ease;
+}
+
+/* Passed markers dim and shorten, so the state is not carried by opacity
+   alone. Focus restores full opacity so its ring stays visible. */
+.seek-bar-marker.is-passed {
+  opacity: 0.5;
+}
+
+.seek-bar-marker.is-passed::before {
+  height: 8px;
+}
+
+.seek-bar-marker:hover {
+  z-index: 1;
+}
+
+.seek-bar-marker:focus-visible {
+  opacity: 1;
+  z-index: 1;
+}
+
+.seek-bar-marker:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
+}
+
+.seek-bar-marker-preview {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: var(--seek-bar-marker-position, 0%);
+  transform: translateX(-50%);
+  z-index: 5;
+  width: max-content;
+  max-width: min(320px, 90%);
+  padding: 4px 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: hidden;
+  box-shadow: var(--shadow-s);
+  pointer-events: none;
+}
+
+.seek-bar-marker-preview[hidden] {
+  display: none;
+}
+
+.podcast-chapter-label {
+  margin-top: 4px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.podcast-chapter-label[hidden] {
+  display: none;
 }
 
 /* Episode details (collapsible notes + metadata) */
