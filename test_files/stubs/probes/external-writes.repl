@@ -11,6 +11,8 @@
 // `.sync-probe/`. Do not trigger plugin saves during the run, so the plugin's
 // own-write suppression window cannot hide a reload: each operation waits until
 // 3.3 s have passed since the last adapter write under the storage folders.
+// The c2 step is the one exception: it saves through the plugin on purpose, to
+// see whether Obsidian calls onExternalSettingsChange for its own write.
 // A reload makes the plugin write `user-state.json` itself; those `adapter.*`
 // lines are the plugin reacting, and appear in the log of the operation that
 // caused them.
@@ -298,7 +300,46 @@ try {
 JSON.stringify({ case: "b1 .sync-probe/probe.json", results: out }, null, 1)
 
 @eval
-JSON.stringify({ case: "c1 <configDir>/plugins/rss-dashboard/data.json", results: await window.__ext.modifyAndRestore(`${app.vault.configDir}/plugins/rss-dashboard/data.json`) }, null, 1)
+const ext = window.__ext;
+const fs = require("fs");
+const rel = `${app.vault.configDir}/plugins/rss-dashboard/data.json`;
+const abs = app.vault.adapter.getFullPath(rel);
+const original = fs.readFileSync(abs);
+const changed = JSON.stringify({ ...JSON.parse(original.toString()), __syncProbe: true });
+ext.originals[rel] = original;
+const out = [];
+try {
+  // Byte-only: the pickup adds no key and no value, so the parsed settings
+  // are identical and the plugin should not reload.
+  out.push(
+    await ext.op("modify (byte only, +newline)", rel, () =>
+      fs.writeFileSync(abs, Buffer.concat([original, Buffer.from("\n")])),
+    ),
+  );
+  // Different content: this is what a synced settings change looks like.
+  out.push(
+    await ext.op("modify (different content)", rel, () =>
+      fs.writeFileSync(abs, changed),
+    ),
+  );
+} finally {
+  out.push(await ext.op("restore", rel, () => fs.writeFileSync(abs, original)));
+}
+JSON.stringify({ case: "c1 <configDir>/plugins/rss-dashboard/data.json", results: out }, null, 1)
+
+@eval
+const ext = window.__ext;
+const plugin = app.plugins.plugins["rss-dashboard"];
+// c2: does Obsidian call onExternalSettingsChange after the plugin's own
+// saveData writes the same file? forceMetadata makes the save write it.
+const result = await ext.op(
+  "plugin save (forceMetadata)",
+  `${app.vault.configDir}/plugins/rss-dashboard/data.json`,
+  () => {
+    void plugin.saveSettings({ forceMetadata: true });
+  },
+);
+JSON.stringify({ case: "c2 plugin save", results: [result] }, null, 1)
 
 @eval
 const ext = window.__ext;

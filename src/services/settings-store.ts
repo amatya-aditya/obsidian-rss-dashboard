@@ -24,6 +24,7 @@ import {
   getMetadataPath,
   loadMetadata,
 } from "./metadata-location";
+import { comparableSnapshotJson } from "./storage-json";
 
 function storageLog(_message: string, _details?: unknown): void {}
 
@@ -117,6 +118,24 @@ export class SettingsStore {
   settingsLoadFailed = false;
   private hasNotifiedVaultMetadataFailure = false;
   private settingsLoadGeneration = 0;
+  /**
+   * Whether a load has started already. A later load keeps the settings
+   * already in memory when it cannot read the folder a new pointer names;
+   * the first one keeps the startup fallback.
+   */
+  private hasStartedSettingsLoad = false;
+  /**
+   * Comparable content of the plugin's own `data.json`, as last loaded or
+   * written, so an external callback can tell a synced change from a write
+   * this plugin made (#1400).
+   */
+  private pluginDataBaseline: string | null = null;
+  /**
+   * The metadata folder a reload could not read, while the settings still in
+   * memory name the previous one. Watched alongside the current folder so
+   * its `data.json` arriving later can recover the session without a restart.
+   */
+  private pendingMetadataFolder: string | null = null;
   private vaultMetadataReloadTimer: number | null = null;
   private suppressWatcherUntil = 0;
   private articleStateFlushTimer: number | null = null;
@@ -231,13 +250,25 @@ export class SettingsStore {
       : { scope: "article-state" };
   }
 
-  private async readBootstrapSettings(): Promise<{
+  /** A value that compares two snapshots by content, for the plugin data. */
+  private describePluginData(value: unknown): string | null {
+    if (value === null || value === undefined) return null;
+    if (isRecord(value)) return comparableSnapshotJson(value);
+    return JSON.stringify(value);
+  }
+
+  private async readBootstrapSettings(isInitialLoad: boolean): Promise<{
     data: RssDashboardSettings | null;
     vaultMetadataUnreadable: boolean;
+    keepCurrentSettings: boolean;
   }> {
     // Step 1: load bootstrap pointer from plugin-default location
     let data = (await this.options.loadData()) as RssDashboardSettings | null;
+    // Record what the file held so an external callback can compare against
+    // it, whether this load read a pointer or the full settings (#1400).
+    this.pluginDataBaseline = this.describePluginData(data);
     let vaultMetadataUnreadable = false;
+    let keepCurrentSettings = false;
     // Step 2: load full settings from the vault path named by the pointer
     if (data?.metadataStorageMode === "vault-location") {
       const vaultData = await loadMetadata(
@@ -252,9 +283,20 @@ export class SettingsStore {
         });
       } else {
         // Falling through would save defaults over the unreadable vault file,
-        // so treat the pointer like a null load instead.
+        // so treat the pointer like a null load instead. A reload keeps the
+        // settings already in memory rather than replacing them with
+        // defaults that would then be saved over the synced copy.
         vaultMetadataUnreadable = true;
-        data = structuredClone({ ...DEFAULT_SETTINGS, ...data });
+        keepCurrentSettings = !isInitialLoad;
+        if (keepCurrentSettings) {
+          // Remember where the new pointer pointed. The settings still in
+          // memory name the old folder, so the watcher has to know both
+          // until a later load succeeds.
+          this.pendingMetadataFolder = getMetadataPath(data) ?? null;
+        }
+        data = keepCurrentSettings
+          ? null
+          : structuredClone({ ...DEFAULT_SETTINGS, ...data });
         if (!this.hasNotifiedVaultMetadataFailure) {
           new Notice(
             "Could not read plugin metadata from the configured vault folder. Settings were not loaded and nothing has been overwritten.",
@@ -263,7 +305,7 @@ export class SettingsStore {
         }
       }
     }
-    return { data, vaultMetadataUnreadable };
+    return { data, vaultMetadataUnreadable, keepCurrentSettings };
   }
 
   private shouldSaveAfterLoad({
@@ -302,6 +344,8 @@ export class SettingsStore {
 
   async loadSettings(): Promise<void> {
     const loadGeneration = ++this.settingsLoadGeneration;
+    const isInitialLoad = !this.hasStartedSettingsLoad;
+    this.hasStartedSettingsLoad = true;
     this.wasNullSettingsLoad = false;
     try {
       // A synced reload replaces the in-memory snapshot. Pending local changes
@@ -314,9 +358,16 @@ export class SettingsStore {
       this.settingsLoadFailed = true;
       await this.settleJournalAppends();
       storageLog("Loading plugin settings");
-      const { data, vaultMetadataUnreadable } =
-        await this.readBootstrapSettings();
+      const { data, vaultMetadataUnreadable, keepCurrentSettings } =
+        await this.readBootstrapSettings(isInitialLoad);
       if (loadGeneration !== this.settingsLoadGeneration) return;
+      if (keepCurrentSettings) {
+        // A reload could not read the folder its new pointer names. Keep the
+        // live settings and close the write gate so nothing overwrites them
+        // with a fallback; a later successful load opens the gate again.
+        this.settingsLoadFailed = true;
+        return;
+      }
       // Track whether we bootstrapped from null (possible pending sync)
       const wasNullLoad = data === null || vaultMetadataUnreadable;
       this.wasNullSettingsLoad = wasNullLoad;
@@ -390,6 +441,8 @@ export class SettingsStore {
         );
       }
       this.options.getAutoRefreshScheduler()?.reschedule();
+      // A successful load ends any recovery from an unreadable pointer.
+      this.pendingMetadataFolder = null;
     } catch (error) {
       if (loadGeneration !== this.settingsLoadGeneration) return;
       storageError("Error loading plugin settings", error);
@@ -421,15 +474,62 @@ export class SettingsStore {
     // metadataFolder when available, otherwise fall back to the
     // conventional default folder name so tests behave deterministically.
     const metadataFolder = getMetadataPath(this.settings ?? DEFAULT_SETTINGS);
-    const folderToCheck = metadataFolder ?? ".rss-dashboard-data";
+    const folders = new Set([metadataFolder ?? ".rss-dashboard-data"]);
+    if (this.pendingMetadataFolder) {
+      // The new pointer's folder is still watched while the old settings
+      // are in memory, so its files arriving later end the recovery.
+      folders.add(this.pendingMetadataFolder);
+    }
 
     const normalizedBase = filePath.replace(/^\/+|\/+$/g, "");
-    const normalizedFolder = folderToCheck.replace(/^\/+|\/+$/g, "");
 
-    return (
-      normalizedBase === `${normalizedFolder}/data.json` ||
-      normalizedBase === `${normalizedFolder}/user-state.json`
-    );
+    return [...folders].some((folder) => {
+      const normalizedFolder = folder.replace(/^\/+|\/+$/g, "");
+      return (
+        normalizedBase === `${normalizedFolder}/data.json` ||
+        normalizedBase === `${normalizedFolder}/user-state.json`
+      );
+    });
+  }
+
+  /** Queues one debounced reload shared by the watcher and the callback. */
+  private scheduleMetadataReload(): void {
+    if (this.vaultMetadataReloadTimer !== null) {
+      window.clearTimeout(this.vaultMetadataReloadTimer);
+    }
+
+    this.vaultMetadataReloadTimer = window.setTimeout(() => {
+      this.vaultMetadataReloadTimer = null;
+      void (async () => {
+        await this.options.loadSettings();
+        await this.options.refreshDashboardViews();
+      })();
+    }, 1500);
+  }
+
+  /**
+   * Reacts to Obsidian's callback for the plugin's own `data.json` changing
+   * outside the plugin, for example when Obsidian Sync delivers another
+   * device's copy. Obsidian doesn't index the config folder, so no vault
+   * event fires for it (probe #1403, row c1).
+   *
+   * The content comparison already filters out the plugin's own writes, so
+   * this path does not honor `suppressWatcherUntil`: doing so would drop a
+   * real synced pointer that arrives just after a save (#1400).
+   */
+  async handleExternalSettingsChange(): Promise<void> {
+    let current: unknown;
+    try {
+      current = await this.options.loadData();
+    } catch (error) {
+      storageError(
+        "Could not read plugin settings after an external change",
+        error,
+      );
+      return;
+    }
+    if (this.describePluginData(current) === this.pluginDataBaseline) return;
+    this.scheduleMetadataReload();
   }
 
   /**
@@ -468,17 +568,7 @@ export class SettingsStore {
 
       if (!watched) return;
 
-      if (this.vaultMetadataReloadTimer !== null) {
-        window.clearTimeout(this.vaultMetadataReloadTimer);
-      }
-
-      this.vaultMetadataReloadTimer = window.setTimeout(() => {
-        this.vaultMetadataReloadTimer = null;
-        void (async () => {
-          await this.options.loadSettings();
-          await this.options.refreshDashboardViews();
-        })();
-      }, 1500);
+      this.scheduleMetadataReload();
     };
 
     registerEvent(vault.on("modify", (file) => scheduleReload(file)));
@@ -498,7 +588,21 @@ export class SettingsStore {
    * based on the current metadataStorageMode.
    */
   private async savePluginData(data: unknown): Promise<void> {
-    if (!this.settingsLoadFailed) await this.options.saveData(data);
+    if (this.settingsLoadFailed) return;
+    // Record what this save writes before it lands, so the external callback
+    // treats the file it produces as our own write, not a synced change.
+    const previousBaseline = this.pluginDataBaseline;
+    const writtenBaseline = this.describePluginData(data);
+    this.pluginDataBaseline = writtenBaseline;
+    try {
+      await this.options.saveData(data);
+    } catch (error) {
+      // Only restore if no later save replaced the baseline meanwhile.
+      if (this.pluginDataBaseline === writtenBaseline) {
+        this.pluginDataBaseline = previousBaseline;
+      }
+      throw error;
+    }
   }
   getMetadataSaveCallback(): (data: unknown) => Promise<void> {
     return async (data: unknown): Promise<void> => {

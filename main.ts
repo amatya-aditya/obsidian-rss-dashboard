@@ -2438,6 +2438,10 @@ export default class RssDashboardPlugin extends Plugin {
     return this.settingsStore.loadSettings();
   }
 
+  onExternalSettingsChange(): Promise<void> {
+    return this.settingsStore.handleExternalSettingsChange();
+  }
+
   private migrateLegacySettings(): boolean {
     return migrateSettings(this.settings);
   }

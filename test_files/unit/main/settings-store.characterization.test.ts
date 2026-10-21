@@ -41,6 +41,7 @@ vi.mock("../../../src/modals/storage-migration-modal", () => ({
 }));
 
 import RssDashboardPlugin from "../../../main";
+import { withSyncNonce } from "../../../src/services/storage-json";
 import {
   DEFAULT_SETTINGS,
   type Feed,
@@ -54,6 +55,7 @@ interface VaultAdapterStub {
   write(path: string, content: string): Promise<void>;
   exists(path: string): Promise<boolean>;
   mkdir(path: string): Promise<void>;
+  remove(path: string): Promise<void>;
 }
 
 /** Members that stay on the plugin, reached here as test seams. */
@@ -944,7 +946,6 @@ describe("settings store (issue #563)", () => {
         ["modify", ".rss-dashboard-data/user-state.json", true],
         ["create", ".rss-dashboard-data/data.json", true],
         ["modify", "/.rss-dashboard-data/data.json/", true],
-        ["modify", `${PLUGIN_DIR}/data.json`, false],
         ["modify", ".rss-dashboard-data/feeds/feed-1.json", false],
         ["modify", ".rss-dashboard-data/backup.json", false],
         ["modify", "notes/data.json", false],
@@ -1112,6 +1113,36 @@ describe("settings store (issue #563)", () => {
       expect(watcherReloads()).toBe(3);
     });
 
+    it("keeps the settings already in memory when a reload can't read the vault folder", async () => {
+      await writeVaultSettings(
+        VAULT_FOLDER,
+        savedSettings({
+          ...pointer(),
+          refreshInterval: 77,
+          feeds: [feed("kept", "RSS")],
+        } as Partial<RssDashboardSettings>),
+      );
+      await start(pointer() as unknown as RssDashboardSettings);
+      // A startup save opens the watcher's own-write window; let it expire so
+      // the assertion is about the reload, not the suppression.
+      await vi.advanceTimersByTimeAsync(3_000);
+      await adapter().remove(`${VAULT_FOLDER}/data.json`);
+
+      handlers.modify?.({ path: `${VAULT_FOLDER}/data.json` });
+      await vi.advanceTimersByTimeAsync(1_500);
+
+      expect(watcherReloads()).toBe(1);
+      expect(notices()).toEqual([UNREADABLE_WARNING]);
+      expect(plugin.settings.refreshInterval).toBe(77);
+      expect(plugin.settings.feeds.map((kept) => kept.title)).toEqual(["kept"]);
+
+      // The failed reload blocks saving, so it cannot overwrite the copy the
+      // plugin still holds with the defaults it would have swapped in.
+      saveData.mockClear();
+      await plugin.saveSettings();
+      expect(saveData).not.toHaveBeenCalled();
+    });
+
     it("registers no watcher when the vault has no event API", async () => {
       vi.useFakeTimers();
       createPlugin(savedSettings());
@@ -1123,6 +1154,250 @@ describe("settings store (issue #563)", () => {
       // The workspace's active-leaf-change handler and the two tag chip
       // radius listeners (radius changed, window opened).
       expect(registerEvent).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  // ─── An external settings change (#1400) ──────────────────────────────────
+
+  describe("an external settings change", () => {
+    let reloads: MockInstance;
+    let redraws: MockInstance;
+
+    async function start(
+      settings: RssDashboardSettings,
+      dir: string | null = PLUGIN_DIR,
+    ): Promise<void> {
+      vi.useFakeTimers();
+      createPlugin(settings, dir);
+      reloads = vi.spyOn(plugin, "loadSettings");
+      redraws = vi
+        .spyOn(plugin, "refreshDashboardViews")
+        .mockResolvedValue(undefined);
+      await plugin.onload();
+      // The startup load is not a reaction to an external change.
+      reloads.mockClear();
+    }
+
+    /** The same snapshot as Obsidian Sync would hand over: another key order. */
+    function reorderKeys<T>(value: T): T {
+      if (Array.isArray(value)) {
+        return value.map((entry) => reorderKeys(entry)) as unknown as T;
+      }
+      if (value !== null && typeof value === "object") {
+        return Object.fromEntries(
+          Object.entries(value as Record<string, unknown>)
+            .reverse()
+            .map(([key, entry]) => [key, reorderKeys(entry)]),
+        ) as T;
+      }
+      return value;
+    }
+
+    afterEach(() => {
+      plugin.onunload();
+    });
+
+    it("reloads once after 1.5 s and redraws when the plugin's data.json differs", async () => {
+      await start(savedSettings());
+      storedData = savedSettings({ refreshInterval: 77 });
+
+      await plugin.onExternalSettingsChange();
+      await vi.advanceTimersByTimeAsync(1_499);
+      expect(reloads).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(reloads).toHaveBeenCalledTimes(1);
+      expect(redraws).toHaveBeenCalledTimes(1);
+      expect(plugin.settings.refreshInterval).toBe(77);
+    });
+
+    it("doesn't reload for the same content in another key order or with new sync stamps", async () => {
+      await start(savedSettings());
+      storedData = reorderKeys(withSyncNonce(clone(savedSettings())));
+
+      await plugin.onExternalSettingsChange();
+      await vi.advanceTimersByTimeAsync(1_500);
+
+      expect(reloads).not.toHaveBeenCalled();
+      expect(redraws).not.toHaveBeenCalled();
+    });
+
+    it("doesn't reload when the callback follows the plugin's own save", async () => {
+      await start(savedSettings());
+      saveData.mockImplementation((data) => {
+        // Obsidian's saveData writes the file the next loadData would read.
+        storedData = clone(data);
+        return Promise.resolve();
+      });
+      plugin.settings.refreshInterval = 120;
+      await plugin.saveSettings();
+
+      await plugin.onExternalSettingsChange();
+      await vi.advanceTimersByTimeAsync(1_500);
+
+      expect(reloads).not.toHaveBeenCalled();
+    });
+
+    it("reloads when the content differs inside the watcher's own-write window", async () => {
+      await start(savedSettings());
+      await plugin.writeWithWatcherSuppressed(() => Promise.resolve());
+      storedData = savedSettings({ refreshInterval: 88 });
+
+      await plugin.onExternalSettingsChange();
+      await vi.advanceTimersByTimeAsync(1_500);
+
+      expect(reloads).toHaveBeenCalledTimes(1);
+      expect(plugin.settings.refreshInterval).toBe(88);
+    });
+
+    it("shares one reload when a second change arrives during the wait", async () => {
+      await start(savedSettings());
+
+      storedData = savedSettings({ refreshInterval: 66 });
+      await plugin.onExternalSettingsChange();
+      await vi.advanceTimersByTimeAsync(1_000);
+      storedData = savedSettings({ refreshInterval: 77 });
+      await plugin.onExternalSettingsChange();
+      await vi.advanceTimersByTimeAsync(1_499);
+      expect(reloads).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1);
+      expect(reloads).toHaveBeenCalledTimes(1);
+      expect(plugin.settings.refreshInterval).toBe(77);
+    });
+
+    it("shares one reload with a vault watcher event inside the wait", async () => {
+      await start(savedSettings());
+      storedData = savedSettings({ refreshInterval: 77 });
+
+      handlers.modify?.({ path: ".rss-dashboard-data/data.json" });
+      await plugin.onExternalSettingsChange();
+      await vi.advanceTimersByTimeAsync(1_500);
+
+      expect(reloads).toHaveBeenCalledTimes(1);
+    });
+
+    it("restores the previous comparison baseline after a failed save", async () => {
+      await start(savedSettings());
+      plugin.settings.refreshInterval = 120;
+      saveData.mockRejectedValueOnce(new Error("write failed"));
+
+      await expect(plugin.saveSettings()).rejects.toThrow("write failed");
+
+      await plugin.onExternalSettingsChange();
+      await vi.advanceTimersByTimeAsync(1_500);
+
+      expect(reloads).not.toHaveBeenCalled();
+    });
+
+    it("keeps the current settings and blocks saves when the synced pointer names an unreadable folder", async () => {
+      await writeVaultSettings(
+        VAULT_FOLDER,
+        savedSettings({
+          ...pointer(),
+          refreshInterval: 77,
+          feeds: [feed("kept", "RSS")],
+        } as Partial<RssDashboardSettings>),
+      );
+      await start(pointer() as unknown as RssDashboardSettings);
+      storedData = pointer("Missing/RSS");
+
+      await plugin.onExternalSettingsChange();
+      await vi.advanceTimersByTimeAsync(1_500);
+
+      expect(reloads).toHaveBeenCalledTimes(1);
+      expect(redraws).toHaveBeenCalledTimes(1);
+      expect(notices()).toEqual([UNREADABLE_WARNING]);
+      expect(plugin.settings.metadataStorageFolder).toBe(VAULT_FOLDER);
+      expect(plugin.settings.refreshInterval).toBe(77);
+      expect(plugin.settings.feeds.map((kept) => kept.title)).toEqual(["kept"]);
+
+      saveData.mockClear();
+      await plugin.saveSettings();
+      expect(saveData).not.toHaveBeenCalled();
+    });
+
+    it("recovers when the pending folder's data.json arrives", async () => {
+      await writeVaultSettings(
+        VAULT_FOLDER,
+        savedSettings({
+          ...pointer(),
+          refreshInterval: 77,
+          feeds: [feed("kept", "RSS")],
+        } as Partial<RssDashboardSettings>),
+      );
+      await start(pointer() as unknown as RssDashboardSettings);
+      await vi.advanceTimersByTimeAsync(3_000);
+      storedData = pointer("Missing/RSS");
+      await plugin.onExternalSettingsChange();
+      await vi.advanceTimersByTimeAsync(1_500);
+      expect(reloads).toHaveBeenCalledTimes(1);
+      expect(plugin.settings.metadataStorageFolder).toBe(VAULT_FOLDER);
+      expect(plugin.settings.feeds.map((kept) => kept.title)).toEqual(["kept"]);
+
+      // The pointer moved to a folder that did not exist yet; Sync delivers
+      // its data.json later. The old settings still name the previous
+      // folder, so only the pending folder makes this event match.
+      await writeVaultSettings(
+        "Missing/RSS",
+        savedSettings({
+          ...pointer("Missing/RSS"),
+          refreshInterval: 99,
+          feeds: [feed("new", "RSS")],
+        } as Partial<RssDashboardSettings>),
+      );
+      handlers.create?.({ path: "Missing/RSS/data.json" });
+      await vi.advanceTimersByTimeAsync(1_500);
+
+      expect(reloads).toHaveBeenCalledTimes(2);
+      expect(plugin.settings.metadataStorageFolder).toBe("Missing/RSS");
+      expect(plugin.settings.refreshInterval).toBe(99);
+      expect(plugin.settings.feeds.map((next) => next.title)).toEqual(["new"]);
+
+      // The successful load opened the write gate again.
+      saveData.mockClear();
+      await plugin.saveSettings();
+      expect(saveData).toHaveBeenCalled();
+    });
+
+    it("still reloads for an event in the old folder while a pending folder is set", async () => {
+      await writeVaultSettings(
+        VAULT_FOLDER,
+        savedSettings({
+          ...pointer(),
+          refreshInterval: 77,
+          feeds: [feed("kept", "RSS")],
+        } as Partial<RssDashboardSettings>),
+      );
+      await start(pointer() as unknown as RssDashboardSettings);
+      await vi.advanceTimersByTimeAsync(3_000);
+      storedData = pointer("Missing/RSS");
+      await plugin.onExternalSettingsChange();
+      await vi.advanceTimersByTimeAsync(1_500);
+      expect(reloads).toHaveBeenCalledTimes(1);
+
+      handlers.modify?.({ path: `${VAULT_FOLDER}/data.json` });
+      await vi.advanceTimersByTimeAsync(1_500);
+
+      expect(reloads).toHaveBeenCalledTimes(2);
+      expect(plugin.settings.refreshInterval).toBe(77);
+    });
+
+    it("reloads for the plugin's own data.json through the callback, not the vault watcher", async () => {
+      await start(savedSettings());
+
+      // Obsidian doesn't index the config folder, so a watcher event for it
+      // is not a signal the plugin can rely on (probe #1403, row c1).
+      handlers.modify?.({ path: `${PLUGIN_DIR}/data.json` });
+      await vi.advanceTimersByTimeAsync(1_500);
+      expect(reloads).not.toHaveBeenCalled();
+
+      storedData = savedSettings({ refreshInterval: 77 });
+      await plugin.onExternalSettingsChange();
+      await vi.advanceTimersByTimeAsync(1_500);
+
+      expect(reloads).toHaveBeenCalledTimes(1);
+      expect(plugin.settings.refreshInterval).toBe(77);
     });
   });
 
