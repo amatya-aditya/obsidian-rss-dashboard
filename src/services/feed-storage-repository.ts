@@ -1,4 +1,4 @@
-import { App, TFolder, normalizePath } from "obsidian";
+import { App, TFolder } from "obsidian";
 import type {
   Feed,
   FeedBundle,
@@ -28,6 +28,7 @@ import {
   getFeedShardPath,
   isHiddenFromSync,
   normalizeFolderPath,
+  normalizeShardPath,
 } from "./feed-storage-shard";
 import {
   hydrateFeedStorage,
@@ -119,6 +120,7 @@ export class FeedStorageRepository {
     lastPersistedMetadataJson: null,
     lastPersistedShardJsonByFeedId: new Map<string, string>(),
     lastPersistedShardContentByPath: new Map<string, string>(),
+    removedFeedShardBaselines: new Map(),
     lastStorageFolderPath: null,
     feedShardHealthById: new Map<string, FeedShardHealth>(),
     retainedMissingFeedIds: new Set<string>(),
@@ -214,7 +216,7 @@ export class FeedStorageRepository {
    * read or wrote at that path (#1412).
    */
   public isLastSeenShardContent(path: string, content: string): boolean {
-    const normalized = normalizePath(path.trim().replace(/\\/g, "/"));
+    const normalized = normalizeShardPath(path);
     const baseline = this.state.lastPersistedShardContentByPath.get(normalized);
     return baseline !== undefined && baseline === content;
   }
@@ -1026,7 +1028,7 @@ export class FeedStorageRepository {
   }
 
   private async removeShardFile(shardPath: string): Promise<boolean> {
-    const normalized = normalizePath(shardPath.trim().replace(/\\/g, "/"));
+    const normalized = normalizeShardPath(shardPath);
     this.state.lastPersistedShardContentByPath.delete(normalized);
     const indexed = this.app.vault.getAbstractFileByPath(shardPath);
     if (indexed) {
