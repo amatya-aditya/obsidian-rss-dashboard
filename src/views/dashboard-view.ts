@@ -395,28 +395,11 @@ export class RssDashboardView extends ItemView {
         } else {
           // Last item on current page, go to next page if available
           if (currentPage < pagination.totalPages) {
-            this.handlePageChange(currentPage + 1);
-            // After page change, wait for render to select the first item on new page
-            window.requestAnimationFrame(() => {
-              const newFiltered = this.getFilteredArticles();
-              const newPagination = computePagination({
-                totalItems: newFiltered.length,
-                pageSize,
-                requestedPage: currentPage + 1,
-              });
-              const newArticles = newFiltered.slice(
-                newPagination.startIdx,
-                newPagination.endIdx,
-              );
-              if (newArticles.length > 0) {
-                const firstArticle = newArticles[0];
-                if (firstArticle) {
-                  void this.selectArticle(firstArticle, {
-                    open: options?.open,
-                  });
-                }
-              }
-            });
+            this.selectOnPageAfterRender(
+              currentPage + 1,
+              (pageArticles) => pageArticles[0],
+              { open: options?.open },
+            );
             return;
           } else {
             // Already on last page, stay on last item
@@ -467,27 +450,11 @@ export class RssDashboardView extends ItemView {
         } else {
           // First item on current page, go to previous page if available
           if (currentPage > 1) {
-            this.handlePageChange(currentPage - 1);
-            window.requestAnimationFrame(() => {
-              const newFiltered = this.getFilteredArticles();
-              const newPagination = computePagination({
-                totalItems: newFiltered.length,
-                pageSize,
-                requestedPage: currentPage - 1,
-              });
-              const newArticles = newFiltered.slice(
-                newPagination.startIdx,
-                newPagination.endIdx,
-              );
-              if (newArticles.length > 0) {
-                const lastArticle = newArticles[newArticles.length - 1];
-                if (lastArticle) {
-                  void this.selectArticle(lastArticle, {
-                    open: options?.open,
-                  });
-                }
-              }
-            });
+            this.selectOnPageAfterRender(
+              currentPage - 1,
+              (pageArticles) => pageArticles[pageArticles.length - 1],
+              { open: options?.open },
+            );
             return;
           } else {
             // Already on first page, stay on first item
@@ -501,6 +468,29 @@ export class RssDashboardView extends ItemView {
     if (prevArticle) {
       void this.selectArticle(prevArticle, { open: options?.open });
     }
+  }
+
+  /**
+   * Action: Put the article list back at the start of the current scope and
+   * select its first article without opening it. Returns false for an empty
+   * scope, so the key stays unhandled instead of swallowing a no-op.
+   * @internal
+   */
+  public actionSelectFirst(): boolean {
+    const allFilteredArticles = this.getFilteredArticles();
+    if (allFilteredArticles.length === 0) return false;
+    this.getSidebarKeyboardController()?.blurSidebarFocus();
+
+    if (this.getCurrentPage() === 1) {
+      const firstArticle = allFilteredArticles[0];
+      if (firstArticle) {
+        void this.selectArticle(firstArticle);
+      }
+      return true;
+    }
+
+    this.selectOnPageAfterRender(1, (pageArticles) => pageArticles[0]);
+    return true;
   }
 
   /**
@@ -4854,6 +4844,37 @@ export class RssDashboardView extends ItemView {
   private handlePageChange(page: number): void {
     this.setCurrentPageState(page);
     void this.render();
+  }
+
+  /**
+   * Change page, wait for that render to settle, then select the article
+   * `pick` chooses from the rows now on the page. The next, previous and
+   * scope-start actions all need this sequence, and the wait has to come after
+   * the render has replaced the rows.
+   */
+  private selectOnPageAfterRender(
+    page: number,
+    pick: (pageArticles: FeedItem[]) => FeedItem | undefined,
+    options?: { open?: boolean },
+  ): void {
+    const pageSize = this.getCurrentPageSize();
+    this.handlePageChange(page);
+    window.requestAnimationFrame(() => {
+      const articles = this.getFilteredArticles();
+      const pagination = computePagination({
+        totalItems: articles.length,
+        pageSize,
+        requestedPage: page,
+      });
+      const pageArticles = articles.slice(
+        pagination.startIdx,
+        pagination.endIdx,
+      );
+      const target = pick(pageArticles);
+      if (target) {
+        void this.selectArticle(target, options);
+      }
+    });
   }
 
   private handlePageSizeChange(pageSize: number): void {

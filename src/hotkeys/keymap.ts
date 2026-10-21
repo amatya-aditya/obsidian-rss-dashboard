@@ -307,6 +307,14 @@ export const KEYMAP: readonly KeyBinding[] = [
     label: "Shift + C",
   },
   {
+    id: "select-first",
+    key: "`",
+    shift: false,
+    contexts: D,
+    repeat: false,
+    help: [HELP_DASHBOARD],
+  },
+  {
     id: "toggle-article-open",
     key: "o",
     shift: false,

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   KEYMAP,
+  HELP_DASHBOARD,
   bindingHint,
   bindingLabel,
   dashboardCandidates,
@@ -111,6 +112,21 @@ describe("keymap table", () => {
     it("does not read a shifted digit's base key as the symbol", () => {
       expect(dashboardCandidates({ key: "1", shiftKey: true })).toEqual([]);
     });
+  });
+
+  it("binds backquote to selecting the first article in the dashboard only", () => {
+    const binding = findDashboardBinding(
+      { key: "`", shiftKey: false },
+      () => false,
+    );
+
+    expect(binding?.id).toBe("select-first");
+    // A held backquote acts once, and the help names it in the Dashboard view
+    // section, as the issue asks.
+    expect(binding?.repeat).toBe(false);
+    expect(binding?.help).toEqual([HELP_DASHBOARD]);
+    // The Reader has no article scope to return to.
+    expect(readerBindings().some((b) => b.key === "`")).toBe(false);
   });
 
   describe("findDashboardBinding", () => {
