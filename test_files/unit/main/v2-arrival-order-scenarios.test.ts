@@ -13,9 +13,10 @@
  * bootstrap pointer is delivered before startup only; a pointer arriving
  * later is not exercised here.
  *
- * The rename test pins what happens today for a shard another device renamed
- * (#1441) and is marked `// BUG: pinned`. The delete tests pin the intended
- * local-wins policy for a shard another device deleted (#1440).
+ * A shard renamed away keeps its feed's articles loaded and flagged missing
+ * (#1441). The delete tests pin the intended local-wins policy for a shard
+ * another device deleted (#1440), and the orphan shard it can leave behind
+ * is pinned as a bug (#1444).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App, type MockApp, type PluginManifest } from "obsidian";
@@ -360,7 +361,7 @@ describe("Shard storage v2 arrival orders through the real plugin (#1429)", () =
     expect(guidsOf(mobile, "feed-a")).toEqual(["a1", "a2", "a3", "a4"]);
   });
 
-  it("leaves the feed empty after an external rename of its shard, and writes no empty shard over it", async () => {
+  it("keeps the loaded articles and flags the shard missing after an external rename, and writes nothing over it", async () => {
     const { mobile } = await pairedDevices([feed("feed-a", ["a1", "a2"])]);
     const vault = mobile.app.vault;
     const renamed = `${SHARD_FOLDER}/feed-a-old.json`;
@@ -368,11 +369,53 @@ describe("Shard storage v2 arrival orders through the real plugin (#1429)", () =
     // An external rename arrives as a create at the new path, then a delete.
     vault.externalRename(shardPath("feed-a"), renamed);
     await settle();
-    // BUG: pinned, see #1441
-    expect(guidsOf(mobile, "feed-a")).toEqual([]);
+    expect(guidsOf(mobile, "feed-a")).toEqual(["a1", "a2"]);
+    expect(mobile.plugin.getFeedShardHealth(feedOf(mobile, "feed-a")!)).toBe(
+      "missing",
+    );
 
+    // A save must not recreate the shard: the renamed file may be the only
+    // copy a sync client or the user is about to put back.
+    await mobile.plugin.updateArticle(
+      "a1",
+      feedUrl("feed-a"),
+      { read: true },
+      false,
+    );
     await mobile.plugin.saveSettings();
     expect(filesIn(vault, SHARD_FOLDER)).toEqual([renamed]);
+  });
+
+  it("loads the shard normally and clears the missing flag when it is renamed back", async () => {
+    const { mobile } = await pairedDevices([feed("feed-a", ["a1", "a2"])]);
+    const vault = mobile.app.vault;
+    const renamed = `${SHARD_FOLDER}/feed-a-old.json`;
+
+    vault.externalRename(shardPath("feed-a"), renamed);
+    await settle();
+    vault.externalRename(renamed, shardPath("feed-a"));
+    await settle();
+
+    expect(guidsOf(mobile, "feed-a")).toEqual(["a1", "a2"]);
+    expect(
+      mobile.plugin.getFeedShardHealth(feedOf(mobile, "feed-a")!),
+    ).toBeNull();
+    expect(filesIn(vault, SHARD_FOLDER)).toEqual([shardPath("feed-a")]);
+  });
+
+  it("writes the kept articles back to the shard when the user runs Repair/rebuild storage", async () => {
+    const { mobile } = await pairedDevices([feed("feed-a", ["a1", "a2"])]);
+    const vault = mobile.app.vault;
+    const renamed = `${SHARD_FOLDER}/feed-a-old.json`;
+
+    vault.externalRename(shardPath("feed-a"), renamed);
+    await settle();
+    await mobile.plugin.repairVaultShards();
+
+    expect(filesIn(vault, SHARD_FOLDER)).toEqual(
+      [renamed, shardPath("feed-a")].sort(),
+    );
+    expect(guidsOf(mobile, "feed-a")).toEqual(["a1", "a2"]);
   });
 
   it("keeps showing a shard another device deleted, and the next save writes it back", async () => {

@@ -1,6 +1,7 @@
 import { App, Notice, TFile, TFolder, normalizePath } from "obsidian";
 import type {
   Feed,
+  FeedItem,
   FeedItemsShard,
   FeedShardHealth,
   PersistedRssDashboardSettings,
@@ -69,6 +70,12 @@ export interface FeedStoragePersistResult {
  */
 export interface FeedStorageRunnerState {
   feedShardHealthById: Map<string, FeedShardHealth>;
+  /**
+   * Feeds whose shard vanished on a reload while their articles were loaded
+   * (renamed or deleted outside Obsidian, #1441). The articles stay in memory
+   * and a save leaves the shard alone until Repair/rebuild storage writes it.
+   */
+  retainedMissingFeedIds: Set<string>;
   hydratedShardGuidsByFeedId: Map<string, Set<string>>;
   lastPersistedShardJsonByFeedId: Map<string, string>;
   lastPersistedShardContentByPath: Map<string, string>;
@@ -111,6 +118,7 @@ function isShardBackedMode(mode: RssDashboardSettings["storageMode"]): boolean {
 export async function hydrateFeedStorage(
   settings: RssDashboardSettings,
   host: FeedStorageRunnerHost,
+  loadedItemsByFeedId: ReadonlyMap<string, FeedItem[]> = new Map(),
 ): Promise<FeedStorageHydrationResult> {
   storageLog("Hydrating settings", {
     mode: settings.storageMode,
@@ -123,6 +131,7 @@ export async function hydrateFeedStorage(
   host.state.shardFolderHiddenFromSync = false;
   if (!isShardBackedMode(settings.storageMode)) {
     host.state.feedShardHealthById.clear();
+    host.state.retainedMissingFeedIds.clear();
     host.state.hydratedShardGuidsByFeedId.clear();
     host.state.lastPersistedShardContentByPath.clear();
     storageLog("Skipping shard hydration because legacy JSON mode is active");
@@ -132,6 +141,7 @@ export async function hydrateFeedStorage(
 
   const feedsById = new Map<string, Feed>();
   host.state.feedShardHealthById.clear();
+  host.state.retainedMissingFeedIds.clear();
   host.state.hydratedShardGuidsByFeedId.clear();
   host.state.lastPersistedShardContentByPath.clear();
   for (const feed of settings.feeds) {
@@ -144,7 +154,7 @@ export async function hydrateFeedStorage(
     shardCount: hydratedShardCount,
     repairedFeedIds,
     didDropInvalidItems,
-  } = await hydrateFeedShards(settings, host);
+  } = await hydrateFeedShards(settings, host, loadedItemsByFeedId);
   shardCount = hydratedShardCount;
 
   host.state.shardFolderHiddenFromSync = computeShardFolderHiddenFromSync(
@@ -183,6 +193,7 @@ interface HydratedShardResult {
 async function hydrateFeedShards(
   settings: RssDashboardSettings,
   host: FeedStorageRunnerHost,
+  loadedItemsByFeedId: ReadonlyMap<string, FeedItem[]>,
 ): Promise<{
   shardCount: number;
   repairedFeedIds: Set<string>;
@@ -192,7 +203,12 @@ async function hydrateFeedShards(
   let didDropInvalidItems = false;
   const repairedFeedIds = new Set<string>();
   for (const feed of settings.feeds) {
-    const result = await hydrateFeedShard(feed, settings, host);
+    const result = await hydrateFeedShard(
+      feed,
+      settings,
+      host,
+      loadedItemsByFeedId,
+    );
     if (result.hydrated) {
       shardCount += 1;
     }
@@ -207,6 +223,7 @@ async function hydrateFeedShard(
   feed: Feed,
   settings: RssDashboardSettings,
   host: FeedStorageRunnerHost,
+  loadedItemsByFeedId: ReadonlyMap<string, FeedItem[]>,
 ): Promise<HydratedShardResult> {
   if (feed.feedId) {
     host.state.hydratedShardGuidsByFeedId.delete(feed.feedId);
@@ -217,6 +234,14 @@ async function hydrateFeedShard(
   if (!shardExists) {
     host.state.lastPersistedShardContentByPath.delete(normalizedPath);
     if (feed.feedId) host.state.feedShardHealthById.set(feed.feedId, "missing");
+    // A reload that loses the shard keeps the articles already on screen.
+    const loadedItems = feed.feedId
+      ? loadedItemsByFeedId.get(feed.feedId)
+      : undefined;
+    if (feed.feedId && loadedItems && loadedItems.length > 0) {
+      feed.items = loadedItems;
+      host.state.retainedMissingFeedIds.add(feed.feedId);
+    }
     storageLog("Shard file not found during hydration", {
       feedId: feed.feedId,
       title: feed.title,
@@ -501,6 +526,19 @@ async function writeFeedShard(
     return false;
   }
 
+  // Only a full rewrite (Repair/rebuild storage) recreates a shard that
+  // vanished while its articles were loaded: it may be a rename in flight.
+  if (
+    host.state.retainedMissingFeedIds.has(feed.feedId) &&
+    !context.forceAllShards
+  ) {
+    storageLog("Skipped writing shard for feed whose shard went missing", {
+      feedId: feed.feedId,
+      title: feed.title,
+    });
+    return false;
+  }
+
   const shard = createFeedShard(feed, context.isV2);
   const shardJson = JSON.stringify(shard, null, 2);
   const currentComparableJson = createComparableFeedShardJson(
@@ -540,6 +578,7 @@ async function writeFeedShard(
     const recoveredHealth =
       shardWriteDecision.recoveredHealth ??
       host.state.feedShardHealthById.get(feed.feedId);
+    host.state.retainedMissingFeedIds.delete(feed.feedId);
     if (recoveredHealth === "missing" || recoveredHealth === "corrupt") {
       host.state.feedShardHealthById.set(feed.feedId, "rebuilt");
       // A feed has articles again, so the folder is no longer wholly
