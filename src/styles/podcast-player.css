@@ -434,6 +434,20 @@
   z-index: 2;
 }
 
+/* The native element stays above the fill so it keeps receiving seek clicks,
+   and Chromium paints its value and track pseudo-elements there even with
+   `appearance: none`. That UA paint covered the themed fill in every podcast
+   theme, so make it paint nothing: the wrapper's themed track and
+   .podcast-progress-bar-filled are the visible bar (#1409). */
+.podcast-progress-bar::-webkit-progress-bar,
+.podcast-progress-bar::-webkit-progress-value {
+  background: transparent;
+}
+
+.podcast-progress-bar::-moz-progress-bar {
+  background: transparent;
+}
+
 .podcast-progress-bar-filled {
   position: absolute;
   top: 0;
