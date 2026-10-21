@@ -25,6 +25,7 @@ import {
   loadMetadata,
 } from "./metadata-location";
 import { comparableSnapshotJson } from "./storage-json";
+import { mergeSettingsGroups } from "./settings-group-merge";
 import { normalizeFolderPath } from "./feed-storage-shard";
 
 function storageLog(_message: string, _details?: unknown): void {}
@@ -132,6 +133,11 @@ export class SettingsStore {
    */
   private pluginDataBaseline: string | null = null;
   /**
+   * The same snapshot as `pluginDataBaseline`, kept as an object so a save can
+   * tell which settings group each side changed (#1431).
+   */
+  private pluginDataBaselineData: Record<string, unknown> | null = null;
+  /**
    * The metadata folder a reload could not read, while the settings still in
    * memory name the previous one. Watched alongside the current folder so
    * its `data.json` arriving later can recover the session without a restart.
@@ -145,6 +151,11 @@ export class SettingsStore {
    * write) and reloads every other one (#1413).
    */
   private watchedContentRecords = new Map<string, string>();
+  /**
+   * The vault-location `data.json` as last written or loaded, as an object,
+   * keyed like `watchedContentRecords` (#1431).
+   */
+  private vaultDataBaselines = new Map<string, Record<string, unknown>>();
   /** Watched paths that fired an event since the last debounced check. */
   private touchedWatchedPaths = new Set<string>();
   /** Set when the external callback already judged the change a real one. */
@@ -349,6 +360,7 @@ export class SettingsStore {
     // Record what the file held so an external callback can compare against
     // it, whether this load read a pointer or the full settings (#1400).
     this.pluginDataBaseline = this.describePluginData(data);
+    this.pluginDataBaselineData = isRecord(data) ? structuredClone(data) : null;
     let vaultMetadataUnreadable = false;
     let keepCurrentSettings = false;
     // Step 2: load full settings from the vault path named by the pointer
@@ -364,6 +376,10 @@ export class SettingsStore {
           this.watchedContentRecords.set(
             this.watchedKey(`${loadedPath}/data.json`),
             comparableSnapshotJson(vaultData),
+          );
+          this.vaultDataBaselines.set(
+            this.watchedKey(`${loadedPath}/data.json`),
+            structuredClone(vaultData) as unknown as Record<string, unknown>,
           );
         }
         data = vaultData;
@@ -382,6 +398,9 @@ export class SettingsStore {
         const unreadablePath = getMetadataPath(data);
         if (unreadablePath) {
           this.watchedContentRecords.delete(
+            this.watchedKey(`${unreadablePath}/data.json`),
+          );
+          this.vaultDataBaselines.delete(
             this.watchedKey(`${unreadablePath}/data.json`),
           );
         }
@@ -858,32 +877,190 @@ export class SettingsStore {
    * Creates a save callback that persists metadata to the appropriate location
    * based on the current metadataStorageMode.
    */
-  private async savePluginData(data: unknown): Promise<void> {
+  private async savePluginData(
+    data: unknown,
+    guardUnseenChanges = true,
+  ): Promise<void> {
     if (this.settingsLoadFailed) return;
+    let toWrite = data;
+    if (guardUnseenChanges && isRecord(data)) {
+      toWrite = await this.mergeUnseenSettingsChanges(
+        data,
+        {
+          comparable: this.pluginDataBaseline,
+          data: this.pluginDataBaselineData,
+        },
+        async () => await this.options.loadData(),
+        "data.json",
+      );
+    }
     // Record what this save writes before it lands, so the external callback
     // treats the file it produces as our own write, not a synced change.
     const previousBaseline = this.pluginDataBaseline;
-    const writtenBaseline = this.describePluginData(data);
+    const previousBaselineData = this.pluginDataBaselineData;
+    const writtenBaseline = this.describePluginData(toWrite);
     this.pluginDataBaseline = writtenBaseline;
+    // A copy, so later in-place edits to the live settings cannot move it.
+    this.pluginDataBaselineData = isRecord(toWrite)
+      ? structuredClone(toWrite)
+      : null;
     try {
-      await this.options.saveData(data);
+      await this.options.saveData(toWrite);
     } catch (error) {
       // Only restore if no later save replaced the baseline meanwhile.
       if (this.pluginDataBaseline === writtenBaseline) {
         this.pluginDataBaseline = previousBaseline;
+        this.pluginDataBaselineData = previousBaselineData;
       }
       throw error;
     }
   }
+
+  /**
+   * Keeps a settings save from writing over a synced group it has not loaded
+   * (#1431). The file is compared with what this device last wrote or loaded;
+   * a difference is an unseen change, merged per top-level group: disk's value
+   * where this device left the group alone, memory's where both changed (the
+   * conflict is logged by group name). The groups taken from disk are copied
+   * into the live settings so memory and disk agree, and the pending reload is
+   * dropped, since this save has now loaded what it announced. A full load
+   * would replace unsaved settings, so none runs. Fails open: a missing or
+   * unreadable file writes memory as before. Shard v2 only, and never during a
+   * load.
+   */
+  private async mergeUnseenSettingsChanges(
+    data: Record<string, unknown>,
+    baseline: {
+      comparable: string | null;
+      data: Record<string, unknown> | null;
+    },
+    readDisk: () => Promise<unknown>,
+    where: string,
+  ): Promise<Record<string, unknown>> {
+    if (this.settings.storageMode !== "vault-shards-v2") return data;
+    if (this.loadDepth > 0 || this.loadGate) return data;
+    if (baseline.comparable === null || baseline.data === null) return data;
+    let disk: unknown;
+    try {
+      disk = await readDisk();
+    } catch (error) {
+      storageLog("Settings file unreadable before save", { where, error });
+      return data;
+    }
+    // An empty record is not a settings file; trusting it would read every
+    // group as deleted.
+    if (!isRecord(disk) || Object.keys(disk).length === 0) {
+      storageLog("Settings file missing or invalid before save", { where });
+      return data;
+    }
+    // A load that began during the read owns the settings now.
+    if (this.loadDepth > 0 || this.loadGate) return data;
+    if (comparableSnapshotJson(disk) === baseline.comparable) return data;
+
+    try {
+      const { merged, adopted, conflicts } = mergeSettingsGroups(
+        baseline.data,
+        disk,
+        data,
+      );
+      if (conflicts.length > 0) {
+        storageLog("Settings changed on both sides; keeping this device's", {
+          where,
+          groups: conflicts,
+        });
+      }
+      if (adopted.length === 0) return merged;
+      storageLog("Adopting synced settings groups before saving", {
+        where,
+        groups: adopted,
+      });
+      this.adoptSettingsGroups(adopted, disk);
+      this.dropPendingSettingsReload();
+      void this.options.refreshDashboardViews();
+      return merged;
+    } catch (error) {
+      storageLog("Settings merge failed; saving this device's", {
+        where,
+        error,
+      });
+      return data;
+    }
+  }
+
+  /**
+   * Forgets the reload a settings change announced, now that a save has loaded
+   * it. A pending `user-state.json` change keeps its reload.
+   */
+  private dropPendingSettingsReload(): void {
+    for (const path of this.touchedWatchedPaths) {
+      if (!path.endsWith("/user-state.json")) {
+        this.touchedWatchedPaths.delete(path);
+      }
+    }
+    this.externalChangeConfirmed = false;
+    if (
+      this.touchedWatchedPaths.size === 0 &&
+      this.vaultMetadataReloadTimer !== null
+    ) {
+      window.clearTimeout(this.vaultMetadataReloadTimer);
+      this.vaultMetadataReloadTimer = null;
+    }
+  }
+
+  /**
+   * Copies groups from the file into the live settings. The file's `feeds`
+   * carry no items, so each feed keeps the items already in memory.
+   */
+  private adoptSettingsGroups(
+    groups: readonly string[],
+    disk: Record<string, unknown>,
+  ): void {
+    const live = this.settings as unknown as Record<string, unknown>;
+    for (const group of groups) {
+      const value = disk[group];
+      if (value === undefined) {
+        delete live[group];
+        continue;
+      }
+      const copy = structuredClone(value);
+      if (group === "feeds" && Array.isArray(copy)) {
+        const items = new Map(
+          this.settings.feeds.map((feed) => [feed.feedId, feed.items]),
+        );
+        live[group] = copy.map((feed: Record<string, unknown>) => ({
+          ...feed,
+          items: items.get(feed.feedId as string | undefined) ?? [],
+        }));
+      } else {
+        live[group] = copy;
+      }
+    }
+  }
+
   getMetadataSaveCallback(): (data: unknown) => Promise<void> {
     return async (data: unknown): Promise<void> => {
       if (this.isPersistenceSuppressed()) return;
-      const settingsData = data as RssDashboardSettings;
+      let settingsData = data as RssDashboardSettings;
       const metadataPath = getMetadataPath(this.settings);
       if (metadataPath) {
         try {
           await ensureMetadataFolderExists(this.app, this.settings);
           const dataFilePath = `${metadataPath}/data.json`;
+          const dataKey = this.watchedKey(dataFilePath);
+          if (isRecord(data)) {
+            settingsData = (await this.mergeUnseenSettingsChanges(
+              data,
+              {
+                comparable: this.watchedContentRecords.get(dataKey) ?? null,
+                data: this.vaultDataBaselines.get(dataKey) ?? null,
+              },
+              async () =>
+                JSON.parse(
+                  await this.app.vault.adapter.read(dataFilePath),
+                ) as unknown,
+              dataFilePath,
+            )) as unknown as RssDashboardSettings;
+          }
           const jsonContent = JSON.stringify(settingsData, null, 2);
           await this.writeMetadataFile(
             dataFilePath,
@@ -891,18 +1068,24 @@ export class SettingsStore {
             async () =>
               await this.app.vault.adapter.write(dataFilePath, jsonContent),
           );
+          if (isRecord(settingsData)) {
+            this.vaultDataBaselines.set(dataKey, structuredClone(settingsData));
+          }
           storageLog("Metadata saved to vault location", {
             path: dataFilePath,
           });
           // Bootstrap pointer only — just enough for loadSettings to
           // find the vault data.json on restart. Does NOT write full
           // settings to .obsidian, preventing the stale-read bug on mobile.
-          await this.savePluginData({
-            metadataStorageMode: this.settings.metadataStorageMode,
-            metadataStorageFolder: this.settings.metadataStorageFolder,
-            metadataStorageSchemaVersion:
-              this.settings.metadataStorageSchemaVersion,
-          });
+          await this.savePluginData(
+            {
+              metadataStorageMode: this.settings.metadataStorageMode,
+              metadataStorageFolder: this.settings.metadataStorageFolder,
+              metadataStorageSchemaVersion:
+                this.settings.metadataStorageSchemaVersion,
+            },
+            false,
+          );
         } catch (error) {
           storageError("Failed to save metadata to vault location", error);
           throw error;
@@ -1190,7 +1373,7 @@ export class SettingsStore {
       // Current settings are already in memory, just switch the mode
       this.settings.metadataStorageMode = "plugin-default";
       // Save using Plugin.saveData() (plugin-default location)
-      await this.savePluginData(this.settings);
+      await this.savePluginData(this.settings, false);
       // Optionally clean up the vault-location file
       const oldMetadataPath = this.settings.metadataStorageFolder;
       if (oldMetadataPath) {
