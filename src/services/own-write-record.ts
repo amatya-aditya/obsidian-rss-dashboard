@@ -68,35 +68,47 @@ export class OwnWriteRecord {
     this.comparables.delete(ownWriteKey(path));
   }
 
-  /** Drops every record. */
-  clear(): void {
-    this.comparables.clear();
+  /** Drops every record under a folder, such as a hydration's shards. */
+  forgetFolder(folder: string): void {
+    const prefix = `${ownWriteKey(folder)}/`;
+    for (const key of [...this.comparables.keys()]) {
+      if (key.startsWith(prefix)) this.comparables.delete(key);
+    }
   }
 
   /**
-   * Runs a plugin write to a watched file and records its content, so the
+   * Records the content a plugin write is about to put on disk, so the
    * watcher tells the plugin's own write from a synced change by content. The
    * record moves before the write lands, so events that arrive early still
-   * match; a failed write restores the previous record unless a later write
-   * replaced it.
+   * match. The returned function undoes it for a failed write, unless a later
+   * write replaced the record. A caller that must not add an await uses this
+   * directly; `write` wraps it.
    */
-  async write<T>(
-    path: string,
-    content: string,
-    writeFn: () => Promise<T>,
-  ): Promise<T> {
+  beginWrite(path: string, content: string): () => void {
     const key = ownWriteKey(path);
     const previous = this.comparables.get(key);
     const written = comparableFromText(content);
     if (written === null) this.comparables.delete(key);
     else this.comparables.set(key, written);
-    try {
-      return await writeFn();
-    } catch (error) {
+    return () => {
       if (this.comparables.get(key) === (written ?? undefined)) {
         if (previous === undefined) this.comparables.delete(key);
         else this.comparables.set(key, previous);
       }
+    };
+  }
+
+  /** Runs a plugin write to a watched file under `beginWrite`. */
+  async write<T>(
+    path: string,
+    content: string,
+    writeFn: () => Promise<T>,
+  ): Promise<T> {
+    const rollback = this.beginWrite(path, content);
+    try {
+      return await writeFn();
+    } catch (error) {
+      rollback();
       throw error;
     }
   }

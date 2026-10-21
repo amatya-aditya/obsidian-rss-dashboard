@@ -102,14 +102,18 @@ describe("OwnWriteRecord", () => {
     expect(await record.hasUnseenChange("a/f.json", read("{bad"))).toBe(false);
   });
 
-  it("forgets one path and clears all", () => {
+  it("forgets one path, and every path under a folder", () => {
     const record = new OwnWriteRecord();
     record.recordSnapshot("a.json", { v: 1 });
     record.recordSnapshot("b.json", { v: 1 });
+    record.recordSnapshot("feeds/x.json", { v: 1 });
+    record.recordSnapshot("feeds-other/y.json", { v: 1 });
     record.forget("a.json");
     expect(record.comparableOf("a.json")).toBeUndefined();
     expect(record.comparableOf("b.json")).toBe('{"v":1}');
-    record.clear();
-    expect(record.comparableOf("b.json")).toBeUndefined();
+    record.forgetFolder("/feeds/");
+    expect(record.comparableOf("feeds/x.json")).toBeUndefined();
+    expect(record.comparableOf("feeds-other/y.json")).toBe('{"v":1}');
+    expect(record.comparableOf("b.json")).toBe('{"v":1}');
   });
 });
