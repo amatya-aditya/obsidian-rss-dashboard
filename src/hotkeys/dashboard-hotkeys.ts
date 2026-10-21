@@ -92,6 +92,7 @@ export const DASHBOARD_ACTIONS: Readonly<Record<string, DashboardAction>> = {
   "toggle-youtube-focus-mode": (view) => {
     view.actionToggleYouTubeFocusMode();
   },
+  "cover-image-action": (view) => view.actionRunCoverImageAction(),
   "toggle-tags": (view) => {
     view.actionToggleTagsMenu();
   },

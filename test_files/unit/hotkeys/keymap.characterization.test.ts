@@ -216,6 +216,12 @@ const DASHBOARD_CASES: DashboardCase[] = [
     shift: true,
     call: ["actionToggleYouTubeFocusMode", []],
   },
+  {
+    label: "Shift+C",
+    key: "C",
+    shift: true,
+    call: ["actionRunCoverImageAction", []],
+  },
   { label: "t", key: "t", shift: false, call: ["actionToggleTagsMenu", []] },
   {
     label: "s",

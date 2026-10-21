@@ -4,21 +4,10 @@ import {
   COVER_IMAGE_FETCH_BUTTON_CLASS,
   type CoverImageAction,
 } from "./cover-image-action";
-import { withCoverImageBusyState } from "./cover-image-busy";
-
-/**
- * The dashboard hooks the cover-image control needs (#1314): whichever role the
- * article is in runs one of the two callbacks. A structural subset of
- * `ViewDeps`, so a view can pass its deps straight through.
- */
-export interface CoverImageActionDeps {
-  /** Fetches the page's cover image; resolves true when one was stored. */
-  fetchCoverImage?(article: FeedItem): Promise<boolean>;
-  /** Puts the feed's own cover back; resolves true when the item changed. */
-  restoreCoverImage?(article: FeedItem): Promise<boolean>;
-  /** Rebuilds one article's rendered element in place, after its data changed. */
-  replaceArticle?(article: FeedItem): void;
-}
+import {
+  runCoverImageAction,
+  type CoverImageActionDeps,
+} from "./cover-image-run";
 
 export interface CoverImageControlOptions {
   /** The tag region the control is appended to, after the tag container. */
@@ -45,7 +34,8 @@ export interface CoverImageControlOptions {
  *
  * The role follows the article's state: a fetch reads the article page and dims
  * the article while it runs, a restore recomputes the feed's cover from stored
- * data and has nothing to wait for.
+ * data and has nothing to wait for. Both run through the one shared path the
+ * keyboard shortcut uses (#1466).
  *
  * `parent` is the tag region, not the tag container: the layout pass empties and
  * re-measures that container, so a child of it would be wiped by the next pass
@@ -59,19 +49,6 @@ export function renderCoverImageControl({
   action,
   region,
 }: CoverImageControlOptions): void {
-  const runFetch = async (): Promise<void> => {
-    const fetched = await withCoverImageBusyState(
-      articleEl,
-      () => deps.fetchCoverImage?.(article) ?? Promise.resolve(false),
-    );
-    if (fetched) deps.replaceArticle?.(article);
-  };
-
-  const runRestore = async (): Promise<void> => {
-    const restored = (await deps.restoreCoverImage?.(article)) ?? false;
-    if (restored) deps.replaceArticle?.(article);
-  };
-
   const button = createIconButton({
     label: action.label,
     icon: action.icon,
@@ -90,6 +67,6 @@ export function renderCoverImageControl({
   button.addEventListener("click", (event: MouseEvent) => {
     // The article element itself opens the article on click.
     event.stopPropagation();
-    void (action.role === "restore" ? runRestore() : runFetch());
+    void runCoverImageAction({ article, articleEl, deps }, action.role);
   });
 }

@@ -27,16 +27,17 @@ These command-palette commands are always listed. Assign a hotkey in
 
 ## Dashboard View
 
-| Shortcut  | Action                 |
-| --------- | ---------------------- |
-| Shift + s | Focus sidebar          |
-| Shift + r | Focus reader view      |
-| Shift + 1 | All articles filter    |
-| Shift + 2 | Unread articles filter |
-| Shift + 3 | Read articles filter   |
-| 1         | List view              |
-| 2         | Card view              |
-| 3         | Feed view              |
+| Shortcut  | Action                       |
+| --------- | ---------------------------- |
+| Shift + s | Focus sidebar                |
+| Shift + r | Focus reader view            |
+| Shift + 1 | All articles filter          |
+| Shift + 2 | Unread articles filter       |
+| Shift + 3 | Read articles filter         |
+| Shift + C | Fetch or restore cover image |
+| 1         | List view                    |
+| 2         | Card view                    |
+| 3         | Feed view                    |
 
 ## Reader View
 
