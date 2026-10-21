@@ -90,7 +90,10 @@ async function readJson(app: App, path = USER_STATE_PATH) {
   return JSON.parse(await adapter(app).read(path)) as Record<string, unknown>;
 }
 
-type WriteWrapper = <T>(fn: () => Promise<T>) => Promise<T>;
+type WriteWrapper = <T>(
+  target: { path: string; content: string },
+  fn: () => Promise<T>,
+) => Promise<T>;
 
 const noopSaveData = () => Promise.resolve();
 
@@ -225,7 +228,9 @@ describe("Shard storage v2 article state (characterization, #465)", () => {
     });
 
     it("routes exactly one write per save through the write wrapper", async () => {
-      const writeWrapper = vi.fn(<T>(fn: () => Promise<T>) => fn());
+      const writeWrapper = vi.fn(<T>(_target: unknown, fn: () => Promise<T>) =>
+        fn(),
+      );
       const repository = new FeedStorageRepository(app, {
         writeWrapper: writeWrapper as unknown as WriteWrapper,
       });
@@ -240,7 +245,9 @@ describe("Shard storage v2 article state (characterization, #465)", () => {
     });
 
     it("does not call the write wrapper or create the folder when there is nothing to record", async () => {
-      const writeWrapper = vi.fn(<T>(fn: () => Promise<T>) => fn());
+      const writeWrapper = vi.fn(<T>(_target: unknown, fn: () => Promise<T>) =>
+        fn(),
+      );
       const repository = new FeedStorageRepository(app, {
         writeWrapper: writeWrapper as unknown as WriteWrapper,
       });
@@ -256,7 +263,9 @@ describe("Shard storage v2 article state (characterization, #465)", () => {
     });
 
     it("shows the unreadable-file notice once per session and never writes over the file", async () => {
-      const writeWrapper = vi.fn(<T>(fn: () => Promise<T>) => fn());
+      const writeWrapper = vi.fn(<T>(_target: unknown, fn: () => Promise<T>) =>
+        fn(),
+      );
       const notices = vi.spyOn(console, "debug").mockImplementation(() => {});
       const repository = new FeedStorageRepository(app, {
         writeWrapper: writeWrapper as unknown as WriteWrapper,

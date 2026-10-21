@@ -135,13 +135,18 @@ export class FeedStorageRepository {
   constructor(
     app: App,
     options?: {
-      writeWrapper?: <T>(fn: () => Promise<T>) => Promise<T>;
+      writeWrapper?: <T>(
+        target: { path: string; content: string },
+        fn: () => Promise<T>,
+      ) => Promise<T>;
+      onFileRead?: (path: string, text: string) => void;
       onUserStateHealthChange?: () => void;
     },
   ) {
     this.app = app;
     this.userState = new UserStateStore(app, {
       writeWrapper: options?.writeWrapper,
+      onFileRead: options?.onFileRead,
       onUserStateHealthChange: options?.onUserStateHealthChange,
       hydratedShardGuidsByFeedId: this.state.hydratedShardGuidsByFeedId,
     });

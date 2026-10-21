@@ -5,7 +5,7 @@
  * to disk: loading at startup and after a synced change (the bootstrap
  * pointer, the vault metadata location, the null-load and failed-load
  * guards, normalization and the startup save), saving through the metadata
- * location with the watcher suppressed, the watcher that reloads a synced
+ * location with their content recorded for the watcher, the watcher that reloads a synced
  * `data.json` or `user-state.json`, and moving the metadata location. These
  * tests pin what that does today, bugs included, through the plugin's public
  * surface, so the code can move into its own module (ADR 0015, step 7)
@@ -1035,56 +1035,90 @@ describe("settings store (issue #563)", () => {
         expect(order).toEqual(["redraw:77"]);
       });
 
-      it("ignores events until exactly the end of a plugin write's suppression window", async () => {
-        await plugin.writeWithWatcherSuppressed(() => Promise.resolve());
+      it("reloads once for an external change right after the plugin's own save", async () => {
+        Object.assign(plugin.settings, pointer(".rss-dashboard-data"));
+        await plugin.saveSettings();
 
-        await vi.advanceTimersByTimeAsync(2_999);
+        await adapter().write(
+          ".rss-dashboard-data/data.json",
+          JSON.stringify(savedSettings({ refreshInterval: 91 })),
+        );
         handlers.modify?.({ path: ".rss-dashboard-data/data.json" });
         await vi.advanceTimersByTimeAsync(1_500);
-        expect(watcherReloads()).toBe(0);
 
-        handlers.modify?.({ path: ".rss-dashboard-data/data.json" });
-        await vi.advanceTimersByTimeAsync(1_500);
         expect(watcherReloads()).toBe(1);
       });
 
-      it("returns the write's result and honors a custom window", async () => {
-        await expect(
-          plugin.writeWithWatcherSuppressed(
-            () => Promise.resolve("ok"),
-            10_000,
-          ),
-        ).resolves.toBe("ok");
+      it("skips the plugin's own save however late its events arrive", async () => {
+        Object.assign(plugin.settings, pointer(".rss-dashboard-data"));
+        await plugin.saveSettings();
 
-        await vi.advanceTimersByTimeAsync(9_000);
+        await vi.advanceTimersByTimeAsync(30_000);
+        handlers.modify?.({ path: ".rss-dashboard-data/data.json" });
+        handlers.create?.({ path: ".rss-dashboard-data/data.json" });
+        await vi.advanceTimersByTimeAsync(1_500);
+
+        expect(watcherReloads()).toBe(0);
+      });
+
+      it("skips a synced copy that differs only in key order, nonce or pad", async () => {
+        Object.assign(plugin.settings, pointer(".rss-dashboard-data"));
+        await plugin.saveSettings();
+        const written = JSON.parse(
+          await adapter().read(".rss-dashboard-data/data.json"),
+        ) as Record<string, unknown>;
+
+        await adapter().write(
+          ".rss-dashboard-data/data.json",
+          JSON.stringify(
+            withSyncNonce(
+              Object.fromEntries(Object.entries(written).reverse()),
+            ),
+          ),
+        );
         handlers.modify?.({ path: ".rss-dashboard-data/data.json" });
         await vi.advanceTimersByTimeAsync(1_500);
 
         expect(watcherReloads()).toBe(0);
       });
 
-      it("keeps suppressing after a write that fails", async () => {
-        await expect(
-          plugin.writeWithWatcherSuppressed(() =>
-            Promise.reject(new Error("write failed")),
-          ),
-        ).rejects.toThrow("write failed");
+      it("reloads when a watched file that held recorded content goes missing", async () => {
+        Object.assign(plugin.settings, pointer(".rss-dashboard-data"));
+        await plugin.saveSettings();
 
+        await adapter().remove(".rss-dashboard-data/data.json");
         handlers.modify?.({ path: ".rss-dashboard-data/data.json" });
         await vi.advanceTimersByTimeAsync(1_500);
-
-        expect(watcherReloads()).toBe(0);
-      });
-
-      it("lets a reload already waiting run on time when a suppressed event arrives", async () => {
-        handlers.modify?.({ path: ".rss-dashboard-data/data.json" });
-        await vi.advanceTimersByTimeAsync(1_000);
-        await plugin.writeWithWatcherSuppressed(() => Promise.resolve());
-        handlers.modify?.({ path: ".rss-dashboard-data/data.json" });
-
-        await vi.advanceTimersByTimeAsync(500);
 
         expect(watcherReloads()).toBe(1);
+      });
+
+      it("reloads when a watched file becomes unparseable", async () => {
+        Object.assign(plugin.settings, pointer(".rss-dashboard-data"));
+        await plugin.saveSettings();
+
+        await adapter().write(".rss-dashboard-data/data.json", "{not json");
+        handlers.modify?.({ path: ".rss-dashboard-data/data.json" });
+        await vi.advanceTimersByTimeAsync(1_500);
+
+        expect(watcherReloads()).toBe(1);
+      });
+
+      it("keeps the record of a write that fails", async () => {
+        Object.assign(plugin.settings, pointer(".rss-dashboard-data"));
+        await plugin.saveSettings();
+        const before = await adapter().read(".rss-dashboard-data/data.json");
+        vi.spyOn(adapter(), "write").mockRejectedValueOnce(new Error("boom"));
+        plugin.settings.refreshInterval = 123;
+        await expect(plugin.saveSettings()).rejects.toThrow("boom");
+
+        handlers.modify?.({ path: ".rss-dashboard-data/data.json" });
+        await vi.advanceTimersByTimeAsync(1_500);
+
+        expect(await adapter().read(".rss-dashboard-data/data.json")).toBe(
+          before,
+        );
+        expect(watcherReloads()).toBe(0);
       });
 
       it("ignores the watched files the plugin itself writes while saving", async () => {
@@ -1210,7 +1244,7 @@ describe("settings store (issue #563)", () => {
         expect(watcherReloads()).toBe(0);
       });
 
-      it("reloads when a synced shard changes within the 3 s suppression window of a plugin save", async () => {
+      it("reloads when a synced shard changes right after a plugin save", async () => {
         const initialShard = makeShardJson([
           { guid: "item-1", title: "Item 1" },
         ]);
@@ -1222,7 +1256,7 @@ describe("settings store (issue #563)", () => {
         });
         await start(current);
 
-        await plugin.writeWithWatcherSuppressed(() => Promise.resolve());
+        await plugin.saveSettings();
 
         const updatedShard = makeShardJson([
           { guid: "item-2", title: "Item 2" },
@@ -1289,8 +1323,19 @@ describe("settings store (issue #563)", () => {
         savedSettings(pointer() as Partial<RssDashboardSettings>),
       );
       await start(pointer() as unknown as RssDashboardSettings);
-      // A settings load without changes must not write data.json or suppress
-      // an external vault update.
+      // An external change to the vault copy reloads; the content this device
+      // loaded does not (#1413).
+      handlers.modify?.({ path: `${VAULT_FOLDER}/data.json` });
+      await vi.advanceTimersByTimeAsync(1_500);
+      expect(watcherReloads()).toBe(0);
+
+      await writeVaultSettings(
+        VAULT_FOLDER,
+        savedSettings({
+          ...pointer(),
+          refreshInterval: 61,
+        } as Partial<RssDashboardSettings>),
+      );
       handlers.modify?.({ path: `${VAULT_FOLDER}/data.json` });
       await vi.advanceTimersByTimeAsync(1_500);
       expect(watcherReloads()).toBe(1);
@@ -1309,6 +1354,111 @@ describe("settings store (issue #563)", () => {
       expect(watcherReloads()).toBe(3);
     });
 
+    it("reloads a synced X that returns after Y, once the reload recorded Y (#1413)", async () => {
+      const folderFile = `${VAULT_FOLDER}/data.json`;
+      const variant = (refreshInterval: number) =>
+        savedSettings({
+          ...pointer(),
+          refreshInterval,
+        } as Partial<RssDashboardSettings>);
+      await writeVaultSettings(VAULT_FOLDER, variant(30));
+      await start(pointer() as unknown as RssDashboardSettings);
+      await plugin.saveSettings();
+      const wrote = await adapter().read(folderFile);
+      const reloadsBefore = watcherReloads();
+
+      await adapter().write(folderFile, JSON.stringify(variant(61)));
+      handlers.modify?.({ path: folderFile });
+      await vi.advanceTimersByTimeAsync(1_500);
+      expect(watcherReloads()).toBe(reloadsBefore + 1);
+
+      await adapter().write(folderFile, wrote);
+      handlers.modify?.({ path: folderFile });
+      await vi.advanceTimersByTimeAsync(1_500);
+      expect(watcherReloads()).toBe(reloadsBefore + 2);
+    });
+
+    it("skips the plugin's own user-state.json save, and reloads an external edit right after it (#1413)", async () => {
+      await start(
+        savedSettings({
+          ...pointer(),
+          storageMode: "vault-shards-v2",
+        } as Partial<RssDashboardSettings>),
+      );
+      const path = `${VAULT_FOLDER}/user-state.json`;
+      const settings = savedSettings({
+        ...pointer(),
+        storageMode: "vault-shards-v2",
+        feeds: [
+          feed("a", "RSS", {
+            feedId: "feed-a",
+            items: [
+              {
+                id: "i1",
+                guid: "g1",
+                title: "t",
+                link: "https://example.com/1",
+                description: "",
+                pubDate: new Date(0).toISOString(),
+                read: false,
+                starred: true,
+                tags: [],
+                saved: false,
+                mediaType: "article",
+              } as unknown as Feed["items"][number],
+            ],
+          }),
+        ],
+      });
+      const repository = (
+        plugin as unknown as {
+          feedStorageRepository: {
+            saveUserStateFromFeeds(
+              settings: RssDashboardSettings,
+            ): Promise<void>;
+          };
+        }
+      ).feedStorageRepository;
+      await repository.saveUserStateFromFeeds(settings);
+      expect(await adapter().exists(path)).toBe(true);
+      const reloadsBefore = watcherReloads();
+
+      handlers.create?.({ path: `${path}.tmp` });
+      handlers.rename?.({ path }, `${path}.tmp`);
+      handlers.modify?.({ path });
+      await vi.advanceTimersByTimeAsync(1_500);
+      expect(watcherReloads()).toBe(reloadsBefore);
+
+      const external = JSON.parse(await adapter().read(path)) as {
+        states: Record<string, { read?: boolean }>;
+      };
+      for (const entry of Object.values(external.states)) entry.read = true;
+      await adapter().write(path, JSON.stringify(external));
+      handlers.modify?.({ path });
+      await vi.advanceTimersByTimeAsync(1_500);
+      expect(watcherReloads()).toBe(reloadsBefore + 1);
+    });
+
+    it("reloads a returning copy of old content after a failed read dropped the record (#1413)", async () => {
+      const file = `${VAULT_FOLDER}/data.json`;
+      await writeVaultSettings(
+        VAULT_FOLDER,
+        savedSettings(pointer() as Partial<RssDashboardSettings>),
+      );
+      await start(pointer() as unknown as RssDashboardSettings);
+      const original = await adapter().read(file);
+      await adapter().remove(file);
+      handlers.modify?.({ path: file });
+      await vi.advanceTimersByTimeAsync(1_500);
+      const reloadsBefore = watcherReloads();
+
+      await adapter().write(file, original);
+      handlers.create?.({ path: file });
+      await vi.advanceTimersByTimeAsync(1_500);
+
+      expect(watcherReloads()).toBe(reloadsBefore + 1);
+    });
+
     it("keeps the settings already in memory when a reload can't read the vault folder", async () => {
       await writeVaultSettings(
         VAULT_FOLDER,
@@ -1320,7 +1470,7 @@ describe("settings store (issue #563)", () => {
       );
       await start(pointer() as unknown as RssDashboardSettings);
       // A startup save opens the watcher's own-write window; let it expire so
-      // the assertion is about the reload, not the suppression.
+      // the assertion is about the reload.
       await vi.advanceTimersByTimeAsync(3_000);
       await adapter().remove(`${VAULT_FOLDER}/data.json`);
 
@@ -1434,9 +1584,8 @@ describe("settings store (issue #563)", () => {
       expect(reloads).not.toHaveBeenCalled();
     });
 
-    it("reloads when the content differs inside the watcher's own-write window", async () => {
+    it("reloads when the callback's content differs from the last write", async () => {
       await start(savedSettings());
-      await plugin.writeWithWatcherSuppressed(() => Promise.resolve());
       storedData = savedSettings({ refreshInterval: 88 });
 
       await plugin.onExternalSettingsChange();
@@ -1572,6 +1721,14 @@ describe("settings store (issue #563)", () => {
       await vi.advanceTimersByTimeAsync(1_500);
       expect(reloads).toHaveBeenCalledTimes(1);
 
+      await writeVaultSettings(
+        VAULT_FOLDER,
+        savedSettings({
+          ...pointer(),
+          refreshInterval: 77,
+          feeds: [feed("kept", "RSS"), feed("added", "RSS")],
+        } as Partial<RssDashboardSettings>),
+      );
       handlers.modify?.({ path: `${VAULT_FOLDER}/data.json` });
       await vi.advanceTimersByTimeAsync(1_500);
 
@@ -1700,7 +1857,7 @@ describe("settings store (issue #563)", () => {
       expect(notices()).toEqual(["Vault migration failed: pointer failed"]);
     });
 
-    it("isn't watcher-suppressed for its first copy, so a watched folder reloads once afterwards", async () => {
+    it("records its first copy, so the watcher doesn't reload for it (#1413)", async () => {
       vi.useFakeTimers();
       await plugin.onload();
       plugin.settings.metadataStorageFolder = ".rss-dashboard-data";
@@ -1715,7 +1872,7 @@ describe("settings store (issue #563)", () => {
       await plugin.migrateMetadataToVaultLocation();
       await vi.advanceTimersByTimeAsync(1_500);
 
-      expect(loadData.mock.calls.length - loadsBefore).toBe(1);
+      expect(loadData.mock.calls.length - loadsBefore).toBe(0);
       plugin.onunload();
     });
   });

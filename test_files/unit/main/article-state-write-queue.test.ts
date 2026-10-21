@@ -540,7 +540,7 @@ describe("coalesced article-state persistence (#1384)", () => {
     ).settingsStore;
     store.registerVaultMetadataChangeListeners(() => undefined);
     vi.useFakeTimers();
-    // Let the startup save's own writer-suppression window expire.
+    // Let the startup save settle before the timed assertions.
     await vi.advanceTimersByTimeAsync(3_001);
     const reload = vi
       .spyOn(plugin, "loadSettings")
@@ -553,7 +553,7 @@ describe("coalesced article-state persistence (#1384)", () => {
       { feedId: "feed-1", guid: GUID, changes: { read: true } },
     ]);
     // The plugin-default metadata mode watches the dot-folder alias; the
-    // suppression window is what this test measures, not path resolution.
+    // own-write record is what this test measures, not path resolution.
     handlers.modify?.({ path: ".rss-dashboard-data/user-state.json" });
     await vi.advanceTimersByTimeAsync(1_500);
 

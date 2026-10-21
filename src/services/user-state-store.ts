@@ -63,7 +63,16 @@ function storageError(
 ): void {}
 
 export interface UserStateStoreOptions {
-  writeWrapper?: <T>(fn: () => Promise<T>) => Promise<T>;
+  /**
+   * Wraps the write of `user-state.json`; receives the final path and the
+   * content that lands there, so the settings store can record it (#1413).
+   */
+  writeWrapper?: <T>(
+    target: { path: string; content: string },
+    fn: () => Promise<T>,
+  ) => Promise<T>;
+  /** Called with the text of `user-state.json` after each read of it. */
+  onFileRead?: (path: string, text: string) => void;
   onUserStateHealthChange?: () => void;
   /**
    * Feed IDs whose shard was successfully read and structurally validated in
@@ -94,7 +103,11 @@ export class UserStateStore {
    * another device (issue #374). Held in memory only.
    */
   private pendingFeedRemovals = new Set<string>();
-  private writeWrapper?: <T>(fn: () => Promise<T>) => Promise<T>;
+  private writeWrapper?: <T>(
+    target: { path: string; content: string },
+    fn: () => Promise<T>,
+  ) => Promise<T>;
+  private onFileRead?: (path: string, text: string) => void;
   /**
    * `${feedId}:${guid}` keys of items whose in-memory flags are known to
    * reflect persisted user state this session (applied by `hydrateSettings`,
@@ -125,6 +138,7 @@ export class UserStateStore {
   constructor(app: App, options: UserStateStoreOptions) {
     this.app = app;
     this.writeWrapper = options.writeWrapper;
+    this.onFileRead = options.onFileRead;
     this.onUserStateHealthChange = options.onUserStateHealthChange;
     this.hydratedShardGuidsByFeedId = options.hydratedShardGuidsByFeedId;
   }
@@ -142,11 +156,9 @@ export class UserStateStore {
     this.isPersistenceSuppressed = options.isPersistenceSuppressed;
     this.getStorageMode = options.getStorageMode;
     const pluginDir = options.pluginDir.trim();
-    // Deliberately no `writeWrapper`: that wrapper suppresses the vault
-    // watcher for 3 s, and the journal is device-local, so wrapping it would
-    // blind this device to a synced `user-state.json` change arriving behind
-    // a local read. The next checkpoint would then overwrite that change
-    // (#1380). Journal writes are serialized by the journal's own chain.
+    // Deliberately no `writeWrapper`: that wrapper records a watched file's
+    // content, and the journal is device-local and unwatched. Journal writes
+    // never touch `user-state.json` (#1380). Journal writes are serialized by the journal's own chain.
     this.journal = pluginDir
       ? new UserStateJournal(this.app, { pluginDir })
       : null;
@@ -372,7 +384,9 @@ export class UserStateStore {
     path: string,
   ): Promise<string | null> {
     if (await this.app.vault.adapter.exists(path)) {
-      return this.app.vault.adapter.read(path);
+      const text = await this.app.vault.adapter.read(path);
+      this.onFileRead?.(path, text);
+      return text;
     }
     const tempPath = `${path}.tmp`;
     if (await this.app.vault.adapter.exists(tempPath)) {
@@ -923,10 +937,10 @@ export class UserStateStore {
       }
     }
 
-    const writeUserState = () =>
-      this.writeUserStateAtomically(path, userStateFile);
+    const content = JSON.stringify(userStateFile, null, 2);
+    const writeUserState = () => this.writeUserStateAtomically(path, content);
     if (this.writeWrapper) {
-      await this.writeWrapper(writeUserState);
+      await this.writeWrapper({ path, content }, writeUserState);
     } else {
       await writeUserState();
     }
@@ -939,13 +953,10 @@ export class UserStateStore {
    */
   private async writeUserStateAtomically(
     path: string,
-    userStateFile: UserStateFile,
+    content: string,
   ): Promise<void> {
     const tempPath = `${path}.tmp`;
-    await this.app.vault.adapter.write(
-      tempPath,
-      JSON.stringify(userStateFile, null, 2),
-    );
+    await this.app.vault.adapter.write(tempPath, content);
     try {
       await replaceFileWithTemp(this.app.vault.adapter, tempPath, path);
     } catch (error) {
