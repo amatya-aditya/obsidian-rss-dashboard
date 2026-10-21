@@ -31,6 +31,7 @@
     "fixture:vault": "node scripts/setup-fixture-vault.mjs",
     "vault:backup": "node scripts/vault-storage-backup.mjs",
     "fixture:vault:generate": "node scripts/generate-fixture-vault.mjs",
+    "fixture:sync": "node scripts/simulate-sync.mjs",
     "fixture:serve": "node scripts/fixture-server.mjs",
     "stub:probes": "node scripts/run-stub-probes.mjs",
     "hooks:install": "node scripts/setup-git-hooks.mjs",
