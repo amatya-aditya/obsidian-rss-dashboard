@@ -309,4 +309,52 @@ describe("SyncSimulator", () => {
       expect(Object.keys(filesOn(mobile))).toEqual(["d/a.json"]);
     });
   });
+
+  describe("delivery fidelity (ledger: Real Sync pass, run 1)", () => {
+    it("keeps the sender's mtime and size on a delivered file", async () => {
+      const { desktop, mobile, sync } = setUp();
+      seed(desktop, {});
+      desktop.vault.addFolderOnDisk("d");
+      desktop.vault.externalWrite("d/a.json", "four", { mtime: 1_000 });
+
+      await sync.deliver();
+
+      expect(await mobile.vault.adapter.stat("d/a.json")).toMatchObject({
+        size: 4,
+        mtime: 1_000,
+      });
+    });
+
+    it("fires no event and leaves the file alone when the receiver has the same bytes", async () => {
+      const { desktop, mobile, sync } = setUp();
+      seed(desktop, { "d/a.json": "same" });
+      seed(mobile, { "d/a.json": "same" });
+      const events = record(mobile);
+      const raw = recordRaw(mobile);
+
+      const delivered = await sync.deliver();
+
+      expect(delivered).toEqual([]);
+      expect(events).toEqual([]);
+      expect(raw).toEqual([]);
+      expect(await mobile.vault.adapter.stat("d/a.json")).toMatchObject({
+        mtime: 0,
+      });
+    });
+
+    it("lets an older-mtime file win over a newer one", async () => {
+      const { desktop, mobile, sync } = setUp();
+      desktop.vault.addFolderOnDisk("d");
+      mobile.vault.addFolderOnDisk("d");
+      desktop.vault.externalWrite("d/data.json", "older", { mtime: 1_000 });
+      mobile.vault.externalWrite("d/data.json", "newer", { mtime: 9_000 });
+
+      await sync.deliver();
+
+      expect(filesOn(mobile)["d/data.json"]).toBe("older");
+      expect(await mobile.vault.adapter.stat("d/data.json")).toMatchObject({
+        mtime: 1_000,
+      });
+    });
+  });
 });

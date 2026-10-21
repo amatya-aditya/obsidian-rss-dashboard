@@ -1434,9 +1434,26 @@ export class MockDataVault {
     this.flushExternal(pending);
   }
 
-  /** Writes `content` to `path` from outside Obsidian (create or modify). */
-  externalWrite(path: string, content: string): void {
-    this.externalTick(() => this.writeExternally(path, content));
+  /**
+   * Writes `content` to `path` from outside Obsidian (create or modify). The
+   * file's mtime is now unless `times` sets it, as a Sync delivery keeps the
+   * sender's (ledger "Real Sync pass, run 1").
+   */
+  externalWrite(
+    path: string,
+    content: string,
+    times?: { ctime?: number; mtime?: number },
+  ): void {
+    this.externalTick(() => this.writeExternally(path, content, times));
+  }
+
+  /**
+   * Test setup, not Obsidian API: the times recorded for the file at `path`,
+   * or `undefined` when none were (a file set through `filesOnDisk`).
+   */
+  fileTimesOnDisk(path: string): { ctime: number; mtime: number } | undefined {
+    const stored = this.storedDiskPath(path);
+    return stored === undefined ? undefined : this.fileTimes.get(stored);
   }
 
   /** Deletes the file at `path` from outside Obsidian. */
@@ -1466,7 +1483,11 @@ export class MockDataVault {
     this.externalSettingsHandlers.set(this.diskKey(pointerPath), onChange);
   }
 
-  private writeExternally(path: string, content: string): void {
+  private writeExternally(
+    path: string,
+    content: string,
+    keep?: { ctime?: number; mtime?: number },
+  ): void {
     const parentPath = path.includes("/")
       ? path.slice(0, path.lastIndexOf("/"))
       : "";
@@ -1477,7 +1498,12 @@ export class MockDataVault {
     const existed = this.adapterFiles.has(stored);
     this.markExternal(stored, existed, this.files.get(stored));
     this.adapterFiles.set(stored, content);
-    const times = this.touchFile(stored, existed);
+    const touched = this.touchFile(stored, existed);
+    const times = {
+      ctime: keep?.ctime ?? keep?.mtime ?? touched.ctime,
+      mtime: keep?.mtime ?? touched.mtime,
+    };
+    this.fileTimes.set(stored, times);
     let file = this.files.get(stored);
     if (!file) {
       file = new TFileStub(stored);
