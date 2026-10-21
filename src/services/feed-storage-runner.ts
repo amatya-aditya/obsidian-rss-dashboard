@@ -7,7 +7,7 @@ import type {
   PersistedRssDashboardSettings,
   RssDashboardSettings,
 } from "../types/types";
-import type { OwnWriteRecord } from "./own-write-record";
+import { comparableFromText, type OwnWriteRecord } from "./own-write-record";
 import { cloneJson, withSyncNonce } from "./storage-json";
 import type { UserStateStore } from "./user-state-store";
 import {
@@ -63,6 +63,11 @@ export interface FeedStoragePersistResult {
   shardDeleteCount: number;
 }
 
+interface RemovedFeedShardBaseline {
+  shardPath: string;
+  comparable: string;
+}
+
 /**
  * Workflow state the owning repository keeps and the runner reads and writes
  * through `host.state`. The owner may reassign any field (for example
@@ -80,6 +85,14 @@ export interface FeedStorageRunnerState {
   hydratedShardGuidsByFeedId: Map<string, Set<string>>;
   lastPersistedShardJsonByFeedId: Map<string, string>;
   ownWrites: OwnWriteRecord;
+  /**
+   * Shards this device last wrote or read for feeds that an arriving
+   * `data.json` removed, with the comparable content seen (#1444, #1422). Hydration only
+   * records; the next shard-writing save deletes a shard still equal to its
+   * baseline. In memory and session-scoped on purpose: an orphan that outlives
+   * a restart belongs to the storage health check (#318).
+   */
+  removedFeedShardBaselines: Map<string, RemovedFeedShardBaseline>;
   lastPersistedMetadataJson: string | null;
   lastStorageFolderPath: string | null;
   shardFolderHiddenFromSync: boolean;
@@ -135,21 +148,34 @@ export async function hydrateFeedStorage(
     host.state.retainedMissingFeedIds.clear();
     host.state.hydratedShardGuidsByFeedId.clear();
     host.state.ownWrites.forgetShardsIn(settings.storageFolder);
+    host.state.removedFeedShardBaselines.clear();
     storageLog("Skipping shard hydration because legacy JSON mode is active");
     host.capturePersistedState(settings);
     return { didChange: didAssignFeedIds, shardCount };
   }
 
+  // Read before the maps below are cleared and replaced: a feed that left
+  // the list is forgotten there, and its baseline with it.
+  const previousFeedIds = [...host.state.lastPersistedShardJsonByFeedId.keys()];
+
   const feedsById = new Map<string, Feed>();
   host.state.feedShardHealthById.clear();
   host.state.retainedMissingFeedIds.clear();
   host.state.hydratedShardGuidsByFeedId.clear();
-  host.state.ownWrites.forgetShardsIn(settings.storageFolder);
   for (const feed of settings.feeds) {
     if (feed.feedId) {
       feedsById.set(feed.feedId, feed);
     }
   }
+
+  // Shard storage v2 only: v1 is deprecated and gets no new write logic.
+  if (settings.storageMode === "vault-shards-v2") {
+    recordRemovedFeedShards(settings, host, feedsById, previousFeedIds);
+  } else {
+    host.state.removedFeedShardBaselines.clear();
+  }
+  // The baselines above read the record, so hydration clears it only now.
+  host.state.ownWrites.forgetShardsIn(settings.storageFolder);
 
   const {
     shardCount: hydratedShardCount,
@@ -184,6 +210,34 @@ export async function hydrateFeedStorage(
     shardCount,
     userStateLoaded,
   };
+}
+
+/**
+ * Notes the shard of each feed an arriving feed list dropped, with the
+ * comparable content the Own write record holds for it (what this device last
+ * wrote or read), so a later save can tell an untouched shard
+ * from one another device changed. Deletes nothing.
+ */
+function recordRemovedFeedShards(
+  settings: RssDashboardSettings,
+  host: FeedStorageRunnerHost,
+  feedsById: ReadonlyMap<string, Feed>,
+  previousFeedIds: readonly string[],
+): void {
+  const baselines = host.state.removedFeedShardBaselines;
+  for (const feedId of feedsById.keys()) {
+    baselines.delete(feedId);
+  }
+  for (const feedId of previousFeedIds) {
+    if (feedsById.has(feedId)) {
+      continue;
+    }
+    const shardPath = getFeedShardPath(settings.storageFolder, feedId);
+    const comparable = host.state.ownWrites.comparableOf(shardPath);
+    if (comparable !== undefined) {
+      baselines.set(feedId, { shardPath, comparable });
+    }
+  }
 }
 
 interface HydratedShardResult {
@@ -398,10 +452,14 @@ export async function persistFeedStorage(
     }
   }
 
-  const shardDeleteCount = await deleteRemovedFeedShards(
+  let shardDeleteCount = await deleteRemovedFeedShards(
     normalizedStorageFolder,
     currentFeedIds,
     Boolean(options.replacesFeedList),
+    host,
+  );
+  shardDeleteCount += await deleteOrphanShardsOnRemovalArrival(
+    currentFeedIds,
     host,
   );
 
@@ -633,6 +691,46 @@ async function deleteRemovedFeedShards(
       host.userState.markFeedRemoved(previousFeedId);
     }
     shardDeleteCount += 1;
+  }
+  return shardDeleteCount;
+}
+
+/**
+ * Removal-arrival cleanup (#1444): deletes the shard of a feed that an
+ * arriving `data.json` removed, but only while the file still holds exactly
+ * what this device last wrote or read. A changed, missing, or unreadable file
+ * is left alone; it is an unrecognized shard for the health check (#318).
+ */
+async function deleteOrphanShardsOnRemovalArrival(
+  currentFeedIds: ReadonlySet<string>,
+  host: FeedStorageRunnerHost,
+): Promise<number> {
+  let shardDeleteCount = 0;
+  const baselines = host.state.removedFeedShardBaselines;
+  for (const [feedId, baseline] of [...baselines]) {
+    baselines.delete(feedId);
+    if (currentFeedIds.has(feedId)) {
+      continue;
+    }
+    try {
+      if (!(await host.app.vault.adapter.exists(baseline.shardPath))) {
+        continue;
+      }
+      const raw = await host.app.vault.adapter.read(baseline.shardPath);
+      if (comparableFromText(raw) !== baseline.comparable) {
+        storageLog("Kept changed shard for removed feed", { feedId });
+        continue;
+      }
+      if (await host.removeShardFile(baseline.shardPath)) {
+        host.state.lastPersistedShardJsonByFeedId.delete(feedId);
+        shardDeleteCount += 1;
+      }
+    } catch (error) {
+      storageLog("Could not clean up shard for removed feed", {
+        feedId,
+        error,
+      });
+    }
   }
   return shardDeleteCount;
 }

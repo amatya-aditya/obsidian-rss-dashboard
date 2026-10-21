@@ -120,6 +120,7 @@ export class FeedStorageRepository {
     lastPersistedMetadataJson: null,
     lastPersistedShardJsonByFeedId: new Map<string, string>(),
     ownWrites: new OwnWriteRecord(),
+    removedFeedShardBaselines: new Map(),
     lastStorageFolderPath: null,
     feedShardHealthById: new Map<string, FeedShardHealth>(),
     retainedMissingFeedIds: new Set<string>(),

@@ -202,6 +202,73 @@ describe.each(["plugin-default", "vault-location"] as const)(
       expect(refresh).not.toHaveBeenCalled();
     });
 
+    it("keeps a feed added on another device and a rename made here", async () => {
+      const { plugin, diskSettings, syncIn } = await startPlugin(mode);
+      const feed = {
+        feedId: "feed-1",
+        title: "First",
+        url: "https://a.test/feed.xml",
+        folder: "",
+        lastUpdated: 1,
+        items: [],
+      };
+      plugin.settings.feeds = [structuredClone(feed)];
+      await plugin.saveSettings();
+
+      await syncIn({
+        feeds: [
+          { ...feed, items: undefined },
+          {
+            feedId: "feed-2",
+            title: "Added",
+            url: "https://b.test/feed.xml",
+            folder: "",
+            lastUpdated: 1,
+            items: undefined,
+          },
+        ],
+      });
+      plugin.settings.feeds[0].title = "Renamed here";
+      await plugin.saveSettings();
+
+      const persisted = diskSettings().feeds as { feedId: string }[];
+      expect(persisted.map((entry) => entry.feedId)).toEqual([
+        "feed-1",
+        "feed-2",
+      ]);
+      expect(plugin.settings.feeds.map((entry) => entry.feedId)).toEqual([
+        "feed-1",
+        "feed-2",
+      ]);
+      expect(plugin.settings.feeds[0].title).toBe("Renamed here");
+      expect(plugin.settings.feeds[0].items).toEqual([]);
+    });
+
+    it("keeps a folder added on another device and a rename made here", async () => {
+      const { plugin, diskSettings, syncIn } = await startPlugin(mode);
+      plugin.settings.folders = [{ name: "Local", subfolders: [] }];
+      await plugin.saveSettings();
+
+      await syncIn({
+        folders: [
+          { name: "Local", subfolders: [] },
+          { name: "Remote", subfolders: [] },
+        ],
+      });
+      plugin.settings.folders[0].name = "Local2";
+      await plugin.saveSettings();
+
+      const persisted = diskSettings().folders as { name: string }[];
+      expect(persisted.map((entry) => entry.name)).toEqual([
+        "Local2",
+        "Remote",
+      ]);
+      expect(plugin.settings.folders.map((entry) => entry.name)).toEqual([
+        "Local2",
+        "Remote",
+      ]);
+    });
+
     it("still writes memory when the settings file cannot be read", async () => {
       const { app, plugin, pluginFile, diskSettings } = await startPlugin(mode);
 
@@ -291,8 +358,44 @@ describe("settings save guard edge cases (#1431)", () => {
     const names = (diskSettings().folders as { name: string }[]).map(
       (f) => f.name,
     );
+    // Per-entry folder merging keeps both unrelated folders (#1439).
     expect(names).toContain("Local");
-    expect(names).not.toContain("Remote");
+    expect(names).toContain("Remote");
+  });
+
+  it("keeps loaded articles when a synced feed is adopted per feed", async () => {
+    const { plugin, diskSettings, syncIn } =
+      await startPlugin("plugin-default");
+    const item = {
+      guid: "g1",
+    } as unknown as RssDashboardSettings["feeds"][0]["items"][0];
+    const feed = (feedId: string, title: string) => ({
+      feedId,
+      title,
+      url: `https://${feedId}.test/feed.xml`,
+      folder: "",
+      lastUpdated: 1,
+    });
+    plugin.settings.feeds = [
+      { ...feed("feed-1", "First"), items: [item] },
+      { ...feed("feed-2", "Second"), items: [] },
+    ];
+    await plugin.saveSettings();
+
+    // The other device renames feed-1 while this device renames feed-2, so the
+    // entries merge individually and feed-1 is taken from disk.
+    await syncIn({
+      feeds: [feed("feed-1", "Renamed remotely"), feed("feed-2", "Second")],
+    });
+    plugin.settings.feeds[1].title = "Renamed here";
+    await plugin.saveSettings();
+
+    expect(plugin.settings.feeds[0].title).toBe("Renamed remotely");
+    expect(plugin.settings.feeds[0].items).toHaveLength(1);
+    expect(plugin.settings.feeds[1].title).toBe("Renamed here");
+    const persisted = diskSettings().feeds as Record<string, unknown>[];
+    expect(persisted[0].items).toBeUndefined();
+    expect(persisted[1].items).toBeUndefined();
   });
 
   it("treats an empty settings file as unreadable and writes memory", async () => {

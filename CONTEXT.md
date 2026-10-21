@@ -477,6 +477,10 @@ _Avoid_: Cutoff date, sunset, deprecation release
 A vault whose feed storage is a [[deprecated storage mode]] on a release carrying the [[storage cutoff]]. It displays its articles, marks read state in memory for the session, exports a [[portable data bundle]], and can migrate to Shard storage v2. It writes nothing else; preference changes made while read-only are lost on quit, exactly like read marks. The state is enforced at the persistence choke point and is distinct from a failed settings load. See [ADR 0024](docs/adr/0024-enforce-the-read-only-cutoff-at-the-persistence-choke-point.md).
 _Avoid_: Read-only mode (that names a [[deprecated storage mode]], not a vault), frozen vault, locked vault
 
+**Orphan shard**:
+A shard file on disk for a feed that the device's feed list no longer contains. When this device last wrote or read that exact file, the next save after the removing feed list arrives deletes it (**removal-arrival cleanup**). Any other orphan shard, for example one changed by another device or left over from before a restart, is kept and is the subject of the storage health check (#318). Distinct from a missing shard, which is a feed in the list whose file is gone.
+_Avoid_: stray shard, leftover shard
+
 **Feed content**:
 The article or episode data (title, body, media, publish date) written into a feed's shard file under Shard storage v2. Distinct from that feed's article state, which v2 stores separately.
 _Avoid_: Shard content, feed data
