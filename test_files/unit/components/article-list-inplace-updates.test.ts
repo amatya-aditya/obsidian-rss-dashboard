@@ -47,9 +47,11 @@ describe("Phase 7 - ArticleList in-place updates", () => {
       ".rss-dashboard-star-toggle",
     );
 
-    expect(readToggle?.getAttribute("aria-label")).toBe("Mark as read");
+    expect(readToggle?.getAttribute("aria-label")).toBe("Mark as read (m)");
     expect(saveToggle?.getAttribute("aria-label")).toContain("Save");
-    expect(starToggle?.getAttribute("aria-label")).toBe("Add to starred items");
+    expect(starToggle?.getAttribute("aria-label")).toBe(
+      "Add to starred items (f)",
+    );
 
     h.list.updateArticleInPlace({
       ...h.articles[0],
@@ -64,12 +66,12 @@ describe("Phase 7 - ArticleList in-place updates", () => {
     expect(articleEl?.classList.contains("starred")).toBe(true);
     expect(articleEl?.classList.contains("unstarred")).toBe(false);
 
-    expect(readToggle?.getAttribute("aria-label")).toBe("Mark as unread");
+    expect(readToggle?.getAttribute("aria-label")).toBe("Mark as unread (m)");
     expect(saveToggle?.getAttribute("aria-label")).toBe(
-      "Click to open saved article",
+      "Click to open saved article (s)",
     );
     expect(starToggle?.getAttribute("aria-label")).toBe(
-      "Remove from starred items",
+      "Remove from starred items (f)",
     );
 
     h.cleanup();

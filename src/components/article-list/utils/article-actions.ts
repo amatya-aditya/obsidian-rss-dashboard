@@ -1,4 +1,5 @@
 import { Notice, setIcon, setTooltip } from "obsidian";
+import { withBindingHint } from "../../../hotkeys/keymap";
 import { onActivate } from "../../../utils/keyboard-activation";
 import {
   resolveSaveVersion,
@@ -61,7 +62,10 @@ export function createReadToggle(
     attr: {
       role: "button",
       tabindex: "0",
-      "aria-label": arg.article.read ? "Mark as unread" : "Mark as read",
+      "aria-label": withBindingHint(
+        arg.article.read ? "Mark as unread" : "Mark as read",
+        "toggle-read",
+      ),
     },
   });
   setIcon(readToggle, arg.article.read ? "check-circle" : "circle");
@@ -91,14 +95,17 @@ export function createSaveButton(
     attr: {
       role: "button",
       tabindex: "0",
-      "aria-label": arg.article.saved
-        ? SAVED_ARTICLE_TOOLTIP
-        : saveVersionTooltip(
-            resolveSaveVersion(
-              arg.settings.articleSaving ?? {},
-              arg.savedTemplate,
+      "aria-label": withBindingHint(
+        arg.article.saved
+          ? SAVED_ARTICLE_TOOLTIP
+          : saveVersionTooltip(
+              resolveSaveVersion(
+                arg.settings.articleSaving ?? {},
+                arg.savedTemplate,
+              ),
             ),
-          ),
+        "save-article",
+      ),
     },
   });
   setIcon(saveButton, "save");
@@ -109,7 +116,10 @@ export function createSaveButton(
   const setSaving = (saving: boolean) => {
     if (saving) {
       saveButton.classList.add("saving");
-      setTooltip(saveButton, "Saving article...");
+      setTooltip(
+        saveButton,
+        withBindingHint("Saving article...", "save-article"),
+      );
     } else {
       saveButton.classList.remove("saving");
     }
@@ -122,7 +132,10 @@ export function createSaveButton(
     if (!saveButton.querySelector("svg")) {
       saveButton.textContent = "S";
     }
-    setTooltip(saveButton, SAVED_ARTICLE_TOOLTIP);
+    setTooltip(
+      saveButton,
+      withBindingHint(SAVED_ARTICLE_TOOLTIP, "save-article"),
+    );
   };
 
   const defaultSave = async () => {
@@ -205,9 +218,12 @@ export function createStarToggle(
     attr: {
       role: "button",
       tabindex: "0",
-      "aria-label": arg.article.starred
-        ? "Remove from starred items"
-        : "Add to starred items",
+      "aria-label": withBindingHint(
+        arg.article.starred
+          ? "Remove from starred items"
+          : "Add to starred items",
+        "toggle-star",
+      ),
     },
   });
   const starIcon = starToggle.createSpan({
@@ -254,7 +270,7 @@ export function createTagsToggle(
     attr: {
       role: "button",
       tabindex: "0",
-      "aria-label": "Manage tags",
+      "aria-label": withBindingHint("Manage tags", "toggle-tags"),
       "aria-haspopup": "true",
       "aria-expanded": "false",
     },

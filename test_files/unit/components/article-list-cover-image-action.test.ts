@@ -9,6 +9,9 @@ import type { RssDashboardSettings } from "../../../src/types/types";
 const COVER_FETCH_TITLE = "Fetch and replace cover image";
 const COVER_REPLACE_TITLE = "Replace cover image from the fetch";
 const COVER_RESTORE_TITLE = "Restore cover image from feed";
+// The control's tooltip names the key beside the sentence (#1467); the
+// context-menu items keep the sentence alone.
+const COVER_HINT = " (Shift + c)";
 const COVER_FETCH_BUTTON = ".rss-dashboard-fetch-cover-button";
 const FETCHING_CLASS = "rss-dashboard-cover-fetching";
 const PAGE_IMAGE = "https://page.example.com/hero.jpg";
@@ -255,7 +258,7 @@ describe("cover-image action on the article list (#1314)", () => {
           .getArticleEl("1")
           ?.querySelector(COVER_FETCH_BUTTON)
           ?.getAttribute("aria-label"),
-      ).toBe(COVER_RESTORE_TITLE);
+      ).toBe(COVER_RESTORE_TITLE + COVER_HINT);
 
       rightClick(h.getArticleEl("1"));
       expect(titles()).toContain(COVER_RESTORE_TITLE);
@@ -301,7 +304,7 @@ describe("cover-image action on the article list (#1314)", () => {
           .getArticleEl("1")
           ?.querySelector(COVER_FETCH_BUTTON)
           ?.getAttribute("aria-label"),
-      ).toBe(COVER_REPLACE_TITLE);
+      ).toBe(COVER_REPLACE_TITLE + COVER_HINT);
       h.cleanup();
     });
 
@@ -327,7 +330,7 @@ describe("cover-image action on the article list (#1314)", () => {
           .getArticleEl("1")
           ?.querySelector(COVER_FETCH_BUTTON)
           ?.getAttribute("aria-label"),
-      ).toBe("Remove fetched cover image");
+      ).toBe("Remove fetched cover image" + COVER_HINT);
 
       rightClick(h.getArticleEl("1"));
       Menu.lastItems
@@ -340,7 +343,7 @@ describe("cover-image action on the article list (#1314)", () => {
             .getArticleEl("1")
             ?.querySelector(COVER_FETCH_BUTTON)
             ?.getAttribute("aria-label"),
-        ).toBe(COVER_FETCH_TITLE),
+        ).toBe(COVER_FETCH_TITLE + COVER_HINT),
       );
       h.cleanup();
     });
