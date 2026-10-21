@@ -44,6 +44,12 @@ describe("keymap table", () => {
     ).toBe("toggle-youtube-focus-mode");
   });
 
+  it("binds Shift+C to the selected article's cover-image action", () => {
+    expect(
+      findDashboardBinding({ key: "C", shiftKey: true }, () => false)?.id,
+    ).toBe("cover-image-action");
+  });
+
   it("gives every candidate for one key press the same repeat class", () => {
     for (const binding of KEYMAP) {
       if (!binding.contexts.includes("dashboard")) continue;

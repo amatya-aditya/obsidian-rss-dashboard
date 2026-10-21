@@ -39,11 +39,19 @@ import { renderFeedIcon as renderFeedIconUtil } from "./article-list/utils/feed-
 import { createActionButtons as createArticleActionButtonsUtil } from "./article-list/utils/article-actions";
 import type { CustomSaveHooks } from "./article-list/utils/save-options-menu";
 import { showArticleContextMenu as showArticleContextMenuUtil } from "./article-list/utils/article-context-menu";
-import { withCoverImageBusyState } from "./article-list/utils/cover-image-busy";
+import {
+  COVER_IMAGE_BUSY_CLASS,
+  withCoverImageBusyState,
+} from "./article-list/utils/cover-image-busy";
 import {
   COVER_IMAGE_FETCH_BUTTON_CLASS,
   resolveCoverImageOffer,
+  type CoverImageAction,
 } from "./article-list/utils/cover-image-action";
+import {
+  runCoverImageAction,
+  type CoverImageActionDeps,
+} from "./article-list/utils/cover-image-run";
 import { renderFeedView as renderFeedViewUtil } from "./article-list/views/feed-view";
 import { renderListView as renderListViewUtil } from "./article-list/views/list-view";
 import { renderCardView as renderCardViewUtil } from "./article-list/views/card-view";
@@ -1474,8 +1482,6 @@ export class ArticleList {
   }
 
   private getViewDeps(): ViewDeps {
-    const onFetchCoverImage = this.callbacks.onFetchCoverImage;
-    const onRestoreCoverImage = this.callbacks.onRestoreCoverImage;
     return {
       renderFeedIcon: (container, feedUrl, mediaType) =>
         this.renderFeedIcon(container, feedUrl, mediaType),
@@ -1483,16 +1489,23 @@ export class ArticleList {
         this.createArticleActionButtons(actionToolbar, article, mode),
       showArticleContextMenu: (event, article) =>
         this.showArticleContextMenu(event, article),
-      fetchCoverImage: onFetchCoverImage,
-      restoreCoverImage: onRestoreCoverImage,
-      replaceArticle: (article: FeedItem) => {
-        this.replaceArticleInPlace(article);
-      },
+      ...this.getCoverImageActionDeps(),
       scheduleMathRendering: (element: HTMLElement) =>
         this.callbacks.onRenderArticleTitle?.(element),
       scheduleCardTagLayout: (card) => this.scheduleCardTagLayout(card),
       onToggleFeedSectionCollapse: (feedSourceName, isCollapsed) =>
         this.onToggleFeedSectionCollapse(feedSourceName, isCollapsed),
+    };
+  }
+
+  /** The handlers a cover-image action runs through, wherever it starts. */
+  private getCoverImageActionDeps(): CoverImageActionDeps {
+    return {
+      fetchCoverImage: this.callbacks.onFetchCoverImage,
+      restoreCoverImage: this.callbacks.onRestoreCoverImage,
+      replaceArticle: (article: FeedItem) => {
+        this.replaceArticleInPlace(article);
+      },
     };
   }
 
@@ -1627,16 +1640,7 @@ export class ArticleList {
 
   private showArticleContextMenu(event: MouseEvent, article: FeedItem): void {
     const fetchCoverImage = this.callbacks.onFetchCoverImage;
-    const restoreCoverImage = this.callbacks.onRestoreCoverImage;
-    // The list view renders no cover, so it offers neither role (#1314, #1330).
-    const coverImageAction =
-      this.settings.viewStyle === "list"
-        ? null
-        : resolveCoverImageOffer(article, {
-            hasFetcher: !!fetchCoverImage,
-            hasRestorer: !!restoreCoverImage,
-            showCoverImage: this.settings.display.showCoverImage,
-          });
+    const coverImageAction = this.resolveOfferedCoverImageAction(article);
     showArticleContextMenuUtil(event, article, {
       callbacks: {
         ...this.callbacks,
@@ -1650,6 +1654,55 @@ export class ArticleList {
       coverImageAction: coverImageAction ?? undefined,
       settings: { articleSaving: this.settings.articleSaving },
     });
+  }
+
+  /**
+   * The cover action this surface offers for an article, or null. Answers
+   * through the same offer resolver as the visible control, plus the List view
+   * check the context menu applies, because List renders no cover for the
+   * action to change.
+   */
+  private resolveOfferedCoverImageAction(
+    article: FeedItem,
+  ): CoverImageAction | null {
+    if (this.settings.viewStyle === "list") return null;
+    return resolveCoverImageOffer(article, {
+      hasFetcher: !!this.callbacks.onFetchCoverImage,
+      hasRestorer: !!this.callbacks.onRestoreCoverImage,
+      showCoverImage: this.settings.display.showCoverImage,
+    });
+  }
+
+  /**
+   * Runs one article's offered cover-image action from the dashboard keyboard
+   * route (#1466). The role is resolved at the moment of the press, through the
+   * same offer resolver as the control and the context menu, so a fetch and the
+   * restore that follows it alternate.
+   *
+   * Resolves true when the surface offered an action and the press is handled.
+   * False leaves the key unhandled, with no notice, request or selection
+   * change, exactly as when the control and the menu offer nothing.
+   */
+  public runSelectedCoverImageAction(article: FeedItem): boolean {
+    const action = this.resolveOfferedCoverImageAction(article);
+    if (!action) return false;
+
+    const articleEl = this.findArticleElement(article);
+    // The article already shows a fetch running, whether this shortcut, the
+    // control or the context menu started it. Leave it alone rather than start
+    // a second page request; the press still belongs to the surface.
+    if (
+      action.role === "fetch" &&
+      articleEl?.classList.contains(COVER_IMAGE_BUSY_CLASS)
+    ) {
+      return true;
+    }
+
+    void runCoverImageAction(
+      { article, articleEl, deps: this.getCoverImageActionDeps() },
+      action.role,
+    );
+    return true;
   }
 
   /**

@@ -298,6 +298,15 @@ export const KEYMAP: readonly KeyBinding[] = [
     help: [HELP_ARTICLE],
   },
   {
+    id: "cover-image-action",
+    key: "c",
+    shift: true,
+    contexts: D,
+    repeat: false,
+    help: [HELP_DASHBOARD],
+    label: "Shift + C",
+  },
+  {
     id: "toggle-article-open",
     key: "o",
     shift: false,

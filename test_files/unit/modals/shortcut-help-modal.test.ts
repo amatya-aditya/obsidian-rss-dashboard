@@ -215,6 +215,33 @@ describe("ShortcutHelpModal", () => {
     });
   });
 
+  describe("cover image shortcut (#1466)", () => {
+    it("lists Shift + C as fetching or restoring the cover in the modal and the guide", () => {
+      const modal = new ShortcutHelpModal(
+        createMockApp(),
+        structuredClone(DEFAULT_SETTINGS),
+      );
+      modal.onOpen();
+      const rows = new Map<string, string>();
+      modal.contentEl.querySelectorAll(".rss-shortcut-row").forEach((row) => {
+        rows.set(
+          row.querySelector("kbd")?.textContent ?? "",
+          row.querySelector(".rss-shortcut-desc")?.textContent ?? "",
+        );
+      });
+      modal.onClose();
+
+      expect(rows.get("Shift + C")).toBe("Fetch or restore cover image");
+
+      const guide = readFileSync("docs/user/keyboard-shortcuts.md", "utf8");
+      const row = guide
+        .split("\n")
+        .find((line) => line.startsWith("| Shift + C "));
+      expect(row).toBeDefined();
+      expect(row).toContain("Fetch or restore cover image");
+    });
+  });
+
   describe("save shortcut (#1184)", () => {
     it("lists s as Save to notes in the modal and the guide, claiming no version", () => {
       const modal = new ShortcutHelpModal(

@@ -679,6 +679,21 @@ export class RssDashboardView extends ItemView {
   }
 
   /**
+   * Action: Run the selected article's cover-image action from the `Shift+C`
+   * keymap binding (#1466).
+   *
+   * Resolves the role at the moment of the press through the same gate as the
+   * visible control and the context menu, so a fetch and the restore that
+   * follows it alternate. Returns false when the surface offers no action, so
+   * the key is left unhandled with no notice or request.
+   * @internal
+   */
+  public actionRunCoverImageAction(): boolean {
+    if (!this.selectedArticle || !this.articleList) return false;
+    return this.articleList.runSelectedCoverImageAction(this.selectedArticle);
+  }
+
+  /**
    * Action: Mark all filtered articles as read. The Notice names the view,
    * using the same title the article header shows.
    * @internal

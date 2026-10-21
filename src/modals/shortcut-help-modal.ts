@@ -36,6 +36,7 @@ export const SHORTCUT_SECTIONS: ShortcutSection[] = [
       { key: "Shift + 1", desc: "All articles filter" },
       { key: "Shift + 2", desc: "Unread articles filter" },
       { key: "Shift + 3", desc: "Read articles filter" },
+      { key: "Shift + C", desc: "Fetch or restore cover image" },
       { key: "1", desc: "List view" },
       { key: "2", desc: "Card view" },
       { key: "3", desc: "Feed view" },
