@@ -433,6 +433,14 @@ _Avoid_: Storage (unqualified), config storage
 A change to a watched metadata file (`data.json` or `user-state.json` in [[Metadata storage]]) whose content matches what this device last wrote or loaded there. The plugin skips reloading an own write and reloads every other change. It is recognized by content, never by timing.
 _Avoid_: Suppression window, echo
 
+**Sync delivery**:
+A file that Sync writes to disk from outside Obsidian, so the plugin sees it as a change behind the vault adapter. A delivery of [[Shard storage]] v2 can be `data.json`, `user-state.json`, feed shards, or any mix of them.
+_Avoid_: Sync event, synced write
+
+**Arrival order**:
+The sequence in which the v2 files of a [[Sync delivery]] land on disk, for example a shard after `data.json`, or `user-state.json` last. Sync gives no completion signal, so the plugin cannot assume any order.
+_Avoid_: Sync order, write order
+
 **Bootstrap pointer**:
 The plugin's own `data.json` when Metadata storage is a vault folder. It holds only the metadata mode and folder, so the plugin can find the full `data.json` at startup.
 _Avoid_: Pointer file, stub data.json

@@ -497,6 +497,53 @@ native dialog, or pixel-level layout. Reading the DOM, clicking, and
 screenshotting are cheaper and repeatable over CDP, which is why this is the
 default for automated checks.
 
+## Simulating Sync
+
+`scripts/simulate-sync.mjs` replays an [Arrival order](../../CONTEXT.md) of
+Shard storage v2 files into a running fixture vault from outside Obsidian, so
+you can see what the dashboard and the files on disk do without a second
+device. It writes the files the way a Sync delivery would reach the plugin:
+behind the vault adapter. It does not model Sync's merge or its conflict
+files, so there is no conflict-copy preset.
+
+```sh
+npm run fixture:sync -- <preset> --dry-run   # name the vault and files, write nothing
+npm run fixture:sync -- <preset>             # write them
+```
+
+The script writes into `.fixture-vault/` unless you pass `--vault <folder>`.
+Attach over CDP first (see [Driving the vault over CDP](#driving-the-vault-over-cdp))
+and read the result with `--expect-vault`. Reset the vault with
+`npm run fixture:vault` between presets, with the vault closed.
+
+| Preset             | Writes, in order                                                                  |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `late-shard`       | `data.json` (adds a feed), `user-state.json`, then the new feed's shard, late.    |
+| `user-state-late`  | `data.json`, the new feed's shard, then `user-state.json`, late.                  |
+| `data-first`       | `data.json`, the shard, `user-state.json`.                                        |
+| `reverse`          | `user-state.json`, the shard, `data.json`.                                        |
+| `empty-newer-wins` | A newer `data.json` with no feeds or folders, as a clean device would write.      |
+| `dot-folder-skip`  | The `data-first` files under `.sync-sim/`, a dot-folder the plugin should ignore. |
+
+"Late" files wait `--late <ms>` (default 4000) before they are written, which
+is longer than the plugin's 1500 ms reload debounce, so the earlier files have
+already been reloaded. `--gap <ms>` (default 300) separates the other writes.
+Every write changes the file's mtime and size, because the plugin reacts to a
+change Obsidian reports.
+
+Two guards keep it off real data:
+
+- **Marker.** The script refuses, with a non-zero exit, any folder that lacks
+  the `.rss-dashboard-fixture-vault.json` marker `npm run fixture:vault` writes,
+  and any fixture vault that is not in Shard storage v2. It can never write into
+  your real vault.
+- **Dry run.** `--dry-run` prints the vault and every file it would write, in
+  order, and writes nothing. Run it first.
+
+Only the supported setup is simulated: Shard storage v2 with visible storage and
+metadata folders, which is what the default fixture vault uses. Legacy JSON,
+Shard storage v1 and the fresh-install dot-folder layout are out of scope.
+
 ## Headless Obsidian in a Linux container
 
 A Linux cloud container has no desktop, but Obsidian runs there headless under
