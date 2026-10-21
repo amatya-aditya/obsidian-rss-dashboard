@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import TurndownService from "turndown";
 import {
   addYouTubeEmbedTurndownRule,
+  embedMarkdown,
   parseYouTubeEmbedId,
   protectYouTubeEmbedsForMarkdown,
   replaceYouTubeEmbedsInHtmlNote,
+  stripYouTubeEmbedMarkdown,
   youTubeWatchUrl,
 } from "../../../src/utils/youtube-embed";
 
@@ -49,6 +51,32 @@ describe("parseYouTubeEmbedId", () => {
 describe("youTubeWatchUrl", () => {
   it("builds the watch URL from the validated ID", () => {
     expect(youTubeWatchUrl(VIDEO_ID)).toBe(WATCH_URL);
+  });
+});
+
+describe("embedMarkdown", () => {
+  it("writes the native embed on its own line, then the plain watch link", () => {
+    expect(embedMarkdown(VIDEO_ID)).toBe(
+      `\n\n${EMBED_LINE}\n\n${WATCH_LINK}\n\n`,
+    );
+  });
+});
+
+describe("stripYouTubeEmbedMarkdown", () => {
+  it("removes the same video's embed and watch link, keeping the prose", () => {
+    const markdown = `Intro.\n\n${EMBED_LINE}\n\n${WATCH_LINK}\n\nOutro.`;
+
+    expect(stripYouTubeEmbedMarkdown(markdown, VIDEO_ID)).toBe(
+      "Intro.\n\nOutro.",
+    );
+  });
+
+  it("keeps an embed for another video", () => {
+    const other = "AAAAAAAAAAA";
+    const otherUrl = `https://www.youtube.com/watch?v=${other}`;
+    const markdown = `![](${otherUrl})\n\n[Watch on YouTube](${otherUrl})`;
+
+    expect(stripYouTubeEmbedMarkdown(markdown, VIDEO_ID)).toBe(markdown);
   });
 });
 

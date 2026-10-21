@@ -16,7 +16,12 @@ import { ensureUtf8Meta } from "../utils/platform-utils";
 import { withSavedTagName } from "../utils/tag-utils";
 import { isLikelyVideoItem } from "../utils/video-detection";
 import { articleHtmlToMarkdown } from "../utils/article-markdown";
-import { replaceYouTubeEmbedsInHtmlNote } from "../utils/youtube-embed";
+import {
+  embedMarkdown,
+  isYouTubeVideoId,
+  replaceYouTubeEmbedsInHtmlNote,
+  stripYouTubeEmbedMarkdown,
+} from "../utils/youtube-embed";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
 import {
   feedDescriptionToStripFromBody,
@@ -415,6 +420,31 @@ guid: "{{guid}}"
   }
 
   /**
+   * The validated video ID a video item saves its embed from (#1237). The
+   * item's own field is the only source; feed markup is never consulted.
+   */
+  private videoItemEmbedId(item: FeedItem): string | null {
+    if (item.mediaType !== "video") return null;
+    const videoId = item.videoId?.trim() ?? "";
+    return isYouTubeVideoId(videoId) ? videoId : null;
+  }
+
+  /**
+   * Leads a video item's body with its native embed in place of the hero
+   * thumbnail (#1237). The content keeps everything else, but an embed for the
+   * same video is removed so the note holds exactly one; another video's embed
+   * is a different video and stays.
+   */
+  private leadWithVideoEmbed(item: FeedItem, body: string): string {
+    const videoId = this.videoItemEmbedId(item);
+    if (!videoId) return body;
+
+    const content = stripYouTubeEmbedMarkdown(body, videoId);
+    const embed = embedMarkdown(videoId).trim();
+    return content ? `${embed}\n\n${content}` : embed;
+  }
+
+  /**
    * The note body for a save that uses the feed item's own content (#1190).
    * The feed HTML becomes Markdown, the same conversion the fetch-failure
    * fallback and the fetched-article path use; ad stripping and the
@@ -423,15 +453,30 @@ guid: "{{guid}}"
    * intact. Turndown drops `<video>` and `<audio>` outright, so a non-empty
    * feed body that would convert to nothing keeps the HTML the old path wrote,
    * legacy hero markup included, rather than saving an empty note.
+   *
+   * A video item with a validated `videoId` leads with its own native embed
+   * instead of the fallback hero (#1237), on both the Markdown and HTML-note
+   * paths; the content follows.
    */
   private feedHtmlAsMarkdown(item: FeedItem): string {
     const feedHtml = this.getPreferredFeedHtml(item);
     const sanitizedHtml = this.sanitizeFeedHtmlForMarkdown(feedHtml, item.link);
+    const heroUrl = this.getFeedHeroUrl(item);
+
+    if (this.videoItemEmbedId(item)) {
+      const markdown = articleHtmlToMarkdown(sanitizedHtml);
+      if (markdown.trim()) {
+        return this.leadWithVideoEmbed(item, markdown);
+      }
+
+      return this.leadWithVideoEmbed(item, this.cleanHtml(feedHtml, item.link));
+    }
+
     const markdown = this.prependFallbackHeroMarkdown(
       item,
       articleHtmlToMarkdown(sanitizedHtml),
       sanitizedHtml,
-      this.getFeedHeroUrl(item),
+      heroUrl,
     );
 
     if (markdown.trim()) {
@@ -441,7 +486,7 @@ guid: "{{guid}}"
     return this.prependFallbackHeroHtml(
       item,
       this.cleanHtml(feedHtml, item.link),
-      this.getFeedHeroUrl(item),
+      heroUrl,
     );
   }
 
