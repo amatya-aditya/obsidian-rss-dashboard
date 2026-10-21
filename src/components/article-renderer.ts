@@ -355,6 +355,7 @@ export class ArticleRenderer {
         this.settings.useFirstSeenDateFallback,
         this.onPodcastPlaySpeedChange,
         this.settings.media.showPodcastChapterMarkers ?? true,
+        this.settings.media.showPodcastSleepTimerBand ?? true,
       );
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
     } else {
@@ -653,6 +654,10 @@ export class ArticleRenderer {
 
   public setPodcastChapterMarkers(enabled: boolean): void {
     this.podcastPlayer?.setChapterMarkersEnabled(enabled);
+  }
+
+  public setPodcastSleepTimerBand(enabled: boolean): void {
+    this.podcastPlayer?.setSleepTimerBandEnabled(enabled);
   }
 
   public setVideoTags(tags: Tag[] | undefined): void {

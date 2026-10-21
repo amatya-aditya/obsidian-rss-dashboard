@@ -337,6 +337,8 @@ export interface MediaSettings {
   defaultPlaySpeed: number;
   /** Show chapter markers parsed from an episode's notes on the seek bar. */
   showPodcastChapterMarkers?: boolean;
+  /** Show the sleep timer's projected stop as a band on the seek bar. */
+  showPodcastSleepTimerBand?: boolean;
 }
 
 export interface SavedTemplate {
@@ -870,6 +872,7 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     enableApplePodcastsOpen: false,
     defaultPlaySpeed: 1,
     showPodcastChapterMarkers: true,
+    showPodcastSleepTimerBand: true,
   },
   articleSaving: {
     addSavedTag: true,

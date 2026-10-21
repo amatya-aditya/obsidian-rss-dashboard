@@ -910,6 +910,16 @@ export default class RssDashboardPlugin extends Plugin {
     return enabled;
   }
 
+  /**
+   * Applies the sleep timer band setting to every open Reader and dashboard so
+   * a player already on screen updates without reloading.
+   */
+  public async applyPodcastSleepTimerBand(enabled: boolean): Promise<void> {
+    await this.forEachPlayerHostView((view) =>
+      view.setPodcastSleepTimerBand(enabled),
+    );
+  }
+
   public async refreshOpenTagColorViews(): Promise<void> {
     const dashboardLeaves = this.app.workspace.getLeavesOfType(
       RSS_DASHBOARD_VIEW_TYPE,

@@ -3344,6 +3344,11 @@ export class RssDashboardView extends ItemView {
     this.articleRenderer?.setPodcastChapterMarkers(enabled);
   }
 
+  /** Apply the sleep timer band setting to an open inline podcast player. */
+  public setPodcastSleepTimerBand(enabled: boolean): void {
+    this.articleRenderer?.setPodcastSleepTimerBand(enabled);
+  }
+
   /**
    * In Focus mode an inline YouTube video drops the toolbar and title from the
    * inline header and keeps only the back button.

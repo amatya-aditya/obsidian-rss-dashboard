@@ -261,6 +261,44 @@ describe("renderMediaSettingsTab()", () => {
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
   });
 
+  it("offers the sleep timer band on by default and applies the toggle to open players", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const settings = cloneSettings();
+    const applyPodcastSleepTimerBand = vi.fn(async () => {});
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 0),
+      applyYouTubeFocusMode: vi.fn(async () => {}),
+      applyPodcastChapterMarkers: vi.fn(async () => {}),
+      applyPodcastSleepTimerBand,
+    } as unknown as RssDashboardPlugin;
+
+    renderMediaSettingsTab(containerEl, plugin);
+
+    const setting = getSettingByName(
+      containerEl,
+      "Show the sleep timer band on the seek bar",
+    );
+    expect(
+      setting.querySelector(".setting-item-description")?.textContent,
+    ).toBe(
+      "While a sleep timer is running, the band previews the audio that will play before it stops. Turning this off leaves the timer itself unchanged.",
+    );
+    const toggle = setting.querySelector(
+      'input[type="checkbox"]',
+    ) as HTMLInputElement;
+    expect(isToggleOn(toggle)).toBe(true);
+
+    setToggle(toggle, false);
+    await flushPromises();
+
+    expect(settings.media.showPodcastSleepTimerBand).toBe(false);
+    expect(applyPodcastSleepTimerBand).toHaveBeenCalledWith(false);
+    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
+  });
+
   it("persists Focus mode and applies it to open players", async () => {
     const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();

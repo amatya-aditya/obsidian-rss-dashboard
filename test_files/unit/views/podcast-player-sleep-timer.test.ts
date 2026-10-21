@@ -28,9 +28,22 @@ describe("PodcastPlayer sleep timer lifecycle", () => {
     document.body.empty();
   });
 
-  function loadPlayer() {
+  function loadPlayer(options: { sleepTimerBandEnabled?: boolean } = {}) {
     const container = document.body.createDiv();
-    const player = new PodcastPlayer(container, new App());
+    const player = new PodcastPlayer(
+      container,
+      new App(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      true,
+      1,
+      false,
+      undefined,
+      true,
+      options.sleepTimerBandEnabled ?? true,
+    );
     players.push(player);
     const episode: FeedItem = {
       title: "Cleanup episode",
@@ -441,6 +454,39 @@ describe("PodcastPlayer sleep timer lifecycle", () => {
       bar.dispatchEvent(new MouseEvent("mousedown", { clientX: 20 }));
       activeWindow.dispatchEvent(new MouseEvent("mousemove", { clientX: 150 }));
       expect(audio.currentTime).toBe(750);
+    });
+
+    it("stays hidden while the setting is off and leaves the timer running", () => {
+      const { button, audio, selectTimer, band } = loadPlayer({
+        sleepTimerBandEnabled: false,
+      });
+      setDurationAndPlay(audio);
+      audio.currentTime = 100;
+
+      selectTimer("5 minutes");
+
+      expect(band()?.hidden).toBe(true);
+      expect(button.classList.contains("is-active")).toBe(true);
+      audio.dispatchEvent(new Event("timeupdate"));
+      expect(band()?.hidden).toBe(true);
+    });
+
+    it("applies a live setting change to the open player", () => {
+      const { player, audio, selectTimer, band } = loadPlayer();
+      setDurationAndPlay(audio);
+      audio.currentTime = 100;
+      selectTimer("5 minutes");
+      audio.dispatchEvent(new Event("pause"));
+      expect(band()?.hidden).toBe(false);
+
+      player.setSleepTimerBandEnabled(false);
+      expect(band()?.hidden).toBe(true);
+      audio.dispatchEvent(new Event("seeked"));
+      expect(band()?.hidden).toBe(true);
+
+      player.setSleepTimerBandEnabled(true);
+      expect(band()?.hidden).toBe(false);
+      expect(bandPositions(band())).toEqual({ start: "10%", end: "40%" });
     });
   });
 });

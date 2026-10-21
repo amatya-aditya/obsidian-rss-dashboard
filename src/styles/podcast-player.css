@@ -460,21 +460,32 @@
   background: var(--rss-podcast-progress-color, #1db954);
   border-radius: inherit;
   overflow: hidden;
+  /* Above the sleep band so the band's overlap hides behind the rounded cap
+     (#1447); below the native progress element, which keeps seek input. */
+  z-index: 1;
   transition: width 0.1s linear;
 }
 
 /* Sleep timer band (#1371): a preview of the unplayed audio that will stop at
-   the timer's projected expiry. It starts at the playhead, shares the active
-   button's colour at reduced opacity, and lets seek input through to the bar.
-   Mixing toward the text colour keeps a 3:1 edge against the empty track in
-   both default light and dark themes; opacity alone falls short on the light
-   track. */
+   the timer's projected expiry. It starts a few pixels left of the playhead,
+   under the played fill, so the fill's rounded cap covers the join instead of
+   leaving the track showing between them (#1447), and it shares the active
+   button's colour at reduced opacity. Mixing toward the text colour keeps a
+   3:1 edge against the empty track in both default light and dark themes;
+   opacity alone falls short on the light track. */
 .podcast-sleep-band {
+  /* The played fill's cap has a 6px radius; 8px covers it with 2px hidden
+     behind the fill. max() keeps the band inside the track at the start. */
+  --sleep-band-overlap: 8px;
+  --sleep-band-left: max(
+    0%,
+    calc(var(--sleep-band-start, 0%) - var(--sleep-band-overlap))
+  );
   position: absolute;
   top: 0;
-  left: var(--sleep-band-start, 0%);
+  left: var(--sleep-band-left);
   height: 100%;
-  width: calc(var(--sleep-band-end, 0%) - var(--sleep-band-start, 0%));
+  width: calc(var(--sleep-band-end, 0%) - var(--sleep-band-left));
   background: color-mix(
     in srgb,
     var(--rss-sleep-timer-color) 60%,
@@ -483,6 +494,7 @@
   border-radius: 0 6px 6px 0;
   opacity: 0.8;
   pointer-events: none;
+  z-index: 0;
   transition:
     left 0.1s linear,
     width 0.1s linear;
