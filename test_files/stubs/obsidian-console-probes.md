@@ -1674,3 +1674,79 @@ another machine, the mobile app, and the Sync conflict UI.
 new-device steps in `syncing.md`), #1454 (feeding these results back into the
 simulator and presets, including that `data-first` order was not observed) and
 #1455 (the `data.json` size drift, closed as wontfix: Sync nonces).
+
+## Real Sync pass, run 3: the #1452 build, the bootstrap pointer and a restart
+
+**Run:** run 3 of the Real Sync pass, the same two vaults on the same PC as runs
+1 and 2, on 2026-10-21. Device A was the maintainer's vault and Device B the
+second desktop vault, both signed in to the same Sync remote, and the iPhone
+vault was force-quit by the maintainer for the whole run so it could not write.
+
+**Build.** `origin/dev` at `60af9876`, which includes the #1452 fix (PR #1463):
+plugin 2.7.1, `main.js` SHA-256 `bf679f34…`. The maintainer copied it into both
+vaults' plugin folders by hand and restarted Obsidian, because plugin sync would
+have pushed it to the iPhone. Both vaults then showed the plugin loaded and a
+device-local ancestor present. Device A's earlier `main.js` was saved and is to
+be restored after the pass.
+
+**Approval and backup.** The maintainer approved the run in chat after the cases
+below were listed, and the backup was waived as in runs 1 and 2. Sync was paused
+and resumed through the Sync instance (`setPause`), which is the pause button
+the Sync pane offers. No other Sync setting was changed.
+
+**Method.** As in run 2: Sync paused on both vaults, each side edited, Device A
+resumed and left to upload, then Device B resumed. The Sync instance's `syncLog`
+was the delivery signal (`Uploading file`, `Upload complete`, `Accepted`,
+`Rejected server change`), because `syncing` stayed `true` for minutes after
+uploads had finished and "Fully synced" appeared during transfers.
+
+| Case                                                                  | Edits while paused                                                                                                              | Result                                                                                                                                                                                                                                                    |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C1 two different feeds renamed (as run 2)                             | A renamed AI Weekly, B renamed the arXiv feed                                                                                   | **Both renames survived on both sides.** B's `data.json` still replaced A's at the Sync level; A merged it against its ancestor and uploaded the merged file, which B accepted. Hashes of `data.json` matched. No Notice for the merge, no conflict file. |
+| C2 the same feed renamed differently; B first, A 3 s later (as run 2) | B edited first, A about 12 s later (the script start-up, not 3 s)                                                               | The delivered value won, as before: both sides ended on B's title. **A showed one Notice, "A change synced from another device replaced an edit made on this device."** B showed none. No conflict file.                                                  |
+| Edit vs delete of one test feed                                       | A renamed the feed, B deleted it                                                                                                | **The edit won.** After B's `data.json` reached A, A kept the renamed feed and re-uploaded it; B received it back with A's name and showed the same Notice as in C2. A showed none. 14 feeds on both.                                                     |
+| Bootstrap pointer conflict                                            | A added one extra key to `<configDir>/plugins/rss-dashboard/data.json`, B added a different one                                 | **Sync merged the file by key** ("Merging conflicted file", then "Merge successful") on B. Both extra keys survived on both sides, no conflict file, and the plugin kept running with its 14 feeds.                                                       |
+| Winner arrives while the loser is closed                              | B renamed the arXiv feed with Sync paused, then its window was closed; A renamed AI Weekly and uploaded; B reopened and resumed | **Both renames survived on both sides.** B's reopened window kept its paused state and its ancestor. No Notice, no conflict file.                                                                                                                         |
+
+What this shows:
+
+- **The #1452 fix did what its design says in these runs.** Different-entry
+  edits survive on both devices (C1 and the closed case), the same entry takes
+  the delivered value with one Notice on the side that lost it (C2), and an edit
+  beats a delete (edit vs delete). The Notice on B in the edit vs delete case
+  describes a delete as "an edit", which reads slightly off but is true to the
+  design.
+- **Sync treats the config-folder pointer differently from the visible-folder
+  `data.json`.** The pointer is key-merged by Sync; the visible-folder
+  `data.json` is not. The plugin is unaffected either way in this run, but a
+  conflicting pointer carrying a real change (for example the storage folder)
+  was not tried. Only harmless extra keys were used.
+- **The ancestor survived a restart.** Its storage is Obsidian's device-local
+  storage, which was the design's assumption; the closed case shows it was still
+  there on reopen.
+- **Sync's own connection dropped three times** in this run: "Disconnected" on
+  A's upload of a new feed and on B's pointer upload, and "Cannot read
+  properties of null (reading 'send')" on B's C2 upload. Each left that device's
+  uploads stuck until Sync was paused and resumed. This is a Sync client
+  behavior and not plugin behavior, but a pass that only watches "Fully synced"
+  would have missed it. The simulator has no equivalent.
+- **Delivery to the second device is slow and arrives in minute-spaced waves.**
+  Uploads from the device that had been idle left within a second of resume, but
+  the other device took one to two minutes to download and the merged result
+  another one to two minutes to come back.
+
+**Cleanup.** The test feed was deleted and both titles restored on Device A
+with Sync running. Device B converged, and Device A and Device B matched on all
+289 data files and on the bootstrap pointer, whose probe keys were removed first.
+The local feed-fixture server was stopped.
+
+**Not observed.** The plugin's reaction to a pointer conflict that changes a
+storage setting. The order-reversed variant of C1 and C2 (B uploading first),
+and the case where both uploads are in flight at once. What the iPhone does with
+the fixed build. A2 (a second vault's use of a remote-vault slot): the
+maintainer did not check the plan page. Conflict-file naming for `.json`, which
+no run produced. A second device on another machine.
+
+**Follow-ups.** None filed from this run. The simulator preset work stays with
+#1454, which should now also cover the config-folder key merge and the Notice
+after an edit loses.
