@@ -2557,6 +2557,240 @@ describe("ArticleSaver - YouTube embeds in saved notes (#1168)", () => {
   );
 });
 
+describe("ArticleSaver - video items save a playable embed (#1237)", () => {
+  const videoId = "z9TFdTqkbPk";
+  const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  const embedLine = `![](${watchUrl})`;
+  const watchLink = `[Watch on YouTube](${watchUrl})`;
+  const HERO = "https://img.example/hero.png";
+
+  async function readSaved(
+    app: App,
+    file: TFile | null | undefined,
+  ): Promise<string> {
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    return app.vault.read(file);
+  }
+
+  function createSaver(
+    app: App,
+    overrides: Partial<ArticleSavingSettings> = {},
+  ): ArticleSaver {
+    return new ArticleSaver(
+      app,
+      createSettings({
+        defaultTemplate: "{{content}}",
+        includeFrontmatter: false,
+        saveVersion: "rss",
+        ...overrides,
+      }),
+    );
+  }
+
+  it("leads the saved body with the embed instead of the hero thumbnail", async () => {
+    const app = App.createMock();
+    const item = createItem({
+      mediaType: "video",
+      videoId,
+      coverImage: HERO,
+      content: "<p>The video description.</p>",
+    });
+
+    const written = await readSaved(
+      app,
+      await createSaver(app).saveArticle(item),
+    );
+
+    expect(written).toBe(
+      `${embedLine}\n\n${watchLink}\n\nThe video description.`,
+    );
+    expect(written).not.toContain(`![Hero image](${HERO})`);
+  });
+
+  it("saves the same body when the Fetched content version is selected", async () => {
+    const app = App.createMock();
+    const item = createItem({
+      mediaType: "video",
+      videoId,
+      coverImage: HERO,
+      content: "<p>The video description.</p>",
+    });
+
+    const written = await readSaved(
+      app,
+      await createSaver(app, {
+        saveVersion: "fetched",
+      }).saveArticleWithContentPolicy(item),
+    );
+
+    expect(written).toBe(
+      `${embedLine}\n\n${watchLink}\n\nThe video description.`,
+    );
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["empty", ""],
+    ["too short", "z9TFdTqkbP"],
+    ["too long", `${videoId}X`],
+    ["unsafe", "../../evil"],
+  ])(
+    "writes no embed when the videoId is %s, keeping the hero body",
+    async (_name, videoIdValue) => {
+      const app = App.createMock();
+      const item = createItem({
+        mediaType: "video",
+        videoId: videoIdValue,
+        coverImage: HERO,
+        content: "<p>Description only.</p>",
+      });
+
+      const written = await readSaved(
+        app,
+        await createSaver(app).saveArticle(item),
+      );
+
+      expect(written).toBe(`![Hero image](${HERO})\n\nDescription only.`);
+      expect(written).not.toContain("youtube.com");
+    },
+  );
+
+  it("leads the HTML-note fallback with the embed", async () => {
+    const app = App.createMock();
+    const item = createItem({
+      mediaType: "video",
+      videoId,
+      coverImage: HERO,
+      content: '<video src="https://example.com/clip.mp4"></video>',
+    });
+
+    const written = await readSaved(
+      app,
+      await createSaver(app).saveArticle(item),
+    );
+
+    expect(written).toBe(
+      `${embedLine}\n\n${watchLink}\n\n<video src="https://example.com/clip.mp4"></video>`,
+    );
+    expect(written).not.toContain(`![Hero image](${HERO})`);
+  });
+
+  it("holds exactly one embed when the content repeats the same video", async () => {
+    const app = App.createMock();
+    const item = createItem({
+      mediaType: "video",
+      videoId,
+      content: `<p>Before.</p><iframe src="https://www.youtube.com/embed/${videoId}"></iframe><p>After.</p>`,
+    });
+
+    const written = await readSaved(
+      app,
+      await createSaver(app).saveArticle(item),
+    );
+
+    expect(written.split(embedLine)).toHaveLength(2);
+    expect(written.split(watchLink)).toHaveLength(2);
+    expect(written.startsWith(`${embedLine}\n\n${watchLink}\n\n`)).toBe(true);
+    expect(written).toContain("Before.");
+    expect(written).toContain("After.");
+  });
+
+  it("keeps a content embed for a different video", async () => {
+    const app = App.createMock();
+    const otherId = "AAAAAAAAAAA";
+    const otherUrl = `https://www.youtube.com/watch?v=${otherId}`;
+    const item = createItem({
+      mediaType: "video",
+      videoId,
+      content: `<p>Before.</p><iframe src="https://www.youtube.com/embed/${otherId}"></iframe>`,
+    });
+
+    const written = await readSaved(
+      app,
+      await createSaver(app).saveArticle(item),
+    );
+
+    expect(written).toContain(embedLine);
+    expect(written).toContain(`![](${otherUrl})`);
+    expect(written).toContain(`[Watch on YouTube](${otherUrl})`);
+  });
+
+  it("writes the embed even when the item has no description", async () => {
+    const app = App.createMock();
+    const item = createItem({
+      mediaType: "video",
+      videoId,
+      content: "",
+      description: "",
+    });
+
+    const written = await readSaved(
+      app,
+      await createSaver(app).saveArticle(item),
+    );
+
+    expect(written).toBe(`${embedLine}\n\n${watchLink}`);
+  });
+
+  it("writes no embed for a non-video item that carries a videoId", async () => {
+    const app = App.createMock();
+    const item = createItem({
+      mediaType: "article",
+      videoId,
+      coverImage: HERO,
+      content: "<p>Article body.</p>",
+    });
+
+    const written = await readSaved(
+      app,
+      await createSaver(app).saveArticle(item),
+    );
+
+    expect(written).toBe(`![Hero image](${HERO})\n\nArticle body.`);
+    expect(written).not.toContain("youtube.com");
+  });
+
+  it("leaves the mediaType and videoId frontmatter unchanged", async () => {
+    const app = App.createMock();
+    const item = createItem({
+      mediaType: "video",
+      videoId,
+      content: "<p>Description.</p>",
+    });
+
+    const written = await readSaved(
+      app,
+      await createSaver(app, {
+        includeFrontmatter: true,
+        defaultTemplate: "# {{title}}\n\n{{content}}",
+      }).saveArticle(item),
+    );
+
+    expect(written).toContain(`mediaType: video\nvideoId: "${videoId}"`);
+    expect(written).toContain(`${embedLine}\n\n${watchLink}`);
+  });
+
+  it("omits the embed when the template drops {{content}}", async () => {
+    const app = App.createMock();
+    const item = createItem({
+      mediaType: "video",
+      videoId,
+      content: "<p>Description.</p>",
+    });
+
+    const written = await readSaved(
+      app,
+      await createSaver(app, { defaultTemplate: "# {{title}}" }).saveArticle(
+        item,
+      ),
+    );
+
+    expect(written).toBe("# Test Article");
+    expect(written).not.toContain("youtube.com");
+  });
+});
+
 describe("ArticleSaver - static YouTube iframe in the fetched page (#1168)", () => {
   const videoId = "z9TFdTqkbPk";
   const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;

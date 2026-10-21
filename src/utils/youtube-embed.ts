@@ -63,11 +63,31 @@ export function youTubeWatchUrl(videoId: string): string {
 
 /**
  * The note text for a video: Obsidian's video embed on its own line, then a
- * plain link that still works where the embed does not play.
+ * plain link that still works where the embed does not play. The saved note of
+ * a video item reuses this block (#1237), so both paths write the same format.
  */
-function embedMarkdown(videoId: string): string {
+export function embedMarkdown(videoId: string): string {
   const url = youTubeWatchUrl(videoId);
   return `\n\n![](${url})\n\n[Watch on YouTube](${url})\n\n`;
+}
+
+/**
+ * Removes the embed block {@link embedMarkdown} writes for `videoId` from
+ * saved Markdown, so a body that already carries the same video is not saved
+ * twice (#1237). A block for another video is left in place.
+ */
+export function stripYouTubeEmbedMarkdown(
+  markdown: string,
+  videoId: string,
+): string {
+  const url = youTubeWatchUrl(videoId);
+  return markdown
+    .split(`![](${url})`)
+    .join("")
+    .split(`[Watch on YouTube](${url})`)
+    .join("")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 /**

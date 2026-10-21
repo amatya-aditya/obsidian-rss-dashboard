@@ -1491,3 +1491,186 @@ it again. Hashes the run prints: `data.json` `958e0b08…`, bootstrap pointer
 **Modeled (#1424):** `MockDataVault` has Obsidian `Events` semantics (`on` returns an `EventRef`, `offref`, `trigger`) and `adapter.stat`. The test-only helpers `externalWrite`, `externalDelete`, `externalRename` and `externalTick` change the adapter's files and fire the rows above: modify, create and delete; a rename as `create` then `delete`; a delete then create inside one `externalTick` as one `modify`; `raw` with the path alone for every change; nothing but `raw` under a dot folder; and, for a plugin stub built with a `manifest.dir`, one `onExternalSettingsChange` for its `data.json` and no `vault.on` event. `obsidian.contract.test.ts` pins each row. The stub's own `modify`/`create`/`delete`/`rename` still fire nothing.
 
 **Unmodeled (documented boundary):** the delays (a rename's `delete` is synchronous, about 100 ms later in Obsidian), the several `raw` events per operation and the parent folder's `raw`, the plugin reload, and folder times in `adapter.stat`.
+
+## Real Sync pass, run 1: delivery between two desktop vaults
+
+**Manual record, not a probe driver.** There is no `.repl` file behind this
+section and no `npm run stub:probes` step: it records one attended session
+against real Obsidian Sync, and some rows describe plugin behavior and not only
+Obsidian API behavior. Spec #1401's Real Sync pass (#1430) is the source of
+the request, and `docs/development/real-sync-runbook.md` is the procedure.
+
+**Run:** run 1 of 2 of the first Real Sync pass. **Observed on Obsidian 1.14.4
+desktop (Windows 11, 10.0.26200, Electron 43.7.7) on 2026-10-21**, with the
+real vault ("Device A") and a second local vault ("Device B") on the same PC,
+both connected to the same Sync remote vault. The plugin was 2.7.1 in both, in
+the supported sync setup (Shard storage v2 with visible storage folders, the
+setup `docs/user/syncing.md` describes), with 13 feeds. Sync stayed running.
+
+**Approval and backup.** The maintainer approved run 1 in chat as: S1 to S4 on
+both devices, Sync running, no backup, the test feed deleted at the end. A table
+of the vaults by role, the folders and the files to be written was printed
+before the first write. The maintainer waived the backup, so **no verified
+backup was taken and the restore drill the runbook requires was not run**. That
+is a deviation from the runbook, not a pass of its backup rule.
+
+**Method.** Both windows were read over one debug port (the page list at
+`/json/list` showed one page per vault, so assumption A1 holds for one PC and
+two desktop vaults; `--expect-vault` was set on every call). Edits came from the
+plugin's own methods (`updateArticle`, `addFeed`, `editFeed`, `saveSettings`) on
+one side. An in-memory logger on each side recorded `vault.on`, `raw`,
+`onExternalSettingsChange`, `loadSettings` and adapter writes. The logger wrote
+nothing to disk and was removed afterwards. "Delay" below runs from the sender's
+write to the receiver's first `adapter.writeBinary` for that wave.
+
+| Scenario                                         | Sender's writes                                  | Receiver's events                                                                                  | Delay  | `onExternalSettingsChange` | Reload                          |
+| ------------------------------------------------ | ------------------------------------------------ | -------------------------------------------------------------------------------------------------- | ------ | -------------------------- | ------------------------------- |
+| S1 mark read and starred, A to B                 | `user-state.json`                                | `modify`                                                                                           | ~15 s  | no                         | one `loadSettings`, +1.8 s      |
+| S2a add feed, A to B                             | one shard created, `data.json`                   | `create` shard, then `modify` `data.json` 0.1 s later                                              | ~95 s  | no                         | one, +1.8 s after the last      |
+| S2b rename feed, A to B                          | its shard, `data.json`                           | `modify` shard, then `modify` `data.json` 0.1 s later                                              | ~82 s  | no                         | one, +1.7 s                     |
+| S3a mark read and starred, B to A                | `user-state.json`                                | `modify`                                                                                           | ~30 s  | no                         | one, +1.8 s                     |
+| S3b add and rename on B (4.6 s apart), B to A    | a shard, `data.json`, another shard, `data.json` | `create` shard, `modify` `data.json`, `modify` second shard inside 0.6 s; one `data.json` delivery | ~82 s  | no                         | one, +2.3 s after the last      |
+| S4 bootstrap pointer, A to B (one byte appended) | `<configDir>/plugins/rss-dashboard/data.json`    | `raw` only (four events), **no `create` or `modify`**                                              | ~171 s | **yes, once, 0.7 s later** | no (the content did not change) |
+| Cleanup wave, A to B (all of the above undone)   | shards removed, bootstrap, `data.json`, state    | `delete` x2, `modify` shard, `modify` `data.json`, `modify` `user-state.json`, `modify` shard      | ~1 s   | yes (the bootstrap bytes)  | one, +2.1 s after the last      |
+
+What the run shows, for the stub, the simulator and the presets:
+
+- **Sync delivers through the vault adapter, inside Obsidian.** Every delivered
+  file shows up as an `adapter.writeBinary` call on the receiver, followed by
+  the vault event (`create`, `modify` or `delete`) and `raw`. A rename on the
+  sender arrives as paths created and removed, never as a `rename`. The sender's
+  own temp-file writes (`user-state.json.tmp`, create, delete, rename) never
+  reach the receiver.
+- **Sync preserves the sender's mtime and size** on delivered files. A file that
+  Sync did not change (the bootstrap pointer rewritten with the same bytes, on
+  an unrelated save) was not delivered, so the receiver's mtime stayed older
+  than the sender's.
+- **Delivery delay varied from about 1 s to about 171 s** for the same kind of
+  change, and the status bar said "Fully synced" on both sides while a delivery
+  was still pending. "Fully synced" did not mean "delivered". The 1 s of the
+  cleanup wave is unexplained.
+- **Several writes collapsed into one delivery wave.** Two `data.json` writes by
+  S3b arrived as one `modify`. Files within a wave landed 0.1 to 0.6 s apart. In
+  the three waves that carried a shard and `data.json` (S2a, S2b, S3b) the shard
+  came first. The cleanup wave interleaved shard deletes, the bootstrap pointer,
+  a shard, `data.json`, `user-state.json` and another shard. Four multi-file
+  waves are too few to claim an order rule, but the `data-first` preset's order
+  was not what arrived in any of them.
+- **The plugin reloaded once per wave, 1.7 to 2.3 s after the last file**, not
+  once per file. `onExternalSettingsChange` never fired for a visible-folder
+  file, and only fired for the bootstrap pointer, on the sender (an external
+  `fs` write, 0.1 s later) and on the receiver (0.7 s after delivery).
+- **Not in this run:** conflicts, and the late-shard, `user-state-late` and
+  `empty-newer-wins` scenarios. Those are in run 2.
+
+**New device default (setup finding, #1453).** A vault created from the remote
+has "Sync all other types" off. Device B reached "Fully synced" with an empty
+`feeds/` folder and no `data.json`, `user-state.json` or shards until that
+switch was turned on, and plugin files and the bootstrap pointer arrived only
+after "Installed community plugins" was turned on and the plugin-sync consent
+was accepted. `docs/user/syncing.md`'s new-device order does not say so.
+
+**Restore.** The cleanup restored article read and starred counts (51 and 5), the
+two feed titles, 13 feeds and the bootstrap pointer, whose SHA-256 is again
+`0ef5611b…`. Device A and Device B then matched byte for byte: 289 data files,
+`main.js`, `manifest.json`, `styles.css` and the bootstrap pointer. Not
+restored byte for byte: A's `data.json` is 19766 bytes where it was 19748 before
+the run. No test feed or renamed title is left in it. The 18 bytes are Sync
+nonces, which are expected and intentional (#1455, closed as wontfix on that
+triage); this run did not check them itself.
+
+## Real Sync pass, run 2: conflicts, and plugin behavior on late and empty deliveries
+
+**Run:** run 2 of 2 of the first Real Sync pass, the same two vaults and
+environment as run 1, on 2026-10-21.
+
+**Approval and backup.** The maintainer approved run 2 in chat as: three conflict
+cases, then late shard, `user-state.json` late and an empty newer `data.json`
+last, on both devices, Sync paused as described, no backup. The files were
+named in the proposal, but **no separate dry-run printout preceded the writes**.
+The maintainer again waived the backup. The destructive scenarios were narrowed
+afterwards to Device B only, a subset of what was approved, so they could not
+reach Device A or the other synced devices. "Create conflict file" was turned
+on in Device B **by the agent, on the maintainer's explicit instruction in
+chat**; the runbook otherwise reserves that setting for the maintainer. Device A
+stayed on "Automatically merge". Sync was paused and resumed in the Sync pane
+and no other Sync setting was changed on Device A.
+
+**Method.** Sync was paused on both vaults, each side edited, Device A was
+resumed and left to upload, then Device B was resumed. Device A's upload was
+confirmed by the Sync instance reporting no pending changes and "Fully synced".
+
+| Case                                                              | Edits while paused                                                    | Result after both resumed                                                                                                                                                                                                         |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C1 two different feeds renamed, A then B uploads                  | A renamed feed X (`data.json` and X's shard), B renamed feed Y (same) | **B's `data.json` replaced A's whole file**: A kept Y's new name and lost X's. Each shard arrived by its own path. No key merge, no conflict file in either vault.                                                                |
+| C2 the same feed renamed differently; B edited first, A 3 s later | B older by mtime, A newer; A resumed and uploaded first, B second     | **B's version won on both sides, though its mtime was older**, judged by the feed's title in memory on both sides. The shard's final content was not compared. No conflict file in either vault, with the setting on in Device B. |
+
+What this shows:
+
+- **For `data.json` in a visible folder, Sync did not merge keys and made no
+  conflict file in two runs.** In both, the device that uploaded last won
+  (B), and in C2 that was the device with the older mtime. B was also the only
+  device with "Create conflict file" on, so these two runs cannot separate
+  "last uploader wins" from other causes, and no run with the order reversed
+  was done. That contradicts a "last-modified-wins by mtime" policy in the
+  simulator for this file. It leaves Obsidian's documented JSON key merge
+  (local keys over remote) unobserved for a visible-folder `data.json`, and it
+  was not tested at all for the plugin's bootstrap `data.json` in the config
+  folder, which is the file that documentation is about.
+- **Conflict-file naming for `.json` is not recorded.** Device B resumed with a
+  local edit against a newer server copy in both cases and no conflict file
+  appeared, so the setting did not do anything visible for these `.json` files.
+  The search was a scan of both vault folders for any file with "conflict" in
+  its name after each run. Where Sync would put such a file for a `.json` is not
+  known, and no conflict preset should be built from this run.
+- **The plugin could not recover the losing edit** (plugin 2.7.1, before any
+  fix for #1452). In C1 and C2 the loser had
+  already saved. When the winner's file replaced it, the plugin adopted the
+  incoming `data.json` as the only copy, so the per-entry merge of #1439 had
+  nothing to merge against. A rename made on one device while another saves is
+  lost without a message. This is a data-loss path for edits made on two
+  devices while apart, filed as #1452.
+- **Sync status text moves through `Resumed`, `Indexing...`, `Uploading <path>`
+  and `Fully synced`.** Device A took about 8 s from resume to "Fully synced".
+  Device B spent about 60 s indexing and about 2 minutes uploading one shard and
+  `data.json`.
+
+**Plugin behavior on late and empty deliveries.** These ran on Device B only,
+with Sync paused there, so nothing reached Device A or the other devices. The
+files were written from inside Obsidian through Node `fs`, with a size and mtime
+change each, in the order the `simulate-sync` presets use, on real data (13
+feeds, 287 shards). These are plugin behavior under a simulated delivery on
+real data, not a delivery by Sync itself. Device B was restored from Device A's
+copy of the folder afterwards and matched it byte for byte.
+
+| Scenario                                                         | Observed                                                                                                                                                                            |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| late shard: `data.json` and `user-state.json`, shard 4.8 s later | After the first two: the new feed appears with 0 articles, one reload. After the shard: a second reload, 1 article, with its read and starred state from `user-state.json` applied. |
+| `user-state.json` late: `data.json` and shard, then state        | After the first two: the new feed with 1 unread article, one reload. After the state file: a second reload and the article is read and starred.                                     |
+| `empty-newer-wins`: a newer `data.json` with no feeds or folders | One reload, 0 feeds and 0 folders in memory and on disk. **No shard was deleted** (287 stayed), `user-state.json` was untouched and the plugin wrote nothing in the following 11 s. |
+
+These match what the simulator and presets assume for `late-shard` and
+`user-state-late`. `empty-newer-wins` shows the plugin adopting an empty
+`data.json` as the new truth and leaving the shards behind as orphans, which a
+later delivery of the full `data.json` restores.
+
+**Restore.** After C1 and C2, feed titles were set back on Device A with
+Sync running and Device B converged. Device B was then restored from Device A's
+copy after each destructive scenario, by copying Device A's files over it, and
+resumed. After the last restore, Device A and Device B matched on all 289 data
+files and the bootstrap pointer, and a search found no conflict file in either
+vault. After Device B resumed, the Sync instance's server version did not
+change, which is one observation that Sync compared content and not mtime. A's
+`data.json` is 19783 bytes at the end of the pass, 35 more than before it, which
+is the same Sync nonce growth (#1455).
+
+**Not observed.** A conflict on the plugin's bootstrap `data.json` in the config
+folder. The shard's final content after C2. Notes (Markdown) conflicts and their
+merge, and the documented conflict-file naming for notes. A second vault's use
+of a remote-vault slot (A2): the maintainer did not check. A second device on
+another machine, the mobile app, and the Sync conflict UI.
+
+**Follow-ups filed from this pass:** #1452 (the lost edit), #1453 (the
+new-device steps in `syncing.md`), #1454 (feeding these results back into the
+simulator and presets, including that `data-first` order was not observed) and
+#1455 (the `data.json` size drift, closed as wontfix: Sync nonces).

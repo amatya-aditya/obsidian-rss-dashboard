@@ -171,7 +171,7 @@ The click-to-play block the Reader shows in place of a recognized YouTube embed 
 _Avoid_: Video thumbnail, preview card, embedded player
 
 **Video embed**:
-A recognized YouTube video played inline in article content, built only from the validated 11-character video ID through Obsidian's embed host; the feed's own iframe markup is never copied. Shown in the Reader's [[RSS content]] and in [[Reader view (inline)]]. The "Watch on YouTube" link sits beneath the player as the always-working fallback. Unchanged in [[Fetched content]]. A [[Saved note]] does not hold this unit: the save writes a native Markdown video embed that Obsidian renders itself, with the watch link beside it.
+A recognized YouTube video played inline in article content, built only from the validated 11-character video ID through Obsidian's embed host; the feed's own iframe markup is never copied. Shown in the Reader's [[RSS content]] and in [[Reader view (inline)]]. The "Watch on YouTube" link sits beneath the player as the always-working fallback. Unchanged in [[Fetched content]]. A [[Saved note]] does not hold this unit: the save writes a native Markdown video embed that Obsidian renders itself, with the watch link beside it. A video item saves that same native embed, led by the item's own validated video ID rather than by feed markup.
 _Avoid_: iframe passthrough, inline iframe
 
 **Full-view video player**:
@@ -440,6 +440,10 @@ _Avoid_: Storage (unqualified), config storage
 **Own write**:
 A change to a watched file (`data.json` or `user-state.json` in [[Metadata storage]], or a feed shard in [[Shard storage]] v2) whose comparable content matches what this device last wrote or loaded there. Comparable content ignores key order, `_syncNonce` and `_syncPad`. The plugin skips reloading an own write and reloads every other change. It is recognized by content, never by timing. One record, keyed by normalized path, holds them all; the plugin's own `saveData`/`loadData` baseline stays separate.
 _Avoid_: Suppression window, echo
+
+**Ancestor**:
+The `data.json` state this device last knew to be shared with the others: what the last [[Sync delivery]] it loaded held, never what it last saved. A delivery is merged against it per entry, so an edit made here survives a delivery that never saw it. It is device-local and never synced. Without one, the delivery wins whole (#1452).
+_Avoid_: Common base, last synced copy
 
 **Sync delivery**:
 A file that Sync writes to disk from outside Obsidian, so the plugin sees it as a change behind the vault adapter. A delivery of [[Shard storage]] v2 can be `data.json`, `user-state.json`, feed shards, or any mix of them.

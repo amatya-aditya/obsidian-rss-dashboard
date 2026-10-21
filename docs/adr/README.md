@@ -73,6 +73,7 @@ See the [ADR Policy](POLICY.md) for the complete lifecycle, authoring, and maint
 | [0033](0033-use-the-pages-own-image-as-the-fetched-heros-source.md)            | Use the Page's Own Image as the Fetched Version's Hero                  | accepted | Store the page's declared image on the item as `pageImage`, the fetched version's hero, while the card reads the displayed cover and the RSS version keeps the feed's own image. |
 | [0034](0034-treat-a-bot-challenge-as-a-blocked-fetch.md)                       | Treat a Bot Challenge as a Blocked Fetch, Not a Paywall                 | accepted | A WAF/bot-challenge 403 is a blocked fetch with its own message and retry, while a real 401/403 gate keeps the paywall wording.                                                  |
 | [0035](0035-test-real-obsidian-sync-in-the-real-vault.md)                      | Test Real Obsidian Sync in the Real Vault                               | accepted | An attended Real Sync pass may attach an agent over CDP to the real profile.                                                                                                     |
+| [0036](0036-merge-a-synced-data-json-against-an-ancestor.md)                   | Merge a Synced data.json Against an Ancestor                            | proposed | Merge a delivered data.json per entry against a device-local ancestor, so an edit made on one device survives a save on another.                                                 |
 
 ## Creating a new ADR
 
