@@ -160,6 +160,8 @@ export class SettingsStore {
    * then writes on top of the loaded state (#1418).
    */
   private loadGate: Promise<void> | null = null;
+  /** The article-state refresh a save started for an unseen synced change. */
+  private unseenChangeRefresh: Promise<void> | null = null;
   private loadGateHolders = 0;
   private resolveLoadGate: (() => void) | null = null;
   private articleStateFlushTimer: number | null = null;
@@ -654,6 +656,11 @@ export class SettingsStore {
     if (this.loadGate) await this.loadGate;
   }
 
+  /** Read through a method so a check made across an await is not narrowed. */
+  private runningUnseenChangeRefresh(): Promise<void> | null {
+    return this.unseenChangeRefresh;
+  }
+
   /** Whether `user-state.json` holds a change this device has not loaded. */
   private async hasUnseenUserStateChange(): Promise<boolean> {
     const folder =
@@ -675,27 +682,46 @@ export class SettingsStore {
   /**
    * Keeps a save from writing over a synced change it has not loaded (#1418).
    * `user-state.json` is compared with what this device last wrote or loaded;
-   * a difference is an unseen change, so the reload runs first and the save
-   * then writes on top of it. Journal replay carries this device's pending
-   * toggles across the reload. The comparison is the only cost when nothing
-   * changed. The queued flush waits for a reload already running (see
-   * `flushPendingWrites`); a direct save during one stays suppressed.
+   * a difference is an unseen change, so the article state is refreshed from
+   * it first and the save then writes on top. Journal replay carries this
+   * device's pending toggles across the refresh, and the settings object is
+   * kept, so a settings edit awaiting this save survives. The comparison is
+   * the only cost when nothing changed. A save that finds a refresh already
+   * running waits for it. The queued flush waits for a reload already running
+   * (see `flushPendingWrites`); a direct save during one stays suppressed.
    */
   private async loadUnseenChangesBeforeSave(): Promise<void> {
+    if (this.unseenChangeRefresh) {
+      await this.unseenChangeRefresh;
+      return;
+    }
     // A save during a load stays suppressed by the closed write gate, as
     // before; the load's own follow-up save must not re-enter this guard.
     if (this.loadDepth > 0 || this.loadGate) return;
     if (!(await this.hasUnseenUserStateChange())) return;
-    // A save that ran the same check meanwhile already began the reload.
+    // A save that ran the same check meanwhile already began the refresh.
+    const running = this.runningUnseenChangeRefresh();
+    if (running) {
+      await running;
+      return;
+    }
     if (this.loadDepth > 0 || this.loadGate) return;
-    storageLog("Reloading a synced change before saving");
+    storageLog("Refreshing article state from a synced change before saving");
     if (this.vaultMetadataReloadTimer !== null) {
       window.clearTimeout(this.vaultMetadataReloadTimer);
       this.vaultMetadataReloadTimer = null;
     }
     this.touchedWatchedPaths.clear();
     this.externalChangeConfirmed = false;
-    await this.options.loadSettings();
+    const refresh = this.feedStorageRepository.refreshArticleState(
+      this.settings,
+    );
+    this.unseenChangeRefresh = refresh;
+    try {
+      await refresh;
+    } finally {
+      this.unseenChangeRefresh = null;
+    }
     void this.options.refreshDashboardViews();
   }
 

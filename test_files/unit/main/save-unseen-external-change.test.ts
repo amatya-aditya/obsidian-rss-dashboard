@@ -244,7 +244,25 @@ describe("save against an unseen synced user-state change (#1418)", () => {
     expect(onDisk[`feed-1:${GUID_B}`]?.read).toBe(true);
   });
 
-  it("reloads once for a save, without re-entering the guard from the load", async () => {
+  it("keeps a settings edit made before a save that finds a synced change", async () => {
+    const plugin = await startPlugin();
+    vi.useFakeTimers();
+    const settingsObject = plugin.settings;
+    const edited = plugin.settings.refreshInterval + 5;
+
+    await syncInStarredA(app);
+    plugin.settings.refreshInterval = edited;
+    await plugin.saveSettings();
+
+    // The save refreshes article state in place; replacing the settings
+    // object would discard the edit it is about to persist.
+    expect(plugin.settings).toBe(settingsObject);
+    expect(plugin.settings.refreshInterval).toBe(edited);
+    expect(itemOf(plugin, GUID_A).starred).toBe(true);
+    expect(userStateOnDisk(app).states[`feed-1:${GUID_A}`]?.starred).toBe(true);
+  });
+
+  it("refreshes article state once for a save, without a full settings load", async () => {
     const plugin = await startPlugin();
     vi.useFakeTimers();
     const load = vi.spyOn(plugin, "loadSettings");
@@ -253,7 +271,7 @@ describe("save against an unseen synced user-state change (#1418)", () => {
     await plugin.updateArticle(GUID_B, FEED_URL, { read: true }, false);
     await plugin.flushPendingWrites();
 
-    expect(load).toHaveBeenCalledTimes(1);
+    expect(load).not.toHaveBeenCalled();
   });
 
   it("does not reload when the file still holds what this device wrote", async () => {
