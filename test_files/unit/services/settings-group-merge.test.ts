@@ -169,7 +169,7 @@ describe("mergeSettingsGroups per-entry feeds (#1439)", () => {
     ).toEqual(["f1", "f2", "f3"]);
   });
 
-  it("matches a disk entry without an id by its url", () => {
+  it("matches a disk entry without an id by its url and keeps the id", () => {
     const withoutId = {
       title: "Old",
       url: "https://f1.test/feed.xml",
@@ -202,8 +202,27 @@ describe("mergeSettingsGroups per-entry feeds (#1439)", () => {
       },
     );
 
-    expect((result.merged.feeds as unknown[]).length).toBe(1);
+    const merged = result.merged.feeds as { feedId?: string }[];
+    expect(merged).toHaveLength(1);
+    expect(merged[0].feedId).toBe("f1");
     expect(result.conflictEntries).toEqual([]);
+    expect(result.adoptedEntries).toEqual([]);
+  });
+
+  it("reports a key that appears twice on one side and keeps the first", () => {
+    const result = mergeSettingsGroups(
+      { feeds: [feed("f1")] },
+      {
+        feeds: [
+          feed("f1", { title: "First" }),
+          feed("f1", { title: "Second" }),
+        ],
+      },
+      { feeds: [feed("f1", { title: "Local" })] },
+    );
+
+    expect(result.duplicateEntries).toEqual([{ group: "feeds", key: "f1" }]);
+    expect((result.merged.feeds as { title: string }[])[0].title).toBe("Local");
   });
 
   it("does not compare article items carried in memory", () => {

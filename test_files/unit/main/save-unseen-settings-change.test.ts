@@ -363,6 +363,41 @@ describe("settings save guard edge cases (#1431)", () => {
     expect(names).toContain("Remote");
   });
 
+  it("keeps loaded articles when a synced feed is adopted per feed", async () => {
+    const { plugin, diskSettings, syncIn } =
+      await startPlugin("plugin-default");
+    const item = {
+      guid: "g1",
+    } as unknown as RssDashboardSettings["feeds"][0]["items"][0];
+    const feed = (feedId: string, title: string) => ({
+      feedId,
+      title,
+      url: `https://${feedId}.test/feed.xml`,
+      folder: "",
+      lastUpdated: 1,
+    });
+    plugin.settings.feeds = [
+      { ...feed("feed-1", "First"), items: [item] },
+      { ...feed("feed-2", "Second"), items: [] },
+    ];
+    await plugin.saveSettings();
+
+    // The other device renames feed-1 while this device renames feed-2, so the
+    // entries merge individually and feed-1 is taken from disk.
+    await syncIn({
+      feeds: [feed("feed-1", "Renamed remotely"), feed("feed-2", "Second")],
+    });
+    plugin.settings.feeds[1].title = "Renamed here";
+    await plugin.saveSettings();
+
+    expect(plugin.settings.feeds[0].title).toBe("Renamed remotely");
+    expect(plugin.settings.feeds[0].items).toHaveLength(1);
+    expect(plugin.settings.feeds[1].title).toBe("Renamed here");
+    const persisted = diskSettings().feeds as Record<string, unknown>[];
+    expect(persisted[0].items).toBeUndefined();
+    expect(persisted[1].items).toBeUndefined();
+  });
+
   it("treats an empty settings file as unreadable and writes memory", async () => {
     const { plugin, diskSettings, pluginFile } =
       await startPlugin("plugin-default");

@@ -982,6 +982,7 @@ export class SettingsStore {
         conflictEntries,
         droppedEntries,
         danglingEntries,
+        duplicateEntries,
       } = mergeSettingsGroups(baseline.data, disk, data);
       if (conflicts.length > 0 || conflictEntries.length > 0) {
         storageLog("Settings changed on both sides; keeping this device's", {
@@ -1006,6 +1007,12 @@ export class SettingsStore {
         storageLog("Synced feeds name a folder that is not here", {
           where,
           entries: danglingEntries,
+        });
+      }
+      if (duplicateEntries.length > 0) {
+        storageLog("Duplicate synced settings entries; keeping the first", {
+          where,
+          entries: duplicateEntries,
         });
       }
       const applied = this.adoptMergedSettings(merged, data);

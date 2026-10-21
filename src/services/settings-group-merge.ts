@@ -24,6 +24,8 @@ export interface SettingsGroupMerge {
   droppedEntries: SettingsGroupEntryRef[];
   /** Synced feeds whose `folder` names no folder in the merged tree. */
   danglingEntries: SettingsGroupEntryRef[];
+  /** Keys that appeared twice on one side; the first was kept. */
+  duplicateEntries: SettingsGroupEntryRef[];
 }
 
 /**
@@ -84,25 +86,71 @@ function entryRef(
 
 /* ------------------------------------------------------------------ feeds */
 
-/** A feed's merge key: its id, else the url of a pre-id or foreign entry. */
-function feedKey(entry: Entry, side: string, index: number): string {
+/**
+ * A feed's merge key: its id, else the id another side already gives the same
+ * url, else the url of a pre-id or foreign entry. The resolved id is written
+ * onto the entry, so a synced copy that lost its id keeps the shard it names.
+ */
+function feedKey(
+  entry: Entry,
+  side: string,
+  index: number,
+  idByUrl: ReadonlyMap<string, string>,
+): { key: string; entry: Entry } {
   const id = entry.feedId;
-  if (typeof id === "string" && id.length > 0) return id;
+  if (typeof id === "string" && id.length > 0) return { key: id, entry };
   const url = entry.url;
-  if (typeof url === "string" && url.length > 0) return url;
+  if (typeof url === "string" && url.length > 0) {
+    const known = idByUrl.get(url);
+    if (known !== undefined)
+      return { key: known, entry: { ...entry, feedId: known } };
+    return { key: url, entry };
+  }
   // Unkeyable: never matches another side, so it merges as an addition.
-  return `${side}#${index}`;
+  return { key: `${side}#${index}`, entry };
 }
 
-function feedMap(list: unknown, side: string): Map<string, Entry> | null {
+/** url -> id, from every side, so an id-less copy can still find its feed. */
+function feedIdsByUrl(lists: readonly unknown[]): Map<string, string> {
+  const ids = new Map<string, string>();
+  for (const list of lists) {
+    if (!Array.isArray(list)) continue;
+    for (const entry of list) {
+      if (!isRecord(entry)) continue;
+      const id = entry.feedId;
+      const url = entry.url;
+      if (
+        typeof id === "string" &&
+        id.length > 0 &&
+        typeof url === "string" &&
+        url.length > 0 &&
+        !ids.has(url)
+      ) {
+        ids.set(url, id);
+      }
+    }
+  }
+  return ids;
+}
+
+function feedIndex(
+  list: unknown,
+  side: string,
+  idByUrl: ReadonlyMap<string, string>,
+): { entries: Map<string, Entry>; duplicates: string[] } | null {
   if (!Array.isArray(list)) return null;
   const entries = new Map<string, Entry>();
+  const duplicates: string[] = [];
   list.forEach((entry, index) => {
     if (!isRecord(entry)) return;
-    const key = feedKey(entry, side, index);
-    if (!entries.has(key)) entries.set(key, entry);
+    const resolved = feedKey(entry, side, index, idByUrl);
+    if (entries.has(resolved.key)) {
+      duplicates.push(resolved.key);
+      return;
+    }
+    entries.set(resolved.key, resolved.entry);
   });
-  return entries;
+  return { entries, duplicates };
 }
 
 /** A feed written to disk: never its items, and bookkeeping from memory. */
@@ -124,26 +172,33 @@ function collectFolders(
   base: string,
   out: Map<string, Entry>,
   order: string[],
+  duplicates: string[],
 ): void {
   if (!Array.isArray(list)) return;
   for (const folder of list) {
     if (!isRecord(folder) || typeof folder.name !== "string") continue;
     const path = base ? `${base}/${folder.name}` : folder.name;
-    if (out.has(path)) continue;
+    if (out.has(path)) {
+      duplicates.push(path);
+      continue;
+    }
     out.set(path, withoutKeys(folder, FOLDER_OWNED));
     order.push(path);
-    collectFolders(folder.subfolders, path, out, order);
+    collectFolders(folder.subfolders, path, out, order, duplicates);
   }
 }
 
-function folderMap(
-  list: unknown,
-): { entries: Map<string, Entry>; order: string[] } | null {
+function folderMap(list: unknown): {
+  entries: Map<string, Entry>;
+  order: string[];
+  duplicates: string[];
+} | null {
   if (!Array.isArray(list)) return null;
   const entries = new Map<string, Entry>();
   const order: string[] = [];
-  collectFolders(list, "", entries, order);
-  return { entries, order };
+  const duplicates: string[] = [];
+  collectFolders(list, "", entries, order, duplicates);
+  return { entries, order, duplicates };
 }
 
 function parentPath(path: string): string {
@@ -276,10 +331,14 @@ function orderMergedKeys(
 }
 
 /** Keys of an array group in the order that side lists them. */
-function feedOrder(list: unknown, side: string): string[] {
+function feedOrder(
+  list: unknown,
+  side: string,
+  idByUrl: ReadonlyMap<string, string>,
+): string[] {
   if (!Array.isArray(list)) return [];
   return list.flatMap((entry, index) =>
-    isRecord(entry) ? [feedKey(entry, side, index)] : [],
+    isRecord(entry) ? [feedKey(entry, side, index, idByUrl).key] : [],
   );
 }
 
@@ -312,7 +371,8 @@ function danglingFeedRefs(
   const refs: SettingsGroupEntryRef[] = [];
   for (const key of adopted) {
     const feed = feeds.find(
-      (entry) => isRecord(entry) && feedKey(entry, "memory", -1) === key,
+      (entry) =>
+        isRecord(entry) && feedKey(entry, "memory", -1, new Map()).key === key,
     );
     if (!isRecord(feed)) continue;
     const folder = feed.folder;
@@ -332,6 +392,7 @@ interface PerEntryGroupMerge {
   adopted: SettingsGroupEntryRef[];
   conflicts: SettingsGroupEntryRef[];
   dropped: SettingsGroupEntryRef[];
+  duplicates: string[];
 }
 
 function mergeFeedsGroup(
@@ -339,15 +400,16 @@ function mergeFeedsGroup(
   disk: Entry,
   memory: Entry,
 ): PerEntryGroupMerge | null {
-  const base = feedMap(baseline.feeds, "base");
-  const onDisk = feedMap(disk.feeds, "disk");
-  const inMemory = feedMap(memory.feeds, "memory");
+  const idByUrl = feedIdsByUrl([baseline.feeds, disk.feeds, memory.feeds]);
+  const base = feedIndex(baseline.feeds, "base", idByUrl);
+  const onDisk = feedIndex(disk.feeds, "disk", idByUrl);
+  const inMemory = feedIndex(memory.feeds, "memory", idByUrl);
   if (base === null || onDisk === null || inMemory === null) return null;
 
   const merged = mergeEntries({
-    base,
-    disk: onDisk,
-    memory: inMemory,
+    base: base.entries,
+    disk: onDisk.entries,
+    memory: inMemory.entries,
     group: "feeds",
     ignored: FEED_IGNORED,
     removalWins: false,
@@ -355,14 +417,19 @@ function mergeFeedsGroup(
   });
   const order = orderMergedKeys(
     merged.chosen,
-    feedOrder(memory.feeds, "memory"),
-    feedOrder(disk.feeds, "disk"),
+    feedOrder(memory.feeds, "memory", idByUrl),
+    feedOrder(disk.feeds, "disk", idByUrl),
   );
   return {
     value: order.map((key) => merged.chosen.get(key)),
     adopted: merged.adopted,
     conflicts: merged.conflicts,
     dropped: [],
+    duplicates: [
+      ...base.duplicates,
+      ...onDisk.duplicates,
+      ...inMemory.duplicates,
+    ],
   };
 }
 
@@ -408,7 +475,49 @@ function mergeFoldersGroup(
     ),
     conflicts: merged.conflicts,
     dropped,
+    duplicates: [
+      ...base.duplicates,
+      ...onDisk.duplicates,
+      ...inMemory.duplicates,
+    ],
   };
+}
+
+/**
+ * Takes disk's value for a whole group this device left untouched. Feeds are
+ * re-indexed first so an id-less synced entry picks up the id this device
+ * already knows for its url, and its shard stays attached.
+ */
+function adoptWholeGroup(
+  key: string,
+  baseline: Record<string, unknown>,
+  disk: Record<string, unknown>,
+  memory: Record<string, unknown>,
+  merged: Record<string, unknown>,
+  feedAdoptions: string[],
+  duplicates: SettingsGroupEntryRef[],
+): void {
+  if (disk[key] === undefined) {
+    delete merged[key];
+    return;
+  }
+  if (key !== "feeds") {
+    merged[key] = disk[key];
+    return;
+  }
+  const idByUrl = feedIdsByUrl([baseline.feeds, disk.feeds, memory.feeds]);
+  const diskFeeds = feedIndex(disk.feeds, "disk", idByUrl);
+  if (diskFeeds === null) {
+    merged[key] = disk[key];
+    return;
+  }
+  merged[key] = [...diskFeeds.entries.values()].map((entry) =>
+    projectFeed(entry, undefined),
+  );
+  feedAdoptions.push(...diskFeeds.entries.keys());
+  duplicates.push(
+    ...diskFeeds.duplicates.map((entry) => entryRef("feeds", entry)),
+  );
 }
 
 /* ------------------------------------------------------------- public API */
@@ -432,6 +541,7 @@ export function mergeSettingsGroups(
   const adoptedEntries: SettingsGroupEntryRef[] = [];
   const conflictEntries: SettingsGroupEntryRef[] = [];
   const droppedEntries: SettingsGroupEntryRef[] = [];
+  const duplicateEntries: SettingsGroupEntryRef[] = [];
   const keys = new Set([
     ...Object.keys(baseline),
     ...Object.keys(disk),
@@ -449,12 +559,16 @@ export function mergeSettingsGroups(
     const inMemory = groupJson(memory[key]);
     if (inMemory === onDisk) continue;
     if (inMemory === base) {
-      if (disk[key] === undefined) delete merged[key];
-      else merged[key] = disk[key];
+      adoptWholeGroup(
+        key,
+        baseline,
+        disk,
+        memory,
+        merged,
+        feedAdoptions,
+        duplicateEntries,
+      );
       adopted.push(key);
-      if (key === "feeds") {
-        feedAdoptions.push(...(feedMap(disk.feeds, "disk")?.keys() ?? []));
-      }
       continue;
     }
     const perEntry = perEntryMerge(key, baseline, disk, memory);
@@ -466,6 +580,11 @@ export function mergeSettingsGroups(
     adoptedEntries.push(...perEntry.adopted);
     conflictEntries.push(...perEntry.conflicts);
     droppedEntries.push(...perEntry.dropped);
+    duplicateEntries.push(
+      ...perEntry.duplicates.map((entry) =>
+        entryRef(key === "folders" ? "folders" : "feeds", entry),
+      ),
+    );
     if (key === "feeds") {
       feedAdoptions.push(...perEntry.adopted.map((entry) => entry.key));
     }
@@ -484,5 +603,6 @@ export function mergeSettingsGroups(
     conflictEntries,
     droppedEntries,
     danglingEntries,
+    duplicateEntries,
   };
 }
