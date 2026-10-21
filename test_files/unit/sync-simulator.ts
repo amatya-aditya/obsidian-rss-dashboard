@@ -14,7 +14,11 @@ import type { MockApp } from "obsidian";
  * - Delivery order: source order, reversed, an explicit list, or one file per
  *   `deliverNext()` call.
  * - Delays between files under fake timers, and partial arrival.
- * - Last writer wins: a delivered file replaces the receiver's copy.
+ * - Last to deliver wins, whole file, whatever the mtimes (ledger "Real Sync
+ *   pass, run 1"): a delivered file replaces the receiver's copy.
+ * - A delivered file keeps the sender's mtime and size.
+ * - A file whose bytes the receiver already has is not delivered: no write, no
+ *   event.
  *
  * Ledger row b1 (a dot-folder: `raw` only) is unreachable here: every
  * dot-path but the bootstrap file is skipped, so the receiver never sees one.
@@ -125,9 +129,14 @@ export class SyncSimulator {
     const content = this.from.vault.filesOnDisk.get(path);
     if (content === undefined) return false;
     const destination = this.to.vault;
+    if (destination.filesOnDisk.get(path) === content) return false;
     const parent = path.slice(0, Math.max(path.lastIndexOf("/"), 0));
     if (parent) destination.addFolderOnDisk(parent);
-    destination.externalWrite(path, content);
+    destination.externalWrite(
+      path,
+      content,
+      this.from.vault.fileTimesOnDisk(path),
+    );
     return true;
   }
 }
