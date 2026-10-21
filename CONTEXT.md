@@ -449,6 +449,10 @@ _Avoid_: Sync event, synced write
 The sequence in which the v2 files of a [[Sync delivery]] land on disk, for example a shard after `data.json`, or `user-state.json` last. Sync gives no completion signal, so the plugin cannot assume any order.
 _Avoid_: Sync order, write order
 
+**Local wins on shard delete**:
+When another device's delete of a feed shard reaches this device and the feed is still in its feed list, the plugin keeps the feed and its articles, and the next save rewrites the shard from memory. A shard's absence never removes a feed or its articles; only the feed list in `data.json` does, as a [[Feed removal]] (ADR 0010: "absence alone never authorizes removal"). The plugin deliberately has no `delete` listener: a reload would empty the feed, and a prompt rewrite could bring back the shard of a feed whose removal has not yet reached `data.json` (#1440).
+_Avoid_: Shard delete sync, shard tombstone
+
 **Real Sync pass**:
 An approved, attended run of [[Sync delivery]] scenarios against real Obsidian Sync, in the maintainer's real vault with [[Device B]] on the same remote, after a verified backup. It observes what no mock can show: Sync's real merge, timing, conflict files, and event delivery. The agent attaches over CDP to the real profile within bounded actions. See [ADR 0035](docs/adr/0035-test-real-obsidian-sync-in-the-real-vault.md) and the [Real Sync runbook](docs/development/real-sync-runbook.md).
 _Avoid_: Sync test, live sync run
