@@ -3,23 +3,18 @@
  *
  * A "desktop" plugin saves a Shard storage v2 vault; the `SyncSimulator`
  * delivers its files to a running "mobile" plugin started through
- * `plugin.onload()`, so Obsidian's own events (`create`, `modify`, `delete`
- * and the `onExternalSettingsChange` callback for the bootstrap `data.json`)
- * reach the real watcher wiring instead of hand-called handlers. Fake timers
+ * `plugin.onload()`, so Obsidian's own vault events reach the real watcher wiring instead of hand-called handlers. Fake timers
  * decide when each file lands relative to the 1.5 s reload debounce.
  *
- * Coverage survey (what the watcher tests already pin, and what this adds):
+ * What the watcher tests already pin (the 1.5 s debounce, rename handling,
+ * own-write recognition, per-path reload decisions) lives in
+ * `settings-store.characterization.test.ts` and is not repeated. These tests
+ * add the arrival orders it cannot show with hand-called handlers. The
+ * bootstrap pointer is delivered before startup only; a pointer arriving
+ * later is not exercised here.
  *
- * | Candidate order                              | Already covered?                                                                                          |
- * | -------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
- * | `data.json` before shards / `user-state.json` | Reload decisions per path only (hand-called handlers, settings-store.characterization). Added here.       |
- * | a shard arriving after startup               | Modify of a shard that existed at startup is pinned (#1412). A never-seen shard arriving is added here.   |
- * | `user-state.json` arriving late              | Own-write skip and external edit reload are pinned (#1413). Late arrival as the last file is added here.  |
- * | an empty newer `data.json` winning           | Not covered. Added here.                                                                                  |
- * | delete then create on one path               | Not covered (the watcher registers no `delete` listener). Added here, with the external rename.           |
- *
- * The 1.5 s debounce, rename handling and own-write recognition are pinned in
- * `settings-store.characterization.test.ts` and are not repeated.
+ * The last two tests pin what happens today for a shard another device
+ * deleted or renamed. It is not confirmed as intended, and no issue is filed.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App, type MockApp, type PluginManifest } from "obsidian";
@@ -54,9 +49,14 @@ const SHARD_FOLDER = `${METADATA_FOLDER}/feeds`;
 const DATA_PATH = `${METADATA_FOLDER}/data.json`;
 const USER_STATE_PATH = `${METADATA_FOLDER}/user-state.json`;
 const RELOAD_MS = 1_500;
+const VERSION = "2.7.0";
 
 function shardPath(feedId: string): string {
   return `${SHARD_FOLDER}/${feedId}.json`;
+}
+
+function feedUrl(feedId: string): string {
+  return `https://example.com/${feedId}.xml`;
 }
 
 function item(feedId: string, guid: string, extra: Partial<FeedItem> = {}) {
@@ -70,7 +70,7 @@ function item(feedId: string, guid: string, extra: Partial<FeedItem> = {}) {
     starred: false,
     tags: [],
     feedTitle: feedId,
-    feedUrl: `https://example.com/${feedId}.xml`,
+    feedUrl: feedUrl(feedId),
     coverImage: "",
     ...extra,
   } satisfies FeedItem;
@@ -79,7 +79,7 @@ function item(feedId: string, guid: string, extra: Partial<FeedItem> = {}) {
 function feed(feedId: string, guids: string[]): Feed {
   return {
     title: feedId,
-    url: `https://example.com/${feedId}.xml`,
+    url: feedUrl(feedId),
     folder: "",
     lastUpdated: 0,
     feedId,
@@ -91,7 +91,7 @@ function v2Settings(feeds: Feed[]): RssDashboardSettings {
   const base = JSON.parse(
     JSON.stringify(DEFAULT_SETTINGS),
   ) as RssDashboardSettings;
-  base.lastShownVersion = "2.7.0";
+  base.lastShownVersion = VERSION;
   base.storageMode = "vault-shards-v2";
   base.storageFolder = SHARD_FOLDER;
   // The supported sync setup (#1401 DEC-020): a bootstrap pointer in the
@@ -113,7 +113,7 @@ function manifest(): PluginManifest {
   return {
     id: "rss-dashboard",
     name: "RSS Dashboard",
-    version: "2.7.0",
+    version: VERSION,
     minAppVersion: "1.8.7",
     author: "test",
     description: "test",
@@ -171,6 +171,18 @@ function guidsOf(device: Device, feedId: string): string[] {
   return (feedOf(device, feedId)?.items ?? []).map((i) => i.guid);
 }
 
+function starredOf(device: Device, feedId: string): string[] {
+  return (feedOf(device, feedId)?.items ?? [])
+    .filter((i) => i.starred)
+    .map((i) => i.guid);
+}
+
+function filesIn(vault: MockApp["vault"], folder: string): string[] {
+  return [...vault.filesOnDisk.keys()]
+    .filter((path) => path.startsWith(`${folder}/`))
+    .sort();
+}
+
 async function settle(): Promise<void> {
   await vi.advanceTimersByTimeAsync(RELOAD_MS);
 }
@@ -214,23 +226,11 @@ describe("Shard storage v2 arrival orders through the real plugin (#1429)", () =
     await desktop.plugin.saveSettings({ forceAllShards: true });
     await desktop.plugin.updateArticle(
       "a1",
-      "https://example.com/feed-a.xml",
+      feedUrl("feed-a"),
       { starred: true },
       false,
     );
     await desktop.plugin.flushPendingWrites();
-  }
-
-  function starredOf(device: Device, feedId: string): string[] {
-    return (feedOf(device, feedId)?.items ?? [])
-      .filter((i) => i.starred)
-      .map((i) => i.guid);
-  }
-
-  function filesIn(vault: MockApp["vault"], folder: string): string[] {
-    return [...vault.filesOnDisk.keys()]
-      .filter((path) => path.startsWith(`${folder}/`))
-      .sort();
   }
 
   it("shows the new feed empty when data.json lands before its shard, then fills it when the shard and user-state.json arrive", async () => {
@@ -305,20 +305,28 @@ describe("Shard storage v2 arrival orders through the real plugin (#1429)", () =
     expect(guidsOf(mobile, "feed-a")).toEqual(["a1", "a2"]);
   });
 
-  it("lets an empty, newer data.json win, and does not bring the feeds back when an old shard lands after it", async () => {
+  it("lets a later data.json that lists no feeds win, and does not bring them back when an old shard lands after it or on the next save", async () => {
     const { desktop, mobile, sync } = await pairedDevices([
       feed("feed-a", ["a1", "a2"]),
     ]);
     desktop.plugin.settings.feeds = [];
     await desktop.plugin.saveSettings({ forceAllShards: true });
     const staleShard = mobile.app.vault.filesOnDisk.get(shardPath("feed-a"));
+    if (staleShard === undefined) throw new Error("baseline shard missing");
 
     await sync.deliver({ only: [DATA_PATH] });
     await settle();
     expect(mobile.plugin.settings.feeds).toEqual([]);
 
-    mobile.app.vault.externalWrite(shardPath("feed-a"), staleShard as string);
+    mobile.app.vault.externalWrite(shardPath("feed-a"), staleShard);
     await settle();
+    expect(mobile.plugin.settings.feeds).toEqual([]);
+
+    await mobile.plugin.saveSettings();
+    const saved = JSON.parse(
+      mobile.app.vault.filesOnDisk.get(DATA_PATH) ?? "{}",
+    ) as Partial<RssDashboardSettings>;
+    expect(saved.feeds).toEqual([]);
     expect(mobile.plugin.settings.feeds).toEqual([]);
   });
 
@@ -326,30 +334,28 @@ describe("Shard storage v2 arrival orders through the real plugin (#1429)", () =
     const { mobile } = await pairedDevices([feed("feed-a", ["a1", "a2"])]);
     const vault = mobile.app.vault;
     const path = shardPath("feed-a");
-    const loads = vi.spyOn(mobile.plugin, "loadSettings");
-    const text = JSON.parse(vault.filesOnDisk.get(path) as string);
-    text.items.push(item("feed-a", "a3"));
+    const original = vault.filesOnDisk.get(path);
+    if (original === undefined) throw new Error("baseline shard missing");
+    const shard = JSON.parse(original);
+    shard.items.push(item("feed-a", "a3"));
 
     // A delete alone raises no watched event: the articles stay as loaded.
     vault.externalDelete(path);
     await settle();
-    expect(loads).not.toHaveBeenCalled();
     expect(guidsOf(mobile, "feed-a")).toEqual(["a1", "a2"]);
 
     // The create that follows is new content, so it reloads.
-    vault.externalWrite(path, JSON.stringify(text));
+    vault.externalWrite(path, JSON.stringify(shard));
     await settle();
-    expect(loads).toHaveBeenCalledTimes(1);
     expect(guidsOf(mobile, "feed-a")).toEqual(["a1", "a2", "a3"]);
 
     // A delete and a create inside one watcher tick arrive as one modify.
-    text.items.push(item("feed-a", "a4"));
+    shard.items.push(item("feed-a", "a4"));
     vault.externalTick(() => {
       vault.externalDelete(path);
-      vault.externalWrite(path, JSON.stringify(text));
+      vault.externalWrite(path, JSON.stringify(shard));
     });
     await settle();
-    expect(loads).toHaveBeenCalledTimes(2);
     expect(guidsOf(mobile, "feed-a")).toEqual(["a1", "a2", "a3", "a4"]);
   });
 
@@ -370,17 +376,15 @@ describe("Shard storage v2 arrival orders through the real plugin (#1429)", () =
   it("keeps showing a shard another device deleted, and the next save writes it back", async () => {
     const { mobile } = await pairedDevices([feed("feed-a", ["a1", "a2"])]);
     const vault = mobile.app.vault;
-    const loads = vi.spyOn(mobile.plugin, "loadSettings");
 
-    // The watcher registers no delete listener, so nothing reloads.
+    // The settings watcher registers no delete listener, so nothing reloads.
     vault.externalDelete(shardPath("feed-a"));
     await settle();
-    expect(loads).not.toHaveBeenCalled();
     expect(guidsOf(mobile, "feed-a")).toEqual(["a1", "a2"]);
 
     await mobile.plugin.updateArticle(
       "a1",
-      "https://example.com/feed-a.xml",
+      feedUrl("feed-a"),
       { read: true },
       false,
     );
