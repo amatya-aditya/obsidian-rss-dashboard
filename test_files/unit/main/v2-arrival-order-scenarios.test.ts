@@ -15,8 +15,9 @@
  *
  * A shard renamed away keeps its feed's articles loaded and flagged missing
  * (#1441). The delete tests pin the intended local-wins policy for a shard
- * another device deleted (#1440), and the orphan shard it can leave behind
- * is pinned as a bug (#1444).
+ * another device deleted (#1440). The shard of a feed that an arriving
+ * data.json removes is deleted by the next save only while it is still the file
+ * this device last wrote or read (#1444).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App, type MockApp, type PluginManifest } from "obsidian";
@@ -441,23 +442,32 @@ describe("Shard storage v2 arrival orders through the real plugin (#1429)", () =
     expect(filesIn(vault, SHARD_FOLDER)).toEqual([shardPath("feed-a")]);
   });
 
-  it("leaves an orphan shard when a save rewrites a deleted shard before the data.json that removes its feed arrives", async () => {
-    const { desktop, mobile, sync } = await pairedDevices([
-      feed("feed-a", ["a1", "a2"]),
-    ]);
-    const vault = mobile.app.vault;
+  /** The desktop drops `feed-a`; its removing data.json is not yet delivered. */
+  async function desktopRemovesFeedA(desktop: Device): Promise<void> {
     desktop.plugin.settings.feeds = [];
     await desktop.plugin.saveSettings({ forceAllShards: true });
+  }
 
-    // The shard is deleted here and a save writes it back from memory.
-    vault.externalDelete(shardPath("feed-a"));
-    await settle();
-    await mobile.plugin.updateArticle(
+  async function markA1Read(device: Device): Promise<void> {
+    await device.plugin.updateArticle(
       "a1",
       feedUrl("feed-a"),
       { read: true },
       false,
     );
+  }
+
+  it("deletes the orphan shard on the next save after the data.json that removes its feed arrives, even when a save rewrote a deleted shard first", async () => {
+    const { desktop, mobile, sync } = await pairedDevices([
+      feed("feed-a", ["a1", "a2"]),
+    ]);
+    const vault = mobile.app.vault;
+    await desktopRemovesFeedA(desktop);
+
+    // The shard is deleted here and a save writes it back from memory.
+    vault.externalDelete(shardPath("feed-a"));
+    await settle();
+    await markA1Read(mobile);
     await mobile.plugin.saveSettings();
     expect(filesIn(vault, SHARD_FOLDER)).toEqual([shardPath("feed-a")]);
 
@@ -466,9 +476,129 @@ describe("Shard storage v2 arrival orders through the real plugin (#1429)", () =
     await settle();
     expect(mobile.plugin.settings.feeds).toEqual([]);
 
-    // BUG: pinned, see #1444
+    // Hydration only records; the next shard-writing save deletes.
     expect(filesIn(vault, SHARD_FOLDER)).toEqual([shardPath("feed-a")]);
     await mobile.plugin.saveSettings();
+    expect(filesIn(vault, SHARD_FOLDER)).toEqual([]);
+  });
+
+  it("deletes the shard this device read when the removing data.json arrives", async () => {
+    const { desktop, mobile, sync } = await pairedDevices([
+      feed("feed-a", ["a1", "a2"]),
+    ]);
+    await desktopRemovesFeedA(desktop);
+
+    await sync.deliver({ only: [DATA_PATH] });
+    await settle();
+    await mobile.plugin.saveSettings();
+
+    expect(filesIn(mobile.app.vault, SHARD_FOLDER)).toEqual([]);
+  });
+
+  it("keeps a shard another device rewrote before the removing data.json arrived", async () => {
+    const { desktop, mobile, sync } = await pairedDevices([
+      feed("feed-a", ["a1", "a2"]),
+    ]);
+    const vault = mobile.app.vault;
+    const original = vault.filesOnDisk.get(shardPath("feed-a"));
+    if (original === undefined) throw new Error("baseline shard missing");
+    const shard = JSON.parse(original);
+    shard.items.push(item("feed-a", "a3"));
+    await desktopRemovesFeedA(desktop);
+
+    // Both land inside one reload debounce, so this device never reads the
+    // rewritten shard before the feed list drops its feed.
+    vault.externalWrite(shardPath("feed-a"), JSON.stringify(shard));
+    await sync.deliver({ only: [DATA_PATH] });
+    await settle();
+    expect(mobile.plugin.settings.feeds).toEqual([]);
+    await mobile.plugin.saveSettings();
+
+    expect(filesIn(vault, SHARD_FOLDER)).toEqual([shardPath("feed-a")]);
+    expect(vault.filesOnDisk.get(shardPath("feed-a"))).toBe(
+      JSON.stringify(shard),
+    );
+  });
+
+  it("deletes nothing and raises no error when the shard is missing or corrupt at save time", async () => {
+    for (const damage of ["missing", "corrupt"] as const) {
+      const { desktop, mobile, sync } = await pairedDevices([
+        feed("feed-a", ["a1", "a2"]),
+      ]);
+      const vault = mobile.app.vault;
+      await desktopRemovesFeedA(desktop);
+      await sync.deliver({ only: [DATA_PATH] });
+      await settle();
+
+      if (damage === "missing") {
+        vault.externalDelete(shardPath("feed-a"));
+      } else {
+        vault.externalWrite(shardPath("feed-a"), "{ not json");
+      }
+      await settle();
+      await expect(mobile.plugin.saveSettings()).resolves.not.toThrow();
+
+      expect(filesIn(vault, SHARD_FOLDER)).toEqual(
+        damage === "missing" ? [] : [shardPath("feed-a")],
+      );
+      expect(vault.filesOnDisk.get(shardPath("feed-a"))).toBe(
+        damage === "missing" ? undefined : "{ not json",
+      );
+    }
+  });
+
+  it("leaves the orphan shard after a restart, which the storage health check owns (#318)", async () => {
+    const { desktop, mobile, sync } = await pairedDevices([
+      feed("feed-a", ["a1", "a2"]),
+    ]);
+    const vault = mobile.app.vault;
+    await desktopRemovesFeedA(desktop);
+    await sync.deliver({ only: [DATA_PATH] });
+    await settle();
+
+    // The record is in memory only: a restarted plugin has no baseline.
+    mobile.plugin.onunload();
+    const restarted = await startDevice(mobile.app);
+    devices.push(restarted);
+    await restarted.plugin.saveSettings();
+
+    expect(restarted.plugin.settings.feeds).toEqual([]);
+    expect(filesIn(vault, SHARD_FOLDER)).toEqual([shardPath("feed-a")]);
+  });
+
+  it("deletes the shard of a feed removed on this device", async () => {
+    const { mobile } = await pairedDevices([feed("feed-a", ["a1", "a2"])]);
+
+    mobile.plugin.settings.feeds = [];
+    await mobile.plugin.saveSettings();
+
+    expect(filesIn(mobile.app.vault, SHARD_FOLDER)).toEqual([]);
+  });
+
+  it("keeps the articles of a feed a stale data.json hid when it returns and another device had changed its shard", async () => {
+    const { desktop, mobile, sync } = await pairedDevices([
+      feed("feed-a", ["a1", "a2"]),
+    ]);
+    const vault = mobile.app.vault;
+    const withFeedA = vault.filesOnDisk.get(DATA_PATH);
+    if (withFeedA === undefined) throw new Error("baseline data.json missing");
+    const original = vault.filesOnDisk.get(shardPath("feed-a"));
+    if (original === undefined) throw new Error("baseline shard missing");
+    const shard = JSON.parse(original);
+    shard.items.push(item("feed-a", "a3"));
+    await desktopRemovesFeedA(desktop);
+
+    await sync.deliver({ only: [DATA_PATH] });
+    await settle();
+    vault.externalWrite(shardPath("feed-a"), JSON.stringify(shard));
+    await settle();
+    await mobile.plugin.saveSettings();
+
+    vault.externalWrite(DATA_PATH, withFeedA);
+    await settle();
+    expect(guidsOf(mobile, "feed-a")).toEqual(["a1", "a2", "a3"]);
+    await mobile.plugin.saveSettings();
+    expect(guidsOf(mobile, "feed-a")).toEqual(["a1", "a2", "a3"]);
     expect(filesIn(vault, SHARD_FOLDER)).toEqual([shardPath("feed-a")]);
   });
 });
