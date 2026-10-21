@@ -441,6 +441,14 @@ _Avoid_: Sync event, synced write
 The sequence in which the v2 files of a [[Sync delivery]] land on disk, for example a shard after `data.json`, or `user-state.json` last. Sync gives no completion signal, so the plugin cannot assume any order.
 _Avoid_: Sync order, write order
 
+**Real Sync pass**:
+An approved, attended run of [[Sync delivery]] scenarios against real Obsidian Sync, in the maintainer's real vault with [[Device B]] on the same remote, after a verified backup. It observes what no mock can show: Sync's real merge, timing, conflict files, and event delivery. The agent attaches over CDP to the real profile within bounded actions, and never launches or closes the instance. See [ADR 0035](docs/adr/0035-test-real-obsidian-sync-in-the-real-vault.md) and the [Real Sync runbook](docs/development/real-sync-runbook.md).
+_Avoid_: Sync test, live sync run
+
+**Device B**:
+The second local vault on the same PC, connected to the same Sync remote as the real vault, so a [[Real Sync pass]] can read both sides over CDP. The maintainer signs it in, and the plugin stays disabled there until the Sync activity log shows "Fully synced".
+_Avoid_: Second device, test vault, fixture vault
+
 **Bootstrap pointer**:
 The plugin's own `data.json` when Metadata storage is a vault folder. It holds only the metadata mode and folder, so the plugin can find the full `data.json` at startup.
 _Avoid_: Pointer file, stub data.json
