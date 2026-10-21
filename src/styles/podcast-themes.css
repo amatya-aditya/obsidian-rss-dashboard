@@ -3207,14 +3207,14 @@
 .rss-reader-podcast-container[data-podcast-theme="obsidian"]
   .podcast-episode-details
   > summary {
-  background: var(--interactive-normal);
+  background: var(--background-secondary);
   color: var(--text-normal);
 }
 
 .rss-reader-podcast-container[data-podcast-theme="obsidian"]
   .podcast-episode-details
   > summary:hover {
-  background: var(--interactive-hover);
+  background: var(--background-modifier-hover);
 }
 
 .rss-reader-podcast-container[data-podcast-theme="obsidian"]

@@ -42,6 +42,7 @@ export class PodcastPlayer {
   private defaultPlaySpeed: number;
   private useFirstSeenDateFallback: boolean;
   private chapterMarkersEnabled: boolean;
+  private sleepTimerBandEnabled: boolean;
   private chapters: PodcastChapter[] = [];
   private currentNotesHtml = "";
   private markerLayer: SeekBarMarkerLayer | null = null;
@@ -103,6 +104,7 @@ export class PodcastPlayer {
     useFirstSeenDateFallback = false,
     onPlaySpeedChange?: (speed: number) => void,
     chapterMarkersEnabled = true,
+    sleepTimerBandEnabled = true,
   ) {
     this.container = container;
     this.app = app;
@@ -111,6 +113,7 @@ export class PodcastPlayer {
     this.defaultPlaySpeed = defaultPlaySpeed ?? 1;
     this.useFirstSeenDateFallback = useFirstSeenDateFallback;
     this.chapterMarkersEnabled = chapterMarkersEnabled;
+    this.sleepTimerBandEnabled = sleepTimerBandEnabled;
     if (playlist) {
       this.setPlaylist(playlist);
     }
@@ -1089,6 +1092,11 @@ export class PodcastPlayer {
     const band = this.sleepBandEl;
     if (!band) return;
 
+    if (!this.sleepTimerBandEnabled) {
+      band.hidden = true;
+      return;
+    }
+
     const duration = this.getFiniteDuration();
     if (!this.isSleepTimerActive() || duration === null) {
       band.hidden = true;
@@ -1283,6 +1291,13 @@ export class PodcastPlayer {
   setChapterMarkersEnabled(enabled: boolean): void {
     this.chapterMarkersEnabled = enabled;
     this.syncChapterMarkers();
+  }
+
+  /** Apply the sleep timer band setting to an open player at once (AC-003). */
+  setSleepTimerBandEnabled(enabled: boolean): void {
+    this.sleepTimerBandEnabled = enabled;
+    // Disabling hides the band; enabling redraws it from the current timer.
+    this.updateSleepBand(true);
   }
 
   private updateProgressDisplay(): void {

@@ -1620,6 +1620,7 @@ export class ReaderView extends ItemView {
         this.settings.useFirstSeenDateFallback,
         this.onPodcastPlaySpeedChange,
         this.settings.media.showPodcastChapterMarkers ?? true,
+        this.settings.media.showPodcastSleepTimerBand ?? true,
       );
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
     } else {
@@ -1641,6 +1642,7 @@ export class ReaderView extends ItemView {
           this.settings.useFirstSeenDateFallback,
           this.onPodcastPlaySpeedChange,
           this.settings.media.showPodcastChapterMarkers ?? true,
+          this.settings.media.showPodcastSleepTimerBand ?? true,
         );
         this.podcastPlayer.loadEpisode(podcastItem, fullFeedEpisodes);
       } else {
@@ -1678,6 +1680,11 @@ export class ReaderView extends ItemView {
   /** Apply the chapter-marker setting to the open player without reloading it. */
   setPodcastChapterMarkers(enabled: boolean): void {
     this.podcastPlayer?.setChapterMarkersEnabled(enabled);
+  }
+
+  /** Apply the sleep timer band setting to the open player without reloading it. */
+  setPodcastSleepTimerBand(enabled: boolean): void {
+    this.podcastPlayer?.setSleepTimerBandEnabled(enabled);
   }
 
   private async syncDashboardSelectionFromPlayer(

@@ -188,6 +188,10 @@ function normalizeSettingGroups(settings: RssDashboardSettings): void {
     settings.media.showPodcastChapterMarkers =
       DEFAULT_SETTINGS.media.showPodcastChapterMarkers;
   }
+  if (typeof settings.media.showPodcastSleepTimerBand !== "boolean") {
+    settings.media.showPodcastSleepTimerBand =
+      DEFAULT_SETTINGS.media.showPodcastSleepTimerBand;
+  }
   settings.availableTags = Array.isArray(settings.availableTags)
     ? settings.availableTags
     : [...DEFAULT_SETTINGS.availableTags];

@@ -84,12 +84,33 @@ describe("Podcast sleep timer band", () => {
   });
 
   it("positions the band from the playhead to the projected expiry", () => {
+    const start = values(PLAYER_STYLES, BAND, "--sleep-band-left").join(" ");
+    expect(start).toMatch(/max\(\s*0%/);
+    expect(start).toContain("var(--sleep-band-start, 0%)");
     expect(values(PLAYER_STYLES, BAND, "left")).toContain(
-      "var(--sleep-band-start, 0%)",
+      "var(--sleep-band-left)",
     );
     expect(values(PLAYER_STYLES, BAND, "width")).toContain(
-      "calc(var(--sleep-band-end, 0%) - var(--sleep-band-start, 0%))",
+      "calc(var(--sleep-band-end, 0%) - var(--sleep-band-left))",
     );
+  });
+
+  it("tucks the band behind the played fill so its rounded cap covers the join", () => {
+    const bandZ = Number(values(PLAYER_STYLES, BAND, "z-index")[0]);
+    const filledZ = Number(
+      values(PLAYER_STYLES, ".podcast-progress-bar-filled", "z-index")[0],
+    );
+    expect(Number.isFinite(bandZ)).toBe(true);
+    expect(Number.isFinite(filledZ)).toBe(true);
+    expect(filledZ).toBeGreaterThan(bandZ);
+
+    const overlaps = values(PLAYER_STYLES, BAND, "--sleep-band-overlap").map(
+      (value) => Number.parseFloat(value),
+    );
+    // DEC-003 fixes 8px: the 6px cap is covered and 2px of band still shows
+    // beside it. Pinning the value keeps the layered join from regressing to a
+    // bare seam.
+    expect(overlaps).toContain(8);
   });
 
   it("ignores pointer events so the seek bar keeps receiving seek input", () => {
