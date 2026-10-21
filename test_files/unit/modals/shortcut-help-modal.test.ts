@@ -95,10 +95,10 @@ describe("ShortcutHelpModal", () => {
     });
 
     it("builds the saved vault note from the same rows", () => {
-      const articleSection = SHORTCUT_SECTIONS.find(
+      const dashboardSection = SHORTCUT_SECTIONS.find(
         (section) => section.section === "Dashboard view",
       );
-      expect(articleSection?.items).toEqual(
+      expect(dashboardSection?.items).toEqual(
         expect.arrayContaining(expected.map(([key, desc]) => ({ key, desc }))),
       );
     });
@@ -175,12 +175,10 @@ describe("ShortcutHelpModal", () => {
           (item) => [item.key, item.desc] as [string, string],
         );
         const guide = guideRows(heading).map(
-          ([key, desc]) => [key, desc.toLowerCase()] as [string, string],
+          ([key, desc]) => [key, desc] as [string, string],
         );
         expect(guide.map(([key]) => key)).toEqual(dialog.map(([key]) => key));
-        expect(guide).toEqual(
-          dialog.map(([key, desc]) => [key, desc.toLowerCase()]),
-        );
+        expect(guide).toEqual(dialog);
       },
     );
   });
@@ -232,7 +230,7 @@ describe("ShortcutHelpModal", () => {
       ],
     ];
 
-    function articleItems() {
+    function dashboardItems() {
       const section = SHORTCUT_SECTIONS.find(
         (candidate) => candidate.section === "Dashboard view",
       );
@@ -240,7 +238,7 @@ describe("ShortcutHelpModal", () => {
     }
 
     it("no longer calls the arrow keys card view navigation", () => {
-      expect(articleItems().map((item) => item.key)).not.toContain(
+      expect(dashboardItems().map((item) => item.key)).not.toContain(
         "Arrow keys",
       );
       const text = SHORTCUT_SECTIONS.flatMap((section) => section.items)
@@ -250,7 +248,7 @@ describe("ShortcutHelpModal", () => {
     });
 
     it.each(expected)("lists %s as %s", (key, desc) => {
-      expect(articleItems()).toContainEqual({ key, desc });
+      expect(dashboardItems()).toContainEqual({ key, desc });
     });
 
     it("matches the keyboard shortcuts guide", () => {
@@ -465,6 +463,29 @@ describe("ShortcutHelpModal", () => {
       expect(
         app.vault.getAbstractFileByPath("Notes/RSS/keyboard-shortcuts.md"),
       ).not.toBeNull();
+      modal.onClose();
+    });
+
+    it("writes every section's rows into the saved note in dialog order (#1469)", async () => {
+      const app = App.createMock();
+      const modal = new ShortcutHelpModal(app, createSettings(""));
+      modal.onOpen();
+
+      await clickSaveLink(modal);
+
+      const file = app.vault.getAbstractFileByPath("keyboard-shortcuts.md");
+      const content = await app.vault.read(file as never);
+      const expected = SHORTCUT_SECTIONS.flatMap((section) => [
+        `## ${section.section}`,
+        ...section.items.map((item) => `| ${item.key} | ${item.desc} |`),
+      ]);
+      const actual = content
+        .split("\n")
+        .filter(
+          (line) => line.startsWith("## ") || /^\| .* \| .* \|$/.test(line),
+        )
+        .filter((line) => line !== "| Shortcut | Action |");
+      expect(actual).toEqual(expected);
       modal.onClose();
     });
 

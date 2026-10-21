@@ -21,7 +21,7 @@ These command-palette commands are always listed. Assign a hotkey in
 
 | Shortcut | Action           |
 | -------- | ---------------- |
-| ?        | Open Help Dialog |
+| ?        | Open help dialog |
 | Esc      | Close dialog     |
 
 ## Dashboard View

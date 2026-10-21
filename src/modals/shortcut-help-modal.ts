@@ -16,8 +16,8 @@ export interface ShortcutSection {
 
 /**
  * The shortcut list shown in the help dialog and written to the vault note.
- * Rows are checked against the keymap help assignments in
- * `test_files/unit/hotkeys/keymap.test.ts`. Keep it in step with `src/hotkeys/dashboard-hotkeys.ts`,
+ * Tests check the rows against the keymap's help assignments. Keep it in
+ * step with `src/hotkeys/dashboard-hotkeys.ts`,
  * `src/hotkeys/reader-hotkeys.ts`, and `docs/user/keyboard-shortcuts.md`.
  */
 export const SHORTCUT_SECTIONS: ShortcutSection[] = [

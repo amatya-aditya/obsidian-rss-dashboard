@@ -176,7 +176,11 @@ describe("keymap table", () => {
       ];
       const slot = (b: (typeof KEYMAP)[number]) => `${b.key}|${b.shift}`;
       const named = new Set(
-        KEYMAP.filter((b) => b.help.some((h) => where.includes(h))).map(slot),
+        KEYMAP.filter(
+          (b) =>
+            b.contexts.includes("dashboard") &&
+            b.help.some((h) => where.includes(h)),
+        ).map(slot),
       );
       const unnamed = KEYMAP.filter(
         (b) => b.contexts.includes("dashboard") && !named.has(slot(b)),
@@ -192,6 +196,23 @@ describe("keymap table", () => {
       ).map((b) => `${b.id} (${bindingLabel(b)})`);
       expect(offenders).toEqual([]);
     });
+
+    it("lists every shared article binding in Dashboard view as well", () => {
+      const missing = KEYMAP.filter(
+        (b) =>
+          b.help.includes("Article manipulation") &&
+          !b.help.includes("Dashboard view"),
+      ).map((b) => `${b.id} (${bindingLabel(b)})`);
+      expect(missing).toEqual([]);
+    });
+
+    it.each(SHORTCUT_SECTIONS.map((s) => [s.section, s] as const))(
+      "lists no key twice in %s",
+      (_name, section) => {
+        const keys = section.items.flatMap((item) => item.key.split(" / "));
+        expect(keys.filter((key, i) => keys.indexOf(key) !== i)).toEqual([]);
+      },
+    );
 
     it.each(SHORTCUT_SECTIONS.map((s) => [s.section, s] as const))(
       "lists the same keys as the table in %s",
