@@ -6,7 +6,11 @@ import {
   TFolder,
   normalizePath,
 } from "obsidian";
-import { DEFAULT_SETTINGS, type RssDashboardSettings } from "../types/types";
+import {
+  DEFAULT_SETTINGS,
+  type FeedItem,
+  type RssDashboardSettings,
+} from "../types/types";
 import {
   dedupeAndNormalizeFeedItems,
   loadAndNormalizeSettings,
@@ -491,6 +495,7 @@ export class SettingsStore {
       this.wasNullSettingsLoad = wasNullLoad;
       const mergedSettings = Object.assign({}, DEFAULT_SETTINGS, data ?? {});
       const originalSettingsJson = serializeWithoutArticles(mergedSettings);
+      const loadedItemsByFeedId = this.collectLoadedItems();
       this.options.setSettings(loadAndNormalizeSettings(data));
       // A fresh install has no data.json yet. Record the installed release
       // in memory so the first real save stores it, and What's New does not
@@ -517,6 +522,7 @@ export class SettingsStore {
       await this.options.repairMissingFolderPathsForFeeds();
       const hydrated = await this.feedStorageRepository.hydrateSettings(
         this.settings,
+        loadedItemsByFeedId,
       );
       storageLog("Settings hydrated", {
         mode: this.settings.storageMode,
@@ -579,6 +585,17 @@ export class SettingsStore {
       this.loadDepth -= 1;
       releaseLoadGate();
     }
+  }
+
+  /** The articles each feed holds now, so a reload can keep them (#1441). */
+  private collectLoadedItems(): Map<string, FeedItem[]> {
+    const loaded = new Map<string, FeedItem[]>();
+    for (const feed of this.settings?.feeds ?? []) {
+      if (feed.feedId && feed.items.length > 0) {
+        loaded.set(feed.feedId, feed.items);
+      }
+    }
+    return loaded;
   }
 
   private getVaultFilePath(fileOrPath?: unknown): string {

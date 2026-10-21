@@ -2,6 +2,7 @@ import { App, TFolder, normalizePath } from "obsidian";
 import type {
   Feed,
   FeedBundle,
+  FeedItem,
   FeedItemsShard,
   PortableDataBundle,
   PersistedFeedConfig,
@@ -120,6 +121,7 @@ export class FeedStorageRepository {
     lastPersistedShardContentByPath: new Map<string, string>(),
     lastStorageFolderPath: null,
     feedShardHealthById: new Map<string, FeedShardHealth>(),
+    retainedMissingFeedIds: new Set<string>(),
     shardFolderHiddenFromSync: false,
     /**
      * Feed IDs whose shard was successfully read and structurally validated
@@ -201,7 +203,10 @@ export class FeedStorageRepository {
   }
 
   public clearFeedShardHealth(feed: Feed): void {
-    if (feed.feedId) this.state.feedShardHealthById.delete(feed.feedId);
+    if (feed.feedId) {
+      this.state.feedShardHealthById.delete(feed.feedId);
+      this.state.retainedMissingFeedIds.delete(feed.feedId);
+    }
   }
 
   /**
@@ -290,10 +295,15 @@ export class FeedStorageRepository {
     };
   }
 
+  /**
+   * `loadedItemsByFeedId` holds the articles already in memory when this is a
+   * reload; a feed whose shard is gone keeps them instead of loading empty.
+   */
   public async hydrateSettings(
     settings: RssDashboardSettings,
+    loadedItemsByFeedId?: ReadonlyMap<string, FeedItem[]>,
   ): Promise<FeedStorageHydrationResult> {
-    return hydrateFeedStorage(settings, this.runnerHost);
+    return hydrateFeedStorage(settings, this.runnerHost, loadedItemsByFeedId);
   }
 
   /**

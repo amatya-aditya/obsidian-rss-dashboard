@@ -1034,6 +1034,55 @@ describe("Sidebar Core", () => {
       );
     });
 
+    it("tells the user a missing shard's articles are still loaded, and keeps the plain wording for an empty feed", () => {
+      const keptFeed = createFeed({
+        title: "Kept articles",
+        feedId: "feed-kept",
+        items: [
+          {
+            title: "Kept",
+            link: "https://example.com/kept",
+            description: "",
+            pubDate: "2026-01-01T00:00:00Z",
+            guid: "kept",
+            read: false,
+            starred: false,
+            tags: [],
+            feedTitle: "Kept articles",
+            feedUrl: "https://example.com/feed.xml",
+            coverImage: "",
+          },
+        ],
+      });
+      const emptyFeed = createFeed({
+        title: "Empty feed",
+        feedId: "feed-empty",
+      });
+      settings.feeds = [keptFeed, emptyFeed];
+      plugin.getFeedShardHealth = vi.fn().mockReturnValue("missing");
+
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+      sidebar.render();
+
+      // The tooltip text is drawn into the body.
+      const text = document.body.textContent ?? "";
+      // The next test asserts on the whole body, so leave it empty.
+      document.body.empty();
+      expect(text).toContain(
+        "Feed shard file is missing. Your articles are still loaded. Run Settings > Storage > Repair/rebuild storage to recreate it.",
+      );
+      expect(text).toContain(
+        "Feed shard file is missing. Please run Settings > Storage > Repair/rebuild storage and refetch the feed.",
+      );
+    });
+
     it("leaves per-feed missing-shard warnings to the dashboard's single alert when the storage folder is hidden from sync", () => {
       settings.feeds = [
         createFeed({ title: "Missing one", feedId: "feed-1" }),

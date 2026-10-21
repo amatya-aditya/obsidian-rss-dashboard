@@ -278,7 +278,8 @@ export class Sidebar {
         );
       }
       const shardHealth = this.getReportedShardHealth(feed);
-      if (shardHealth) lines.push(this.getFeedShardWarningMessage(shardHealth));
+      if (shardHealth)
+        lines.push(this.getFeedShardWarningMessage(shardHealth, feed));
       if (status.refreshingCount > 0) lines.push("In progress");
       if (feed.excludeFromRefresh) lines.push("Excluded from global refresh");
       return lines;
@@ -1899,9 +1900,15 @@ export class Sidebar {
     return this.plugin.getFeedShardHealth?.(feed) ?? null;
   }
 
-  private getFeedShardWarningMessage(health: FeedShardHealth): string {
+  private getFeedShardWarningMessage(
+    health: FeedShardHealth,
+    feed: Feed,
+  ): string {
     if (health === "rebuilt") {
       return "Feed shard file was missing or corrupted and was rebuilt. Restore the shard from the last known backup if one exists, or refresh the feed to fetch newest articles.";
+    }
+    if (health === "missing" && feed.items.length > 0) {
+      return "Feed shard file is missing. Your articles are still loaded. Run Settings > Storage > Repair/rebuild storage to recreate it.";
     }
     const problem = health === "missing" ? "missing" : "missing or corrupted";
     return `Feed shard file is ${problem}. Please run Settings > Storage > Repair/rebuild storage and refetch the feed.`;
