@@ -202,6 +202,73 @@ describe.each(["plugin-default", "vault-location"] as const)(
       expect(refresh).not.toHaveBeenCalled();
     });
 
+    it("keeps a feed added on another device and a rename made here", async () => {
+      const { plugin, diskSettings, syncIn } = await startPlugin(mode);
+      const feed = {
+        feedId: "feed-1",
+        title: "First",
+        url: "https://a.test/feed.xml",
+        folder: "",
+        lastUpdated: 1,
+        items: [],
+      };
+      plugin.settings.feeds = [structuredClone(feed)];
+      await plugin.saveSettings();
+
+      await syncIn({
+        feeds: [
+          { ...feed, items: undefined },
+          {
+            feedId: "feed-2",
+            title: "Added",
+            url: "https://b.test/feed.xml",
+            folder: "",
+            lastUpdated: 1,
+            items: undefined,
+          },
+        ],
+      });
+      plugin.settings.feeds[0].title = "Renamed here";
+      await plugin.saveSettings();
+
+      const persisted = diskSettings().feeds as { feedId: string }[];
+      expect(persisted.map((entry) => entry.feedId)).toEqual([
+        "feed-1",
+        "feed-2",
+      ]);
+      expect(plugin.settings.feeds.map((entry) => entry.feedId)).toEqual([
+        "feed-1",
+        "feed-2",
+      ]);
+      expect(plugin.settings.feeds[0].title).toBe("Renamed here");
+      expect(plugin.settings.feeds[0].items).toEqual([]);
+    });
+
+    it("keeps a folder added on another device and a rename made here", async () => {
+      const { plugin, diskSettings, syncIn } = await startPlugin(mode);
+      plugin.settings.folders = [{ name: "Local", subfolders: [] }];
+      await plugin.saveSettings();
+
+      await syncIn({
+        folders: [
+          { name: "Local", subfolders: [] },
+          { name: "Remote", subfolders: [] },
+        ],
+      });
+      plugin.settings.folders[0].name = "Local2";
+      await plugin.saveSettings();
+
+      const persisted = diskSettings().folders as { name: string }[];
+      expect(persisted.map((entry) => entry.name)).toEqual([
+        "Local2",
+        "Remote",
+      ]);
+      expect(plugin.settings.folders.map((entry) => entry.name)).toEqual([
+        "Local2",
+        "Remote",
+      ]);
+    });
+
     it("still writes memory when the settings file cannot be read", async () => {
       const { app, plugin, pluginFile, diskSettings } = await startPlugin(mode);
 
@@ -291,8 +358,9 @@ describe("settings save guard edge cases (#1431)", () => {
     const names = (diskSettings().folders as { name: string }[]).map(
       (f) => f.name,
     );
+    // Per-entry folder merging keeps both unrelated folders (#1439).
     expect(names).toContain("Local");
-    expect(names).not.toContain("Remote");
+    expect(names).toContain("Remote");
   });
 
   it("treats an empty settings file as unreadable and writes memory", async () => {

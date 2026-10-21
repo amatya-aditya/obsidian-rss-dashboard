@@ -58,3 +58,275 @@ describe("mergeSettingsGroups", () => {
     expect(result.adopted).toEqual(["b"]);
   });
 });
+
+/**
+ * `feeds` and `folders` merge per entry, not as one group (#1439). Two devices
+ * that each change a different entry have both changes kept.
+ */
+describe("mergeSettingsGroups per-entry feeds (#1439)", () => {
+  const feed = (feedId: string, overrides: Record<string, unknown> = {}) => ({
+    feedId,
+    title: `Feed ${feedId}`,
+    url: `https://${feedId}.test/feed.xml`,
+    folder: "",
+    lastUpdated: 1,
+    ...overrides,
+  });
+
+  it("keeps a feed added on disk and a rename made in memory", () => {
+    const result = mergeSettingsGroups(
+      { feeds: [feed("f1")] },
+      { feeds: [feed("f1"), feed("f2")] },
+      { feeds: [feed("f1", { title: "Renamed" })] },
+    );
+
+    expect(
+      (result.merged.feeds as { feedId: string; title: string }[]).map(
+        (entry) => entry.feedId,
+      ),
+    ).toEqual(["f1", "f2"]);
+    expect(
+      (result.merged.feeds as { feedId: string; title: string }[])[0].title,
+    ).toBe("Renamed");
+    expect(result.conflicts).toEqual([]);
+    expect(result.adoptedEntries).toEqual([{ group: "feeds", key: "f2" }]);
+  });
+
+  it("keeps memory's entry when both sides edited the same feed", () => {
+    const result = mergeSettingsGroups(
+      { feeds: [feed("f1")] },
+      { feeds: [feed("f1", { folder: "Remote" })] },
+      { feeds: [feed("f1", { title: "Local" })] },
+    );
+
+    const [merged] = result.merged.feeds as { title: string; folder: string }[];
+    expect(merged.title).toBe("Local");
+    expect(merged.folder).toBe("");
+    expect(result.conflictEntries).toEqual([{ group: "feeds", key: "f1" }]);
+  });
+
+  it("does not count a refresh-only difference as an edit", () => {
+    const result = mergeSettingsGroups(
+      {
+        feeds: [
+          feed("f1"),
+          feed("f2", { lastUpdated: 10, lastFetchError: "old" }),
+        ],
+      },
+      {
+        feeds: [
+          feed("f1", { folder: "From disk" }),
+          feed("f2", { lastUpdated: 20, lastFetchError: undefined }),
+        ],
+      },
+      {
+        feeds: [
+          feed("f1"),
+          feed("f2", { lastUpdated: 30, lastFetchError: "local" }),
+        ],
+      },
+    );
+
+    const merged = result.merged.feeds as {
+      feedId: string;
+      folder: string;
+      lastUpdated: number;
+      lastFetchError?: string;
+    }[];
+    // Disk's real edit to f1 is adopted; f2 only differs in bookkeeping.
+    expect(merged[0].folder).toBe("From disk");
+    expect(merged[1].lastUpdated).toBe(30);
+    expect(merged[1].lastFetchError).toBe("local");
+    expect(result.conflictEntries).toEqual([]);
+  });
+
+  it("keeps a feed edited on disk when this device removed it", () => {
+    const result = mergeSettingsGroups(
+      { feeds: [feed("f1"), feed("f2")] },
+      { feeds: [feed("f1"), feed("f2", { title: "Edited remotely" })] },
+      { feeds: [feed("f1")] },
+    );
+
+    expect(
+      (result.merged.feeds as { feedId: string }[]).map(
+        (entry) => entry.feedId,
+      ),
+    ).toEqual(["f1", "f2"]);
+    expect(result.conflictEntries).toEqual([{ group: "feeds", key: "f2" }]);
+  });
+
+  it("inserts a feed added on disk at its disk position", () => {
+    const result = mergeSettingsGroups(
+      { feeds: [feed("f1"), feed("f3")] },
+      { feeds: [feed("f1"), feed("f2"), feed("f3")] },
+      { feeds: [feed("f1"), feed("f3", { title: "Renamed" })] },
+    );
+
+    expect(
+      (result.merged.feeds as { feedId: string }[]).map(
+        (entry) => entry.feedId,
+      ),
+    ).toEqual(["f1", "f2", "f3"]);
+  });
+
+  it("matches a disk entry without an id by its url", () => {
+    const withoutId = {
+      title: "Old",
+      url: "https://f1.test/feed.xml",
+      folder: "",
+      lastUpdated: 1,
+    };
+    const result = mergeSettingsGroups(
+      {
+        feeds: [
+          {
+            feedId: "f1",
+            title: "New",
+            url: "https://f1.test/feed.xml",
+            folder: "",
+            lastUpdated: 1,
+          },
+        ],
+      },
+      { feeds: [withoutId] },
+      {
+        feeds: [
+          {
+            feedId: "f1",
+            title: "New",
+            url: "https://f1.test/feed.xml",
+            folder: "",
+            lastUpdated: 1,
+          },
+        ],
+      },
+    );
+
+    expect((result.merged.feeds as unknown[]).length).toBe(1);
+    expect(result.conflictEntries).toEqual([]);
+  });
+
+  it("does not compare article items carried in memory", () => {
+    const result = mergeSettingsGroups(
+      { feeds: [feed("f1")] },
+      { feeds: [feed("f1")] },
+      { feeds: [{ ...feed("f1"), items: [{ guid: "g1" }] }] },
+    );
+
+    expect(result.conflicts).not.toContain("feeds");
+    expect(result.adoptedEntries).toEqual([]);
+  });
+
+  it("takes a feed both sides removed as removed, without a conflict", () => {
+    const result = mergeSettingsGroups(
+      { feeds: [feed("f1")] },
+      { feeds: [] },
+      { feeds: [] },
+    );
+
+    expect(result.merged.feeds).toEqual([]);
+    expect(result.conflictEntries).toEqual([]);
+  });
+});
+
+describe("mergeSettingsGroups per-entry folders (#1439)", () => {
+  const folder = (name: string, overrides: Record<string, unknown> = {}) => ({
+    name,
+    subfolders: [],
+    ...overrides,
+  });
+  const names = (result: { merged: Record<string, unknown> }) =>
+    (result.merged.folders as { name: string }[]).map((entry) => entry.name);
+
+  it("keeps a folder added on disk and a rename made in memory", () => {
+    const result = mergeSettingsGroups(
+      { folders: [folder("A")] },
+      { folders: [folder("A"), folder("B")] },
+      { folders: [folder("A2")] },
+    );
+
+    expect(names(result)).toEqual(["A2", "B"]);
+    expect(result.conflictEntries).toEqual([]);
+    expect(result.adoptedEntries).toEqual([{ group: "folders", key: "B" }]);
+  });
+
+  it("lets a rename win over an edit to the old name", () => {
+    const result = mergeSettingsGroups(
+      { folders: [folder("A", { pinned: false })] },
+      { folders: [folder("A", { pinned: true })] },
+      { folders: [folder("A2")] },
+    );
+
+    expect(names(result)).toEqual(["A2"]);
+    expect(result.conflictEntries).toEqual([{ group: "folders", key: "A" }]);
+  });
+
+  it("merges a nested folder by its path", () => {
+    const result = mergeSettingsGroups(
+      { folders: [folder("A", { subfolders: [folder("B")] })] },
+      {
+        folders: [
+          folder("A", {
+            subfolders: [folder("B"), folder("C"), folder("D")],
+          }),
+        ],
+      },
+      {
+        folders: [
+          folder("A2", { subfolders: [folder("B", { pinned: true })] }),
+        ],
+      },
+    );
+
+    const [root] = result.merged.folders as {
+      name: string;
+      subfolders: { name: string; pinned?: boolean }[];
+    }[];
+    expect(root.name).toBe("A2");
+    expect(root.subfolders.map((entry) => entry.name)).toEqual(["B"]);
+    expect(root.subfolders[0].pinned).toBe(true);
+    expect(result.adoptedEntries).toEqual([]);
+    expect(result.droppedEntries).toEqual([
+      { group: "folders", key: "A/C" },
+      { group: "folders", key: "A/D" },
+    ]);
+  });
+
+  it("drops a synced folder whose parent this device renamed away", () => {
+    const result = mergeSettingsGroups(
+      { folders: [folder("A", { subfolders: [] })] },
+      {
+        folders: [folder("A", { subfolders: [folder("B")] }), folder("Other")],
+      },
+      { folders: [folder("A2")] },
+    );
+
+    expect(names(result)).toEqual(["A2", "Other"]);
+    expect(result.droppedEntries).toEqual([{ group: "folders", key: "A/B" }]);
+  });
+
+  it("keeps an adopted feed's folder path when the folder is gone", () => {
+    const result = mergeSettingsGroups(
+      {
+        folders: [folder("A")],
+        feeds: [],
+      },
+      {
+        folders: [folder("A")],
+        feeds: [
+          {
+            feedId: "f1",
+            title: "F",
+            url: "https://f1.test/feed.xml",
+            folder: "A",
+            lastUpdated: 1,
+          },
+        ],
+      },
+      { folders: [folder("A2")], feeds: [] },
+    );
+
+    expect((result.merged.feeds as { folder: string }[])[0].folder).toBe("A");
+    expect(result.danglingEntries).toEqual([{ group: "feeds", key: "f1" }]);
+  });
+});
