@@ -14,7 +14,7 @@
  * later is not exercised here.
  *
  * The last two tests pin what happens today for a shard another device
- * deleted or renamed. It is not confirmed as intended, and no issue is filed.
+ * renamed (#1441) or deleted (#1440); each is marked `// BUG: pinned`.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App, type MockApp, type PluginManifest } from "obsidian";
@@ -367,6 +367,7 @@ describe("Shard storage v2 arrival orders through the real plugin (#1429)", () =
     // An external rename arrives as a create at the new path, then a delete.
     vault.externalRename(shardPath("feed-a"), renamed);
     await settle();
+    // BUG: pinned, see #1441
     expect(guidsOf(mobile, "feed-a")).toEqual([]);
 
     await mobile.plugin.saveSettings();
@@ -378,6 +379,7 @@ describe("Shard storage v2 arrival orders through the real plugin (#1429)", () =
     const vault = mobile.app.vault;
 
     // The settings watcher registers no delete listener, so nothing reloads.
+    // BUG: pinned, see #1440
     vault.externalDelete(shardPath("feed-a"));
     await settle();
     expect(guidsOf(mobile, "feed-a")).toEqual(["a1", "a2"]);
