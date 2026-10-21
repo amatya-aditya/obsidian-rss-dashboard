@@ -509,7 +509,10 @@
 }
 
 /* The visible tick: a 2 px core with a one-pixel ring so it keeps a 3:1 edge
-   against both the unfilled track and the accent fill (WCAG 1.4.11). */
+   against both the unfilled track and the accent fill (WCAG 1.4.11). The ring
+   is the player background, so it is only dark in a dark base theme; with a
+   light base it measures 1.5–2.6:1 on the lighter fills. Accepted limitation
+   (#1409, DEC-010), not a regression from the paint fix. */
 .seek-bar-marker::before {
   content: "";
   width: 2px;
@@ -523,9 +526,10 @@
 }
 
 /* Passed markers dim and shorten, so the state is not carried by opacity
-   alone. Only the tick body and its colour edge dim; the one-pixel dark ring
-   stays opaque, because it is what keeps a 3:1 boundary against the themed
-   fill (WCAG 1.4.11, #1409/DEC-010). */
+   alone. Only the tick body and its colour edge dim; the one-pixel ring stays
+   opaque, because it is what keeps a 3:1 boundary against the themed fill in a
+   dark base theme (WCAG 1.4.11, #1409/DEC-010). The light-base limitation
+   above is accepted. */
 .seek-bar-marker.is-passed::before {
   height: 8px;
   background: color-mix(in srgb, currentColor 50%, transparent);
