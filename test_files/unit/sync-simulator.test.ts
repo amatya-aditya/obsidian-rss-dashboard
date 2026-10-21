@@ -255,6 +255,67 @@ describe("SyncSimulator", () => {
     });
   });
 
+  describe("waves", () => {
+    it("lands every file of a wave in one tick, in the caller's order", () => {
+      const { desktop, mobile, sync } = setUp();
+      seed(desktop, { "d/a.json": "a", "d/b.json": "b", "d/c.json": "c" });
+      const seenOnDisk: string[][] = [];
+      mobile.vault.on("create", () => {
+        seenOnDisk.push(Object.keys(filesOn(mobile)));
+      });
+
+      const delivered = sync.deliverWave({
+        order: ["d/c.json", "d/a.json", "d/b.json"],
+      });
+
+      expect(delivered).toEqual(["d/c.json", "d/a.json", "d/b.json"]);
+      expect(seenOnDisk).toHaveLength(3);
+      for (const onDisk of seenOnDisk) {
+        expect(onDisk.sort()).toEqual(["d/a.json", "d/b.json", "d/c.json"]);
+      }
+    });
+
+    it("fires no event until the whole wave is on disk", () => {
+      const { desktop, mobile, sync } = setUp();
+      seed(desktop, { "d/a.json": "a", "d/b.json": "b" });
+      const events = record(mobile);
+
+      sync.deliverWave();
+
+      expect(events).toEqual(["create:d/a.json", "create:d/b.json"]);
+    });
+
+    it("lets a debounced reload fire once for a wave of N files", async () => {
+      const { desktop, mobile, sync } = setUp();
+      seed(desktop, { "d/a.json": "a", "d/b.json": "b", "d/c.json": "c" });
+      const reload = vi.fn();
+      let timer: number | undefined;
+      mobile.vault.on("create", () => {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(reload, 1500);
+      });
+
+      sync.deliverWave();
+      await vi.advanceTimersByTimeAsync(1499);
+      expect(reload).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(reload).toHaveBeenCalledTimes(1);
+    });
+
+    it("skips paths Sync would skip and honours `only`", () => {
+      const { desktop, mobile, sync } = setUp();
+      seed(desktop, {
+        "d/a.json": "a",
+        "d/b.json": "b",
+        ".hidden/x.json": "x",
+      });
+
+      expect(sync.deliverWave({ only: ["d/b.json"] })).toEqual(["d/b.json"]);
+      expect(Object.keys(filesOn(mobile))).toEqual(["d/b.json"]);
+    });
+  });
+
   describe("partial arrival", () => {
     it("never delivers a file that is not in `only`", async () => {
       const { desktop, mobile, sync } = setUp();

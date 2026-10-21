@@ -529,6 +529,14 @@ and read the result with `--expect-vault`. Reset the vault with
 | `empty-newer-wins` | A newer `data.json` with no feeds or folders, as a clean device would write.      |
 | `dot-folder-skip`  | The `data-first` files under `.sync-sim/`, a dot-folder the plugin should ignore. |
 
+The orders are samples of an unconstrained real order, not predictions of it:
+the first Real Sync pass saw the files of one change land within about 0.6 s of
+each other in no fixed order, `data-first` being one possible order. The
+plugin reloaded once, 1.7 to 2.3 s after the last file, and the delay from
+write to delivery ranged from about 1 s to about 171 s for the same kind of
+change. The presets do not model that delay; the unit-test `SyncSimulator`
+delivers a whole wave in one watcher tick with `deliverWave`.
+
 "Late" files wait `--late <ms>` (default 4000) before they are written, which
 is longer than the plugin's 1500 ms reload debounce, so the earlier files have
 already been reloaded. `--gap <ms>` (default 300) separates the other writes.
