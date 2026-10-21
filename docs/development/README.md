@@ -18,6 +18,7 @@ Internal developer documentation for the RSS Dashboard plugin.
 - [Obsidian Alignment Audit](./obsidian-alignment-audit.md)
 - [Obsidian Settings Reference](./obsidian-settings-reference.md)
 - [Obsidian Test Stub Probes](../../test_files/stubs/obsidian-console-probes.md)
+- [Real Sync Runbook](./real-sync-runbook.md)
 - [Release Notes Workflow](./release-notes-workflow.md)
 - [Starred State and Tags](./starred-state-and-tags.md)
 - [Test Feeds for Manual QA](./test-feeds/index.md)
