@@ -85,7 +85,9 @@ the port open only while the maintainer has the instance open and the pass is un
 
 ```powershell
 # The maintainer runs this; the agent does not. No --user-data-dir: this is the real profile.
-& "$env:LOCALAPPDATA\Obsidian\Obsidian.exe" --remote-debugging-port=9333
+# Use any port no other session holds. 9333 is often taken by a fixture-vault session.
+# The executable is under "$env:LOCALAPPDATA\Obsidian" or "C:\Program Files\Obsidian".
+& "C:\Program Files\Obsidian\Obsidian.exe" --remote-debugging-port=9335
 ```
 
 Because this is the real profile, the disposable-profile commands in the
@@ -169,29 +171,41 @@ setup, because it needs a sign-in.
 7. **Compare storage settings.** Check that the metadata and shard folder paths
    match between the two vaults.
 
+A vault created from the remote does not receive the plugin's files by default.
+In Device B's Sync settings, before step 5 can finish:
+
+- turn on **Sync all other types**, or `data.json`, `user-state.json` and the
+  shards never arrive, and the activity log still says "Fully synced";
+- turn on **Installed community plugins**, then accept the plugin-sync consent.
+  Without it the plugin's code and its bootstrap `data.json` never arrive;
+- leave **Active community plugin list** off, so Device B cannot push its own
+  list to the real vault;
+- give Device B its own **Device name**, so activity-log lines and any conflict
+  file name tell the two apart.
+
+Community plugins stay in Restricted mode in a new vault. Exiting it is the
+maintainer's step, taken only after "Fully synced".
+
 ### Targeting both windows over CDP (open question A1)
 
-**Open question A1, to resolve at the first setup:** both vaults open as windows of
-one Obsidian instance, so one debug port serves both, and `--expect-vault` tells
-them apart.
+**A1 is confirmed** (Obsidian 1.14.4, Windows 11, 2026-10-21, first Real Sync
+pass). With the real vault and Device B open in one instance, `targets` on one
+debug port lists a page per vault, plus a separate Settings page for each vault
+that has Settings open. `--expect-vault` tells the vault pages apart, so one
+port is enough and no second instance is needed.
 
-To confirm it, with both vaults open and the instance launched with a debug
-port:
+Two traps when the vault windows hide behind each other or the Settings window
+is off-screen:
 
-```powershell
-node scripts/obsidian-cdp.mjs --port 9333 targets
-```
+- `obsidian-cdp.mjs open-settings` and `--settings` pin to the first Settings
+  window and refuse the other vault's. Reach a specific vault's Settings page
+  with a raw CDP `Runtime.evaluate` on the page whose title names that vault.
+- A hidden window is parked off-screen. `require("electron").remote
+.getCurrentWindow()` in that page restores it, and `setBounds` puts it back on
+  screen, so the Pause and Resume button can be clicked.
 
-- If the list shows two vault pages, one per vault, A1 holds. Target each window
-  with `--expect-vault` set to that window's path. Add `--target <vault name>`
-  to pick a page by title.
-- If only one vault page shows, or the two share a single target, A1 is wrong.
-  Record that here, and the maintainer launches a second instance on a second port, with
-  its own `--remote-debugging-port`. Each call then carries `--port` for its own
-  instance as well as `--expect-vault`.
-
-Whichever holds, replace this paragraph with the confirmed result and the
-Obsidian version when you first run it. Until then A1 is unconfirmed.
+**A2 is unconfirmed:** whether a second local vault on the same remote uses a
+remote-vault slot. Check the Sync plan page when setting Device B up.
 
 ## Per-run approval
 

@@ -27,8 +27,22 @@ For each item choose the cheapest route that exercises the real thing:
 - **Computer use**: real mouse/keyboard, drag, native chrome, or OS dialogs.
   Needs a computer-control capability (Codex `computer`, Claude computer use);
   request `request_access` for every app up front.
-- **Out of reach**: a real phone, a second synced device, hardware. Mark it
-  now so it lands in the hand-off list instead of silently vanishing.
+- **A second synced device**: not out of reach wholesale. Arrival orders are
+  simulated: `SyncSimulator` scenarios in the unit tests, and the
+  `npm run fixture:sync` presets (`late-shard`, `user-state-late`, `data-first`,
+  `reverse`, `empty-newer-wins`, `dot-folder-skip`) against a live fixture vault
+  (**Simulating Sync** in `docs/development/fixture-vault.md`). Real Obsidian
+  Sync is driven only in an attended **Real Sync pass** under
+  `docs/development/real-sync-runbook.md`, never from `/test-drive` or in CI.
+  The first pass recorded delivery events, delay, wave order, whole-file
+  `data.json` conflict outcomes and the plugin's late-shard, late-state and
+  empty-`data.json` behavior in `test_files/stubs/obsidian-console-probes.md`
+  ("Real Sync pass"). Keep as hand-off what no pass recorded: Sync's merge of
+  notes and conflict-file naming, its timing guarantees (delivery took from
+  about 1 s to about 171 s), a second device on another machine or the mobile
+  app, and a Sync conflict UI.
+- **Out of reach**: a real phone, hardware. Mark it now so it lands in the
+  hand-off list instead of silently vanishing.
 
 Pick the lightest route that can observe the behaviour and escalate only when
 it cannot: script/CLI, then CDP for a running native app, then full computer
