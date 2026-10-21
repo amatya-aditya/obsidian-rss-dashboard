@@ -194,4 +194,45 @@ describe("shard Own write record (#1422)", () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(reloads()).toBe(1);
   });
+
+  it("judges a touched shard by the file as it is when the debounce ends", async () => {
+    await start(JSON.stringify(shardObject(items)));
+    const original = await adapter().read(SHARD_PATH);
+    await adapter().write(
+      SHARD_PATH,
+      JSON.stringify(shardObject([...items, { guid: "item-2" }])),
+    );
+
+    handlers.modify?.({ path: SHARD_PATH });
+    await vi.advanceTimersByTimeAsync(500);
+    // Another event for content that still matches the record would hide
+    // nothing: the touched path is judged against the file as it is now.
+    await adapter().write(SHARD_PATH, original);
+    handlers.modify?.({ path: SHARD_PATH });
+    await vi.advanceTimersByTimeAsync(RELOAD_DEBOUNCE_MS);
+
+    expect(reloads()).toBe(0);
+  });
+
+  it("does not restart a pending reload for an own-write shard echo", async () => {
+    await start(JSON.stringify(shardObject(items)));
+    const original = await adapter().read(SHARD_PATH);
+    await adapter().write(
+      SHARD_PATH,
+      JSON.stringify(shardObject([...items, { guid: "item-2" }])),
+    );
+    handlers.modify?.({ path: SHARD_PATH });
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    await adapter().write(SHARD_PATH, original);
+    handlers.modify?.({ path: SHARD_PATH });
+    await vi.advanceTimersByTimeAsync(RELOAD_DEBOUNCE_MS - 1_000 - 1);
+    await adapter().write(
+      SHARD_PATH,
+      JSON.stringify(shardObject([...items, { guid: "item-3" }])),
+    );
+    await vi.advanceTimersByTimeAsync(1);
+
+    expect(reloads()).toBe(1);
+  });
 });

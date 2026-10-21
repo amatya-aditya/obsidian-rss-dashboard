@@ -784,8 +784,16 @@ export class SettingsStore {
       const filePath = this.getVaultFilePath(file);
 
       // A shard is judged like the other watched files: by its comparable
-      // content, after the debounce (#1422).
+      // content, after the debounce (#1422). The plugin's own write returns
+      // here, as before, so its echo never restarts a pending reload.
       if (filePath && this.isWatchedShardPath(filePath)) {
+        if (
+          await this.ownWrites.matchesDisk(filePath, (file) =>
+            this.readWatchedFile(file),
+          )
+        ) {
+          return;
+        }
         this.scheduleMetadataReload(filePath);
         return;
       }

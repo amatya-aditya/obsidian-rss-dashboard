@@ -111,8 +111,12 @@ describe("OwnWriteRecord", () => {
     record.forget("a.json");
     expect(record.comparableOf("a.json")).toBeUndefined();
     expect(record.comparableOf("b.json")).toBe('{"v":1}');
-    record.forgetFolder("/feeds/");
+    record.recordSnapshot("feeds/user-state.json", { v: 1 });
+    record.recordSnapshot("feeds/sub/z.json", { v: 1 });
+    record.forgetShardsIn("/feeds/");
     expect(record.comparableOf("feeds/x.json")).toBeUndefined();
+    expect(record.comparableOf("feeds/user-state.json")).toBe('{"v":1}');
+    expect(record.comparableOf("feeds/sub/z.json")).toBe('{"v":1}');
     expect(record.comparableOf("feeds-other/y.json")).toBe('{"v":1}');
     expect(record.comparableOf("b.json")).toBe('{"v":1}');
   });

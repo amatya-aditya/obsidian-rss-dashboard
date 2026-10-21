@@ -1,4 +1,4 @@
-import { App, Notice, TFile, TFolder, normalizePath } from "obsidian";
+import { App, Notice, TFile, TFolder } from "obsidian";
 import type {
   Feed,
   FeedItem,
@@ -134,7 +134,7 @@ export async function hydrateFeedStorage(
     host.state.feedShardHealthById.clear();
     host.state.retainedMissingFeedIds.clear();
     host.state.hydratedShardGuidsByFeedId.clear();
-    host.state.ownWrites.forgetFolder(settings.storageFolder);
+    host.state.ownWrites.forgetShardsIn(settings.storageFolder);
     storageLog("Skipping shard hydration because legacy JSON mode is active");
     host.capturePersistedState(settings);
     return { didChange: didAssignFeedIds, shardCount };
@@ -144,7 +144,7 @@ export async function hydrateFeedStorage(
   host.state.feedShardHealthById.clear();
   host.state.retainedMissingFeedIds.clear();
   host.state.hydratedShardGuidsByFeedId.clear();
-  host.state.ownWrites.forgetFolder(settings.storageFolder);
+  host.state.ownWrites.forgetShardsIn(settings.storageFolder);
   for (const feed of settings.feeds) {
     if (feed.feedId) {
       feedsById.set(feed.feedId, feed);
@@ -230,10 +230,9 @@ async function hydrateFeedShard(
     host.state.hydratedShardGuidsByFeedId.delete(feed.feedId);
   }
   const shardPath = getFeedShardPath(settings.storageFolder, feed.feedId ?? "");
-  const normalizedPath = normalizePath(shardPath.trim().replace(/\\/g, "/"));
   const shardExists = await host.app.vault.adapter.exists(shardPath);
   if (!shardExists) {
-    host.state.ownWrites.forget(normalizedPath);
+    host.state.ownWrites.forget(shardPath);
     if (feed.feedId) host.state.feedShardHealthById.set(feed.feedId, "missing");
     // A reload that loses the shard keeps the articles already on screen.
     const loadedItems = feed.feedId
@@ -274,7 +273,7 @@ async function hydrateFeedShard(
         new Set(feed.items.map((item) => item.guid)),
       );
     }
-    host.state.ownWrites.recordRead(normalizedPath, raw);
+    host.state.ownWrites.recordRead(shardPath, raw);
     storageLog("Hydrated feed from shard", {
       feedId: feed.feedId,
       title: feed.title,
@@ -283,7 +282,7 @@ async function hydrateFeedShard(
     });
     return { hydrated: true, droppedCount };
   } catch (error) {
-    host.state.ownWrites.forget(normalizedPath);
+    host.state.ownWrites.forget(shardPath);
     if (feed.feedId) host.state.feedShardHealthById.set(feed.feedId, "corrupt");
     storageError("Failed to hydrate feed shard", error, {
       feedId: feed.feedId,
@@ -559,11 +558,8 @@ async function writeFeedShard(
   );
 
   if (shardWriteDecision.needsWrite) {
-    const normalizedShardPath = normalizePath(
-      shardPath.trim().replace(/\\/g, "/"),
-    );
-    const rollbackOwnWrite = host.state.ownWrites.beginWrite(
-      normalizedShardPath,
+    const rollbackOwnWrite = host.state.ownWrites.recordPendingWrite(
+      shardPath,
       shardJson,
     );
     try {

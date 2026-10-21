@@ -68,11 +68,20 @@ export class OwnWriteRecord {
     this.comparables.delete(ownWriteKey(path));
   }
 
-  /** Drops every record under a folder, such as a hydration's shards. */
-  forgetFolder(folder: string): void {
-    const prefix = `${ownWriteKey(folder)}/`;
-    for (const key of [...this.comparables.keys()]) {
-      if (key.startsWith(prefix)) this.comparables.delete(key);
+  /**
+   * Drops the records of the shard files directly inside a folder, such as
+   * before a hydration records them again. The metadata files and anything in
+   * a subfolder keep their records.
+   */
+  forgetShardsIn(folder: string): void {
+    const key = ownWriteKey(folder);
+    const prefix = key === "" ? "" : `${key}/`;
+    for (const entry of [...this.comparables.keys()]) {
+      if (!entry.startsWith(prefix)) continue;
+      const name = entry.slice(prefix.length);
+      if (name.includes("/") || !name.endsWith(".json")) continue;
+      if (name === "data.json" || name === "user-state.json") continue;
+      this.comparables.delete(entry);
     }
   }
 
@@ -84,7 +93,7 @@ export class OwnWriteRecord {
    * write replaced the record. A caller that must not add an await uses this
    * directly; `write` wraps it.
    */
-  beginWrite(path: string, content: string): () => void {
+  recordPendingWrite(path: string, content: string): () => void {
     const key = ownWriteKey(path);
     const previous = this.comparables.get(key);
     const written = comparableFromText(content);
@@ -98,13 +107,13 @@ export class OwnWriteRecord {
     };
   }
 
-  /** Runs a plugin write to a watched file under `beginWrite`. */
+  /** Runs a plugin write to a watched file under `recordPendingWrite`. */
   async write<T>(
     path: string,
     content: string,
     writeFn: () => Promise<T>,
   ): Promise<T> {
-    const rollback = this.beginWrite(path, content);
+    const rollback = this.recordPendingWrite(path, content);
     try {
       return await writeFn();
     } catch (error) {
