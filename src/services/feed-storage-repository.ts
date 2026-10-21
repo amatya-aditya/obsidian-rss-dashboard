@@ -12,6 +12,7 @@ import type {
   UserStateFile,
   FeedShardHealth,
 } from "../types/types";
+import { OwnWriteRecord } from "./own-write-record";
 import { SHARD_VERSION, cloneJson, withSyncNonce } from "./storage-json";
 import {
   parseFeedBundle,
@@ -28,7 +29,6 @@ import {
   getFeedShardPath,
   isHiddenFromSync,
   normalizeFolderPath,
-  normalizeShardPath,
 } from "./feed-storage-shard";
 import {
   hydrateFeedStorage,
@@ -119,7 +119,7 @@ export class FeedStorageRepository {
   private readonly state: FeedStorageRunnerState = {
     lastPersistedMetadataJson: null,
     lastPersistedShardJsonByFeedId: new Map<string, string>(),
-    lastPersistedShardContentByPath: new Map<string, string>(),
+    ownWrites: new OwnWriteRecord(),
     removedFeedShardBaselines: new Map(),
     lastStorageFolderPath: null,
     feedShardHealthById: new Map<string, FeedShardHealth>(),
@@ -212,13 +212,11 @@ export class FeedStorageRepository {
   }
 
   /**
-   * Compares the on-disk content of a shard with the text this device last
-   * read or wrote at that path (#1412).
+   * The Own write record of every watched file, shards included (#1422). The
+   * settings store reads and writes it for `data.json` and `user-state.json`.
    */
-  public isLastSeenShardContent(path: string, content: string): boolean {
-    const normalized = normalizeShardPath(path);
-    const baseline = this.state.lastPersistedShardContentByPath.get(normalized);
-    return baseline !== undefined && baseline === content;
+  public get ownWrites(): OwnWriteRecord {
+    return this.state.ownWrites;
   }
 
   /**
@@ -1028,8 +1026,7 @@ export class FeedStorageRepository {
   }
 
   private async removeShardFile(shardPath: string): Promise<boolean> {
-    const normalized = normalizeShardPath(shardPath);
-    this.state.lastPersistedShardContentByPath.delete(normalized);
+    this.state.ownWrites.forget(shardPath);
     const indexed = this.app.vault.getAbstractFileByPath(shardPath);
     if (indexed) {
       await this.app.fileManager.trashFile(indexed);

@@ -438,7 +438,7 @@ Where the plugin's `data.json` (settings, feed definitions, folder organization,
 _Avoid_: Storage (unqualified), config storage
 
 **Own write**:
-A change to a watched metadata file (`data.json` or `user-state.json` in [[Metadata storage]]) whose content matches what this device last wrote or loaded there. The plugin skips reloading an own write and reloads every other change. It is recognized by content, never by timing.
+A change to a watched file (`data.json` or `user-state.json` in [[Metadata storage]], or a feed shard in [[Shard storage]] v2) whose comparable content matches what this device last wrote or loaded there. Comparable content ignores key order, `_syncNonce` and `_syncPad`. The plugin skips reloading an own write and reloads every other change. It is recognized by content, never by timing. One record, keyed by normalized path, holds them all; the plugin's own `saveData`/`loadData` baseline stays separate.
 _Avoid_: Suppression window, echo
 
 **Sync delivery**:

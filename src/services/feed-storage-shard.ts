@@ -30,11 +30,6 @@ export function isHiddenFromSync(folderPath: string): boolean {
     .some((segment) => segment.startsWith("."));
 }
 
-/** The key under which a shard's last-seen content is remembered. */
-export function normalizeShardPath(shardPath: string): string {
-  return normalizePath(shardPath.trim().replace(/\\/g, "/"));
-}
-
 export function getFeedShardPath(
   storageFolder: string,
   feedId: string,
