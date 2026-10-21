@@ -434,6 +434,20 @@
   z-index: 2;
 }
 
+/* The native element stays above the fill so it keeps receiving seek clicks,
+   and Chromium paints its value and track pseudo-elements there even with
+   `appearance: none`. That UA paint covered the themed fill in every podcast
+   theme, so make it paint nothing: the wrapper's themed track and
+   .podcast-progress-bar-filled are the visible bar (#1409). */
+.podcast-progress-bar::-webkit-progress-bar,
+.podcast-progress-bar::-webkit-progress-value {
+  background: transparent;
+}
+
+.podcast-progress-bar::-moz-progress-bar {
+  background: transparent;
+}
+
 .podcast-progress-bar-filled {
   position: absolute;
   top: 0;
@@ -495,7 +509,10 @@
 }
 
 /* The visible tick: a 2 px core with a one-pixel ring so it keeps a 3:1 edge
-   against both the unfilled track and the accent fill (WCAG 1.4.11). */
+   against both the unfilled track and the accent fill (WCAG 1.4.11). The ring
+   is the player background, so it is only dark in a dark base theme; with a
+   light base it measures 1.5–2.6:1 on the lighter fills. Accepted limitation
+   (#1409, DEC-010), not a regression from the paint fix. */
 .seek-bar-marker::before {
   content: "";
   width: 2px;
@@ -509,13 +526,16 @@
 }
 
 /* Passed markers dim and shorten, so the state is not carried by opacity
-   alone. Focus restores full opacity so its ring stays visible. */
-.seek-bar-marker.is-passed {
-  opacity: 0.5;
-}
-
+   alone. Only the tick body and its colour edge dim; the one-pixel ring stays
+   opaque, because it is what keeps a 3:1 boundary against the themed fill in a
+   dark base theme (WCAG 1.4.11, #1409/DEC-010). The light-base limitation
+   above is accepted. */
 .seek-bar-marker.is-passed::before {
   height: 8px;
+  background: color-mix(in srgb, currentColor 50%, transparent);
+  box-shadow:
+    0 0 0 1px var(--background-primary),
+    0 0 0 2px color-mix(in srgb, currentColor 50%, transparent);
 }
 
 .seek-bar-marker:hover {
@@ -523,8 +543,11 @@
 }
 
 .seek-bar-marker:focus-visible {
-  opacity: 1;
   z-index: 1;
+}
+
+.seek-bar-marker.is-passed:focus-visible::before {
+  background: currentColor;
 }
 
 .seek-bar-marker:focus-visible {
