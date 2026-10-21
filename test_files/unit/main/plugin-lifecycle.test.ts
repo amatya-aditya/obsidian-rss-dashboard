@@ -917,7 +917,7 @@ describe("onload() initialization", () => {
     vi.useRealTimers();
   });
 
-  it("does not reload for shard file modify", async () => {
+  it("reloads settings and refreshes dashboard on watched shard file modify (#1412)", async () => {
     vi.useFakeTimers();
     const handlers: Record<string, (...args: unknown[]) => void> = {};
     plugin.app.vault.on = vi.fn(
@@ -939,8 +939,8 @@ describe("onload() initialization", () => {
     handlers.modify?.({ path: ".rss-dashboard-data/feeds/some-feed.json" });
     await vi.runAllTimersAsync();
 
-    expect(loadSpy).toHaveBeenCalledTimes(1);
-    expect(refreshSpy).toHaveBeenCalledTimes(0);
+    expect(loadSpy).toHaveBeenCalledTimes(2);
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
     vi.useRealTimers();
   });
 
@@ -1128,9 +1128,10 @@ describe("onload() initialization", () => {
     const adapter = plugin.app.vault.adapter as unknown as {
       write: (path: string, content: string) => Promise<void>;
     };
-    vi.spyOn(adapter, "write").mockImplementation((path) => {
+    const realWrite = adapter.write.bind(adapter);
+    vi.spyOn(adapter, "write").mockImplementation(async (path, content) => {
+      await realWrite(path, content);
       handlers.modify?.({ path });
-      return Promise.resolve();
     });
 
     await plugin.saveSettings();

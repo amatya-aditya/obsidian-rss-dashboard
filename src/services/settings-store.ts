@@ -25,6 +25,7 @@ import {
   loadMetadata,
 } from "./metadata-location";
 import { comparableSnapshotJson } from "./storage-json";
+import { normalizeFolderPath } from "./feed-storage-shard";
 
 function storageLog(_message: string, _details?: unknown): void {}
 
@@ -532,6 +533,34 @@ export class SettingsStore {
     this.scheduleMetadataReload();
   }
 
+  private isWatchedShardPath(filePath: string): boolean {
+    const currentSettings = this.settings ?? DEFAULT_SETTINGS;
+    if (currentSettings.storageMode !== "vault-shards-v2") {
+      return false;
+    }
+
+    const storageFolder =
+      currentSettings.storageFolder || DEFAULT_SETTINGS.storageFolder;
+    const normalizedFolder = normalizeFolderPath(storageFolder);
+    if (!normalizedFolder) return false;
+
+    const normalizedFile = normalizePath(
+      filePath.trim().replace(/\\/g, "/"),
+    ).replace(/^\/+|\/+$/g, "");
+
+    const folderPrefix = `${normalizedFolder.replace(/^\/+|\/+$/g, "")}/`;
+    if (!normalizedFile.startsWith(folderPrefix)) {
+      return false;
+    }
+
+    const remainder = normalizedFile.slice(folderPrefix.length);
+    if (remainder.includes("/") || !remainder.endsWith(".json")) {
+      return false;
+    }
+
+    return remainder.length > 5;
+  }
+
   /**
    * Watches the vault for a change to the metadata folder's data files and
    * reloads the settings after a debounce. Only the plugin may register
@@ -550,11 +579,37 @@ export class SettingsStore {
     };
     if (typeof vault.on !== "function") return;
 
-    const scheduleReload = (file?: unknown, oldPath?: unknown): void => {
+    const scheduleReload = async (
+      file?: unknown,
+      oldPath?: unknown,
+    ): Promise<void> => {
+      const filePath = this.getVaultFilePath(file);
+
+      // Shard events do not honor suppressWatcherUntil; content comparison
+      // replaces it for shards (#1412).
+      if (filePath && this.isWatchedShardPath(filePath)) {
+        let content: string | null = null;
+        try {
+          content = await this.app.vault.adapter.read(filePath);
+        } catch {
+          content = null;
+        }
+
+        // Identical: ignore. Different, unreadable, or no baseline: reload.
+        if (
+          content !== null &&
+          this.feedStorageRepository.isLastSeenShardContent(filePath, content)
+        ) {
+          return;
+        }
+
+        this.scheduleMetadataReload();
+        return;
+      }
+
       if (Date.now() < this.suppressWatcherUntil) return;
 
       const candidatePaths: string[] = [];
-      const filePath = this.getVaultFilePath(file);
       if (filePath) {
         candidatePaths.push(filePath);
       }
@@ -571,11 +626,11 @@ export class SettingsStore {
       this.scheduleMetadataReload();
     };
 
-    registerEvent(vault.on("modify", (file) => scheduleReload(file)));
-    registerEvent(vault.on("create", (file) => scheduleReload(file)));
+    registerEvent(vault.on("modify", (file) => void scheduleReload(file)));
+    registerEvent(vault.on("create", (file) => void scheduleReload(file)));
     registerEvent(
       vault.on("rename", (file, oldPath) => {
-        scheduleReload(file, oldPath);
+        void scheduleReload(file, oldPath);
         const path = this.getVaultFilePath(file);
         if (!path || typeof oldPath !== "string") return;
         onRename?.({ path }, oldPath, file instanceof TFolder);
