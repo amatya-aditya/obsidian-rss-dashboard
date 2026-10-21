@@ -523,13 +523,15 @@
 }
 
 /* Passed markers dim and shorten, so the state is not carried by opacity
-   alone. Focus restores full opacity so its ring stays visible. */
-.seek-bar-marker.is-passed {
-  opacity: 0.5;
-}
-
+   alone. Only the tick body and its colour edge dim; the one-pixel dark ring
+   stays opaque, because it is what keeps a 3:1 boundary against the themed
+   fill (WCAG 1.4.11, #1409/DEC-010). */
 .seek-bar-marker.is-passed::before {
   height: 8px;
+  background: color-mix(in srgb, currentColor 50%, transparent);
+  box-shadow:
+    0 0 0 1px var(--background-primary),
+    0 0 0 2px color-mix(in srgb, currentColor 50%, transparent);
 }
 
 .seek-bar-marker:hover {
@@ -537,8 +539,11 @@
 }
 
 .seek-bar-marker:focus-visible {
-  opacity: 1;
   z-index: 1;
+}
+
+.seek-bar-marker.is-passed:focus-visible::before {
+  background: currentColor;
 }
 
 .seek-bar-marker:focus-visible {
