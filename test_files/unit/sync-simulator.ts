@@ -1,4 +1,4 @@
-import type { App } from "obsidian";
+import type { MockApp } from "obsidian";
 
 /**
  * Joins two mock vaults and delivers files from one to the other the way
@@ -15,6 +15,9 @@ import type { App } from "obsidian";
  *   `deliverNext()` call.
  * - Delays between files under fake timers, and partial arrival.
  * - Last writer wins: a delivered file replaces the receiver's copy.
+ *
+ * Ledger row b1 (a dot-folder: `raw` only) is unreachable here: every
+ * dot-path but the bootstrap file is skipped, so the receiver never sees one.
  *
  * It has no merge policy and no conflict-copy policy on purpose. DEC-008
  * excludes Sync's real merge algorithm from the mocks, and DEC-011 bars
@@ -38,28 +41,12 @@ export interface DeliverOptions {
   delayMs?: number;
 }
 
-type VaultWithFiles = { adapterFiles: Map<string, string> };
-
-type ExternalVault = {
-  configDir: string;
-  addFolderOnDisk(path: string): void;
-  externalWrite(path: string, content: string): void;
-};
-
-function sourceFiles(app: App): Map<string, string> {
-  return (app.vault as unknown as VaultWithFiles).adapterFiles;
-}
-
-function receiver(app: App): ExternalVault {
-  return app.vault as unknown as ExternalVault;
-}
-
 export class SyncSimulator {
   private readonly pluginId: string;
 
   constructor(
-    private readonly from: App,
-    private readonly to: App,
+    private readonly from: MockApp,
+    private readonly to: MockApp,
     options: SyncSimulatorOptions = {},
   ) {
     this.pluginId = options.pluginId ?? "rss-dashboard";
@@ -67,18 +54,20 @@ export class SyncSimulator {
 
   /** The bootstrap pointer, the one config-folder file Sync carries. */
   private bootstrapPath(): string {
-    return `${receiver(this.to).configDir}/plugins/${this.pluginId}/data.json`;
+    return `${this.to.vault.configDir}/plugins/${this.pluginId}/data.json`;
   }
 
   /** Whether Sync would carry `path` to the other vault. */
-  isSynced(path: string): boolean {
+  private isSynced(path: string): boolean {
     if (path === this.bootstrapPath()) return true;
     return path.split("/").every((segment) => !segment.startsWith("."));
   }
 
   /** The paths a delivery would carry now, in the order it would send them. */
-  plan(options: Pick<DeliverOptions, "order" | "only"> = {}): string[] {
-    const available = [...sourceFiles(this.from).keys()].filter((path) =>
+  private plannedPaths(
+    options: Pick<DeliverOptions, "order" | "only"> = {},
+  ): string[] {
+    const available = [...this.from.vault.filesOnDisk.keys()].filter((path) =>
       this.isSynced(path),
     );
     const order = options.order ?? "in-order";
@@ -101,7 +90,7 @@ export class SyncSimulator {
    */
   async deliver(options: DeliverOptions = {}): Promise<string[]> {
     const delivered: string[] = [];
-    const paths = this.plan(options);
+    const paths = this.plannedPaths(options);
     for (const [index, path] of paths.entries()) {
       if (index > 0 && options.delayMs) {
         await new Promise<void>((resolve) =>
@@ -119,15 +108,12 @@ export class SyncSimulator {
    * between calls arrives as the newer copy.
    */
   startDelivery(options: Pick<DeliverOptions, "order" | "only"> = {}): {
-    remaining(): string[];
     next(): string | undefined;
   } {
-    const queue = this.plan(options);
+    const queue = this.plannedPaths(options);
     return {
-      remaining: () => [...queue],
       next: () => {
-        while (queue.length > 0) {
-          const path = queue.shift() as string;
+        for (let path = queue.shift(); path; path = queue.shift()) {
           if (this.deliverFile(path)) return path;
         }
         return undefined;
@@ -136,12 +122,10 @@ export class SyncSimulator {
   }
 
   private deliverFile(path: string): boolean {
-    const content = sourceFiles(this.from).get(path);
+    const content = this.from.vault.filesOnDisk.get(path);
     if (content === undefined) return false;
-    const destination = receiver(this.to);
-    const parent = path.includes("/")
-      ? path.slice(0, path.lastIndexOf("/"))
-      : "";
+    const destination = this.to.vault;
+    const parent = path.slice(0, Math.max(path.lastIndexOf("/"), 0));
     if (parent) destination.addFolderOnDisk(parent);
     destination.externalWrite(path, content);
     return true;

@@ -1,46 +1,39 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { App, Plugin } from "obsidian";
+import { App, Plugin, type MockApp } from "obsidian";
 import { SyncSimulator } from "./sync-simulator";
 
-type MockVault = {
-  configDir: string;
-  adapterFiles: Map<string, string>;
-  addFolderOnDisk(path: string): void;
-  on(name: string, callback: (...args: unknown[]) => unknown): unknown;
-};
-
-function vaultOf(app: App): MockVault {
-  return app.vault as unknown as MockVault;
-}
-
-function setUp(): { desktop: App; mobile: App; sync: SyncSimulator } {
+function setUp(): { desktop: MockApp; mobile: MockApp; sync: SyncSimulator } {
   const desktop = App.createMock();
   const mobile = App.createMock();
   return { desktop, mobile, sync: new SyncSimulator(desktop, mobile) };
 }
 
-function seed(app: App, files: Record<string, string>): void {
+function seed(app: MockApp, files: Record<string, string>): void {
   for (const [path, content] of Object.entries(files)) {
-    const parent = path.includes("/")
-      ? path.slice(0, path.lastIndexOf("/"))
-      : "";
-    if (parent) vaultOf(app).addFolderOnDisk(parent);
-    vaultOf(app).adapterFiles.set(path, content);
+    const parent = path.slice(0, Math.max(path.lastIndexOf("/"), 0));
+    if (parent) app.vault.addFolderOnDisk(parent);
+    app.vault.filesOnDisk.set(path, content);
   }
 }
 
-function received(app: App): Record<string, string> {
-  return Object.fromEntries(vaultOf(app).adapterFiles);
+function filesOn(app: MockApp): Record<string, string> {
+  return Object.fromEntries(app.vault.filesOnDisk);
 }
 
-function record(app: App): string[] {
+function record(app: MockApp): string[] {
   const events: string[] = [];
   for (const name of ["create", "modify", "delete", "rename"]) {
-    vaultOf(app).on(name, (file) =>
-      events.push(`${name}:${(file as { path: string }).path}`),
+    app.vault.on(name as "create", (file) =>
+      events.push(`${name}:${file.path}`),
     );
   }
   return events;
+}
+
+function recordRaw(app: MockApp): unknown[] {
+  const paths: unknown[] = [];
+  app.vault.on("raw" as "create", (path) => paths.push(path));
+  return paths;
 }
 
 describe("SyncSimulator", () => {
@@ -69,7 +62,7 @@ describe("SyncSimulator", () => {
         "rss-dashboard-data/data.json",
         "rss-dashboard-data/feeds/a.json",
       ]);
-      expect(Object.keys(received(mobile)).sort()).toEqual([
+      expect(Object.keys(filesOn(mobile)).sort()).toEqual([
         "rss-dashboard-data/data.json",
         "rss-dashboard-data/feeds/a.json",
       ]);
@@ -87,7 +80,7 @@ describe("SyncSimulator", () => {
 
       await sync.deliver();
 
-      expect(received(mobile)).toEqual({ [pointer]: '{"pointer":true}' });
+      expect(filesOn(mobile)).toEqual({ [pointer]: '{"pointer":true}' });
     });
 
     it("honours a different plugin id for the bootstrap exception", async () => {
@@ -98,7 +91,7 @@ describe("SyncSimulator", () => {
 
       await new SyncSimulator(desktop, mobile, { pluginId: "other" }).deliver();
 
-      expect(received(mobile)).toEqual({ [pointer]: "{}" });
+      expect(filesOn(mobile)).toEqual({ [pointer]: "{}" });
     });
   });
 
@@ -107,8 +100,7 @@ describe("SyncSimulator", () => {
       const { desktop, mobile, sync } = setUp();
       seed(desktop, { "data/a.json": "one" });
       const events = record(mobile);
-      const raw: unknown[] = [];
-      vaultOf(mobile).on("raw", (path) => raw.push(path));
+      const raw = recordRaw(mobile);
 
       await sync.deliver();
       seed(desktop, { "data/a.json": "two" });
@@ -118,12 +110,11 @@ describe("SyncSimulator", () => {
       expect(raw).toEqual(["data/a.json", "data/a.json"]);
     });
 
-    it("fires only raw for a dot-folder file the exception lets through", async () => {
+    it("fires only raw for the bootstrap data.json when no plugin is registered", async () => {
       const { desktop, mobile, sync } = setUp();
       seed(desktop, { ".vault-config/plugins/rss-dashboard/data.json": "{}" });
       const events = record(mobile);
-      const raw: unknown[] = [];
-      vaultOf(mobile).on("raw", (path) => raw.push(path));
+      const raw = recordRaw(mobile);
 
       await sync.deliver();
 
@@ -219,18 +210,12 @@ describe("SyncSimulator", () => {
       const events = record(mobile);
       const delivery = sync.startDelivery({ order: "reverse" });
 
-      expect(delivery.remaining()).toEqual([
-        "d/c.json",
-        "d/b.json",
-        "d/a.json",
-      ]);
       expect(delivery.next()).toBe("d/c.json");
       expect(events).toEqual(["create:d/c.json"]);
-      expect(received(mobile)).toEqual({ "d/c.json": "c" });
+      expect(filesOn(mobile)).toEqual({ "d/c.json": "c" });
       expect(delivery.next()).toBe("d/b.json");
       expect(delivery.next()).toBe("d/a.json");
       expect(delivery.next()).toBeUndefined();
-      expect(delivery.remaining()).toEqual([]);
     });
 
     it("lets a one-at-a-time delivery pick up an edit made between calls", () => {
@@ -242,7 +227,7 @@ describe("SyncSimulator", () => {
       seed(desktop, { "d/b.json": "new" });
       delivery.next();
 
-      expect(received(mobile)["d/b.json"]).toBe("new");
+      expect(filesOn(mobile)["d/b.json"]).toBe("new");
     });
   });
 
@@ -253,13 +238,13 @@ describe("SyncSimulator", () => {
 
       const pending = sync.deliver({ delayMs: 1000 });
       await vi.advanceTimersByTimeAsync(0);
-      expect(Object.keys(received(mobile))).toEqual(["d/a.json"]);
+      expect(Object.keys(filesOn(mobile))).toEqual(["d/a.json"]);
 
       await vi.advanceTimersByTimeAsync(999);
-      expect(Object.keys(received(mobile))).toEqual(["d/a.json"]);
+      expect(Object.keys(filesOn(mobile))).toEqual(["d/a.json"]);
 
       await vi.advanceTimersByTimeAsync(1);
-      expect(Object.keys(received(mobile))).toEqual(["d/a.json", "d/b.json"]);
+      expect(Object.keys(filesOn(mobile))).toEqual(["d/a.json", "d/b.json"]);
 
       await vi.advanceTimersByTimeAsync(1000);
       await expect(pending).resolves.toEqual([
@@ -278,7 +263,7 @@ describe("SyncSimulator", () => {
       const delivered = await sync.deliver({ only: ["d/data.json"] });
 
       expect(delivered).toEqual(["d/data.json"]);
-      expect(received(mobile)).toEqual({ "d/data.json": "d" });
+      expect(filesOn(mobile)).toEqual({ "d/data.json": "d" });
     });
 
     it("lets the missing file arrive in a later delivery", async () => {
@@ -301,7 +286,7 @@ describe("SyncSimulator", () => {
 
       await sync.deliver();
 
-      expect(received(mobile)["d/a.json"]).toBe('{"remote":1}');
+      expect(filesOn(mobile)["d/a.json"]).toBe('{"remote":1}');
     });
 
     it("keeps whichever delivery arrived last", async () => {
@@ -311,7 +296,7 @@ describe("SyncSimulator", () => {
       seed(desktop, { "d/a.json": "second" });
       await sync.deliver();
 
-      expect(received(mobile)["d/a.json"]).toBe("second");
+      expect(filesOn(mobile)["d/a.json"]).toBe("second");
     });
 
     it("writes no conflict copy when both vaults changed the same file", async () => {
@@ -321,7 +306,7 @@ describe("SyncSimulator", () => {
 
       await sync.deliver();
 
-      expect(Object.keys(received(mobile))).toEqual(["d/a.json"]);
+      expect(Object.keys(filesOn(mobile))).toEqual(["d/a.json"]);
     });
   });
 });

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { App } from "obsidian";
+import { App, type MockApp } from "obsidian";
 import { SyncSimulator } from "../sync-simulator";
 import { FeedStorageRepository } from "../../../src/services/feed-storage-repository";
 import {
@@ -7,13 +7,6 @@ import {
   type Feed,
   type RssDashboardSettings,
 } from "../../../src/types/types";
-
-// The in-memory vault stub keeps adapter-written files in a private map; the
-// assertions below list what a device wrote.
-function adapterFiles(app: App): Map<string, string> {
-  return (app.vault as unknown as { adapterFiles: Map<string, string> })
-    .adapterFiles;
-}
 
 function makeFeed(): Feed {
   return {
@@ -47,7 +40,7 @@ async function setUpSecondDevice(folders: {
   storageFolder: string;
   metadataStorageFolder: string;
 }): Promise<{
-  mobile: App;
+  mobile: MockApp;
   mobileSettings: RssDashboardSettings;
   mobileRepository: FeedStorageRepository;
 }> {
@@ -109,7 +102,7 @@ describe("Shard storage v2 - cross-device sync", () => {
     await mobileRepository.persistSettings(mobileSettings, saveData);
     await mobileRepository.repairVaultShards(mobileSettings, saveData);
 
-    const writtenShards = [...adapterFiles(mobile).keys()].filter((path) =>
+    const writtenShards = [...mobile.vault.filesOnDisk.keys()].filter((path) =>
       path.startsWith(`${DEFAULT_SETTINGS.storageFolder}/`),
     );
     expect(writtenShards).toEqual([]);
