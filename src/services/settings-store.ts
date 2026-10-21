@@ -29,6 +29,7 @@ import {
   loadMetadata,
 } from "./metadata-location";
 import { comparableSnapshotJson } from "./storage-json";
+import { ownWriteKey, type OwnWriteRecord } from "./own-write-record";
 import { mergeSettingsGroups } from "./settings-group-merge";
 import { normalizeFolderPath } from "./feed-storage-shard";
 
@@ -149,15 +150,8 @@ export class SettingsStore {
   private pendingMetadataFolder: string | null = null;
   private vaultMetadataReloadTimer: number | null = null;
   /**
-   * Comparable content of each watched metadata file (`data.json`,
-   * `user-state.json`) as this device last wrote or loaded it, keyed by the
-   * slash-trimmed vault path. The watcher skips a change that matches (an own
-   * write) and reloads every other one (#1413).
-   */
-  private watchedContentRecords = new Map<string, string>();
-  /**
    * The vault-location `data.json` as last written or loaded, as an object,
-   * keyed like `watchedContentRecords` (#1431).
+   * keyed like the Own write record (#1431).
    */
   private vaultDataBaselines = new Map<string, Record<string, unknown>>();
   /** Watched paths that fired an event since the last debounced check. */
@@ -229,72 +223,33 @@ export class SettingsStore {
     return this.options.feedStorageRepository;
   }
 
-  private watchedKey(path: string): string {
-    return path.replace(/^\/+|\/+$/g, "");
-  }
-
-  /** Comparable form of a watched file's text, or null when unparseable. */
-  private comparableFromText(text: string): string | null {
-    try {
-      const parsed: unknown = JSON.parse(text);
-      return isRecord(parsed) ? comparableSnapshotJson(parsed) : null;
-    } catch {
-      return null;
-    }
+  private get ownWrites(): OwnWriteRecord {
+    return this.feedStorageRepository.ownWrites;
   }
 
   /**
    * Records what a load read from a watched file, so a later event for the
-   * same content is recognized as this device's own (#1413). Unparseable
-   * text drops the record, so the next event reloads.
+   * same content is recognized as this device's own (#1413).
    */
   recordMetadataFileRead(path: string, text: string): void {
-    const comparable = this.comparableFromText(text);
-    if (comparable === null) {
-      this.watchedContentRecords.delete(this.watchedKey(path));
-      return;
-    }
-    this.watchedContentRecords.set(this.watchedKey(path), comparable);
+    this.ownWrites.recordRead(path, text);
   }
 
   /**
    * Runs a plugin write to a watched metadata file and records its content,
    * so the watcher tells the plugin's own write from a synced change by
-   * content, not timing (#1413). The record moves before the write lands, so
-   * events that arrive early still match; a failed write restores the
-   * previous record unless a later write replaced it.
+   * content, not timing (#1413).
    */
-  async writeMetadataFile<T>(
+  writeMetadataFile<T>(
     path: string,
     content: string,
     writeFn: () => Promise<T>,
   ): Promise<T> {
-    const key = this.watchedKey(path);
-    const previous = this.watchedContentRecords.get(key);
-    const written = this.comparableFromText(content);
-    if (written === null) this.watchedContentRecords.delete(key);
-    else this.watchedContentRecords.set(key, written);
-    try {
-      return await writeFn();
-    } catch (error) {
-      if (this.watchedContentRecords.get(key) === (written ?? undefined)) {
-        if (previous === undefined) this.watchedContentRecords.delete(key);
-        else this.watchedContentRecords.set(key, previous);
-      }
-      throw error;
-    }
+    return this.ownWrites.write(path, content, writeFn);
   }
 
-  /** Whether a touched watched file still holds what this device recorded. */
-  private async matchesRecord(path: string): Promise<boolean> {
-    const record = this.watchedContentRecords.get(this.watchedKey(path));
-    if (record === undefined) return false;
-    try {
-      const text = await this.app.vault.adapter.read(path);
-      return this.comparableFromText(text) === record;
-    } catch {
-      return false;
-    }
+  private readWatchedFile(path: string): Promise<string> {
+    return this.app.vault.adapter.read(path);
   }
 
   /** Clears the pending reload timer. */
@@ -377,12 +332,9 @@ export class SettingsStore {
       if (vaultData) {
         const loadedPath = getMetadataPath(vaultData);
         if (loadedPath) {
-          this.watchedContentRecords.set(
-            this.watchedKey(`${loadedPath}/data.json`),
-            comparableSnapshotJson(vaultData),
-          );
+          this.ownWrites.recordSnapshot(`${loadedPath}/data.json`, vaultData);
           this.vaultDataBaselines.set(
-            this.watchedKey(`${loadedPath}/data.json`),
+            ownWriteKey(`${loadedPath}/data.json`),
             structuredClone(vaultData) as unknown as Record<string, unknown>,
           );
         }
@@ -401,11 +353,9 @@ export class SettingsStore {
         // old content must reload (#1413).
         const unreadablePath = getMetadataPath(data);
         if (unreadablePath) {
-          this.watchedContentRecords.delete(
-            this.watchedKey(`${unreadablePath}/data.json`),
-          );
+          this.ownWrites.forget(`${unreadablePath}/data.json`);
           this.vaultDataBaselines.delete(
-            this.watchedKey(`${unreadablePath}/data.json`),
+            ownWriteKey(`${unreadablePath}/data.json`),
           );
         }
         if (keepCurrentSettings) {
@@ -653,7 +603,11 @@ export class SettingsStore {
         this.externalChangeConfirmed = false;
         if (!confirmed) {
           const matches = await Promise.all(
-            touched.map((path) => this.matchesRecord(path)),
+            touched.map((path) =>
+              this.ownWrites.matchesDisk(path, (file) =>
+                this.readWatchedFile(file),
+              ),
+            ),
           );
           if (matches.every(Boolean)) return;
         }
@@ -698,21 +652,13 @@ export class SettingsStore {
   }
 
   /** Whether `user-state.json` holds a change this device has not loaded. */
-  private async hasUnseenUserStateChange(): Promise<boolean> {
+  private hasUnseenUserStateChange(): Promise<boolean> {
     const folder =
       this.settings.metadataStorageFolder?.trim() || ".rss-dashboard-data";
     const path = normalizePath(`${folder}/user-state.json`);
-    const record = this.watchedContentRecords.get(this.watchedKey(path));
-    // Without a record there is nothing to compare; the watcher reloads on the
-    // event instead.
-    if (record === undefined) return false;
-    try {
-      const text = await this.app.vault.adapter.read(path);
-      const comparable = this.comparableFromText(text);
-      return comparable !== null && comparable !== record;
-    } catch {
-      return false;
-    }
+    return this.ownWrites.hasUnseenChange(path, (file) =>
+      this.readWatchedFile(file),
+    );
   }
 
   /**
@@ -837,25 +783,18 @@ export class SettingsStore {
     ): Promise<void> => {
       const filePath = this.getVaultFilePath(file);
 
-      // A shard is judged by content here, so a change that differs reloads
-      // without the touched-path check (#1412).
+      // A shard is judged like the other watched files: by its comparable
+      // content, after the debounce (#1422). The plugin's own write returns
+      // here, as before, so its echo never restarts a pending reload.
       if (filePath && this.isWatchedShardPath(filePath)) {
-        let content: string | null = null;
-        try {
-          content = await this.app.vault.adapter.read(filePath);
-        } catch {
-          content = null;
-        }
-
-        // Identical: ignore. Different, unreadable, or no baseline: reload.
         if (
-          content !== null &&
-          this.feedStorageRepository.isLastSeenShardContent(filePath, content)
+          await this.ownWrites.matchesDisk(filePath, (file) =>
+            this.readWatchedFile(file),
+          )
         ) {
           return;
         }
-
-        this.scheduleMetadataReload();
+        this.scheduleMetadataReload(filePath);
         return;
       }
 
@@ -975,23 +914,52 @@ export class SettingsStore {
     if (comparableSnapshotJson(disk) === baseline.comparable) return data;
 
     try {
-      const { merged, adopted, conflicts } = mergeSettingsGroups(
-        baseline.data,
-        disk,
-        data,
-      );
-      if (conflicts.length > 0) {
+      const {
+        merged,
+        conflicts,
+        adoptedEntries,
+        conflictEntries,
+        droppedEntries,
+        danglingEntries,
+        duplicateEntries,
+      } = mergeSettingsGroups(baseline.data, disk, data);
+      if (conflicts.length > 0 || conflictEntries.length > 0) {
         storageLog("Settings changed on both sides; keeping this device's", {
           where,
           groups: conflicts,
+          entries: conflictEntries,
         });
       }
-      if (adopted.length === 0) return merged;
+      if (adoptedEntries.length > 0) {
+        storageLog("Adopting synced settings entries before saving", {
+          where,
+          entries: adoptedEntries,
+        });
+      }
+      if (droppedEntries.length > 0) {
+        storageLog("Dropping synced folders whose parent is gone", {
+          where,
+          entries: droppedEntries,
+        });
+      }
+      if (danglingEntries.length > 0) {
+        storageLog("Synced feeds name a folder that is not here", {
+          where,
+          entries: danglingEntries,
+        });
+      }
+      if (duplicateEntries.length > 0) {
+        storageLog("Duplicate synced settings entries; keeping the first", {
+          where,
+          entries: duplicateEntries,
+        });
+      }
+      const applied = this.adoptMergedSettings(merged, data);
+      if (applied.length === 0) return merged;
       storageLog("Adopting synced settings groups before saving", {
         where,
-        groups: adopted,
+        groups: applied,
       });
-      this.adoptSettingsGroups(adopted, disk);
       this.dropPendingSettingsReload();
       void this.options.refreshDashboardViews();
       return merged;
@@ -1025,18 +993,27 @@ export class SettingsStore {
   }
 
   /**
-   * Copies groups from the file into the live settings. The file's `feeds`
-   * carry no items, so each feed keeps the items already in memory.
+   * Copies every merged group that differs from this device's snapshot into the
+   * live settings, and returns their names. Entries adopted per feed or folder
+   * arrive here too, because the merge already folded them into the group.
+   * The file's `feeds` carry no items, so each feed keeps the items already in
+   * memory.
    */
-  private adoptSettingsGroups(
-    groups: readonly string[],
-    disk: Record<string, unknown>,
-  ): void {
+  private adoptMergedSettings(
+    merged: Record<string, unknown>,
+    memory: Record<string, unknown>,
+  ): string[] {
     const live = this.settings as unknown as Record<string, unknown>;
-    for (const group of groups) {
-      const value = disk[group];
+    const adopted: string[] = [];
+    const sameGroup = (left: unknown, right: unknown): boolean =>
+      comparableSnapshotJson({ group: left }) ===
+      comparableSnapshotJson({ group: right });
+    for (const group of Object.keys(merged)) {
+      if (sameGroup(merged[group], memory[group])) continue;
+      const value = merged[group];
       if (value === undefined) {
         delete live[group];
+        adopted.push(group);
         continue;
       }
       const copy = structuredClone(value);
@@ -1051,7 +1028,9 @@ export class SettingsStore {
       } else {
         live[group] = copy;
       }
+      adopted.push(group);
     }
+    return adopted;
   }
 
   getMetadataSaveCallback(): (data: unknown) => Promise<void> {
@@ -1063,12 +1042,12 @@ export class SettingsStore {
         try {
           await ensureMetadataFolderExists(this.app, this.settings);
           const dataFilePath = `${metadataPath}/data.json`;
-          const dataKey = this.watchedKey(dataFilePath);
+          const dataKey = ownWriteKey(dataFilePath);
           if (isRecord(data)) {
             settingsData = (await this.mergeUnseenSettingsChanges(
               data,
               {
-                comparable: this.watchedContentRecords.get(dataKey) ?? null,
+                comparable: this.ownWrites.comparableOf(dataFilePath) ?? null,
                 data: this.vaultDataBaselines.get(dataKey) ?? null,
               },
               async () =>

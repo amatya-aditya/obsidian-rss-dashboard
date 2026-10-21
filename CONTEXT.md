@@ -438,7 +438,7 @@ Where the plugin's `data.json` (settings, feed definitions, folder organization,
 _Avoid_: Storage (unqualified), config storage
 
 **Own write**:
-A change to a watched metadata file (`data.json` or `user-state.json` in [[Metadata storage]]) whose content matches what this device last wrote or loaded there. The plugin skips reloading an own write and reloads every other change. It is recognized by content, never by timing.
+A change to a watched file (`data.json` or `user-state.json` in [[Metadata storage]], or a feed shard in [[Shard storage]] v2) whose comparable content matches what this device last wrote or loaded there. Comparable content ignores key order, `_syncNonce` and `_syncPad`. The plugin skips reloading an own write and reloads every other change. It is recognized by content, never by timing. One record, keyed by normalized path, holds them all; the plugin's own `saveData`/`loadData` baseline stays separate.
 _Avoid_: Suppression window, echo
 
 **Sync delivery**:
@@ -448,6 +448,10 @@ _Avoid_: Sync event, synced write
 **Arrival order**:
 The sequence in which the v2 files of a [[Sync delivery]] land on disk, for example a shard after `data.json`, or `user-state.json` last. Sync gives no completion signal, so the plugin cannot assume any order.
 _Avoid_: Sync order, write order
+
+**Local wins on shard delete**:
+When another device's delete of a feed shard reaches this device and the feed is still in its feed list, the plugin keeps the feed and its articles, and the next save rewrites the shard from memory. A shard's absence never removes a feed or its articles; only the feed list in `data.json` does, as a [[Feed removal]] (ADR 0010: "absence alone never authorizes removal"). The plugin deliberately has no `delete` listener: a reload would empty the feed, and a prompt rewrite could bring back the shard of a feed whose removal has not yet reached `data.json` (#1440).
+_Avoid_: Shard delete sync, shard tombstone
 
 **Real Sync pass**:
 An approved, attended run of [[Sync delivery]] scenarios against real Obsidian Sync, in the maintainer's real vault with [[Device B]] on the same remote, after a verified backup. It observes what no mock can show: Sync's real merge, timing, conflict files, and event delivery. The agent attaches over CDP to the real profile within bounded actions. See [ADR 0035](docs/adr/0035-test-real-obsidian-sync-in-the-real-vault.md) and the [Real Sync runbook](docs/development/real-sync-runbook.md).
@@ -476,6 +480,10 @@ _Avoid_: Cutoff date, sunset, deprecation release
 **Read-only vault**:
 A vault whose feed storage is a [[deprecated storage mode]] on a release carrying the [[storage cutoff]]. It displays its articles, marks read state in memory for the session, exports a [[portable data bundle]], and can migrate to Shard storage v2. It writes nothing else; preference changes made while read-only are lost on quit, exactly like read marks. The state is enforced at the persistence choke point and is distinct from a failed settings load. See [ADR 0024](docs/adr/0024-enforce-the-read-only-cutoff-at-the-persistence-choke-point.md).
 _Avoid_: Read-only mode (that names a [[deprecated storage mode]], not a vault), frozen vault, locked vault
+
+**Orphan shard**:
+A shard file on disk for a feed that the device's feed list no longer contains. When this device last wrote or read that exact file, the next save after the removing feed list arrives deletes it (**removal-arrival cleanup**). Any other orphan shard, for example one changed by another device or left over from before a restart, is kept and is the subject of the storage health check (#318). Distinct from a missing shard, which is a feed in the list whose file is gone.
+_Avoid_: stray shard, leftover shard
 
 **Feed content**:
 The article or episode data (title, body, media, publish date) written into a feed's shard file under Shard storage v2. Distinct from that feed's article state, which v2 stores separately.

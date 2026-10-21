@@ -53,6 +53,8 @@ Only an explicit feed removal on this device — deleting or unsubscribing a fee
 
 State for any other feed absent from the device's feed list is unrecognized, not deleted. It is retained for the same 90-day horizon and removed on a later normal state save. If the feed reappears in the device's feed list first, its marker is cleared and its state is retained. Replacing the feed list by importing a bundle, a legacy `data.json`, or a preferences file that includes feeds, which is also how a backup is restored, is not an explicit removal, so state for feeds it drops follows the horizon and matches again if those feeds return.
 
+An arriving feed list removes a feed's shard only when this device wrote or read that exact file (#1444). Hydration notes the feed and the shard content it last saw but deletes nothing; the next save that writes shards deletes the file if it still equals that content. A shard another device changed, a missing or unreadable file, and a feed that returns to the list first are left alone. The note lives in memory for the session, so an orphan shard that survives a restart is left for the storage health check (#318). A feed that a stale list hid and a later list restores comes back without articles when its shard was untouched, since the file was deleted in between. A storage-folder change that arrives with the removal records nothing, so that orphan is left for #318. This does not touch user-state: it follows the horizon above.
+
 ### Unchanged behavior
 
 An unreadable `user-state.json` is never overwritten. Cross-device write-race resolution remains outside this decision and belongs to Sync V3.
