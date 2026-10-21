@@ -1431,12 +1431,12 @@ a reload.
 | a1                                               | restore                                       | `modify`                                                                          | no                         | yes                                | size −1                        |
 | a2 `user-state.json`                             | modify, +1 byte                               | `modify`                                                                          | no                         | yes, at about 1.5 s                | mtime changes, size +1         |
 | a2                                               | restore                                       | `modify`                                                                          | no                         | yes                                | size −1                        |
-| a3 `feeds/fx-single.json`                        | modify, +1 byte                               | `modify`                                                                          | no                         | no                                 | mtime changes, size +1         |
-| a4 `feeds/__sync-probe.json`                     | create                                        | `create`                                                                          | no                         | no                                 | absent, then 14 bytes          |
-| a4                                               | modify                                        | `modify`                                                                          | no                         | no                                 | mtime and size change          |
-| a4                                               | rename to `__sync-probe-2.json`               | `create` (new path), then `delete` (old path) about 100 ms later; **no `rename`** | no                         | no                                 | old path gone                  |
+| a3 `feeds/fx-single.json`                        | modify, +1 byte                               | `modify`                                                                          | no                         | yes, at about 1.5 s (since #1412)  | mtime changes, size +1         |
+| a4 `feeds/__sync-probe.json`                     | create                                        | `create`                                                                          | no                         | yes, at about 1.5 s                | absent, then 14 bytes          |
+| a4                                               | modify                                        | `modify`                                                                          | no                         | yes                                | mtime and size change          |
+| a4                                               | rename to `__sync-probe-2.json`               | `create` (new path), then `delete` (old path) about 100 ms later; **no `rename`** | no                         | yes, once                          | old path gone                  |
 | a4                                               | delete                                        | `delete`, about 100 ms later                                                      | no                         | no                                 | gone                           |
-| a4                                               | delete then create, same path, back to back   | one `modify`; no `delete`, no `create`                                            | no                         | no                                 | new size                       |
+| a4                                               | delete then create, same path, back to back   | one `modify`; no `delete`, no `create`                                            | no                         | yes                                | new size                       |
 | a5 `data.json`                                   | write identical bytes                         | `modify` still fires                                                              | no                         | yes                                | mtime changes, size same       |
 | b1 `.sync-probe/`                                | create folder, create, modify, rename, delete | **none**                                                                          | no                         | no                                 | `adapter.stat` sees every step |
 | c1 `<configDir>/plugins/rss-dashboard/data.json` | modify, byte only (+newline)                  | **none**                                                                          | **yes, once, about 60 ms** | no (same parsed content)           | mtime changes, size +1         |
@@ -1454,10 +1454,13 @@ What the table means:
   The plugin's `rename` listener and its folder-rename handling therefore do not
   run for a synced rename.
 - **A delete-then-create inside one watcher tick collapses to a single `modify`.**
-- **The plugin reloads for `data.json` and `user-state.json` only** (its watched
-  paths), 1.5 s after the last event, even when the bytes are identical (a5).
-  Shards are not watched (a3), so a synced shard edit does not reach the
-  running plugin.
+- **The plugin reloads for `data.json`, `user-state.json` and the shards under
+  its feeds folder**, 1.5 s after the last event, even when the bytes are
+  identical (a5). The first run (#1403) saw no reload for a shard edit (a3);
+  since #1412 a synced shard create, modify or rename reloads too. Re-observed
+  on the #1424 branch (2026-10-20, same environment): a3 and the a4 create,
+  modify, rename and delete-then-create rows each reload once, while a lone
+  a4 delete did not reload in that run. The dot-folder (b1) still never does.
 - **A reload no longer rewrites `user-state.json` when nothing changed**
   (#1411). The pre-#1400 run saw the reload's temp-file create, delete and
   rename about 50 ms later; the branch rerun left the file byte-identical. The
@@ -1472,8 +1475,8 @@ What the table means:
   save** (c2): a `forceMetadata` save rewrites the pointer through
   `saveData`, and the callback count stays at zero. The content comparison
   would filter that write anyway, but on 1.14.4 it never arrives.
-- Shards and the dot-folder still never fire a reload on their own; the
-  bootstrap pointer does, through the callback. Delays quoted here are for a
+- The dot-folder never fires a reload on its own; the bootstrap pointer does,
+  through the callback. Delays quoted here are for a
   foreground window; a throttled window saw the same events 1 to 2 s later.
 
 **Restore and byte identity.** Every file the probe touched was restored to the
@@ -1484,3 +1487,7 @@ files; #1411 is why `user-state.json` now survives a reload that changed no
 article state. A run still leaves the plugin disabled, and the next run enables
 it again. Hashes the run prints: `data.json` `958e0b08…`, bootstrap pointer
 `530e1b62…`.
+
+**Modeled (#1424):** `MockDataVault` has Obsidian `Events` semantics (`on` returns an `EventRef`, `offref`, `trigger`) and `adapter.stat`. The test-only helpers `externalWrite`, `externalDelete`, `externalRename` and `externalTick` change the adapter's files and fire the rows above: modify, create and delete; a rename as `create` then `delete`; a delete then create inside one `externalTick` as one `modify`; `raw` with the path alone for every change; nothing but `raw` under a dot folder; and, for a plugin stub built with a `manifest.dir`, one `onExternalSettingsChange` for its `data.json` and no `vault.on` event. `obsidian.contract.test.ts` pins each row. The stub's own `modify`/`create`/`delete`/`rename` still fire nothing.
+
+**Unmodeled (documented boundary):** the delays (a rename's `delete` is synchronous, about 100 ms later in Obsidian), the several `raw` events per operation and the parent folder's `raw`, the plugin reload, and folder times in `adapter.stat`.
