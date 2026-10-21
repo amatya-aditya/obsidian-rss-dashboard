@@ -89,6 +89,7 @@ interface ViewInternals {
   selectedTags: string[];
   activeStatusFilters: Set<string>;
   activeTagFilters: Set<string>;
+  articleSearchQuery: string;
   allArticlesPage: number;
   unreadArticlesPage: number;
   feedPages: Record<string, number>;
@@ -387,6 +388,26 @@ describe("Dashboard backquote selects the first article of the scope (#1465)", (
     // is still swallowed.
     expect(event.defaultPrevented).toBe(true);
     expect(internals.unreadArticlesPage).toBe(3);
+    expect(internals.selectedArticle).toBeNull();
+  });
+
+  it("selects the first card the active search leaves visible", () => {
+    internals.articleSearchQuery = "Article 3";
+    internals.unreadArticlesPage = 1;
+
+    press();
+
+    expect(internals.selectedArticle?.guid).toBe("g3");
+    expect(selectedGuid()).toBe("g3");
+  });
+
+  it("leaves the key unhandled when the search hides every card", () => {
+    internals.articleSearchQuery = "no article matches this";
+    internals.unreadArticlesPage = 1;
+
+    const event = press();
+
+    expect(event.defaultPrevented).toBe(false);
     expect(internals.selectedArticle).toBeNull();
   });
 

@@ -484,18 +484,38 @@ export class RssDashboardView extends ItemView {
   public actionSelectFirst(): boolean {
     const allFilteredArticles = this.getFilteredArticles();
     if (allFilteredArticles.length === 0) return false;
-    this.getSidebarKeyboardController()?.blurSidebarFocus();
 
     if (this.getCurrentPage() === 1) {
-      const firstArticle = allFilteredArticles[0];
-      if (firstArticle) {
-        void this.selectArticle(firstArticle);
-      }
+      const firstArticle = this.firstArticleInSearchScope(
+        allFilteredArticles.slice(0, this.getCurrentPageSize()),
+      );
+      if (!firstArticle) return false;
+      this.getSidebarKeyboardController()?.blurSidebarFocus();
+      void this.selectArticle(firstArticle);
       return true;
     }
 
-    this.selectOnPageAfterRender(1, (pageArticles) => pageArticles[0]);
+    this.getSidebarKeyboardController()?.blurSidebarFocus();
+    this.selectOnPageAfterRender(1, (pageArticles) =>
+      this.firstArticleInSearchScope(pageArticles),
+    );
     return true;
+  }
+
+  /**
+   * The first article of the given rows that the article search leaves
+   * visible. The search hides rows client side without changing the scope, so
+   * "the first article" means the first one the user can actually see (#1465).
+   * The match rule is the one ArticleList applies to the rendered titles.
+   */
+  private firstArticleInSearchScope(
+    articles: FeedItem[],
+  ): FeedItem | undefined {
+    const query = this.articleSearchQuery.trim().toLowerCase();
+    if (!query) return articles[0];
+    return articles.find((article) =>
+      article.title.toLowerCase().includes(query),
+    );
   }
 
   /**
