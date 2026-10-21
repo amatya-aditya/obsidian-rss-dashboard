@@ -1,4 +1,4 @@
-import { App, Notice, TFile, TFolder, normalizePath } from "obsidian";
+import { App, Notice, TFile, TFolder } from "obsidian";
 import type {
   Feed,
   FeedItem,
@@ -16,6 +16,7 @@ import {
   getFeedShardPath,
   isHiddenFromSync,
   normalizeFolderPath,
+  normalizeShardPath,
 } from "./feed-storage-shard";
 
 function storageLog(_message: string, _details?: unknown): void {}
@@ -171,13 +172,15 @@ export async function hydrateFeedStorage(
     }
   }
 
-  recordRemovedFeedShards(
-    settings,
-    host,
-    feedsById,
-    previousFeedIds,
-    previousContentByPath,
-  );
+  // Shard storage v2 only: v1 is deprecated and gets no new write logic.
+  if (settings.storageMode === "vault-shards-v2") {
+    recordRemovedFeedShards(settings, host, feedsById, {
+      feedIds: previousFeedIds,
+      contentByPath: previousContentByPath,
+    });
+  } else {
+    host.state.removedFeedShardBaselines.clear();
+  }
 
   const {
     shardCount: hydratedShardCount,
@@ -223,27 +226,25 @@ function recordRemovedFeedShards(
   settings: RssDashboardSettings,
   host: FeedStorageRunnerHost,
   feedsById: ReadonlyMap<string, Feed>,
-  previousFeedIds: readonly string[],
-  previousContentByPath: ReadonlyMap<string, string>,
+  previous: {
+    feedIds: readonly string[];
+    contentByPath: ReadonlyMap<string, string>;
+  },
 ): void {
   const baselines = host.state.removedFeedShardBaselines;
   for (const feedId of feedsById.keys()) {
     baselines.delete(feedId);
   }
-  for (const feedId of previousFeedIds) {
+  for (const feedId of previous.feedIds) {
     if (feedsById.has(feedId)) {
       continue;
     }
     const shardPath = getFeedShardPath(settings.storageFolder, feedId);
-    const content = previousContentByPath.get(normalizeShardPath(shardPath));
+    const content = previous.contentByPath.get(normalizeShardPath(shardPath));
     if (content !== undefined) {
       baselines.set(feedId, { shardPath, content });
     }
   }
-}
-
-function normalizeShardPath(shardPath: string): string {
-  return normalizePath(shardPath.trim().replace(/\\/g, "/"));
 }
 
 interface HydratedShardResult {
@@ -290,7 +291,7 @@ async function hydrateFeedShard(
     host.state.hydratedShardGuidsByFeedId.delete(feed.feedId);
   }
   const shardPath = getFeedShardPath(settings.storageFolder, feed.feedId ?? "");
-  const normalizedPath = normalizePath(shardPath.trim().replace(/\\/g, "/"));
+  const normalizedPath = normalizeShardPath(shardPath);
   const shardExists = await host.app.vault.adapter.exists(shardPath);
   if (!shardExists) {
     host.state.lastPersistedShardContentByPath.delete(normalizedPath);
@@ -459,13 +460,16 @@ export async function persistFeedStorage(
     }
   }
 
-  const shardDeleteCount =
-    (await deleteRemovedFeedShards(
-      normalizedStorageFolder,
-      currentFeedIds,
-      Boolean(options.replacesFeedList),
-      host,
-    )) + (await deleteArrivalRemovedFeedShards(currentFeedIds, host));
+  let shardDeleteCount = await deleteRemovedFeedShards(
+    normalizedStorageFolder,
+    currentFeedIds,
+    Boolean(options.replacesFeedList),
+    host,
+  );
+  shardDeleteCount += await deleteShardsOfFeedsRemovedOnArrival(
+    currentFeedIds,
+    host,
+  );
 
   const persistedSettings = host.createPersistedSettings(settings);
   const metadataJson = JSON.stringify(persistedSettings, null, 2);
@@ -620,9 +624,7 @@ async function writeFeedShard(
   );
 
   if (shardWriteDecision.needsWrite) {
-    const normalizedShardPath = normalizePath(
-      shardPath.trim().replace(/\\/g, "/"),
-    );
+    const normalizedShardPath = normalizeShardPath(shardPath);
     host.state.lastPersistedShardContentByPath.set(
       normalizedShardPath,
       shardJson,
@@ -694,7 +696,7 @@ async function deleteRemovedFeedShards(
     }
     host.state.lastPersistedShardJsonByFeedId.delete(previousFeedId);
     host.state.lastPersistedShardContentByPath.delete(
-      normalizePath(shardPath.trim().replace(/\\/g, "/")),
+      normalizeShardPath(shardPath),
     );
     if (!replacesFeedList) {
       host.userState.markFeedRemoved(previousFeedId);
@@ -710,7 +712,7 @@ async function deleteRemovedFeedShards(
  * what this device last wrote or read. A changed, missing, or unreadable file
  * is left alone; it is an unrecognized shard for the health check (#318).
  */
-async function deleteArrivalRemovedFeedShards(
+async function deleteShardsOfFeedsRemovedOnArrival(
   currentFeedIds: ReadonlySet<string>,
   host: FeedStorageRunnerHost,
 ): Promise<number> {
