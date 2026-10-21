@@ -296,6 +296,17 @@ export class FeedStorageRepository {
     return hydrateFeedStorage(settings, this.runnerHost);
   }
 
+  /**
+   * Re-applies the persisted article state to the loaded items in place,
+   * replaying the device-local journal over it. Unlike a full settings load it
+   * keeps the settings object, so a pending settings edit survives (#1418).
+   */
+  public async refreshArticleState(
+    settings: RssDashboardSettings,
+  ): Promise<void> {
+    await this.userState.applyToFeeds(settings);
+  }
+
   public async persistSettings(
     settings: RssDashboardSettings,
     saveData: (data: unknown) => Promise<void>,

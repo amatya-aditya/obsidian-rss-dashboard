@@ -149,6 +149,21 @@ export class SettingsStore {
   private touchedWatchedPaths = new Set<string>();
   /** Set when the external callback already judged the change a real one. */
   private externalChangeConfirmed = false;
+  /**
+   * Loads currently running. A save made while one runs is the load's own
+   * follow-up write, so it does not re-enter the unseen-change guard (#1418).
+   */
+  private loadDepth = 0;
+  /**
+   * Settles when no load holds the write gate closed. A save that arrives
+   * while a load has the gate closed would be dropped, so it waits here and
+   * then writes on top of the loaded state (#1418).
+   */
+  private loadGate: Promise<void> | null = null;
+  /** The article-state refresh a save started for an unseen synced change. */
+  private unseenChangeRefresh: Promise<void> | null = null;
+  private loadGateHolders = 0;
+  private resolveLoadGate: (() => void) | null = null;
   private articleStateFlushTimer: number | null = null;
   private queuedArticleStateChanges = 0;
   private articleStateFlush: Promise<void> | null = null;
@@ -429,6 +444,8 @@ export class SettingsStore {
     const isInitialLoad = !this.hasStartedSettingsLoad;
     this.hasStartedSettingsLoad = true;
     this.wasNullSettingsLoad = false;
+    this.loadDepth += 1;
+    const releaseLoadGate = this.closeLoadGate();
     try {
       // A synced reload replaces the in-memory snapshot. Pending local changes
       // must already be in the journal before it is read, or this load would
@@ -500,6 +517,7 @@ export class SettingsStore {
       if (!vaultMetadataUnreadable)
         this.hasNotifiedVaultMetadataFailure = false;
       this.settingsLoadFailed = vaultMetadataUnreadable;
+      releaseLoadGate();
       const shouldSave = this.shouldSaveAfterLoad({
         wasNullLoad,
         hydrated,
@@ -538,6 +556,9 @@ export class SettingsStore {
         this.options.bindSettingsBackedServices();
       }
       this.settingsLoadFailed = true;
+    } finally {
+      this.loadDepth -= 1;
+      releaseLoadGate();
     }
   }
 
@@ -604,6 +625,104 @@ export class SettingsStore {
         await this.options.refreshDashboardViews();
       })();
     }, 1500);
+  }
+
+  /**
+   * Marks a load as holding the write gate closed. The returned function
+   * releases it and is safe to call more than once; the gate opens for
+   * waiting saves when every holder has released (#1418).
+   */
+  private closeLoadGate(): () => void {
+    if (this.loadGateHolders === 0) {
+      this.loadGate = new Promise<void>((resolve) => {
+        this.resolveLoadGate = resolve;
+      });
+    }
+    this.loadGateHolders += 1;
+    let released = false;
+    return () => {
+      if (released) return;
+      released = true;
+      this.loadGateHolders -= 1;
+      if (this.loadGateHolders > 0) return;
+      this.resolveLoadGate?.();
+      this.loadGate = null;
+      this.resolveLoadGate = null;
+    };
+  }
+
+  /** Resolves once no load has the write gate closed. */
+  async settleLoadGate(): Promise<void> {
+    if (this.loadGate) await this.loadGate;
+  }
+
+  /** Read through a method so a check made across an await is not narrowed. */
+  private runningUnseenChangeRefresh(): Promise<void> | null {
+    return this.unseenChangeRefresh;
+  }
+
+  /** Whether `user-state.json` holds a change this device has not loaded. */
+  private async hasUnseenUserStateChange(): Promise<boolean> {
+    const folder =
+      this.settings.metadataStorageFolder?.trim() || ".rss-dashboard-data";
+    const path = normalizePath(`${folder}/user-state.json`);
+    const record = this.watchedContentRecords.get(this.watchedKey(path));
+    // Without a record there is nothing to compare; the watcher reloads on the
+    // event instead.
+    if (record === undefined) return false;
+    try {
+      const text = await this.app.vault.adapter.read(path);
+      const comparable = this.comparableFromText(text);
+      return comparable !== null && comparable !== record;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Keeps a save from writing over a synced change it has not loaded (#1418).
+   * `user-state.json` is compared with what this device last wrote or loaded;
+   * a difference is an unseen change, so the article state is refreshed from
+   * it first and the save then writes on top. Journal replay carries this
+   * device's pending toggles across the refresh, and the settings object is
+   * kept, so a settings edit awaiting this save survives. The comparison is
+   * the only cost when nothing changed. A save that finds a refresh already
+   * running waits for it. The queued flush waits for a reload already running
+   * (see `flushPendingWrites`); a direct save during one stays suppressed.
+   */
+  private async loadUnseenChangesBeforeSave(): Promise<void> {
+    if (this.unseenChangeRefresh) {
+      await this.unseenChangeRefresh;
+      return;
+    }
+    // A save during a load stays suppressed by the closed write gate, as
+    // before; the load's own follow-up save must not re-enter this guard.
+    if (this.loadDepth > 0 || this.loadGate) return;
+    if (!(await this.hasUnseenUserStateChange())) return;
+    // A save that ran the same check meanwhile already began the refresh.
+    const running = this.runningUnseenChangeRefresh();
+    if (running) {
+      await running;
+      return;
+    }
+    if (this.loadDepth > 0 || this.loadGate) return;
+    storageLog("Refreshing article state from a synced change before saving");
+    if (this.vaultMetadataReloadTimer !== null) {
+      window.clearTimeout(this.vaultMetadataReloadTimer);
+      this.vaultMetadataReloadTimer = null;
+    }
+    this.touchedWatchedPaths.clear();
+    this.externalChangeConfirmed = false;
+    const refresh = this.feedStorageRepository.refreshArticleState(
+      this.settings,
+    );
+    this.unseenChangeRefresh = refresh;
+    try {
+      await refresh;
+    } finally {
+      this.unseenChangeRefresh = null;
+    }
+    void this.options.refreshDashboardViews();
   }
 
   /**
@@ -796,6 +915,7 @@ export class SettingsStore {
   }
 
   async saveSettings(options: PersistSettingsOptions = {}): Promise<void> {
+    await this.loadUnseenChangesBeforeSave();
     if (this.isPersistenceSuppressed()) return;
     // Any queued change must be on disk before this write folds the journal
     // into the snapshot and advances its checkpoint (#1387).
@@ -949,6 +1069,9 @@ export class SettingsStore {
     if (this.articleStateFlush) await this.articleStateFlush;
     if (this.queuedArticleStateChanges === 0) return;
     this.queuedArticleStateChanges = 0;
+    // A reload in flight has closed the write gate; wait for it so the queued
+    // change is written on top of the reloaded state, not dropped (#1418).
+    await this.settleLoadGate();
     if (this.isPersistenceSuppressed()) return;
     const flush = this.persistQueuedArticleState();
     this.articleStateFlush = flush;
