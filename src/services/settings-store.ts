@@ -975,23 +975,52 @@ export class SettingsStore {
     if (comparableSnapshotJson(disk) === baseline.comparable) return data;
 
     try {
-      const { merged, adopted, conflicts } = mergeSettingsGroups(
-        baseline.data,
-        disk,
-        data,
-      );
-      if (conflicts.length > 0) {
+      const {
+        merged,
+        conflicts,
+        adoptedEntries,
+        conflictEntries,
+        droppedEntries,
+        danglingEntries,
+        duplicateEntries,
+      } = mergeSettingsGroups(baseline.data, disk, data);
+      if (conflicts.length > 0 || conflictEntries.length > 0) {
         storageLog("Settings changed on both sides; keeping this device's", {
           where,
           groups: conflicts,
+          entries: conflictEntries,
         });
       }
-      if (adopted.length === 0) return merged;
+      if (adoptedEntries.length > 0) {
+        storageLog("Adopting synced settings entries before saving", {
+          where,
+          entries: adoptedEntries,
+        });
+      }
+      if (droppedEntries.length > 0) {
+        storageLog("Dropping synced folders whose parent is gone", {
+          where,
+          entries: droppedEntries,
+        });
+      }
+      if (danglingEntries.length > 0) {
+        storageLog("Synced feeds name a folder that is not here", {
+          where,
+          entries: danglingEntries,
+        });
+      }
+      if (duplicateEntries.length > 0) {
+        storageLog("Duplicate synced settings entries; keeping the first", {
+          where,
+          entries: duplicateEntries,
+        });
+      }
+      const applied = this.adoptMergedSettings(merged, data);
+      if (applied.length === 0) return merged;
       storageLog("Adopting synced settings groups before saving", {
         where,
-        groups: adopted,
+        groups: applied,
       });
-      this.adoptSettingsGroups(adopted, disk);
       this.dropPendingSettingsReload();
       void this.options.refreshDashboardViews();
       return merged;
@@ -1025,18 +1054,27 @@ export class SettingsStore {
   }
 
   /**
-   * Copies groups from the file into the live settings. The file's `feeds`
-   * carry no items, so each feed keeps the items already in memory.
+   * Copies every merged group that differs from this device's snapshot into the
+   * live settings, and returns their names. Entries adopted per feed or folder
+   * arrive here too, because the merge already folded them into the group.
+   * The file's `feeds` carry no items, so each feed keeps the items already in
+   * memory.
    */
-  private adoptSettingsGroups(
-    groups: readonly string[],
-    disk: Record<string, unknown>,
-  ): void {
+  private adoptMergedSettings(
+    merged: Record<string, unknown>,
+    memory: Record<string, unknown>,
+  ): string[] {
     const live = this.settings as unknown as Record<string, unknown>;
-    for (const group of groups) {
-      const value = disk[group];
+    const adopted: string[] = [];
+    const sameGroup = (left: unknown, right: unknown): boolean =>
+      comparableSnapshotJson({ group: left }) ===
+      comparableSnapshotJson({ group: right });
+    for (const group of Object.keys(merged)) {
+      if (sameGroup(merged[group], memory[group])) continue;
+      const value = merged[group];
       if (value === undefined) {
         delete live[group];
+        adopted.push(group);
         continue;
       }
       const copy = structuredClone(value);
@@ -1051,7 +1089,9 @@ export class SettingsStore {
       } else {
         live[group] = copy;
       }
+      adopted.push(group);
     }
+    return adopted;
   }
 
   getMetadataSaveCallback(): (data: unknown) => Promise<void> {
