@@ -107,8 +107,10 @@ describe("Podcast sleep timer band", () => {
     const overlaps = values(PLAYER_STYLES, BAND, "--sleep-band-overlap").map(
       (value) => Number.parseFloat(value),
     );
-    // Cover the 6px track radius so no track shows between the two fills.
-    expect(overlaps.some((value) => value >= 6)).toBe(true);
+    // DEC-003 fixes 8px: the 6px cap is covered and 2px of band still shows
+    // beside it. Pinning the value keeps the layered join from regressing to a
+    // bare seam.
+    expect(overlaps).toContain(8);
   });
 
   it("ignores pointer events so the seek bar keeps receiving seek input", () => {

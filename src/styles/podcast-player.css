@@ -474,8 +474,10 @@
    3:1 edge against the empty track in both default light and dark themes;
    opacity alone falls short on the light track. */
 .podcast-sleep-band {
-  /* The played fill's cap has a 6px radius; 8px covers it with 2px hidden
-     behind the fill. max() keeps the band inside the track at the start. */
+  /* The played fill's cap has a 6px radius. 8px covers it and leaves 2px of
+     band showing beside the cap at the top and bottom rows, which is what makes
+     the join read as two layers. max() keeps the band inside the track at the
+     start. */
   --sleep-band-overlap: 8px;
   --sleep-band-left: max(
     0%,
