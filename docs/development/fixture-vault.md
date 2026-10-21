@@ -179,7 +179,7 @@ verification, drive the same running app over the Chrome DevTools Protocol with
 `scripts/obsidian-cdp.mjs`, a dependency-free Node helper (Node 22 or newer).
 
 Start Obsidian with a debug port, in its own disposable profile. The one
-exception is a Real Sync pass, which attaches to the maintainer's real,
+documented exception is a Real Sync pass, which attaches to the maintainer's real,
 signed-in profile under the limits in the
 [Real Sync runbook](./real-sync-runbook.md) and
 [ADR 0035](../adr/0035-test-real-obsidian-sync-in-the-real-vault.md). Close the app

@@ -12,12 +12,12 @@ other CDP session uses, is in [Fixture Vault for Manual Testing](./fixture-vault
 A Real Sync pass is the one documented exception to the disposable-profile rule
 there.
 
-Nothing here is automated. Marc, the maintainer, is present for every pass, and
+Nothing here is automated. The maintainer is present for every pass, and
 no pass runs in CI or on a schedule.
 
 ## Who does what
 
-| Marc (human)                                                              | The agent (over CDP)                                                        |
+| Maintainer                                                                | The agent (over CDP)                                                        |
 | ------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | Launches and closes the real-profile Obsidian instance                    | Never launches or closes it                                                 |
 | Signs in to Sync, on Device B, once                                       | Never opens sign-in or account UI, never enters credentials                 |
@@ -28,7 +28,7 @@ no pass runs in CI or on a schedule.
 
 ## Allowed and forbidden CDP actions
 
-The agent attaches to Marc's real, signed-in profile. That is a sensitive
+The agent attaches to the maintainer's real, signed-in profile. That is a sensitive
 session, so its actions are bounded.
 
 **Allowed**
@@ -51,7 +51,7 @@ session, so its actions are bounded.
 - Launching or closing the real-profile Obsidian instance.
 - Deleting a backup.
 
-If a step would need a forbidden action, stop and ask Marc to do it by hand.
+If a step would need a forbidden action, stop and ask the maintainer to do it by hand.
 
 ## Setup that applies to every run
 
@@ -77,14 +77,14 @@ too, so set that to one of the two paths when a whole session targets a single
 window. Before committing anything from a pass, search the diff for the vault
 folder name and for `C:\Users` or `/Users` style paths.
 
-### Marc launches the instance
+### The maintainer launches the instance
 
-Marc starts Obsidian on the real profile, with a debug port, and closes
+The maintainer starts Obsidian on the real profile, with a debug port, and closes
 it when the pass ends. The agent can only attach to a running instance. Leave
-the port open only while Marc has the instance open and the pass is under way.
+the port open only while the maintainer has the instance open and the pass is under way.
 
 ```powershell
-# Marc runs this; the agent does not. No --user-data-dir: this is the real profile.
+# The maintainer runs this; the agent does not. No --user-data-dir: this is the real profile.
 & "$env:LOCALAPPDATA\Obsidian\Obsidian.exe" --remote-debugging-port=9333
 ```
 
@@ -106,9 +106,9 @@ window and read the newest entry:
 Do not treat a quiet log as done. Treat the pass step as not yet started until
 both sides show the text.
 
-## Backup and restore, written before the first run
+## Backup and restore
 
-Take a verified backup before the first run, before Device B setup, and before
+Write these steps down and rehearse them before the first run. Take a verified backup before the first run, before Device B setup, and before
 every run that writes. A backup copies the plugin folder, the metadata folder and
 the shard folder to a dated folder outside the vault and the vault of Device B,
 which Sync never touches. It writes a manifest of path, size and SHA-256 per
@@ -125,11 +125,11 @@ backup is not a backup, so do not start a run on it.
 
 ### Restore
 
-Restore is manual and Marc-attended. It replaces files that Sync has already
+Restore is manual and attended by the maintainer. It replaces files that Sync has already
 carried to Device B, so Sync must be paused on both devices first.
 
 1. Pause Sync in the real vault, then in Device B. The agent may do this over
-   CDP when Marc approves. Confirm in each window that Sync shows as paused.
+   CDP when the maintainer approves. Confirm in each window that Sync shows as paused.
 2. Run the restore, naming the dated backup folder:
 
    ```powershell
@@ -150,28 +150,28 @@ The first pass does not start until the drill is recorded.
 ## Device B setup
 
 Device B is a second local copy of the real vault on the same PC, connected to
-the same Sync remote. It lets the agent read both sides over CDP. Marc does the
+the same Sync remote. It lets the agent read both sides over CDP. The maintainer does the
 setup, because it needs a sign-in.
 
 1. **Back up first.** Take a verified backup of the real vault as above, before
    anything else.
-2. **Create the copy.** Marc makes a second local vault folder on the same
-   PC and opens it in Obsidian. It is not a file copy of the real vault, so it
-   receives its content from Sync.
-3. **Connect Sync.** Marc signs in and connects this vault to the same Sync
+2. **Create the copy.** The maintainer makes a second local vault folder on the same
+   PC and opens it in Obsidian. It becomes the second local copy of the real
+   vault by pulling it through Sync, not by copying files.
+3. **Connect Sync.** The maintainer signs in and connects this vault to the same Sync
    remote. The agent does not open sign-in UI or enter credentials.
-4. **Keep the plugin disabled.** Marc leaves RSS Dashboard disabled in Device B.
+4. **Keep the plugin disabled.** The maintainer leaves RSS Dashboard disabled in Device B.
    Enabling it before the first pull finishes writes empty defaults that Sync
    then treats as authoritative, which can wipe the feeds on every device. This
    is the new-device order in [Syncing](../user/syncing.md).
 5. **Wait for the first pull.** Read "Fully synced" on both devices, as above.
-6. **Enable the plugin.** Only now does Marc enable RSS Dashboard in Device B.
+6. **Enable the plugin.** Only now does the maintainer enable RSS Dashboard in Device B.
 7. **Compare storage settings.** Check that the metadata and shard folder paths
    match between the two vaults.
 
-### Targeting both windows over CDP
+### Targeting both windows over CDP (open question A1)
 
-**Assumption A1, to confirm at the first setup:** both vaults open as windows of
+**Open question A1, to resolve at the first setup:** both vaults open as windows of
 one Obsidian instance, so one debug port serves both, and `--expect-vault` tells
 them apart.
 
@@ -186,7 +186,7 @@ node scripts/obsidian-cdp.mjs --port 9333 targets
   with `--expect-vault` set to that window's path. Add `--target <vault name>`
   to pick a page by title.
 - If only one vault page shows, or the two share a single target, A1 is wrong.
-  Record that here, and Marc launches a second instance on a second port, with
+  Record that here, and the maintainer launches a second instance on a second port, with
   its own `--remote-debugging-port`. Each call then carries `--port` for its own
   instance as well as `--expect-vault`.
 
@@ -195,7 +195,7 @@ Obsidian version when you first run it. Until then A1 is unconfirmed.
 
 ## Per-run approval
 
-No run starts without approval from Marc, given in chat for that run. Approval
+No run starts without approval from the maintainer, given in chat for that run. Approval
 for one run does not carry to the next.
 
 The approval names:
@@ -210,27 +210,28 @@ The approval names:
 
 Before the first write of a run, the agent does a dry run. It prints the vaults
 by their role names (real vault, Device B), the folders, and the files the run
-would create, change, or delete, and then stops. It writes nothing. Marc reads
+would create, change, or delete, and then stops. It writes nothing. The maintainer reads
 the list against the approval, and the run proceeds only if they match.
 
 ### Pass checklist
 
-1. Marc has launched the instance. Both vault windows appear in `targets`.
+1. The maintainer has launched the instance. Both vault windows appear in `targets`.
 2. A verified backup exists, taken for this run, and the restore drill is
    recorded.
 3. `--expect-vault` and the environment variables are set.
 4. Both sides read "Fully synced".
-5. Marc has approved the run: scenarios, files, Sync paused or not.
+5. The maintainer has approved the run: scenarios, files, Sync paused or not.
 6. The dry run was printed and matches.
 7. Run the scenarios. Install the in-memory event logger first, and remove it
    after.
 8. Read the Sync activity log and the event logger on both sides. Record the
    Obsidian version, the OS, the date, and what each side saw.
 9. Verify the plugin's data on both sides against what the scenario should
-   produce, then restore from the backup and verify again against the manifest.
+   produce. Then the maintainer decides whether to restore; after a scenario
+   that writes real data, restore and verify again against the manifest.
 10. Search the diff and the notes for the real vault path before committing
     anything.
-11. Marc closes the instance.
+11. The maintainer closes the instance.
 
 Record results in the probe ledger, with the Obsidian version and the date. A
 result that contradicts a stub or preset is fed back as a change to it. A bug a

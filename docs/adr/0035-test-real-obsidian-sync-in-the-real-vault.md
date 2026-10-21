@@ -37,26 +37,18 @@ Chrome DevTools Protocol (CDP) to the real, signed-in profile for that purpose
 only. This is a documented exception to the disposable-profile rule in
 [Fixture Vault for Manual Testing](../development/fixture-vault.md).
 
-The exception is bounded:
+The exception is bounded. The maintainer launches and closes the real-profile
+instance, and the agent never does. The agent may only read Sync and plugin
+state, install a temporary in-memory event logger, run plugin commands, and
+pause or resume Sync. It may never change any other setting, touch sign-in or
+account UI, enter credentials, or install anything. Plugin scenarios run
+against real plugin data only after a verified backup, and each run needs the
+maintainer's approval. A real vault path is never committed. The
+[Real Sync runbook](../development/real-sync-runbook.md) owns the full list of
+allowed and forbidden actions, the approval contents and the never-list.
 
-- The maintainer launches and closes the real-profile instance. The agent never
-  does.
-- The agent may read the Sync activity log, read vault and plugin state,
-  install a temporary in-memory event logger, run plugin commands, and pause or
-  resume Sync. It may never change any other Obsidian, Sync, or account
-  setting, open sign-in or account UI, enter credentials, or install anything.
-- Every call carries `--expect-vault`, with the real vault path taken from an
-  environment variable and never committed.
-- Plugin scenarios may run against the maintainer's real plugin data, but only
-  after a verified backup. The maintainer accepts that the other device
-  receives the changes and that restore is manual.
-- Each run needs the maintainer's approval, which names the scenarios, the
-  files touched, and whether Sync is paused. A dry run lists everything before
-  any write.
-- Never: credentials or sign-in, CI or scripted use, account settings, deleting
-  a backup, or committing a real vault path.
-
-The steps are in the [Real Sync runbook](../development/real-sync-runbook.md).
+The maintainer accepts that the other device receives the changes a run makes
+and that restore is manual.
 
 ## Consequences
 
