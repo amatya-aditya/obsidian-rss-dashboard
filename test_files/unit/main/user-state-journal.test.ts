@@ -625,10 +625,10 @@ describe("device-local user-state journal (#1386)", () => {
     expect(journalPaths).toEqual([JOURNAL_PATH]);
   });
 
-  it("keeps the watcher-suppressing write wrapper off the device-local journal", async () => {
+  it("keeps the content-recording write wrapper off the device-local journal", async () => {
     const calls: string[] = [];
     const repositoryApi = new FeedStorageRepository(app, {
-      writeWrapper: async (write) => {
+      writeWrapper: async (_target, write) => {
         calls.push("wrapped");
         return write();
       },

@@ -108,8 +108,8 @@ export interface SettingsStoreOptions {
 /**
  * Reads and writes the plugin's settings object to disk: the startup and
  * reload load (bootstrap pointer, vault metadata location, null-load and
- * failed-load guards), every save through the metadata location with watcher
- * suppression, the watcher that reloads a synced data file, and moving the
+ * failed-load guards), every save through the metadata location with its content recorded for
+ * the watcher, the watcher that reloads a synced data file, and moving the
  * metadata location.
  */
 export class SettingsStore {
@@ -138,7 +138,17 @@ export class SettingsStore {
    */
   private pendingMetadataFolder: string | null = null;
   private vaultMetadataReloadTimer: number | null = null;
-  private suppressWatcherUntil = 0;
+  /**
+   * Comparable content of each watched metadata file (`data.json`,
+   * `user-state.json`) as this device last wrote or loaded it, keyed by the
+   * slash-trimmed vault path. The watcher skips a change that matches (an own
+   * write) and reloads every other one (#1413).
+   */
+  private watchedContentRecords = new Map<string, string>();
+  /** Watched paths that fired an event since the last debounced check. */
+  private touchedWatchedPaths = new Set<string>();
+  /** Set when the external callback already judged the change a real one. */
+  private externalChangeConfirmed = false;
   private articleStateFlushTimer: number | null = null;
   private queuedArticleStateChanges = 0;
   private articleStateFlush: Promise<void> | null = null;
@@ -189,15 +199,71 @@ export class SettingsStore {
     return this.options.feedStorageRepository;
   }
 
-  async writeWithWatcherSuppressed<T>(
+  private watchedKey(path: string): string {
+    return path.replace(/^\/+|\/+$/g, "");
+  }
+
+  /** Comparable form of a watched file's text, or null when unparseable. */
+  private comparableFromText(text: string): string | null {
+    try {
+      const parsed: unknown = JSON.parse(text);
+      return isRecord(parsed) ? comparableSnapshotJson(parsed) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Records what a load read from a watched file, so a later event for the
+   * same content is recognized as this device's own (#1413). Unparseable
+   * text drops the record, so the next event reloads.
+   */
+  recordMetadataFileRead(path: string, text: string): void {
+    const comparable = this.comparableFromText(text);
+    if (comparable === null) {
+      this.watchedContentRecords.delete(this.watchedKey(path));
+      return;
+    }
+    this.watchedContentRecords.set(this.watchedKey(path), comparable);
+  }
+
+  /**
+   * Runs a plugin write to a watched metadata file and records its content,
+   * so the watcher tells the plugin's own write from a synced change by
+   * content, not timing (#1413). The record moves before the write lands, so
+   * events that arrive early still match; a failed write restores the
+   * previous record unless a later write replaced it.
+   */
+  async writeMetadataFile<T>(
+    path: string,
+    content: string,
     writeFn: () => Promise<T>,
-    windowMs = 3000,
   ): Promise<T> {
-    this.suppressWatcherUntil = Date.now() + windowMs;
+    const key = this.watchedKey(path);
+    const previous = this.watchedContentRecords.get(key);
+    const written = this.comparableFromText(content);
+    if (written === null) this.watchedContentRecords.delete(key);
+    else this.watchedContentRecords.set(key, written);
     try {
       return await writeFn();
-    } finally {
-      // leave suppression window to expire; don't clear explicitly
+    } catch (error) {
+      if (this.watchedContentRecords.get(key) === (written ?? undefined)) {
+        if (previous === undefined) this.watchedContentRecords.delete(key);
+        else this.watchedContentRecords.set(key, previous);
+      }
+      throw error;
+    }
+  }
+
+  /** Whether a touched watched file still holds what this device recorded. */
+  private async matchesRecord(path: string): Promise<boolean> {
+    const record = this.watchedContentRecords.get(this.watchedKey(path));
+    if (record === undefined) return false;
+    try {
+      const text = await this.app.vault.adapter.read(path);
+      return this.comparableFromText(text) === record;
+    } catch {
+      return false;
     }
   }
 
@@ -278,6 +344,13 @@ export class SettingsStore {
         data.metadataStorageFolder,
       );
       if (vaultData) {
+        const loadedPath = getMetadataPath(vaultData);
+        if (loadedPath) {
+          this.watchedContentRecords.set(
+            this.watchedKey(`${loadedPath}/data.json`),
+            comparableSnapshotJson(vaultData),
+          );
+        }
         data = vaultData;
         storageLog("Metadata loaded from vault location", {
           folder: data.metadataStorageFolder,
@@ -289,6 +362,14 @@ export class SettingsStore {
         // defaults that would then be saved over the synced copy.
         vaultMetadataUnreadable = true;
         keepCurrentSettings = !isInitialLoad;
+        // The file no longer holds what was recorded, so a later copy of that
+        // old content must reload (#1413).
+        const unreadablePath = getMetadataPath(data);
+        if (unreadablePath) {
+          this.watchedContentRecords.delete(
+            this.watchedKey(`${unreadablePath}/data.json`),
+          );
+        }
         if (keepCurrentSettings) {
           // Remember where the new pointer pointed. The settings still in
           // memory name the old folder, so the watcher has to know both
@@ -493,8 +574,15 @@ export class SettingsStore {
     });
   }
 
-  /** Queues one debounced reload shared by the watcher and the callback. */
-  private scheduleMetadataReload(): void {
+  /**
+   * Queues one debounced reload shared by the watcher and the callback. The
+   * watcher passes the path that fired; at the end of the wait every touched
+   * file is read, and the reload is skipped only when each still holds what
+   * this device last wrote or loaded there (#1413).
+   */
+  private scheduleMetadataReload(touchedPath?: string): void {
+    if (touchedPath === undefined) this.externalChangeConfirmed = true;
+    else this.touchedWatchedPaths.add(touchedPath);
     if (this.vaultMetadataReloadTimer !== null) {
       window.clearTimeout(this.vaultMetadataReloadTimer);
     }
@@ -502,6 +590,16 @@ export class SettingsStore {
     this.vaultMetadataReloadTimer = window.setTimeout(() => {
       this.vaultMetadataReloadTimer = null;
       void (async () => {
+        const touched = [...this.touchedWatchedPaths];
+        const confirmed = this.externalChangeConfirmed;
+        this.touchedWatchedPaths.clear();
+        this.externalChangeConfirmed = false;
+        if (!confirmed) {
+          const matches = await Promise.all(
+            touched.map((path) => this.matchesRecord(path)),
+          );
+          if (matches.every(Boolean)) return;
+        }
         await this.options.loadSettings();
         await this.options.refreshDashboardViews();
       })();
@@ -514,9 +612,8 @@ export class SettingsStore {
    * device's copy. Obsidian doesn't index the config folder, so no vault
    * event fires for it (probe #1403, row c1).
    *
-   * The content comparison already filters out the plugin's own writes, so
-   * this path does not honor `suppressWatcherUntil`: doing so would drop a
-   * real synced pointer that arrives just after a save (#1400).
+   * The content comparison already filters out the plugin's own writes
+   * (#1400).
    */
   async handleExternalSettingsChange(): Promise<void> {
     let current: unknown;
@@ -585,8 +682,8 @@ export class SettingsStore {
     ): Promise<void> => {
       const filePath = this.getVaultFilePath(file);
 
-      // Shard events do not honor suppressWatcherUntil; content comparison
-      // replaces it for shards (#1412).
+      // A shard is judged by content here, so a change that differs reloads
+      // without the touched-path check (#1412).
       if (filePath && this.isWatchedShardPath(filePath)) {
         let content: string | null = null;
         try {
@@ -607,8 +704,6 @@ export class SettingsStore {
         return;
       }
 
-      if (Date.now() < this.suppressWatcherUntil) return;
-
       const candidatePaths: string[] = [];
       if (filePath) {
         candidatePaths.push(filePath);
@@ -617,13 +712,15 @@ export class SettingsStore {
         candidatePaths.push(oldPath);
       }
 
-      const watched = candidatePaths.some((candidatePath) =>
+      const watchedPaths = candidatePaths.filter((candidatePath) =>
         this.isWatchedMetadataPath(candidatePath),
       );
 
-      if (!watched) return;
+      if (watchedPaths.length === 0) return;
 
-      this.scheduleMetadataReload();
+      for (const watchedPath of watchedPaths) {
+        this.scheduleMetadataReload(watchedPath);
+      }
     };
 
     registerEvent(vault.on("modify", (file) => void scheduleReload(file)));
@@ -669,7 +766,9 @@ export class SettingsStore {
           await ensureMetadataFolderExists(this.app, this.settings);
           const dataFilePath = `${metadataPath}/data.json`;
           const jsonContent = JSON.stringify(settingsData, null, 2);
-          await this.writeWithWatcherSuppressed(
+          await this.writeMetadataFile(
+            dataFilePath,
+            jsonContent,
             async () =>
               await this.app.vault.adapter.write(dataFilePath, jsonContent),
           );
@@ -927,7 +1026,12 @@ export class SettingsStore {
       // Write current settings to vault location as JSON
       const settingsJson = JSON.stringify(this.settings, null, 2);
       const dataFilePath = `${metadataPath}/data.json`;
-      await this.app.vault.adapter.write(dataFilePath, settingsJson);
+      await this.writeMetadataFile(
+        dataFilePath,
+        settingsJson,
+        async () =>
+          await this.app.vault.adapter.write(dataFilePath, settingsJson),
+      );
 
       // Update mode and persist using the dual-mode save callback
       this.settings.metadataStorageMode = "vault-location";

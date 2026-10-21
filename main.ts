@@ -255,7 +255,10 @@ export default class RssDashboardPlugin extends Plugin {
       },
     });
     this.feedStorageRepository = new FeedStorageRepository(app, {
-      writeWrapper: (fn) => this.writeWithWatcherSuppressed(fn),
+      writeWrapper: (target, fn) =>
+        this.settingsStore.writeMetadataFile(target.path, target.content, fn),
+      onFileRead: (path, text) =>
+        this.settingsStore.recordMetadataFileRead(path, text),
       onUserStateHealthChange: () => {
         void this.notifyRefreshStatusChanged();
       },
@@ -592,13 +595,6 @@ export default class RssDashboardPlugin extends Plugin {
   /** Backward-compatible accessor so test assertions can read import state */
   private get isBackgroundImporting(): boolean {
     return this.backgroundImportService?.isBackgroundImporting ?? false;
-  }
-
-  public writeWithWatcherSuppressed<T>(
-    writeFn: () => Promise<T>,
-    windowMs?: number,
-  ): Promise<T> {
-    return this.settingsStore.writeWithWatcherSuppressed(writeFn, windowMs);
   }
 
   private ensureAutoRefreshScheduler(): FeedRefreshScheduler {
