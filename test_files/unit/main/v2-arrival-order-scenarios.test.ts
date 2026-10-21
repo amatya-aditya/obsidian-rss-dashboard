@@ -13,8 +13,9 @@
  * bootstrap pointer is delivered before startup only; a pointer arriving
  * later is not exercised here.
  *
- * The last two tests pin what happens today for a shard another device
- * renamed (#1441) or deleted (#1440); each is marked `// BUG: pinned`.
+ * The rename test pins what happens today for a shard another device renamed
+ * (#1441) and is marked `// BUG: pinned`. The delete tests pin the intended
+ * local-wins policy for a shard another device deleted (#1440).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App, type MockApp, type PluginManifest } from "obsidian";
@@ -378,8 +379,11 @@ describe("Shard storage v2 arrival orders through the real plugin (#1429)", () =
     const { mobile } = await pairedDevices([feed("feed-a", ["a1", "a2"])]);
     const vault = mobile.app.vault;
 
-    // The settings watcher registers no delete listener, so nothing reloads.
-    // BUG: pinned, see #1440
+    // Intended local-wins policy (#1440): a shard's absence never removes a
+    // feed or its articles; only the feed list in data.json does. The watcher
+    // subscribes to no delete event on purpose, since a reload would empty
+    // the feed and a prompt rewrite could resurrect the shard of a feed whose
+    // removal has not yet arrived.
     vault.externalDelete(shardPath("feed-a"));
     await settle();
     expect(guidsOf(mobile, "feed-a")).toEqual(["a1", "a2"]);
@@ -390,6 +394,37 @@ describe("Shard storage v2 arrival orders through the real plugin (#1429)", () =
       { read: true },
       false,
     );
+    await mobile.plugin.saveSettings();
+    expect(filesIn(vault, SHARD_FOLDER)).toEqual([shardPath("feed-a")]);
+  });
+
+  it("leaves an orphan shard when a save rewrites a deleted shard before the data.json that removes its feed arrives", async () => {
+    const { desktop, mobile, sync } = await pairedDevices([
+      feed("feed-a", ["a1", "a2"]),
+    ]);
+    const vault = mobile.app.vault;
+    desktop.plugin.settings.feeds = [];
+    await desktop.plugin.saveSettings({ forceAllShards: true });
+
+    // The shard is deleted here and a save writes it back from memory.
+    vault.externalDelete(shardPath("feed-a"));
+    await settle();
+    await mobile.plugin.updateArticle(
+      "a1",
+      feedUrl("feed-a"),
+      { read: true },
+      false,
+    );
+    await mobile.plugin.saveSettings();
+    expect(filesIn(vault, SHARD_FOLDER)).toEqual([shardPath("feed-a")]);
+
+    // The data.json that removes the feed lands afterwards and wins.
+    await sync.deliver({ only: [DATA_PATH] });
+    await settle();
+    expect(mobile.plugin.settings.feeds).toEqual([]);
+
+    // BUG: pinned, see #1444
+    expect(filesIn(vault, SHARD_FOLDER)).toEqual([shardPath("feed-a")]);
     await mobile.plugin.saveSettings();
     expect(filesIn(vault, SHARD_FOLDER)).toEqual([shardPath("feed-a")]);
   });
