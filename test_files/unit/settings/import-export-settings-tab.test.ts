@@ -141,6 +141,7 @@ describe("Auto Backup Helpers", () => {
         "rss-podcast-progress",
         "rss-first-launch-coachmark-shown",
         "rss-left-handed-layout",
+        "rss-settings-ancestor",
       ]);
     });
 

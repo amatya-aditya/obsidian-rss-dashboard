@@ -57,6 +57,13 @@ whole.
   edited the same entry, the delivery wins and the discarded local value is logged
   by entry id. If one side edited an entry and the other deleted it, the edit
   wins, logged by id.
+- **Order.** When the delivery wins its conflicts, the delivered order of feeds
+  and folders is the skeleton, and an entry only this device holds returns beside
+  the neighbour it had here. Both devices then settle on one order. A change of
+  order alone is not tracked per entry.
+- **Bookkeeping.** Settings every device rewrites on its own refresh or launch
+  (`lastRefreshTimestamp`, `lastGlobalRefreshCompletedAt`, `lastShownVersion`)
+  take the delivered value without a report or a Notice, since no edit was lost.
 - **Reporting.** The merge writes to `storageLog` by entry id and never logs
   values. A same-entry conflict that discards a local value also shows one short
   Notice with no values.
