@@ -108,6 +108,14 @@ takes the card's error path and hides it. Run the server to check that the
 defect still reproduces on a build without the fix. With the fix, no counter is
 requested, so the expected view is the same either way.
 
+The **double-encoded-description page** (`double-encoded-description.html`)
+backs the #1505 scenario: its `<meta name="description">` and `og:description`
+repeat the body's opening, and its `twitter:description` is encoded twice
+(`We&amp;#39;re`). The seeded article **Article with a double-encoded page
+description** links to it. Open it in the Reader and choose **Show fetched
+content**: the **Description** box reads `We're moving the fixture harbor feed…`,
+and a build without the fix shows `We&#39;re`.
+
 The **duplicate-lead-photo-credit page** (`credit-caption-page.html`) backs the
 #1305 scenario: a caption-only `<figure>` whose credit is repeated as a
 paragraph above the body, a differing credit paragraph, a body paragraph, and a
@@ -626,7 +634,7 @@ result must come from a known build and a clean vault.
 
 ## Seeded scenarios
 
-12 feeds, 167 articles: 48 read, 9 starred, 9 tagged, 1 saved, 2 with playback
+12 feeds, 168 articles: 48 read, 9 starred, 9 tagged, 1 saved, 2 with playback
 progress. The automated test in
 `test_files/unit/main/fixture-vault-loading.test.ts` checks these counts.
 

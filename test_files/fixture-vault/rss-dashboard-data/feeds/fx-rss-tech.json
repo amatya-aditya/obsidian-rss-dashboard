@@ -62,6 +62,20 @@
       "mediaType": "article"
     },
     {
+      "title": "Article with a double-encoded page description",
+      "link": "http://127.0.0.1:8787/double-encoded-description.html",
+      "description": "",
+      "content": "",
+      "pubDate": "Tue, 01 Sep 2026 07:30:00 GMT",
+      "guid": "https://example.com/rss-dashboard-fixture/rss-tech/double-encoded-description",
+      "feedTitle": "GitHub Blog (fixture)",
+      "feedUrl": "https://github.blog/feed/",
+      "coverImage": "",
+      "summary": "",
+      "author": "Fixture Author",
+      "mediaType": "article"
+    },
+    {
       "title": "Read article without a preview image",
       "link": "https://example.com/rss-dashboard-fixture/rss-tech/2",
       "description": "<p>Channel pilot ember anchor meadow simple kernel vector quarry velvet cipher gentle corridor sketch quill ribbon. Zephyr copper steady stanza marble mirror spindle table quill timber checks thread calm planner fixture rapid. Signal ribbon pilot window archive tangent tests metric useful ember pilot quill cipher yarrow crescent. Brief checks curious sketch plain corridor lantern sketch finds moves.</p>\n<p>Binder summit gallery pebble quill kernel notebook amber folder trail shows thread spindle bramble draft. Sketch steady draft vector clover plain paper summit anchor reader calm plain pilot compass. Ribbon folder mirror sketch trail ember reader module calm checks. Plain metric quiet timber reads quill archive folder planner signal.</p>",
