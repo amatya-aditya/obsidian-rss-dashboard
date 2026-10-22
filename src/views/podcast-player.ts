@@ -399,67 +399,38 @@ export class PodcastPlayer {
       cls: "podcast-transport-section",
     });
 
-    this.shuffleButton = transportSection.createDiv({
+    this.shuffleButton = createIconButton({
+      parent: transportSection,
       cls: "rss-shuffle-btn clickable-icon",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Shuffle",
-      },
-    });
-    setIcon(this.shuffleButton, "shuffle");
-    this.shuffleButton.onclick = () => this.toggleShuffle();
-    this.shuffleButton.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        this.toggleShuffle();
-      }
+      label: "Shuffle",
+      icon: "shuffle",
+      onClick: () => this.toggleShuffle(),
     });
     this.updateShuffleButton();
 
-    const rewindBtn = transportSection.createDiv({
-      cls: "rss-rewind clickable-icon",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Rewind 30 seconds",
-      },
-    });
-    setIcon(rewindBtn, "rotate-ccw");
-    rewindBtn.createSpan({ cls: "seek-label", text: "30" });
-    rewindBtn.onclick = () => {
+    const seekBack = () => {
       if (this.audioElement) {
         this.seekTo(Math.max(0, this.audioElement.currentTime - 30));
       }
     };
-    rewindBtn.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        if (this.audioElement) {
-          this.seekTo(Math.max(0, this.audioElement.currentTime - 30));
-        }
-      }
+    const rewindBtn = createIconButton({
+      parent: transportSection,
+      cls: "rss-rewind clickable-icon",
+      label: "Rewind 30 seconds",
+      icon: "rotate-ccw",
+      onClick: seekBack,
     });
+    rewindBtn.createSpan({ cls: "seek-label", text: "30" });
 
-    this.playButton = transportSection.createDiv({
+    this.playButton = createIconButton({
+      parent: transportSection,
       cls: "rss-play-pause clickable-icon",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Play/Pause",
-      },
-    });
-    setIcon(this.playButton, "play");
-    this.playButton.onclick = () => {
-      if (this.playButton?.classList.contains("is-disabled")) return;
-      this.togglePlayback();
-    };
-    this.playButton.addEventListener("keydown", (e: KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
+      label: "Play/Pause",
+      icon: "play",
+      onClick: () => {
         if (this.playButton?.classList.contains("is-disabled")) return;
         this.togglePlayback();
-      }
+      },
     });
     if (!this.hasAudioForCurrentItem) {
       this.playButton.addClass("is-disabled");
@@ -473,17 +444,7 @@ export class PodcastPlayer {
       });
     }
 
-    const forwardBtn = transportSection.createDiv({
-      cls: "rss-forward clickable-icon",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Forward 30 seconds",
-      },
-    });
-    setIcon(forwardBtn, "rotate-cw");
-    forwardBtn.createSpan({ cls: "seek-label", text: "30" });
-    forwardBtn.onclick = () => {
+    const seekForward = () => {
       if (this.audioElement) {
         this.seekTo(
           Math.min(
@@ -493,35 +454,21 @@ export class PodcastPlayer {
         );
       }
     };
-    forwardBtn.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        if (this.audioElement) {
-          this.seekTo(
-            Math.min(
-              this.audioElement.duration || Infinity,
-              this.audioElement.currentTime + 30,
-            ),
-          );
-        }
-      }
+    const forwardBtn = createIconButton({
+      parent: transportSection,
+      cls: "rss-forward clickable-icon",
+      label: "Forward 30 seconds",
+      icon: "rotate-cw",
+      onClick: seekForward,
     });
+    forwardBtn.createSpan({ cls: "seek-label", text: "30" });
 
-    this.repeatButton = transportSection.createDiv({
+    this.repeatButton = createIconButton({
+      parent: transportSection,
       cls: "rss-repeat-btn clickable-icon",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Repeat",
-      },
-    });
-    setIcon(this.repeatButton, "repeat");
-    this.repeatButton.onclick = () => this.toggleRepeat();
-    this.repeatButton.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        this.toggleRepeat();
-      }
+      label: "Repeat",
+      icon: "repeat",
+      onClick: () => this.toggleRepeat(),
     });
   }
 
@@ -575,12 +522,14 @@ export class PodcastPlayer {
     this.volumeContainer = toolsSection.createDiv({
       cls: "rss-volume-control-container",
     });
-    const volumeBtn = this.volumeContainer.createDiv({
+    const volumeBtn = createIconButton({
+      parent: this.volumeContainer,
       cls: "rss-volume clickable-icon",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Adjust volume",
+      label: "Adjust volume",
+      icon: "volume-2",
+      onClick: (e) => {
+        e.stopPropagation();
+        toggleMute();
       },
     });
     const updateVolumeIcon = () => {
@@ -601,21 +550,6 @@ export class PodcastPlayer {
       }
     };
 
-    volumeBtn.onclick = () => {
-      if (this.audioElement) {
-        if (!this.audioElement.muted && this.audioElement.volume > 0) {
-          this.previousVolume = this.audioElement.volume;
-          this.audioElement.muted = true;
-        } else {
-          this.audioElement.muted = false;
-          if (this.audioElement.volume === 0) {
-            this.audioElement.volume = this.previousVolume || 1;
-          }
-        }
-        updateVolumeIcon();
-      }
-    };
-
     const toggleMute = () => {
       if (this.audioElement) {
         if (!this.audioElement.muted && this.audioElement.volume > 0) {
@@ -630,17 +564,6 @@ export class PodcastPlayer {
         updateVolumeIcon();
       }
     };
-
-    volumeBtn.onclick = (e) => {
-      e.stopPropagation();
-      toggleMute();
-    };
-    volumeBtn.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        toggleMute();
-      }
-    });
 
     this.volumeSlider = this.volumeContainer.createDiv({
       cls: "rss-volume-slider",
