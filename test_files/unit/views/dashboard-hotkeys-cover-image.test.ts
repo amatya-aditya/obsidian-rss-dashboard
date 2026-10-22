@@ -84,6 +84,8 @@ const COVER_FETCH_LABEL = "Fetch and replace cover image";
 const COVER_REPLACE_LABEL = "Replace cover image from the fetch";
 const COVER_RESTORE_LABEL = "Restore cover image from feed";
 const COVER_REMOVE_LABEL = "Remove fetched cover image";
+// The control names the key beside its sentence (#1467); menu items keep it.
+const COVER_HINT = " (Shift + c)";
 const COVER_BUTTON = ".rss-dashboard-fetch-cover-button";
 const FETCHING_CLASS = "rss-dashboard-cover-fetching";
 
@@ -341,7 +343,7 @@ describe("Shift+C runs the selected article's cover-image action (#1466)", () =>
     expect(h.plugin.fetchPageCoverImage).toHaveBeenCalledTimes(1);
     expect(h.article.coverImage).toBe(FEED_IMAGE);
     expect(h.article.coverImageFromPage).toBeUndefined();
-    expect(h.coverLabel()).toBe(COVER_REPLACE_LABEL);
+    expect(h.coverLabel()).toBe(COVER_REPLACE_LABEL + COVER_HINT);
 
     const restored = h.articleEl();
     h.press();
@@ -349,7 +351,7 @@ describe("Shift+C runs the selected article's cover-image action (#1466)", () =>
     expect(h.plugin.fetchPageCoverImage).toHaveBeenCalledTimes(2);
     expect(h.article.coverImage).toBe(PAGE_IMAGE);
     expect(h.article.coverImageFromPage).toBe(true);
-    expect(h.coverLabel()).toBe(COVER_RESTORE_LABEL);
+    expect(h.coverLabel()).toBe(COVER_RESTORE_LABEL + COVER_HINT);
     h.cleanup();
   });
 
@@ -359,7 +361,7 @@ describe("Shift+C runs the selected article's cover-image action (#1466)", () =>
     const first = h.articleEl();
     h.press();
     await waitForReplace(h, first);
-    expect(h.coverLabel()).toBe(COVER_REMOVE_LABEL);
+    expect(h.coverLabel()).toBe(COVER_REMOVE_LABEL + COVER_HINT);
 
     const fetched = h.articleEl();
     h.press();
@@ -367,7 +369,7 @@ describe("Shift+C runs the selected article's cover-image action (#1466)", () =>
     expect(h.plugin.fetchPageCoverImage).toHaveBeenCalledTimes(1);
     expect(h.article.coverImage).toBe("");
     expect(h.article.coverImageFromPage).toBeUndefined();
-    expect(h.coverLabel()).toBe(COVER_FETCH_LABEL);
+    expect(h.coverLabel()).toBe(COVER_FETCH_LABEL + COVER_HINT);
 
     const cleared = h.articleEl();
     h.press();

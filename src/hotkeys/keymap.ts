@@ -579,9 +579,41 @@ export function readerBindings(): KeyBinding[] {
 
 const KEY_NAMES: Readonly<Record<string, string>> = { " ": "Space" };
 
+/**
+ * The key a row is bound to, as a person types it: the key itself, with
+ * `Shift + ` in front when the binding needs Shift. Unlike `bindingLabel` this
+ * ignores the row's `label`, because that label is the help's wording, not the
+ * key (#1467). `Shift + c` keeps the letter lower-case, as the tooltip does.
+ */
+function derivedKeyName(binding: KeyBinding): string {
+  const name = KEY_NAMES[binding.key] ?? binding.key;
+  return binding.shift ? `Shift + ${name}` : name;
+}
+
 /** The label the shortcut help uses for a binding. */
 export function bindingLabel(binding: KeyBinding): string {
   if (binding.label) return binding.label;
-  const name = KEY_NAMES[binding.key] ?? binding.key;
-  return binding.shift ? `Shift + ${name}` : name;
+  return derivedKeyName(binding);
+}
+
+/**
+ * The hint a control appends to its tooltip: `(m)`, `(s)`, `(Shift + c)`.
+ *
+ * The dashboard surfaces call this instead of writing a key into their own
+ * text, so the tooltip follows the binding table: changing a row's key changes
+ * every hint that row feeds, with no second edit (#1467). Throws for an id the
+ * table does not have, because a hint-less tooltip on a renamed binding would
+ * otherwise drift unnoticed.
+ */
+export function bindingHint(id: string): string {
+  const binding = KEYMAP.find((row) => row.id === id);
+  if (!binding) {
+    throw new Error(`No key binding with id "${id}".`);
+  }
+  return `(${derivedKeyName(binding)})`;
+}
+
+/** A control's label with its binding's hint appended, after the sentence. */
+export function withBindingHint(label: string, id: string): string {
+  return `${label} ${bindingHint(id)}`;
 }

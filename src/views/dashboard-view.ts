@@ -104,6 +104,7 @@ import {
 import { getFeedErrorDetail } from "../utils/feed-error";
 import { RefreshDetailsModal } from "../modals/refresh-details-modal";
 import { setupDashboardHotkeys } from "../hotkeys/dashboard-hotkeys";
+import { withBindingHint } from "../hotkeys/keymap";
 import { scheduleProcessMathElements } from "../utils/math-rendering";
 import {
   handleReaderMathCopy,
@@ -3798,7 +3799,13 @@ export class RssDashboardView extends ItemView {
       const saveButton = articleEl.querySelector(".rss-dashboard-save-toggle");
       if (saveButton?.instanceOf(HTMLElement)) {
         saveButton.classList.add("saved");
-        setTooltip(saveButton, SAVED_ARTICLE_TOOLTIP);
+        // The same saved-state name the footer control is built with (#1467),
+        // including the binding's hint; this path writes it outside the list's
+        // in-place sync.
+        setTooltip(
+          saveButton,
+          withBindingHint(SAVED_ARTICLE_TOOLTIP, "save-article"),
+        );
       }
     }
   }

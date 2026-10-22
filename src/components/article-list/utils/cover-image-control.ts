@@ -1,4 +1,5 @@
 import type { FeedItem } from "../../../types/types";
+import { withBindingHint } from "../../../hotkeys/keymap";
 import { createIconButton } from "../../../utils/icon-button";
 import {
   COVER_IMAGE_FETCH_BUTTON_CLASS,
@@ -50,7 +51,10 @@ export function renderCoverImageControl({
   region,
 }: CoverImageControlOptions): void {
   const button = createIconButton({
-    label: action.label,
+    // The tooltip names the key that runs the same action (#1467). Both roles
+    // carry it, and it is added here rather than at the card and feed call
+    // sites so the two cannot drift apart.
+    label: withBindingHint(action.label, "cover-image-action"),
     icon: action.icon,
     parent,
     cls: COVER_IMAGE_FETCH_BUTTON_CLASS,
