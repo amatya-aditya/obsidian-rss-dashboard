@@ -123,6 +123,60 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     expect(activeLabels()).toEqual(["Rules"]);
   });
 
+  describe("focus after selecting a tab", () => {
+    const setup = async () => {
+      const { RssDashboardSettingTab } =
+        await import("../../../src/settings/settings-tab");
+      const app = obsidian.App.createMock();
+      const plugin = { app } as unknown as RssDashboardPlugin;
+      const tab = new RssDashboardSettingTab(app, plugin);
+      tab.containerEl = document.body.appendChild(createDiv());
+      tab.refresh();
+      const button = (label: string) =>
+        Array.from(tab.containerEl.querySelectorAll("button")).find(
+          (btn) => btn.textContent === label,
+        ) as HTMLButtonElement;
+      return { tab, button };
+    };
+
+    it("keeps focus on the selected tab button after a click", async () => {
+      const { button } = await setup();
+
+      button("About").focus();
+      button("About").click();
+
+      expect(activeDocument.activeElement).toBe(button("About"));
+      expect(activeDocument.activeElement?.getAttribute("aria-selected")).toBe(
+        "true",
+      );
+    });
+
+    it("moves focus to the clicked tab even when another element had focus", async () => {
+      const { button } = await setup();
+
+      button("Rules").click();
+
+      expect(activeDocument.activeElement).toBe(button("Rules"));
+    });
+
+    it("does not move focus for activateTab(), refresh() or rss-settings-refresh", async () => {
+      const { tab, button } = await setup();
+      const outside = document.body.appendChild(createEl("input"));
+      outside.focus();
+
+      tab.activateTab("Rules");
+      expect(activeDocument.activeElement).not.toBe(button("Rules"));
+
+      tab.refresh();
+      expect(activeDocument.activeElement).not.toBe(button("Rules"));
+
+      tab.containerEl
+        .querySelector(".rss-dashboard-settings-tab-content")
+        ?.dispatchEvent(new CustomEvent("rss-settings-refresh"));
+      expect(activeDocument.activeElement).not.toBe(button("Rules"));
+    });
+  });
+
   it("switches tabs on button click and via activateTab()", async () => {
     const { RssDashboardSettingTab } =
       await import("../../../src/settings/settings-tab");
