@@ -118,9 +118,9 @@ export function createTagsDropdownPortal(
     cls: "rss-dashboard-tags-dropdown-content rss-dashboard-tags-dropdown-content-portal",
     attr: { role: "group", "aria-label": "Manage tags", tabindex: "-1" },
   });
-  // Only a button reports the menu's state; the import modal anchors on a
-  // plain container.
-  const anchorIsButton = anchor.matches('button, [role="button"]');
+  // Only a button reports the menu's state; an anchor that is not a button
+  // is left alone.
+  const anchorIsButton = anchor.matches("button");
 
   const persistSettings = () => {
     const result = onPersistSettings?.();

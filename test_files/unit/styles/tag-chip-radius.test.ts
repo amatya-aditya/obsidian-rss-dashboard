@@ -152,7 +152,7 @@ describe("Tag chip stylesheet - shared radius", () => {
       "episode-list-row-tag episode-list-row-tag-more",
     );
     expect(read("modals/import-starred-modal.ts")).toMatch(
-      /createTagChip\(list, tag\)[\s\S]{0,80}import-new-tags-chip/,
+      /createTagChip\(list, tag, "button"\)[\s\S]{0,80}import-new-tags-chip/,
     );
     expect(read("components/article-list/utils/tag-layout-utils.ts")).toContain(
       '"rss-dashboard-tag-badge"',

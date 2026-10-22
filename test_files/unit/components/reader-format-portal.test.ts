@@ -148,6 +148,41 @@ describe("createReaderFormatPortal", () => {
     ).toBeNull();
   });
 
+  it("renders every icon control as a native, named button", () => {
+    setMatchMedia(false);
+
+    createReaderFormatPortal({
+      anchor: (document.body as ObsidianHTMLElement).createDiv(),
+      format: createFormat(),
+      defaults: createFormat(),
+      applyFormat: vi.fn(),
+      scheduleSave: vi.fn(),
+      flushSave: vi.fn(),
+      openReaderDisplaySettings: vi.fn(),
+    });
+
+    const iconButtons = Array.from(
+      document.body.querySelectorAll<HTMLElement>(
+        ".rss-reader-format-icon-button",
+      ),
+    );
+
+    expect(iconButtons.map((el) => el.getAttribute("aria-label"))).toEqual([
+      "Decrease font size",
+      "Increase font size",
+      "Decrease line height",
+      "Increase line height",
+      "Reset reader format",
+      "Open reader display settings",
+    ]);
+    iconButtons.forEach((el) => {
+      expect(el.tagName).toBe("BUTTON");
+      expect(el.getAttribute("type")).toBe("button");
+      expect(el.hasAttribute("role")).toBe(false);
+      expect(el.hasAttribute("tabindex")).toBe(false);
+    });
+  });
+
   it("resets the quick controls back to defaults", () => {
     setMatchMedia(false);
 

@@ -271,6 +271,26 @@
   cursor: pointer;
 }
 
+/* The chip and the per-row Manage tags control are native buttons. Reset
+ * Obsidian's button chrome so they keep the chip and strip look. */
+.rss-dashboard-modal .import-new-tags-list button.import-new-tags-chip {
+  height: auto;
+  border: none;
+  background: var(--tag-color, var(--interactive-accent));
+  color: var(--text-on-accent);
+  box-shadow: none;
+  font-family: inherit;
+}
+
+.rss-dashboard-modal button.import-preview-tags-control {
+  height: auto;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  font-family: inherit;
+  color: inherit;
+}
+
 .import-new-tags-list .import-new-tags-chip:hover,
 .import-new-tags-list .import-new-tags-chip:focus-visible {
   filter: brightness(1.1);
@@ -310,8 +330,8 @@
   padding: 2px 4px;
 }
 
-.import-preview-tags-control.rss-dashboard-tag-container:hover,
-.import-preview-tags-control.rss-dashboard-tag-container:focus-visible {
+.rss-dashboard-modal button.import-preview-tags-control:hover,
+.rss-dashboard-modal button.import-preview-tags-control:focus-visible {
   background: var(--background-modifier-hover);
 }
 

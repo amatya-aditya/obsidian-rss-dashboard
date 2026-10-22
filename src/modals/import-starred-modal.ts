@@ -640,21 +640,14 @@ export class ImportStarredModal extends AccessibleModal {
 
     const list = section.createDiv({ cls: "import-new-tags-list" });
     for (const tag of newTags) {
-      const chip = createTagChip(list, tag);
+      const chip = createTagChip(list, tag, "button");
       chip.addClass("import-new-tags-chip");
-      chip.setAttr("role", "button");
-      chip.setAttr("tabindex", "0");
+      chip.setAttr("type", "button");
       chip.setAttr("aria-label", `Edit "${tag.name}" tag`);
-      const openEditor = (e: Event) => {
+      chip.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
         this.showNewTagEditor(tag, newTags);
-      };
-      chip.addEventListener("click", openEditor);
-      chip.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          openEditor(e);
-        }
       });
     }
   }
@@ -904,27 +897,20 @@ export class ImportStarredModal extends AccessibleModal {
     row: HTMLElement,
     candidate: StarredImportCandidate,
   ): void {
-    const control = row.createDiv({
+    const control = row.createEl("button", {
       cls: "import-preview-meta import-preview-tags-control rss-dashboard-tag-container",
       attr: {
-        role: "button",
-        tabindex: "0",
+        type: "button",
         "aria-label": "Manage tags",
       },
     });
 
     this.renderItemTagsChips(control, candidate);
 
-    const openPortal = (e: Event) => {
+    control.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
       this.showItemTagsDropdown(control, candidate);
-    };
-    control.addEventListener("click", openPortal);
-    control.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        openPortal(e);
-      }
     });
   }
 
