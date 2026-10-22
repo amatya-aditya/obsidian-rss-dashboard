@@ -29,6 +29,7 @@ import {
   renderVideoSourceBanner,
   shouldRenderVideoSourceBanner,
 } from "../utils/reader-article-fetch";
+import { renderSourceFooter } from "../utils/reader-source-footer";
 import { fetchFullArticleContentWithOutcome } from "../utils/full-article-fetch";
 import {
   applyFetchOutcome,
@@ -290,6 +291,7 @@ export class ArticleRenderer {
       if (this.relatedItems.length > 0) {
         this.videoPlayer.setRelatedVideos(this.relatedItems);
       }
+      renderSourceFooter(container, item);
     } else {
       const errorContainer = videoContainer.createDiv({
         cls: "rss-reader-error",
@@ -338,6 +340,7 @@ export class ArticleRenderer {
       this.currentItem = selectedEpisode;
       this.currentDisplayTitle = undefined;
       this.currentReaderTitle = undefined;
+      renderSourceFooter(container, selectedEpisode);
       // We might need to bubble this up if the dashboard selection needs to sync
       this.onArticleUpdate(selectedEpisode, { read: true }, false);
     };
@@ -358,6 +361,7 @@ export class ArticleRenderer {
         this.settings.media.showPodcastSleepTimerBand ?? true,
       );
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
+      renderSourceFooter(container, item);
     } else {
       await this.displayArticle(container, item);
     }
@@ -478,6 +482,7 @@ export class ArticleRenderer {
       );
     }
 
+    renderSourceFooter(container, item);
     this.renderArticleBanners(container, item);
   }
 
