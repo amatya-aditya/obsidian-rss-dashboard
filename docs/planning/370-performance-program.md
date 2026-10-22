@@ -564,6 +564,319 @@ Reading each feed once would be 205 reads; the load reads every shard twice. Its
 
 </details>
 
+### Result after slice 1 (#1519)
+
+Measured 2026-10-22 on `9f3abeb4` (the fix), on the same machine, vault, build procedure and session as the baseline above. Both after-runs were on a clean tree, and no run overlapped other lint or test processes. Each run is one cold launch and five warm reloads. Run 1 compares with the baseline's run 1, run 2 with run 2.
+
+| Measure (run 1)                          | Before | After | Change |
+| ---------------------------------------- | ------ | ----- | ------ |
+| Warm `onload`, median of 5, ms           | 3226   | 1771  | -45%   |
+| Shard reads per plugin start (205 feeds) | 410    | 205   | -50%   |
+| Cold launch: plugin CPU, ms              | 5018   | 3414  | -32%   |
+| Cold launch: workspace ready, page ms    | 5786   | 4263  | -26%   |
+
+| Measure (run 2)                          | Before | After | Change |
+| ---------------------------------------- | ------ | ----- | ------ |
+| Warm `onload`, median of 5, ms           | 3197   | 1489  | -53%   |
+| Shard reads per plugin start (205 feeds) | 410    | 205   | -50%   |
+| Cold launch: plugin CPU, ms              | 4955   | 3436  | -31%   |
+| Cold launch: workspace ready, page ms    | 5764   | 4135  | -28%   |
+
+Shard writes stay at 0 per start, `data.json` is not rewritten, and the two backup files are still written once per start. The program target (A <= 1 s, DEC-001) is not met: warm `onload` is about 1.5-1.8 s. What is left in the cold profile is the change-detection bookkeeping and the first render, in inclusive plugin time: `capturePersistedState` about 1.4 s, `recordRead` about 0.7 s, the first dashboard render about 0.5 s. That bookkeeping is the target of slice 2, before any deferred hydration is considered.
+
+<details>
+<summary>Raw results (after, runs 1 and 2)</summary>
+
+```json
+{
+  "label": "after",
+  "date": "2026-10-22T21:40:19.927Z",
+  "commit": "9f3abeb4",
+  "dirty": false,
+  "obsidian": "1.14.4",
+  "plugin": "2.7.1",
+  "vaultName": "Obsidian_Main",
+  "ambientToolProcesses": 1,
+  "machine": {
+    "cpu": "AMD Ryzen 7 1700 Eight-Core Processor",
+    "threads": 16,
+    "memoryGb": 17,
+    "os": "Windows_NT 10.0.26200",
+    "node": "24.12.0"
+  },
+  "cold": {
+    "attachedAfterLaunchMs": 339,
+    "layoutReadyMs": 4263,
+    "pluginPresentMs": 1128,
+    "foreignProcesses": 0,
+    "profile": {
+      "spanMs": 6536,
+      "pluginCpuMs": 3414,
+      "idleMs": 1126,
+      "otherCpuMs": 1996,
+      "topPluginFrames": [
+        {
+          "name": "gg",
+          "ms": 1359
+        },
+        {
+          "name": "capturePersistedState",
+          "ms": 1357
+        },
+        {
+          "name": "ni",
+          "ms": 1004
+        },
+        {
+          "name": "X",
+          "ms": 941
+        },
+        {
+          "name": "JT",
+          "ms": 914
+        },
+        {
+          "name": "Xa",
+          "ms": 864
+        },
+        {
+          "name": "nt",
+          "ms": 700
+        },
+        {
+          "name": "recordRead",
+          "ms": 673
+        },
+        {
+          "name": "render",
+          "ms": 563
+        },
+        {
+          "name": "createPersistedSettings",
+          "ms": 489
+        }
+      ]
+    },
+    "profileFile": "after-1.json.cold.cpuprofile"
+  },
+  "warm": {
+    "runs": [
+      {
+        "onloadMs": 1754,
+        "shardReads": 205,
+        "writes": {
+          "shards": 0,
+          "other": {
+            "feeds.opml.backup": 1,
+            "workspace.json": 2,
+            "rss-dashboard-user-preferences.json.backup": 1
+          }
+        },
+        "foreignProcesses": 0
+      },
+      {
+        "onloadMs": 1780,
+        "shardReads": 205,
+        "writes": {
+          "shards": 0,
+          "other": {
+            "feeds.opml.backup": 1,
+            "workspace.json": 2,
+            "rss-dashboard-user-preferences.json.backup": 1
+          }
+        },
+        "foreignProcesses": 0
+      },
+      {
+        "onloadMs": 1759,
+        "shardReads": 205,
+        "writes": {
+          "shards": 0,
+          "other": {
+            "feeds.opml.backup": 1,
+            "workspace.json": 2,
+            "rss-dashboard-user-preferences.json.backup": 1
+          }
+        },
+        "foreignProcesses": 0
+      },
+      {
+        "onloadMs": 1771,
+        "shardReads": 205,
+        "writes": {
+          "shards": 0,
+          "other": {
+            "feeds.opml.backup": 1,
+            "workspace.json": 2,
+            "rss-dashboard-user-preferences.json.backup": 1
+          }
+        },
+        "foreignProcesses": 0
+      },
+      {
+        "onloadMs": 1807,
+        "shardReads": 205,
+        "writes": {
+          "shards": 0,
+          "other": {
+            "feeds.opml.backup": 1,
+            "workspace.json": 2,
+            "rss-dashboard-user-preferences.json.backup": 1
+          }
+        },
+        "foreignProcesses": 0
+      }
+    ]
+  }
+}
+```
+
+```json
+{
+  "label": "after",
+  "date": "2026-10-22T21:41:30.628Z",
+  "commit": "9f3abeb4",
+  "dirty": false,
+  "obsidian": "1.14.4",
+  "plugin": "2.7.1",
+  "vaultName": "Obsidian_Main",
+  "ambientToolProcesses": 1,
+  "machine": {
+    "cpu": "AMD Ryzen 7 1700 Eight-Core Processor",
+    "threads": 16,
+    "memoryGb": 17,
+    "os": "Windows_NT 10.0.26200",
+    "node": "24.12.0"
+  },
+  "cold": {
+    "attachedAfterLaunchMs": 343,
+    "layoutReadyMs": 4135,
+    "pluginPresentMs": 1212,
+    "foreignProcesses": 0,
+    "profile": {
+      "spanMs": 6413,
+      "pluginCpuMs": 3436,
+      "idleMs": 782,
+      "otherCpuMs": 2196,
+      "topPluginFrames": [
+        {
+          "name": "gg",
+          "ms": 1431
+        },
+        {
+          "name": "capturePersistedState",
+          "ms": 1429
+        },
+        {
+          "name": "ni",
+          "ms": 1038
+        },
+        {
+          "name": "X",
+          "ms": 995
+        },
+        {
+          "name": "JT",
+          "ms": 962
+        },
+        {
+          "name": "Xa",
+          "ms": 913
+        },
+        {
+          "name": "nt",
+          "ms": 723
+        },
+        {
+          "name": "recordRead",
+          "ms": 711
+        },
+        {
+          "name": "render",
+          "ms": 539
+        },
+        {
+          "name": "createPersistedSettings",
+          "ms": 512
+        }
+      ]
+    },
+    "profileFile": "after-2.json.cold.cpuprofile"
+  },
+  "warm": {
+    "runs": [
+      {
+        "onloadMs": 1669,
+        "shardReads": 205,
+        "writes": {
+          "shards": 0,
+          "other": {
+            "feeds.opml.backup": 1,
+            "workspace.json": 2,
+            "rss-dashboard-user-preferences.json.backup": 1
+          }
+        },
+        "foreignProcesses": 0
+      },
+      {
+        "onloadMs": 1479,
+        "shardReads": 205,
+        "writes": {
+          "shards": 0,
+          "other": {
+            "feeds.opml.backup": 1,
+            "rss-dashboard-user-preferences.json.backup": 1,
+            "workspace.json": 1
+          }
+        },
+        "foreignProcesses": 0
+      },
+      {
+        "onloadMs": 1447,
+        "shardReads": 205,
+        "writes": {
+          "shards": 0,
+          "other": {
+            "feeds.opml.backup": 1,
+            "rss-dashboard-user-preferences.json.backup": 1,
+            "workspace.json": 1
+          }
+        },
+        "foreignProcesses": 0
+      },
+      {
+        "onloadMs": 1489,
+        "shardReads": 205,
+        "writes": {
+          "shards": 0,
+          "other": {
+            "feeds.opml.backup": 1,
+            "rss-dashboard-user-preferences.json.backup": 1,
+            "workspace.json": 1
+          }
+        },
+        "foreignProcesses": 0
+      },
+      {
+        "onloadMs": 1558,
+        "shardReads": 205,
+        "writes": {
+          "shards": 0,
+          "other": {
+            "feeds.opml.backup": 1,
+            "rss-dashboard-user-preferences.json.backup": 1,
+            "workspace.json": 1
+          }
+        },
+        "foreignProcesses": 0
+      }
+    ]
+  }
+}
+```
+
+</details>
+
 ## Reporting
 
 Each track's pull request carries its before/after table. When all scheduled
