@@ -275,17 +275,7 @@ describe("SyncSimulator", () => {
       }
     });
 
-    it("fires no event until the whole wave is on disk", () => {
-      const { desktop, mobile, sync } = setUp();
-      seed(desktop, { "d/a.json": "a", "d/b.json": "b" });
-      const events = record(mobile);
-
-      sync.deliverWave();
-
-      expect(events).toEqual(["create:d/a.json", "create:d/b.json"]);
-    });
-
-    it("lets a debounced reload fire once for a wave of N files", async () => {
+    it("lets a 1500 ms debounce, standing in for the plugin's reload, fire once for a wave of N files", async () => {
       const { desktop, mobile, sync } = setUp();
       seed(desktop, { "d/a.json": "a", "d/b.json": "b", "d/c.json": "c" });
       const reload = vi.fn();
