@@ -23,6 +23,14 @@ export type TagsDropdownPortalOptions = {
   onOpenTagsSettings?: () => Promise<void> | void;
   appContainer?: HTMLElement | null;
   /**
+   * Keep Tab and Shift+Tab cycling inside the menu. Opt-in, because the portal
+   * also mounts inside modals: there the host dialog claims Escape, so a
+   * trapped menu would leave closing the whole dialog as the only way out.
+   * The dashboard and Reader opt in; the Import Starred dialog keeps its
+   * normal Tab order (#1480).
+   */
+  containTab?: boolean;
+  /**
    * Receives the mounted menu root. A view whose own focus-restore handler
    * could pull focus out of the menu (the dashboard and Reader restore their
    * container on leaf activation) keeps this reference and passes it to
@@ -79,6 +87,7 @@ export function createTagsDropdownPortal(
     onTagEdited,
     onOpenTagsSettings,
     appContainer,
+    containTab = false,
     onOpen,
     onClosed,
   } = options;
@@ -509,46 +518,49 @@ export function createTagsDropdownPortal(
   // Tab and Shift+Tab cycle inside the menu, so the card button's path and the
   // `t` hotkey's path behave the same (#1480). Focus on the menu itself (no
   // tags, so the menu is the first target) enters at the first or last control.
-  // Keys the menu does not own, and focus outside it, are left alone.
-  portalDropdown.addEventListener("keydown", (ev) => {
-    if (ev.key !== "Tab" || ev.ctrlKey || ev.altKey || ev.metaKey) {
-      return;
-    }
-    // A control inside the menu that handled Tab itself keeps the key.
-    if (ev.defaultPrevented) {
-      return;
-    }
-    const focused = targetDocument.activeElement;
-    if (focused !== portalDropdown && !portalDropdown.contains(focused)) {
-      return;
-    }
-    const stops = Array.from(
-      portalDropdown.querySelectorAll<HTMLElement>(TAB_STOP_SELECTOR),
-    ).filter((el) => el.tabIndex >= 0);
-    const first = stops[0];
-    const last = stops[stops.length - 1];
-    if (!first || !last) {
-      ev.preventDefault();
-      portalDropdown.focus({ preventScroll: true });
-      return;
-    }
-    const index =
-      focused === portalDropdown ? -1 : stops.indexOf(focused as HTMLElement);
-    if (index === -1) {
-      ev.preventDefault();
-      (ev.shiftKey ? last : first).focus();
-      return;
-    }
-    if (ev.shiftKey && index === 0) {
-      ev.preventDefault();
-      last.focus();
-      return;
-    }
-    if (!ev.shiftKey && index === stops.length - 1) {
-      ev.preventDefault();
-      first.focus();
-    }
-  });
+  // Keys the menu does not own, and focus outside it, are left alone. Only
+  // opted-in callers attach this: see `containTab`.
+  if (containTab) {
+    portalDropdown.addEventListener("keydown", (ev) => {
+      if (ev.key !== "Tab" || ev.ctrlKey || ev.altKey || ev.metaKey) {
+        return;
+      }
+      // A control inside the menu that handled Tab itself keeps the key.
+      if (ev.defaultPrevented) {
+        return;
+      }
+      const focused = targetDocument.activeElement;
+      if (focused !== portalDropdown && !portalDropdown.contains(focused)) {
+        return;
+      }
+      const stops = Array.from(
+        portalDropdown.querySelectorAll<HTMLElement>(TAB_STOP_SELECTOR),
+      ).filter((el) => el.tabIndex >= 0);
+      const first = stops[0];
+      const last = stops[stops.length - 1];
+      if (!first || !last) {
+        ev.preventDefault();
+        portalDropdown.focus({ preventScroll: true });
+        return;
+      }
+      const index =
+        focused === portalDropdown ? -1 : stops.indexOf(focused as HTMLElement);
+      if (index === -1) {
+        ev.preventDefault();
+        (ev.shiftKey ? last : first).focus();
+        return;
+      }
+      if (ev.shiftKey && index === 0) {
+        ev.preventDefault();
+        last.focus();
+        return;
+      }
+      if (!ev.shiftKey && index === stops.length - 1) {
+        ev.preventDefault();
+        first.focus();
+      }
+    });
+  }
 
   if (isMobile) {
     // Clear any inline positions so CSS mobile-sheet rules win via cascade

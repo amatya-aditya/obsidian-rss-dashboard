@@ -1980,6 +1980,7 @@ export class ArticleList {
       },
       onOpenTagsSettings: this.callbacks.onOpenTagsSettings,
       appContainer: this.container,
+      containTab: true,
       onOpen: (portal) => {
         this.tagsDropdownPortal = portal;
       },

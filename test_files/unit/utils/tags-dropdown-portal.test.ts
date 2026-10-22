@@ -220,7 +220,10 @@ describe("createTagsDropdownPortal tag editing", () => {
 describe("createTagsDropdownPortal keyboard operation", () => {
   let button: HTMLElement;
 
-  const openMenu = (tags: { name: string; color: string }[] = []) => {
+  const openMenu = (
+    tags: { name: string; color: string }[] = [],
+    options: { containTab?: boolean } = {},
+  ) => {
     const settings = JSON.parse(
       JSON.stringify(DEFAULT_SETTINGS),
     ) as typeof DEFAULT_SETTINGS;
@@ -232,6 +235,7 @@ describe("createTagsDropdownPortal keyboard operation", () => {
       settings,
       item: makeItem(),
       onTagAssignmentChange: vi.fn(),
+      containTab: options.containTab ?? true,
       onClosed,
     });
     return { close, onClosed };
@@ -367,20 +371,23 @@ describe("createTagsDropdownPortal keyboard operation", () => {
     close();
   });
 
-  it("keeps Tab inside the menu when it is mounted in a modal", () => {
+  it("leaves Tab alone in a modal-mounted menu that did not opt in", () => {
+    // The Import Starred dialog mounts this portal without `containTab`: the
+    // host dialog claims Escape, so trapping Tab would make closing the whole
+    // dialog the only way out (found by live testing, #1480).
     const modal = document.body.createDiv({ cls: "modal-container" });
     modal.appendChild(button);
-    const { close } = openMenu([{ name: "A", color: "#111111" }]);
-    const stops = menuTabStops();
-    const last = stops[stops.length - 1];
-    last.focus();
+    const { close } = openMenu([{ name: "A", color: "#111111" }], {
+      containTab: false,
+    });
+    const first = menuTabStops()[0];
+    first.focus();
 
-    pressTab(last);
-    expect(document.activeElement).toBe(stops[0]);
+    // Shift+Tab from the first control would wrap if the menu trapped Tab.
+    const event = pressTab(first, true);
 
-    pressEscape();
-    expect(menu()).toBeNull();
-    expect(document.activeElement).toBe(button);
+    expect(event.defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(first);
     close();
   });
 

@@ -1079,6 +1079,9 @@ export class ReaderView extends ItemView {
             !tagsPortalHoldsFocus(
               this.tagsDropdownPortal,
               this.tagsToggleButton,
+            ) &&
+            !this.containerEl.contains(
+              this.containerEl.ownerDocument.activeElement,
             )
           ) {
             this.containerEl.focus({ preventScroll: true });
@@ -2529,6 +2532,7 @@ export class ReaderView extends ItemView {
         this.openTagsSettings();
       },
       appContainer: this.contentEl,
+      containTab: true,
       onOpen: (portal) => {
         this.tagsDropdownPortal = portal;
       },

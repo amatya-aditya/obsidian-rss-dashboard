@@ -197,6 +197,20 @@ describe("Dashboard tag menu focus (#1480)", () => {
     expect(activeDocument.activeElement).toBe(cardTagsToggle(view));
   });
 
+  it("leaves focus on the card tag button when a leaf event follows Escape", async () => {
+    const { view, app, leaf } = await openDashboard([NEWS_TAG]);
+    view.actionToggleTagsMenu();
+    const tagsToggle = cardTagsToggle(view);
+
+    pressKey(firstTagCheckbox()!, "Escape");
+    expect(activeDocument.activeElement).toBe(tagsToggle);
+
+    // Closing a menu in a popout activates its leaf; the view must not pull
+    // focus off the opener it just restored (#1480, found in a popout).
+    app.workspace.trigger("active-leaf-change", leaf);
+    expect(activeDocument.activeElement).toBe(tagsToggle);
+  });
+
   it("focuses the menu with `t` when there are no tags and Tab enters it", async () => {
     const { view, app, leaf } = await openDashboard([]);
 
@@ -240,6 +254,37 @@ interface ReaderInternals {
   actionToggleTagsMenu(): void;
 }
 
+interface ReaderHarness {
+  view: ReaderInternals;
+  app: App;
+  leaf: import("obsidian").WorkspaceLeaf;
+  tagsButton: HTMLElement;
+}
+
+async function openReader(): Promise<ReaderHarness> {
+  const { settings, item } = settingsWithOneArticle([NEWS_TAG]);
+  const app = new App();
+  const leaf = {
+    app,
+    view: null,
+  } as unknown as import("obsidian").WorkspaceLeaf;
+  const view = new ReaderView(
+    leaf,
+    settings,
+    { saveArticle: vi.fn() } as never,
+    vi.fn(),
+    vi.fn(),
+  ) as unknown as ReaderInternals;
+  view.contentEl = view.containerEl.children[1] as HTMLElement;
+  activeDocument.body.appendChild(view.containerEl);
+  await view.onOpen();
+  view.currentItem = item;
+  const tagsButton = view.contentEl.querySelector<HTMLElement>(
+    '[data-rss-action="tags"]',
+  )!;
+  return { view, app, leaf, tagsButton };
+}
+
 describe("Reader tag menu focus (#1480)", () => {
   beforeEach(() => {
     installObsidianDomPolyfills();
@@ -253,23 +298,7 @@ describe("Reader tag menu focus (#1480)", () => {
   });
 
   it("keeps focus on the first tag checkbox when the leaf becomes active after `t`", async () => {
-    const { settings, item } = settingsWithOneArticle([NEWS_TAG]);
-    const app = new App();
-    const leaf = {
-      app,
-      view: null,
-    } as unknown as import("obsidian").WorkspaceLeaf;
-    const view = new ReaderView(
-      leaf,
-      settings,
-      { saveArticle: vi.fn() } as never,
-      vi.fn(),
-      vi.fn(),
-    ) as unknown as ReaderInternals;
-    view.contentEl = view.containerEl.children[1] as HTMLElement;
-    activeDocument.body.appendChild(view.containerEl);
-    await view.onOpen();
-    view.currentItem = item;
+    const { view, app, leaf, tagsButton } = await openReader();
 
     view.actionToggleTagsMenu();
     const checkbox = firstTagCheckbox();
@@ -279,11 +308,19 @@ describe("Reader tag menu focus (#1480)", () => {
 
     expect(activeDocument.activeElement).toBe(checkbox);
 
-    const tagsButton = view.contentEl.querySelector<HTMLElement>(
-      '[data-rss-action="tags"]',
-    )!;
     pressKey(checkbox!, "Escape");
     expect(menu()).toBeNull();
+    expect(activeDocument.activeElement).toBe(tagsButton);
+  });
+
+  it("leaves focus on the Reader tag button when a leaf event follows Escape", async () => {
+    const { view, app, leaf, tagsButton } = await openReader();
+
+    view.actionToggleTagsMenu();
+    pressKey(firstTagCheckbox()!, "Escape");
+    expect(activeDocument.activeElement).toBe(tagsButton);
+
+    app.workspace.trigger("active-leaf-change", leaf);
     expect(activeDocument.activeElement).toBe(tagsButton);
   });
 });
