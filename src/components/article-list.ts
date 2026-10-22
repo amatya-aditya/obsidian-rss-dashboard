@@ -20,7 +20,11 @@ import type { FilterContext } from "../utils/filter-detection";
 import { HighlightService } from "../services/highlight-service";
 import { getEffectiveDateMs } from "../services/feed-parser/feed-retention";
 import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
-import { resolveFocusAfterRemoval } from "../utils/article-list-focus";
+import {
+  ARTICLE_ROW_REMOVING_CLASS,
+  ARTICLE_ROW_SELECTOR,
+  findRenderedNeighbourRow,
+} from "../utils/article-list-focus";
 import { articleTitleMatchesSearch } from "../utils/article-search";
 import {
   groupArticles as groupArticlesUtil,
@@ -61,14 +65,34 @@ import type {
   BaseViewContext,
   ViewDeps,
 } from "./article-list/views/view-types";
+import { isDomNode } from "../utils/dom-node";
 import { prefersReducedMotion } from "../utils/motion-preference";
 import {
   LEFT_HANDED_LAYOUT_ROOT_CLASS,
   loadLeftHandedLayout,
 } from "../utils/left-handed-layout";
 
+const ARTICLE_CONTROL_SELECTOR = [
+  ".rss-dashboard-read-toggle",
+  ".rss-dashboard-star-toggle",
+  ".rss-dashboard-save-toggle",
+  ".rss-dashboard-tags-toggle",
+  `.${COVER_IMAGE_FETCH_BUTTON_CLASS}`,
+].join(", ");
+
 interface ArticleListCallbacks {
   onArticleClick: (article: FeedItem) => void;
+  /**
+   * A footer or cover control on a card was activated. The dashboard selects
+   * that article without opening it; a mouse activation also takes focus back
+   * so the shortcut named in the tooltip works at once (#1468).
+   */
+  onArticleControlActivate?: (article: FeedItem, byMouse: boolean) => void;
+  /**
+   * The row that holds keyboard focus is about to leave the list. Returns the
+   * function that puts focus back once the row is gone (#1468).
+   */
+  onFocusedRowRemoval?: () => () => void;
   onToggleViewStyle: (style: "list" | "card" | "feed") => void;
   onRefreshFeeds: () => Promise<void>;
   onSearch: (query: string) => void;
@@ -717,13 +741,7 @@ export class ArticleList {
         (feedUrl !== undefined && article.feedUrl !== feedUrl),
     );
 
-    const targetEl = Array.from(
-      this.container.querySelectorAll<HTMLElement>(
-        `#article-${CSS.escape(guid)}`,
-      ),
-    ).find(
-      (article) => feedUrl === undefined || article.dataset.feedUrl === feedUrl,
-    );
+    const targetEl = this.findRowEl(guid, feedUrl);
     if (!targetEl) return;
 
     const listEl = this.container.querySelector<HTMLElement>(
@@ -731,14 +749,21 @@ export class ArticleList {
     );
     const scrollPos = listEl?.scrollTop ?? 0;
 
-    // A keyboard user loses their place when the focused row leaves. Pick the
-    // destination before removing it, then move focus after it is gone (#1385).
+    // A keyboard user loses their place when the focused row leaves. Tell the
+    // dashboard before the row goes, then let it take focus back once the row
+    // is gone, so the keymap stays live (#1385, #1468).
     const hadFocus = targetEl.contains(targetEl.doc.activeElement);
-    const focusTarget = hadFocus
-      ? resolveFocusAfterRemoval(targetEl, listEl)
-      : null;
+    const restoreFocus = hadFocus
+      ? this.callbacks.onFocusedRowRemoval?.()
+      : undefined;
     const moveFocus = (): void => {
-      focusTarget?.focus({ preventScroll: true });
+      if (!hadFocus) return;
+      if (restoreFocus) {
+        restoreFocus();
+        return;
+      }
+      listEl?.setAttr("tabindex", "-1");
+      listEl?.focus({ preventScroll: true });
     };
 
     // Script-driven collapse ignores the stylesheet's reduced-motion rules, so
@@ -750,6 +775,7 @@ export class ArticleList {
       return;
     }
 
+    targetEl.classList.add(ARTICLE_ROW_REMOVING_CLASS);
     const originalHeight = targetEl.offsetHeight;
     setCssProps(targetEl, {
       overflow: "hidden",
@@ -895,8 +921,45 @@ export class ArticleList {
     return true;
   }
 
+  /**
+   * The article the list would select if `guid` left it now: the next rendered
+   * row, else the previous one, read from the order on screen (#1468). Call it
+   * before removing the row.
+   */
+  public getRenderedNeighbour(guid: string, feedUrl?: string): FeedItem | null {
+    const targetEl = this.findRowEl(guid, feedUrl);
+    const listEl = this.container.querySelector<HTMLElement>(
+      ".rss-dashboard-articles-list",
+    );
+    if (!targetEl) return null;
+    const row = findRenderedNeighbourRow(targetEl, listEl);
+    if (!row) return null;
+    return this.findArticleForRow(row);
+  }
+
+  private findRowEl(guid: string, feedUrl?: string): HTMLElement | undefined {
+    return Array.from(
+      this.container.querySelectorAll<HTMLElement>(
+        `#article-${CSS.escape(guid)}`,
+      ),
+    ).find(
+      (article) => feedUrl === undefined || article.dataset.feedUrl === feedUrl,
+    );
+  }
+
+  private findArticleForRow(row: HTMLElement): FeedItem | null {
+    return (
+      this.articles.find(
+        (article) =>
+          row.id === `article-${article.guid}` &&
+          (row.dataset.feedUrl === undefined ||
+            article.feedUrl === row.dataset.feedUrl),
+      ) ?? null
+    );
+  }
+
   public setSelectedArticle(
-    article: FeedItem,
+    article: FeedItem | null,
     options?: { forceCardTopAnchor?: boolean },
   ): void {
     this.selectedArticle = article;
@@ -909,6 +972,7 @@ export class ArticleList {
         ".rss-dashboard-article-item.active, .rss-dashboard-article-card.active, .rss-dashboard-feed-item.active",
       )
       .forEach((el) => el.classList.remove("active"));
+    if (!article) return;
     // Add active class to the newly selected article element
     const targetEl = this.container.querySelector<HTMLElement>(
       `#article-${CSS.escape(article.guid)}`,
@@ -1336,11 +1400,42 @@ export class ArticleList {
     });
   }
 
+  /**
+   * Activating a footer or cover control selects its card before the control
+   * runs, so the shortcut in its tooltip refers to the card just used. The
+   * capture phase runs ahead of the control's own handler, which may remove
+   * the card (#1468). Enter and Space reach the control as keydown, not click.
+   */
+  private attachControlActivation(articlesList: HTMLElement): void {
+    const report = (event: Event, byMouse: boolean): void => {
+      const target = event.target;
+      // `instanceof HTMLElement` is false for elements a popout window created.
+      if (!isDomNode(target) || !target.instanceOf(HTMLElement)) return;
+      if (!target.closest(ARTICLE_CONTROL_SELECTOR)) return;
+      const row = target.closest<HTMLElement>(ARTICLE_ROW_SELECTOR);
+      const article = row ? this.findArticleForRow(row) : null;
+      if (article) this.callbacks.onArticleControlActivate?.(article, byMouse);
+    };
+    articlesList.addEventListener(
+      "click",
+      (event) => report(event, event.detail > 0),
+      true,
+    );
+    articlesList.addEventListener(
+      "keydown",
+      (event) => {
+        if (event.key === "Enter" || event.key === " ") report(event, false);
+      },
+      true,
+    );
+  }
+
   private createArticlesListContainer(): HTMLElement {
     const articlesList = this.container.createDiv({
       cls: `rss-dashboard-articles-list rss-dashboard-${this.settings.viewStyle}-view`,
     });
     this.applyLeftHandedLayoutClass(articlesList);
+    this.attachControlActivation(articlesList);
     if (this.settings.viewStyle === "card") {
       // Keep card layout controls in one render-time path so both hamburger
       // controls and formal settings stay in sync with the same persisted fields.

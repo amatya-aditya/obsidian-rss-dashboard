@@ -165,6 +165,11 @@ export class RssDashboardView extends ItemView {
    * render, so the query lives here and is handed back to the new list (#1465).
    */
   private articleSearchQuery = "";
+  /**
+   * Set when a removal moved the selection to its neighbour, so `,` opens that
+   * neighbour instead of advancing a second time (#1468).
+   */
+  private selectionAdvancedByRemoval: { next: FeedItem | null } | null = null;
   private tagsCollapsed = true;
   private collapsedFolders: string[] = [];
   private allArticlesPage = 1;
@@ -344,6 +349,30 @@ export class RssDashboardView extends ItemView {
   public actionSidebarOpenFocused(): void {
     this.getSidebarKeyboardController()?.openFocusedItem();
     this.actionFocusDashboard();
+  }
+
+  /**
+   * Whether `article` is the dashboard's current selection. `feedUrl` names the
+   * backing feed when the selection carries that URL instead of the article's.
+   */
+  public isSelectedArticle(article: FeedItem, feedUrl?: string): boolean {
+    return (
+      this.selectedArticle?.guid === article.guid &&
+      (this.selectedArticle.feedUrl === article.feedUrl ||
+        (feedUrl !== undefined && this.selectedArticle.feedUrl === feedUrl))
+    );
+  }
+
+  /** Reads and clears what the last removal did to the selection. */
+  private takeSelectionAdvance(): { next: FeedItem | null } | null {
+    const advance = this.selectionAdvancedByRemoval;
+    this.selectionAdvancedByRemoval = null;
+    return advance;
+  }
+
+  /** Puts keyboard focus on the dashboard itself, where its keymap is live. */
+  private focusDashboardContainer(): void {
+    this.containerEl.focus({ preventScroll: true });
   }
 
   public actionFocusDashboard(): void {
@@ -634,8 +663,18 @@ export class RssDashboardView extends ItemView {
    * @internal
    */
   public async actionMarkReadAndNext(): Promise<void> {
+    this.selectionAdvancedByRemoval = null;
     if (this.selectedArticle && !this.selectedArticle.read) {
       await this.actionToggleReadStatus();
+    }
+    // A filter that dropped the card already moved the selection; open that
+    // neighbour rather than advancing past it (#1468).
+    const advanced = this.takeSelectionAdvance();
+    if (advanced) {
+      if (advanced.next) {
+        await this.selectArticle(advanced.next, { open: true });
+      }
+      return;
     }
     this.actionNavigateNext({ open: true });
   }
@@ -1302,6 +1341,11 @@ export class RssDashboardView extends ItemView {
       onArticleClick: (article) => {
         void this.handleArticleClick(article);
       },
+      onArticleControlActivate: (article, byMouse) => {
+        void this.selectArticle(article);
+        if (byMouse) this.focusDashboardContainer();
+      },
+      onFocusedRowRemoval: () => () => this.focusDashboardContainer(),
       onToggleViewStyle: this.handleToggleViewStyle.bind(this),
       onRefreshFeeds: this.handleRefreshFeeds.bind(this),
       onSearch: (query) => {
@@ -3457,11 +3501,16 @@ export class RssDashboardView extends ItemView {
     ) {
       // Scope pools use the backing feed URL; keep the existing display
       // identity for status/keyword removals within the current feed.
-      this.articleList.removeArticleInPlace(
-        article.guid,
-        feedInScope ? article.feedUrl : feed.url,
-      );
-      this.reconcilePageAfterInPlaceRemoval();
+      const removalFeedUrl = feedInScope ? article.feedUrl : feed.url;
+      const removedSelection = this.isSelectedArticle(article, feed.url);
+      // The neighbour comes from the order on screen, so it must be read
+      // before the row leaves the list (#1468).
+      const neighbour = removedSelection
+        ? this.articleList.getRenderedNeighbour(article.guid, removalFeedUrl)
+        : null;
+      if (removedSelection) this.moveSelectionTo(neighbour);
+      this.articleList.removeArticleInPlace(article.guid, removalFeedUrl);
+      this.reconcilePageAfterInPlaceRemoval(removedSelection && !neighbour);
       this.refreshFilterStatusBarOnly();
       return;
     }
@@ -3512,7 +3561,9 @@ export class RssDashboardView extends ItemView {
    * keeps its animation (#1385). The rebuild recomputes the empty state and
    * the page footer for the smaller result set.
    */
-  private reconcilePageAfterInPlaceRemoval(): void {
+  private reconcilePageAfterInPlaceRemoval(
+    selectLastOfClampedPage = false,
+  ): void {
     if (!this.articleList) return;
 
     const filtered = this.getFilteredArticles();
@@ -3534,13 +3585,32 @@ export class RssDashboardView extends ItemView {
 
     if (pageEmptied) {
       this.setCurrentPageState(pagination.currentPage);
+      if (selectLastOfClampedPage) {
+        // The removed card was the page's only row, so there was no rendered
+        // neighbour; the previous page's last article is the nearest one.
+        const pageArticles = filtered.slice(
+          pagination.startIdx,
+          pagination.endIdx,
+        );
+        this.moveSelectionTo(pageArticles[pageArticles.length - 1] ?? null);
+      }
     }
-    // The rebuild below replaces the list, including whatever control the
-    // in-place removal had chosen. Remember the keyboard user's place and
-    // restore an equivalent target once the new page is rendered (#1387).
-    const focusTarget = captureArticleListFocus(this.containerEl);
+    // The rebuild below replaces the list. Remember whether the keyboard user
+    // was in it and hand focus back to the dashboard afterwards, never to a
+    // card's inner control (#1387, #1468).
+    const hadFocus = captureArticleListFocus(this.containerEl);
     void this.render();
-    restoreArticleListFocus(this.containerEl, focusTarget);
+    restoreArticleListFocus(this.containerEl, hadFocus);
+  }
+
+  /**
+   * Moves the selection off a card that left the list without opening
+   * anything. `null` clears it, so no hidden article can be acted on (#1468).
+   */
+  private moveSelectionTo(article: FeedItem | null): void {
+    this.selectedArticle = article;
+    this.articleList?.setSelectedArticle(article);
+    this.selectionAdvancedByRemoval = { next: article };
   }
 
   private markPageArticlesAsRead(

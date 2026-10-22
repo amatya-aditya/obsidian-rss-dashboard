@@ -77,6 +77,8 @@ function fixture(itemCount: number) {
     plugin as never,
   );
   openViews.push(view);
+  // onOpen makes the container focusable; this fixture never opens the view.
+  view.containerEl.tabIndex = -1;
   document.body.append(view.containerEl);
   const seams = view as unknown as ViewSeams;
   seams.currentFolder = "unread";
@@ -89,8 +91,11 @@ function fixture(itemCount: number) {
   return { view, seams, feed, readControl, update };
 }
 
+// #1468 replaced "focus the remaining article's read control" with "focus the
+// dashboard container": a read control is a role="button", which the dashboard
+// keymap ignores, so the user's shortcuts went dead after a rebuild.
 describe("dashboard focus after an in-place removal rebuilds the page", () => {
-  it("moves focus to the remaining article when the last page disappears", () => {
+  it("returns focus to the dashboard, not a card control, when the last page disappears", () => {
     const f = fixture(2);
     f.seams.unreadArticlesPage = 2;
     f.view.render();
@@ -101,10 +106,10 @@ describe("dashboard focus after an in-place removal rebuilds the page", () => {
     f.update("article-1", true);
 
     expect(f.readControl("article-2")?.classList.contains("read")).toBe(false);
-    expect(document.activeElement).toBe(f.readControl("article-2"));
+    expect(document.activeElement).toBe(f.view.containerEl);
   });
 
-  it("focuses the article list when no row remains", () => {
+  it("returns focus to the dashboard when no row remains", () => {
     vi.useFakeTimers();
     const f = fixture(1);
     f.view.render();
@@ -115,10 +120,6 @@ describe("dashboard focus after an in-place removal rebuilds the page", () => {
     f.update("article-1", true);
     vi.advanceTimersByTime(320);
 
-    const list = f.view.containerEl.querySelector(
-      ".rss-dashboard-articles-list",
-    );
-    expect(list).not.toBeNull();
-    expect(document.activeElement).toBe(list);
+    expect(document.activeElement).toBe(f.view.containerEl);
   });
 });

@@ -291,11 +291,13 @@ const SIDEBAR_CALLBACK_NAMES = [
 
 const ARTICLE_LIST_CALLBACK_NAMES = [
   "onArticleClick",
+  "onArticleControlActivate",
   "onArticleCustomSave",
   "onArticleSave",
   "onArticleUpdate",
   "onFetchCoverImage",
   "onFilterChange",
+  "onFocusedRowRemoval",
   "onGroupChange",
   "onMarkAllAsRead",
   "onMarkAllAsUnread",
