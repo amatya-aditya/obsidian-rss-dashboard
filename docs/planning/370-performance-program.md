@@ -4,6 +4,7 @@ issues:
   - https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/370
   - https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/371
   - https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/749
+  - https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1519
 ---
 
 # Performance program: measured baselines and before/after results
@@ -29,13 +30,13 @@ for implementation**, then link it in the track table below.
 
 ## Tracks
 
-| #   | Track                            | Status      | Issue                                                                               | Target                     |
-| --- | -------------------------------- | ----------- | ----------------------------------------------------------------------------------- | -------------------------- |
-| 1   | Contributor dev-loop speed       | in progress | [GH Issue #371](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/371) | 2.7.0 (Required)           |
-| 2   | Shared-worker unit-test mode     | deferred    | create when ready                                                                   | after 2.7.0                |
-| 3   | Plugin runtime benchmark harness | deferred    | create when ready                                                                   | after 2.7.0                |
-| 4   | Refresh-all responsiveness       | deferred    | create when ready                                                                   | after 2.7.0; needs Track 3 |
-| 5   | Startup and bundle cost          | deferred    | create when ready                                                                   | after 2.7.0; needs Track 3 |
+| #   | Track                            | Status      | Issue                                                                                           | Target                     |
+| --- | -------------------------------- | ----------- | ----------------------------------------------------------------------------------------------- | -------------------------- |
+| 1   | Contributor dev-loop speed       | in progress | [GH Issue #371](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/371)             | 2.7.0 (Required)           |
+| 2   | Shared-worker unit-test mode     | deferred    | create when ready                                                                               | after 2.7.0                |
+| 3   | Plugin runtime benchmark harness | deferred    | create when ready                                                                               | after 2.7.0                |
+| 4   | Refresh-all responsiveness       | deferred    | create when ready                                                                               | after 2.7.0; needs Track 3 |
+| 5   | Startup and bundle cost          | in progress | [GH Issue #1519](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1519) (slice 1) | 2.8.0                      |
 
 Track 1's follow-up to move full validation from local pre-push to CI is
 tracked by [GH Issue #749](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/749).
@@ -250,11 +251,318 @@ Refresh all. Hypotheses to test, not conclusions:
 - The `ConcurrencySemaphore` limits may not suit 200+ feeds, and there is no
   per-host limit.
 
-## Track 5: Startup and bundle cost (deferred)
+## Track 5: Startup and bundle cost (in progress)
 
 The minified `main.js` is about 1.05 MB. Measure plugin load and
 first-dashboard-render time, analyze the bundle with an esbuild metafile, and
 defer work that is not needed until after layout is ready.
+
+### Baseline before slice 1 (#1519)
+
+Measured 2026-10-22 on base commit `cd7d183d` (dev), in a vault holding only the 205 Discover feeds (36.6 MB of live shards), with `scripts/benchmark-plugin-load.mjs` (procedure: [Plugin Load Benchmark](../development/plugin-load-benchmark.md)). AMD Ryzen 7 1700 Eight-Core Processor (16 threads, 17 GB), Windows 11 build 26200, Obsidian 1.14.4, plugin 2.7.1, Node 24.12.0. DevTools and the profiler were attached, so compare ratios, not absolute times. "Cold" is a fresh Obsidian process with a warm OS file cache, not a reboot. Another Obsidian instance on its own profile was open and idle. Each run is one cold launch and five warm reloads; no warm run overlapped other lint or test processes.
+
+| Measure                                  | Run 1 | Run 2 |
+| ---------------------------------------- | ----- | ----- |
+| Warm `onload`, median of 5, ms           | 3226  | 3197  |
+| Shard reads per plugin start (205 feeds) | 410   | 410   |
+| Shard writes per plugin start            | 0     | 0     |
+| Cold launch: plugin CPU, ms              | 5018  | 4955  |
+| Cold launch: workspace ready, page ms    | 5786  | 5764  |
+
+Reading each feed once would be 205 reads; the load reads every shard twice. Its startup save re-opens each unchanged shard, and the save has nothing to write. Slice 1 removes that pass.
+
+<details>
+<summary>Raw results (before, runs 1 and 2)</summary>
+
+```json
+{
+  "label": "before",
+  "date": "2026-10-22T21:13:15.373Z",
+  "commit": "cd7d183d",
+  "dirty": true,
+  "obsidian": "1.14.4",
+  "plugin": "2.7.1",
+  "vaultName": "Obsidian_Main",
+  "ambientToolProcesses": 1,
+  "machine": {
+    "cpu": "AMD Ryzen 7 1700 Eight-Core Processor",
+    "threads": 16,
+    "memoryGb": 17,
+    "os": "Windows_NT 10.0.26200",
+    "node": "24.12.0"
+  },
+  "cold": {
+    "attachedAfterLaunchMs": 304,
+    "layoutReadyMs": 5786,
+    "pluginPresentMs": 1062,
+    "foreignProcesses": 0,
+    "profile": {
+      "spanMs": 8074,
+      "pluginCpuMs": 5018,
+      "idleMs": 848,
+      "otherCpuMs": 2208,
+      "topPluginFrames": [
+        {
+          "name": "X",
+          "ms": 1918
+        },
+        {
+          "name": "Za",
+          "ms": 1561
+        },
+        {
+          "name": "gg",
+          "ms": 1469
+        },
+        {
+          "name": "capturePersistedState",
+          "ms": 1467
+        },
+        {
+          "name": "eE",
+          "ms": 1324
+        },
+        {
+          "name": "tE",
+          "ms": 1322
+        },
+        {
+          "name": "yn",
+          "ms": 1191
+        },
+        {
+          "name": "ni",
+          "ms": 1040
+        },
+        {
+          "name": "JT",
+          "ms": 947
+        },
+        {
+          "name": "createPersistedSettings",
+          "ms": 761
+        }
+      ]
+    },
+    "profileFile": "before-1.json.cold.cpuprofile"
+  },
+  "warm": {
+    "runs": [
+      {
+        "onloadMs": 3226,
+        "shardReads": 410,
+        "writes": {
+          "shards": 0,
+          "other": {
+            "feeds.opml.backup": 2,
+            "rss-dashboard-user-preferences.json.backup": 2,
+            "workspace.json": 2
+          }
+        },
+        "foreignProcesses": 0
+      },
+      {
+        "onloadMs": 3117,
+        "shardReads": 410,
+        "writes": {
+          "shards": 0,
+          "other": {
+            "workspace.json": 2,
+            "feeds.opml.backup": 1,
+            "rss-dashboard-user-preferences.json.backup": 1
+          }
+        },
+        "foreignProcesses": 0
+      },
+      {
+        "onloadMs": 3156,
+        "shardReads": 410,
+        "writes": {
+          "shards": 0,
+          "other": {
+            "workspace.json": 2,
+            "feeds.opml.backup": 1,
+            "rss-dashboard-user-preferences.json.backup": 1
+          }
+        },
+        "foreignProcesses": 0
+      },
+      {
+        "onloadMs": 3338,
+        "shardReads": 410,
+        "writes": {
+          "shards": 0,
+          "other": {
+            "workspace.json": 2,
+            "feeds.opml.backup": 1,
+            "rss-dashboard-user-preferences.json.backup": 1
+          }
+        },
+        "foreignProcesses": 0
+      },
+      {
+        "onloadMs": 3309,
+        "shardReads": 410,
+        "writes": {
+          "shards": 0,
+          "other": {
+            "workspace.json": 2,
+            "feeds.opml.backup": 1,
+            "rss-dashboard-user-preferences.json.backup": 1
+          }
+        },
+        "foreignProcesses": 0
+      }
+    ]
+  }
+}
+```
+
+```json
+{
+  "label": "before",
+  "date": "2026-10-22T21:14:37.726Z",
+  "commit": "cd7d183d",
+  "dirty": true,
+  "obsidian": "1.14.4",
+  "plugin": "2.7.1",
+  "vaultName": "Obsidian_Main",
+  "ambientToolProcesses": 1,
+  "machine": {
+    "cpu": "AMD Ryzen 7 1700 Eight-Core Processor",
+    "threads": 16,
+    "memoryGb": 17,
+    "os": "Windows_NT 10.0.26200",
+    "node": "24.12.0"
+  },
+  "cold": {
+    "attachedAfterLaunchMs": 308,
+    "layoutReadyMs": 5764,
+    "pluginPresentMs": 1129,
+    "foreignProcesses": 0,
+    "profile": {
+      "spanMs": 8048,
+      "pluginCpuMs": 4955,
+      "idleMs": 797,
+      "otherCpuMs": 2296,
+      "topPluginFrames": [
+        {
+          "name": "X",
+          "ms": 1900
+        },
+        {
+          "name": "Za",
+          "ms": 1534
+        },
+        {
+          "name": "gg",
+          "ms": 1430
+        },
+        {
+          "name": "capturePersistedState",
+          "ms": 1428
+        },
+        {
+          "name": "eE",
+          "ms": 1308
+        },
+        {
+          "name": "tE",
+          "ms": 1305
+        },
+        {
+          "name": "yn",
+          "ms": 1167
+        },
+        {
+          "name": "ni",
+          "ms": 1067
+        },
+        {
+          "name": "JT",
+          "ms": 962
+        },
+        {
+          "name": "createPersistedSettings",
+          "ms": 760
+        }
+      ]
+    },
+    "profileFile": "before-2.json.cold.cpuprofile"
+  },
+  "warm": {
+    "runs": [
+      {
+        "onloadMs": 3143,
+        "shardReads": 410,
+        "writes": {
+          "shards": 0,
+          "other": {
+            "feeds.opml.backup": 2,
+            "rss-dashboard-user-preferences.json.backup": 2,
+            "workspace.json": 2
+          }
+        },
+        "foreignProcesses": 0
+      },
+      {
+        "onloadMs": 3253,
+        "shardReads": 410,
+        "writes": {
+          "shards": 0,
+          "other": {
+            "workspace.json": 2,
+            "feeds.opml.backup": 1,
+            "rss-dashboard-user-preferences.json.backup": 1
+          }
+        },
+        "foreignProcesses": 0
+      },
+      {
+        "onloadMs": 3167,
+        "shardReads": 410,
+        "writes": {
+          "shards": 0,
+          "other": {
+            "workspace.json": 2,
+            "feeds.opml.backup": 1,
+            "rss-dashboard-user-preferences.json.backup": 1
+          }
+        },
+        "foreignProcesses": 0
+      },
+      {
+        "onloadMs": 3327,
+        "shardReads": 410,
+        "writes": {
+          "shards": 0,
+          "other": {
+            "workspace.json": 2,
+            "feeds.opml.backup": 1,
+            "rss-dashboard-user-preferences.json.backup": 1
+          }
+        },
+        "foreignProcesses": 0
+      },
+      {
+        "onloadMs": 3197,
+        "shardReads": 410,
+        "writes": {
+          "shards": 0,
+          "other": {
+            "workspace.json": 2,
+            "feeds.opml.backup": 1,
+            "rss-dashboard-user-preferences.json.backup": 1
+          }
+        },
+        "foreignProcesses": 0
+      }
+    ]
+  }
+}
+```
+
+</details>
 
 ## Reporting
 
