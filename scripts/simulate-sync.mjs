@@ -38,13 +38,18 @@ const SYNC_ARTICLE_GUID =
   "https://example.com/rss-dashboard-fixture/sync-sim/1";
 const SHARD_PATH = `${STORAGE_FOLDER}/${SYNC_FEED_ID}.json`;
 
+// The orders below are samples of an unconstrained real order, not predictions
+// of it: the first Real Sync pass saw files land within about 0.6 s of each
+// other in no fixed order (#1430).
 export const PRESETS = {
   "late-shard":
     "data.json and user-state.json arrive, then the new feed's shard lands after the reload debounce.",
   "user-state-late":
     "data.json and the shard arrive, then user-state.json lands after the reload debounce.",
-  "data-first": "data.json, then the shard, then user-state.json.",
-  reverse: "user-state.json, then the shard, then data.json.",
+  "data-first":
+    "One sample order: data.json, then the shard, then user-state.json.",
+  reverse:
+    "Another sample order: user-state.json, then the shard, then data.json.",
   "empty-newer-wins":
     "A newer data.json with no feeds or folders, as a clean device would write.",
   "dot-folder-skip": `The data-first files written under ${DOT_FOLDER}/, a dot-folder the plugin should ignore.`,

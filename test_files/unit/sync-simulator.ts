@@ -14,6 +14,11 @@ import type { MockApp } from "obsidian";
  * - Delivery order: source order, reversed, an explicit list, or one file per
  *   `deliverNext()` call.
  * - Delays between files under fake timers, and partial arrival.
+ * - A wave: several files that land inside one watcher tick. The caller names
+ *   the order, because the real order is unconstrained and a random one could
+ *   not be pinned by a contract test. The observed spread (about 1 s to about
+ *   171 s of delay) and the plugin's single reload 1.7 to 2.3 s after the last
+ *   file are recorded in the probe ledger, not coded as timers.
  * - Last to deliver wins, whole file, whatever the mtimes (ledger "Real Sync
  *   pass, run 1"): a delivered file replaces the receiver's copy.
  * - A delivered file keeps the sender's mtime and size.
@@ -103,6 +108,23 @@ export class SyncSimulator {
       }
       if (this.deliverFile(path)) delivered.push(path);
     }
+    return delivered;
+  }
+
+  /**
+   * Delivers the planned files as one wave: every file is on disk before the
+   * receiver sees any event, so the whole wave is one `externalTick`. The order
+   * is the caller's; it only decides the order of the events. Returns the paths
+   * delivered.
+   */
+  deliverWave(options: Pick<DeliverOptions, "order" | "only"> = {}): string[] {
+    const delivered: string[] = [];
+    const paths = this.plannedPaths(options);
+    this.to.vault.externalTick(() => {
+      for (const path of paths) {
+        if (this.deliverFile(path)) delivered.push(path);
+      }
+    });
     return delivered;
   }
 

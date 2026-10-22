@@ -271,6 +271,26 @@ describe("Shard storage v2 arrival orders through the real plugin (#1429)", () =
     expect(guidsOf(mobile, "feed-b")).toEqual(["b1", "b2"]);
   });
 
+  it("reloads once for a wave that lands data.json, a shard and user-state.json in one tick", async () => {
+    const { desktop, mobile, sync } = await pairedDevices([
+      feed("feed-a", ["a1", "a2"]),
+    ]);
+    await desktopAddsFeedBAndStarsA1(desktop);
+    const loads = vi.spyOn(mobile.plugin, "loadSettings");
+    const redrawsBefore = mobile.redraws.mock.calls.length;
+
+    // The caller picks the order; a real one is unconstrained (#1430).
+    sync.deliverWave({
+      order: [USER_STATE_PATH, shardPath("feed-b"), DATA_PATH],
+    });
+    await settle();
+
+    expect(loads).toHaveBeenCalledTimes(1);
+    expect(mobile.redraws.mock.calls.length).toBe(redrawsBefore + 1);
+    expect(guidsOf(mobile, "feed-b")).toEqual(["b1", "b2"]);
+    expect(starredOf(mobile, "feed-a")).toEqual(["a1"]);
+  });
+
   it("applies a late user-state.json to articles that are already loaded, without a restart", async () => {
     const { desktop, mobile, sync } = await pairedDevices([
       feed("feed-a", ["a1", "a2"]),

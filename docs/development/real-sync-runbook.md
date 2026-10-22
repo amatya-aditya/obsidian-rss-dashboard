@@ -128,7 +128,9 @@ both sides show the text.
 mean a change has reached the other device: in the first pass both sides showed
 it while a delivery was still pending, and deliveries arrived between about 1 s
 and about 171 s after the write (see "Real Sync pass" in the
-[probe ledger](../../test_files/stubs/obsidian-console-probes.md)). Treat it as
+[probe ledger](../../test_files/stubs/obsidian-console-probes.md)). A change's
+files land within about 0.6 s of each other in no fixed order, and the plugin
+reloads once, 1.7 to 2.3 s after the last one. Treat it as
 necessary, never sufficient. A step that waits for a delivery waits for the
 expected file bytes: read the file on the receiving side, from disk (Device B is
 on the same PC) or over CDP, and compare its size and SHA-256 with the sending
