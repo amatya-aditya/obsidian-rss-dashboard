@@ -322,9 +322,9 @@ describe("createTagsDropdownPortal keyboard operation", () => {
     installObsidianDomPolyfills();
     document.body.empty();
     vi.useFakeTimers();
-    button = document.body.createDiv({
+    button = document.body.createEl("button", {
       cls: "rss-dashboard-tags-toggle",
-      attr: { role: "button", tabindex: "0", "aria-expanded": "false" },
+      attr: { type: "button", "aria-expanded": "false" },
     });
   });
 

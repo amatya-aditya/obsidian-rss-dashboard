@@ -34,8 +34,12 @@ export function renderTagChips(container: HTMLElement, tags: Tag[]): void {
   }
 }
 
-export function createTagChip(container: HTMLElement, tag: Tag): HTMLElement {
-  const tagEl = container.createDiv({
+export function createTagChip(
+  container: HTMLElement,
+  tag: Tag,
+  element: "div" | "button" = "div",
+): HTMLElement {
+  const tagEl = container.createEl(element, {
     cls: "rss-dashboard-tag-badge",
     text: tag.name,
   });

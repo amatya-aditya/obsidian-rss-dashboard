@@ -1526,6 +1526,38 @@ describe("ImportStarredModal", () => {
       expect(rowChip?.style.getPropertyValue("--tag-color")).toBe("#00ff00");
     });
 
+    it("renders each new-tag chip as a native, named button that opens the tag editor", async () => {
+      vi.spyOn(console, "debug").mockImplementation(() => {});
+      const { content } = await setUpModal();
+      const chip = getNewTagsSection(content)!.querySelector<HTMLElement>(
+        ".import-new-tags-chip",
+      )!;
+
+      expect(chip.tagName).toBe("BUTTON");
+      expect(chip.getAttribute("type")).toBe("button");
+      expect(chip.getAttribute("aria-label")).toBe(
+        `Edit "${chip.textContent}" tag`,
+      );
+      expect(chip.hasAttribute("role")).toBe(false);
+      expect(chip.hasAttribute("tabindex")).toBe(false);
+
+      chip.click();
+      expect(document.querySelector(".rss-dashboard-tag-modal-form")).not.toBe(
+        null,
+      );
+    });
+
+    it("renders each article row's Manage tags control as a native, named button", async () => {
+      const { content } = await setUpModal();
+      const control = getItemTagsControl(content, labeledGuid);
+
+      expect(control.tagName).toBe("BUTTON");
+      expect(control.getAttribute("type")).toBe("button");
+      expect(control.getAttribute("aria-label")).toBe("Manage tags");
+      expect(control.hasAttribute("role")).toBe(false);
+      expect(control.hasAttribute("tabindex")).toBe(false);
+    });
+
     describe("'New tags (N)' color buttons", () => {
       const newTagChipColors = (content: HTMLElement) =>
         Object.fromEntries(

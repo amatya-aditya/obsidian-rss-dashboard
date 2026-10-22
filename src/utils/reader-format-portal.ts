@@ -1,5 +1,5 @@
-import { setIcon } from "obsidian";
 import type { ReaderFormatSettings } from "../types/types";
+import { createIconButton } from "./icon-button";
 import { isNarrowViewport } from "./platform-utils";
 
 export type ReaderFormatPortalOptions = {
@@ -75,32 +75,26 @@ export function createReaderFormatPortal(options: ReaderFormatPortalOptions): {
     { value: "mono", label: "Mono" },
   ];
 
-  const runButtonAction = (
-    event: MouseEvent | KeyboardEvent,
-    action: () => void,
-  ) => {
+  const runButtonAction = (event: MouseEvent, action: () => void) => {
     event.preventDefault();
     event.stopPropagation();
     action();
   };
 
-  const bindClickableIcon = (
-    element: HTMLElement,
+  const createFormatIconButton = (
+    parent: HTMLElement,
+    options: { cls: string; label: string; icon: string },
     action: () => void,
-  ): HTMLElement => {
-    element.addClass("clickable-icon");
-    element.setAttribute("role", "button");
-    element.setAttribute("tabindex", "0");
-    element.addEventListener("click", (event) => {
-      runButtonAction(event, action);
-    });
-    element.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
+  ): HTMLButtonElement =>
+    createIconButton({
+      parent,
+      cls: `clickable-icon rss-reader-format-icon-button ${options.cls}`,
+      label: options.label,
+      icon: options.icon,
+      onClick: (event) => {
         runButtonAction(event, action);
-      }
+      },
     });
-    return element;
-  };
 
   const createStepperRow = (
     settingKey: "fontScalePct" | "lineHeightPct",
@@ -144,29 +138,27 @@ export function createReaderFormatPortal(options: ReaderFormatPortalOptions): {
       onFormatMutated();
     };
 
-    const decreaseButton = bindClickableIcon(
-      controls.createDiv({
-        cls: "rss-reader-format-icon-button rss-reader-format-stepper-button rss-reader-format-stepper-decrease",
-        attr: {
-          "aria-label": `Decrease ${label.toLowerCase()}`,
-        },
-      }),
+    createFormatIconButton(
+      controls,
+      {
+        cls: "rss-reader-format-stepper-button rss-reader-format-stepper-decrease",
+        label: `Decrease ${label.toLowerCase()}`,
+        icon: "minus",
+      },
       () => stepValue(-1),
     );
-    setIcon(decreaseButton, "minus");
 
     controls.appendChild(valueEl);
 
-    const increaseButton = bindClickableIcon(
-      controls.createDiv({
-        cls: "rss-reader-format-icon-button rss-reader-format-stepper-button rss-reader-format-stepper-increase",
-        attr: {
-          "aria-label": `Increase ${label.toLowerCase()}`,
-        },
-      }),
+    createFormatIconButton(
+      controls,
+      {
+        cls: "rss-reader-format-stepper-button rss-reader-format-stepper-increase",
+        label: `Increase ${label.toLowerCase()}`,
+        icon: "plus",
+      },
       () => stepValue(1),
     );
-    setIcon(increaseButton, "plus");
 
     updateValue();
     return { sync: updateValue };
@@ -268,13 +260,13 @@ export function createReaderFormatPortal(options: ReaderFormatPortalOptions): {
     cls: "rss-reader-format-footer",
   });
 
-  const resetButton = bindClickableIcon(
-    footer.createDiv({
-      cls: "rss-reader-format-icon-button rss-reader-format-reset-button",
-      attr: {
-        "aria-label": "Reset reader format",
-      },
-    }),
+  createFormatIconButton(
+    footer,
+    {
+      cls: "rss-reader-format-reset-button",
+      label: "Reset reader format",
+      icon: "rotate-ccw",
+    },
     () => {
       Object.assign(format, defaults);
       fontSizeRow.sync();
@@ -289,21 +281,19 @@ export function createReaderFormatPortal(options: ReaderFormatPortalOptions): {
       onFormatMutated();
     },
   );
-  setIcon(resetButton, "rotate-ccw");
 
-  const settingsButton = bindClickableIcon(
-    footer.createDiv({
-      cls: "rss-reader-format-icon-button rss-reader-format-settings-button",
-      attr: {
-        "aria-label": "Open reader display settings",
-      },
-    }),
+  createFormatIconButton(
+    footer,
+    {
+      cls: "rss-reader-format-settings-button",
+      label: "Open reader display settings",
+      icon: "settings-2",
+    },
     () => {
       openReaderDisplaySettings();
       close(true);
     },
   );
-  setIcon(settingsButton, "settings-2");
 
   if (isMobile) {
     const doneButton = controlsContainer.createEl("button", {
