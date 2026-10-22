@@ -50,3 +50,33 @@ describe("native buttons keep their plugin look over Obsidian's button rule", ()
     });
   }
 });
+
+// The sidebar search toggle is a native button without clickable-icon, but its
+// toolbar siblings are still divs sharing the class, so the bare rules stay and
+// the button gets its own `button.` rules for every state. The copy-address and
+// shortcut-help close buttons carry clickable-icon, which Obsidian's rule skips.
+describe("sidebar toolbar search toggle keeps its look over Obsidian's button rule", () => {
+  const states = [
+    "",
+    ":hover",
+    ".is-active",
+    ":focus-visible",
+    ":active",
+    ":disabled",
+  ];
+  const selectors = selectorsFor("sidebar.css", "rss-dashboard-toolbar-button");
+
+  for (const state of states) {
+    it(`has a button.rss-dashboard-toolbar-button${state} rule`, () => {
+      expect(selectors).toContain(
+        `button.rss-dashboard-toolbar-button${state}`,
+      );
+    });
+  }
+
+  it("restates the button in reduced-motion.css", () => {
+    expect(
+      selectorsFor("reduced-motion.css", "rss-dashboard-toolbar-button"),
+    ).toContain("button.rss-dashboard-toolbar-button");
+  });
+});

@@ -334,10 +334,6 @@
 .rss-dashboard-toolbar-button {
   width: 32px;
   height: 32px;
-  padding: 0;
-  border: none;
-  box-shadow: none;
-  background: transparent;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -362,6 +358,54 @@
 .rss-dashboard-toolbar-button:focus-visible {
   outline: 2px solid var(--interactive-accent-hover);
   outline-offset: 1px;
+}
+
+/* The search toggle is a native button without .clickable-icon, so Obsidian's
+ * button:not(.clickable-icon) rule (grey fill, input shadow, input height)
+ * outranks the bare class rules above. Naming the element ties with it, and
+ * this stylesheet loads later (#1478). The sibling toolbar buttons are still
+ * divs and keep the bare rules. */
+button.rss-dashboard-toolbar-button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 4px;
+}
+
+.rss-dashboard-sidebar-toolbar--inline button.rss-dashboard-toolbar-button {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+}
+
+button.rss-dashboard-toolbar-button:hover {
+  background-color: var(--background-modifier-hover);
+  color: var(--text-normal);
+  box-shadow: none;
+}
+
+button.rss-dashboard-toolbar-button.is-active {
+  background-color: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+button.rss-dashboard-toolbar-button:focus-visible {
+  outline: 2px solid var(--interactive-accent-hover);
+  outline-offset: 1px;
+  box-shadow: none;
+}
+
+button.rss-dashboard-toolbar-button:active {
+  box-shadow: none;
+}
+
+button.rss-dashboard-toolbar-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* ============================================
