@@ -9,6 +9,7 @@ import type {
 } from "../types/types";
 import { comparableFromText, type OwnWriteRecord } from "./own-write-record";
 import { cloneJson, withSyncNonce } from "./storage-json";
+import type { ShardBaselines } from "./shard-baselines";
 import type { UserStateStore } from "./user-state-store";
 import {
   createComparableFeedShardJson,
@@ -64,6 +65,30 @@ export interface FeedStoragePersistResult {
   shardDeleteCount: number;
 }
 
+/** A shard hydration read, kept so its baseline can be built on demand. */
+export interface LoadedShard {
+  raw: string;
+  feedUrl: string;
+}
+
+/**
+ * The baseline of a shard as hydration read it: the same text the shard held
+ * on disk, with the feed URL it was loaded under, never the live articles.
+ */
+export function createLoadedShardBaseline(
+  feedId: string,
+  loaded: LoadedShard,
+  stripState: boolean,
+): string {
+  const parsed = JSON.parse(loaded.raw) as Partial<FeedItemsShard>;
+  const feed = {
+    feedId,
+    url: loaded.feedUrl,
+    items: dropInvalidShardItems(parsed.items ?? []),
+  } as Feed;
+  return createComparableFeedShardJson(feed, stripState);
+}
+
 interface RemovedFeedShardBaseline {
   shardPath: string;
   comparable: string;
@@ -84,7 +109,7 @@ export interface FeedStorageRunnerState {
    */
   retainedMissingFeedIds: Set<string>;
   hydratedShardGuidsByFeedId: Map<string, Set<string>>;
-  lastPersistedShardJsonByFeedId: Map<string, string>;
+  lastPersistedShardJsonByFeedId: ShardBaselines;
   ownWrites: OwnWriteRecord;
   /**
    * Shards this device last wrote or read for feeds that an arriving
@@ -109,7 +134,10 @@ export interface FeedStorageRunnerHost {
   userState: UserStateStore;
   state: FeedStorageRunnerState;
   ensureFeedIds(settings: RssDashboardSettings): boolean;
-  capturePersistedState(settings: RssDashboardSettings): void;
+  capturePersistedState(
+    settings: RssDashboardSettings,
+    loadedShards?: ReadonlyMap<string, LoadedShard>,
+  ): void;
   hasNothingToRebuild(feed: Feed & { feedId: string }): boolean;
   removeShardFile(shardPath: string): Promise<boolean>;
   removeFolderIfEmpty(folderPath: string): Promise<boolean>;
@@ -153,7 +181,7 @@ export async function hydrateFeedStorage(
 
   // Read before the maps below are cleared and replaced: a feed that left
   // the list is forgotten there, and its baseline with it.
-  const previousFeedIds = [...host.state.lastPersistedShardJsonByFeedId.keys()];
+  const previousFeedIds = host.state.lastPersistedShardJsonByFeedId.keys();
 
   const feedsById = new Map<string, Feed>();
   host.state.feedShardHealthById.clear();
@@ -176,6 +204,7 @@ export async function hydrateFeedStorage(
 
   const {
     shardCount: hydratedShardCount,
+    loadedShards,
     repairedFeedIds,
     didDropInvalidItems,
   } = await hydrateFeedShards(settings, host, loadedItemsByFeedId);
@@ -196,7 +225,7 @@ export async function hydrateFeedStorage(
     userStateLoaded = await host.userState.applyToFeeds(settings);
   }
 
-  host.capturePersistedState(settings);
+  host.capturePersistedState(settings, loadedShards);
   // The on-disk shard still holds the dropped entries; leave its baseline
   // empty so the next save sees a difference and rewrites it.
   for (const feedId of repairedFeedIds) {
@@ -240,6 +269,7 @@ function recordRemovedFeedShards(
 interface HydratedShardResult {
   hydrated: boolean;
   droppedCount: number;
+  raw?: string;
 }
 
 async function hydrateFeedShards(
@@ -248,10 +278,12 @@ async function hydrateFeedShards(
   loadedItemsByFeedId: ReadonlyMap<string, FeedItem[]>,
 ): Promise<{
   shardCount: number;
+  loadedShards: Map<string, LoadedShard>;
   repairedFeedIds: Set<string>;
   didDropInvalidItems: boolean;
 }> {
   let shardCount = 0;
+  const loadedShards = new Map<string, LoadedShard>();
   let didDropInvalidItems = false;
   const repairedFeedIds = new Set<string>();
   for (const feed of settings.feeds) {
@@ -263,12 +295,15 @@ async function hydrateFeedShards(
     );
     if (result.hydrated) {
       shardCount += 1;
+      if (feed.feedId && result.raw !== undefined) {
+        loadedShards.set(feed.feedId, { raw: result.raw, feedUrl: feed.url });
+      }
     }
     if (noteDroppedShardItems(feed, result.droppedCount, repairedFeedIds)) {
       didDropInvalidItems = true;
     }
   }
-  return { shardCount, repairedFeedIds, didDropInvalidItems };
+  return { shardCount, loadedShards, repairedFeedIds, didDropInvalidItems };
 }
 
 async function hydrateFeedShard(
@@ -331,7 +366,7 @@ async function hydrateFeedShard(
       shardPath,
       itemCount: feed.items.length,
     });
-    return { hydrated: true, droppedCount };
+    return { hydrated: true, droppedCount, raw };
   } catch (error) {
     host.state.ownWrites.forget(shardPath);
     if (feed.feedId) host.state.feedShardHealthById.set(feed.feedId, "corrupt");
@@ -668,9 +703,7 @@ async function deleteRemovedFeedShards(
   host: FeedStorageRunnerHost,
 ): Promise<number> {
   let shardDeleteCount = 0;
-  for (const previousFeedId of [
-    ...host.state.lastPersistedShardJsonByFeedId.keys(),
-  ]) {
+  for (const previousFeedId of host.state.lastPersistedShardJsonByFeedId.keys()) {
     if (currentFeedIds.has(previousFeedId)) {
       continue;
     }
