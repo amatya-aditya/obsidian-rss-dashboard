@@ -81,7 +81,7 @@ describe("ArticleList mirrored footer", () => {
         expect(footerEl).toBeTruthy();
 
         const stops = Array.from(
-          footerEl!.querySelectorAll<HTMLElement>('[role="button"]'),
+          footerEl!.querySelectorAll<HTMLElement>("button"),
         );
         expect(stops.map(actionClass)).toEqual(ACTION_CLASSES);
         expect(stops[0].getAttribute("aria-label")).toBe("Mark as read (m)");

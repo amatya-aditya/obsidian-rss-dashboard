@@ -320,6 +320,9 @@
   height: 24px;
   border-radius: 12px;
   padding: 2px;
+  border: none;
+  box-shadow: none;
+  font-family: inherit;
   background-color: var(--background-primary-alt);
   position: relative;
 }
