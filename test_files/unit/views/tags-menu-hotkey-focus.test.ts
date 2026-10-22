@@ -140,10 +140,10 @@ async function openDashboard(tags: Tag[]): Promise<DashboardHarness> {
   return { view, app, leaf, item };
 }
 
-/** The card's tag control, found by role and name (testing guide §10). */
+/** The card's tag control, a native button (dev #1478, #1490). */
 function cardTagsToggle(view: RssDashboardView): HTMLElement {
   return view.containerEl.querySelector<HTMLElement>(
-    '[role="button"][aria-label^="Manage tags"]',
+    'button[aria-label^="Manage tags"]',
   )!;
 }
 
@@ -230,11 +230,13 @@ describe("Dashboard tag menu focus (#1480)", () => {
     expect(activeDocument.activeElement).toBe(cardTagsToggle(view));
   });
 
-  it("opens from the card's tag button with Enter and Escape returns focus there", async () => {
+  it("opens from the card's tag button and Escape returns focus there", async () => {
     const { view } = await openDashboard([NEWS_TAG]);
     const tagsToggle = cardTagsToggle(view);
 
-    pressKey(tagsToggle, "Enter");
+    // The footer control is a native button, so the browser supplies
+    // Enter/Space activation; the live CDP pass exercises the real keys.
+    tagsToggle.click();
     const checkbox = firstTagCheckbox();
     expect(activeDocument.activeElement).toBe(checkbox);
     expect(tagsToggle.getAttribute("aria-expanded")).toBe("true");
