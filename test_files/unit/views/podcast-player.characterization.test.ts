@@ -359,10 +359,8 @@ describe("PodcastPlayer characterization", () => {
       return { container, audio: audioOf(player) };
     }
 
-    function press(el: Element, key: string): void {
-      el.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
-    }
-
+    // The controls are native buttons (#1478): the browser turns Enter and
+    // Space into a click, which jsdom does not, so the tests click.
     it("rewinds 30s on click without going below zero", () => {
       const { container, audio } = loaded();
       const rewind = container.querySelector<HTMLElement>(".rss-rewind")!;
@@ -374,38 +372,24 @@ describe("PodcastPlayer characterization", () => {
       expect(audio.currentTime).toBe(0);
     });
 
-    it.each(["Enter", " "])("rewinds 30s on %j", (key) => {
-      const { container, audio } = loaded();
-      audio.currentTime = 100;
-      press(container.querySelector(".rss-rewind")!, key);
-      expect(audio.currentTime).toBe(70);
-    });
-
-    it("ignores other keys on rewind", () => {
-      const { container, audio } = loaded();
-      audio.currentTime = 100;
-      press(container.querySelector(".rss-rewind")!, "a");
-      expect(audio.currentTime).toBe(100);
-    });
-
-    it("forwards 30s on click and on Enter", () => {
+    it("forwards 30s on click", () => {
       const { container, audio } = loaded();
       const forward = container.querySelector<HTMLElement>(".rss-forward")!;
       audio.currentTime = 5;
       forward.click();
       expect(audio.currentTime).toBe(35);
-      press(forward, "Enter");
+      forward.click();
       expect(audio.currentTime).toBe(65);
     });
 
-    it("toggles repeat and shuffle from the keyboard", () => {
+    it("toggles repeat and shuffle", () => {
       const { container } = loaded();
       const repeat = container.querySelector<HTMLElement>(".rss-repeat-btn")!;
       const shuffle = container.querySelector<HTMLElement>(".rss-shuffle-btn")!;
       const repeatBefore = repeat.className;
       const shuffleBefore = shuffle.className;
-      press(repeat, "Enter");
-      press(shuffle, " ");
+      repeat.click();
+      shuffle.click();
       expect(repeat.className).not.toBe(repeatBefore);
       expect(shuffle.className).not.toBe(shuffleBefore);
     });
@@ -416,7 +400,6 @@ describe("PodcastPlayer characterization", () => {
       player.loadEpisode(item, [item]);
       const play = vi.spyOn(HTMLMediaElement.prototype, "play");
       container.querySelector<HTMLElement>(".rss-play-pause")!.click();
-      press(container.querySelector(".rss-play-pause")!, "Enter");
       expect(play).not.toHaveBeenCalled();
     });
   });
@@ -461,15 +444,6 @@ describe("PodcastPlayer characterization", () => {
       expect(audio.muted).toBe(false);
       expect(button.classList.contains("is-muted")).toBe(false);
       expect(bar.value).toBe("100");
-    });
-
-    it("toggles mute from the keyboard on Enter and space only", () => {
-      const { container, audio } = loaded();
-      const button = container.querySelector<HTMLElement>(".rss-volume")!;
-      button.dispatchEvent(new KeyboardEvent("keydown", { key: "x" }));
-      expect(audio.muted).toBe(false);
-      button.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
-      expect(audio.muted).toBe(true);
     });
 
     it("follows the volume slider and unmutes when it is above zero", () => {

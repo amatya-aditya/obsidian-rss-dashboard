@@ -294,6 +294,17 @@
   color: var(--text-error);
 }
 
+/* The transport and volume controls are native buttons (#1478). They keep
+   clickable-icon, so Obsidian's button:not(.clickable-icon) fill and height skip
+   them; this drops the border, shadow and font the browser still gives a button.
+   :where() keeps it below the themes' per-control borders, which the old divs
+   already showed. */
+:where(.rss-reader-podcast-container) button.clickable-icon {
+  border: none;
+  box-shadow: none;
+  font-family: inherit;
+}
+
 /* 1.3 Tools Section (Positioned as a bar or bottom) */
 .podcast-tools-section {
   display: flex;
@@ -372,6 +383,14 @@
 
 .rss-sleep-timer-btn.has-countdown .rss-sleep-timer-inline-value {
   display: inline;
+}
+
+/* A native button (#1478): the player-wide button.clickable-icon reset drops the
+   border, so this one restores its own and drops the UA shadow and font. */
+.rss-reader-podcast-container button.rss-sleep-timer-btn {
+  border: 1px solid var(--background-modifier-border);
+  box-shadow: none;
+  font-family: inherit;
 }
 
 .rss-reader-podcast-container .hidden {
