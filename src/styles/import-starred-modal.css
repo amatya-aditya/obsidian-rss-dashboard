@@ -276,6 +276,8 @@
 .rss-dashboard-modal .import-new-tags-list button.import-new-tags-chip {
   height: auto;
   border: none;
+  background: var(--tag-color, var(--interactive-accent));
+  color: var(--text-on-accent);
   box-shadow: none;
   font-family: inherit;
 }
