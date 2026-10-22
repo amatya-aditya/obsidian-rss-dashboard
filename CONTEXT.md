@@ -422,12 +422,11 @@ session writes one snapshot once its settings have loaded, so the snapshot
 holds the state as loaded, and a second, final snapshot on unload only when a
 later meaningful change made the first snapshot stale. Every successful
 settings persistence after the load is a meaningful change for this
-transitional mechanism; the load itself never persists unless it repaired
-something. A storage migration forces a pre-migration
+transitional mechanism. A storage migration forces a pre-migration
 snapshot and makes that snapshot current for the session. A snapshot is current
 only after every enabled artifact writes successfully; a failure stays stale and
 retries on a later save or unload. Snapshot writes are serialized.
-Unload requests a final stale snapshot on a best-effort basis; the after-load
+Unload requests a final stale snapshot on a best-effort basis; the loaded-state
 snapshot is the reliable recovery baseline.
 _Avoid_: Continuous persistence, write-through backup
 
@@ -496,7 +495,7 @@ The article or episode data (title, body, media, publish date) written into a fe
 _Avoid_: Shard content, feed data
 
 **Hydration**:
-Reading each feed's [[Feed content]] from its shard file into memory during a settings load, then overlaying [[Article state]]. A feed is **hydrated** once a structurally valid read of its shard succeeds; a missing or unreadable shard leaves it unhydrated, and absence never authorizes removal (ADR 0010). Hydration is complete when every feed in the list has been read. A plugin start hydrates each feed once, and only feeds in the list are read, so an [[Orphan shard]] costs nothing at startup. See [ADR 0010](docs/adr/0010-hydration-gated-user-state-garbage-collection.md).
+Reading each feed's [[Feed content]] from its shard file into memory when settings load, then overlaying [[Article state]]. A feed is **hydrated** once a valid read of its shard succeeds; a missing or unreadable shard leaves it unhydrated, and absence never authorizes removal. Hydration is complete when every feed in the list has been read. See [ADR 0010](docs/adr/0010-hydration-gated-user-state-garbage-collection.md).
 _Avoid_: Loading articles, shard load, warm-up
 
 **Article state**:
