@@ -385,6 +385,14 @@
   display: inline;
 }
 
+/* A native button (#1478): the player-wide button.clickable-icon reset drops the
+   border, so this one restores its own and drops the UA shadow and font. */
+.rss-reader-podcast-container button.rss-sleep-timer-btn {
+  border: 1px solid var(--background-modifier-border);
+  box-shadow: none;
+  font-family: inherit;
+}
+
 .rss-reader-podcast-container .hidden {
   display: none;
 }

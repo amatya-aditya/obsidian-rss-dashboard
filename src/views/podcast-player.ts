@@ -7,7 +7,6 @@ import {
   selectEpisodeNotesHtml,
 } from "./podcast-episode-details";
 import { createIconButton } from "../utils/icon-button";
-import { onActivate } from "../utils/keyboard-activation";
 import { windowInstanceOf } from "../utils/platform-utils";
 import { itemAuthorText } from "../utils/item-author";
 import {
@@ -492,23 +491,26 @@ export class PodcastPlayer {
     this.speedButtonEl.onchange = () => this.applySelectedPlaySpeed();
 
     // Sleep timer button
-    this.sleepTimerButton = toolsSection.createDiv({
+    this.sleepTimerButton = createIconButton({
+      parent: toolsSection,
       cls: "rss-sleep-timer-btn clickable-icon",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Sleep timer",
-      },
+      label: "Sleep timer",
+      icon: "moon",
+      onClick: (e) => this.showSleepTimerMenu(e),
     });
+    // The button holds the icon and a countdown, so the icon moves into its own
+    // span that the countdown state can hide.
     this.sleepTimerIconEl = this.sleepTimerButton.createSpan({
       cls: "rss-sleep-timer-icon",
       attr: { "aria-hidden": "true" },
     });
-    setIcon(this.sleepTimerIconEl, "moon");
+    const moon = this.sleepTimerButton.firstElementChild;
+    if (moon && moon !== this.sleepTimerIconEl) {
+      this.sleepTimerIconEl.appendChild(moon);
+    }
     this.sleepTimerTextEl = this.sleepTimerButton.createSpan({
       cls: "rss-sleep-timer-inline-value",
     });
-    onActivate(this.sleepTimerButton, (e) => this.showSleepTimerMenu(e));
     this.updateSleepTimerButtonState();
 
     this.renderVolumeControl(toolsSection);
@@ -884,7 +886,7 @@ export class PodcastPlayer {
     }
   }
 
-  private showSleepTimerMenu(event: MouseEvent | KeyboardEvent): void {
+  private showSleepTimerMenu(event: MouseEvent): void {
     const menu = new Menu();
 
     const options = [
@@ -921,12 +923,13 @@ export class PodcastPlayer {
       });
     });
 
-    if (event.type === "keydown" && this.sleepTimerButton) {
-      // A key press carries no pointer position, so open under the button
+    if (event.detail === 0 && this.sleepTimerButton) {
+      // Enter or Space on the button arrives as a click with no pointer
+      // position (detail 0), so open under the button
       const rect = this.sleepTimerButton.getBoundingClientRect();
       menu.showAtPosition({ x: rect.left, y: rect.bottom });
     } else {
-      menu.showAtMouseEvent(event as MouseEvent);
+      menu.showAtMouseEvent(event);
     }
   }
 
