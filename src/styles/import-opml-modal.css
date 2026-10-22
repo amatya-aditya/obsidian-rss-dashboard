@@ -271,6 +271,12 @@
   color: var(--text-muted);
 }
 
+.rss-dashboard-modal .import-opml-cleaner-row button.clickable-icon {
+  padding: 0;
+  box-shadow: none;
+  font-family: inherit;
+}
+
 .rss-dashboard-modal .import-opml-cleaner-row .clickable-icon:hover {
   background: var(--background-modifier-hover);
   color: var(--text-normal);
@@ -538,6 +544,13 @@
   height: 24px;
   border-radius: 6px;
   color: var(--text-muted);
+}
+
+.rss-dashboard-modal .import-preview-tree button.clickable-icon {
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  font-family: inherit;
 }
 
 .rss-dashboard-modal .import-preview-tree .clickable-icon:hover {

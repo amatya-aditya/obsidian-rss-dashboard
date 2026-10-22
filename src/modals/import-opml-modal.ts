@@ -13,6 +13,7 @@ import { isValidFeedTitle, isValidFolderName } from "../utils/validation";
 import { ImporterShell } from "./importer-shell";
 import { OpmlOverwriteConfirmModal } from "./opml-overwrite-confirm-modal";
 import { addInputClearButton } from "../utils/input-clear-button";
+import { createIconButton } from "../utils/icon-button";
 
 /**
  * Import OPML Modal - Provides a preview-based import experience
@@ -380,16 +381,6 @@ export class ImportOpmlModal extends AccessibleModal {
     link.setAttribute("target", "_blank");
     link.setAttribute("rel", "noopener noreferrer");
 
-    const external = row.createDiv({
-      cls: "clickable-icon import-opml-cleaner-external",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Open OPML cleaner in browser",
-      },
-    });
-    setIcon(external, "external-link");
-
     const open = () => {
       const opened = activeWindow.open(
         ImportOpmlModal.OPML_CLEANER_URL,
@@ -403,15 +394,15 @@ export class ImportOpmlModal extends AccessibleModal {
       }
     };
 
-    external.addEventListener("click", (e) => {
-      e.preventDefault();
-      open();
-    });
-    external.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
+    createIconButton({
+      parent: row,
+      cls: "clickable-icon import-opml-cleaner-external",
+      label: "Open OPML cleaner in browser",
+      icon: "external-link",
+      onClick: (e) => {
         e.preventDefault();
         open();
-      }
+      },
     });
   }
 
@@ -491,16 +482,6 @@ export class ImportOpmlModal extends AccessibleModal {
       setTooltip(nameText, nameValidation.error ?? "Invalid folder name");
     }
 
-    const edit = nameWrap.createDiv({
-      cls: "clickable-icon import-preview-edit",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Rename folder",
-      },
-    });
-    setIcon(edit, "pencil");
-
     const startEdit = () => {
       const input = nameText.win.createEl("input");
       input.className = "import-preview-edit-input";
@@ -546,15 +527,15 @@ export class ImportOpmlModal extends AccessibleModal {
       clearBtn.addEventListener("blur", onFocusLeave);
     };
 
-    edit.addEventListener("click", (e) => {
-      e.preventDefault();
-      startEdit();
-    });
-    edit.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
+    createIconButton({
+      parent: nameWrap,
+      cls: "clickable-icon import-preview-edit",
+      label: "Rename folder",
+      icon: "pencil",
+      onClick: (e) => {
         e.preventDefault();
         startEdit();
-      }
+      },
     });
 
     const meta = folderRow.createDiv({ cls: "import-preview-meta" });
@@ -566,19 +547,6 @@ export class ImportOpmlModal extends AccessibleModal {
     const hasChildren =
       (node.children?.length ?? 0) > 0 || node.feedUrls.length > 0;
     const collapsed = this.collapsedFolderPaths.has(node.path);
-    const toggle = folderRow.createDiv({
-      cls: "clickable-icon import-preview-toggle",
-      attr: {
-        role: "button",
-        tabindex: hasChildren ? "0" : "-1",
-        "aria-label": collapsed ? "Expand folder" : "Collapse folder",
-      },
-    });
-    setIcon(toggle, collapsed ? "chevron-right" : "chevron-down");
-    if (!hasChildren) {
-      toggle.addClass("is-disabled");
-    }
-
     const toggleCollapse = () => {
       if (!hasChildren) return;
       if (this.collapsedFolderPaths.has(node.path)) {
@@ -589,16 +557,20 @@ export class ImportOpmlModal extends AccessibleModal {
       this.renderPreview();
     };
 
-    toggle.addEventListener("click", (e) => {
-      e.preventDefault();
-      toggleCollapse();
-    });
-    toggle.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
+    const toggle = createIconButton({
+      parent: folderRow,
+      cls: "clickable-icon import-preview-toggle",
+      label: collapsed ? "Expand folder" : "Collapse folder",
+      icon: collapsed ? "chevron-right" : "chevron-down",
+      onClick: (e) => {
         e.preventDefault();
         toggleCollapse();
-      }
+      },
     });
+    if (!hasChildren) {
+      toggle.addClass("is-disabled");
+      toggle.disabled = true;
+    }
 
     if (collapsed) return;
 
@@ -658,16 +630,6 @@ export class ImportOpmlModal extends AccessibleModal {
       setTooltip(titleText, titleValidation.error ?? "Invalid feed title");
     }
 
-    const edit = nameWrap.createDiv({
-      cls: "clickable-icon import-preview-edit",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Rename feed",
-      },
-    });
-    setIcon(edit, "pencil");
-
     const startEdit = () => {
       const input = titleText.win.createEl("input");
       input.className = "import-preview-edit-input";
@@ -713,15 +675,15 @@ export class ImportOpmlModal extends AccessibleModal {
       clearBtn.addEventListener("blur", onFocusLeave);
     };
 
-    edit.addEventListener("click", (e) => {
-      e.preventDefault();
-      startEdit();
-    });
-    edit.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
+    createIconButton({
+      parent: nameWrap,
+      cls: "clickable-icon import-preview-edit",
+      label: "Rename feed",
+      icon: "pencil",
+      onClick: (e) => {
         e.preventDefault();
         startEdit();
-      }
+      },
     });
 
     const meta = row.createDiv({ cls: "import-preview-meta" });
