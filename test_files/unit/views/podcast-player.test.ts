@@ -47,31 +47,27 @@ describe("PodcastPlayer", () => {
       return container.querySelector<HTMLElement>(".rss-sleep-timer-btn")!;
     }
 
-    it.each(["Enter", " "])(
-      "opens the timer menu under the button when %j is pressed",
-      (key) => {
-        const button = loadPlayer();
-        const atPosition = vi.spyOn(Menu.prototype, "showAtPosition");
-        const atMouse = vi.spyOn(Menu.prototype, "showAtMouseEvent");
+    // A native button turns Enter or Space into a click with detail 0 (#1478).
+    it("opens the timer menu under the button when a key press activates it", () => {
+      const button = loadPlayer();
+      const atPosition = vi.spyOn(Menu.prototype, "showAtPosition");
+      const atMouse = vi.spyOn(Menu.prototype, "showAtMouseEvent");
 
-        button.dispatchEvent(
-          new KeyboardEvent("keydown", {
-            key,
-            bubbles: true,
-            cancelable: true,
-          }),
-        );
+      button.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, detail: 0 }),
+      );
 
-        expect(atPosition).toHaveBeenCalledTimes(1);
-        expect(atMouse).not.toHaveBeenCalled();
-      },
-    );
+      expect(atPosition).toHaveBeenCalledTimes(1);
+      expect(atMouse).not.toHaveBeenCalled();
+    });
 
     it("opens the timer menu at the pointer when clicked", () => {
       const button = loadPlayer();
       const atMouse = vi.spyOn(Menu.prototype, "showAtMouseEvent");
 
-      button.click();
+      button.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, detail: 1 }),
+      );
 
       expect(atMouse).toHaveBeenCalledTimes(1);
     });
