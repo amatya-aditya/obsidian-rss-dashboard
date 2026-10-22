@@ -696,3 +696,91 @@ describe("ImportOpmlModal", () => {
     },
   );
 });
+
+describe("ImportOpmlModal icon controls", () => {
+  beforeEach(() => {
+    installObsidianDomPolyfills();
+    document.body.empty();
+  });
+
+  async function openWithOpml(opml: string): Promise<HTMLElement> {
+    const plugin = {
+      settings: cloneSettings(),
+      saveSettings: vi.fn(async () => {}),
+      getActiveDashboardView: vi.fn(async () => null),
+      startBackgroundImport: vi.fn(),
+    } as unknown as ConstructorParameters<typeof ImportOpmlModal>[1];
+    const modal = new ImportOpmlModal(createMockApp(), plugin);
+    (modal as unknown as TestModal).open();
+    await (modal as unknown as TestModal).handleFileSelection(
+      new File([opml], "t.opml", { type: "text/xml" }),
+    );
+    const content = (modal as unknown as TestModal).contentEl;
+    document.body.appendChild(content);
+    return content;
+  }
+
+  const TREE_OPML = `<?xml version="1.0" encoding="UTF-8"?>
+<opml version="2.0"><head><title>t</title></head><body>
+  <outline text="News" title="News">
+    <outline text="Feed One" title="Feed One" type="rss" xmlUrl="https://example.com/one.xml" />
+  </outline>
+  <outline text="Empty" title="Empty" />
+</body></opml>`;
+
+  function expectNativeButton(el: HTMLElement | null, name: string): void {
+    expect(el).not.toBeNull();
+    expect(el!.tagName).toBe("BUTTON");
+    expect(el!.getAttribute("type")).toBe("button");
+    expect(el!.getAttribute("aria-label")).toBe(name);
+    expect(el!.hasAttribute("role")).toBe(false);
+    expect(el!.hasAttribute("tabindex")).toBe(false);
+  }
+
+  it("renders the rename and collapse controls as native buttons", async () => {
+    const content = await openWithOpml(TREE_OPML);
+
+    expectNativeButton(
+      content.querySelector<HTMLElement>('[aria-label="Rename folder"]'),
+      "Rename folder",
+    );
+    expectNativeButton(
+      content.querySelector<HTMLElement>('[aria-label="Rename feed"]'),
+      "Rename feed",
+    );
+    expectNativeButton(
+      content.querySelector<HTMLElement>('[aria-label="Collapse folder"]'),
+      "Collapse folder",
+    );
+  });
+
+  it("collapses and expands a folder when its toggle is clicked", async () => {
+    const content = await openWithOpml(TREE_OPML);
+
+    content
+      .querySelector<HTMLElement>('[aria-label="Collapse folder"]')!
+      .click();
+    expect(content.querySelector(".import-preview-row--feed")).toBeNull();
+
+    content.querySelector<HTMLElement>('[aria-label="Expand folder"]')!.click();
+    expect(content.querySelector(".import-preview-row--feed")).not.toBeNull();
+  });
+
+  it("renders the OPML cleaner link control as a native button that opens the cleaner", async () => {
+    const open = vi.fn(() => ({}) as Window);
+    vi.stubGlobal("activeWindow", Object.assign(window, { open }));
+    const content = await openWithOpml("<not opml");
+    const external = content.querySelector<HTMLElement>(
+      '[aria-label="Open OPML cleaner in browser"]',
+    );
+
+    expectNativeButton(external, "Open OPML cleaner in browser");
+    external!.click();
+    expect(open).toHaveBeenCalledWith(
+      expect.stringContaining("http"),
+      "_blank",
+      "noopener,noreferrer",
+    );
+    vi.unstubAllGlobals();
+  });
+});
