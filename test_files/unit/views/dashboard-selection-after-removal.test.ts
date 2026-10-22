@@ -223,6 +223,16 @@ describe("selection after removal, other filters and paths", () => {
     expect(f.selectedGuid()).toBe("a3");
   });
 
+  it("still finds a neighbour when the search hid the selected card itself", async () => {
+    const f = await fixture();
+    f.select("a2");
+    f.row("a2")?.classList.add("rss-dashboard-search-hidden");
+
+    await f.view.actionToggleReadStatus();
+
+    expect(f.selectedGuid()).toBe("a1");
+  });
+
   it("uses the rendered order in a grouped feed view", async () => {
     const f = await fixture({ viewStyle: "feed", groupBy: "feed" });
     f.select("a2");

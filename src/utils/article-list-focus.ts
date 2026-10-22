@@ -10,7 +10,8 @@ export const ARTICLE_ROW_SELECTOR =
  * The row that becomes the selection when `targetEl` leaves the list: the next
  * rendered row, else the previous one. The order is the one on screen, so
  * grouped sections, collapsed sections, and rows the local search hides all
- * count the way the user sees them (#1468).
+ * count the way the user sees them (#1468). The removed row keeps its place in
+ * the order even when the search or a collapsed section hides it.
  */
 export function findRenderedNeighbourRow(
   targetEl: HTMLElement,
@@ -22,8 +23,9 @@ export function findRenderedNeighbourRow(
     listEl.querySelectorAll<HTMLElement>(ARTICLE_ROW_SELECTOR),
   ).filter(
     (row) =>
-      !row.classList.contains("rss-dashboard-search-hidden") &&
-      !row.closest(".rss-dashboard-feed-section-cards.collapsed"),
+      row === targetEl ||
+      (!row.classList.contains("rss-dashboard-search-hidden") &&
+        !row.closest(".rss-dashboard-feed-section-cards.collapsed")),
   );
   const index = rows.indexOf(targetEl);
   if (index === -1) return null;
