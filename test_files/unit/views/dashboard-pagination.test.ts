@@ -45,6 +45,7 @@ vi.mock("../../../src/components/article-list", () => ({
     updateArticleInPlace = vi.fn();
     updateRefreshButtonText = vi.fn();
     setEmptyStateContext = vi.fn();
+    setSearchQuery = vi.fn();
   },
 }));
 

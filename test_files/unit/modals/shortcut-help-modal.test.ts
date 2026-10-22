@@ -349,6 +349,35 @@ describe("ShortcutHelpModal", () => {
     });
   });
 
+  describe("select first article shortcut (#1465)", () => {
+    it("lists backquote as selecting the first article in the dialog and the guide", () => {
+      const modal = new ShortcutHelpModal(
+        createMockApp(),
+        structuredClone(DEFAULT_SETTINGS),
+      );
+      modal.onOpen();
+      const rows = new Map<string, string>();
+      modal.contentEl.querySelectorAll(".rss-shortcut-row").forEach((row) => {
+        rows.set(
+          row.querySelector("kbd")?.textContent ?? "",
+          row.querySelector(".rss-shortcut-desc")?.textContent ?? "",
+        );
+      });
+      modal.onClose();
+
+      expect(rows.get("`")).toBe("Select first article");
+
+      const guide = readFileSync("docs/user/keyboard-shortcuts.md", "utf8");
+      // The key cell holds the bare backtick, as the guide's own row-for-row
+      // test compares cells literally.
+      const row = guide
+        .split("\n")
+        .find((line) => line.startsWith("| `                      |"));
+      expect(row, "guide row for backquote").toBeDefined();
+      expect(row).toContain("Select first article");
+    });
+  });
+
   it("has a compliant clickable-icon for the close button", () => {
     const app = createMockApp();
     const modal = new ShortcutHelpModal(app, structuredClone(DEFAULT_SETTINGS));

@@ -996,9 +996,18 @@ describe("obsidian-cdp parseKeySpec", () => {
     expect(parseKeySpec("Ctrl+p")).not.toHaveProperty("text");
   });
 
-  it("types digits and ?", () => {
+  it("types digits, ? and the backquote", () => {
     expect(parseKeySpec("1")).toMatchObject({ code: "Digit1", text: "1" });
     expect(parseKeySpec("?")).toMatchObject({ key: "?", text: "?" });
+    // The dashboard's select-first key (#1465); a real key press is the only
+    // way to prove the listener claims it.
+    expect(parseKeySpec("`")).toEqual({
+      key: "`",
+      code: "Backquote",
+      windowsVirtualKeyCode: 192,
+      modifiers: 0,
+      text: "`",
+    });
   });
 
   it("rejects empty specs, unknown keys and unknown modifiers", () => {

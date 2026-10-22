@@ -78,6 +78,7 @@ import {
   formatDashboardMultiFiltersTitle,
 } from "../utils/filter-title-format";
 import { computePagination } from "../utils/pagination-utils";
+import { articleTitleMatchesSearch } from "../utils/article-search";
 import { computeHighlightMatchCounts } from "../utils/highlight-match-counts";
 import { removeFolderByPath } from "../utils/folder-tree";
 import { createIconButton, getIconButtonAction } from "../utils/icon-button";
@@ -159,6 +160,11 @@ export class RssDashboardView extends ItemView {
   private currentFeed: Feed | null = null;
   private selectedTags: string[] = [];
   private selectedArticle: FeedItem | null = null;
+  /**
+   * The article search the list is showing. The list is rebuilt on every
+   * render, so the query lives here and is handed back to the new list (#1465).
+   */
+  private articleSearchQuery = "";
   private tagsCollapsed = true;
   private collapsedFolders: string[] = [];
   private allArticlesPage = 1;
@@ -395,28 +401,11 @@ export class RssDashboardView extends ItemView {
         } else {
           // Last item on current page, go to next page if available
           if (currentPage < pagination.totalPages) {
-            this.handlePageChange(currentPage + 1);
-            // After page change, wait for render to select the first item on new page
-            window.requestAnimationFrame(() => {
-              const newFiltered = this.getFilteredArticles();
-              const newPagination = computePagination({
-                totalItems: newFiltered.length,
-                pageSize,
-                requestedPage: currentPage + 1,
-              });
-              const newArticles = newFiltered.slice(
-                newPagination.startIdx,
-                newPagination.endIdx,
-              );
-              if (newArticles.length > 0) {
-                const firstArticle = newArticles[0];
-                if (firstArticle) {
-                  void this.selectArticle(firstArticle, {
-                    open: options?.open,
-                  });
-                }
-              }
-            });
+            this.selectOnPageAfterRender(
+              currentPage + 1,
+              (pageArticles) => pageArticles[0],
+              { open: options?.open },
+            );
             return;
           } else {
             // Already on last page, stay on last item
@@ -467,27 +456,11 @@ export class RssDashboardView extends ItemView {
         } else {
           // First item on current page, go to previous page if available
           if (currentPage > 1) {
-            this.handlePageChange(currentPage - 1);
-            window.requestAnimationFrame(() => {
-              const newFiltered = this.getFilteredArticles();
-              const newPagination = computePagination({
-                totalItems: newFiltered.length,
-                pageSize,
-                requestedPage: currentPage - 1,
-              });
-              const newArticles = newFiltered.slice(
-                newPagination.startIdx,
-                newPagination.endIdx,
-              );
-              if (newArticles.length > 0) {
-                const lastArticle = newArticles[newArticles.length - 1];
-                if (lastArticle) {
-                  void this.selectArticle(lastArticle, {
-                    open: options?.open,
-                  });
-                }
-              }
-            });
+            this.selectOnPageAfterRender(
+              currentPage - 1,
+              (pageArticles) => pageArticles[pageArticles.length - 1],
+              { open: options?.open },
+            );
             return;
           } else {
             // Already on first page, stay on first item
@@ -501,6 +474,43 @@ export class RssDashboardView extends ItemView {
     if (prevArticle) {
       void this.selectArticle(prevArticle, { open: options?.open });
     }
+  }
+
+  /**
+   * Action: Put the article list back at the start of the current scope and
+   * select its first article without opening it. Returns false for an empty
+   * scope, so the key stays unhandled instead of swallowing a no-op.
+   * @internal
+   */
+  public actionSelectFirst(): boolean {
+    const allFilteredArticles = this.getFilteredArticles();
+    // Landing on page 1 is part of the action, so the article to select is
+    // page 1's first visible one, decided before the page moves. A search
+    // hides rows client side without changing the scope, so "the first
+    // article" means the first one the user can see (#1465).
+    const firstArticle = this.firstArticleInSearchScope(
+      allFilteredArticles.slice(0, this.getCurrentPageSize()),
+    );
+    if (!firstArticle) return false;
+    this.getSidebarKeyboardController()?.blurSidebarFocus();
+
+    if (this.getCurrentPage() === 1) {
+      void this.selectArticle(firstArticle);
+      return true;
+    }
+
+    this.selectOnPageAfterRender(1, () => firstArticle);
+    return true;
+  }
+
+  /** The first of the given rows that the article search leaves visible. */
+  private firstArticleInSearchScope(
+    articles: FeedItem[],
+  ): FeedItem | undefined {
+    const query = this.articleSearchQuery;
+    return articles.find((article) =>
+      articleTitleMatchesSearch(article.title, query),
+    );
   }
 
   /**
@@ -1266,6 +1276,9 @@ export class RssDashboardView extends ItemView {
         }),
       );
 
+      // The list is rebuilt on every render, so hand it the search the user
+      // typed on the previous one (#1465).
+      this.articleList.setSearchQuery(this.articleSearchQuery);
       this.articleList.render();
 
       this.updateRefreshButtonText();
@@ -1291,8 +1304,10 @@ export class RssDashboardView extends ItemView {
       },
       onToggleViewStyle: this.handleToggleViewStyle.bind(this),
       onRefreshFeeds: this.handleRefreshFeeds.bind(this),
-      onSearch: (_q: string) => {
-        // State is handled by ArticleList locally, but we could sync it here if needed
+      onSearch: (query) => {
+        // The list filters locally; the view keeps the query so the next
+        // render can hand it back to the rebuilt list (#1465).
+        this.articleSearchQuery = query;
       },
       onOpenViewFilters: (opener) => {
         this.openViewingFiltersMenu(opener);
@@ -2354,6 +2369,8 @@ export class RssDashboardView extends ItemView {
     this.selectedTags = [];
 
     if (this.currentFolder !== folder) {
+      // A different scope starts a fresh search (#1465).
+      this.articleSearchQuery = "";
       if (folder === "unread") {
         this.unreadArticlesPage = 1;
       } else if (folder === "read") {
@@ -2386,6 +2403,9 @@ export class RssDashboardView extends ItemView {
   }
 
   private handleFeedMultiSelectClick(feed: Feed): void {
+    // Adding or removing a feed changes the scope, which starts a fresh search
+    // (#1465).
+    this.articleSearchQuery = "";
     const next = toggleFeedInMultiSelection(
       {
         currentFolder: this.currentFolder,
@@ -2424,6 +2444,10 @@ export class RssDashboardView extends ItemView {
       );
       if (foldersSection)
         scrollPosition = (foldersSection as HTMLElement).scrollTop;
+    }
+    // A different feed starts a fresh search (#1465).
+    if (this.currentFeed?.url !== feed.url) {
+      this.articleSearchQuery = "";
     }
     this.currentFeed = feed;
     this.currentFolder = null;
@@ -4854,6 +4878,37 @@ export class RssDashboardView extends ItemView {
   private handlePageChange(page: number): void {
     this.setCurrentPageState(page);
     void this.render();
+  }
+
+  /**
+   * Change page, wait for that render to settle, then select the article
+   * `pick` chooses from the rows now on the page. The next, previous and
+   * scope-start actions all need this sequence, and the wait has to come after
+   * the render has replaced the rows.
+   */
+  private selectOnPageAfterRender(
+    page: number,
+    pick: (pageArticles: FeedItem[]) => FeedItem | undefined,
+    options?: { open?: boolean },
+  ): void {
+    const pageSize = this.getCurrentPageSize();
+    this.handlePageChange(page);
+    window.requestAnimationFrame(() => {
+      const articles = this.getFilteredArticles();
+      const pagination = computePagination({
+        totalItems: articles.length,
+        pageSize,
+        requestedPage: page,
+      });
+      const pageArticles = articles.slice(
+        pagination.startIdx,
+        pagination.endIdx,
+      );
+      const target = pick(pageArticles);
+      if (target) {
+        void this.selectArticle(target, options);
+      }
+    });
   }
 
   private handlePageSizeChange(pageSize: number): void {

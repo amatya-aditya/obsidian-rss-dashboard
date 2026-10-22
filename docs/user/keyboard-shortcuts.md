@@ -44,6 +44,7 @@ Every key that works in the dashboard.
 | ArrowLeft / ArrowRight | Move article selection left / right (card view only) |
 | o / Enter              | Open article in reader pane                          |
 | Space / Shift + Space  | Select next / previous article without opening       |
+| `                      | Select first article                                 |
 | k                      | Close reader pane                                    |
 | j                      | Open previous article                                |
 | l                      | Open next article                                    |
@@ -54,6 +55,13 @@ Every key that works in the dashboard.
 | Shift + f              | Toggle YouTube focus mode                            |
 | t                      | Add tags to article                                  |
 | s                      | Save to notes                                        |
+
+Backquote returns the article list to the start of the current view and
+selects its first article without opening it, moving back to page 1 when the
+view is on a later page. The view, filters, and search stay as they are, and
+the key does nothing when the view holds no articles. On layouts where
+backquote needs AltGr, the key does not fire because dashboard shortcuts
+ignore modified keys.
 
 ## Reader View
 
