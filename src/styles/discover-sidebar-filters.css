@@ -136,7 +136,7 @@
   height: 12px;
   flex-shrink: 0;
 }
-.rss-discover-selected-filter-remove {
+button.rss-discover-selected-filter-remove {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -153,12 +153,12 @@
   margin-left: 6px;
   flex-shrink: 0;
 }
-.rss-discover-selected-filter-remove:hover {
+button.rss-discover-selected-filter-remove:hover {
   color: var(--rss-color-danger-hover);
   background-color: var(--rss-color-danger-bg-hover);
   transform: scale(1.12);
 }
-.rss-discover-selected-filter-remove:focus-visible {
+button.rss-discover-selected-filter-remove:focus-visible {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 1px;
 }
@@ -188,8 +188,6 @@
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
   color: var(--text-normal);
-  padding: 0;
-  box-shadow: none;
   cursor: pointer;
   transition: all 0.2s ease;
 }
