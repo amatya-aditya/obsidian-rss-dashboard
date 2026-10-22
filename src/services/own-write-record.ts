@@ -51,7 +51,7 @@ export class OwnWriteRecord {
    * nothing compares never pays for it. Unparseable text drops the record,
    * as `recordRead` did when it canonicalized eagerly.
    */
-  private resolve(key: string): string | undefined {
+  private canonicalize(key: string): string | undefined {
     const entry = this.entries.get(key);
     if (entry === undefined) return undefined;
     if ("comparable" in entry) return entry.comparable;
@@ -66,7 +66,7 @@ export class OwnWriteRecord {
 
   /** The recorded comparable content for a path, if any. */
   comparableOf(path: string): string | undefined {
-    return this.resolve(ownWriteKey(path));
+    return this.canonicalize(ownWriteKey(path));
   }
 
   /**
@@ -124,6 +124,7 @@ export class OwnWriteRecord {
     if (written === undefined) this.entries.delete(key);
     else this.entries.set(key, written);
     return () => {
+      // Identity, not value: a later write replaces the entry object.
       if (this.entries.get(key) === written) {
         if (previous === undefined) this.entries.delete(key);
         else this.entries.set(key, previous);
@@ -151,7 +152,7 @@ export class OwnWriteRecord {
     path: string,
     read: (path: string) => Promise<string>,
   ): Promise<boolean> {
-    const record = this.resolve(ownWriteKey(path));
+    const record = this.canonicalize(ownWriteKey(path));
     if (record === undefined) return false;
     try {
       return comparableFromText(await read(path)) === record;
@@ -169,7 +170,7 @@ export class OwnWriteRecord {
     path: string,
     read: (path: string) => Promise<string>,
   ): Promise<boolean> {
-    const record = this.resolve(ownWriteKey(path));
+    const record = this.canonicalize(ownWriteKey(path));
     if (record === undefined) return false;
     try {
       const comparable = comparableFromText(await read(path));

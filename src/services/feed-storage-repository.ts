@@ -113,6 +113,20 @@ function storageError(
   _details?: unknown,
 ): void {}
 
+/**
+ * Copies a feed without reading its `items`, so persisting settings never
+ * clones an article that the persisted form drops anyway.
+ */
+function withoutItems(feed: Feed): Feed {
+  const config: Record<string, unknown> = {};
+  for (const key of Object.keys(feed)) {
+    if (key !== "items") {
+      config[key] = (feed as unknown as Record<string, unknown>)[key];
+    }
+  }
+  return config as unknown as Feed;
+}
+
 export class FeedStorageRepository {
   /**
    * Workflow state the hydrate/persist runner reads and writes through the
@@ -162,7 +176,8 @@ export class FeedStorageRepository {
       userState: this.userState,
       state: this.state,
       ensureFeedIds: (settings) => this.ensureFeedIds(settings),
-      capturePersistedState: (settings) => this.capturePersistedState(settings),
+      capturePersistedState: (settings, loadedShards) =>
+        this.capturePersistedState(settings, loadedShards),
       hasNothingToRebuild: (feed) => this.hasNothingToRebuild(feed),
       removeShardFile: (shardPath) => this.removeShardFile(shardPath),
       removeFolderIfEmpty: (folderPath) => this.removeFolderIfEmpty(folderPath),
@@ -885,26 +900,12 @@ export class FeedStorageRepository {
     });
   }
 
-  /**
-   * Copies a feed without reading its `items`, so persisting settings never
-   * clones an article that the persisted form drops anyway.
-   */
-  private withoutItems(feed: Feed): Feed {
-    const config: Record<string, unknown> = {};
-    for (const key of Object.keys(feed)) {
-      if (key !== "items") {
-        config[key] = (feed as unknown as Record<string, unknown>)[key];
-      }
-    }
-    return config as unknown as Feed;
-  }
-
   private createPersistedSettings(
     settings: RssDashboardSettings,
   ): PersistedRssDashboardSettings {
     const cloned = cloneJson({
       ...settings,
-      feeds: settings.feeds.map((feed) => this.withoutItems(feed)),
+      feeds: settings.feeds.map(withoutItems),
     });
 
     return {

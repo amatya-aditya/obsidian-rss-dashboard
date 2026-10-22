@@ -81,11 +81,14 @@ export function createLoadedShardBaseline(
   stripState: boolean,
 ): string {
   const parsed = JSON.parse(loaded.raw) as Partial<FeedItemsShard>;
-  const feed = {
-    feedId,
+  const feed: Feed = {
+    title: "",
     url: loaded.feedUrl,
+    folder: "",
+    feedId,
+    lastUpdated: 0,
     items: dropInvalidShardItems(parsed.items ?? []),
-  } as Feed;
+  };
   return createComparableFeedShardJson(feed, stripState);
 }
 
