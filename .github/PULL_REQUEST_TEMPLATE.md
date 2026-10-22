@@ -50,7 +50,7 @@
 - [ ] Unit tests added/updated
 - [ ] Existing tests pass locally
 - [ ] Manual smoke test completed
-- [ ] Settings → About build hash matches the PR's latest commit and shows no `+dirty`
+- [ ] Settings → About build hash matches the PR's latest commit and shows no `+dirty` (write "N/A, release build" when the test run used `npm run build`, which carries no hash)
 
 ### Test Evidence
 

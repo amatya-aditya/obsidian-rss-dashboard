@@ -7,7 +7,7 @@ assignees: ""
 ---
 
 <!--
-One extraction per ticket and per PR. Rules: "Refactors (#436)" in AGENTS.md.
+One extraction per ticket and per PR. Rules: `docs/agents/refactors.md`.
 Commit mechanics: "Refactor Commits" in docs/development/architecture.md.
 -->
 

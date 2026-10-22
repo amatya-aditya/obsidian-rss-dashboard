@@ -65,12 +65,41 @@ function stagedPaths() {
   return result.stdout.split("\0").filter(Boolean);
 }
 
+// A passing step costs one line; a failing step replays everything it printed.
+// Set PRECOMMIT_VERBOSE=1 to stream every step's output as it runs.
+export function summarizeStep(label, result, elapsedMs) {
+  if (result.status === 0) {
+    return {
+      ok: true,
+      text: `[pre-commit] ${label} ok (${(elapsedMs / 1000).toFixed(1)}s)\n`,
+    };
+  }
+  const output = `${result.stdout ?? ""}${result.stderr ?? ""}`;
+  return {
+    ok: false,
+    text: `[pre-commit] ${label} FAILED\n${output}`,
+  };
+}
+
 function runNode(label, script, args) {
-  process.stdout.write(`[pre-commit] ${label}\n`);
+  if (process.env.PRECOMMIT_VERBOSE === "1") {
+    process.stdout.write(`[pre-commit] ${label}\n`);
+    const result = spawnSync(process.execPath, [script, ...args], {
+      stdio: "inherit",
+    });
+    if (result.status !== 0) {
+      process.exit(result.status ?? 1);
+    }
+    return;
+  }
+  const started = Date.now();
   const result = spawnSync(process.execPath, [script, ...args], {
-    stdio: "inherit",
+    encoding: "utf8",
+    maxBuffer: 256 * 1024 * 1024,
   });
-  if (result.status !== 0) {
+  const summary = summarizeStep(label, result, Date.now() - started);
+  process.stdout.write(summary.text);
+  if (!summary.ok) {
     process.exit(result.status ?? 1);
   }
 }
