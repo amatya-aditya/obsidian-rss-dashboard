@@ -42,6 +42,7 @@ import {
   renderVideoSourceBanner,
   shouldRenderVideoSourceBanner,
 } from "../utils/reader-article-fetch";
+import { renderSourceFooter } from "../utils/reader-source-footer";
 import {
   RssDashboardSettings,
   FeedItem,
@@ -1581,6 +1582,7 @@ export class ReaderView extends ItemView {
       if (this.relatedItems.length > 0) {
         this.videoPlayer.setRelatedVideos(this.relatedItems);
       }
+      renderSourceFooter(this.readingContainer, item);
     } else {
       const errorContainer = container.createDiv({
         cls: "rss-reader-error",
@@ -1629,6 +1631,7 @@ export class ReaderView extends ItemView {
       this.syncReaderTitle();
       this.updateToggleButtons();
       this.closeTagsDropdown();
+      renderSourceFooter(this.readingContainer, selectedEpisode);
       void this.syncDashboardSelectionFromPlayer(selectedEpisode);
     };
 
@@ -1648,6 +1651,7 @@ export class ReaderView extends ItemView {
         this.settings.media.showPodcastSleepTimerBand ?? true,
       );
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
+      renderSourceFooter(this.readingContainer, item);
     } else {
       const audioUrl = MediaService.extractPodcastAudio(item.description);
       if (audioUrl) {
@@ -1670,6 +1674,7 @@ export class ReaderView extends ItemView {
           this.settings.media.showPodcastSleepTimerBand ?? true,
         );
         this.podcastPlayer.loadEpisode(podcastItem, fullFeedEpisodes);
+        renderSourceFooter(this.readingContainer, item);
       } else {
         container.createDiv({
           cls: "rss-reader-error",
@@ -1933,6 +1938,8 @@ export class ReaderView extends ItemView {
         descriptionToStripFromBody(hasDistinctMainContent, descriptionHtml),
       );
     }
+
+    renderSourceFooter(container, item);
 
     if (item.restrictedReason) {
       renderRestrictedBanner(container, item);
@@ -3104,5 +3111,6 @@ export class ReaderView extends ItemView {
         text: "No related videos found",
       });
     }
+    renderSourceFooter(this.readingContainer, item);
   }
 }
