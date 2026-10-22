@@ -14,6 +14,7 @@ import {
 import { resolveProxyPrefixes } from "./proxy-utils";
 import { stripAdContainers } from "./ad-containers";
 import { promotePictureImageSources } from "./image-url-utils";
+import { extractGitHubIssueContent } from "./github-issue-page";
 
 /** Markers that indicate the page is a WAF/bot-challenge block rather than real content. */
 const BLOCKED_MARKERS = [
@@ -370,10 +371,13 @@ function parseArticleContent(
   // would be gone), so the page's metadata is read first.
   const pageMetadata = extractPageMetadata(doc);
   const pageImage = extractPageImage(doc, pageUrl);
+  // Readability still runs for an issue page so its excerpt keeps feeding the
+  // page metadata; only the content is replaced (#1394).
+  const issueContent = extractGitHubIssueContent(html, pageUrl);
   const article = new Readability(doc).parse();
   pageMetadata.readabilityExcerpt = (article?.excerpt ?? "").trim();
   return {
-    content: article?.content ?? "",
+    content: issueContent ?? article?.content ?? "",
     pageMetadata,
     ...(pageImage ? { pageImage } : {}),
   };
