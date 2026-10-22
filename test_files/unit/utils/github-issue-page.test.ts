@@ -9,6 +9,24 @@ interface IssueOverrides {
   author?: { login: string } | null;
   labels?: string[];
   bodyHTML?: string;
+  timeline?: Record<string, unknown>[];
+  totalCommentsCount?: number;
+}
+
+function comment(
+  login: string | null,
+  bodyHTML: string,
+  extra: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return {
+    __typename: "IssueComment",
+    createdAt: "2026-10-20T10:00:00Z",
+    isHidden: false,
+    isMinimized: false,
+    author: login === null ? null : { login },
+    bodyHTML,
+    ...extra,
+  };
 }
 
 // Trimmed to the fields the extractor reads, in the shape of a real issue page's
@@ -26,6 +44,10 @@ function issuePage(overrides: IssueOverrides = {}): string {
       edges: (overrides.labels ?? []).map((name) => ({ node: { name } })),
     },
     bodyHTML: overrides.bodyHTML ?? "<p>The issue body.</p>",
+    totalCommentsCount: overrides.totalCommentsCount ?? 0,
+    timelineItems: {
+      edges: (overrides.timeline ?? []).map((node) => ({ cursor: "c", node })),
+    },
   };
   const data = {
     payload: { issueViewerRoute: { data: { repository: { issue } } } },
@@ -186,5 +208,134 @@ describe("extractGitHubIssueContent - URL matching", () => {
     "",
   ])("does not invoke the extractor for %s", (url) => {
     expect(extractGitHubIssueContent(issuePage(), url)).toBeNull();
+  });
+});
+
+describe("extractGitHubIssueContent - comments", () => {
+  const mixed = [
+    comment("alice", "<p>First comment.</p>"),
+    { __typename: "LabeledEvent", createdAt: "2026-10-20T11:00:00Z" },
+    comment("spammer", "<p>Hidden comment.</p>", { isHidden: true }),
+    comment("bob", "<p>Minimized comment.</p>", { isMinimized: true }),
+    comment("gabyhelp[bot]", "<p>Bot comment.</p>"),
+    comment(null, "<p>Ghost comment.</p>"),
+  ];
+
+  function render(overrides: IssueOverrides): Document {
+    return parse(
+      extractGitHubIssueContent(issuePage(overrides), ISSUE_URL) as string,
+    );
+  }
+
+  it("renders only visible comments in payload order, bots kept, each as an h3 plus body split by hr", () => {
+    const doc = render({ timeline: mixed, totalCommentsCount: 5 });
+    const date = new Date("2026-10-20T10:00:00Z").toLocaleDateString();
+
+    expect(doc.querySelector("h2")?.textContent).toBe("Comments");
+    const headings = Array.from(doc.querySelectorAll("h3")).map(
+      (h) => h.textContent,
+    );
+    expect(headings).toEqual([
+      `@alice - ${date}`,
+      `@gabyhelp[bot] - ${date}`,
+      `@ghost - ${date}`,
+    ]);
+    expect(doc.querySelectorAll("hr")).toHaveLength(2);
+    expect(doc.body.textContent).toContain("First comment.");
+    expect(doc.body.textContent).toContain("Bot comment.");
+    expect(doc.body.textContent).not.toContain("Hidden comment.");
+    expect(doc.body.textContent).not.toContain("Minimized comment.");
+    expect(doc.body.textContent).not.toContain("LabeledEvent");
+  });
+
+  it("still renders comments when the issue body is empty", () => {
+    const doc = render({
+      bodyHTML: "",
+      timeline: [comment("alice", "<p>Only comment.</p>")],
+      totalCommentsCount: 1,
+    });
+
+    expect(doc.querySelector("h3")?.textContent).toContain("@alice");
+    expect(doc.body.textContent).toContain("Only comment.");
+  });
+
+  it("neutralizes scripts in comment bodies", () => {
+    const doc = render({
+      timeline: [
+        comment(
+          "alice",
+          '<p>Hi</p><script>alert(1)</script><img src="x" onerror="alert(2)">',
+        ),
+      ],
+      totalCommentsCount: 1,
+    });
+
+    expect(doc.querySelector("script")).toBeNull();
+    expect(doc.querySelector("[onerror]")).toBeNull();
+  });
+
+  it("has no Comments section or footer for an issue with no comments", () => {
+    const doc = render({});
+
+    expect(doc.querySelector("h2")).toBeNull();
+    expect(doc.body.textContent).not.toContain("Showing");
+  });
+});
+
+describe("extractGitHubIssueContent - missing-comments footer", () => {
+  function footer(
+    overrides: IssueOverrides,
+    url = ISSUE_URL,
+  ): HTMLElement | null {
+    const doc = parse(
+      extractGitHubIssueContent(issuePage(overrides), url) as string,
+    );
+    const last = doc.body.lastElementChild as HTMLElement | null;
+    return last?.textContent?.startsWith("Showing") ? last : null;
+  }
+
+  it("counts M as comments only, not timeline events", () => {
+    const timeline = [
+      comment("alice", "<p>a</p>"),
+      { __typename: "LabeledEvent" },
+      { __typename: "AssignedEvent" },
+      comment("bob", "<p>b</p>"),
+    ];
+
+    expect(footer({ timeline, totalCommentsCount: 2 })).toBeNull();
+    expect(footer({ timeline, totalCommentsCount: 5 })?.textContent).toBe(
+      "Showing 2 of 5 comments. Open on GitHub for the rest",
+    );
+  });
+
+  it("adds the hidden clause when hidden or minimized comments were skipped", () => {
+    const timeline = [
+      comment("alice", "<p>a</p>"),
+      comment("x", "<p>h</p>", { isHidden: true }),
+      comment("y", "<p>m</p>", { isMinimized: true }),
+    ];
+    const el = footer({ timeline, totalCommentsCount: 23 });
+
+    expect(el?.textContent).toBe(
+      "Showing 1 of 23 comments (2 hidden by GitHub). Open on GitHub for the rest",
+    );
+  });
+
+  it("links to the issue without its query or fragment", () => {
+    const el = footer(
+      { timeline: [comment("a", "<p>a</p>")], totalCommentsCount: 3 },
+      `${ISSUE_URL}?foo=bar#issuecomment-1`,
+    );
+
+    expect(el?.querySelector("a")?.getAttribute("href")).toBe(ISSUE_URL);
+  });
+
+  it("omits the footer when all comments are shown, even with hidden ones skipped", () => {
+    const timeline = [
+      comment("alice", "<p>a</p>"),
+      comment("x", "<p>h</p>", { isHidden: true }),
+    ];
+
+    expect(footer({ timeline, totalCommentsCount: 1 })).toBeNull();
   });
 });
