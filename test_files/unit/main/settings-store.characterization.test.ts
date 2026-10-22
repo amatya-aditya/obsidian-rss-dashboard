@@ -392,7 +392,9 @@ describe("settings store (issue #563)", () => {
           await plugin.loadSettings();
 
           expect(saveData).not.toHaveBeenCalled();
-          expect(plugin.feedParser).toBeUndefined();
+          // The recovery baseline needs the backup service, so the first load
+          // builds the services even when it saves nothing (#1519).
+          expect(plugin.feedParser).toBeDefined();
         });
 
         it("saves a normalized value, building the services first so the save can back up", async () => {
@@ -459,6 +461,21 @@ describe("settings store (issue #563)", () => {
           expect(persist).not.toHaveBeenCalled();
         });
 
+        /**
+         * Makes hydration report a repair, so the load has a real reason to
+         * save: in shard storage a normalized value alone is not one (#1519).
+         */
+        function hydrationRepairs(): void {
+          const repository = seams().feedStorageRepository;
+          const hydrate = repository.hydrateSettings.bind(repository);
+          vi.spyOn(repository, "hydrateSettings").mockImplementation(
+            async (...args: unknown[]) => ({
+              ...((await hydrate(...args)) as Record<string, unknown>),
+              didChange: true,
+            }),
+          );
+        }
+
         it("doesn't save a Shard storage v2 load whose user-state.json hasn't arrived", async () => {
           const settings = await normalizedSettings();
           createPlugin({
@@ -466,6 +483,7 @@ describe("settings store (issue #563)", () => {
             storageMode: "vault-shards-v2",
             refreshInterval: -5,
           });
+          hydrationRepairs();
           const persist = vi.spyOn(
             seams().feedStorageRepository,
             "persistSettings",
@@ -489,6 +507,7 @@ describe("settings store (issue #563)", () => {
             storageMode: "vault-shards-v2",
             refreshInterval: -5,
           });
+          hydrationRepairs();
           const persist = vi.spyOn(
             seams().feedStorageRepository,
             "persistSettings",
@@ -497,6 +516,31 @@ describe("settings store (issue #563)", () => {
           await plugin.loadSettings();
 
           expect(persist).toHaveBeenCalledTimes(1);
+        });
+
+        it("doesn't save a Shard storage v2 load whose only change is a normalized value, though it normalizes it in memory", async () => {
+          const settings = await normalizedSettings();
+          await adapter().mkdir(".rss-dashboard-data");
+          await adapter().write(
+            ".rss-dashboard-data/user-state.json",
+            JSON.stringify({ version: 1, states: {} }),
+          );
+          createPlugin({
+            ...settings,
+            storageMode: "vault-shards-v2",
+            refreshInterval: -5,
+          });
+          const persist = vi.spyOn(
+            seams().feedStorageRepository,
+            "persistSettings",
+          );
+
+          await plugin.loadSettings();
+
+          // Persist could not write it: its metadata baseline is captured after
+          // normalization, and the save only reopened every unchanged shard.
+          expect(persist).not.toHaveBeenCalled();
+          expect(plugin.settings.refreshInterval).toBe(0);
         });
       });
     });

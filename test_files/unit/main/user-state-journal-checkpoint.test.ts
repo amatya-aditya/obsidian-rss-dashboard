@@ -297,7 +297,7 @@ describe("journal checkpoints (#1387)", () => {
     expect(snapshot(app).states["feed-1:guid-1"]?.read).toBe(true);
   });
 
-  it("drops records once a later load reads the checkpoint back from disk", async () => {
+  it("drops records at the first save after a later load reads the checkpoint back from disk", async () => {
     const { plugin } = await startPlugin();
     plugin.settings.feeds[0].items[0].read = true;
     await plugin.queueArticleStateSave([
@@ -307,8 +307,11 @@ describe("journal checkpoints (#1387)", () => {
     expect(journalRecords(app)).toHaveLength(1);
 
     await plugin.loadSettings();
-
+    // A load that finds nothing to repair does not save (#1519), and the write
+    // gate is closed while it runs, so the records go at the next save.
     expect(readOf(plugin)).toBe(true);
+    await plugin.saveSettings();
+
     expect(journalRecords(app)).toEqual([]);
   });
 
@@ -415,8 +418,10 @@ describe("journal checkpoints (#1387)", () => {
     expect(journalRecords(app)).toHaveLength(1);
 
     await plugin.loadSettings();
+    // The first save after that load truncates (a load that finds nothing to
+    // repair does not save, #1519), through this device's entry only.
+    await plugin.saveSettings();
 
-    // A later load truncates through this device's entry only.
     expect(journalRecords(app)).toEqual([]);
     expect(readOf(plugin)).toBe(true);
   });
@@ -452,7 +457,10 @@ describe("journal checkpoints (#1387)", () => {
     const { plugin } = await startPlugin();
 
     // The stale read:false is skipped because the legacy checkpoint covers it,
-    // so the snapshot's read:true wins, and the journal is dropped.
+    // so the snapshot's read:true wins, and the first save drops the journal
+    // (a load that finds nothing to repair does not save, #1519).
+    expect(readOf(plugin)).toBe(true);
+    await plugin.saveSettings();
     expect(readOf(plugin)).toBe(true);
     expect(journalRecords(app)).toEqual([]);
   });

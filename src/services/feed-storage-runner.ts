@@ -16,6 +16,7 @@ import {
   dropInvalidShardItems,
   getFeedShardPath,
   isHiddenFromSync,
+  isShardBackedMode,
   normalizeFolderPath,
 } from "./feed-storage-shard";
 
@@ -116,10 +117,6 @@ export interface FeedStorageRunnerHost {
   createPersistedSettings(
     settings: RssDashboardSettings,
   ): PersistedRssDashboardSettings;
-}
-
-function isShardBackedMode(mode: RssDashboardSettings["storageMode"]): boolean {
-  return mode === "vault-shards" || mode === "vault-shards-v2";
 }
 
 // ── Hydration ────────────────────────────────────────────────────────────────
