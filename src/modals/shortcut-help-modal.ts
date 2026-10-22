@@ -16,7 +16,8 @@ export interface ShortcutSection {
 
 /**
  * The shortcut list shown in the help dialog and written to the vault note.
- * Keep it in step with `src/hotkeys/dashboard-hotkeys.ts`,
+ * Tests check the rows against the keymap's help assignments. Keep it in
+ * step with `src/hotkeys/dashboard-hotkeys.ts`,
  * `src/hotkeys/reader-hotkeys.ts`, and `docs/user/keyboard-shortcuts.md`.
  */
 export const SHORTCUT_SECTIONS: ShortcutSection[] = [
@@ -25,7 +26,6 @@ export const SHORTCUT_SECTIONS: ShortcutSection[] = [
     items: [
       { key: "?", desc: "Open help dialog" },
       { key: "Esc", desc: "Close dialog" },
-      { key: "r", desc: "Refresh feed" },
     ],
   },
   {
@@ -40,6 +40,27 @@ export const SHORTCUT_SECTIONS: ShortcutSection[] = [
       { key: "1", desc: "List view" },
       { key: "2", desc: "Card view" },
       { key: "3", desc: "Feed view" },
+      { key: "r", desc: "Refresh feed" },
+      { key: "ArrowUp / ArrowDown", desc: "Move article selection up / down" },
+      {
+        key: "ArrowLeft / ArrowRight",
+        desc: "Move article selection left / right (card view only)",
+      },
+      { key: "o / Enter", desc: "Open article in reader pane" },
+      {
+        key: "Space / Shift + Space",
+        desc: "Select next / previous article without opening",
+      },
+      { key: "k", desc: "Close reader pane" },
+      { key: "j", desc: "Open previous article" },
+      { key: "l", desc: "Open next article" },
+      { key: "m", desc: "Mark article read/unread toggle" },
+      { key: ",", desc: "Mark article read and open next" },
+      { key: "Shift + a", desc: "Mark all as read" },
+      { key: "f", desc: "Star/Unstar article" },
+      { key: "Shift + f", desc: "Toggle YouTube focus mode" },
+      { key: "t", desc: "Add tags to article" },
+      { key: "s", desc: "Save to notes" },
     ],
   },
   {
@@ -60,19 +81,9 @@ export const SHORTCUT_SECTIONS: ShortcutSection[] = [
   {
     section: "Article manipulation",
     items: [
-      { key: "ArrowUp / ArrowDown", desc: "Move article selection up / down" },
-      {
-        key: "ArrowLeft / ArrowRight",
-        desc: "Move article selection left / right (card view only)",
-      },
-      { key: "o / Enter", desc: "Open article in reader pane" },
       { key: "k", desc: "Close reader pane" },
       { key: "j", desc: "Open previous article" },
       { key: "l", desc: "Open next article" },
-      {
-        key: "Space / Shift + Space",
-        desc: "Select next / previous article without opening",
-      },
       { key: "m", desc: "Mark article read/unread toggle" },
       { key: ",", desc: "Mark article read and open next" },
       { key: "Shift + a", desc: "Mark all as read" },

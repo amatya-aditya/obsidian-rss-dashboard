@@ -21,23 +21,39 @@ These command-palette commands are always listed. Assign a hotkey in
 
 | Shortcut | Action           |
 | -------- | ---------------- |
-| ?        | Open Help Dialog |
+| ?        | Open help dialog |
 | Esc      | Close dialog     |
-| r        | Refresh Feed     |
 
 ## Dashboard View
 
-| Shortcut  | Action                       |
-| --------- | ---------------------------- |
-| Shift + s | Focus sidebar                |
-| Shift + r | Focus reader view            |
-| Shift + 1 | All articles filter          |
-| Shift + 2 | Unread articles filter       |
-| Shift + 3 | Read articles filter         |
-| Shift + C | Fetch or restore cover image |
-| 1         | List view                    |
-| 2         | Card view                    |
-| 3         | Feed view                    |
+Every key that works in the dashboard.
+
+| Shortcut               | Action                                               |
+| ---------------------- | ---------------------------------------------------- |
+| Shift + s              | Focus sidebar                                        |
+| Shift + r              | Focus reader view                                    |
+| Shift + 1              | All articles filter                                  |
+| Shift + 2              | Unread articles filter                               |
+| Shift + 3              | Read articles filter                                 |
+| Shift + C              | Fetch or restore cover image                         |
+| 1                      | List view                                            |
+| 2                      | Card view                                            |
+| 3                      | Feed view                                            |
+| r                      | Refresh feed                                         |
+| ArrowUp / ArrowDown    | Move article selection up / down                     |
+| ArrowLeft / ArrowRight | Move article selection left / right (card view only) |
+| o / Enter              | Open article in reader pane                          |
+| Space / Shift + Space  | Select next / previous article without opening       |
+| k                      | Close reader pane                                    |
+| j                      | Open previous article                                |
+| l                      | Open next article                                    |
+| m                      | Mark article read/unread toggle                      |
+| ,                      | Mark article read and open next                      |
+| Shift + a              | Mark all as read                                     |
+| f                      | Star/Unstar article                                  |
+| Shift + f              | Toggle YouTube focus mode                            |
+| t                      | Add tags to article                                  |
+| s                      | Save to notes                                        |
 
 ## Reader View
 
@@ -56,22 +72,20 @@ These command-palette commands are always listed. Assign a hotkey in
 
 ## Article Manipulation
 
-| Shortcut               | Action                                               |
-| ---------------------- | ---------------------------------------------------- |
-| ArrowUp / ArrowDown    | Move article selection up / down                     |
-| ArrowLeft / ArrowRight | Move article selection left / right (card view only) |
-| o / Enter              | Open article in reader pane                          |
-| k                      | Close reader pane                                    |
-| j                      | Open previous article                                |
-| l                      | Open next article                                    |
-| Space / Shift + Space  | Select next / previous article without opening       |
-| m                      | Mark article read/unread toggle                      |
-| ,                      | Mark article read and open next                      |
-| Shift + a              | Mark all as read                                     |
-| f                      | Star/Unstar article                                  |
-| Shift + f              | Toggle YouTube focus mode                            |
-| t                      | Add tags to article                                  |
-| s                      | Save to notes                                        |
+These keys work the same in the dashboard and in the Reader.
+
+| Shortcut  | Action                          |
+| --------- | ------------------------------- |
+| k         | Close reader pane               |
+| j         | Open previous article           |
+| l         | Open next article               |
+| m         | Mark article read/unread toggle |
+| ,         | Mark article read and open next |
+| Shift + a | Mark all as read                |
+| f         | Star/Unstar article             |
+| Shift + f | Toggle YouTube focus mode       |
+| t         | Add tags to article             |
+| s         | Save to notes                   |
 
 `j`, `k`, and `l` work the same whether the dashboard or the Reader has focus.
 `j` and `l` open the previous or next article in the Reader, even when it was

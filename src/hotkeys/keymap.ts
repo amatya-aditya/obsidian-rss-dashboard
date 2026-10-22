@@ -164,7 +164,7 @@ export const KEYMAP: readonly KeyBinding[] = [
     shift: false,
     contexts: DR,
     repeat: false,
-    help: [HELP_ARTICLE],
+    help: [HELP_DASHBOARD, HELP_ARTICLE],
   },
   {
     id: "focus-dashboard",
@@ -197,7 +197,7 @@ export const KEYMAP: readonly KeyBinding[] = [
     shift: false,
     contexts: DR,
     repeat: true,
-    help: [HELP_ARTICLE],
+    help: [HELP_DASHBOARD, HELP_ARTICLE],
   },
   {
     id: "article-next",
@@ -205,7 +205,7 @@ export const KEYMAP: readonly KeyBinding[] = [
     shift: false,
     contexts: DR,
     repeat: true,
-    help: [HELP_ARTICLE],
+    help: [HELP_DASHBOARD, HELP_ARTICLE],
   },
   {
     id: "toggle-read",
@@ -213,7 +213,7 @@ export const KEYMAP: readonly KeyBinding[] = [
     shift: false,
     contexts: DR,
     repeat: false,
-    help: [HELP_ARTICLE],
+    help: [HELP_DASHBOARD, HELP_ARTICLE],
   },
   {
     id: "mark-all-read",
@@ -221,7 +221,7 @@ export const KEYMAP: readonly KeyBinding[] = [
     shift: true,
     contexts: DR,
     repeat: false,
-    help: [HELP_ARTICLE],
+    help: [HELP_DASHBOARD, HELP_ARTICLE],
   },
   {
     id: "toggle-star",
@@ -229,7 +229,7 @@ export const KEYMAP: readonly KeyBinding[] = [
     shift: false,
     contexts: DR,
     repeat: false,
-    help: [HELP_ARTICLE],
+    help: [HELP_DASHBOARD, HELP_ARTICLE],
   },
   {
     id: "toggle-youtube-focus-mode",
@@ -237,7 +237,7 @@ export const KEYMAP: readonly KeyBinding[] = [
     shift: true,
     contexts: DR,
     repeat: false,
-    help: [HELP_ARTICLE],
+    help: [HELP_DASHBOARD, HELP_ARTICLE],
   },
   {
     id: "toggle-tags",
@@ -245,7 +245,7 @@ export const KEYMAP: readonly KeyBinding[] = [
     shift: false,
     contexts: DR,
     repeat: false,
-    help: [HELP_ARTICLE],
+    help: [HELP_DASHBOARD, HELP_ARTICLE],
   },
   {
     id: "save-article",
@@ -253,7 +253,7 @@ export const KEYMAP: readonly KeyBinding[] = [
     shift: false,
     contexts: DR,
     repeat: false,
-    help: [HELP_ARTICLE],
+    help: [HELP_DASHBOARD, HELP_ARTICLE],
   },
   {
     id: "mark-read-next",
@@ -261,7 +261,7 @@ export const KEYMAP: readonly KeyBinding[] = [
     shift: false,
     contexts: DR,
     repeat: false,
-    help: [HELP_ARTICLE],
+    help: [HELP_DASHBOARD, HELP_ARTICLE],
   },
   {
     id: "open-help",
@@ -279,7 +279,7 @@ export const KEYMAP: readonly KeyBinding[] = [
     shift: false,
     contexts: D,
     repeat: false,
-    help: [HELP_GENERAL],
+    help: [HELP_DASHBOARD],
   },
   {
     id: "select-next",
@@ -287,7 +287,7 @@ export const KEYMAP: readonly KeyBinding[] = [
     shift: false,
     contexts: D,
     repeat: true,
-    help: [HELP_ARTICLE],
+    help: [HELP_DASHBOARD],
   },
   {
     id: "select-previous",
@@ -295,7 +295,7 @@ export const KEYMAP: readonly KeyBinding[] = [
     shift: true,
     contexts: D,
     repeat: true,
-    help: [HELP_ARTICLE],
+    help: [HELP_DASHBOARD],
   },
   {
     id: "cover-image-action",
@@ -312,7 +312,7 @@ export const KEYMAP: readonly KeyBinding[] = [
     shift: false,
     contexts: D,
     repeat: false,
-    help: [HELP_ARTICLE],
+    help: [HELP_DASHBOARD],
   },
   {
     id: "toggle-article-open",
@@ -321,7 +321,7 @@ export const KEYMAP: readonly KeyBinding[] = [
     contexts: D,
     when: "sidebar-unfocused",
     repeat: false,
-    help: [HELP_ARTICLE],
+    help: [HELP_DASHBOARD],
   },
   {
     id: "sidebar-open",
@@ -387,7 +387,7 @@ export const KEYMAP: readonly KeyBinding[] = [
     contexts: D,
     when: "sidebar-unfocused",
     repeat: true,
-    help: [HELP_ARTICLE],
+    help: [HELP_DASHBOARD],
   },
   {
     id: "card-right",
@@ -396,7 +396,7 @@ export const KEYMAP: readonly KeyBinding[] = [
     contexts: D,
     when: "sidebar-unfocused",
     repeat: true,
-    help: [HELP_ARTICLE],
+    help: [HELP_DASHBOARD],
   },
   {
     id: "card-up",
@@ -405,7 +405,7 @@ export const KEYMAP: readonly KeyBinding[] = [
     contexts: D,
     when: "sidebar-unfocused",
     repeat: true,
-    help: [HELP_ARTICLE],
+    help: [HELP_DASHBOARD],
   },
   {
     id: "card-down",
@@ -414,7 +414,7 @@ export const KEYMAP: readonly KeyBinding[] = [
     contexts: D,
     when: "sidebar-unfocused",
     repeat: true,
-    help: [HELP_ARTICLE],
+    help: [HELP_DASHBOARD],
   },
   {
     id: "sidebar-previous-folder",

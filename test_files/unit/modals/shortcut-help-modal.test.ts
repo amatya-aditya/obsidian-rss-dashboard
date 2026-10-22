@@ -95,13 +95,92 @@ describe("ShortcutHelpModal", () => {
     });
 
     it("builds the saved vault note from the same rows", () => {
-      const articleSection = SHORTCUT_SECTIONS.find(
-        (section) => section.section === "Article manipulation",
+      const dashboardSection = SHORTCUT_SECTIONS.find(
+        (section) => section.section === "Dashboard view",
       );
-      expect(articleSection?.items).toEqual(
+      expect(dashboardSection?.items).toEqual(
         expect.arrayContaining(expected.map(([key, desc]) => ({ key, desc }))),
       );
     });
+  });
+
+  describe("grouping by where the keys work (#1469)", () => {
+    const headings: Record<string, string> = {
+      "General navigation": "## General Navigation",
+      "Dashboard view": "## Dashboard View",
+      "Reader view": "## Reader View",
+      "Article manipulation": "## Article Manipulation",
+      "Sidebar navigation": "## Sidebar Navigation",
+    };
+
+    function guideRows(heading: string): Array<[string, string]> {
+      const guide = readFileSync("docs/user/keyboard-shortcuts.md", "utf8");
+      const body = guide.split(heading + "\n")[1]?.split("\n## ")[0] ?? "";
+      return body
+        .split("\n")
+        .filter((line) => line.startsWith("|"))
+        .slice(2)
+        .map((line) => {
+          const [key, desc] = line
+            .slice(1, -1)
+            .split(" | ")
+            .map((cell) => cell.replace(/\\_/g, "_").trim());
+          return [key, desc];
+        });
+    }
+
+    it("keeps General navigation to ? and Esc", () => {
+      const section = SHORTCUT_SECTIONS.find(
+        (candidate) => candidate.section === "General navigation",
+      );
+      expect(section?.items.map((item) => item.key)).toEqual(["?", "Esc"]);
+    });
+
+    it("lists r under Dashboard view", () => {
+      const section = SHORTCUT_SECTIONS.find(
+        (candidate) => candidate.section === "Dashboard view",
+      );
+      expect(section?.items).toContainEqual({
+        key: "r",
+        desc: "Refresh feed",
+      });
+    });
+
+    it("keeps the dashboard-only keys out of Article manipulation", () => {
+      const section = SHORTCUT_SECTIONS.find(
+        (candidate) => candidate.section === "Article manipulation",
+      );
+      const keys = section?.items.map((item) => item.key) ?? [];
+      expect(keys).toEqual([
+        "k",
+        "j",
+        "l",
+        "m",
+        ",",
+        "Shift + a",
+        "f",
+        "Shift + f",
+        "t",
+        "s",
+      ]);
+    });
+
+    it.each(Object.entries(headings))(
+      "gives the guide the same rows as the dialog in %s",
+      (name, heading) => {
+        const section = SHORTCUT_SECTIONS.find(
+          (candidate) => candidate.section === name,
+        );
+        const dialog = (section?.items ?? []).map(
+          (item) => [item.key, item.desc] as [string, string],
+        );
+        const guide = guideRows(heading).map(
+          ([key, desc]) => [key, desc] as [string, string],
+        );
+        expect(guide.map(([key]) => key)).toEqual(dialog.map(([key]) => key));
+        expect(guide).toEqual(dialog);
+      },
+    );
   });
 
   describe("Esc shortcut", () => {
@@ -151,15 +230,15 @@ describe("ShortcutHelpModal", () => {
       ],
     ];
 
-    function articleItems() {
+    function dashboardItems() {
       const section = SHORTCUT_SECTIONS.find(
-        (candidate) => candidate.section === "Article manipulation",
+        (candidate) => candidate.section === "Dashboard view",
       );
       return section?.items ?? [];
     }
 
     it("no longer calls the arrow keys card view navigation", () => {
-      expect(articleItems().map((item) => item.key)).not.toContain(
+      expect(dashboardItems().map((item) => item.key)).not.toContain(
         "Arrow keys",
       );
       const text = SHORTCUT_SECTIONS.flatMap((section) => section.items)
@@ -169,14 +248,14 @@ describe("ShortcutHelpModal", () => {
     });
 
     it.each(expected)("lists %s as %s", (key, desc) => {
-      expect(articleItems()).toContainEqual({ key, desc });
+      expect(dashboardItems()).toContainEqual({ key, desc });
     });
 
     it("matches the keyboard shortcuts guide", () => {
       const guide = readFileSync("docs/user/keyboard-shortcuts.md", "utf8");
       const articleTable = guide
-        .split("## Article Manipulation")[1]
-        ?.split("## Sidebar Navigation")[0];
+        .split("## Dashboard View")[1]
+        ?.split("## Reader View")[0];
       expect(articleTable).toBeDefined();
       for (const [key, desc] of expected) {
         const row = articleTable
@@ -384,6 +463,29 @@ describe("ShortcutHelpModal", () => {
       expect(
         app.vault.getAbstractFileByPath("Notes/RSS/keyboard-shortcuts.md"),
       ).not.toBeNull();
+      modal.onClose();
+    });
+
+    it("writes every section's rows into the saved note in dialog order (#1469)", async () => {
+      const app = App.createMock();
+      const modal = new ShortcutHelpModal(app, createSettings(""));
+      modal.onOpen();
+
+      await clickSaveLink(modal);
+
+      const file = app.vault.getAbstractFileByPath("keyboard-shortcuts.md");
+      const content = await app.vault.read(file as never);
+      const expected = SHORTCUT_SECTIONS.flatMap((section) => [
+        `## ${section.section}`,
+        ...section.items.map((item) => `| ${item.key} | ${item.desc} |`),
+      ]);
+      const actual = content
+        .split("\n")
+        .filter(
+          (line) => line.startsWith("## ") || /^\| .* \| .* \|$/.test(line),
+        )
+        .filter((line) => line !== "| Shortcut | Action |");
+      expect(actual).toEqual(expected);
       modal.onClose();
     });
 
