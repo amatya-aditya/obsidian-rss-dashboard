@@ -23,6 +23,15 @@ interface GitHubIssue {
   author: { login: string } | null;
   labels: string[];
   bodyHTML: string;
+  comments: GitHubIssueComment[];
+  hiddenCommentCount: number;
+  totalCommentsCount: number | null;
+}
+
+interface GitHubIssueComment {
+  author: { login: string } | null;
+  createdAt: string;
+  bodyHTML: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -93,20 +102,59 @@ function readLabelNames(issue: Record<string, unknown>): string[] {
   return names;
 }
 
+function readAuthor(value: unknown): { login: string } | null {
+  return isRecord(value) && typeof value.login === "string" && value.login
+    ? { login: value.login }
+    : null;
+}
+
+/**
+ * Reads the comments of the first timeline page only (DEC-004): non-comment
+ * nodes are skipped, hidden and minimized comments are skipped but counted.
+ */
+function readComments(issue: Record<string, unknown>): {
+  comments: GitHubIssueComment[];
+  hidden: number;
+} {
+  const comments: GitHubIssueComment[] = [];
+  let hidden = 0;
+  const timeline = issue.timelineItems;
+  if (!isRecord(timeline) || !Array.isArray(timeline.edges)) {
+    return { comments, hidden };
+  }
+  for (const edge of timeline.edges) {
+    const node = isRecord(edge) ? edge.node : null;
+    if (!isRecord(node) || node.__typename !== "IssueComment") continue;
+    if (node.isHidden === true || node.isMinimized === true) {
+      hidden++;
+      continue;
+    }
+    comments.push({
+      author: readAuthor(node.author),
+      createdAt: typeof node.createdAt === "string" ? node.createdAt : "",
+      bodyHTML: typeof node.bodyHTML === "string" ? node.bodyHTML : "",
+    });
+  }
+  return { comments, hidden };
+}
+
 function toGitHubIssue(raw: Record<string, unknown>): GitHubIssue | null {
   if (typeof raw.state !== "string" || typeof raw.createdAt !== "string") {
     return null;
   }
-  const author = raw.author;
+  const { comments, hidden } = readComments(raw);
   return {
     state: raw.state,
     createdAt: raw.createdAt,
-    author:
-      isRecord(author) && typeof author.login === "string" && author.login
-        ? { login: author.login }
-        : null,
+    author: readAuthor(raw.author),
     labels: readLabelNames(raw),
     bodyHTML: typeof raw.bodyHTML === "string" ? raw.bodyHTML : "",
+    comments,
+    hiddenCommentCount: hidden,
+    totalCommentsCount:
+      typeof raw.totalCommentsCount === "number"
+        ? raw.totalCommentsCount
+        : null,
   };
 }
 
@@ -147,8 +195,37 @@ function renderMetaParagraph(issue: GitHubIssue): string {
   return `<p>${escapeHtml(parts.join(" - "))}</p>`;
 }
 
+function renderComments(comments: GitHubIssueComment[]): string {
+  if (comments.length === 0) return "";
+  const rendered = comments.map((comment) => {
+    const login = comment.author?.login ?? "ghost";
+    const heading = `@${login} - ${formatIssueDate(comment.createdAt)}`;
+    return `<h3>${escapeHtml(heading)}</h3>${neutralizeBodyHtml(comment.bodyHTML)}`;
+  });
+  return `<h2>Comments</h2>${rendered.join("<hr>")}`;
+}
+
+/** Names the comments the first page payload did not carry; empty when none are missing. */
+function renderMissingCommentsFooter(
+  issue: GitHubIssue,
+  pageUrl: string,
+): string {
+  const total = issue.totalCommentsCount;
+  const shown = issue.comments.length;
+  if (total === null || shown >= total) return "";
+
+  const hidden =
+    issue.hiddenCommentCount > 0
+      ? ` (${issue.hiddenCommentCount} hidden by GitHub)`
+      : "";
+  const url = new URL(pageUrl);
+  const href = `${url.origin}${url.pathname}`;
+  return `<p>Showing ${shown} of ${total} comments${hidden}. <a href="${escapeHtml(href)}">Open on GitHub</a> for the rest</p>`;
+}
+
 /**
- * Returns the issue as plain HTML (a meta paragraph, then the body), or `null`
+ * Returns the issue as plain HTML (a meta paragraph, the body, then the
+ * comments and a missing-comments footer), or `null`
  * when `pageUrl` is not an issue page or the page's embedded data is absent,
  * invalid or shaped unexpectedly.
  */
@@ -161,5 +238,10 @@ export function extractGitHubIssueContent(
   const issue = raw ? toGitHubIssue(raw) : null;
   if (!issue) return null;
 
-  return renderMetaParagraph(issue) + neutralizeBodyHtml(issue.bodyHTML);
+  return (
+    renderMetaParagraph(issue) +
+    neutralizeBodyHtml(issue.bodyHTML) +
+    renderComments(issue.comments) +
+    renderMissingCommentsFooter(issue, pageUrl)
+  );
 }
