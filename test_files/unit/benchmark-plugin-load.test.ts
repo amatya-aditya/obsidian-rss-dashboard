@@ -56,6 +56,11 @@ describe("parseArgs", () => {
     });
   });
 
+  it("rejects fewer than three warm runs, since the median of fewer is not a result", () => {
+    expect(() => parseArgs([...run, "--warm-runs", "2"])).toThrow("at least 3");
+    expect(parseArgs([...run, "--warm-runs", "3"]).warmRuns).toBe(3);
+  });
+
   it("rejects a run that leaves out a required option", () => {
     expect(() => parseArgs(["run", "--label", "x"])).toThrow("run needs --exe");
   });

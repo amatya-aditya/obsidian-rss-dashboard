@@ -9,6 +9,9 @@
  * a load that found nothing to repair used to save anyway, and that save
  * opened every unchanged shard a second time.
  */
+import { readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+import process from "node:process";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App, type MockApp, type PluginManifest } from "obsidian";
 
@@ -25,6 +28,7 @@ vi.mock("../../../src/modals/storage-migration-modal", () => ({
 }));
 
 import RssDashboardPlugin from "../../../main";
+import { SyncSimulator } from "../sync-simulator";
 import {
   DEFAULT_SETTINGS,
   type Feed,
@@ -331,6 +335,111 @@ describe("plugin start over a Shard storage v2 vault (#1519)", () => {
       app.vault.filesOnDisk.get(USER_STATE_PATH) ?? "{}",
     ) as { states?: Record<string, { starred?: boolean }> };
     expect(written.states?.["feed-b:b1"]?.starred).toBe(true);
+  });
+
+  it("loads the same feeds and article state as the base commit did, including a change that was journaled but not yet checkpointed", async () => {
+    // The golden was captured from the commit before #1519. Regenerate it from
+    // a checkout of that commit with WRITE_STARTUP_GOLDEN=1, never from this one.
+    vi.setSystemTime(new Date("2026-10-22T12:00:00Z"));
+    const app = await savedVault(feeds());
+    const earlier = await startPlugin(app);
+    started.push(earlier);
+    await earlier.updateArticle(
+      "a2",
+      "https://example.com/feed-a.xml",
+      { read: true },
+      false,
+    );
+    await earlier.updateArticle(
+      "b1",
+      "https://example.com/feed-b.xml",
+      { tags: [{ name: "keep", color: "#ff0000" }] },
+      false,
+    );
+    await earlier.flushPendingWrites();
+    // Closed abruptly: this star reached only the device-local journal.
+    await earlier.updateArticle(
+      "c2",
+      "https://example.com/feed-c.xml",
+      { starred: true },
+      false,
+    );
+    editSavedSettings(app, (settings) => {
+      for (const stored of settings.feeds as Record<string, unknown>[]) {
+        delete stored.lastRefreshAttemptCompletedAt;
+      }
+    });
+
+    const { plugin } = await start(app);
+
+    const loaded = JSON.parse(JSON.stringify(plugin.settings.feeds)) as unknown;
+    const goldenPath = resolve(
+      process.cwd(),
+      "test_files/unit/fixtures/startup-load-feeds.golden.json",
+    );
+    if (process.env.WRITE_STARTUP_GOLDEN === "1") {
+      writeFileSync(goldenPath, `${JSON.stringify(loaded, null, 2)}\n`);
+    }
+    expect(loaded).toEqual(JSON.parse(readFileSync(goldenPath, "utf8")));
+  });
+
+  /**
+   * A mobile that synced `feeds` and started, after a desktop removed
+   * `feed-c` and saved. The desktop's `data.json` reaches the mobile as an
+   * outside write; with `olderDevice` it lacks the field a load derives, as
+   * one saved by a device from before feeds carried it.
+   */
+  async function mobileAfterDesktopRemovesFeedC(olderDevice: boolean) {
+    const desktopApp = await savedVault(feeds());
+    const mobileApp = App.createMock();
+    await new SyncSimulator(desktopApp, mobileApp).deliver();
+    const { plugin: mobile } = await start(mobileApp);
+
+    const desktop = await startPlugin(desktopApp);
+    started.push(desktop);
+    desktop.settings.feeds = desktop.settings.feeds.filter(
+      (candidate) => candidate.feedId !== "feed-c",
+    );
+    await desktop.saveSettings();
+    const delivered = JSON.parse(
+      desktopApp.vault.filesOnDisk.get(DATA_PATH) ?? "{}",
+    ) as { feeds: Record<string, unknown>[] };
+    if (olderDevice) {
+      for (const stored of delivered.feeds) {
+        delete stored.lastRefreshAttemptCompletedAt;
+      }
+    }
+    mobileApp.vault.externalWrite(DATA_PATH, JSON.stringify(delivered));
+    // The watcher reloads once its debounce passes.
+    await vi.advanceTimersByTimeAsync(1_500);
+    return { mobile, mobileApp };
+  }
+
+  it("deletes the unchanged shard of a feed that a delivered data.json removes at the next save, not at the reload", async () => {
+    const { mobile, mobileApp } = await mobileAfterDesktopRemovesFeedC(false);
+
+    expect(mobile.settings.feeds.map((f) => f.feedId)).toEqual([
+      "feed-a",
+      "feed-b",
+    ]);
+    expect(mobileApp.vault.filesOnDisk.has(shardPath("feed-c"))).toBe(true);
+    await mobile.saveSettings();
+    expect(mobileApp.vault.filesOnDisk.has(shardPath("feed-c"))).toBe(false);
+  });
+
+  it("waits for the next save to delete that shard even when the delivered data.json makes the load derive a field", async () => {
+    // The load used to save here, and that save deleted the shard at once
+    // (#1519). Cleanup at the next save is what the glossary promises for an
+    // orphan shard, and what a vault whose load did not save already had.
+    const { mobile, mobileApp } = await mobileAfterDesktopRemovesFeedC(true);
+
+    expect(mobile.settings.feeds.map((f) => f.feedId)).toEqual([
+      "feed-a",
+      "feed-b",
+    ]);
+    expect(mobileApp.vault.filesOnDisk.has(shardPath("feed-c"))).toBe(true);
+    await mobile.saveSettings();
+    expect(mobileApp.vault.filesOnDisk.has(shardPath("feed-c"))).toBe(false);
   });
 
   it("saves nothing while user-state.json has not arrived", async () => {

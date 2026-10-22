@@ -69,8 +69,8 @@ node scripts/benchmark-plugin-load.mjs compare before.json after.json
 the `.cold.cpuprofile` beside each one; load a profile in the Performance panel
 of Chrome DevTools to see which functions the time went to.
 
-Options: `--port` (default 9444), `--warm-runs` (default 4, report at least
-three), `--plugin-id` (default `rss-dashboard`).
+Options: `--port` (default 9444), `--warm-runs` (default 4, at least 3, since
+the median of fewer is not a result), `--plugin-id` (default `rss-dashboard`).
 
 ## Reading the result
 

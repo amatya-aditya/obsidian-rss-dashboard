@@ -23,6 +23,8 @@ import { assessVaultOwnership, connect } from "./obsidian-cdp.mjs";
 const VAULT_PAGE_PREFIX = "app://obsidian.md/index.html";
 const DEFAULT_PORT = 9444;
 const DEFAULT_WARM_RUNS = 4;
+/** The performance program reports the median of at least three warm runs. */
+const MIN_WARM_RUNS = 3;
 const DEFAULT_PLUGIN_ID = "rss-dashboard";
 /** Sampling interval for the CPU profiler, in microseconds. */
 const SAMPLING_INTERVAL_US = 200;
@@ -90,8 +92,13 @@ export function parseArgs(argv) {
     if (!Number.isInteger(options.port) || options.port < 1) {
       throw new Error("--port must be a positive whole number.");
     }
-    if (!Number.isInteger(options.warmRuns) || options.warmRuns < 1) {
-      throw new Error("--warm-runs must be a positive whole number.");
+    if (
+      !Number.isInteger(options.warmRuns) ||
+      options.warmRuns < MIN_WARM_RUNS
+    ) {
+      throw new Error(
+        `--warm-runs must be a whole number of at least ${MIN_WARM_RUNS}: the measurement rules report the median of at least three warm runs.`,
+      );
     }
   }
   return options;
