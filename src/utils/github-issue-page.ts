@@ -9,6 +9,8 @@
  * keeps its Readability result unchanged.
  */
 
+import { KEEP_LEAD_ATTRIBUTE } from "./reader-html-cleanup";
+
 const GITHUB_HOST = "github.com";
 const ISSUE_PATH = /^\/[^/]+\/[^/]+\/issues\/\d+\/?$/;
 const EMBEDDED_DATA_SELECTOR = 'script[data-target="react-app.embeddedData"]';
@@ -192,7 +194,9 @@ function renderMetaParagraph(issue: GitHubIssue): string {
     `opened by @${login} on ${formatIssueDate(issue.createdAt)}`,
   ];
   if (issue.labels.length > 0) parts.push(`Labels: ${issue.labels.join(", ")}`);
-  return `<p>${escapeHtml(parts.join(" - "))}</p>`;
+  // Short enough to look like a teaser to the Reader's lead cleanup, which
+  // would drop it beside a repeated description (#1500).
+  return `<p ${KEEP_LEAD_ATTRIBUTE}>${escapeHtml(parts.join(" - "))}</p>`;
 }
 
 function renderComments(comments: GitHubIssueComment[]): string {

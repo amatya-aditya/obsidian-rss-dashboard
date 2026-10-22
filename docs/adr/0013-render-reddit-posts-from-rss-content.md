@@ -100,3 +100,4 @@ This uses the content Reddit publishes for feed readers and makes collapsed bloc
 - [GitHub Issue #363](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/363): the original report
 - [GitHub Issue #364](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/364): spec for reader code-block styling
 - [GitHub Issue #365](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/365) and [Pull Request #367](https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/367): the code-block styling implementation
+- [ADR 0037](0037-read-site-specific-content-only-from-the-fetched-page.md): narrows "no special-case code path" to Reddit alone

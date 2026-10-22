@@ -17,6 +17,7 @@ import {
   sanitizeFilename,
 } from "../../../src/services/article-saver";
 import * as fetchHelpers from "../../../src/utils/fetch-helpers";
+import { extractGitHubIssueContent } from "../../../src/utils/github-issue-page";
 import { RESTRICTED_ARTICLE_REASON } from "../../../src/utils/full-article-fetch";
 import { fetchedSaveReport } from "../../../src/utils/save-version";
 
@@ -2954,6 +2955,79 @@ describe("ArticleSaver - the note body follows the reader's fetched cleanup (#13
     expect(written).toContain(OTHER_CREDIT);
     expect(written).toContain(BODY);
     expect(written.match(/Photo credit: Jane Doe/g)).toHaveLength(1);
+  });
+});
+
+describe("ArticleSaver - a GitHub issue saved as Fetched content (#1500)", () => {
+  const ISSUE_URL = "https://github.com/golang/go/issues/82345";
+
+  function issuePage(): string {
+    const comment = (login: string, text: string) => ({
+      node: {
+        __typename: "IssueComment",
+        createdAt: "2026-10-20T10:00:00Z",
+        isHidden: false,
+        isMinimized: false,
+        author: { login },
+        bodyHTML: `<p>${text}</p>`,
+      },
+    });
+    const issue = {
+      state: "OPEN",
+      createdAt: "2026-10-19T21:38:02Z",
+      author: { login: "thatnealpatel" },
+      labels: { edges: [{ node: { name: "Security" } }] },
+      bodyHTML: "<p>The issue body.</p>",
+      totalCommentsCount: 2,
+      timelineItems: {
+        edges: [
+          comment("rsc", "First comment."),
+          comment("ianlancetaylor", "Second comment."),
+        ],
+      },
+    };
+    const data = {
+      payload: { issueViewerRoute: { data: { repository: { issue } } } },
+    };
+    return `<html><body><script type="application/json" data-target="react-app.embeddedData">${JSON.stringify(data)}</script></body></html>`;
+  }
+
+  it("writes the meta line, the body, then the comments in order", async () => {
+    const app = App.createMock();
+    const content = extractGitHubIssueContent(issuePage(), ISSUE_URL) ?? "";
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({ content, failureType: "none" });
+    const saver = new ArticleSaver(
+      app,
+      createSettings({
+        defaultTemplate: "{{content}}",
+        includeFrontmatter: false,
+        saveVersion: "fetched",
+      }),
+      "https://proxy/?url=",
+    );
+
+    const file = await saver.saveArticleWithFullContent(
+      createItem({ link: ISSUE_URL, description: "", content: "" }),
+    );
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected a saved TFile");
+    const note = await app.vault.read(file);
+    const positions = [
+      "opened by @thatnealpatel",
+      "The issue body.",
+      "Comments",
+      "@rsc - ",
+      "First comment.",
+      "@ianlancetaylor - ",
+      "Second comment.",
+    ].map((text) => note.indexOf(text));
+    expect(positions.every((index) => index >= 0)).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+    expect(note).not.toContain("data-rss-keep-lead");
   });
 });
 
