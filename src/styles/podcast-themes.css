@@ -1935,7 +1935,8 @@
   background: var(--interactive-hover);
 }
 
-.rss-reader-podcast-container[data-podcast-theme="obsidian"] button {
+.rss-reader-podcast-container[data-podcast-theme="obsidian"]
+  button:not(.clickable-icon) {
   background: var(--interactive-normal);
   color: var(--text-normal);
   border-color: var(--background-modifier-border);
@@ -2263,7 +2264,8 @@
   background: var(--background-modifier-hover);
 }
 
-.rss-reader-podcast-container[data-podcast-theme="minimal"] button {
+.rss-reader-podcast-container[data-podcast-theme="minimal"]
+  button:not(.clickable-icon) {
   background: transparent;
   color: var(--text-normal);
   border: 1px solid var(--background-modifier-border);
@@ -2611,7 +2613,8 @@
   border-color: rgba(255, 255, 255, 0.5);
 }
 
-.rss-reader-podcast-container[data-podcast-theme="gradient"] button {
+.rss-reader-podcast-container[data-podcast-theme="gradient"]
+  button:not(.clickable-icon) {
   background: rgba(0, 0, 0, 0.3);
   color: white;
   border-color: rgba(255, 255, 255, 0.2);
@@ -2947,7 +2950,8 @@
   border-color: #1db954;
 }
 
-.rss-reader-podcast-container[data-podcast-theme="spotify"] button {
+.rss-reader-podcast-container[data-podcast-theme="spotify"]
+  button:not(.clickable-icon) {
   background: #282828;
   color: #fff;
   border-color: #404040;

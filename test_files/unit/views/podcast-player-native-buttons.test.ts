@@ -157,11 +157,11 @@ describe("podcast player icon button styles", () => {
 
   // jsdom does not run Obsidian's stylesheet, so the reset is pinned as a
   // stylesheet contract: a native button must not show the UA border or shadow.
-  it("resets the UA border, shadow and font on the native buttons, scoped under the player", () => {
+  it("resets the UA border, shadow and font at low specificity, so theme borders still win", () => {
     let found = false;
     postcss.parse(css).walkRules((rule) => {
       const scoped = rule.selectors.some((s) =>
-        /^\.rss-reader-podcast-container button\.clickable-icon$/.test(
+        /^:where\(\.rss-reader-podcast-container\) button\.clickable-icon$/.test(
           s.replace(/\s+/g, " ").trim(),
         ),
       );
@@ -176,5 +176,35 @@ describe("podcast player icon button styles", () => {
       found = true;
     });
     expect(found).toBe(true);
+  });
+});
+
+describe("podcast theme button rules", () => {
+  const testDir = path.dirname(fileURLToPath(import.meta.url));
+  const css = readFileSync(
+    path.resolve(testDir, "../../../src/styles/podcast-themes.css"),
+    "utf-8",
+  );
+
+  // The broad theme rule `[data-podcast-theme] button` paints every native
+  // button. The icon controls (clickable-icon) have their own per-control theme
+  // rules, which it would otherwise out-rank (the active and muted colours).
+  // jsdom does not run the cascade, so this pins the selector.
+  it("leaves clickable-icon buttons to their own rules in every theme", () => {
+    const broad: string[] = [];
+    postcss.parse(css).walkRules((rule) => {
+      for (const raw of rule.selectors) {
+        const selector = raw.replace(/\s+/g, " ").trim();
+        const bareButton =
+          /^\.rss-reader-podcast-container\[data-podcast-theme="\w+"\] button(:not\(\.clickable-icon\))?$/;
+        if (bareButton.test(selector)) {
+          broad.push(selector);
+        }
+      }
+    });
+    expect(broad).toHaveLength(4);
+    for (const selector of broad) {
+      expect(selector).toMatch(/button:not\(\.clickable-icon\)$/);
+    }
   });
 });

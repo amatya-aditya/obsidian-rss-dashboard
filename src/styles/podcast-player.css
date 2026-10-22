@@ -296,8 +296,10 @@
 
 /* The transport and volume controls are native buttons (#1478). They keep
    clickable-icon, so Obsidian's button:not(.clickable-icon) fill and height skip
-   them; this drops the border, shadow and font the browser still gives a button. */
-.rss-reader-podcast-container button.clickable-icon {
+   them; this drops the border, shadow and font the browser still gives a button.
+   :where() keeps it below the themes' per-control borders, which the old divs
+   already showed. */
+:where(.rss-reader-podcast-container) button.clickable-icon {
   border: none;
   box-shadow: none;
   font-family: inherit;
