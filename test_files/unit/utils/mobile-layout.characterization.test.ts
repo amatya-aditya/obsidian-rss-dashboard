@@ -34,6 +34,7 @@ function viewport(matches: boolean) {
     innerHeight: 800,
     getComputedStyle: window.getComputedStyle.bind(window),
     setTimeout: window.setTimeout.bind(window),
+    createEl: window.createEl.bind(window),
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
   } as unknown as typeof window;
