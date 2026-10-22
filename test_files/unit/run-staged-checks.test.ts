@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { planStagedChecks } from "../../scripts/run-staged-checks.mjs";
+import {
+  planStagedChecks,
+  summarizeStep,
+} from "../../scripts/run-staged-checks.mjs";
 
 describe("planStagedChecks", () => {
   it("skips linting and tests when only prose changed", () => {
@@ -68,5 +71,33 @@ describe("planStagedChecks", () => {
     expect(planStagedChecks(["src\\utils\\tag-utils.ts"]).lint).toEqual([
       "src/utils/tag-utils.ts",
     ]);
+  });
+});
+
+describe("summarizeStep", () => {
+  it("reduces a passing step to one line without its output", () => {
+    const summary = summarizeStep(
+      "Linting 2 staged file(s)...",
+      { status: 0, stdout: "x".repeat(10_000), stderr: "" },
+      1250,
+    );
+
+    expect(summary.ok).toBe(true);
+    expect(summary.text).toBe(
+      "[pre-commit] Linting 2 staged file(s)... ok (1.3s)\n",
+    );
+  });
+
+  it("replays the full output of a failing step", () => {
+    const summary = summarizeStep(
+      "Running unit tests...",
+      { status: 1, stdout: "FAIL a.test.ts\n", stderr: "boom\n" },
+      900,
+    );
+
+    expect(summary.ok).toBe(false);
+    expect(summary.text).toBe(
+      "[pre-commit] Running unit tests... FAILED\nFAIL a.test.ts\nboom\n",
+    );
   });
 });

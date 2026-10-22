@@ -65,7 +65,7 @@ The pre-commit hook runs the full unit suite instead when you stage a change tha
 
 Staged-file linting uses ESLint's cache in `node_modules/.cache/eslint/`. Type-aware rules can report a new problem in a file you didn't touch when you change a type it depends on; GitHub Actions runs the uncached full lint and build on pull requests and pushes to `dev` or `master`.
 
-Set `SKIP_GIT_HOOKS=1` to bypass the pre-commit hook. The pre-push hook is informational and does not block pushes; GitHub Actions runs full validation on pull requests and pushes to `dev` or `master`.
+The staged-checks step prints one line per passing step and the full output only for a failing one; set `PRECOMMIT_VERBOSE=1` to stream everything. Set `SKIP_GIT_HOOKS=1` to bypass the pre-commit hook. The pre-push hook is informational and does not block pushes; GitHub Actions runs full validation on pull requests and pushes to `dev` or `master`.
 
 ### Local Development
 
