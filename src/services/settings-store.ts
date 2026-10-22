@@ -1010,6 +1010,7 @@ export class SettingsStore {
         },
         async () => await this.options.loadData(),
         "data.json",
+        null,
       );
     }
     // Record what this save writes before it lands, so the external callback
@@ -1040,11 +1041,16 @@ export class SettingsStore {
    * a difference is an unseen change, merged per top-level group: disk's value
    * where this device left the group alone, memory's where both changed (the
    * conflict is logged by group name). The groups taken from disk are copied
-   * into the live settings so memory and disk agree, and the pending reload is
-   * dropped, since this save has now loaded what it announced. A full load
-   * would replace unsaved settings, so none runs. Fails open: a missing or
-   * unreadable file writes memory as before. Shard v2 only, and never during a
-   * load.
+   * into the live settings so memory and disk agree, and that file's pending
+   * reload is dropped, since this save has now loaded what it announced. A
+   * pending reload for a synced shard stays, so the adopted feed still reads
+   * its articles from it (#1501). A full load would replace unsaved settings,
+   * so none runs. Fails open: a missing or unreadable file writes memory as
+   * before. Shard v2 only, and never during a load.
+   *
+   * `loadedSettingsPath` names the file this save read, when it is a vault
+   * path. Plugin-default metadata mode saves through `saveData()`, which has
+   * no vault path of its own, and passes null.
    */
   private async mergeUnseenSettingsChanges(
     data: Record<string, unknown>,
@@ -1054,6 +1060,7 @@ export class SettingsStore {
     },
     readDisk: () => Promise<unknown>,
     where: string,
+    loadedSettingsPath: string | null,
   ): Promise<Record<string, unknown>> {
     if (this.settings.storageMode !== "vault-shards-v2") return data;
     if (this.loadDepth > 0 || this.loadGate) return data;
@@ -1122,7 +1129,7 @@ export class SettingsStore {
         where,
         groups: applied,
       });
-      this.dropPendingSettingsReload();
+      this.dropPendingSettingsReload(loadedSettingsPath);
       void this.options.refreshDashboardViews();
       return merged;
     } catch (error) {
@@ -1135,13 +1142,19 @@ export class SettingsStore {
   }
 
   /**
-   * Forgets the reload a settings change announced, now that a save has loaded
-   * it. A pending `user-state.json` change keeps its reload.
+   * Forgets the reload the settings file this save loaded announced, now that
+   * the save has that content in memory. Pending shard paths keep their reload
+   * (#1501), because the save adopted their feed entries without their
+   * articles, and a pending `user-state.json` change keeps its reload too. The
+   * timer stops only when nothing is left to read.
    */
-  private dropPendingSettingsReload(): void {
-    for (const path of this.touchedWatchedPaths) {
-      if (!path.endsWith("/user-state.json")) {
-        this.touchedWatchedPaths.delete(path);
+  private dropPendingSettingsReload(loadedSettingsPath: string | null): void {
+    if (loadedSettingsPath !== null) {
+      const loaded = normalizePath(loadedSettingsPath);
+      for (const path of this.touchedWatchedPaths) {
+        if (normalizePath(path) === loaded) {
+          this.touchedWatchedPaths.delete(path);
+        }
       }
     }
     this.externalChangeConfirmed = false;
@@ -1216,6 +1229,7 @@ export class SettingsStore {
                 JSON.parse(
                   await this.app.vault.adapter.read(dataFilePath),
                 ) as unknown,
+              dataFilePath,
               dataFilePath,
             )) as unknown as RssDashboardSettings;
           }

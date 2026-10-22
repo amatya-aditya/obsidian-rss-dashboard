@@ -280,9 +280,9 @@ describe.each(["vault-location", "plugin-default"] as const)(
 
           expect(feedIds(to)).toEqual(["feed-a", "feed-b"]);
           expect(feedOf(to, "feed-a")?.title).toBe("Renamed here");
-          // BUG: pinned, see #1501. The save drops the shard's pending reload,
-          // so the adopted feed stays empty in memory; the shard on disk is whole.
-          expect(guidsOf(to, "feed-b")).toEqual([]);
+          // The save drops only the settings file's pending reload, so the
+          // shard's reload still runs and fills the adopted feed.
+          expect(guidsOf(to, "feed-b")).toEqual(["b1", "b2"]);
           expect(
             JSON.parse(
               to.app.vault.filesOnDisk.get(shardPath("feed-b")) ?? "{}",
@@ -295,6 +295,23 @@ describe.each(["vault-location", "plugin-default"] as const)(
           ]);
         },
       );
+
+      it("runs no reload for a delivered settings file the save has already loaded", async () => {
+        const { a, b, aToB } = await pair([feed("feed-a", ["a1"])]);
+        await addFeed(a, feed("feed-b", ["b1"]));
+        const load = vi.spyOn(b.plugin, "loadSettings");
+
+        // Only the settings file arrives, so the save has read what the
+        // reload announced and nothing else is left pending.
+        await aToB.deliver({ only: [settingsPath(mode)] });
+        await vi.advanceTimersByTimeAsync(RELOAD_MS / 3);
+        await renameFeed(b, "feed-a", "Renamed here");
+        await settle();
+
+        expect(feedIds(b)).toEqual(["feed-a", "feed-b"]);
+        expect(feedOf(b, "feed-a")?.title).toBe("Renamed here");
+        expect(load).not.toHaveBeenCalled();
+      });
     });
 
     describe("delivery between a save and its write", () => {

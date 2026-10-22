@@ -70,6 +70,7 @@
 
 ### Fixes
 
+- A feed added on another device now shows its articles without a restart when you save just as its synced settings file and shard arrive (Shard storage v2): the save cancels only the settings file's pending reload, because it has loaded that file, so the shard's reload still runs and fills the feed. A pending `user-state.json` change keeps its reload as before. [GH Issue #1501](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1501)
 - The Reader's **Description** box no longer shows a raw `&#39;` (or another HTML entity) when a page's `twitter:description` is encoded twice: the page's meta, `og:description` and `twitter:description` text now has any leftover entity decoded before it is checked and shown. The feed's own description is left as it is. [GH Issue #1505](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1505)
 - Choosing a tab in the plugin's settings now leaves keyboard focus on that tab's button, instead of dropping it, so Enter or Space on a tab no longer sends focus back to the top of the page. [GH Issue #1484](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1484)
 - The plugin's settings tab strip (General, Storage, Display, and the rest) is now exposed to screen readers as a tab list, and the current tab is announced as selected. [GH Issue #1481](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1481)
