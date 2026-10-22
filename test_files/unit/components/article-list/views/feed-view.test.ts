@@ -592,7 +592,7 @@ describe("feed-view", () => {
 
         const button = fetchButton();
         expect(button?.getAttribute("aria-label")).toBe(
-          "Restore cover image from feed",
+          "Restore cover image from feed (Shift + c)",
         );
         expect(button?.querySelector("svg.lucide-rotate-ccw")).not.toBeNull();
         expect(fetchButton()?.parentElement).toBe(
@@ -607,7 +607,7 @@ describe("feed-view", () => {
         });
 
         expect(fetchButton()?.getAttribute("aria-label")).toBe(
-          "Remove fetched cover image",
+          "Remove fetched cover image (Shift + c)",
         );
       });
 

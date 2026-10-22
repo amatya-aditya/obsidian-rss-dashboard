@@ -641,7 +641,7 @@ describe("card-view", () => {
       expect(button?.tagName).toBe("BUTTON");
       expect(button?.getAttribute("type")).toBe("button");
       expect(button?.getAttribute("aria-label")).toBe(
-        "Fetch and replace cover image",
+        "Fetch and replace cover image (Shift + c)",
       );
     });
 
@@ -651,7 +651,7 @@ describe("card-view", () => {
       });
 
       expect(fetchButton()?.getAttribute("aria-label")).toBe(
-        "Replace cover image from the fetch",
+        "Replace cover image from the fetch (Shift + c)",
       );
     });
 
@@ -866,7 +866,7 @@ describe("card-view", () => {
 
         const button = fetchButton();
         expect(button?.getAttribute("aria-label")).toBe(
-          "Restore cover image from feed",
+          "Restore cover image from feed (Shift + c)",
         );
         expect(button?.querySelector("svg.lucide-rotate-ccw")).not.toBeNull();
         expect(button?.querySelector("svg.lucide-download")).toBeNull();
@@ -879,7 +879,7 @@ describe("card-view", () => {
         });
 
         expect(fetchButton()?.getAttribute("aria-label")).toBe(
-          "Remove fetched cover image",
+          "Remove fetched cover image (Shift + c)",
         );
       });
 

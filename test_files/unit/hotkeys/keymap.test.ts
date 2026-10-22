@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   KEYMAP,
+  bindingHint,
   bindingLabel,
   dashboardCandidates,
   dashboardEventKey,
   findDashboardBinding,
   readerBindings,
+  withBindingHint,
 } from "../../../src/hotkeys/keymap";
 import { DASHBOARD_ACTIONS } from "../../../src/hotkeys/dashboard-hotkeys";
 import { READER_ACTIONS } from "../../../src/hotkeys/reader-hotkeys";
@@ -156,6 +158,63 @@ describe("keymap table", () => {
         expect(Object.keys(actions).filter((id) => !ids.has(id))).toEqual([]);
       },
     );
+  });
+
+  describe("tooltip hints (#1467)", () => {
+    // The footer controls and the cover control each route to one of these
+    // bindings, so their tooltip hint is derived from that row.
+    const HINTED_CONTROLS = [
+      ["read", "toggle-read"],
+      ["star", "toggle-star"],
+      ["tags", "toggle-tags"],
+      ["save", "save-article"],
+      ["cover", "cover-image-action"],
+    ] as const;
+
+    it.each([
+      ["toggle-read", "(m)"],
+      ["toggle-star", "(f)"],
+      ["toggle-tags", "(t)"],
+      ["save-article", "(s)"],
+      ["cover-image-action", "(Shift + c)"],
+    ])("names %s as %s", (id, expected) => {
+      expect(bindingHint(id)).toBe(expected);
+    });
+
+    it.each(HINTED_CONTROLS)(
+      "derives the %s hint from the %s binding row",
+      (_control, id) => {
+        const binding = KEYMAP.find((row) => row.id === id);
+        expect(binding).toBeDefined();
+        const key = binding?.shift ? `Shift + ${binding?.key}` : binding?.key;
+        expect(bindingHint(id)).toBe(`(${key})`);
+      },
+    );
+
+    it("follows a changed binding key with no second edit", () => {
+      const binding = KEYMAP.find((row) => row.id === "toggle-star");
+      if (!binding) throw new Error("Expected the toggle-star binding");
+      const original = binding.key;
+      try {
+        binding.key = "v";
+        expect(bindingHint("toggle-star")).toBe("(v)");
+      } finally {
+        binding.key = original;
+      }
+    });
+
+    it("appends the hint after the control's own sentence", () => {
+      expect(withBindingHint("Mark as read", "toggle-read")).toBe(
+        "Mark as read (m)",
+      );
+      expect(withBindingHint("Add to starred items", "toggle-star")).toBe(
+        "Add to starred items (f)",
+      );
+    });
+
+    it("rejects an id with no binding, so a renamed id cannot drift unnoticed", () => {
+      expect(() => bindingHint("no-such-binding")).toThrow(/no-such-binding/);
+    });
   });
 
   describe("shortcut help", () => {

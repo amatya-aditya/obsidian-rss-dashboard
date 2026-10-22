@@ -61,7 +61,7 @@ describe("card save tooltip names the version a save will write (#1184)", () => 
 
     h.list.render();
 
-    expect(saveTooltip(h.container, "1")).toBe("Save RSS content to notes");
+    expect(saveTooltip(h.container, "1")).toBe("Save RSS content to notes (s)");
   });
 
   it("names fetched content when the Default save version is Fetched content", () => {
@@ -72,7 +72,9 @@ describe("card save tooltip names the version a save will write (#1184)", () => 
 
     h.list.render();
 
-    expect(saveTooltip(h.container, "1")).toBe("Save fetched content to notes");
+    expect(saveTooltip(h.container, "1")).toBe(
+      "Save fetched content to notes (s)",
+    );
   });
 
   it("follows the setting when it changes", () => {
@@ -81,12 +83,14 @@ describe("card save tooltip names the version a save will write (#1184)", () => 
       articles: [buildArticle({ guid: "1", feedUrl: FEED_URL })],
     });
     h.list.render();
-    expect(saveTooltip(h.container, "1")).toBe("Save RSS content to notes");
+    expect(saveTooltip(h.container, "1")).toBe("Save RSS content to notes (s)");
 
     h.settings.articleSaving.saveVersion = "fetched";
     h.list.updateArticleInPlace(h.articles[0]);
 
-    expect(saveTooltip(h.container, "1")).toBe("Save fetched content to notes");
+    expect(saveTooltip(h.container, "1")).toBe(
+      "Save fetched content to notes (s)",
+    );
   });
 
   it("names the version a feed-assigned template sets, over the setting (#1185)", () => {
@@ -103,7 +107,9 @@ describe("card save tooltip names the version a save will write (#1184)", () => 
 
     h.list.render();
 
-    expect(saveTooltip(h.container, "1")).toBe("Save fetched content to notes");
+    expect(saveTooltip(h.container, "1")).toBe(
+      "Save fetched content to notes (s)",
+    );
   });
 
   it("names the version the global default template sets (#1185)", () => {
@@ -121,7 +127,7 @@ describe("card save tooltip names the version a save will write (#1184)", () => 
 
     h.list.render();
 
-    expect(saveTooltip(h.container, "1")).toBe("Save RSS content to notes");
+    expect(saveTooltip(h.container, "1")).toBe("Save RSS content to notes (s)");
   });
 
   it("keeps the setting's version while a saved template sets none", () => {
@@ -137,7 +143,7 @@ describe("card save tooltip names the version a save will write (#1184)", () => 
 
     h.list.render();
 
-    expect(saveTooltip(h.container, "1")).toBe("Save RSS content to notes");
+    expect(saveTooltip(h.container, "1")).toBe("Save RSS content to notes (s)");
   });
 
   it("keeps the open-saved-article tooltip once the article is saved", () => {
@@ -149,6 +155,8 @@ describe("card save tooltip names the version a save will write (#1184)", () => 
 
     h.list.updateArticleInPlace({ ...h.articles[0], saved: true });
 
-    expect(saveTooltip(h.container, "1")).toBe("Click to open saved article");
+    expect(saveTooltip(h.container, "1")).toBe(
+      "Click to open saved article (s)",
+    );
   });
 });

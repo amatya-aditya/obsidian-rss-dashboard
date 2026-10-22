@@ -2923,6 +2923,19 @@ describe("Obsidian stub contract: external writes and vault events", () => {
       expect(await vault.adapter.read("feeds/a.json")).toBe("{ }");
     });
 
+    // Ledger "Real Sync pass, run 1": Sync keeps the sender's mtime and size
+    // on a delivered file.
+    it("keeps the mtime an external write is given", async () => {
+      const { vault } = await setup();
+
+      vault.externalWrite("feeds/a.json", "{ }", { mtime: 1_234 });
+
+      expect(await vault.adapter.stat("feeds/a.json")).toMatchObject({
+        mtime: 1_234,
+        size: 3,
+      });
+    });
+
     it("fires create for an external write to a new file and stat sees it", async () => {
       const { vault, events } = await setup();
       expect(await vault.adapter.stat("feeds/new.json")).toBeNull();

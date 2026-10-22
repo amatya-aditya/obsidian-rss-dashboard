@@ -8,6 +8,7 @@ import {
 } from "../types/types";
 import { ArticleHeader } from "./article-header";
 import { ArticleEmptyState } from "./article-empty-state";
+import { withBindingHint } from "../hotkeys/keymap";
 import { isNarrowViewport, setCssProps } from "../utils/platform-utils";
 import {
   resolveSaveVersion,
@@ -1059,7 +1060,13 @@ export class ArticleList {
     if (readToggle) {
       readToggle.classList.toggle("read", !!article.read);
       readToggle.classList.toggle("unread", !article.read);
-      setTooltip(readToggle, article.read ? "Mark as unread" : "Mark as read");
+      setTooltip(
+        readToggle,
+        withBindingHint(
+          article.read ? "Mark as unread" : "Mark as read",
+          "toggle-read",
+        ),
+      );
       setIcon(readToggle, article.read ? "check-circle" : "circle");
     }
 
@@ -1070,14 +1077,17 @@ export class ArticleList {
       saveToggle.classList.toggle("saved", !!article.saved);
       setTooltip(
         saveToggle,
-        article.saved
-          ? SAVED_ARTICLE_TOOLTIP
-          : saveVersionTooltip(
-              resolveSaveVersion(
-                this.settings.articleSaving,
-                this.getArticleSavedTemplate(article),
+        withBindingHint(
+          article.saved
+            ? SAVED_ARTICLE_TOOLTIP
+            : saveVersionTooltip(
+                resolveSaveVersion(
+                  this.settings.articleSaving,
+                  this.getArticleSavedTemplate(article),
+                ),
               ),
-            ),
+          "save-article",
+        ),
       );
     }
 
@@ -1089,7 +1099,12 @@ export class ArticleList {
       starToggle.classList.toggle("unstarred", !article.starred);
       setTooltip(
         starToggle,
-        article.starred ? "Remove from starred items" : "Add to starred items",
+        withBindingHint(
+          article.starred
+            ? "Remove from starred items"
+            : "Add to starred items",
+          "toggle-star",
+        ),
       );
       const starIcon = starToggle.querySelector<HTMLElement>(
         ".rss-dashboard-star-icon",
