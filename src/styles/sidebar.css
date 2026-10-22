@@ -2,7 +2,7 @@
  * Sidebar Styles (sidebar.css)
  *
  * Core sidebar navigation surface: container shell, header icon row,
- * controls toolbar, tag panel, feed/folder tree, search dock, drag-and-drop,
+ * tag panel, feed/folder tree, search dock, drag-and-drop,
  * scrollbar variants, media-type overlays, and the folder-name modal.
  * Media overlays (YouTube/podcast) are co-located here because they rely
  * on sidebar feed context selectors.
@@ -295,74 +295,6 @@
   margin-top: 4px;
   pointer-events: none;
   box-shadow: 0 2px 8px rgb(0 0 0 / 0.2);
-}
-
-/* ============================================
- * 5. Controls Toolbar
- * Sidebar toolbar row with action icon buttons
- * ============================================ */
-.rss-dashboard-sidebar-toolbar {
-  order: 3;
-  z-index: 2;
-  background: var(--rss-sidebar-controls-bg, var(--background-secondary));
-  display: flex;
-  justify-content: space-around;
-  gap: 4px;
-  padding: 6px 4px;
-  flex-shrink: 0;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.rss-dashboard-sidebar-toolbar--inline {
-  order: 0;
-  z-index: auto;
-  background: transparent;
-  justify-content: flex-start;
-  gap: 2px;
-  padding: 0;
-  width: auto;
-  box-sizing: border-box;
-}
-
-.rss-dashboard-sidebar-toolbar--inline .rss-dashboard-toolbar-button {
-  width: 30px;
-  height: 30px;
-  border-radius: 6px;
-}
-
-.rss-dashboard-toolbar-button {
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: none;
-  box-shadow: none;
-  background: transparent;
-  font-family: inherit;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--text-muted);
-  border-radius: 4px;
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
-}
-
-.rss-dashboard-toolbar-button:hover {
-  background-color: var(--background-modifier-hover);
-  color: var(--text-normal);
-}
-
-.rss-dashboard-toolbar-button.is-active {
-  background-color: var(--interactive-accent);
-  color: var(--text-on-accent);
-}
-
-.rss-dashboard-toolbar-button:focus-visible {
-  outline: 2px solid var(--interactive-accent-hover);
-  outline-offset: 1px;
 }
 
 /* ============================================
