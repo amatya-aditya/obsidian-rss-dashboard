@@ -992,7 +992,7 @@ export class RssDashboardView extends ItemView {
     );
     this.registerEvent(
       this.app.workspace.on("active-leaf-change", (leaf) => {
-        if (leaf === this.leaf) {
+        if (leaf === this.leaf && !this.articleList?.tagsMenuHoldsFocus()) {
           this.containerEl.focus({ preventScroll: true });
         }
       }),

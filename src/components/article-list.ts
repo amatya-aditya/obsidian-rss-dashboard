@@ -19,7 +19,10 @@ import { resolveSavedTemplateForArticle } from "../utils/saved-template-utils";
 import type { FilterContext } from "../utils/filter-detection";
 import { HighlightService } from "../services/highlight-service";
 import { getEffectiveDateMs } from "../services/feed-parser/feed-retention";
-import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
+import {
+  createTagsDropdownPortal,
+  tagsPortalHoldsFocus,
+} from "../utils/tags-dropdown-portal";
 import {
   ARTICLE_ROW_REMOVING_CLASS,
   ARTICLE_ROW_SELECTOR,
@@ -176,6 +179,7 @@ export class ArticleList {
   private articleSearchQuery: string = "";
   private tagsDropdownCleanup: (() => void) | null = null;
   private currentTagsDropdownAnchor: HTMLElement | null = null;
+  private tagsDropdownPortal: HTMLElement | null = null;
   private activePortal: HTMLElement | null = null;
   private activeFilterToggleBtn: HTMLElement | null = null;
   private activeFilterOutsideListenerCleanup: (() => void) | null = null;
@@ -285,6 +289,19 @@ export class ArticleList {
   /** Focuses the article search; resolves false when none could be focused. */
   public focusSearch(): Promise<boolean> {
     return this.header?.focusSearch() ?? Promise.resolve(false);
+  }
+
+  /**
+   * True while the tag menu a card opened owns keyboard focus: inside it, on
+   * its opener, or on the body that a click on its non-focusable text leaves.
+   * The dashboard's leaf-activation handler checks it before restoring focus,
+   * so the menu opened with `t` is not emptied of focus (#1480).
+   */
+  public tagsMenuHoldsFocus(): boolean {
+    return tagsPortalHoldsFocus(
+      this.tagsDropdownPortal,
+      this.currentTagsDropdownAnchor,
+    );
   }
 
   /**
@@ -1963,10 +1980,14 @@ export class ArticleList {
       },
       onOpenTagsSettings: this.callbacks.onOpenTagsSettings,
       appContainer: this.container,
+      onOpen: (portal) => {
+        this.tagsDropdownPortal = portal;
+      },
       onClosed: () => {
         if (this.tagsDropdownCleanup === cleanup) {
           this.tagsDropdownCleanup = null;
           this.currentTagsDropdownAnchor = null;
+          this.tagsDropdownPortal = null;
         }
       },
     });

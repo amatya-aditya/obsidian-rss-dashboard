@@ -94,6 +94,11 @@ vi.mock("../../../src/components/article-list", () => ({
     setEmptyStateContext(context: unknown): void {
       this.record.emptyStateContext = context;
     }
+    // The view asks its list whether an open tag menu holds focus before
+    // restoring focus on leaf activation (#1480). This double has no menu.
+    tagsMenuHoldsFocus(): boolean {
+      return false;
+    }
     setSearchQuery(): void {}
     refilter(): void {}
     setSelectedArticle(): void {}
