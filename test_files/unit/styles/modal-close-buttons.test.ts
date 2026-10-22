@@ -64,19 +64,21 @@ describe("Modal stylesheet - native close buttons", () => {
     );
   });
 
-  it("styles both Obsidian close button generations in mobile modals", () => {
-    expectBothNativeCloseButtonSelectors(".modal.rss-mobile-navigation-modal ");
-    expectBothNativeCloseButtonSelectors(
-      ".modal.rss-mobile-discover-filters-modal ",
-    );
-    expectBothNativeCloseButtonSelectors(
-      ".modal.rss-mobile-navigation-modal ",
-      "::before",
-    );
-    expectBothNativeCloseButtonSelectors(
-      ".modal.rss-mobile-discover-filters-modal ",
-      "::before",
-    );
+  it("hides both Obsidian close button generations in mobile drawers", () => {
+    for (const modal of [
+      ".modal.rss-mobile-navigation-modal",
+      ".modal.rss-mobile-discover-filters-modal",
+    ]) {
+      expectBothNativeCloseButtonSelectors(`${modal} `);
+      for (const button of [".modal-close-button", ".modal-header-button"]) {
+        expect(declarationsFor(`${modal} ${button}`).get("display")).toBe(
+          "none",
+        );
+      }
+    }
+  });
+
+  it("styles the pseudo-element of both close button generations in plugin modals", () => {
     expectBothNativeCloseButtonSelectors(
       ".modal-container .modal.rss-dashboard-modal-container ",
       "::before",
