@@ -351,6 +351,14 @@ export class RssDashboardView extends ItemView {
     this.actionFocusDashboard();
   }
 
+  /** Whether `article` is the dashboard's current selection. */
+  public isSelectedArticle(article: FeedItem): boolean {
+    return (
+      this.selectedArticle?.guid === article.guid &&
+      this.selectedArticle.feedUrl === article.feedUrl
+    );
+  }
+
   /** Puts keyboard focus on the dashboard itself, where its keymap is live. */
   private focusDashboardContainer(): void {
     this.containerEl.focus({ preventScroll: true });

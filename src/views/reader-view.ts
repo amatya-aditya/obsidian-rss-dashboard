@@ -641,6 +641,18 @@ export class ReaderView extends ItemView {
    * @internal
    */
   public actionMarkReadAndNext(): void {
+    // When the dashboard has this article selected, its own path marks it read
+    // and opens the neighbour once: the Reader's update reaches the dashboard
+    // after this call returns, so advancing here would start from an article
+    // the filter has already dropped (#1468).
+    const dashboardView = this.getDashboardView();
+    if (
+      this.currentItem &&
+      dashboardView?.isSelectedArticle(this.currentItem)
+    ) {
+      void dashboardView.actionMarkReadAndNext();
+      return;
+    }
     if (this.currentItem && !this.currentItem.read) {
       this.toggleReadStatus();
     }

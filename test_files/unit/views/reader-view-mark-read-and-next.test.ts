@@ -55,7 +55,12 @@ describe("Reader comma shortcut (mark read and open next)", () => {
     const privateReader = view as unknown as PrivateReader;
     privateReader.currentItem = item;
     const actionNavigateNext = vi.fn();
-    privateReader.getDashboardView = () => ({ actionNavigateNext });
+    // A dashboard that has not selected this article leaves the Reader its own
+    // path; the selected-article path is pinned in reader-mark-read-next.test.ts.
+    privateReader.getDashboardView = () => ({
+      actionNavigateNext,
+      isSelectedArticle: () => false,
+    });
     return { view, item, articleUpdate, actionNavigateNext };
   }
 
