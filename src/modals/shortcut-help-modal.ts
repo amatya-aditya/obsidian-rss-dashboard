@@ -1,4 +1,5 @@
-import { App, setIcon, Notice } from "obsidian";
+import { App, Notice } from "obsidian";
+import { createIconButton } from "../utils/icon-button";
 import { AccessibleModal } from "../utils/accessible-modal";
 import type { RssDashboardSettings } from "../types/types";
 import { ensureVaultFolder } from "../utils/vault-files";
@@ -147,24 +148,15 @@ export class ShortcutHelpModal extends AccessibleModal {
       void this.saveShortcutsToVault();
     });
 
-    const closeBtn = header.createDiv({
+    createIconButton({
+      parent: header,
       cls: "rss-dashboard-header-close-button clickable-icon",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Close",
+      label: "Close",
+      icon: "x",
+      onClick: (e) => {
+        e.preventDefault();
+        this.close();
       },
-    });
-    setIcon(closeBtn, "x");
-    const handleClose = (e: Event) => {
-      e.preventDefault();
-      this.close();
-    };
-    closeBtn.addEventListener("click", handleClose);
-    closeBtn.addEventListener("keydown", (e: KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " ") {
-        handleClose(e);
-      }
     });
 
     const body = contentEl.createDiv({ cls: "rss-dashboard-modal-content" });

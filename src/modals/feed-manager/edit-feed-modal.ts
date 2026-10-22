@@ -35,6 +35,7 @@ import { copyTextToClipboard } from "../../utils/export-utils";
 import { renderFeedErrorKinds } from "../../components/feed-error-section";
 import { getFeedErrorDetail } from "../../utils/feed-error";
 import { addInputClearButton } from "../../utils/input-clear-button";
+import { createIconButton } from "../../utils/icon-button";
 import { decorateFolderSelectorInput } from "./folder-selector-field";
 import { addTagMultiSelectControl } from "../../components/tag-multi-select-control";
 import { TagApplicationConfirmModal } from "./tag-application-confirm-modal";
@@ -528,15 +529,12 @@ export class EditFeedModal extends AccessibleModal {
       text: `Feed ID: ${feedIdText}`,
     });
 
-    const copyStorageAddressButton = localAddressRow.createDiv({
+    const copyStorageAddressButton = createIconButton({
+      parent: localAddressRow,
       cls: "clickable-icon rss-edit-feed-storage-copy-button",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Copy local storage address",
-      },
+      label: "Copy local storage address",
+      icon: "copy",
     });
-    setIcon(copyStorageAddressButton, "copy");
 
     const copyLocalAddress = () => {
       if (!hasResolvedLocalAddress) {
@@ -558,15 +556,6 @@ export class EditFeedModal extends AccessibleModal {
     };
 
     copyStorageAddressButton.addEventListener("click", copyLocalAddress);
-    copyStorageAddressButton.addEventListener(
-      "keydown",
-      (evt: KeyboardEvent) => {
-        if (evt.key === "Enter" || evt.key === " ") {
-          evt.preventDefault();
-          copyLocalAddress();
-        }
-      },
-    );
 
     const autoDeleteSetting = renderAutoDeleteSetting(perFeedControlsBody, {
       getAutoDeleteDuration: () => this.autoDeleteDuration,

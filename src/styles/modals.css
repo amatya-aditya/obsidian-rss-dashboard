@@ -672,6 +672,9 @@ body .modal.rss-dashboard-template-editor-dialog {
   border-radius: 6px;
   color: var(--text-muted);
   background: var(--background-secondary);
+  padding: 0;
+  box-shadow: none;
+  font-family: inherit;
 }
 .rss-dashboard-modal .rss-edit-feed-storage-copy-button:hover {
   color: var(--text-normal);
@@ -939,6 +942,8 @@ body .rss-shortcut-help-modal .modal-header-button {
   cursor: pointer;
   border-radius: 6px;
   border: none;
+  box-shadow: none;
+  font-family: inherit;
   background: transparent;
   color: var(--text-muted);
   margin-right: 0;
