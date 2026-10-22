@@ -27,6 +27,63 @@ describe("AutoBackupCoordinator", () => {
     expect(writeSnapshot).toHaveBeenCalledTimes(2);
   });
 
+  it("writes the loaded-state baseline once, without a persisted change, and leaves it current", async () => {
+    const writeSnapshot = vi.fn().mockResolvedValue(undefined);
+    const coordinator = new AutoBackupCoordinator({ writeSnapshot });
+
+    await coordinator.recordLoadedState();
+    await coordinator.recordLoadedState();
+    await coordinator.flushOnUnload();
+
+    expect(writeSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not write a second snapshot for the first persisted change after the baseline", async () => {
+    const writeSnapshot = vi.fn().mockResolvedValue(undefined);
+    const coordinator = new AutoBackupCoordinator({ writeSnapshot });
+
+    await coordinator.recordLoadedState();
+    await coordinator.recordPersistedChange();
+
+    expect(writeSnapshot).toHaveBeenCalledTimes(1);
+  });
+
+  it("writes the final unload snapshot when a change followed the baseline", async () => {
+    const writeSnapshot = vi.fn().mockResolvedValue(undefined);
+    const coordinator = new AutoBackupCoordinator({ writeSnapshot });
+
+    await coordinator.recordLoadedState();
+    await coordinator.recordPersistedChange();
+    await coordinator.flushOnUnload();
+
+    expect(writeSnapshot).toHaveBeenCalledTimes(2);
+  });
+
+  it("writes no baseline while automatic backups are off", async () => {
+    const writeSnapshot = vi.fn().mockResolvedValue(undefined);
+    const coordinator = new AutoBackupCoordinator({
+      writeSnapshot,
+      shouldWriteSnapshot: () => false,
+    });
+
+    await coordinator.recordLoadedState();
+
+    expect(writeSnapshot).not.toHaveBeenCalled();
+  });
+
+  it("retries a failed baseline at the next persisted change", async () => {
+    const writeSnapshot = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error("disk full"))
+      .mockResolvedValueOnce(undefined);
+    const coordinator = new AutoBackupCoordinator({ writeSnapshot });
+
+    await expect(coordinator.recordLoadedState()).rejects.toThrow("disk full");
+    await coordinator.recordPersistedChange();
+
+    expect(writeSnapshot).toHaveBeenCalledTimes(2);
+  });
+
   it("retries a failed initial snapshot after the next persisted change", async () => {
     const writeSnapshot = vi
       .fn<() => Promise<void>>()

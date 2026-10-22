@@ -36,7 +36,7 @@ import {
   mergeSettingsGroups,
 } from "./settings-group-merge";
 import { SettingsAncestorStore } from "./settings-ancestor";
-import { normalizeFolderPath } from "./feed-storage-shard";
+import { isShardBackedMode, normalizeFolderPath } from "./feed-storage-shard";
 
 function storageLog(_message: string, _details?: unknown): void {}
 
@@ -422,23 +422,67 @@ export class SettingsStore {
     didClearMissingSavedArticlePaths: boolean;
     originalSettingsJson: string;
   }): boolean {
-    // Guard: skip the early write if we loaded from null defaults.
-    // A null load on a synced vault likely means sync hasn't delivered
-    // data.json yet — writing empty defaults here would clobber it.
-    // The vault modify listener in onload() will trigger loadSettings()
-    // again once sync delivers the real data.
-    // Similarly, skip if we are in v2 mode and user-state.json is missing.
-    const isV2 = this.settings.storageMode === "vault-shards-v2";
-    const isMissingUserState = isV2 && hydrated.userStateLoaded === false;
-    const shouldSave =
-      !wasNullLoad &&
-      !isMissingUserState &&
+    // A load that normalized the stored settings differently from how they
+    // were saved is not, in shard storage, a reason to save: the metadata
+    // baseline persist compares against is captured after that normalization,
+    // so persist would write nothing, and the save would only reopen every
+    // unchanged shard. Fields the load derives on every start (such as a
+    // feed's `lastRefreshAttemptCompletedAt`) made it true on every start
+    // (#1519). Legacy JSON writes its whole snapshot unconditionally, so it
+    // still saves a load that normalized something.
+    const normalizedDifferently =
+      !isShardBackedMode(this.settings.storageMode) &&
+      serializeWithoutArticles(this.settings) !== originalSettingsJson;
+    return (
+      this.isTrustedLoad(wasNullLoad, hydrated) &&
       (didMigrateKeywordRules ||
         hydrated.didChange ||
         didNormalizeAndDedupeItems ||
         didClearMissingSavedArticlePaths ||
-        serializeWithoutArticles(this.settings) !== originalSettingsJson);
-    return shouldSave;
+        normalizedDifferently)
+    );
+  }
+
+  /**
+   * Whether a load may be saved, and backed up. Skip a load from null
+   * defaults: on a synced vault it likely means sync hasn't delivered
+   * data.json yet, and writing empty defaults would clobber it. The vault
+   * modify listener in onload() triggers loadSettings() again once sync
+   * delivers the real data. Likewise skip a v2 load whose user-state.json is
+   * missing.
+   */
+  private isTrustedLoad(
+    wasNullLoad: boolean,
+    hydrated: Awaited<ReturnType<FeedStorageRepository["hydrateSettings"]>>,
+  ): boolean {
+    const isV2 = this.settings.storageMode === "vault-shards-v2";
+    const isMissingUserState = isV2 && hydrated.userStateLoaded === false;
+    return !wasNullLoad && !isMissingUserState;
+  }
+
+  /**
+   * Takes the session's recovery baseline of the loaded state without
+   * persisting anything. The baseline used to exist only because a load that
+   * changed nothing still saved. A load that cannot be trusted takes none, as
+   * it saves none. A failure is logged and retried by the next persisted
+   * change.
+   */
+  private async recordRecoveryBaseline(
+    wasNullLoad: boolean,
+    hydrated: Awaited<ReturnType<FeedStorageRepository["hydrateSettings"]>>,
+  ): Promise<void> {
+    if (!this.isTrustedLoad(wasNullLoad, hydrated)) return;
+    if (this.isPersistenceSuppressed()) return;
+    // On the first load, onload() has not initialized the services yet, and
+    // the snapshot needs the backup service.
+    if (!this.options.hasBackupService()) {
+      this.options.initializeSettingsBackedServices();
+    }
+    try {
+      await this.autoBackupCoordinator.recordLoadedState();
+    } catch (error) {
+      console.error("[RSS Dashboard] Backup after load failed:", error);
+    }
   }
 
   async loadSettings(): Promise<void> {
@@ -540,6 +584,8 @@ export class SettingsStore {
         }
         await this.options.saveSettings();
       }
+      // A load that saved has already taken the baseline; this is a no-op then.
+      await this.recordRecoveryBaseline(wasNullLoad, hydrated);
       if (savedArticleAssociationUpdates.length > 0) {
         await this.options.notifySavedArticleAssociationUpdates(
           savedArticleAssociationUpdates,

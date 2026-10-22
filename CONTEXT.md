@@ -418,14 +418,16 @@ _Avoid_: Restated intro, redundant description, duplicate lead
 A low-write recovery copy of the current legacy backup artifacts. Until the
 [[Portable data bundle]] backup supersedes them, it exists to preserve a
 recoverable snapshot without mirroring every persistence write. A plugin
-session writes one snapshot after its first meaningful change and a second,
-final snapshot on unload only when a later meaningful change made the first
-snapshot stale. Every successful settings persistence is a meaningful change
-for this transitional mechanism. A storage migration forces a pre-migration
+session writes one snapshot once its settings have loaded, so the snapshot
+holds the state as loaded, and a second, final snapshot on unload only when a
+later meaningful change made the first snapshot stale. Every successful
+settings persistence after the load is a meaningful change for this
+transitional mechanism; the load itself never persists unless it repaired
+something. A storage migration forces a pre-migration
 snapshot and makes that snapshot current for the session. A snapshot is current
 only after every enabled artifact writes successfully; a failure stays stale and
 retries on a later save or unload. Snapshot writes are serialized.
-Unload requests a final stale snapshot on a best-effort basis; the first-change
+Unload requests a final stale snapshot on a best-effort basis; the after-load
 snapshot is the reliable recovery baseline.
 _Avoid_: Continuous persistence, write-through backup
 
@@ -492,6 +494,10 @@ _Avoid_: stray shard, leftover shard
 **Feed content**:
 The article or episode data (title, body, media, publish date) written into a feed's shard file under Shard storage v2. Distinct from that feed's article state, which v2 stores separately.
 _Avoid_: Shard content, feed data
+
+**Hydration**:
+Reading each feed's [[Feed content]] from its shard file into memory during a settings load, then overlaying [[Article state]]. A feed is **hydrated** once a structurally valid read of its shard succeeds; a missing or unreadable shard leaves it unhydrated, and absence never authorizes removal (ADR 0010). Hydration is complete when every feed in the list has been read. A plugin start hydrates each feed once, and only feeds in the list are read, so an [[Orphan shard]] costs nothing at startup. See [ADR 0010](docs/adr/0010-hydration-gated-user-state-garbage-collection.md).
+_Avoid_: Loading articles, shard load, warm-up
 
 **Article state**:
 The per-article interaction data — read, starred, tags, saved-to-vault, playback progress — that Shard storage v2 stores in a separate `user-state.json` rather than inside the feed's shard file. The same states referenced by [[retention protection]].
