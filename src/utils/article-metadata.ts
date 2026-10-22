@@ -103,8 +103,12 @@ function decodeResidualEntities(text: string): string {
   }
 }
 
-/** A description candidate as plain text with whitespace normalized. */
-function descriptionText(text: string): string {
+/**
+ * A page meta description with whitespace normalized and any residual entity
+ * decoded. Only meta-tag values need this: the feed blurb is already readable
+ * text, so a literal `&amp;` in it is real.
+ */
+function normalizeMetaDescription(text: string): string {
   return normalizeSpace(decodeResidualEntities(text));
 }
 
@@ -455,11 +459,13 @@ function resolveDescription(
   fallbacks: ArticleMetadataFallbacks,
 ): DescriptionOutcome {
   const candidates = [
-    pageRaw.metaDescription,
-    pageRaw.ogDescription,
-    pageRaw.twitterDescription,
-    feedBlurbText(fallbacks),
-  ].map(descriptionText);
+    ...[
+      pageRaw.metaDescription,
+      pageRaw.ogDescription,
+      pageRaw.twitterDescription,
+    ].map(normalizeMetaDescription),
+    normalizeSpace(feedBlurbText(fallbacks)),
+  ];
 
   let seed = "";
   for (const candidate of candidates) {
@@ -494,7 +500,7 @@ function resolveExcerpt(
     pageRaw.metaDescription,
     pageRaw.ogDescription,
     pageRaw.twitterDescription,
-  ].map((tag) => descriptionText(tag).toLowerCase());
+  ].map((tag) => normalizeMetaDescription(tag).toLowerCase());
   const readability = normalizeSpace(pageRaw.readabilityExcerpt);
   const candidates = [
     seed,

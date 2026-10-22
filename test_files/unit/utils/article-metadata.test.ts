@@ -232,20 +232,49 @@ describe("resolveArticleMetadata description tier", () => {
       expect(resolved.description).toBe(DECODED);
     });
 
-    it("shows the decoded text when the earlier signals are duplicate intros of the body", () => {
+    it("falls through duplicate-intro meta tags to the decoded twitter description", () => {
       const doc = docFrom(`<html><head>
-        <meta name="description" content="We&#39;re blocking trust in a small set of intermediate certificates">
-        <meta property="og:description" content="We&#39;re blocking trust in a small set of intermediate certificates">
-        <meta name="twitter:description" content="${DOUBLE_ENCODED}">
+        <meta name="description" content="${DECODED.replace("'", "&#39;")}">
+        <meta property="og:description" content="${DECODED.replace("'", "&#39;")}">
+        <meta name="twitter:description" content="${DOUBLE_ENCODED}, effective this autumn">
       </head><body></body></html>`);
+      const articleHtml = `<p>${DECODED.replace("'", "&#39;")}. More detail follows in the rest of this announcement.</p>`;
 
       const resolved = resolveArticleMetadata(extractPageMetadata(doc), {
-        articleHtml: `<p>${DECODED.replace("'", "&#39;")}. More detail follows in the rest of this announcement.</p>`,
+        articleHtml,
       });
 
-      expect(resolved.description).not.toContain("&#39;");
-      expect(resolved.description).not.toContain("&amp;");
-      expect(resolved.excerpt).not.toContain("&#39;");
+      expect(resolved.description).toBe(`${DECODED}, effective this autumn`);
+    });
+
+    it("keeps the decoded text as the excerpt when every meta tag duplicates the body", () => {
+      const doc = docFrom(`<html><head>
+        <meta name="twitter:description" content="${DOUBLE_ENCODED}">
+      </head><body></body></html>`);
+      const articleHtml = `<p>${DECODED.replace("'", "&#39;")}. More detail follows in the rest of this announcement.</p>`;
+
+      const resolved = resolveArticleMetadata(extractPageMetadata(doc), {
+        articleHtml,
+      });
+
+      expect(resolved.description).toBe("");
+      expect(resolved.excerpt).toBe(DECODED);
+    });
+
+    it("leaves a bare ampersand and a literal entity in the feed blurb alone", () => {
+      const rd = "Research & development spending rose again across the harbor";
+      expect(
+        resolveArticleMetadata(emptyRaw({ metaDescription: rd }), {})
+          .description,
+      ).toBe(rd);
+
+      const blurb =
+        "Escape a literal &amp; in your markup so the harbor budget page renders";
+      expect(
+        resolveArticleMetadata(emptyRaw(), {
+          description: `<p>${blurb.replace("&", "&amp;")}</p>`,
+        }).description,
+      ).toBe(blurb);
     });
 
     it("decodes named and hex entities as well as decimal ones", () => {
