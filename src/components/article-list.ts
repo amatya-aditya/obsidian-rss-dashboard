@@ -21,6 +21,7 @@ import { HighlightService } from "../services/highlight-service";
 import { getEffectiveDateMs } from "../services/feed-parser/feed-retention";
 import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
 import {
+  ARTICLE_ROW_REMOVING_CLASS,
   ARTICLE_ROW_SELECTOR,
   findRenderedNeighbourRow,
 } from "../utils/article-list-focus";
@@ -64,6 +65,7 @@ import type {
   BaseViewContext,
   ViewDeps,
 } from "./article-list/views/view-types";
+import { isDomNode } from "../utils/dom-node";
 import { prefersReducedMotion } from "../utils/motion-preference";
 import {
   LEFT_HANDED_LAYOUT_ROOT_CLASS,
@@ -773,6 +775,7 @@ export class ArticleList {
       return;
     }
 
+    targetEl.classList.add(ARTICLE_ROW_REMOVING_CLASS);
     const originalHeight = targetEl.offsetHeight;
     setCssProps(targetEl, {
       overflow: "hidden",
@@ -1406,7 +1409,8 @@ export class ArticleList {
   private attachControlActivation(articlesList: HTMLElement): void {
     const report = (event: Event, byMouse: boolean): void => {
       const target = event.target;
-      if (!(target instanceof HTMLElement)) return;
+      // `instanceof HTMLElement` is false for elements a popout window created.
+      if (!isDomNode(target) || !target.instanceOf(HTMLElement)) return;
       if (!target.closest(ARTICLE_CONTROL_SELECTOR)) return;
       const row = target.closest<HTMLElement>(ARTICLE_ROW_SELECTOR);
       const article = row ? this.findArticleForRow(row) : null;

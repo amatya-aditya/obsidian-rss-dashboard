@@ -748,3 +748,89 @@ describe("ArticleList in-place updates honor reduced motion (#867)", () => {
     h.cleanup();
   });
 });
+
+// The next selection comes from the rows the user can see (#1468).
+describe("ArticleList neighbour while a removal is still collapsing (#1468)", () => {
+  afterEach(() => {
+    document.body.empty();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("skips a row that is already collapsing when choosing the previous card", () => {
+    vi.useFakeTimers();
+    const container = createDiv();
+    document.body.appendChild(container);
+    const h = createArticleListHarness({
+      container,
+      settings: {
+        viewStyle: "list",
+        articleGroupBy: "none",
+        articleSort: "newest",
+      },
+      articles: ["1", "2", "3"].map((guid) =>
+        buildArticle({ guid, title: `One ${guid}` }),
+      ),
+    });
+    h.list.render();
+    const order = Array.from(
+      h.container.querySelectorAll<HTMLElement>(".rss-dashboard-article-item"),
+    ).map((row) => row.id.replace(/^article-/, ""));
+    const [first, middle, last] = order as [string, string, string];
+
+    // The middle row is mid-collapse when the last row goes too.
+    h.list.removeArticleInPlace(middle);
+
+    expect(h.list.getRenderedNeighbour(last)?.guid).toBe(first);
+    h.cleanup();
+  });
+});
+
+describe("ArticleList control activation in a popout window (#1468)", () => {
+  afterEach(() => {
+    document.body.empty();
+    vi.restoreAllMocks();
+  });
+
+  it("selects the card when the clicked control belongs to another window", () => {
+    const onArticleControlActivate = vi.fn();
+    const h = createArticleListHarness({
+      settings: {
+        viewStyle: "list",
+        articleGroupBy: "none",
+        articleSort: "newest",
+      },
+      articles: [buildArticle({ guid: "1", title: "One" })],
+      callbacks: { onArticleControlActivate },
+    });
+    h.list.render();
+
+    // A popout's elements fail `instanceof HTMLElement` in this window.
+    const frame = createEl("iframe");
+    document.body.appendChild(frame);
+    const popoutWindow = frame.contentWindow as Window & {
+      Node: typeof Node;
+      Element: typeof Element;
+    };
+    // Obsidian adds `instanceOf` to every window's Node; mirror that here.
+    popoutWindow.Node.prototype.instanceOf = Node.prototype.instanceOf;
+    // Obsidian's DOM helpers exist on every window's Element too.
+    popoutWindow.Element.prototype.createDiv = Element.prototype.createDiv;
+    const row = popoutWindow.document.body.createDiv({
+      cls: "rss-dashboard-article-item",
+      attr: { id: "article-1" },
+    });
+    const control = row.createDiv({ cls: "rss-dashboard-star-toggle" });
+    expect(control instanceof HTMLElement).toBe(false);
+
+    const event = new MouseEvent("click", { bubbles: true, detail: 1 });
+    Object.defineProperty(event, "target", { get: () => control });
+    h.getArticlesListEl()?.dispatchEvent(event);
+
+    expect(onArticleControlActivate).toHaveBeenCalledWith(
+      expect.objectContaining({ guid: "1" }),
+      true,
+    );
+    h.cleanup();
+  });
+});

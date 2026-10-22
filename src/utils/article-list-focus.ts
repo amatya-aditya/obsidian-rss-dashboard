@@ -3,6 +3,11 @@
  * The list's in-place removal and the dashboard's page rebuild both need the
  * same answer, so it lives here instead of in two components (#1380, #1468).
  */
+import { isDomNode } from "./dom-node";
+
+/** Marks a row whose collapse animation is running, so it no longer counts. */
+export const ARTICLE_ROW_REMOVING_CLASS = "rss-dashboard-article-removing";
+
 export const ARTICLE_ROW_SELECTOR =
   ".rss-dashboard-article-item, .rss-dashboard-article-card, .rss-dashboard-feed-item";
 
@@ -11,7 +16,8 @@ export const ARTICLE_ROW_SELECTOR =
  * rendered row, else the previous one. The order is the one on screen, so
  * grouped sections, collapsed sections, and rows the local search hides all
  * count the way the user sees them (#1468). The removed row keeps its place in
- * the order even when the search or a collapsed section hides it.
+ * the order even when the search or a collapsed section hides it. A row that
+ * is still collapsing from an earlier removal is already gone.
  */
 export function findRenderedNeighbourRow(
   targetEl: HTMLElement,
@@ -25,6 +31,7 @@ export function findRenderedNeighbourRow(
     (row) =>
       row === targetEl ||
       (!row.classList.contains("rss-dashboard-search-hidden") &&
+        !row.classList.contains(ARTICLE_ROW_REMOVING_CLASS) &&
         !row.closest(".rss-dashboard-feed-section-cards.collapsed")),
   );
   const index = rows.indexOf(targetEl);
@@ -38,7 +45,8 @@ export function findRenderedNeighbourRow(
  */
 export function captureArticleListFocus(container: HTMLElement): boolean {
   const active = activeDocument.activeElement;
-  if (!(active instanceof HTMLElement)) return false;
+  // `instanceof HTMLElement` is false for elements a popout window created.
+  if (!isDomNode(active) || !active.instanceOf(HTMLElement)) return false;
   const list = container.querySelector<HTMLElement>(
     ".rss-dashboard-articles-list",
   );
