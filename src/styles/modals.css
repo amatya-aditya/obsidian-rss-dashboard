@@ -1086,24 +1086,7 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
   .modal.rss-mobile-navigation-modal .modal-header-button,
   .modal.rss-mobile-discover-filters-modal .modal-close-button,
   .modal.rss-mobile-discover-filters-modal .modal-header-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: absolute;
-    top: 12px;
-    right: 12px;
-    left: auto;
-    z-index: var(--z-index-close-button);
-  }
-  .modal.rss-mobile-navigation-modal .modal-close-button::before,
-  .modal.rss-mobile-navigation-modal .modal-header-button::before,
-  .modal.rss-mobile-discover-filters-modal .modal-close-button::before,
-  .modal.rss-mobile-discover-filters-modal .modal-header-button::before {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
+    display: none;
   }
   body .modal.rss-mobile-navigation-modal .rss-dashboard-sidebar {
     display: flex;
