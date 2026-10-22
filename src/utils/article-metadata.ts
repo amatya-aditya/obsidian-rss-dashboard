@@ -82,6 +82,32 @@ function normalizeSpace(text: string): string {
   return text.replace(/\s+/g, " ").trim();
 }
 
+const RESIDUAL_ENTITY = /&(?:#\d+|#x[\da-f]+|[a-z][a-z\d]*);/i;
+
+/**
+ * Decodes an entity a meta tag's `content` still holds after the parser's own
+ * decode: a publisher that double-encodes (`We&amp;#39;re`) leaves `We&#39;re`
+ * (#1505). Text with no entity is returned as is. `<` is escaped first so
+ * decoded markup stays inert text.
+ */
+function decodeResidualEntities(text: string): string {
+  if (!RESIDUAL_ENTITY.test(text)) return text;
+  try {
+    const doc = new DOMParser().parseFromString(
+      `<!doctype html><body>${text.replace(/</g, "&lt;")}`,
+      "text/html",
+    );
+    return doc.body.textContent ?? text;
+  } catch {
+    return text;
+  }
+}
+
+/** A description candidate as plain text with whitespace normalized. */
+function descriptionText(text: string): string {
+  return normalizeSpace(decodeResidualEntities(text));
+}
+
 /** A raw-metadata bag with every signal absent. */
 export function emptyRawMetadata(): RawArticleMetadata {
   return {
@@ -433,7 +459,7 @@ function resolveDescription(
     pageRaw.ogDescription,
     pageRaw.twitterDescription,
     feedBlurbText(fallbacks),
-  ].map(normalizeSpace);
+  ].map(descriptionText);
 
   let seed = "";
   for (const candidate of candidates) {
@@ -468,7 +494,7 @@ function resolveExcerpt(
     pageRaw.metaDescription,
     pageRaw.ogDescription,
     pageRaw.twitterDescription,
-  ].map((tag) => normalizeSpace(tag).toLowerCase());
+  ].map((tag) => descriptionText(tag).toLowerCase());
   const readability = normalizeSpace(pageRaw.readabilityExcerpt);
   const candidates = [
     seed,

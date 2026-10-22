@@ -216,6 +216,74 @@ describe("resolveArticleMetadata description tier", () => {
     expect(resolved.description).toBe("");
   });
 
+  describe("double-encoded descriptions (#1505)", () => {
+    const DOUBLE_ENCODED =
+      "We&amp;#39;re blocking trust in a small set of intermediate certificates";
+    const DECODED =
+      "We're blocking trust in a small set of intermediate certificates";
+
+    it("decodes a twitter:description that survives extraction with a literal entity", () => {
+      const doc = docFrom(
+        `<html><head><meta name="twitter:description" content="${DOUBLE_ENCODED}"></head><body></body></html>`,
+      );
+
+      const resolved = resolveArticleMetadata(extractPageMetadata(doc), {});
+
+      expect(resolved.description).toBe(DECODED);
+    });
+
+    it("shows the decoded text when the earlier signals are duplicate intros of the body", () => {
+      const doc = docFrom(`<html><head>
+        <meta name="description" content="We&#39;re blocking trust in a small set of intermediate certificates">
+        <meta property="og:description" content="We&#39;re blocking trust in a small set of intermediate certificates">
+        <meta name="twitter:description" content="${DOUBLE_ENCODED}">
+      </head><body></body></html>`);
+
+      const resolved = resolveArticleMetadata(extractPageMetadata(doc), {
+        articleHtml: `<p>${DECODED.replace("'", "&#39;")}. More detail follows in the rest of this announcement.</p>`,
+      });
+
+      expect(resolved.description).not.toContain("&#39;");
+      expect(resolved.description).not.toContain("&amp;");
+      expect(resolved.excerpt).not.toContain("&#39;");
+    });
+
+    it("decodes named and hex entities as well as decimal ones", () => {
+      const resolved = resolveArticleMetadata(
+        emptyRaw({
+          metaDescription:
+            "Fish &amp; chips &quot;to go&quot; on the harbor&#x2019;s front",
+        }),
+        {},
+      );
+
+      expect(resolved.description).toBe(
+        'Fish & chips "to go" on the harbor’s front',
+      );
+    });
+
+    it("leaves markup-looking text inert after decoding", () => {
+      const resolved = resolveArticleMetadata(
+        emptyRaw({
+          metaDescription:
+            "Use the &lt;b&gt; tag to embolden the harbor budget headline",
+        }),
+        {},
+      );
+
+      expect(resolved.description).toBe(
+        "Use the <b> tag to embolden the harbor budget headline",
+      );
+    });
+
+    it("leaves an ordinary description without entities untouched", () => {
+      expect(
+        resolveArticleMetadata(emptyRaw({ metaDescription: LONG_A }), {})
+          .description,
+      ).toBe(LONG_A);
+    });
+  });
+
   describe("degenerate-value guard", () => {
     it("rejects a candidate under 40 normalized characters", () => {
       const short = "A short description of 39 characters!!"; // 38
