@@ -97,34 +97,10 @@ state or element selector. `audit-ok` comments do not create an exception.
 
 ## Refactors (#436)
 
-A refactor ticket uses `.github/ISSUE_TEMPLATE/refactor.md` and a
-`refactor/<issue>-<slug>` branch. Before extracting, read
-`docs/development/architecture.md`: **Refactor Commits** holds the commit
-mechanics, beside the suppression, ratchet, and characterization-test rules.
-
-1. A refactor preserves behavior exactly. A bug found along the way gets its
-   own issue: labels `bug`, `status: blocked`, and an `area:` label; sections
-   Summary, Reproduce, Cause, and Fix direction; and "Blocked by #436" (see
-   #468). The refactor PR links it and leaves the bug in place.
-2. Characterization tests come first: pin current behavior, bugs included
-   (`// BUG: pinned, see #<issue>`), and see them green on untouched code.
-3. Characterization tests stay read-only during the extraction.
-4. Read the target file and every importer before extracting.
-5. One extraction per session and per PR. When tests go red, revert and cut a
-   smaller slice.
-6. Two commits, each one building and passing the gates: move only, then
-   wiring.
-7. Public plugin methods stay as one-line delegates (the facade) until a
-   separate ticket moves their callers.
-8. Only the plugin calls `registerEvent`, `registerInterval`, and
-   `registerDomEvent`. Services return disposers or receive a register
-   callback.
-9. Preserve `onload` order, `this` binding for callbacks, and
-   async/debounce/watcher-suppression timing exactly.
-10. Report the raw `vitest` summary line and `git diff --stat`.
-11. Test manually in the fixture vault, following **Testing a refactor** in
-    `docs/development/fixture-vault.md`. Run the ticket's scoped checklist,
-    including its extra checks, and verify the files on disk as well as the UI.
+For a refactor ticket (`refactor/<issue>-<slug>` branch, `.github/ISSUE_TEMPLATE/refactor.md`),
+read [docs/agents/refactors.md](docs/agents/refactors.md) in full before
+extracting. A refactor preserves behavior exactly and lands as one extraction
+per session and per PR.
 
 ## Tests
 
@@ -172,22 +148,7 @@ stable if the user refers back to "bug 2" later. Blank line between bugs.
 
 ## GitHub pull request descriptions
 
-Use `.github/PULL_REQUEST_TEMPLATE.md` as the source for PR body structure.
-Fill its related-issues section with each relevant issue once; use `Fixes #NNN`
-when the PR should close an issue on merge, or `Refs #NNN` when it should link
-without closing it. Include exactly one issue-closing reference for each issue
-being closed.
-
-Run the applicable manual-test-checklist before writing the PR body when the
-change has manual testing steps. Append its checklist and results in the
-template's final **Manual test checklist** section, marking whether it was
-completed. If it was not completed, state why and list the remaining steps;
-never present unchecked steps as passed. Mark it not applicable with a reason
-when no manual checklist applies.
-
-When creating or editing a pull request from PowerShell, preserve Markdown
-literally: use a UTF-8 `--body-file` rather than a double-quoted `--body`
-argument. Before handoff, read the stored body with `gh pr view --json body`
-and confirm it follows the template, includes the manual-test-checklist status
-and results, and contains the intended headings, list items, inline code, and
-issue-closing reference exactly once.
+Before writing or editing a PR body, read
+[docs/agents/pull-request-descriptions.md](docs/agents/pull-request-descriptions.md).
+It covers the template, issue-closing references, the manual-test-checklist
+section, and the PowerShell `--body-file` rule.
