@@ -1202,6 +1202,7 @@ describe("ReaderView article rendering (characterization)", () => {
         "rss-reader-hero-slot",
         "rss-reader-description-callout",
         "rss-reader-article-content",
+        "rss-reader-source-footer",
       ]);
     });
 

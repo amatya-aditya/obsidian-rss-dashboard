@@ -227,6 +227,34 @@ function renderMissingCommentsFooter(
   return `<p>Showing ${shown} of ${total} comments${hidden}. <a href="${escapeHtml(href)}">Open on GitHub</a> for the rest</p>`;
 }
 
+function renderComments(comments: GitHubIssueComment[]): string {
+  if (comments.length === 0) return "";
+  const rendered = comments.map((comment) => {
+    const login = comment.author?.login ?? "ghost";
+    const heading = `@${login} - ${formatIssueDate(comment.createdAt)}`;
+    return `<h3>${escapeHtml(heading)}</h3>${neutralizeBodyHtml(comment.bodyHTML)}`;
+  });
+  return `<h2>Comments</h2>${rendered.join("<hr>")}`;
+}
+
+/** Names the comments the first page payload did not carry; empty when none are missing. */
+function renderMissingCommentsFooter(
+  issue: GitHubIssue,
+  pageUrl: string,
+): string {
+  const total = issue.totalCommentsCount;
+  const shown = issue.comments.length;
+  if (total === null || shown >= total) return "";
+
+  const hidden =
+    issue.hiddenCommentCount > 0
+      ? ` (${issue.hiddenCommentCount} hidden by GitHub)`
+      : "";
+  const url = new URL(pageUrl);
+  const href = `${url.origin}${url.pathname}`;
+  return `<p>Showing ${shown} of ${total} comments${hidden}. <a href="${escapeHtml(href)}">Open on GitHub</a> for the rest</p>`;
+}
+
 /**
  * Returns the issue as plain HTML (a meta paragraph, the body, then the
  * comments and a missing-comments footer), or `null`
