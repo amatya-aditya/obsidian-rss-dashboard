@@ -638,6 +638,37 @@ describe("Sidebar Core", () => {
       expect(header).toBeDefined();
     });
 
+    it("renders the search toggle as a native button that toggles search", () => {
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+      const renderSpy = vi
+        .spyOn(sidebar as unknown as { render: () => void }, "render")
+        .mockImplementation(() => {});
+      const dock = createDiv();
+      (
+        sidebar as unknown as { renderToolbar: (el: HTMLElement) => void }
+      ).renderToolbar(dock);
+
+      const toggle = dock.querySelector<HTMLElement>(
+        '[aria-label="Search feeds"]',
+      );
+      expect(toggle).not.toBeNull();
+      expect(toggle?.tagName).toBe("BUTTON");
+      expect(toggle?.getAttribute("type")).toBe("button");
+      expect(toggle?.hasAttribute("role")).toBe(false);
+      expect(toggle?.hasAttribute("tabindex")).toBe(false);
+      expect(toggle?.getAttribute("aria-pressed")).toBe("false");
+
+      toggle?.click();
+      expect(renderSpy).toHaveBeenCalledTimes(1);
+    });
+
     it("does not render a duplicate close button when the mobile modal provides one", () => {
       const sidebar = new Sidebar(
         app,

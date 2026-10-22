@@ -939,6 +939,7 @@ body .rss-shortcut-help-modal .modal-header-button {
   cursor: pointer;
   border-radius: 6px;
   border: none;
+  box-shadow: none;
   background: transparent;
   color: var(--text-muted);
   margin-right: 0;

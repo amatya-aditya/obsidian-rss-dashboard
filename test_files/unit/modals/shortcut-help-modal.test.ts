@@ -389,8 +389,11 @@ describe("ShortcutHelpModal", () => {
     );
     expect(closeBtn).not.toBeNull();
     if (closeBtn) {
-      expect(closeBtn.getAttribute("role")).toBe("button");
-      expect(closeBtn.getAttribute("tabindex")).toBe("0");
+      expect(closeBtn.tagName).toBe("BUTTON");
+      expect(closeBtn.getAttribute("type")).toBe("button");
+      expect(closeBtn.getAttribute("aria-label")).toBe("Close");
+      expect(closeBtn.hasAttribute("role")).toBe(false);
+      expect(closeBtn.hasAttribute("tabindex")).toBe(false);
     }
 
     modal.onClose();

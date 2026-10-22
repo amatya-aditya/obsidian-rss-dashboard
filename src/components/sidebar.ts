@@ -10,6 +10,7 @@ import {
   FeedShardHealth,
 } from "../types/types";
 import { collectFolderPaths } from "../utils/folder-paths";
+import { createIconButton } from "../utils/icon-button";
 import { isFeedImportFailed } from "../utils/feed-import-status";
 import { AddFeedModal, EditFeedModal } from "../modals/feed-manager-modal";
 import { FolderAutoTagModal } from "../modals/feed-manager/folder-auto-tag-modal";
@@ -3458,20 +3459,14 @@ export class Sidebar {
       window.setTimeout(() => updateCollapseIcon(), 0);
     });
 
-    const searchButton = sidebarToolbar.createDiv({
+    const searchButton = createIconButton({
+      parent: sidebarToolbar,
       cls: "rss-dashboard-toolbar-button",
-      attr: {
-        "aria-label": "Search feeds",
-        role: "button",
-        tabindex: "0",
-      },
+      label: "Search feeds",
+      icon: "search",
+      pressed: this.isSearchExpanded,
     });
     searchButton.toggleClass("is-active", this.isSearchExpanded);
-    searchButton.setAttr(
-      "aria-pressed",
-      this.isSearchExpanded ? "true" : "false",
-    );
-    setIcon(searchButton, "search");
     const toggleSearch = () => {
       this.isSearchExpanded = !this.isSearchExpanded;
       this.render();
@@ -3491,12 +3486,6 @@ export class Sidebar {
     searchButton.addEventListener("click", (e) => {
       e.stopPropagation();
       toggleSearch();
-    });
-    searchButton.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        toggleSearch();
-      }
     });
   }
 

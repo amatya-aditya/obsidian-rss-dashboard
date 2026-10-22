@@ -46,6 +46,8 @@
   width: 32px;
   min-width: 32px;
   height: 32px;
+  padding: 0;
+  box-shadow: none;
   border: 1px solid var(--background-modifier-border);
   border-radius: 6px;
   color: var(--text-muted);
