@@ -644,6 +644,30 @@ body .rss-dashboard-tag-action-button svg {
   border-color: var(--text-accent);
 }
 
+/* The tag controls are native buttons. Scope under the portal root so these
+   outrank Obsidian's `button` height, padding, shadow and font defaults. */
+.rss-dashboard-tags-dropdown-content-portal
+  button.rss-dashboard-tag-action-button,
+.rss-dashboard-tags-dropdown-content-portal
+  button.rss-dashboard-tag-inline-button {
+  padding: 0;
+  box-shadow: none;
+  font-family: inherit;
+  line-height: 1;
+}
+
+.rss-dashboard-tags-dropdown-content-portal
+  button.rss-dashboard-tag-action-button {
+  width: 20px;
+  height: 20px;
+}
+
+.rss-dashboard-tags-dropdown-content-portal
+  button.rss-dashboard-tag-inline-button {
+  width: 24px;
+  height: 24px;
+}
+
 /* ============================================
  * 8. Media Player
  * Audio player wrapper for podcast/audio articles

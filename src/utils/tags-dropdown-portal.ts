@@ -2,7 +2,7 @@ import { type App, Notice, setIcon } from "obsidian";
 import type { FeedItem, RssDashboardSettings, Tag } from "../types/types";
 import { DEFAULT_TAG_COLOR } from "./tag-colors";
 import { showEditTagModal } from "./tag-utils";
-import { onActivate } from "./keyboard-activation";
+import { createIconButton } from "./icon-button";
 import { isNarrowViewport, windowInstanceOf } from "./platform-utils";
 import { addInputClearButton } from "./input-clear-button";
 
@@ -182,25 +182,41 @@ export function createTagsDropdownPortal(
     });
     tagLabel.style.setProperty("--tag-color", tag.color);
 
-    const editButton = tagItem.createDiv({
+    const editButton = createIconButton({
+      parent: tagItem,
       cls: "rss-dashboard-tag-action-button rss-dashboard-tag-edit-button clickable-icon",
-      attr: {
-        "aria-label": "Edit tag",
-        role: "button",
-        tabindex: "0",
+      label: "Edit tag",
+      icon: "pencil",
+      onClick: (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const previousTag = { ...tag };
+        showEditTagModal({
+          app,
+          settings,
+          tag,
+          onSave: async (updatedTag) => {
+            persistSettings();
+            notifySettingsTagsMutated();
+            onTagEdited?.(previousTag, updatedTag);
+            rerenderTagItems();
+          },
+        });
       },
     });
-    setIcon(editButton, "pencil");
 
-    const deleteButton = tagItem.createDiv({
+    const deleteButton = createIconButton({
+      parent: tagItem,
       cls: "rss-dashboard-tag-action-button rss-dashboard-tag-delete-button clickable-icon",
-      attr: {
-        "aria-label": "Delete tag",
-        role: "button",
-        tabindex: "0",
+      label: "Delete tag",
+      icon: "trash",
+      onClick: (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        deleteTagFromProfile(tag);
+        tagItem.remove();
       },
     });
-    setIcon(deleteButton, "trash");
 
     tagCheckbox.addEventListener("change", (e) => {
       e.stopPropagation();
@@ -237,30 +253,6 @@ export function createTagsDropdownPortal(
       window.setTimeout(() => {
         tagItem.classList.remove("rss-dashboard-tag-item-processing");
       }, 200);
-    });
-
-    onActivate(editButton, (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const previousTag = { ...tag };
-      showEditTagModal({
-        app,
-        settings,
-        tag,
-        onSave: async (updatedTag) => {
-          persistSettings();
-          notifySettingsTagsMutated();
-          onTagEdited?.(previousTag, updatedTag);
-          rerenderTagItems();
-        },
-      });
-    });
-
-    onActivate(deleteButton, (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      deleteTagFromProfile(tag);
-      tagItem.remove();
     });
 
     tagItem.appendChild(tagCheckbox);
@@ -306,22 +298,6 @@ export function createTagsDropdownPortal(
     nameInput.spellcheck = false;
     addInputClearButton(nameInput, { fill: true });
 
-    const addButton = inlineAddRow.createDiv({
-      cls: "rss-dashboard-tag-inline-button clickable-icon",
-      attr: { "aria-label": "Add tag", role: "button", tabindex: "0" },
-    });
-    setIcon(addButton, "plus");
-
-    const settingsButton = inlineAddRow.createDiv({
-      cls: "rss-dashboard-tag-inline-settings rss-dashboard-tag-inline-button clickable-icon",
-      attr: {
-        "aria-label": "Open tag settings",
-        role: "button",
-        tabindex: "0",
-      },
-    });
-    setIcon(settingsButton, "settings");
-
     const submitInlineTag = () => {
       const tagName = nameInput.value.trim();
       const tagColor = colorInput.value;
@@ -357,18 +333,6 @@ export function createTagsDropdownPortal(
       new Notice(`Tag "${tagName}" added`);
     };
 
-    addButton.addEventListener("click", (e) => {
-      e.stopPropagation();
-      submitInlineTag();
-    });
-
-    addButton.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        submitInlineTag();
-      }
-    });
-
     nameInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -377,22 +341,28 @@ export function createTagsDropdownPortal(
       }
     });
 
-    const openTagsSettingsFromInlineRow = (e: Event) => {
-      e.stopPropagation();
-      closeDropdown();
-      openTagsSettings();
-    };
-
-    settingsButton.addEventListener("click", (e) => {
-      e.preventDefault();
-      openTagsSettingsFromInlineRow(e);
+    createIconButton({
+      parent: inlineAddRow,
+      cls: "rss-dashboard-tag-inline-button clickable-icon",
+      label: "Add tag",
+      icon: "plus",
+      onClick: (e) => {
+        e.stopPropagation();
+        submitInlineTag();
+      },
     });
 
-    settingsButton.addEventListener("keydown", (e: KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " ") {
+    createIconButton({
+      parent: inlineAddRow,
+      cls: "rss-dashboard-tag-inline-settings rss-dashboard-tag-inline-button clickable-icon",
+      label: "Open tag settings",
+      icon: "settings",
+      onClick: (e) => {
         e.preventDefault();
-        openTagsSettingsFromInlineRow(e);
-      }
+        e.stopPropagation();
+        closeDropdown();
+        openTagsSettings();
+      },
     });
   }
 
