@@ -80,14 +80,13 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       attr: { role: "tablist" },
     });
     SETTINGS_TAB_NAMES.forEach((tab) => {
+      const isCurrent = this.currentTab === tab;
       const tabBtn = tabBar.createEl("button", {
         text: tab,
-        cls:
-          "rss-dashboard-settings-tab-btn" +
-          (this.currentTab === tab ? " active" : ""),
+        cls: "rss-dashboard-settings-tab-btn" + (isCurrent ? " active" : ""),
         attr: {
           role: "tab",
-          "aria-selected": String(this.currentTab === tab),
+          "aria-selected": String(isCurrent),
         },
       });
       tabBtn.onclick = () => {
