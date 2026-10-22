@@ -617,6 +617,52 @@ describe("EditFeedModal", () => {
     expect(writeTextSpy).toHaveBeenCalledWith("RSS Data/Feeds/feed-123.json");
   });
 
+  it("renders the copy-address control as a native button", () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Old title",
+      url: "https://example.com/old.xml",
+      folder: "Tech",
+      items: [],
+      lastUpdated: 0,
+    };
+    const plugin = {
+      app,
+      settings: {
+        feeds: [feed],
+        folders: [],
+        maxItems: 50,
+        storageMode: "vault-shards",
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      },
+      getFeedLocalStorageAddress: vi.fn(() => ({
+        mode: "vault-shards",
+        address: "RSS Data/Feeds/feed-123.json",
+      })),
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+    const modal = new EditFeedModal(
+      app,
+      asRssDashboardPlugin(plugin),
+      feed,
+      vi.fn(),
+    );
+    modal.open();
+
+    const button = getLocalStorageCopyButton(modal.contentEl);
+    expect(button.tagName).toBe("BUTTON");
+    expect(button.getAttribute("type")).toBe("button");
+    expect(button.getAttribute("aria-label")).toBe(
+      "Copy local storage address",
+    );
+    expect(button.hasAttribute("role")).toBe(false);
+    expect(button.hasAttribute("tabindex")).toBe(false);
+  });
+
   it("opens with the per-feed controls expanded and highlighted when requested", () => {
     const app = createMockApp();
     const feed: Feed = {
