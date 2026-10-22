@@ -287,6 +287,34 @@ describe("ImportStarredModal", () => {
       expect(instructionsHidden(content)).toBe(false);
     });
 
+    it("renders each feed group's collapse toggle as a native button that collapses and expands the group", async () => {
+      const content = openModal();
+      await chooseFileViaPicker(
+        content,
+        new File([readFixture()], "starred.json"),
+      );
+      const toggle = content.querySelector<HTMLElement>(
+        '[aria-label="Collapse feed"]',
+      )!;
+
+      expect(toggle.tagName).toBe("BUTTON");
+      expect(toggle.getAttribute("type")).toBe("button");
+      expect(toggle.hasAttribute("role")).toBe(false);
+      expect(toggle.hasAttribute("tabindex")).toBe(false);
+
+      const rowsBefore = content.querySelectorAll(
+        ".import-preview-row--feed",
+      ).length;
+      toggle.click();
+      expect(
+        content.querySelectorAll(".import-preview-row--feed").length,
+      ).toBeLessThan(rowsBefore);
+      content.querySelector<HTMLElement>('[aria-label="Expand feed"]')!.click();
+      expect(content.querySelectorAll(".import-preview-row--feed").length).toBe(
+        rowsBefore,
+      );
+    });
+
     it("expands every feed group again when a new file is chosen from the picker", async () => {
       const content = openModal();
       await chooseFileViaPicker(
@@ -1538,6 +1566,20 @@ describe("ImportStarredModal", () => {
           "Randomize tag colors",
           "Reset tag colors",
         ]);
+      });
+
+      it.each([
+        [".import-new-tags-randomize", "Randomize tag colors"],
+        [".import-new-tags-reset", "Reset tag colors"],
+      ])("renders %s as a native, named button", async (cls, name) => {
+        const { content } = await setUpModal();
+        const el = button(content, cls);
+
+        expect(el.tagName).toBe("BUTTON");
+        expect(el.getAttribute("type")).toBe("button");
+        expect(el.getAttribute("aria-label")).toBe(name);
+        expect(el.hasAttribute("role")).toBe(false);
+        expect(el.hasAttribute("tabindex")).toBe(false);
       });
 
       it("gives each chip and button a single tooltip source (aria-label, never also title)", async () => {

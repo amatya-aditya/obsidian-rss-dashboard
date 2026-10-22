@@ -222,6 +222,12 @@
   padding: 2px;
 }
 
+.import-new-tags-actions button.import-new-tags-action {
+  border: none;
+  box-shadow: none;
+  font-family: inherit;
+}
+
 .import-new-tags-actions .import-new-tags-action svg {
   width: 14px;
   height: 14px;
@@ -378,4 +384,13 @@
   .rss-import-starred-modal .rss-dashboard-modal-buttons button {
     width: 100%;
   }
+}
+
+/* The feed-group toggle is a native button. Same scoped reset as the OPML
+ * preview tree, kept on its own selector so this file needs nothing from it. */
+.rss-dashboard-modal .import-preview-tree button.import-preview-toggle {
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  font-family: inherit;
 }

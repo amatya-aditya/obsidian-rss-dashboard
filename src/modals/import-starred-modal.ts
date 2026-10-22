@@ -20,6 +20,7 @@ import {
 } from "../components/article-list/utils/tag-layout-utils";
 import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
 import { DEFAULT_TAG_COLOR, randomTagColors } from "../utils/tag-colors";
+import { createIconButton } from "../utils/icon-button";
 import { showEditTagModal, updateTagInSettings } from "../utils/tag-utils";
 import { FolderSuggest } from "../components/folder-suggest";
 import { decorateFolderSelectorInput } from "./feed-manager/folder-selector-field";
@@ -700,56 +701,29 @@ export class ImportStarredModal extends AccessibleModal {
       );
     });
 
-    const randomize = this.createNewTagsActionButton(
-      actions,
-      "import-new-tags-randomize",
-      "dices",
-      "Randomize tag colors",
-    );
-    this.onActivate(randomize, () =>
-      this.recolorNewTags(newTags, randomTagColors(newTags.length)),
-    );
-
-    const reset = this.createNewTagsActionButton(
-      actions,
-      "import-new-tags-reset",
-      "rotate-ccw",
-      "Reset tag colors",
-    );
-    this.onActivate(reset, () =>
-      this.recolorNewTags(
-        newTags,
-        newTags.map(() => DEFAULT_TAG_COLOR),
-      ),
-    );
-  }
-
-  private createNewTagsActionButton(
-    parent: HTMLElement,
-    cls: string,
-    icon: string,
-    label: string,
-  ): HTMLElement {
-    const button = parent.createDiv({
-      cls: `import-new-tags-action clickable-icon ${cls}`,
-    });
-    button.setAttr("role", "button");
-    button.setAttr("tabindex", "0");
-    button.setAttr("aria-label", label);
-    setIcon(button, icon);
-    return button;
-  }
-
-  private onActivate(el: HTMLElement, action: () => void): void {
-    el.addEventListener("click", (e) => {
-      e.preventDefault();
-      action();
-    });
-    el.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
+    createIconButton({
+      parent: actions,
+      cls: "import-new-tags-action clickable-icon import-new-tags-randomize",
+      label: "Randomize tag colors",
+      icon: "dices",
+      onClick: (e) => {
         e.preventDefault();
-        action();
-      }
+        this.recolorNewTags(newTags, randomTagColors(newTags.length));
+      },
+    });
+
+    createIconButton({
+      parent: actions,
+      cls: "import-new-tags-action clickable-icon import-new-tags-reset",
+      label: "Reset tag colors",
+      icon: "rotate-ccw",
+      onClick: (e) => {
+        e.preventDefault();
+        this.recolorNewTags(
+          newTags,
+          newTags.map(() => DEFAULT_TAG_COLOR),
+        );
+      },
     });
   }
 
@@ -846,16 +820,6 @@ export class ImportStarredModal extends AccessibleModal {
     meta.textContent = `${selectedCount}/${group.items.length}`;
 
     const collapsed = this.collapsedFeedUrls.has(group.feedUrl);
-    const toggle = groupRow.createDiv({
-      cls: "clickable-icon import-preview-toggle",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": collapsed ? "Expand feed" : "Collapse feed",
-      },
-    });
-    setIcon(toggle, collapsed ? "chevron-right" : "chevron-down");
-
     const toggleCollapse = () => {
       if (this.collapsedFeedUrls.has(group.feedUrl)) {
         this.collapsedFeedUrls.delete(group.feedUrl);
@@ -865,15 +829,15 @@ export class ImportStarredModal extends AccessibleModal {
       this.renderPreview();
     };
 
-    toggle.addEventListener("click", (e) => {
-      e.preventDefault();
-      toggleCollapse();
-    });
-    toggle.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
+    createIconButton({
+      parent: groupRow,
+      cls: "clickable-icon import-preview-toggle",
+      label: collapsed ? "Expand feed" : "Collapse feed",
+      icon: collapsed ? "chevron-right" : "chevron-down",
+      onClick: (e) => {
         e.preventDefault();
         toggleCollapse();
-      }
+      },
     });
 
     if (collapsed) return;
