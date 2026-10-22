@@ -339,6 +339,13 @@
     min-height: 44px;
   }
 
+  .rss-mobile-feed-manager-modal
+    .setting-item
+    .setting-item-control
+    .rss-edit-feed-storage-copy-button {
+    min-height: 0;
+  }
+
   .rss-mobile-feed-manager-modal .rss-feed-form-row-url .feed-url-input {
     grid-area: auto;
     flex: 0 0 auto;
