@@ -882,10 +882,27 @@ export class FeedStorageRepository {
     });
   }
 
+  /**
+   * Copies a feed without reading its `items`, so persisting settings never
+   * clones an article that the persisted form drops anyway.
+   */
+  private withoutItems(feed: Feed): Feed {
+    const config: Record<string, unknown> = {};
+    for (const key of Object.keys(feed)) {
+      if (key !== "items") {
+        config[key] = (feed as unknown as Record<string, unknown>)[key];
+      }
+    }
+    return config as unknown as Feed;
+  }
+
   private createPersistedSettings(
     settings: RssDashboardSettings,
   ): PersistedRssDashboardSettings {
-    const cloned = cloneJson(settings);
+    const cloned = cloneJson({
+      ...settings,
+      feeds: settings.feeds.map((feed) => this.withoutItems(feed)),
+    });
 
     return {
       ...cloned,
