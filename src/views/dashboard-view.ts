@@ -1813,29 +1813,17 @@ export class RssDashboardView extends ItemView {
       cls: "rss-dashboard-filter-stats-row rss-dashboard-viewing-filter-stats-row",
     });
 
-    const viewFiltersBtn = viewingFilterRow.createDiv({
+    const viewFiltersBtn: HTMLButtonElement = createIconButton({
+      parent: viewingFilterRow,
       cls: "rss-dashboard-viewing-filter-open-btn clickable-icon",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Open viewing filters",
-        "aria-haspopup": "dialog",
-        "aria-expanded": "false",
+      label: "Open viewing filters",
+      icon: "filter",
+      hasPopup: "dialog",
+      expanded: false,
+      onClick: (e) => {
+        e.stopPropagation();
+        this.openViewingFiltersMenu(viewFiltersBtn);
       },
-    });
-    setIcon(viewFiltersBtn, "filter");
-
-    const openFiltersMenu = (e?: Event) => {
-      e?.stopPropagation();
-      this.openViewingFiltersMenu(viewFiltersBtn);
-    };
-
-    viewFiltersBtn.addEventListener("click", openFiltersMenu);
-    viewFiltersBtn.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        openFiltersMenu(e);
-      }
     });
 
     viewingFilterRow.createSpan({

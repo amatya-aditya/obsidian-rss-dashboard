@@ -89,7 +89,7 @@
   }
 
   /* article-empty-state.css */
-  .rss-dashboard-empty-state-button {
+  button.rss-dashboard-empty-state-button {
     transition-duration: 0.01ms;
     transition-delay: 0s;
   }
@@ -353,7 +353,7 @@
   /* discover-sidebar-filters.css */
   .rss-discover-add-all-btn,
   .rss-discover-selected-filter,
-  .rss-discover-selected-filter-remove,
+  button.rss-discover-selected-filter-remove,
   .rss-discover-mobile-filters-button,
   .rss-discover-btn-base,
   .rss-clear-filter-button,

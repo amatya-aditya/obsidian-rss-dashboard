@@ -54,6 +54,8 @@
   line-height: 1.1;
   text-align: center;
   white-space: nowrap;
+  height: auto;
+  box-shadow: none;
   transition:
     background 0.15s ease,
     border-color 0.15s ease,

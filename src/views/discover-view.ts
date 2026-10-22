@@ -19,6 +19,7 @@ import {
   windowInstanceOf,
 } from "../utils/platform-utils";
 import { addInputClearButton } from "../utils/input-clear-button";
+import { createIconButton } from "../utils/icon-button";
 import {
   getPageSizeOptions,
   PAGE_SIZE_OPTIONS,
@@ -603,15 +604,13 @@ export class DiscoverView extends ItemView {
     });
 
     // Return Home button - navigates to Dashboard
-    const dashboardBtn = navContainer.createDiv({
+    const dashboardBtn = createIconButton({
+      parent: navContainer,
       cls: "rss-dashboard-nav-button clickable-icon rss-discover-return-home",
-      attr: {
-        "aria-label": "Return to dashboard",
-        role: "button",
-        tabindex: "0",
-      },
+      label: "Return to dashboard",
+      icon: "arrow-left",
+      onClick: () => void this.plugin.activateView(),
     });
-    setIcon(dashboardBtn, "arrow-left");
 
     // Add "Return home" text span
     const _returnHomeText = dashboardBtn.createSpan({
@@ -619,17 +618,6 @@ export class DiscoverView extends ItemView {
       text: "Return home",
     });
     void _returnHomeText;
-
-    dashboardBtn.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        dashboardBtn.click();
-      }
-    });
-    dashboardBtn.addEventListener(
-      "click",
-      () => void this.plugin.activateView(),
-    );
   }
 
   private renderMobileHeader(container: HTMLElement): void {
@@ -1109,21 +1097,11 @@ export class DiscoverView extends ItemView {
     const mobileFiltersMenu = rightSection.createDiv({
       cls: "rss-discover-mobile-filters-menu",
     });
-    const mobileFiltersButton = mobileFiltersMenu.createDiv({
+    const mobileFiltersButton = createIconButton({
+      parent: mobileFiltersMenu,
       cls: "rss-discover-mobile-filters-button clickable-icon",
-      attr: {
-        "aria-label": "Toggle discover filters menu",
-        role: "button",
-        tabindex: "0",
-      },
-    });
-    setIcon(mobileFiltersButton, "menu");
-
-    mobileFiltersButton.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        mobileFiltersButton.click();
-      }
+      label: "Toggle discover filters menu",
+      icon: "menu",
     });
 
     const mobileFiltersDropdown = mobileFiltersMenu.createDiv({
@@ -1981,27 +1959,18 @@ export class DiscoverView extends ItemView {
       setIcon(searchFilter, "search");
       searchFilter.appendText(` "${this.filters.query}"`);
 
-      const removeBtn = searchFilter.createDiv({
+      createIconButton({
+        parent: searchFilter,
         cls: "rss-discover-selected-filter-remove",
-        attr: {
-          "aria-label": "Remove search filter",
-          role: "button",
-          tabindex: "0",
+        label: "Remove search filter",
+        icon: "x",
+        onClick: () => {
+          this.filters.query = "";
+          this.currentPage = 1;
+          this.filterFeeds();
+          this.saveFilterState();
+          void this.render();
         },
-      });
-      setIcon(removeBtn, "x");
-      removeBtn.addEventListener("click", () => {
-        this.filters.query = "";
-        this.currentPage = 1;
-        this.filterFeeds();
-        this.saveFilterState();
-        void this.render();
-      });
-      removeBtn.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          removeBtn.click();
-        }
       });
     }
 
@@ -2012,29 +1981,20 @@ export class DiscoverView extends ItemView {
       setIcon(typeFilter, "tag");
       typeFilter.appendText(` ${type}`);
 
-      const removeBtn = typeFilter.createDiv({
+      createIconButton({
+        parent: typeFilter,
         cls: "rss-discover-selected-filter-remove",
-        attr: {
-          "aria-label": `Remove type filter: ${type}`,
-          role: "button",
-          tabindex: "0",
+        label: `Remove type filter: ${type}`,
+        icon: "x",
+        onClick: () => {
+          this.filters.selectedTypes = this.filters.selectedTypes.filter(
+            (t) => t !== type,
+          );
+          this.currentPage = 1;
+          this.filterFeeds();
+          this.saveFilterState();
+          void this.render();
         },
-      });
-      setIcon(removeBtn, "x");
-      removeBtn.addEventListener("click", () => {
-        this.filters.selectedTypes = this.filters.selectedTypes.filter(
-          (t) => t !== type,
-        );
-        this.currentPage = 1;
-        this.filterFeeds();
-        this.saveFilterState();
-        void this.render();
-      });
-      removeBtn.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          removeBtn.click();
-        }
       });
     });
 
@@ -2048,35 +2008,26 @@ export class DiscoverView extends ItemView {
         .join(" > ");
       pathFilter.appendText(` ${pathText}`);
 
-      const removeBtn = pathFilter.createDiv({
+      createIconButton({
+        parent: pathFilter,
         cls: "rss-discover-selected-filter-remove",
-        attr: {
-          "aria-label": `Remove category filter: ${pathText}`,
-          role: "button",
-          tabindex: "0",
+        label: `Remove category filter: ${pathText}`,
+        icon: "x",
+        onClick: () => {
+          this.filters.selectedPaths = this.filters.selectedPaths.filter(
+            (p) =>
+              !(
+                p.domain === path.domain &&
+                p.subdomain === path.subdomain &&
+                p.area === path.area &&
+                p.topic === path.topic
+              ),
+          );
+          this.currentPage = 1;
+          this.filterFeeds();
+          this.saveFilterState();
+          void this.render();
         },
-      });
-      setIcon(removeBtn, "x");
-      removeBtn.addEventListener("click", () => {
-        this.filters.selectedPaths = this.filters.selectedPaths.filter(
-          (p) =>
-            !(
-              p.domain === path.domain &&
-              p.subdomain === path.subdomain &&
-              p.area === path.area &&
-              p.topic === path.topic
-            ),
-        );
-        this.currentPage = 1;
-        this.filterFeeds();
-        this.saveFilterState();
-        void this.render();
-      });
-      removeBtn.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          removeBtn.click();
-        }
       });
     });
 
@@ -2088,29 +2039,20 @@ export class DiscoverView extends ItemView {
       tagFilter.appendText(` ${tag}`);
       tagFilter.style.setProperty("--tag-color", this.getTagColor(tag));
 
-      const removeBtn = tagFilter.createDiv({
+      createIconButton({
+        parent: tagFilter,
         cls: "rss-discover-selected-filter-remove",
-        attr: {
-          "aria-label": `Remove tag filter: ${tag}`,
-          role: "button",
-          tabindex: "0",
+        label: `Remove tag filter: ${tag}`,
+        icon: "x",
+        onClick: () => {
+          this.filters.selectedTags = this.filters.selectedTags.filter(
+            (t) => t !== tag,
+          );
+          this.currentPage = 1;
+          this.filterFeeds();
+          this.saveFilterState();
+          void this.render();
         },
-      });
-      setIcon(removeBtn, "x");
-      removeBtn.addEventListener("click", () => {
-        this.filters.selectedTags = this.filters.selectedTags.filter(
-          (t) => t !== tag,
-        );
-        this.currentPage = 1;
-        this.filterFeeds();
-        this.saveFilterState();
-        void this.render();
-      });
-      removeBtn.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          removeBtn.click();
-        }
       });
     });
   }
