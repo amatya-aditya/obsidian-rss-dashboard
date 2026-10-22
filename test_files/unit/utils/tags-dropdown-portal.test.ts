@@ -115,69 +115,107 @@ describe("createTagsDropdownPortal tag editing", () => {
     close();
   });
 
-  it.each(["Enter", " "])(
-    "opens the tag editor when %j is pressed on the Edit button",
-    (key) => {
+  describe("icon controls", () => {
+    const openPortal = (tags = [{ name: "News", color: "#ff0000" }]) => {
       const { anchor } = createModalWithAnchor();
       const settings = JSON.parse(
         JSON.stringify(DEFAULT_SETTINGS),
       ) as typeof DEFAULT_SETTINGS;
-      settings.availableTags = [{ name: "News", color: "#ff0000" }];
+      settings.availableTags = tags;
       const close = createTagsDropdownPortal({
         app: new App(),
         anchor,
         settings,
         item: makeItem(),
         onTagAssignmentChange: vi.fn(),
+        onOpenTagsSettings: vi.fn(),
       });
+      return { settings, close };
+    };
 
-      const keydown = new KeyboardEvent("keydown", {
-        key,
+    it.each([
+      [".rss-dashboard-tag-edit-button", "Edit tag"],
+      [".rss-dashboard-tag-delete-button", "Delete tag"],
+      [
+        ".rss-dashboard-tag-inline-button:not(.rss-dashboard-tag-inline-settings)",
+        "Add tag",
+      ],
+      [".rss-dashboard-tag-inline-settings", "Open tag settings"],
+    ])("renders %s as a native, named button", (selector, name) => {
+      const { close } = openPortal();
+      const control = document.querySelector<HTMLElement>(selector)!;
+
+      expect(control.tagName).toBe("BUTTON");
+      expect(control.getAttribute("type")).toBe("button");
+      expect(control.getAttribute("aria-label")).toBe(name);
+      expect(control.hasAttribute("role")).toBe(false);
+      expect(control.hasAttribute("tabindex")).toBe(false);
+      close();
+    });
+
+    it("keeps the manage-tags group container as a group", () => {
+      const { close } = openPortal();
+      const group = document.querySelector(
+        ".rss-dashboard-tags-dropdown-content-portal",
+      )!;
+      expect(group.getAttribute("role")).toBe("group");
+      close();
+    });
+
+    it("opens the tag editor when the Edit button is clicked", () => {
+      const { close } = openPortal();
+      const click = new MouseEvent("click", {
         bubbles: true,
         cancelable: true,
       });
       document
         .querySelector<HTMLElement>(".rss-dashboard-tag-edit-button")!
-        .dispatchEvent(keydown);
+        .dispatchEvent(click);
 
       expect(
         document.querySelector(".rss-dashboard-tag-modal-color-picker"),
       ).not.toBeNull();
-      expect(keydown.defaultPrevented).toBe(true);
+      expect(click.defaultPrevented).toBe(true);
       close();
-    },
-  );
+    });
 
-  it.each(["Enter", " "])(
-    "deletes the tag when %j is pressed on the Delete button",
-    (key) => {
-      const { anchor } = createModalWithAnchor();
-      const settings = JSON.parse(
-        JSON.stringify(DEFAULT_SETTINGS),
-      ) as typeof DEFAULT_SETTINGS;
-      settings.availableTags = [{ name: "News", color: "#ff0000" }];
-      const close = createTagsDropdownPortal({
-        app: new App(),
-        anchor,
-        settings,
-        item: makeItem(),
-        onTagAssignmentChange: vi.fn(),
-      });
-
+    it("deletes the tag when the Delete button is clicked", () => {
+      const { settings, close } = openPortal();
       document
         .querySelector<HTMLElement>(".rss-dashboard-tag-delete-button")!
-        .dispatchEvent(
-          new KeyboardEvent("keydown", {
-            key,
-            bubbles: true,
-            cancelable: true,
-          }),
-        );
+        .click();
 
       expect(settings.availableTags).toHaveLength(0);
       close();
-    },
-  );
+    });
+
+    it("adds the typed tag when the Add button is clicked", () => {
+      const { settings, close } = openPortal([]);
+      document.querySelector<HTMLInputElement>(
+        ".rss-dashboard-tag-inline-input",
+      )!.value = "Later";
+      document
+        .querySelector<HTMLElement>(
+          ".rss-dashboard-tag-inline-button:not(.rss-dashboard-tag-inline-settings)",
+        )!
+        .click();
+
+      expect(settings.availableTags.map((t) => t.name)).toEqual(["Later"]);
+      close();
+    });
+
+    it("opens tag settings and closes the menu when the settings button is clicked", () => {
+      const { close } = openPortal();
+      document
+        .querySelector<HTMLElement>(".rss-dashboard-tag-inline-settings")!
+        .click();
+
+      expect(
+        document.querySelector(".rss-dashboard-tags-dropdown-content-portal"),
+      ).toBeNull();
+      close();
+    });
+  });
 
   it("reports the previous and updated tag after an edit is saved", async () => {
     const { anchor } = createModalWithAnchor();
