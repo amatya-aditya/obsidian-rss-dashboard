@@ -48,6 +48,10 @@ type FixtureOptions = {
   articleCount?: number;
   read?: boolean;
   starred?: boolean;
+  /** Tags every article and filters the dashboard to this tag. */
+  tagFilter?: string;
+  /** Adds a second feed of two articles and collapses the named section. */
+  collapsedSection?: "Feed" | "Feed Two";
 };
 
 async function fixture(options: FixtureOptions = {}) {
@@ -57,7 +61,7 @@ async function fixture(options: FixtureOptions = {}) {
   settings.articleFilter = { type: "none", value: null };
   settings.dashboardMultiFilters = {
     statusFilters: [],
-    tagFilters: [],
+    tagFilters: options.tagFilter ? [options.tagFilter] : [],
     logic: "OR",
   };
   settings.allArticlesPageSize = 0;
@@ -78,7 +82,9 @@ async function fixture(options: FixtureOptions = {}) {
       pubDate: `2026-10-${String(index + 1).padStart(2, "0")}T12:00:00Z`,
       read: options.read ?? false,
       starred: options.starred ?? false,
-      tags: [],
+      tags: options.tagFilter
+        ? [{ name: options.tagFilter, color: "#123456" }]
+        : [],
       feedUrl: url,
       feedTitle: "Feed",
       coverImage: "",
@@ -87,6 +93,30 @@ async function fixture(options: FixtureOptions = {}) {
   settings.feeds = [
     { title: "Feed", url, folder: "", items, lastUpdated: 0 } as Feed,
   ];
+  if (options.collapsedSection) {
+    const otherUrl = "https://example.com/other";
+    const otherItems: FeedItem[] = ["b1", "b2"].map((guid, index) => ({
+      guid,
+      title: `Other ${guid}`,
+      link: `${otherUrl}/${guid}`,
+      description: "",
+      pubDate: `2026-09-${String(index + 1).padStart(2, "0")}T12:00:00Z`,
+      read: false,
+      starred: false,
+      tags: [],
+      feedUrl: otherUrl,
+      feedTitle: "Feed Two",
+      coverImage: "",
+    }));
+    settings.feeds.push({
+      title: "Feed Two",
+      url: otherUrl,
+      folder: "",
+      items: otherItems,
+      lastUpdated: 0,
+    } as Feed);
+    settings.collapsedFeedSections = [options.collapsedSection];
+  }
 
   const plugin = {
     settings,
@@ -124,7 +154,9 @@ async function fixture(options: FixtureOptions = {}) {
     return el;
   };
   const select = (guid: string) => {
-    const item = items.find((candidate) => candidate.guid === guid);
+    const item = settings.feeds
+      .flatMap((feed) => feed.items)
+      .find((candidate) => candidate.guid === guid);
     if (!item) throw new Error(`No item ${guid}`);
     view.setSelectedArticleFromExternal(item);
   };
@@ -241,6 +273,44 @@ describe("selection after removal, other filters and paths", () => {
 
     expect(f.selectedGuid()).toBe("a1");
   });
+
+  it("applies under a tag filter when a tag edit drops the card", async () => {
+    const f = await fixture({ tagFilter: "Review" });
+    f.select("a2");
+
+    f.view.applyExternalArticleUpdate("a2", f.url, { tags: [] });
+
+    expect(f.row("a2")).toBeNull();
+    expect(f.selectedGuid()).toBe("a1");
+    expect(f.opened).toEqual([]);
+  });
+
+  it.each(["Feed", "Feed Two"] as const)(
+    "skips cards in the collapsed %s section",
+    async (collapsedSection) => {
+      const f = await fixture({
+        viewStyle: "feed",
+        groupBy: "feed",
+        collapsedSection,
+      });
+      const visible = Array.from(
+        f.view.containerEl.querySelectorAll<HTMLElement>(
+          ".rss-dashboard-feed-item",
+        ),
+      ).filter(
+        (row) => !row.closest(".rss-dashboard-feed-section-cards.collapsed"),
+      );
+      const guidOf = (row: HTMLElement | undefined) =>
+        row?.id.replace(/^article-/, "") ?? "";
+      expect(visible.length).toBeGreaterThan(1);
+      f.select(guidOf(visible[visible.length - 1]));
+
+      await f.view.actionToggleReadStatus();
+
+      // The collapsed section's cards are not on screen, so they never win.
+      expect(f.selectedGuid()).toBe(guidOf(visible[visible.length - 2]));
+    },
+  );
 
   it("follows an update that arrives from the Reader", async () => {
     const f = await fixture();

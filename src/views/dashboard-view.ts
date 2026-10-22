@@ -351,12 +351,23 @@ export class RssDashboardView extends ItemView {
     this.actionFocusDashboard();
   }
 
-  /** Whether `article` is the dashboard's current selection. */
-  public isSelectedArticle(article: FeedItem): boolean {
+  /**
+   * Whether `article` is the dashboard's current selection. `feedUrl` names the
+   * backing feed when the selection carries that URL instead of the article's.
+   */
+  public isSelectedArticle(article: FeedItem, feedUrl?: string): boolean {
     return (
       this.selectedArticle?.guid === article.guid &&
-      this.selectedArticle.feedUrl === article.feedUrl
+      (this.selectedArticle.feedUrl === article.feedUrl ||
+        (feedUrl !== undefined && this.selectedArticle.feedUrl === feedUrl))
     );
+  }
+
+  /** Reads and clears what the last removal did to the selection. */
+  private takeSelectionAdvance(): { next: FeedItem | null } | null {
+    const advance = this.selectionAdvancedByRemoval;
+    this.selectionAdvancedByRemoval = null;
+    return advance;
   }
 
   /** Puts keyboard focus on the dashboard itself, where its keymap is live. */
@@ -658,10 +669,7 @@ export class RssDashboardView extends ItemView {
     }
     // A filter that dropped the card already moved the selection; open that
     // neighbour rather than advancing past it (#1468).
-    const advanced = this.selectionAdvancedByRemoval as {
-      next: FeedItem | null;
-    } | null;
-    this.selectionAdvancedByRemoval = null;
+    const advanced = this.takeSelectionAdvance();
     if (advanced) {
       if (advanced.next) {
         await this.selectArticle(advanced.next, { open: true });
@@ -3494,10 +3502,7 @@ export class RssDashboardView extends ItemView {
       // Scope pools use the backing feed URL; keep the existing display
       // identity for status/keyword removals within the current feed.
       const removalFeedUrl = feedInScope ? article.feedUrl : feed.url;
-      const removedSelection =
-        this.selectedArticle?.guid === article.guid &&
-        (this.selectedArticle.feedUrl === article.feedUrl ||
-          this.selectedArticle.feedUrl === feed.url);
+      const removedSelection = this.isSelectedArticle(article, feed.url);
       // The neighbour comes from the order on screen, so it must be read
       // before the row leaves the list (#1468).
       const neighbour = removedSelection
