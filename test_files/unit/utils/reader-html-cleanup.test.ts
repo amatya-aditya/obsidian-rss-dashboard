@@ -198,3 +198,32 @@ describe("cleanFetchedArticleHtml and the image-expand control", () => {
     expect(html).not.toContain('role="button"');
   });
 });
+
+describe("cleanFetchedArticleHtml short lead-in blocks (#1500)", () => {
+  const DESCRIPTION = "A one line summary of the page";
+  const BODY =
+    "The first substantial paragraph of the fixture runs well past one " +
+    "hundred and twenty characters so it marks where the body starts.";
+
+  it("drops a short block that precedes the repeated description", () => {
+    const html = cleanFetchedArticleHtml(
+      `<p>Short lead-in</p><p>${DESCRIPTION}</p><p>${BODY}</p>`,
+      { feedDescriptionHtml: `<p>${DESCRIPTION}</p>` },
+    );
+
+    expect(html).not.toContain("Short lead-in");
+    expect(html).not.toContain(DESCRIPTION);
+    expect(html).toContain(BODY);
+  });
+
+  it("keeps a short block an extractor marked as content", () => {
+    const html = cleanFetchedArticleHtml(
+      `<p data-rss-keep-lead>Open - opened by @a</p><p>${DESCRIPTION}</p><p>${BODY}</p>`,
+      { feedDescriptionHtml: `<p>${DESCRIPTION}</p>` },
+    );
+
+    expect(html).toContain("Open - opened by @a");
+    expect(html).not.toContain(DESCRIPTION);
+    expect(html).toContain(BODY);
+  });
+});

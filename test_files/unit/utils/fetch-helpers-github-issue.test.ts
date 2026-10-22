@@ -84,4 +84,23 @@ describe("fetched GitHub issue pages (#1394)", () => {
     expect(issue.pageImage).toBe(other.pageImage);
     expect(issue.pageImage).toBeDefined();
   });
+
+  it("sends the same requests and headers as for a non-GitHub page (#1500)", async () => {
+    const proxy = "https://proxy.example/?url=";
+    const calls = async (url: string) => {
+      detailedMock.mockClear();
+      await fetchWithProxyFallbackDetailed(url, proxy, 30);
+      return detailedMock.mock.calls.map(([target, options]) => ({
+        target: String(target).replace(url, "<page>"),
+        headers: (options as { headers?: Record<string, string> } | undefined)
+          ?.headers,
+      }));
+    };
+
+    const issue = await calls(ISSUE_URL);
+    const other = await calls("https://example.com/a/issues/82345");
+
+    expect(issue).toHaveLength(1);
+    expect(issue).toEqual(other);
+  });
 });
