@@ -42,6 +42,9 @@ export const EMPTY_DESCRIPTION_LINK = `${FIXTURE_SERVER_ORIGIN}/${EMPTY_DESCRIPT
 // seeded article links here and sets the hero below.
 export const CREDIT_CAPTION_PAGE = "credit-caption-page.html";
 export const CREDIT_CAPTION_LINK = `${FIXTURE_SERVER_ORIGIN}/${CREDIT_CAPTION_PAGE}`;
+export const DOUBLE_ENCODED_DESCRIPTION_PAGE =
+  "double-encoded-description.html";
+export const DOUBLE_ENCODED_DESCRIPTION_LINK = `${FIXTURE_SERVER_ORIGIN}/${DOUBLE_ENCODED_DESCRIPTION_PAGE}`;
 export const CREDIT_CAPTION_HERO_FILE = "credit-caption-hero.png";
 export const CREDIT_CAPTION_HERO_URL = `${FIXTURE_SERVER_ORIGIN}/${CREDIT_CAPTION_HERO_FILE}`;
 // The #812 page-image scenarios. Both committed pages declare an og:image that
@@ -443,6 +446,18 @@ function rssTechItems() {
         "<p>RSS teaser for the fixture article with a duplicate lead photo credit.</p>",
       summary:
         "RSS teaser for the fixture article with a duplicate lead photo credit.",
+    }),
+    item(feed, {
+      // #1505: the page's twitter:description is encoded twice, so the
+      // Reader's Description box must show "We're", not "We&#39;re". Its
+      // meta and og descriptions repeat the body's opening, so only the
+      // twitter one is accepted. Open with `npm run fixture:serve` running so
+      // the Reader can fetch the page; the feed publishes no text of its own.
+      title: "Article with a double-encoded page description",
+      link: DOUBLE_ENCODED_DESCRIPTION_LINK,
+      guid: `${LINK_BASE}/rss-tech/double-encoded-description`,
+      pubDate: at(4.5),
+      author: "Fixture Author",
     }),
     item(feed, {
       title: "Read article without a preview image",

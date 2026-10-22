@@ -699,11 +699,15 @@ export class SettingsStore {
     return this.unseenChangeRefresh;
   }
 
-  /** Whether `user-state.json` holds a change this device has not loaded. */
-  private hasUnseenUserStateChange(): Promise<boolean> {
+  private userStatePath(): string {
     const folder =
       this.settings.metadataStorageFolder?.trim() || ".rss-dashboard-data";
-    const path = normalizePath(`${folder}/user-state.json`);
+    return normalizePath(`${folder}/user-state.json`);
+  }
+
+  /** Whether `user-state.json` holds a change this device has not loaded. */
+  private hasUnseenUserStateChange(): Promise<boolean> {
+    const path = this.userStatePath();
     return this.ownWrites.hasUnseenChange(path, (file) =>
       this.readWatchedFile(file),
     );
@@ -716,8 +720,10 @@ export class SettingsStore {
    * it first and the save then writes on top. Journal replay carries this
    * device's pending toggles across the refresh, and the settings object is
    * kept, so a settings edit awaiting this save survives. The comparison is
-   * the only cost when nothing changed. A save that finds a refresh already
-   * running waits for it. The queued flush waits for a reload already running
+   * the only cost when nothing changed. The refresh loads only that file, so
+   * it forgets only that file's pending reload; a shard or settings change
+   * queued in the same window keeps its reload (#1509). A save that finds a
+   * refresh already running waits for it. The queued flush waits for a reload already running
    * (see `flushPendingWrites`); a direct save during one stays suppressed.
    */
   private async loadUnseenChangesBeforeSave(): Promise<void> {
@@ -737,12 +743,15 @@ export class SettingsStore {
     }
     if (this.loadDepth > 0 || this.loadGate) return;
     storageLog("Refreshing article state from a synced change before saving");
-    if (this.vaultMetadataReloadTimer !== null) {
+    this.touchedWatchedPaths.delete(this.userStatePath());
+    if (
+      this.touchedWatchedPaths.size === 0 &&
+      !this.externalChangeConfirmed &&
+      this.vaultMetadataReloadTimer !== null
+    ) {
       window.clearTimeout(this.vaultMetadataReloadTimer);
       this.vaultMetadataReloadTimer = null;
     }
-    this.touchedWatchedPaths.clear();
-    this.externalChangeConfirmed = false;
     const refresh = this.feedStorageRepository.refreshArticleState(
       this.settings,
     );
@@ -1010,6 +1019,7 @@ export class SettingsStore {
         },
         async () => await this.options.loadData(),
         "data.json",
+        null,
       );
     }
     // Record what this save writes before it lands, so the external callback
@@ -1040,11 +1050,16 @@ export class SettingsStore {
    * a difference is an unseen change, merged per top-level group: disk's value
    * where this device left the group alone, memory's where both changed (the
    * conflict is logged by group name). The groups taken from disk are copied
-   * into the live settings so memory and disk agree, and the pending reload is
-   * dropped, since this save has now loaded what it announced. A full load
-   * would replace unsaved settings, so none runs. Fails open: a missing or
-   * unreadable file writes memory as before. Shard v2 only, and never during a
-   * load.
+   * into the live settings so memory and disk agree, and that file's pending
+   * reload is dropped, since this save has now loaded what it announced. A
+   * pending reload for a synced shard stays, so the adopted feed still reads
+   * its articles from it (#1501). A full load would replace unsaved settings,
+   * so none runs. Fails open: a missing or unreadable file writes memory as
+   * before. Shard v2 only, and never during a load.
+   *
+   * `loadedSettingsPath` names the file this save read, when it is a vault
+   * path. Plugin-default metadata mode saves through `saveData()`, which has
+   * no vault path of its own, and passes null.
    */
   private async mergeUnseenSettingsChanges(
     data: Record<string, unknown>,
@@ -1054,6 +1069,7 @@ export class SettingsStore {
     },
     readDisk: () => Promise<unknown>,
     where: string,
+    loadedSettingsPath: string | null,
   ): Promise<Record<string, unknown>> {
     if (this.settings.storageMode !== "vault-shards-v2") return data;
     if (this.loadDepth > 0 || this.loadGate) return data;
@@ -1122,7 +1138,7 @@ export class SettingsStore {
         where,
         groups: applied,
       });
-      this.dropPendingSettingsReload();
+      this.dropPendingSettingsReload(loadedSettingsPath);
       void this.options.refreshDashboardViews();
       return merged;
     } catch (error) {
@@ -1135,13 +1151,19 @@ export class SettingsStore {
   }
 
   /**
-   * Forgets the reload a settings change announced, now that a save has loaded
-   * it. A pending `user-state.json` change keeps its reload.
+   * Forgets the reload the settings file this save loaded announced, now that
+   * the save has that content in memory. Pending shard paths keep their reload
+   * (#1501), because the save adopted their feed entries without their
+   * articles, and a pending `user-state.json` change keeps its reload too. The
+   * timer stops only when nothing is left to read.
    */
-  private dropPendingSettingsReload(): void {
-    for (const path of this.touchedWatchedPaths) {
-      if (!path.endsWith("/user-state.json")) {
-        this.touchedWatchedPaths.delete(path);
+  private dropPendingSettingsReload(loadedSettingsPath: string | null): void {
+    if (loadedSettingsPath !== null) {
+      const loaded = normalizePath(loadedSettingsPath);
+      for (const path of this.touchedWatchedPaths) {
+        if (normalizePath(path) === loaded) {
+          this.touchedWatchedPaths.delete(path);
+        }
       }
     }
     this.externalChangeConfirmed = false;
@@ -1216,6 +1238,7 @@ export class SettingsStore {
                 JSON.parse(
                   await this.app.vault.adapter.read(dataFilePath),
                 ) as unknown,
+              dataFilePath,
               dataFilePath,
             )) as unknown as RssDashboardSettings;
           }
