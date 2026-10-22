@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import type RssDashboardPlugin from "../../../main";
+import { SETTINGS_TAB_NAMES } from "../../../src/settings/tab-names";
 
 vi.mock("../../../src/settings/tabs/general-settings-tab", () => ({
   renderGeneralSettingsTab: vi.fn(),
@@ -67,6 +68,59 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     expect(vi.mocked(general.renderGeneralSettingsTab)).toHaveBeenCalledTimes(
       1,
     );
+  });
+
+  it("exposes the tab strip as a tablist and marks only the current tab as selected", async () => {
+    const { RssDashboardSettingTab } =
+      await import("../../../src/settings/settings-tab");
+
+    const app = obsidian.App.createMock();
+    const plugin = { app } as unknown as RssDashboardPlugin;
+    const tab = new RssDashboardSettingTab(app, plugin);
+    tab.containerEl = document.body.appendChild(createDiv());
+
+    const tabButtons = () =>
+      Array.from(tab.containerEl.querySelectorAll('[role="tab"]'));
+    const selectedLabels = () =>
+      tabButtons()
+        .filter((btn) => btn.getAttribute("aria-selected") === "true")
+        .map((btn) => btn.textContent);
+    const activeLabels = () =>
+      tabButtons()
+        .filter((btn) => btn.classList.contains("active"))
+        .map((btn) => btn.textContent);
+
+    tab.refresh();
+
+    const bar = tab.containerEl.querySelector(
+      ".rss-dashboard-settings-tab-bar",
+    );
+    expect(bar?.getAttribute("role")).toBe("tablist");
+
+    // Every tab button is a tab, and the rest report aria-selected="false"
+    expect(tabButtons().map((btn) => btn.textContent)).toEqual([
+      ...SETTINGS_TAB_NAMES,
+    ]);
+    expect(
+      tab.containerEl.querySelectorAll(
+        '.rss-dashboard-settings-tab-btn[aria-selected="false"]',
+      ),
+    ).toHaveLength(SETTINGS_TAB_NAMES.length - 1);
+    expect(selectedLabels()).toEqual(["General"]);
+    expect(activeLabels()).toEqual(["General"]);
+
+    // Selecting another tab re-renders the strip with the new tab selected
+    (
+      Array.from(tab.containerEl.querySelectorAll("button")).find(
+        (btn) => btn.textContent === "About",
+      ) as HTMLButtonElement
+    ).click();
+    expect(selectedLabels()).toEqual(["About"]);
+    expect(activeLabels()).toEqual(["About"]);
+
+    tab.activateTab("Rules");
+    expect(selectedLabels()).toEqual(["Rules"]);
+    expect(activeLabels()).toEqual(["Rules"]);
   });
 
   it("switches tabs on button click and via activateTab()", async () => {

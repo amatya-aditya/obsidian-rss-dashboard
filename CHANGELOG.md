@@ -67,6 +67,7 @@
 
 ### Fixes
 
+- The plugin's settings tab strip (General, Storage, Display, and the rest) is now exposed to screen readers as a tab list, and the current tab is announced as selected. [GH Issue #1481](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1481)
 - On a phone, the navigation drawer and the Discover filters drawer no longer show Obsidian's X button, which sat over the iOS status bar and crowded the header. Tap the dimmed area beside a drawer to close it; the navigation drawer also closes when you open a feed, and Discover keeps its **Home** button. [GH Issue #679](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/679)
 - The article search box now keeps its query and its filtered rows when the dashboard redraws — moving to another page, changing a filter, refreshing, or switching between list, card and feed view — instead of quietly clearing itself. Opening a different feed or folder still starts a fresh search. [GH Issue #1465](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1465)
 - The podcast player's **Episode details** and **Show notes** box now inherits the same theme-aware surface, border and hover colours as the Reader's description callout in the default player theme, instead of the button-style greys it used for its header. Light, dark and community themes colour the box like the rest of the Reader; the other player themes keep their own palettes.
