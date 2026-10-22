@@ -69,6 +69,7 @@
 
 ### Fixes
 
+- The Reader's **Description** box no longer shows a raw `&#39;` (or another HTML entity) when a page's `twitter:description` is encoded twice: the page's meta, `og:description` and `twitter:description` text now has any leftover entity decoded before it is checked and shown. The feed's own description is left as it is. [GH Issue #1505](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1505)
 - Choosing a tab in the plugin's settings now leaves keyboard focus on that tab's button, instead of dropping it, so Enter or Space on a tab no longer sends focus back to the top of the page. [GH Issue #1484](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1484)
 - The plugin's settings tab strip (General, Storage, Display, and the rest) is now exposed to screen readers as a tab list, and the current tab is announced as selected. [GH Issue #1481](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1481)
 - The tag menu opened with `t` now keeps keyboard focus: focus moves to the first tag's checkbox (or the menu itself when there are no tags), Tab and Shift+Tab cycle inside the menu, Space toggles the focused tag, and Escape closes it and returns focus to the card's or the Reader's tag button. The dashboard and the Reader no longer pull focus back to their own view while the menu is in use, so it stays operable. Enter or Space on the card's tag button still opens the same menu, and Escape still returns focus to that button. [GH Issue #1480](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1480)
