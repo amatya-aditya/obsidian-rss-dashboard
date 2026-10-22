@@ -215,6 +215,13 @@ describe("DashboardView Hotkeys", () => {
     triggerKey("r");
     expect(refreshSpy).toHaveBeenCalled();
 
+    // Test '`' (select the first article of the scope)
+    const selectFirstSpy = vi
+      .spyOn(view, "actionSelectFirst")
+      .mockImplementation(() => true);
+    triggerKey("`");
+    expect(selectFirstSpy).toHaveBeenCalledTimes(1);
+
     // Test Space (next, select only) and Shift+Space (previous, select only)
     triggerKey(" ");
     expect(nextSpy).toHaveBeenCalledWith();

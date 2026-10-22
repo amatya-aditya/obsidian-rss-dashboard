@@ -33,6 +33,7 @@ vi.mock("../../../src/components/article-list", () => ({
     refilter(..._args: unknown[]): void {}
     setSelectedArticle(..._args: unknown[]): void {}
     setEmptyStateContext(..._args: unknown[]): void {}
+    setSearchQuery(..._args: unknown[]): void {}
     updateRefreshButtonText(..._args: unknown[]): void {}
     hasArticle(..._args: unknown[]): boolean {
       return false;

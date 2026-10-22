@@ -51,6 +51,7 @@ export const SHORTCUT_SECTIONS: ShortcutSection[] = [
         key: "Space / Shift + Space",
         desc: "Select next / previous article without opening",
       },
+      { key: "`", desc: "Select first article" },
       { key: "k", desc: "Close reader pane" },
       { key: "j", desc: "Open previous article" },
       { key: "l", desc: "Open next article" },

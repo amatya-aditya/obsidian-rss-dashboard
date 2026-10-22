@@ -68,6 +68,7 @@ export const DASHBOARD_ACTIONS: Readonly<Record<string, DashboardAction>> = {
   "select-previous": (view) => {
     view.actionNavigatePrevious();
   },
+  "select-first": (view) => view.actionSelectFirst(),
   "close-reader": (view) => {
     view.actionCloseReader();
   },

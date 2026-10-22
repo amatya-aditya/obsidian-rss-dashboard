@@ -23,6 +23,7 @@ vi.mock("../../../src/components/article-list", () => ({
     refilter(): void {}
     setSelectedArticle(): void {}
     setEmptyStateContext(): void {}
+    setSearchQuery(): void {}
   },
 }));
 

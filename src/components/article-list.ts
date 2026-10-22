@@ -21,6 +21,7 @@ import { HighlightService } from "../services/highlight-service";
 import { getEffectiveDateMs } from "../services/feed-parser/feed-retention";
 import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
 import { resolveFocusAfterRemoval } from "../utils/article-list-focus";
+import { articleTitleMatchesSearch } from "../utils/article-search";
 import {
   groupArticles as groupArticlesUtil,
   getFeedFolder as getFeedFolderUtil,
@@ -260,6 +261,17 @@ export class ArticleList {
   /** Focuses the article search; resolves false when none could be focused. */
   public focusSearch(): Promise<boolean> {
     return this.header?.focusSearch() ?? Promise.resolve(false);
+  }
+
+  /**
+   * Restores the article search a rebuilt list has to keep. The dashboard
+   * creates a new list on every render, so a page, filter or refresh change
+   * would otherwise drop the query with the old list (#1465).
+   */
+  public setSearchQuery(query: string): void {
+    this.articleSearchQuery = query.trim().toLowerCase();
+    this.header?.setSearchQuery(query);
+    this.filterArticlesBySearch(this.articleSearchQuery);
   }
 
   public destroy(): void {
@@ -1252,14 +1264,14 @@ export class ArticleList {
     articleElements.forEach((el) => {
       const titleEl = el.querySelector(".rss-dashboard-article-title");
       const title =
-        (titleEl as HTMLElement | null)?.dataset.articleTitle?.toLowerCase() ||
-        titleEl?.textContent?.toLowerCase() ||
+        (titleEl as HTMLElement | null)?.dataset.articleTitle ??
+        titleEl?.textContent ??
         "";
 
-      if (query && !title.includes(query)) {
-        (el as HTMLElement).classList.add("rss-dashboard-search-hidden");
-      } else {
+      if (articleTitleMatchesSearch(title, query)) {
         (el as HTMLElement).classList.remove("rss-dashboard-search-hidden");
+      } else {
+        (el as HTMLElement).classList.add("rss-dashboard-search-hidden");
       }
     });
   }
