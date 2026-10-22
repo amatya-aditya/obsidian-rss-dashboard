@@ -565,6 +565,10 @@ export class SettingsStore {
       if (!vaultMetadataUnreadable)
         this.hasNotifiedVaultMetadataFailure = false;
       this.settingsLoadFailed = vaultMetadataUnreadable;
+      // The gate is open again, so the load can drop the journal records the
+      // snapshot it read at the start already covers. Hydration could not do it
+      // itself: it runs while the write gate is still closed (#1520).
+      await this.feedStorageRepository.completeUserStateLoad();
       this.seedAncestor(wasNullLoad, isInitialLoad);
       releaseLoadGate();
       const shouldSave = this.shouldSaveAfterLoad({
@@ -607,6 +611,9 @@ export class SettingsStore {
         this.options.bindSettingsBackedServices();
       }
       this.settingsLoadFailed = true;
+      // Drop the checkpoint the failed load may have remembered without
+      // truncating anything: its gate is closed (#1520).
+      await this.feedStorageRepository.completeUserStateLoad();
     } finally {
       this.loadDepth -= 1;
       releaseLoadGate();

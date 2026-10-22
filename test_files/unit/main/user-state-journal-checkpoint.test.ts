@@ -5,8 +5,9 @@
  * change is queued. A coalesced checkpoint folds those records into the shared
  * `user-state.json` snapshot, advances the per-device checkpoint, and keeps the
  * journal until a later load or checkpoint reads that checkpoint back from
- * disk. These tests drive the settings-store load/save surface through the
- * plugin facade and assert what is on disk and what survives a reload.
+ * disk. A load trims the covered records once hydration has reopened its write
+ * gate (#1520). These tests drive the settings-store load/save surface through
+ * the plugin facade and assert what is on disk and what survives a reload.
  */
 import {
   afterEach,
@@ -166,6 +167,7 @@ afterEach(() => {
 
 async function startPlugin(
   overrides: Partial<RssDashboardSettings> = {},
+  options: { suppressLoadSave?: boolean } = {},
 ): Promise<{
   plugin: RssDashboardPlugin;
   saveData: Mock<(data: unknown) => Promise<void>>;
@@ -179,8 +181,30 @@ async function startPlugin(
   const saveData = vi.fn<(data: unknown) => Promise<void>>();
   saveData.mockResolvedValue(undefined);
   plugin.saveData = saveData;
-  await plugin.loadSettings();
+  const loadSave = options.suppressLoadSave
+    ? vi.spyOn(plugin, "saveSettings").mockResolvedValue(undefined)
+    : null;
+  try {
+    await plugin.loadSettings();
+  } finally {
+    loadSave?.mockRestore();
+  }
   return { plugin, saveData };
+}
+
+/**
+ * Runs a load that needs no save, the behavior #1519 gives a clean vault, so
+ * the journal must be trimmed by the load itself rather than by a later save.
+ */
+async function loadSettingsWithoutSave(
+  plugin: RssDashboardPlugin,
+): Promise<void> {
+  const save = vi.spyOn(plugin, "saveSettings").mockResolvedValue(undefined);
+  try {
+    await plugin.loadSettings();
+  } finally {
+    save.mockRestore();
+  }
 }
 
 function readOf(plugin: RssDashboardPlugin, guid = GUID): boolean | undefined {
@@ -297,7 +321,7 @@ describe("journal checkpoints (#1387)", () => {
     expect(snapshot(app).states["feed-1:guid-1"]?.read).toBe(true);
   });
 
-  it("drops records at the first save after a later load reads the checkpoint back from disk", async () => {
+  it("drops records once a later load reads the checkpoint back from disk", async () => {
     const { plugin } = await startPlugin();
     plugin.settings.feeds[0].items[0].read = true;
     await plugin.queueArticleStateSave([
@@ -306,12 +330,9 @@ describe("journal checkpoints (#1387)", () => {
     await plugin.flushPendingWrites();
     expect(journalRecords(app)).toHaveLength(1);
 
-    await plugin.loadSettings();
-    // A load that finds nothing to repair does not save (#1519), and the write
-    // gate is closed while it runs, so the records go at the next save.
-    expect(readOf(plugin)).toBe(true);
-    await plugin.saveSettings();
+    await loadSettingsWithoutSave(plugin);
 
+    expect(readOf(plugin)).toBe(true);
     expect(journalRecords(app)).toEqual([]);
   });
 
@@ -402,7 +423,7 @@ describe("journal checkpoints (#1387)", () => {
         },
       }),
     );
-    const { plugin } = await startPlugin();
+    const { plugin } = await startPlugin({}, { suppressLoadSave: true });
 
     // This device checkpoints its own change.
     plugin.settings.feeds[0].items[0].read = true;
@@ -417,13 +438,56 @@ describe("journal checkpoints (#1387)", () => {
     // The record stays until a load reads this device's checkpoint back.
     expect(journalRecords(app)).toHaveLength(1);
 
-    await plugin.loadSettings();
-    // The first save after that load truncates (a load that finds nothing to
-    // repair does not save, #1519), through this device's entry only.
-    await plugin.saveSettings();
+    await loadSettingsWithoutSave(plugin);
 
     expect(journalRecords(app)).toEqual([]);
     expect(readOf(plugin)).toBe(true);
+  });
+
+  it("keeps a record journaled after the load read the journal", async () => {
+    const { plugin } = await startPlugin();
+    plugin.settings.feeds[0].items[0].read = true;
+    await plugin.queueArticleStateSave([
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
+    ]);
+    await plugin.flushPendingWrites();
+    expect(journalRecords(app).map((record) => record.seq)).toEqual([1]);
+
+    // A change that lands between the load's journal read and its truncation
+    // carries a higher sequence than the snapshot's checkpoint, so the load
+    // must keep it (#1520, AC-004).
+    const read = adapter(app).read.bind(adapter(app));
+    let appended = false;
+    vi.spyOn(adapter(app), "read").mockImplementation(async (path) => {
+      const content = await read(path);
+      if (path === JOURNAL_PATH && !appended) {
+        appended = true;
+        await adapter(app).append(
+          JOURNAL_PATH,
+          `${JSON.stringify({
+            seq: 2,
+            deviceId: thisDeviceId(),
+            timestamp: 1_760_000_000_000,
+            feedId: "feed-1",
+            guid: SECOND_GUID,
+            changes: { starred: true },
+          })}\n`,
+        );
+      }
+      return content;
+    });
+
+    await loadSettingsWithoutSave(plugin);
+
+    expect(journalRecords(app).map((record) => record.seq)).toEqual([2]);
+
+    // The surviving record replays on the next load.
+    const { plugin: reloaded } = await startPlugin();
+    expect(
+      reloaded.settings.feeds[0].items.find(
+        (entry) => entry.guid === SECOND_GUID,
+      )?.starred,
+    ).toBe(true);
   });
 
   it("treats a legacy v3 checkpoint as this device's own checkpoint when truncating", async () => {
@@ -454,19 +518,24 @@ describe("journal checkpoints (#1387)", () => {
       })}\n`,
     );
 
-    const { plugin } = await startPlugin();
+    const { plugin } = await startPlugin({}, { suppressLoadSave: true });
 
     // The stale read:false is skipped because the legacy checkpoint covers it,
-    // so the snapshot's read:true wins, and the first save drops the journal
-    // (a load that finds nothing to repair does not save, #1519).
-    expect(readOf(plugin)).toBe(true);
-    await plugin.saveSettings();
+    // so the snapshot's read:true wins, and the load drops the journal.
     expect(readOf(plugin)).toBe(true);
     expect(journalRecords(app)).toEqual([]);
   });
 
-  it("never appends or checkpoints after a failed settings load", async () => {
+  it("keeps the journal through a failed settings load and appends or checkpoints nothing", async () => {
     const { plugin } = await startPlugin();
+    plugin.settings.feeds[0].items[0].read = true;
+    await plugin.queueArticleStateSave([
+      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
+    ]);
+    await plugin.flushPendingWrites();
+    const pendingRecords = journalRecords(app);
+    expect(pendingRecords).toHaveLength(1);
+
     plugin.loadData = vi.fn().mockRejectedValue(new Error("Load failed"));
     await plugin.loadSettings();
     const before = adapterFiles(app).get(USER_STATE_PATH);
@@ -474,14 +543,56 @@ describe("journal checkpoints (#1387)", () => {
     const rename = vi.spyOn(adapter(app), "rename");
 
     await plugin.queueArticleStateSave([
-      { feedUrl: FEED_URL, guid: GUID, changes: { read: true } },
+      { feedUrl: FEED_URL, guid: SECOND_GUID, changes: { read: true } },
     ]);
     await plugin.flushPendingWrites();
 
-    expect(await adapter(app).exists(JOURNAL_PATH)).toBe(false);
+    // A failed load drops nothing, and the suppressed save appends nothing.
+    expect(journalRecords(app)).toEqual(pendingRecords);
     expect(write).not.toHaveBeenCalled();
     expect(rename).not.toHaveBeenCalled();
     expect(adapterFiles(app).get(USER_STATE_PATH)).toBe(before);
+  });
+
+  it("keeps the journal when unreadable vault metadata holds the write gate closed", async () => {
+    // The bootstrap pointer names a vault folder with no readable data.json, so
+    // the load treats its metadata as unreadable and keeps the write gate
+    // closed for the rest of the load (#1520, AC-005).
+    const metadataFolder = "Synced/RSS";
+    await adapter(app).mkdir(metadataFolder);
+    await adapter(app).write(
+      `${metadataFolder}/user-state.json`,
+      JSON.stringify({
+        version: 5,
+        checkpointSequence: 1,
+        checkpointByDevice: { [thisDeviceId()]: 1 },
+        states: {
+          "feed-1:guid-1": { read: true, starred: false, saved: false },
+        },
+      }),
+    );
+    await adapter(app).mkdir(`${PLUGIN_DIR}/device-local`);
+    await adapter(app).write(
+      JOURNAL_PATH,
+      `${JSON.stringify({
+        seq: 1,
+        deviceId: thisDeviceId(),
+        timestamp: 1_760_000_000_000,
+        feedId: "feed-1",
+        guid: GUID,
+        changes: { read: true },
+      })}\n`,
+    );
+
+    const { plugin } = await startPlugin({
+      metadataStorageMode: "vault-location",
+      metadataStorageFolder: metadataFolder,
+    });
+
+    // The load reads the snapshot and its checkpoint, but unreadable metadata
+    // keeps the write gate closed, so nothing is dropped.
+    expect(readOf(plugin)).toBe(true);
+    expect(journalRecords(app).map((record) => record.seq)).toEqual([1]);
   });
 
   it("closes the load gate before settling appends so a racing save is suppressed", async () => {

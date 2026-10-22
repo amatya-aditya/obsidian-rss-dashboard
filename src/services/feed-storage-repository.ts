@@ -315,6 +315,17 @@ export class FeedStorageRepository {
     settings: RssDashboardSettings,
   ): Promise<void> {
     await this.userState.applyToFeeds(settings);
+    await this.userState.completeLoad();
+  }
+
+  /**
+   * Finishes a settings load's article-state work once the write gate has
+   * reopened, dropping the journal records the snapshot read during that load
+   * already covers. Hydration cannot do it itself: the gate is closed for the
+   * whole load (#1520).
+   */
+  public async completeUserStateLoad(): Promise<void> {
+    await this.userState.completeLoad();
   }
 
   public async persistSettings(
