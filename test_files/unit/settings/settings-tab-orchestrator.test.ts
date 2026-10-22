@@ -69,6 +69,51 @@ describe("RssDashboardSettingTab (orchestrator)", () => {
     );
   });
 
+  it("exposes the tab strip as a tablist and marks only the current tab as selected", async () => {
+    const { RssDashboardSettingTab } =
+      await import("../../../src/settings/settings-tab");
+
+    const app = obsidian.App.createMock();
+    const plugin = { app } as unknown as RssDashboardPlugin;
+    const tab = new RssDashboardSettingTab(app, plugin);
+    tab.containerEl = document.body.appendChild(createDiv());
+
+    const selectedLabels = () =>
+      Array.from(tab.containerEl.querySelectorAll('[role="tab"]'))
+        .filter((b) => b.getAttribute("aria-selected") === "true")
+        .map((b) => b.textContent);
+
+    tab.refresh();
+
+    const bar = tab.containerEl.querySelector(
+      ".rss-dashboard-settings-tab-bar",
+    );
+    expect(bar?.getAttribute("role")).toBe("tablist");
+
+    const tabs = Array.from(tab.containerEl.querySelectorAll('[role="tab"]'));
+    expect(tabs).toHaveLength(11);
+    expect(
+      tab.containerEl.querySelectorAll(".rss-dashboard-settings-tab-btn"),
+    ).toHaveLength(11);
+    expect(
+      tabs.every((b) =>
+        ["true", "false"].includes(b.getAttribute("aria-selected") ?? ""),
+      ),
+    ).toBe(true);
+    expect(selectedLabels()).toEqual(["General"]);
+
+    // Selecting another tab re-renders the strip with the new tab selected
+    (
+      Array.from(tab.containerEl.querySelectorAll("button")).find(
+        (b) => b.textContent === "About",
+      ) as HTMLButtonElement
+    ).click();
+    expect(selectedLabels()).toEqual(["About"]);
+
+    tab.activateTab("Rules");
+    expect(selectedLabels()).toEqual(["Rules"]);
+  });
+
   it("switches tabs on button click and via activateTab()", async () => {
     const { RssDashboardSettingTab } =
       await import("../../../src/settings/settings-tab");
