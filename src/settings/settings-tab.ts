@@ -92,6 +92,12 @@ export class RssDashboardSettingTab extends PluginSettingTab {
       tabBtn.onclick = () => {
         this.currentTab = tab;
         this.display();
+        // display() rebuilds the strip, detaching the focused button.
+        this.containerEl
+          .querySelector<HTMLButtonElement>(
+            '.rss-dashboard-settings-tab-btn[aria-selected="true"]',
+          )
+          ?.focus();
       };
     });
 
