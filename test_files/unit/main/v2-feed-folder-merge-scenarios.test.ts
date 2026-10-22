@@ -47,6 +47,7 @@ const POINTER_PATH = `${PLUGIN_DIR}/data.json`;
 const METADATA_FOLDER = "rss-dashboard-data";
 const SHARD_FOLDER = `${METADATA_FOLDER}/feeds`;
 const DATA_PATH = `${METADATA_FOLDER}/data.json`;
+const USER_STATE_PATH = `${METADATA_FOLDER}/user-state.json`;
 const RELOAD_MS = 1_500;
 const VERSION = "2.7.0";
 
@@ -312,6 +313,51 @@ describe.each(["vault-location", "plugin-default"] as const)(
         expect(feedOf(b, "feed-a")?.title).toBe("Renamed here");
         expect(load).not.toHaveBeenCalled();
       });
+    });
+
+    describe("a shard and user-state.json in one delivery wave", () => {
+      // Only a vault metadata folder carries `user-state.json` over Sync; the
+      // plugin folder's copy lives in a dot-folder Sync does not deliver.
+      it.runIf(mode === "vault-location")(
+        "reads the shard when a save made inside the window first refreshes from user-state.json (#1509)",
+        async () => {
+          const { a, b, aToB } = await pair([feed("feed-a", ["a1", "a2"])]);
+          // B has saved an article-state change, so it holds a user-state record.
+          await b.plugin.updateArticle(
+            "a2",
+            feedUrl("feed-a"),
+            { starred: true },
+            false,
+          );
+          await b.plugin.flushPendingWrites();
+          // A adds an article and marks a1 read: `data.json` is unchanged, the
+          // shard and `user-state.json` are not.
+          feedOf(a, "feed-a")!.items.push(item("feed-a", "a3"));
+          await a.plugin.saveSettings({ forceAllShards: true });
+          await a.plugin.updateArticle(
+            "a1",
+            feedUrl("feed-a"),
+            { read: true },
+            false,
+          );
+          await a.plugin.flushPendingWrites();
+
+          aToB.deliverWave({ order: [shardPath("feed-a"), USER_STATE_PATH] });
+          await vi.advanceTimersByTimeAsync(RELOAD_MS / 3);
+          await renameFeed(b, "feed-a", "Renamed here");
+          await settle();
+
+          expect(feedOf(b, "feed-a")?.title).toBe("Renamed here");
+          expect(
+            feedOf(b, "feed-a")?.items.find((i) => i.guid === "a1")?.read,
+          ).toBe(true);
+          expect(guidsOf(b, "feed-a")).toEqual(["a1", "a2", "a3"]);
+          expect(
+            JSON.parse(b.app.vault.filesOnDisk.get(shardPath("feed-a")) ?? "{}")
+              .items,
+          ).toHaveLength(3);
+        },
+      );
     });
 
     describe("delivery between a save and its write", () => {

@@ -699,11 +699,15 @@ export class SettingsStore {
     return this.unseenChangeRefresh;
   }
 
-  /** Whether `user-state.json` holds a change this device has not loaded. */
-  private hasUnseenUserStateChange(): Promise<boolean> {
+  private userStatePath(): string {
     const folder =
       this.settings.metadataStorageFolder?.trim() || ".rss-dashboard-data";
-    const path = normalizePath(`${folder}/user-state.json`);
+    return normalizePath(`${folder}/user-state.json`);
+  }
+
+  /** Whether `user-state.json` holds a change this device has not loaded. */
+  private hasUnseenUserStateChange(): Promise<boolean> {
+    const path = this.userStatePath();
     return this.ownWrites.hasUnseenChange(path, (file) =>
       this.readWatchedFile(file),
     );
@@ -716,8 +720,10 @@ export class SettingsStore {
    * it first and the save then writes on top. Journal replay carries this
    * device's pending toggles across the refresh, and the settings object is
    * kept, so a settings edit awaiting this save survives. The comparison is
-   * the only cost when nothing changed. A save that finds a refresh already
-   * running waits for it. The queued flush waits for a reload already running
+   * the only cost when nothing changed. The refresh loads only that file, so
+   * it forgets only that file's pending reload; a shard or settings change
+   * queued in the same window keeps its reload (#1509). A save that finds a
+   * refresh already running waits for it. The queued flush waits for a reload already running
    * (see `flushPendingWrites`); a direct save during one stays suppressed.
    */
   private async loadUnseenChangesBeforeSave(): Promise<void> {
@@ -737,12 +743,15 @@ export class SettingsStore {
     }
     if (this.loadDepth > 0 || this.loadGate) return;
     storageLog("Refreshing article state from a synced change before saving");
-    if (this.vaultMetadataReloadTimer !== null) {
+    this.touchedWatchedPaths.delete(this.userStatePath());
+    if (
+      this.touchedWatchedPaths.size === 0 &&
+      !this.externalChangeConfirmed &&
+      this.vaultMetadataReloadTimer !== null
+    ) {
       window.clearTimeout(this.vaultMetadataReloadTimer);
       this.vaultMetadataReloadTimer = null;
     }
-    this.touchedWatchedPaths.clear();
-    this.externalChangeConfirmed = false;
     const refresh = this.feedStorageRepository.refreshArticleState(
       this.settings,
     );
