@@ -8,13 +8,13 @@ import {
   type RssDashboardSettings,
 } from "../../../src/types/types";
 import { RssDashboardView } from "../../../src/views/dashboard-view";
+import type { ArticleList } from "../../../src/components/article-list";
 
 // The view rebuilds its ArticleList on every render, so the search a user typed
 // must be handed to the new list or it disappears on the next page (#1465).
-let latestListArgs: unknown[] = [];
+type ListCallbacks = ConstructorParameters<typeof ArticleList>[6];
+let latestCallbacks: ListCallbacks | null = null;
 let latestList: { setSearchQuery: ReturnType<typeof vi.fn> } | null = null;
-
-type ListCallbacks = { onSearch: (query: string) => void };
 
 vi.mock("../../../src/utils/platform-utils", () => ({
   robustFetch: vi.fn(),
@@ -25,7 +25,7 @@ vi.mock("../../../src/utils/platform-utils", () => ({
 vi.mock("../../../src/components/article-list", () => ({
   ArticleList: class ArticleListMock {
     constructor(...args: any[]) {
-      latestListArgs = args;
+      latestCallbacks = args[6] as ListCallbacks;
       latestList = this as unknown as typeof latestList;
     }
     render = vi.fn();
@@ -136,8 +136,7 @@ function createView() {
 }
 
 function typeSearch(query: string): void {
-  const callbacks = latestListArgs[6] as ListCallbacks;
-  callbacks.onSearch(query);
+  latestCallbacks?.onSearch(query);
 }
 
 function lastRestoredQuery(): string | undefined {
@@ -149,7 +148,7 @@ describe("Dashboard article search across re-renders (#1465)", () => {
   beforeEach(() => {
     installObsidianDomPolyfills();
     document.body.empty();
-    latestListArgs = [];
+    latestCallbacks = null;
     latestList = null;
   });
 
@@ -181,6 +180,51 @@ describe("Dashboard article search across re-renders (#1465)", () => {
     internals.handleFeedClick(feed);
 
     expect(lastRestoredQuery()).toBe("");
+  });
+
+  it("keeps the search when the feed already open is clicked again", () => {
+    const { view, internals, feed } = createView();
+    view.render();
+    typeSearch("Samsung");
+    internals.handleFeedClick(feed);
+    typeSearch("Samsung");
+
+    internals.handleFeedClick(feed);
+
+    expect(lastRestoredQuery()).toBe("Samsung");
+  });
+
+  it("starts a fresh search when a feed is added to a multi-feed scope", () => {
+    const { view, internals, feed, settings } = createView();
+    const other: Feed = {
+      title: "Second",
+      url: "https://example.com/second.xml",
+      folder: "News",
+      items: [],
+      lastUpdated: Date.now(),
+    };
+    settings.feeds = [feed, other];
+    const multiSelect = internals as unknown as {
+      handleFeedMultiSelectClick(feed: Feed): void;
+    };
+    view.render();
+    typeSearch("Samsung");
+
+    multiSelect.handleFeedMultiSelectClick(other);
+
+    expect(lastRestoredQuery()).toBe("");
+  });
+
+  it("keeps the search when the folder already open is clicked again", () => {
+    const { view, internals } = createView();
+    view.render();
+    typeSearch("Samsung");
+    internals.handleFolderClick("News");
+    typeSearch("Samsung");
+
+    internals.handleFolderClick("News");
+
+    expect(lastRestoredQuery()).toBe("Samsung");
   });
 
   it("starts a fresh search when another folder is opened", () => {

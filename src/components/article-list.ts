@@ -21,6 +21,7 @@ import { HighlightService } from "../services/highlight-service";
 import { getEffectiveDateMs } from "../services/feed-parser/feed-retention";
 import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
 import { resolveFocusAfterRemoval } from "../utils/article-list-focus";
+import { articleTitleMatchesSearch } from "../utils/article-search";
 import {
   groupArticles as groupArticlesUtil,
   getFeedFolder as getFeedFolderUtil,
@@ -1263,14 +1264,14 @@ export class ArticleList {
     articleElements.forEach((el) => {
       const titleEl = el.querySelector(".rss-dashboard-article-title");
       const title =
-        (titleEl as HTMLElement | null)?.dataset.articleTitle?.toLowerCase() ||
-        titleEl?.textContent?.toLowerCase() ||
+        (titleEl as HTMLElement | null)?.dataset.articleTitle ??
+        titleEl?.textContent ??
         "";
 
-      if (query && !title.includes(query)) {
-        (el as HTMLElement).classList.add("rss-dashboard-search-hidden");
-      } else {
+      if (articleTitleMatchesSearch(title, query)) {
         (el as HTMLElement).classList.remove("rss-dashboard-search-hidden");
+      } else {
+        (el as HTMLElement).classList.add("rss-dashboard-search-hidden");
       }
     });
   }

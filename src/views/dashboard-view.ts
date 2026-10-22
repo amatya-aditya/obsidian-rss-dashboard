@@ -78,6 +78,7 @@ import {
   formatDashboardMultiFiltersTitle,
 } from "../utils/filter-title-format";
 import { computePagination } from "../utils/pagination-utils";
+import { articleTitleMatchesSearch } from "../utils/article-search";
 import { computeHighlightMatchCounts } from "../utils/highlight-match-counts";
 import { removeFolderByPath } from "../utils/folder-tree";
 import { createIconButton, getIconButtonAction } from "../utils/icon-button";
@@ -483,38 +484,32 @@ export class RssDashboardView extends ItemView {
    */
   public actionSelectFirst(): boolean {
     const allFilteredArticles = this.getFilteredArticles();
-    if (allFilteredArticles.length === 0) return false;
+    // Landing on page 1 is part of the action, so the article to select is
+    // page 1's first visible one, decided before the page moves. A search
+    // hides rows client side without changing the scope, so "the first
+    // article" means the first one the user can see (#1465).
+    const firstArticle = this.firstArticleInSearchScope(
+      allFilteredArticles.slice(0, this.getCurrentPageSize()),
+    );
+    if (!firstArticle) return false;
+    this.getSidebarKeyboardController()?.blurSidebarFocus();
 
     if (this.getCurrentPage() === 1) {
-      const firstArticle = this.firstArticleInSearchScope(
-        allFilteredArticles.slice(0, this.getCurrentPageSize()),
-      );
-      if (!firstArticle) return false;
-      this.getSidebarKeyboardController()?.blurSidebarFocus();
       void this.selectArticle(firstArticle);
       return true;
     }
 
-    this.getSidebarKeyboardController()?.blurSidebarFocus();
-    this.selectOnPageAfterRender(1, (pageArticles) =>
-      this.firstArticleInSearchScope(pageArticles),
-    );
+    this.selectOnPageAfterRender(1, () => firstArticle);
     return true;
   }
 
-  /**
-   * The first article of the given rows that the article search leaves
-   * visible. The search hides rows client side without changing the scope, so
-   * "the first article" means the first one the user can actually see (#1465).
-   * The match rule is the one ArticleList applies to the rendered titles.
-   */
+  /** The first of the given rows that the article search leaves visible. */
   private firstArticleInSearchScope(
     articles: FeedItem[],
   ): FeedItem | undefined {
-    const query = this.articleSearchQuery.trim().toLowerCase();
-    if (!query) return articles[0];
+    const query = this.articleSearchQuery;
     return articles.find((article) =>
-      article.title.toLowerCase().includes(query),
+      articleTitleMatchesSearch(article.title, query),
     );
   }
 
@@ -2408,6 +2403,9 @@ export class RssDashboardView extends ItemView {
   }
 
   private handleFeedMultiSelectClick(feed: Feed): void {
+    // Adding or removing a feed changes the scope, which starts a fresh search
+    // (#1465).
+    this.articleSearchQuery = "";
     const next = toggleFeedInMultiSelection(
       {
         currentFolder: this.currentFolder,
@@ -2447,14 +2445,14 @@ export class RssDashboardView extends ItemView {
       if (foldersSection)
         scrollPosition = (foldersSection as HTMLElement).scrollTop;
     }
+    // A different feed starts a fresh search (#1465).
+    if (this.currentFeed?.url !== feed.url) {
+      this.articleSearchQuery = "";
+    }
     this.currentFeed = feed;
     this.currentFolder = null;
     this.selectedTags = [];
     this.selectedArticle = null;
-    // A different feed starts a fresh search (#1465).
-    if (this.currentFeed?.url) {
-      this.articleSearchQuery = "";
-    }
 
     // Update anchor for subsequent Shift+click range selections
     if (feed && feed.url) this.lastClickAnchorKey = `feed:${feed.url}`;

@@ -411,6 +411,20 @@ describe("Dashboard backquote selects the first article of the scope (#1465)", (
     expect(internals.selectedArticle).toBeNull();
   });
 
+  it("leaves the key unhandled on a later page when the search hides page 1", () => {
+    internals.articleSearchQuery = "no article matches this";
+    internals.unreadArticlesPage = 3;
+    vi.mocked(view.render).mockClear();
+
+    const event = press();
+
+    // Nothing to return to, so the press is not swallowed and the page stays.
+    expect(event.defaultPrevented).toBe(false);
+    expect(internals.unreadArticlesPage).toBe(3);
+    expect(internals.selectedArticle).toBeNull();
+    expect(view.render).not.toHaveBeenCalled();
+  });
+
   it.each([
     [
       "another view is active",
