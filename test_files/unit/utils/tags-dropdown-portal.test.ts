@@ -220,7 +220,10 @@ describe("createTagsDropdownPortal tag editing", () => {
 describe("createTagsDropdownPortal keyboard operation", () => {
   let button: HTMLElement;
 
-  const openMenu = (tags: { name: string; color: string }[] = []) => {
+  const openMenu = (
+    tags: { name: string; color: string }[] = [],
+    options: { containTab?: boolean } = {},
+  ) => {
     const settings = JSON.parse(
       JSON.stringify(DEFAULT_SETTINGS),
     ) as typeof DEFAULT_SETTINGS;
@@ -232,6 +235,7 @@ describe("createTagsDropdownPortal keyboard operation", () => {
       settings,
       item: makeItem(),
       onTagAssignmentChange: vi.fn(),
+      containTab: options.containTab ?? true,
       onClosed,
     });
     return { close, onClosed };
@@ -247,6 +251,34 @@ describe("createTagsDropdownPortal keyboard operation", () => {
         cancelable: true,
       }),
     );
+
+  const pressTab = (
+    target: EventTarget = document.activeElement ?? document.body,
+    shiftKey = false,
+  ) => {
+    const event = new KeyboardEvent("keydown", {
+      key: "Tab",
+      shiftKey,
+      bubbles: true,
+      cancelable: true,
+    });
+    target.dispatchEvent(event);
+    return event;
+  };
+
+  const menu = () =>
+    document.querySelector<HTMLElement>(
+      ".rss-dashboard-tags-dropdown-content-portal",
+    )!;
+
+  // The menu's controls in document order, which is their Tab order. The
+  // portal's own tabindex="-1" keeps it out.
+  const menuTabStops = () =>
+    Array.from(
+      menu().querySelectorAll<HTMLElement>(
+        'input, button, [tabindex]:not([tabindex="-1"])',
+      ),
+    ).filter((el) => el.tabIndex >= 0);
 
   beforeEach(() => {
     installObsidianDomPolyfills();
@@ -279,6 +311,83 @@ describe("createTagsDropdownPortal keyboard operation", () => {
     expect(document.activeElement).toBe(
       document.querySelector(".rss-dashboard-tags-dropdown-content-portal"),
     );
+    close();
+  });
+
+  it("enters the menu at its first control on Tab when there are no tags", () => {
+    const { close } = openMenu();
+    const stops = menuTabStops();
+    expect(stops.length).toBeGreaterThan(0);
+
+    const event = pressTab(menu());
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(stops[0]);
+    close();
+  });
+
+  it("keeps Tab and Shift+Tab inside the menu", () => {
+    const { close } = openMenu([
+      { name: "A", color: "#111111" },
+      { name: "B", color: "#222222" },
+    ]);
+    const stops = menuTabStops();
+    const first = stops[0];
+    const last = stops[stops.length - 1];
+    last.focus();
+    pressTab(last);
+    expect(document.activeElement).toBe(first);
+
+    const backwards = pressTab(first, true);
+    expect(backwards.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(last);
+    close();
+  });
+
+  it("leaves a Tab aimed outside the menu alone", () => {
+    const { close } = openMenu();
+    button.focus();
+
+    const event = pressTab(button);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(button);
+    close();
+  });
+
+  it("leaves a Tab that a control inside the menu already handled", () => {
+    const { close } = openMenu([{ name: "A", color: "#111111" }]);
+    const first = menuTabStops()[0];
+    first.focus();
+    first.addEventListener("keydown", (event) => {
+      if (event.key === "Tab") event.preventDefault();
+    });
+
+    // Shift+Tab from the first control would otherwise wrap to the last.
+    const event = pressTab(first, true);
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(first);
+    close();
+  });
+
+  it("leaves Tab alone in a modal-mounted menu that did not opt in", () => {
+    // The Import Starred dialog mounts this portal without `containTab`: the
+    // host dialog claims Escape, so trapping Tab would make closing the whole
+    // dialog the only way out (found by live testing, #1480).
+    const modal = document.body.createDiv({ cls: "modal-container" });
+    modal.appendChild(button);
+    const { close } = openMenu([{ name: "A", color: "#111111" }], {
+      containTab: false,
+    });
+    const first = menuTabStops()[0];
+    first.focus();
+
+    // Shift+Tab from the first control would wrap if the menu trapped Tab.
+    const event = pressTab(first, true);
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(document.activeElement).toBe(first);
     close();
   });
 

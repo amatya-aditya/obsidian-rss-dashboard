@@ -22,8 +22,56 @@ export type TagsDropdownPortalOptions = {
   onTagEdited?: (previous: Tag, updated: Tag) => void;
   onOpenTagsSettings?: () => Promise<void> | void;
   appContainer?: HTMLElement | null;
+  /**
+   * Keep Tab and Shift+Tab cycling inside the menu. Opt-in, because the portal
+   * also mounts inside modals: there the host dialog claims Escape, so a
+   * trapped menu would leave closing the whole dialog as the only way out.
+   * The dashboard and Reader opt in; the Import Starred dialog keeps its
+   * normal Tab order (#1480).
+   */
+  containTab?: boolean;
+  /**
+   * Receives the mounted menu root. A view whose own focus-restore handler
+   * could pull focus out of the menu (the dashboard and Reader restore their
+   * container on leaf activation) keeps this reference and passes it to
+   * `tagsPortalHoldsFocus` before taking focus (#1480).
+   */
+  onOpen?: (portal: HTMLElement) => void;
   onClosed?: () => void;
 };
+
+const TAB_STOP_SELECTOR = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  '[contenteditable]:not([contenteditable="false"])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(",");
+
+/**
+ * True while `portal` is still mounted and keyboard focus belongs to the menu
+ * it opened: inside the menu, on its opener, or on the document body that a
+ * click on the menu's non-focusable text leaves. This is the same set of
+ * states the portal's Escape handler accepts, so the dashboard and Reader can
+ * skip their leaf-activation focus grab without making Escape unreachable
+ * (#1480).
+ */
+export function tagsPortalHoldsFocus(
+  portal: HTMLElement | null,
+  anchor?: HTMLElement | null,
+): boolean {
+  if (!portal?.isConnected) return false;
+  const doc = portal.ownerDocument;
+  const focused = doc.activeElement;
+  return (
+    !focused ||
+    focused === doc.body ||
+    portal.contains(focused) ||
+    (anchor?.contains(focused) ?? false)
+  );
+}
 
 export function createTagsDropdownPortal(
   options: TagsDropdownPortalOptions,
@@ -39,6 +87,8 @@ export function createTagsDropdownPortal(
     onTagEdited,
     onOpenTagsSettings,
     appContainer,
+    containTab = false,
+    onOpen,
     onClosed,
   } = options;
 
@@ -459,6 +509,59 @@ export function createTagsDropdownPortal(
     (firstCheckbox ?? portalDropdown).focus({ preventScroll: true });
   };
 
+  const notifyOpened = () => {
+    if (portalDropdown.isConnected) {
+      onOpen?.(portalDropdown);
+    }
+  };
+
+  // Tab and Shift+Tab cycle inside the menu, so the card button's path and the
+  // `t` hotkey's path behave the same (#1480). Focus on the menu itself (no
+  // tags, so the menu is the first target) enters at the first or last control.
+  // Keys the menu does not own, and focus outside it, are left alone. Only
+  // opted-in callers attach this: see `containTab`.
+  if (containTab) {
+    portalDropdown.addEventListener("keydown", (ev) => {
+      if (ev.key !== "Tab" || ev.ctrlKey || ev.altKey || ev.metaKey) {
+        return;
+      }
+      // A control inside the menu that handled Tab itself keeps the key.
+      if (ev.defaultPrevented) {
+        return;
+      }
+      const focused = targetDocument.activeElement;
+      if (focused !== portalDropdown && !portalDropdown.contains(focused)) {
+        return;
+      }
+      const stops = Array.from(
+        portalDropdown.querySelectorAll<HTMLElement>(TAB_STOP_SELECTOR),
+      ).filter((el) => el.tabIndex >= 0);
+      const first = stops[0];
+      const last = stops[stops.length - 1];
+      if (!first || !last) {
+        ev.preventDefault();
+        portalDropdown.focus({ preventScroll: true });
+        return;
+      }
+      const index =
+        focused === portalDropdown ? -1 : stops.indexOf(focused as HTMLElement);
+      if (index === -1) {
+        ev.preventDefault();
+        (ev.shiftKey ? last : first).focus();
+        return;
+      }
+      if (ev.shiftKey && index === 0) {
+        ev.preventDefault();
+        last.focus();
+        return;
+      }
+      if (!ev.shiftKey && index === stops.length - 1) {
+        ev.preventDefault();
+        first.focus();
+      }
+    });
+  }
+
   if (isMobile) {
     // Clear any inline positions so CSS mobile-sheet rules win via cascade
     portalDropdown.style.removeProperty("left");
@@ -500,6 +603,7 @@ export function createTagsDropdownPortal(
     }
 
     focusMenu();
+    notifyOpened();
     return () => closeDropdown();
   }
 
@@ -528,6 +632,7 @@ export function createTagsDropdownPortal(
   portalDropdown.style.left = `${left}px`;
   portalDropdown.style.top = `${top}px`;
   focusMenu();
+  notifyOpened();
 
   targetWindow.setTimeout(() => {
     if (isClosed) {

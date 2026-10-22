@@ -93,7 +93,10 @@ import { stripAdContainersFromHtml } from "../utils/ad-containers";
 import TurndownService from "turndown";
 import { WebViewerIntegration } from "../services/web-viewer-integration";
 import { MediaService } from "../services/media-service";
-import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
+import {
+  createTagsDropdownPortal,
+  tagsPortalHoldsFocus,
+} from "../utils/tags-dropdown-portal";
 import { resolveItemExternalUrl } from "../utils/item-url-utils";
 import { resolveSavedTemplateForArticle } from "../utils/saved-template-utils";
 import {
@@ -199,6 +202,7 @@ export class ReaderView extends ItemView {
   private saveButton: HTMLElement | null = null;
   private returnLeaf: WorkspaceLeaf | null = null;
   private tagsDropdownCleanup: (() => void) | null = null;
+  private tagsDropdownPortal: HTMLElement | null = null;
 
   private readerFormatPortal: { close: (flushSave: boolean) => void } | null =
     null;
@@ -1070,7 +1074,16 @@ export class ReaderView extends ItemView {
     if (typeof this.app.workspace.on === "function") {
       this.registerEvent(
         this.app.workspace.on("active-leaf-change", (leaf) => {
-          if (leaf === this.leaf) {
+          if (
+            leaf === this.leaf &&
+            !tagsPortalHoldsFocus(
+              this.tagsDropdownPortal,
+              this.tagsToggleButton,
+            ) &&
+            !this.containerEl.contains(
+              this.containerEl.ownerDocument.activeElement,
+            )
+          ) {
             this.containerEl.focus({ preventScroll: true });
           }
         }),
@@ -2519,9 +2532,14 @@ export class ReaderView extends ItemView {
         this.openTagsSettings();
       },
       appContainer: this.contentEl,
+      containTab: true,
+      onOpen: (portal) => {
+        this.tagsDropdownPortal = portal;
+      },
       onClosed: () => {
         if (this.tagsDropdownCleanup === cleanup) {
           this.tagsDropdownCleanup = null;
+          this.tagsDropdownPortal = null;
         }
       },
     });
