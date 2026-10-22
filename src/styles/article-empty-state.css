@@ -70,6 +70,9 @@
   color: var(--text-on-accent);
   border: none;
   border-radius: 6px;
+  box-shadow: none;
+  font-family: inherit;
+  height: auto;
   cursor: pointer;
   transition: background-color 0.15s ease;
   white-space: nowrap;

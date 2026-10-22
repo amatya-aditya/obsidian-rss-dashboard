@@ -280,7 +280,9 @@ describe("ArticleList.renderArticles characterization", () => {
         actionTarget,
       });
       h.list.render();
-      h.container.querySelector<HTMLElement>('[role="button"]')?.click();
+      h.container
+        .querySelector<HTMLElement>(".rss-dashboard-empty-state-button")
+        ?.click();
       expect(onAction).toHaveBeenCalledTimes(1);
       h.cleanup();
     }

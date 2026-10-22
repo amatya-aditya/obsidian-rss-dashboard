@@ -143,6 +143,8 @@
   width: 18px;
   height: 18px;
   padding: 2px;
+  border: none;
+  box-shadow: none;
   cursor: pointer;
   color: var(--rss-color-danger);
   background-color: var(--rss-color-danger-bg);
@@ -186,6 +188,8 @@
   background: var(--background-secondary);
   border: 1px solid var(--background-modifier-border);
   color: var(--text-normal);
+  padding: 0;
+  box-shadow: none;
   cursor: pointer;
   transition: all 0.2s ease;
 }

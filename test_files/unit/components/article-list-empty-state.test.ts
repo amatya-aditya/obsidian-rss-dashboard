@@ -154,13 +154,13 @@ describe("ArticleEmptyState - Component Rendering", () => {
       component.render(container, context);
 
       const description = container.querySelector("p");
-      const button = container.querySelector('[role="button"]');
+      const button = container.querySelector("button");
       expect(description?.textContent).toContain("the Unread view filter");
       expect(description?.textContent).not.toContain("older than");
       expect(button?.textContent).toContain("Adjust view filters");
     });
 
-    it("renders settings button with keyboard accessibility", () => {
+    it("renders the action as a native button with no role or tabindex", () => {
       // Arrange
       const context: FilterContext = {
         type: "AllArticlesFiltered",
@@ -176,9 +176,12 @@ describe("ArticleEmptyState - Component Rendering", () => {
       component.render(container, context);
 
       // Assert
-      const button = container.querySelector('[role="button"]');
+      const button = container.querySelector("button");
       expect(button).toBeTruthy();
-      expect(button?.getAttribute("tabindex")).toBe("0");
+      expect(button?.tagName).toBe("BUTTON");
+      expect(button?.getAttribute("type")).toBe("button");
+      expect(button?.hasAttribute("role")).toBe(false);
+      expect(button?.hasAttribute("tabindex")).toBe(false);
       expect(button?.getAttribute("aria-label")).toBeTruthy();
     });
 
@@ -198,7 +201,7 @@ describe("ArticleEmptyState - Component Rendering", () => {
       component.render(container, context);
 
       // Assert
-      const button = container.querySelector('[role="button"]');
+      const button = container.querySelector("button");
       expect(button?.getAttribute("aria-label")).toContain("Adjust");
     });
 
@@ -215,15 +218,12 @@ describe("ArticleEmptyState - Component Rendering", () => {
         },
         { onAction, hasPopup: "dialog" },
       );
-      const button = container.querySelector('[role="button"]') as HTMLElement;
+      const button = container.querySelector("button") as HTMLElement;
 
       button.click();
-      button.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
-      );
 
-      expect(onAction).toHaveBeenNthCalledWith(1, button);
-      expect(onAction).toHaveBeenNthCalledWith(2, button);
+      expect(onAction).toHaveBeenCalledTimes(1);
+      expect(onAction).toHaveBeenCalledWith(button);
       expect(button.getAttribute("aria-haspopup")).toBe("dialog");
       expect(button.getAttribute("aria-expanded")).toBe("false");
     });
@@ -240,14 +240,13 @@ describe("ArticleEmptyState - Component Rendering", () => {
         },
         { onAction: vi.fn() },
       );
-      const button = container.querySelector('[role="button"]') as HTMLElement;
+      const button = container.querySelector("button") as HTMLElement;
 
       expect(button.hasAttribute("aria-haspopup")).toBe(false);
       expect(button.hasAttribute("aria-expanded")).toBe(false);
     });
 
-    it("button is keyboard accessible - handles Enter key", () => {
-      // Arrange
+    it("activates the action on click and adds no key handler of its own", () => {
       const context: FilterContext = {
         type: "AllArticlesFiltered",
         unfilteredCount: 5,
@@ -261,36 +260,15 @@ describe("ArticleEmptyState - Component Rendering", () => {
       const onAction = vi.fn();
       component.render(container, context, { onAction });
 
-      const button = container.querySelector('[role="button"]') as HTMLElement;
+      const button = container.querySelector("button") as HTMLElement;
 
-      // Act
-      const enterEvent = new KeyboardEvent("keydown", { key: "Enter" });
-      button.dispatchEvent(enterEvent);
+      // A native button turns Enter/Space into a click; the plugin must not
+      // also handle keydown, or one press would fire the action twice.
+      button.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+      button.dispatchEvent(new KeyboardEvent("keydown", { key: " " }));
+      expect(onAction).not.toHaveBeenCalled();
 
-      expect(onAction).toHaveBeenCalledTimes(1);
-    });
-
-    it("button is keyboard accessible - handles Space key", () => {
-      // Arrange
-      const context: FilterContext = {
-        type: "AllArticlesFiltered",
-        unfilteredCount: 5,
-        filteredCount: 0,
-        filterReason: "age filter (1 month)",
-        thresholdLabel: "1 month",
-        actionLabel: "Adjust view filters",
-      };
-
-      const component = new ArticleEmptyState();
-      const onAction = vi.fn();
-      component.render(container, context, { onAction });
-
-      const button = container.querySelector('[role="button"]') as HTMLElement;
-
-      // Act
-      const spaceEvent = new KeyboardEvent("keydown", { key: " " });
-      button.dispatchEvent(spaceEvent);
-
+      button.click();
       expect(onAction).toHaveBeenCalledTimes(1);
     });
 
@@ -359,7 +337,7 @@ describe("ArticleEmptyState - Component Rendering", () => {
 
       const heading = container.querySelector("h2");
       const description = container.querySelector("p");
-      const button = container.querySelector('[role="button"]');
+      const button = container.querySelector("button");
 
       expect(heading?.textContent).toContain("Feed refreshed successfully");
       expect(description?.textContent).toContain("4");
@@ -380,7 +358,7 @@ describe("ArticleEmptyState - Component Rendering", () => {
       const component = new ArticleEmptyState();
       component.render(container, context, { onAction });
 
-      const button = container.querySelector('[role="button"]') as HTMLElement;
+      const button = container.querySelector("button") as HTMLElement;
       button.click();
 
       expect(onAction).toHaveBeenCalledTimes(1);
