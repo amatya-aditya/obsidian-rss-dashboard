@@ -14,7 +14,7 @@ These command-palette commands are always listed. Assign a hotkey in
 
 | Command                        | Action                                       |
 | ------------------------------ | -------------------------------------------- |
-| Toggle YouTube focus mode      | Show only the video, hiding its description  |
+| Toggle video focus mode        | Show only the video, hiding its description  |
 | Toggle podcast chapter markers | Show or hide chapter markers on the seek bar |
 
 ## General Navigation
@@ -52,7 +52,7 @@ Every key that works in the dashboard.
 | ,                      | Mark article read and open next                      |
 | Shift + a              | Mark all as read                                     |
 | f                      | Star/Unstar article                                  |
-| Shift + f              | Toggle YouTube focus mode                            |
+| Shift + f              | Toggle video focus mode                              |
 | t                      | Add tags to article                                  |
 | s                      | Save to notes                                        |
 
@@ -91,7 +91,7 @@ These keys work the same in the dashboard and in the Reader.
 | ,         | Mark article read and open next |
 | Shift + a | Mark all as read                |
 | f         | Star/Unstar article             |
-| Shift + f | Toggle YouTube focus mode       |
+| Shift + f | Toggle video focus mode         |
 | t         | Add tags to article             |
 | s         | Save to notes                   |
 

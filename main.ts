@@ -367,7 +367,7 @@ export default class RssDashboardPlugin extends Plugin {
       refreshSettingTab: () => this.settingTab?.refresh(),
       refreshDashboardViews: async () => {
         await this.refreshDashboardViews();
-        await this.applyYouTubeFocusMode(this.settings.media.youtubeFocusMode);
+        await this.applyVideoFocusMode(this.settings.media.youtubeFocusMode);
       },
       renderDiscoverView: async () => {
         const discoverView = await this.getActiveDiscoverView();
@@ -865,23 +865,23 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
-  public async applyYouTubeFocusMode(hide: boolean): Promise<void> {
-    await this.forEachPlayerHostView((view) => view.setYouTubeFocusMode(hide));
+  public async applyVideoFocusMode(hide: boolean): Promise<void> {
+    await this.forEachPlayerHostView((view) => view.setVideoFocusMode(hide));
   }
 
   /**
-   * Flips YouTube Focus mode, applies it to every open Reader and dashboard,
+   * Flips Video Focus mode, applies it to every open Reader and dashboard,
    * persists it, refreshes an open settings tab, and announces the new state.
    * The palette command and the `Shift+F` keymap action both delegate here, so
-   * they stay in step with the Settings → Media toggle.
+   * they stay in step with the Settings → Media toggle (#1538).
    */
-  public async toggleYouTubeFocusMode(): Promise<boolean> {
+  public async toggleVideoFocusMode(): Promise<boolean> {
     const hide = !this.settings.media.youtubeFocusMode;
     this.settings.media.youtubeFocusMode = hide;
-    await this.applyYouTubeFocusMode(hide);
+    await this.applyVideoFocusMode(hide);
     await this.saveSettings();
     this.settingTab?.refresh();
-    new Notice(hide ? "Focus mode on" : "Focus mode off");
+    new Notice(hide ? "Video focus mode on" : "Video focus mode off");
     return hide;
   }
 

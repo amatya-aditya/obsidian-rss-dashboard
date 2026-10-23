@@ -60,7 +60,7 @@ function makeArticle(): FeedItem {
   });
 }
 
-describe("ReaderView YouTube focus mode", () => {
+describe("ReaderView Video focus mode", () => {
   let view: ReaderView;
   let settings: RssDashboardSettings;
 
@@ -88,7 +88,7 @@ describe("ReaderView YouTube focus mode", () => {
       vi.fn(),
       vi.fn(),
     );
-    internals(view).contentEl = createDiv();
+    internals(view).contentEl = document.body.createDiv();
     await view.onOpen();
     internals(view).fetchFullArticleContent = vi
       .fn()
@@ -114,15 +114,20 @@ describe("ReaderView YouTube focus mode", () => {
     document.body.empty();
   });
 
-  it("shows the tag chips and the full header for a video when focus mode is off", async () => {
+  it("shows the tag chips, source footer, and the full header for a video when focus mode is off", async () => {
     await open(false);
     await view.displayItem(makeItem());
 
     expect(chips()).toEqual(["Video"]);
-    expect(header().classList.contains("rss-youtube-focus")).toBe(false);
+    expect(header().classList.contains("rss-video-focus")).toBe(false);
+    expect(
+      internals(view).readingContainer.querySelector(
+        ".rss-reader-source-footer",
+      ),
+    ).not.toBeNull();
   });
 
-  it("hides the chips and marks the header as focused when focus mode is on, keeping the back button", async () => {
+  it("hides the chips and source footer and marks the header as focused when focus mode is on, keeping the back button", async () => {
     await open(true);
     await view.displayItem(makeItem());
 
@@ -130,7 +135,12 @@ describe("ReaderView YouTube focus mode", () => {
     expect(
       internals(view).readingContainer.querySelector(".rss-video-details"),
     ).toBeNull();
-    expect(header().classList.contains("rss-youtube-focus")).toBe(true);
+    expect(
+      internals(view).readingContainer.querySelector(
+        ".rss-reader-source-footer",
+      ),
+    ).toBeNull();
+    expect(header().classList.contains("rss-video-focus")).toBe(true);
     expect(
       header().querySelector("button.rss-reader-back-button"),
     ).not.toBeNull();
@@ -141,31 +151,96 @@ describe("ReaderView YouTube focus mode", () => {
     await view.displayItem(makeItem());
 
     settings.media.youtubeFocusMode = true;
-    view.setYouTubeFocusMode(true);
+    view.setVideoFocusMode(true);
     expect(chips()).toEqual([]);
-    expect(header().classList.contains("rss-youtube-focus")).toBe(true);
+    expect(
+      internals(view).readingContainer.querySelector(
+        ".rss-reader-source-footer",
+      ),
+    ).toBeNull();
+    expect(header().classList.contains("rss-video-focus")).toBe(true);
 
     settings.media.youtubeFocusMode = false;
-    view.setYouTubeFocusMode(false);
+    view.setVideoFocusMode(false);
     expect(chips()).toEqual(["Video"]);
-    expect(header().classList.contains("rss-youtube-focus")).toBe(false);
+    expect(
+      internals(view).readingContainer.querySelectorAll(
+        ".rss-reader-source-footer",
+      ),
+    ).toHaveLength(1);
+    expect(header().classList.contains("rss-video-focus")).toBe(false);
+  });
+
+  it("moves focus to the back button when the source link was focused and focus mode turns on", async () => {
+    await open(false);
+    await view.displayItem(makeItem());
+
+    const sourceLink = internals(
+      view,
+    ).readingContainer.querySelector<HTMLAnchorElement>(
+      ".rss-reader-source-footer a",
+    );
+    expect(sourceLink).not.toBeNull();
+    sourceLink?.focus();
+
+    const backButton = header().querySelector<HTMLButtonElement>(
+      "button.rss-reader-back-button",
+    );
+    expect(backButton).not.toBeNull();
+
+    view.setVideoFocusMode(true);
+    expect(
+      internals(view).readingContainer.querySelector(
+        ".rss-reader-source-footer",
+      ),
+    ).toBeNull();
+    expect(document.activeElement).toBe(backButton);
+
+    // Turning focus mode off never moves focus
+    const other = document.body.createEl("button");
+    other.focus();
+    view.setVideoFocusMode(false);
+    expect(document.activeElement).toBe(other);
   });
 
   it("clears the focused header when an article opens next", async () => {
     await open(true);
     await view.displayItem(makeItem());
-    expect(header().classList.contains("rss-youtube-focus")).toBe(true);
+    expect(header().classList.contains("rss-video-focus")).toBe(true);
 
     await view.displayItem(makeArticle());
 
-    expect(header().classList.contains("rss-youtube-focus")).toBe(false);
+    expect(header().classList.contains("rss-video-focus")).toBe(false);
+    expect(
+      internals(view).readingContainer.querySelector(
+        ".rss-reader-source-footer",
+      ),
+    ).not.toBeNull();
   });
 
   it("does not focus the header for an article while focus mode is on", async () => {
     await open(true);
     await view.displayItem(makeArticle());
 
-    expect(header().classList.contains("rss-youtube-focus")).toBe(false);
+    expect(header().classList.contains("rss-video-focus")).toBe(false);
+  });
+
+  it("keeps article fallback and receives no focus chrome for video without playable source", async () => {
+    await open(true);
+    const unplayableVideo = makeItem({
+      guid: "unplayable-video",
+      mediaType: "video",
+      videoId: undefined,
+      link: "https://example.com/not-a-video",
+    });
+    await view.displayItem(unplayableVideo);
+
+    expect(header().classList.contains("rss-video-focus")).toBe(false);
+    expect(
+      internals(view).readingContainer.querySelector(
+        ".rss-reader-source-footer",
+      ),
+    ).not.toBeNull();
   });
 
   it("re-renders the chips when the tags change, unless focus mode is on", async () => {
@@ -178,18 +253,18 @@ describe("ReaderView YouTube focus mode", () => {
     expect(chips()).toEqual(["Later"]);
 
     settings.media.youtubeFocusMode = true;
-    view.setYouTubeFocusMode(true);
+    view.setVideoFocusMode(true);
     view.applyExternalUpdate("guid-video", {
       tags: [{ name: "Hidden", color: "#22c55e" }],
     });
     expect(chips()).toEqual([]);
 
     settings.media.youtubeFocusMode = false;
-    view.setYouTubeFocusMode(false);
+    view.setVideoFocusMode(false);
     expect(chips()).toEqual(["Hidden"]);
   });
 
-  describe("actionToggleYouTubeFocusMode", () => {
+  describe("actionToggleVideoFocusMode", () => {
     function createViewWithApp(app: unknown): ReaderView {
       return new ReaderView(
         new MockLeaf(app) as never,
@@ -204,22 +279,22 @@ describe("ReaderView YouTube focus mode", () => {
     }
 
     it("delegates to the plugin toggle", () => {
-      const toggleYouTubeFocusMode = vi.fn();
+      const toggleVideoFocusMode = vi.fn();
       const app = {
         workspace: { getLeavesOfType: vi.fn().mockReturnValue([]) },
         vault: { getAbstractFileByPath: vi.fn() },
         plugins: {
           getPlugin: vi.fn(() => ({
             saveSettings: vi.fn(),
-            toggleYouTubeFocusMode,
+            toggleVideoFocusMode,
           })),
         },
       };
       const reader = createViewWithApp(app);
 
-      reader.actionToggleYouTubeFocusMode();
+      reader.actionToggleVideoFocusMode();
 
-      expect(toggleYouTubeFocusMode).toHaveBeenCalledTimes(1);
+      expect(toggleVideoFocusMode).toHaveBeenCalledTimes(1);
     });
 
     it("does nothing when the plugin cannot be reached", () => {
@@ -229,7 +304,7 @@ describe("ReaderView YouTube focus mode", () => {
       };
       const reader = createViewWithApp(app);
 
-      expect(() => reader.actionToggleYouTubeFocusMode()).not.toThrow();
+      expect(() => reader.actionToggleVideoFocusMode()).not.toThrow();
     });
   });
 });

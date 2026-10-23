@@ -13,7 +13,7 @@ const manifest: PluginManifest = {
   dir: ".",
 };
 
-describe("toggleYouTubeFocusMode", () => {
+describe("toggleVideoFocusMode", () => {
   let plugin: RssDashboardPlugin;
   let applySpy: ReturnType<typeof vi.spyOn>;
   let saveSpy: ReturnType<typeof vi.spyOn>;
@@ -36,7 +36,7 @@ describe("toggleYouTubeFocusMode", () => {
     );
     plugin.settings = structuredClone(DEFAULT_SETTINGS);
     applySpy = vi
-      .spyOn(plugin, "applyYouTubeFocusMode")
+      .spyOn(plugin, "applyVideoFocusMode")
       .mockResolvedValue(undefined);
     saveSpy = vi.spyOn(plugin, "saveSettings").mockResolvedValue(undefined);
     refreshSpy = vi.fn();
@@ -48,30 +48,30 @@ describe("toggleYouTubeFocusMode", () => {
     document.body.empty();
   });
 
-  it("turns Focus mode on when it is off and announces it", async () => {
+  it("turns Video focus mode on when it is off and announces it", async () => {
     plugin.settings.media.youtubeFocusMode = false;
 
-    await expect(plugin.toggleYouTubeFocusMode()).resolves.toBe(true);
+    await expect(plugin.toggleVideoFocusMode()).resolves.toBe(true);
 
     expect(plugin.settings.media.youtubeFocusMode).toBe(true);
     expect(applySpy).toHaveBeenLastCalledWith(true);
     expect(saveSpy).toHaveBeenCalledTimes(1);
-    expect(notices()).toEqual(["Focus mode on"]);
+    expect(notices()).toEqual(["Video focus mode on"]);
   });
 
-  it("turns Focus mode off when it is on and announces it", async () => {
+  it("turns Video focus mode off when it is on and announces it", async () => {
     plugin.settings.media.youtubeFocusMode = true;
 
-    await expect(plugin.toggleYouTubeFocusMode()).resolves.toBe(false);
+    await expect(plugin.toggleVideoFocusMode()).resolves.toBe(false);
 
     expect(plugin.settings.media.youtubeFocusMode).toBe(false);
     expect(applySpy).toHaveBeenLastCalledWith(false);
     expect(saveSpy).toHaveBeenCalledTimes(1);
-    expect(notices()).toEqual(["Focus mode off"]);
+    expect(notices()).toEqual(["Video focus mode off"]);
   });
 
-  it("refreshes an open settings tab so its Focus mode toggle follows", async () => {
-    await plugin.toggleYouTubeFocusMode();
+  it("refreshes an open settings tab so its Video focus mode toggle follows", async () => {
+    await plugin.toggleVideoFocusMode();
 
     expect(refreshSpy).toHaveBeenCalledTimes(1);
   });
@@ -79,6 +79,6 @@ describe("toggleYouTubeFocusMode", () => {
   it("does not fail when no settings tab has been created", async () => {
     plugin.settingTab = null;
 
-    await expect(plugin.toggleYouTubeFocusMode()).resolves.toBe(true);
+    await expect(plugin.toggleVideoFocusMode()).resolves.toBe(true);
   });
 });

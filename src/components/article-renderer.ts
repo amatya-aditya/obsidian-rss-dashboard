@@ -29,7 +29,10 @@ import {
   renderVideoSourceBanner,
   shouldRenderVideoSourceBanner,
 } from "../utils/reader-article-fetch";
-import { renderSourceFooter } from "../utils/reader-source-footer";
+import {
+  clearSourceFooter,
+  renderSourceFooter,
+} from "../utils/reader-source-footer";
 import { fetchFullArticleContentWithOutcome } from "../utils/full-article-fetch";
 import {
   applyFetchOutcome,
@@ -50,6 +53,7 @@ import {
   hasMeaningfulFeedDescription,
   resolveFeedHeroUrl,
   resolveFetchedHeroUrl,
+  resolveReaderMediaRoute,
   selectCalloutDescription,
 } from "../utils/reader-article-render";
 import {
@@ -121,6 +125,7 @@ export class ArticleRenderer {
 
   private podcastPlayer: PodcastPlayer | null = null;
   private videoPlayer: VideoPlayer | null = null;
+  private videoHostContainer: HTMLElement | null = null;
   private currentItem: FeedItem | null = null;
   private relatedItems: FeedItem[] = [];
   private currentFullContent?: string;
@@ -266,6 +271,7 @@ export class ArticleRenderer {
       this.videoPlayer.destroy();
       this.videoPlayer = null;
     }
+    this.videoHostContainer = null;
   }
 
   private async displayVideo(
@@ -277,6 +283,7 @@ export class ArticleRenderer {
       cls: "rss-reader-video-container enhanced",
     });
     if (resolveVideoSource(item)) {
+      this.videoHostContainer = container;
       this.videoPlayer = new VideoPlayer(
         videoContainer,
         (selectedVideo) => {
@@ -291,7 +298,9 @@ export class ArticleRenderer {
       if (this.relatedItems.length > 0) {
         this.videoPlayer.setRelatedVideos(this.relatedItems);
       }
-      renderSourceFooter(container, item);
+      if (!this.settings.media.youtubeFocusMode) {
+        renderSourceFooter(container, item);
+      }
     } else {
       const errorContainer = videoContainer.createDiv({
         cls: "rss-reader-error",
@@ -653,8 +662,23 @@ export class ArticleRenderer {
     });
   }
 
-  public setYouTubeFocusMode(hide: boolean): void {
-    this.videoPlayer?.setFocusMode(hide);
+  public setVideoFocusMode(
+    hide: boolean,
+    focusFallback?: HTMLElement | null,
+  ): void {
+    const isVideo =
+      this.currentItem !== null &&
+      resolveReaderMediaRoute(this.currentItem) === "video";
+    this.videoPlayer?.setFocusMode(hide, focusFallback);
+    if (isVideo && this.videoHostContainer) {
+      if (hide) {
+        clearSourceFooter(this.videoHostContainer, focusFallback);
+      } else {
+        if (this.currentItem) {
+          renderSourceFooter(this.videoHostContainer, this.currentItem);
+        }
+      }
+    }
   }
 
   public setPodcastChapterMarkers(enabled: boolean): void {
@@ -681,6 +705,7 @@ export class ArticleRenderer {
       this.videoPlayer.destroy();
       this.videoPlayer = null;
     }
+    this.videoHostContainer = null;
   }
 
   // --- Helper methods (extracted from ReaderView) ---

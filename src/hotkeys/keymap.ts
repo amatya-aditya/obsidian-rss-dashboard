@@ -232,7 +232,7 @@ export const KEYMAP: readonly KeyBinding[] = [
     help: [HELP_DASHBOARD, HELP_ARTICLE],
   },
   {
-    id: "toggle-youtube-focus-mode",
+    id: "toggle-video-focus-mode",
     key: "f",
     shift: true,
     contexts: DR,
