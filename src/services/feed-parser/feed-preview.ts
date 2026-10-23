@@ -8,6 +8,7 @@ import {
   fetchFirstValidFeedWithUrl,
 } from "./feed-discovery.js";
 import { CustomXMLParser } from "./xml-parser/custom-xml-parser.js";
+import { stripTitleFormattingTags } from "./xml-parser/xml-html-utils.js";
 import type { FeedPreviewData, Rss2JsonResponse } from "./types.js";
 
 export type { FeedPreviewData } from "./types.js";
@@ -142,7 +143,7 @@ async function loadFeedPreviewFromRss2Json(
       throw new Error(data.message || "Failed to load feed");
     }
     return {
-      title: data.feed.title || "",
+      title: stripTitleFormattingTags(data.feed.title || ""),
       description: data.feed.description || "",
       link: data.feed.link || "",
       image: data.feed.image || "",
@@ -160,7 +161,9 @@ async function loadFeedPreviewFromRss2Json(
 
 function parseFeedDoc(doc: Document, feedUrl: string): FeedPreviewData {
   const channel = doc.querySelector("channel") || doc.querySelector("feed");
-  const title = channel?.querySelector("title")?.textContent || "";
+  const title = stripTitleFormattingTags(
+    channel?.querySelector("title")?.textContent || "",
+  );
   const description = channel?.querySelector("description")?.textContent || "";
   const link = channel?.querySelector("link")?.textContent || "";
   const imageEl =
