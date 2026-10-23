@@ -61,7 +61,7 @@
 
 .rss-dashboard-card-view
   .rss-dashboard-card-preview-region
-  .rss-dashboard-cover-container.has-summary:hover
+  .rss-dashboard-cover-container.has-summary.is-previewing
   .rss-dashboard-cover-image {
   opacity: 0;
 }
@@ -75,7 +75,7 @@
 
 .rss-dashboard-card-view
   .rss-dashboard-card-preview-region
-  .rss-dashboard-cover-container.has-summary:hover
+  .rss-dashboard-cover-container.has-summary.is-previewing
   .rss-dashboard-summary-overlay {
   opacity: 1;
 }
@@ -86,6 +86,25 @@
   .rss-dashboard-summary-overlay {
   opacity: 1;
   overflow-y: auto;
+}
+
+/* Hover reveals the Preview only where hover exists (#1530); on a touch screen
+   :hover sticks to the last touched element, so a rebuilt card would arrive
+   already covered. */
+@media (hover: hover) {
+  .rss-dashboard-card-view
+    .rss-dashboard-card-preview-region
+    .rss-dashboard-cover-container.has-summary:hover
+    .rss-dashboard-cover-image {
+    opacity: 0;
+  }
+
+  .rss-dashboard-card-view
+    .rss-dashboard-card-preview-region
+    .rss-dashboard-cover-container.has-summary:hover
+    .rss-dashboard-summary-overlay {
+    opacity: 1;
+  }
 }
 
 .rss-dashboard-article-summary {
@@ -717,14 +736,14 @@
 
 .rss-dashboard-card-view
   .rss-dashboard-card-preview-region
-  .rss-dashboard-cover-container.has-summary:hover
+  .rss-dashboard-cover-container.has-summary.is-previewing
   .rss-dashboard-cover-image {
   opacity: 0;
 }
 
 .rss-dashboard-card-view
   .rss-dashboard-card-preview-region
-  .rss-dashboard-cover-container.has-summary:hover
+  .rss-dashboard-cover-container.has-summary.is-previewing
   .rss-dashboard-summary-overlay {
   opacity: 1;
 }
