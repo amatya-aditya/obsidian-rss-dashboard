@@ -843,3 +843,44 @@ describe("MediaService.shouldShowFeedIcon", () => {
     ).toBe(false);
   });
 });
+
+describe("MediaService.detectAndProcessFeed with a Twitch channel feed (#1539)", () => {
+  // twitchrss.appspot.com/vod/<channel> lists the live link ahead of the VODs.
+  const liveLink = "https://www.twitch.tv/riotgames";
+  const vodLink = "https://www.twitch.tv/videos/2904335457";
+
+  it("types the live channel entry as video so it reaches the player", () => {
+    const result = MediaService.detectAndProcessFeed(
+      createFeed([
+        createItem({ guid: "live", link: liveLink }),
+        createItem({ guid: "vod", link: vodLink }),
+      ]),
+    );
+
+    expect(result.items.find((i) => i.guid === "live")?.mediaType).toBe(
+      "video",
+    );
+    expect(result.items.find((i) => i.guid === "vod")?.mediaType).toBe("video");
+  });
+
+  it("types a feed that lists only the live entry as video", () => {
+    const result = MediaService.detectAndProcessFeed(
+      createFeed([createItem({ guid: "live", link: liveLink })]),
+    );
+
+    expect(result.mediaType).toBe("video");
+    expect(result.items[0].mediaType).toBe("video");
+  });
+
+  it.each([
+    "https://www.twitch.tv/directory",
+    "https://www.twitch.tv/riotgames/about",
+    "https://example.com/riotgames",
+  ])("leaves a feed item linking to %s as an article", (link) => {
+    const result = MediaService.detectAndProcessFeed(
+      createFeed([createItem({ link })]),
+    );
+
+    expect(result.items[0].mediaType).toBe("article");
+  });
+});
