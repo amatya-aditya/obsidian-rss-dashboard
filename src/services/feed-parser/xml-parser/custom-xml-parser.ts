@@ -8,7 +8,7 @@ import { hostMatches } from "../../../utils/url-host.js";
 import {
   decodeHtmlEntities as decodeHtmlEntitiesUtil,
   sanitizeCDATA as sanitizeCDATAUtil,
-  stripHtmlTags as stripHtmlTagsUtil,
+  stripTitleFormattingTags as stripTitleFormattingTagsUtil,
 } from "./xml-html-utils.js";
 import { routeFeedDocument } from "./feed-document-router.js";
 
@@ -522,10 +522,10 @@ export class CustomXMLParser {
     // Normalizing here keeps every parser path and consumer on plain text.
     return {
       ...parsed,
-      title: stripHtmlTagsUtil(parsed.title),
+      title: stripTitleFormattingTagsUtil(parsed.title),
       items: parsed.items.map((item) => ({
         ...item,
-        title: stripHtmlTagsUtil(item.title),
+        title: stripTitleFormattingTagsUtil(item.title),
       })),
     };
   }

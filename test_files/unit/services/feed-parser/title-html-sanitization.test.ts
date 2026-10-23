@@ -36,6 +36,26 @@ function atomFeed(channelTitle: string, entryTitle: string): string {
   );
 }
 
+function rdfFeed(channelTitle: string, itemTitle: string): string {
+  return (
+    `<?xml version="1.0" encoding="UTF-8"?>` +
+    `<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" ` +
+    `xmlns:dc="http://purl.org/dc/elements/1.1/" ` +
+    `xmlns="http://purl.org/rss/1.0/">` +
+    `<channel>` +
+    `<title>${channelTitle}</title>` +
+    `<link>https://example.com/rdf</link>` +
+    `<description>RDF description</description>` +
+    `</channel>` +
+    `<item rdf:about="https://example.com/rdf-1">` +
+    `<title>${itemTitle}</title>` +
+    `<link>https://example.com/rdf-1</link>` +
+    `<description>RDF item description</description>` +
+    `</item>` +
+    `</rdf:RDF>`
+  );
+}
+
 function jsonFeed(feedTitle: string, itemTitle: string): string {
   return JSON.stringify({
     version: "https://jsonfeed.org/version/1.1",
@@ -92,6 +112,30 @@ describe("Title HTML sanitization", () => {
     expect(parsed.items[0]?.title).toBe("Slow news");
   });
 
+  it("strips formatting tags from RSS 1.0/RDF channel and item titles", () => {
+    const parsed = new CustomXMLParser().parseString(
+      rdfFeed(
+        "Feed &lt;em&gt;Title&lt;/em&gt;",
+        "&lt;em&gt;RDF item&lt;/em&gt;",
+      ),
+    );
+
+    expect(parsed.title).toBe("Feed Title");
+    expect(parsed.items[0]?.title).toBe("RDF item");
+  });
+
+  it("strips formatting tags that carry attributes", () => {
+    const parsed = new CustomXMLParser().parseString(
+      rssFeed(
+        "Feed",
+        '<title>&lt;span class="lead"&gt;Intro&lt;/span&gt; text</title>' +
+          "<link>https://example.com/1</link>",
+      ),
+    );
+
+    expect(parsed.items[0]?.title).toBe("Intro text");
+  });
+
   it("strips markup from a title parsed by the regex fallback", () => {
     // The unclosed <oops> makes both the document and its extracted <rss>
     // block malformed, so parsing falls through to the regex fallback.
@@ -127,6 +171,33 @@ describe("Title HTML sanitization", () => {
     );
 
     expect(parsed.items[0]?.title).toBe("More at <https://example.com>");
+  });
+
+  it("keeps generic type syntax and other unpaired tags in a title", () => {
+    const parsed = new CustomXMLParser().parseString(
+      rssFeed(
+        "Feed",
+        "<title>Downcast (INumber&lt;T&gt;) to " +
+          "(IBinaryInteger&lt;Generic&gt;)</title>" +
+          "<link>https://example.com/1</link>",
+      ),
+    );
+
+    expect(parsed.items[0]?.title).toBe(
+      "Downcast (INumber<T>) to (IBinaryInteger<Generic>)",
+    );
+  });
+
+  it("keeps an unpaired formatting tag in a title", () => {
+    const parsed = new CustomXMLParser().parseString(
+      rssFeed(
+        "Feed",
+        "<title>Use the &lt;b&gt; tag</title>" +
+          "<link>https://example.com/1</link>",
+      ),
+    );
+
+    expect(parsed.items[0]?.title).toBe("Use the <b> tag");
   });
 
   it("leaves a plain title and a decoded entity-only title unchanged", () => {

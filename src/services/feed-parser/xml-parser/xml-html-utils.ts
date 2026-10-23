@@ -128,20 +128,30 @@ function decodeEntity(match: string, body: string): string {
   return num >= 0 && num <= 0x10ffff ? String.fromCodePoint(num) : match;
 }
 
+const PAIRED_FORMATTING_TAG =
+  /<(strong|strike|small|span|sub|sup|del|div|ins|mark|em|i|b|s|u|p|a)(?:\s+(?:[^<>"']+|"[^"]*"|'[^']*')*)?>([\s\S]*?)<\/\1\s*>/gi;
+
+const VOID_FORMATTING_TAG =
+  /<(br|wbr)(?:\s+(?:[^<>"']+|"[^"]*"|'[^']*')*)?\/?>/gi;
+
 /**
- * Strips inline markup a feed shipped as escaped HTML in a title, such as
- * `<em>Wicker</em> Asks ...`. The pattern requires a real tag name followed by
- * a space, `/`, or `>`, so literal text like `3 < 4` and autolinks like
- * `<https://example.com>` survive. Entities are decoded by the caller exactly
- * once; decoding again here would double-decode a title.
+ * Strips paired formatting markup from a title, such as `<em>Wicker</em>`.
+ * Only known formatting tags are removed, and only when an opening tag has a
+ * matching closing tag, so literal text such as `INumber<T>`, `Why 3 < 4`, and
+ * an unpaired `<b>` mention survive. `br`/`wbr` are removed on their own.
+ * Entity decoding is the caller's job; this runs on text already decoded once.
  */
-export function stripHtmlTags(text: string): string {
+export function stripTitleFormattingTags(text: string): string {
   if (!text) return "";
 
-  return text
-    .replace(/<\/?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?\/?>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  let stripped = text;
+  let previous: string;
+  do {
+    previous = stripped;
+    stripped = stripped.replace(PAIRED_FORMATTING_TAG, " $2 ");
+  } while (stripped !== previous);
+
+  return stripped.replace(VOID_FORMATTING_TAG, " ").replace(/\s+/g, " ").trim();
 }
 
 /** Decodes each entity once; decoded text is never scanned again. */
