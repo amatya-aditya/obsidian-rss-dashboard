@@ -36,12 +36,37 @@ export function ownWriteKey(path: string): string {
   );
 }
 
+/**
+ * One recorded file: either its comparable form, or the raw text of a load
+ * whose comparable form nothing has asked for yet (#1521).
+ */
+type OwnWriteEntry = { comparable: string } | { raw: string };
+
 export class OwnWriteRecord {
-  private readonly comparables = new Map<string, string>();
+  private readonly entries = new Map<string, OwnWriteEntry>();
+
+  /**
+   * The comparable content of a key. A load records only the raw text; the
+   * first comparison canonicalizes it and keeps the result, so a start that
+   * nothing compares never pays for it. Unparseable text drops the record,
+   * as `recordRead` did when it canonicalized eagerly.
+   */
+  private canonicalize(key: string): string | undefined {
+    const entry = this.entries.get(key);
+    if (entry === undefined) return undefined;
+    if ("comparable" in entry) return entry.comparable;
+    const comparable = comparableFromText(entry.raw);
+    if (comparable === null) {
+      this.entries.delete(key);
+      return undefined;
+    }
+    this.entries.set(key, { comparable });
+    return comparable;
+  }
 
   /** The recorded comparable content for a path, if any. */
   comparableOf(path: string): string | undefined {
-    return this.comparables.get(ownWriteKey(path));
+    return this.canonicalize(ownWriteKey(path));
   }
 
   /**
@@ -50,22 +75,19 @@ export class OwnWriteRecord {
    * the record, so the next event reloads.
    */
   recordRead(path: string, text: string): void {
-    const comparable = comparableFromText(text);
-    if (comparable === null) {
-      this.comparables.delete(ownWriteKey(path));
-      return;
-    }
-    this.comparables.set(ownWriteKey(path), comparable);
+    this.entries.set(ownWriteKey(path), { raw: text });
   }
 
   /** Records a snapshot object a load already parsed. */
   recordSnapshot(path: string, snapshot: object): void {
-    this.comparables.set(ownWriteKey(path), comparableSnapshotJson(snapshot));
+    this.entries.set(ownWriteKey(path), {
+      comparable: comparableSnapshotJson(snapshot),
+    });
   }
 
   /** Drops the record, so a later copy of the old content reloads. */
   forget(path: string): void {
-    this.comparables.delete(ownWriteKey(path));
+    this.entries.delete(ownWriteKey(path));
   }
 
   /**
@@ -76,12 +98,12 @@ export class OwnWriteRecord {
   forgetShardsIn(folder: string): void {
     const key = ownWriteKey(folder);
     const prefix = key === "" ? "" : `${key}/`;
-    for (const entry of [...this.comparables.keys()]) {
+    for (const entry of [...this.entries.keys()]) {
       if (!entry.startsWith(prefix)) continue;
       const name = entry.slice(prefix.length);
       if (name.includes("/") || !name.endsWith(".json")) continue;
       if (name === "data.json" || name === "user-state.json") continue;
-      this.comparables.delete(entry);
+      this.entries.delete(entry);
     }
   }
 
@@ -95,14 +117,17 @@ export class OwnWriteRecord {
    */
   recordPendingWrite(path: string, content: string): () => void {
     const key = ownWriteKey(path);
-    const previous = this.comparables.get(key);
-    const written = comparableFromText(content);
-    if (written === null) this.comparables.delete(key);
-    else this.comparables.set(key, written);
+    const previous = this.entries.get(key);
+    const comparable = comparableFromText(content);
+    const written: OwnWriteEntry | undefined =
+      comparable === null ? undefined : { comparable };
+    if (written === undefined) this.entries.delete(key);
+    else this.entries.set(key, written);
     return () => {
-      if (this.comparables.get(key) === (written ?? undefined)) {
-        if (previous === undefined) this.comparables.delete(key);
-        else this.comparables.set(key, previous);
+      // Identity, not value: a later write replaces the entry object.
+      if (this.entries.get(key) === written) {
+        if (previous === undefined) this.entries.delete(key);
+        else this.entries.set(key, previous);
       }
     };
   }
@@ -127,7 +152,7 @@ export class OwnWriteRecord {
     path: string,
     read: (path: string) => Promise<string>,
   ): Promise<boolean> {
-    const record = this.comparables.get(ownWriteKey(path));
+    const record = this.canonicalize(ownWriteKey(path));
     if (record === undefined) return false;
     try {
       return comparableFromText(await read(path)) === record;
@@ -145,7 +170,7 @@ export class OwnWriteRecord {
     path: string,
     read: (path: string) => Promise<string>,
   ): Promise<boolean> {
-    const record = this.comparables.get(ownWriteKey(path));
+    const record = this.canonicalize(ownWriteKey(path));
     if (record === undefined) return false;
     try {
       const comparable = comparableFromText(await read(path));

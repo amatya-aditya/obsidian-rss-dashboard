@@ -13,6 +13,7 @@ import type {
   FeedShardHealth,
 } from "../types/types";
 import { OwnWriteRecord } from "./own-write-record";
+import { ShardBaselines } from "./shard-baselines";
 import { SHARD_VERSION, cloneJson, withSyncNonce } from "./storage-json";
 import {
   parseFeedBundle,
@@ -31,12 +32,14 @@ import {
   normalizeFolderPath,
 } from "./feed-storage-shard";
 import {
+  createLoadedShardBaseline,
   hydrateFeedStorage,
   persistFeedStorage,
   type FeedStorageHydrationResult,
   type FeedStoragePersistResult,
   type FeedStorageRunnerHost,
   type FeedStorageRunnerState,
+  type LoadedShard,
   type PersistSettingsOptions,
 } from "./feed-storage-runner";
 
@@ -110,6 +113,20 @@ function storageError(
   _details?: unknown,
 ): void {}
 
+/**
+ * Copies a feed without reading its `items`, so persisting settings never
+ * clones an article that the persisted form drops anyway.
+ */
+function withoutItems(feed: Feed): Feed {
+  const config: Record<string, unknown> = {};
+  for (const key of Object.keys(feed)) {
+    if (key !== "items") {
+      config[key] = (feed as unknown as Record<string, unknown>)[key];
+    }
+  }
+  return config as unknown as Feed;
+}
+
 export class FeedStorageRepository {
   /**
    * Workflow state the hydrate/persist runner reads and writes through the
@@ -118,7 +135,7 @@ export class FeedStorageRepository {
    */
   private readonly state: FeedStorageRunnerState = {
     lastPersistedMetadataJson: null,
-    lastPersistedShardJsonByFeedId: new Map<string, string>(),
+    lastPersistedShardJsonByFeedId: new ShardBaselines(),
     ownWrites: new OwnWriteRecord(),
     removedFeedShardBaselines: new Map(),
     lastStorageFolderPath: null,
@@ -159,7 +176,8 @@ export class FeedStorageRepository {
       userState: this.userState,
       state: this.state,
       ensureFeedIds: (settings) => this.ensureFeedIds(settings),
-      capturePersistedState: (settings) => this.capturePersistedState(settings),
+      capturePersistedState: (settings, loadedShards) =>
+        this.capturePersistedState(settings, loadedShards),
       hasNothingToRebuild: (feed) => this.hasNothingToRebuild(feed),
       removeShardFile: (shardPath) => this.removeShardFile(shardPath),
       removeFolderIfEmpty: (folderPath) => this.removeFolderIfEmpty(folderPath),
@@ -885,7 +903,10 @@ export class FeedStorageRepository {
   private createPersistedSettings(
     settings: RssDashboardSettings,
   ): PersistedRssDashboardSettings {
-    const cloned = cloneJson(settings);
+    const cloned = cloneJson({
+      ...settings,
+      feeds: settings.feeds.map(withoutItems),
+    });
 
     return {
       ...cloned,
@@ -894,7 +915,10 @@ export class FeedStorageRepository {
     };
   }
 
-  private capturePersistedState(settings: RssDashboardSettings): void {
+  private capturePersistedState(
+    settings: RssDashboardSettings,
+    loadedShards: ReadonlyMap<string, LoadedShard> = new Map(),
+  ): void {
     if (
       settings.storageMode === "vault-shards" ||
       settings.storageMode === "vault-shards-v2"
@@ -905,16 +929,20 @@ export class FeedStorageRepository {
         2,
       );
       const isV2 = settings.storageMode === "vault-shards-v2";
-      this.state.lastPersistedShardJsonByFeedId = new Map(
-        settings.feeds
-          .filter((feed): feed is Feed & { feedId: string } =>
-            Boolean(feed.feedId),
-          )
-          .map((feed) => [
-            feed.feedId,
-            createComparableFeedShardJson(feed, isV2),
-          ]),
-      );
+      const baselines = new ShardBaselines();
+      for (const feed of settings.feeds) {
+        const feedId = feed.feedId;
+        if (!feedId) continue;
+        const loaded = loadedShards.get(feedId);
+        if (loaded) {
+          baselines.setDeferred(feedId, () =>
+            createLoadedShardBaseline(feedId, loaded, isV2),
+          );
+        } else {
+          baselines.set(feedId, createComparableFeedShardJson(feed, isV2));
+        }
+      }
+      this.state.lastPersistedShardJsonByFeedId = baselines;
       this.state.lastStorageFolderPath = normalizeFolderPath(
         settings.storageFolder,
       );
