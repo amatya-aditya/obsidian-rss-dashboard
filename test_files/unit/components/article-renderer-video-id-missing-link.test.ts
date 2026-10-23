@@ -80,4 +80,17 @@ describe("ArticleRenderer video-id-not-found Watch on YouTube link (#1297)", () 
       "https://example.com/watch",
     );
   });
+
+  it("plays a Twitch live channel link in the live embed (#1539)", async () => {
+    await (
+      renderer as unknown as {
+        displayVideo: (c: HTMLElement, i: FeedItem) => Promise<void>;
+      }
+    ).displayVideo(container, makeVideoItem("https://www.twitch.tv/riotgames"));
+
+    expect(container.querySelector("iframe")?.getAttribute("src")).toContain(
+      "channel=riotgames&",
+    );
+    expect(container.querySelector(".rss-reader-error")).toBeNull();
+  });
 });
