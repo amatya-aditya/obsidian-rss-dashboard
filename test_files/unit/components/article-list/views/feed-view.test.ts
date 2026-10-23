@@ -615,10 +615,11 @@ describe("feed-view", () => {
         const restoreCoverImage = vi.fn().mockResolvedValue(true);
         const fetchCoverImage = vi.fn().mockResolvedValue(true);
         const replaceArticle = vi.fn();
+        const onArticleClick = vi.fn();
         renderFeedView(
           container,
           [fetchedArticle()],
-          baseViewContext(),
+          baseViewContext({ callbacks: { onArticleClick } }),
           baseViewDeps({ restoreCoverImage, fetchCoverImage, replaceArticle }),
         );
 
@@ -627,6 +628,35 @@ describe("feed-view", () => {
         await vi.waitFor(() => expect(replaceArticle).toHaveBeenCalledTimes(1));
         expect(restoreCoverImage).toHaveBeenCalledTimes(1);
         expect(fetchCoverImage).not.toHaveBeenCalled();
+        expect(onArticleClick).not.toHaveBeenCalled();
+      });
+
+      it("ignores an item click that began on the cover control", () => {
+        const onArticleClick = vi.fn();
+        const fetchCoverImage = vi.fn().mockResolvedValue(false);
+        renderFeedView(
+          container,
+          [fetchedArticle()],
+          baseViewContext({ callbacks: { onArticleClick } }),
+          baseViewDeps({ restoreCoverImage: vi.fn(), fetchCoverImage }),
+        );
+        const item = container.querySelector<HTMLElement>(
+          ".rss-dashboard-feed-item",
+        )!;
+
+        // A tap that starts on the control and drifts before release is
+        // dispatched at the nearest common ancestor, so the item sees it.
+        fetchButton()!.dispatchEvent(
+          new PointerEvent("pointerdown", { bubbles: true }),
+        );
+        item.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+        expect(onArticleClick).not.toHaveBeenCalled();
+        expect(fetchCoverImage).not.toHaveBeenCalled();
+
+        // The press is spent: the next plain item click opens it again.
+        item.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        expect(onArticleClick).toHaveBeenCalledTimes(1);
       });
 
       it("offers nothing, not a fetch, when the dashboard supplies no restore", () => {
