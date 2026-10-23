@@ -1,4 +1,70 @@
-import type { Folder, RssDashboardSettings, Tag } from "../types/types";
+import type {
+  Folder,
+  MediaSettings,
+  RssDashboardSettings,
+  Tag,
+} from "../types/types";
+
+const MEDIA_TAG_LIST_KEYS = [
+  "defaultVideoTags",
+  "defaultYouTubeTags",
+  "defaultPodcastTags",
+  "defaultRssTags",
+  "defaultSmallwebTags",
+  "defaultMastodonTags",
+] as const satisfies readonly (keyof MediaSettings)[];
+
+const MEDIA_TAG_SINGLE_KEYS = [
+  "defaultVideoTag",
+  "defaultYouTubeTag",
+  "defaultRssTag",
+  "defaultSmallwebTag",
+  "defaultMastodonTag",
+] as const satisfies readonly (keyof MediaSettings)[];
+
+/**
+ * Applies a tag update to every folder auto-tag rule that uses the tag,
+ * including nested subfolders. Folder rules re-apply their auto-tags on every
+ * refresh, so a rename that skips them re-creates the old tag name.
+ */
+function updateFolderAutoTags(
+  folders: readonly Folder[],
+  oldTagName: string,
+  newTagUpdate: Readonly<Partial<Tag>>,
+): void {
+  for (const folder of folders) {
+    if (folder.autoTags?.some((tag) => tag.name === oldTagName)) {
+      folder.autoTags = folder.autoTags.map((tag) =>
+        tag.name === oldTagName ? { ...tag, ...newTagUpdate } : tag,
+      );
+    }
+    if (folder.subfolders?.length) {
+      updateFolderAutoTags(folder.subfolders, oldTagName, newTagUpdate);
+    }
+  }
+}
+
+/**
+ * Renames the tag in the Auto tagging default tag lists, both the plural
+ * arrays and the legacy single values, so a rename does not orphan the media
+ * defaults that reference it.
+ */
+function remapMediaTagNames(
+  media: MediaSettings,
+  oldTagName: string,
+  newTagName: string,
+): void {
+  for (const key of MEDIA_TAG_LIST_KEYS) {
+    media[key] = media[key].map((name) =>
+      name === oldTagName ? newTagName : name,
+    );
+  }
+  for (const key of MEDIA_TAG_SINGLE_KEYS) {
+    if (media[key] === oldTagName) {
+      media[key] = newTagName;
+    }
+  }
+}
 
 export function updateTagInSettings(
   settings: Readonly<RssDashboardSettings>,
@@ -29,6 +95,13 @@ export function updateTagInSettings(
         });
       }
     }
+  }
+
+  updateFolderAutoTags(settings.folders, oldTag.name, newTagUpdate);
+
+  const newTagName = newTagUpdate.name?.trim();
+  if (newTagName && newTagName !== oldTag.name) {
+    remapMediaTagNames(settings.media, oldTag.name, newTagName);
   }
 
   return updatedTags;

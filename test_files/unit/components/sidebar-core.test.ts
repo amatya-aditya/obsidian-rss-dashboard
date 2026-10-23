@@ -17,6 +17,7 @@ import * as ObsidianStubs from "../../stubs/obsidian";
 import type { App } from "../../stubs/obsidian";
 import { lucideIconId } from "../test-icon-helpers";
 import {
+  DEFAULT_SETTINGS,
   RssDashboardSettings,
   Folder,
   type Feed,
@@ -103,6 +104,9 @@ describe("Sidebar Core", () => {
         sidebarItemPaddingRight: 2,
       },
       media: {
+        ...(JSON.parse(
+          JSON.stringify(DEFAULT_SETTINGS.media),
+        ) as RssDashboardSettings["media"]),
         useDomainIconsRss: false,
       },
     } as unknown as RssDashboardSettings;

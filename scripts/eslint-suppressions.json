@@ -81,11 +81,6 @@
       "count": 3
     }
   },
-  "src/settings/tabs/tags-settings-tab.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/utils/full-size-image-resolver.ts": {
     "complexity": {
       "count": 1

@@ -9,6 +9,7 @@ import {
   withSavedTagName,
 } from "../../../src/utils/tag-utils";
 import {
+  DEFAULT_SETTINGS,
   FeedItem,
   Folder,
   RssDashboardSettings,
@@ -21,6 +22,10 @@ type TestTag = { name: string; color?: string };
 function makeSettings(tags: TestTag[]): RssDashboardSettings {
   return {
     availableTags: [...tags],
+    folders: [],
+    media: JSON.parse(
+      JSON.stringify(DEFAULT_SETTINGS.media),
+    ) as RssDashboardSettings["media"],
     feeds: [
       {
         items: [
