@@ -432,6 +432,7 @@ body .rss-dashboard-star-toggle svg {
  * fetch role and the restore role alike; only the fetch dims the article. */
 .rss-dashboard-article-card .rss-dashboard-fetch-cover-button,
 .rss-dashboard-feed-item .rss-dashboard-fetch-cover-button {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -462,11 +463,23 @@ body .rss-dashboard-star-toggle svg {
   background-color: var(--background-modifier-hover);
 }
 
-@media (pointer: coarse) {
+/* A device whose primary pointer has no hover has no hover to reveal the
+ * control, so it is shown outright. The visible box stays 24px, but the
+ * pointer target grows to 40×40 with an overhanging pseudo-element (#1529):
+ * the tag row keeps its height and the chips keep their places, while a tap
+ * near the control lands on it instead of the card's open action. */
+@media (hover: none), (pointer: coarse) {
   .rss-dashboard-article-card .rss-dashboard-fetch-cover-button,
   .rss-dashboard-feed-item .rss-dashboard-fetch-cover-button {
     opacity: 1;
     pointer-events: auto;
+  }
+
+  .rss-dashboard-article-card .rss-dashboard-fetch-cover-button::after,
+  .rss-dashboard-feed-item .rss-dashboard-fetch-cover-button::after {
+    content: "";
+    position: absolute;
+    inset: -8px;
   }
 }
 

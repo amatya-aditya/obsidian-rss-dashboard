@@ -12,7 +12,10 @@ import {
 } from "../../../utils/article-preview-utils";
 import { renderSingleRowCardTagChips } from "../utils/tag-layout-utils";
 import { resolveCoverImageOffer } from "../utils/cover-image-action";
-import { renderCoverImageControl } from "../utils/cover-image-control";
+import {
+  attachArticleOpenHandler,
+  renderCoverImageControl,
+} from "../utils/cover-image-control";
 import type { BaseViewContext, ViewDeps } from "./view-types";
 import {
   renderPreviewPlaceholder,
@@ -345,7 +348,7 @@ export function renderCardView(
       setTooltip(dateEl, dateInfo.title);
     }
 
-    card.addEventListener("click", () => {
+    attachArticleOpenHandler(card, () => {
       ctx.callbacks.onArticleClick(article);
     });
 

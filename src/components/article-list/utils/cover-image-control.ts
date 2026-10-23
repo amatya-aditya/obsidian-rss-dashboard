@@ -10,6 +10,50 @@ import {
   type CoverImageActionDeps,
 } from "./cover-image-run";
 
+/**
+ * The article elements whose current press began on the cover-image control
+ * (#1529). A tap can start on the control and drift before release; the browser
+ * then dispatches its click at the nearest common ancestor — the card or feed
+ * item — where the control's own click handler never sees it, so the article's
+ * open handler reads this to know where the press started.
+ */
+const controlPresses = new WeakSet<HTMLElement>();
+
+function isInsideCoverImageControl(target: EventTarget | null): boolean {
+  const element = target as Element | null;
+  return !!element?.closest?.(`.${COVER_IMAGE_FETCH_BUTTON_CLASS}`);
+}
+
+/**
+ * Opens the article on a click that did not begin on its cover-image control
+ * (#1529). Shared by the card and the feed item, like the control itself, so
+ * the two cannot drift apart. The guard clears on every click, so one stray
+ * press cannot swallow the next open; a press that starts anywhere else also
+ * clears it.
+ */
+export function attachArticleOpenHandler(
+  articleEl: HTMLElement,
+  openArticle: () => void,
+): void {
+  articleEl.addEventListener("pointerdown", (event: PointerEvent) => {
+    if (isInsideCoverImageControl(event.target)) {
+      controlPresses.add(articleEl);
+      return;
+    }
+    controlPresses.delete(articleEl);
+  });
+  articleEl.addEventListener("pointercancel", () => {
+    controlPresses.delete(articleEl);
+  });
+  articleEl.addEventListener("click", (event: MouseEvent) => {
+    const beganInControl =
+      controlPresses.has(articleEl) || isInsideCoverImageControl(event.target);
+    controlPresses.delete(articleEl);
+    if (beganInControl) return;
+    openArticle();
+  });
+}
+
 export interface CoverImageControlOptions {
   /** The tag region the control is appended to, after the tag container. */
   parent: HTMLElement;
@@ -69,6 +113,9 @@ export function renderCoverImageControl({
     }
   });
   button.addEventListener("click", (event: MouseEvent) => {
+    // The control handled this press, so it must not also count as one that
+    // began outside it when the article's open handler runs next.
+    controlPresses.delete(articleEl);
     // The article element itself opens the article on click.
     event.stopPropagation();
     void runCoverImageAction({ article, articleEl, deps }, action.role);

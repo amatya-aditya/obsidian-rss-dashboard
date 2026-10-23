@@ -760,6 +760,37 @@ describe("card-view", () => {
       expect(onArticleClick).not.toHaveBeenCalled();
     });
 
+    it("ignores a card click that began on the control", () => {
+      const onArticleClick = vi.fn();
+      const fetchCoverImage = vi.fn().mockResolvedValue(false);
+      renderCardView(
+        container,
+        [makeArticle()],
+        {
+          ...baseViewContext({ callbacks: { onArticleClick } }),
+          showCardToolbar: false,
+        },
+        baseViewDeps({ fetchCoverImage }),
+      );
+      const card = container.querySelector<HTMLElement>(
+        ".rss-dashboard-article-card",
+      )!;
+
+      // A tap that starts on the control and drifts before release is
+      // dispatched at the nearest common ancestor, so the card sees it.
+      fetchButton()!.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true }),
+      );
+      card.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+      expect(onArticleClick).not.toHaveBeenCalled();
+      expect(fetchCoverImage).not.toHaveBeenCalled();
+
+      // The press is spent: the next plain card click opens it again.
+      card.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      expect(onArticleClick).toHaveBeenCalledTimes(1);
+    });
+
     it("leaves the card in place when the page had no cover", async () => {
       const fetchCoverImage = vi.fn().mockResolvedValue(false);
       const replaceArticle = vi.fn();
