@@ -269,6 +269,30 @@ describe("plugin start over a Shard storage v2 vault (#1519)", () => {
     expect(plugin.settings.feeds.map((f) => f.items.length)).toEqual([2, 1, 3]);
   });
 
+  it("persists a settings migration once, so the next start finds nothing to migrate and saves nothing (#1524)", async () => {
+    const app = await savedVault(feeds());
+    // A vault from before keyword rules had their own key: every start used
+    // to migrate it, and the save it caused wrote nothing that kept it.
+    editSavedSettings(app, (settings) => {
+      settings.filters = settings.keywordRules;
+      delete settings.keywordRules;
+    });
+
+    const first = await start(app);
+    expect(first.save).toHaveBeenCalledTimes(1);
+    expect(first.save).toHaveBeenCalledWith({ forceMetadata: true });
+    expect(
+      JSON.parse(app.vault.filesOnDisk.get(DATA_PATH) ?? "{}"),
+    ).not.toHaveProperty("filters");
+    first.plugin.onunload();
+
+    const watch = watchAdapter(app);
+    const second = await start(app);
+
+    expect(second.save).not.toHaveBeenCalled();
+    expect(watch.shardReads()).toHaveLength(3);
+  });
+
   it("saves once and rewrites the shard when a shard holds a duplicate article", async () => {
     const app = await savedVault(feeds());
     app.vault.filesOnDisk.set(
