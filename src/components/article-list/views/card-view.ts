@@ -34,6 +34,31 @@ function keepTextStopEnterLocal(element: HTMLElement): void {
   });
 }
 
+const PREVIEWING_CLASS = "is-previewing";
+const NO_HOVER_QUERY = "(hover: none)";
+
+/**
+ * On a device with no hover, tapping the cover toggles the Preview instead of
+ * opening the article (#1530). Hover cannot reveal it there: a touch leaves
+ * `:hover` stuck on whatever sat under the finger, so a cover that arrives from
+ * a fetch rebuild would already be covered. Hover-capable devices keep the
+ * hover and focus reveal, and a click on the cover opens the article.
+ */
+function attachCoverPreviewToggle(
+  coverContainer: HTMLElement,
+  summaryOverlay: HTMLElement,
+): void {
+  coverContainer.addEventListener("click", (event: MouseEvent) => {
+    const view = coverContainer.ownerDocument.defaultView;
+    if (!view?.matchMedia?.(NO_HOVER_QUERY).matches) return;
+    event.stopPropagation();
+    const showing = coverContainer.classList.toggle(PREVIEWING_CLASS);
+    if (!showing && summaryOverlay.matches(":focus-within")) {
+      summaryOverlay.blur();
+    }
+  });
+}
+
 function renderCardPlaceholder(
   previewRegion: HTMLElement,
   openButton: HTMLElement,
@@ -249,6 +274,7 @@ export function renderCardView(
         } else {
           summaryOverlay.textContent = previewSummaryText;
         }
+        attachCoverPreviewToggle(coverContainer, summaryOverlay);
       }
     } else if (previewSummaryText) {
       const previewRegion = cardContent.createDiv({
