@@ -274,7 +274,7 @@ export default class RssDashboardPlugin extends Plugin {
       loadData: () => this.loadData(),
       saveData: (data) => this.saveData(data),
       loadSettings: () => this.loadSettings(),
-      saveSettings: () => this.saveSettings(),
+      saveSettings: (...args) => this.saveSettings(...args),
       migrateLegacySettings: () => this.migrateLegacySettings(),
       repairMissingFolderPathsForFeeds: () =>
         this.repairMissingFolderPathsForFeeds(),

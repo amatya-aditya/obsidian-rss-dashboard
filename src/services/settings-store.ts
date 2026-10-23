@@ -111,7 +111,7 @@ export interface SettingsStoreOptions {
   /** The watcher's reload goes through the plugin facade. */
   loadSettings: () => Promise<void>;
   /** Load, move and revert save through the plugin facade. */
-  saveSettings: () => Promise<void>;
+  saveSettings: (options?: PersistSettingsOptions) => Promise<void>;
   migrateLegacySettings: () => boolean;
   repairMissingFolderPathsForFeeds: () => Promise<void>;
   /** A reload rebinds the services only when they already exist. */
@@ -407,6 +407,18 @@ export class SettingsStore {
     return { data, vaultMetadataUnreadable, keepCurrentSettings };
   }
 
+  /**
+   * A migration the load applied is written with a forced metadata save: the
+   * baseline persist compares against is captured after the migration, so a
+   * plain save writes nothing, the stored settings keep their old shape, and
+   * every start would migrate and save again (#1524).
+   */
+  private loadSaveOptions(
+    didMigrate: boolean,
+  ): PersistSettingsOptions | undefined {
+    return didMigrate ? { forceMetadata: true } : undefined;
+  }
+
   private shouldSaveAfterLoad({
     wasNullLoad,
     hydrated,
@@ -586,7 +598,9 @@ export class SettingsStore {
         if (!this.options.hasBackupService()) {
           this.options.initializeSettingsBackedServices();
         }
-        await this.options.saveSettings();
+        await this.options.saveSettings(
+          this.loadSaveOptions(didMigrateKeywordRules),
+        );
       }
       // A load that saved has already taken the baseline; this is a no-op then.
       await this.recordRecoveryBaseline(wasNullLoad, hydrated);
