@@ -8,6 +8,7 @@ import { hostMatches } from "../../../utils/url-host.js";
 import {
   decodeHtmlEntities as decodeHtmlEntitiesUtil,
   sanitizeCDATA as sanitizeCDATAUtil,
+  stripHtmlTags as stripHtmlTagsUtil,
 } from "./xml-html-utils.js";
 import { routeFeedDocument } from "./feed-document-router.js";
 
@@ -508,7 +509,7 @@ export class CustomXMLParser {
   }
 
   parseString(xmlString: string): ParsedFeed {
-    return routeFeedDocument(xmlString, {
+    const parsed = routeFeedDocument(xmlString, {
       transformSageUrl: this.transformSageUrl.bind(this),
       parseXML: (xml) => this.parseXML(xml),
       validateFeedStructure: (doc) => this.validateFeedStructure(doc),
@@ -516,5 +517,16 @@ export class CustomXMLParser {
       getAtomParserDeps: () => this.getAtomParserDeps(),
       getFallbackParseDeps: () => this.getFallbackParseDeps(),
     });
+
+    // Atom `type="html"` titles and escaped RSS titles decode to literal tags.
+    // Normalizing here keeps every parser path and consumer on plain text.
+    return {
+      ...parsed,
+      title: stripHtmlTagsUtil(parsed.title),
+      items: parsed.items.map((item) => ({
+        ...item,
+        title: stripHtmlTagsUtil(item.title),
+      })),
+    };
   }
 }

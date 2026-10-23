@@ -128,6 +128,22 @@ function decodeEntity(match: string, body: string): string {
   return num >= 0 && num <= 0x10ffff ? String.fromCodePoint(num) : match;
 }
 
+/**
+ * Strips inline markup a feed shipped as escaped HTML in a title, such as
+ * `<em>Wicker</em> Asks ...`. The pattern requires a real tag name followed by
+ * a space, `/`, or `>`, so literal text like `3 < 4` and autolinks like
+ * `<https://example.com>` survive. Entities are decoded by the caller exactly
+ * once; decoding again here would double-decode a title.
+ */
+export function stripHtmlTags(text: string): string {
+  if (!text) return "";
+
+  return text
+    .replace(/<\/?[A-Za-z][A-Za-z0-9-]*(?:\s[^<>]*)?\/?>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /** Decodes each entity once; decoded text is never scanned again. */
 export function decodeHtmlEntities(text: string): string {
   if (!text) return "";
