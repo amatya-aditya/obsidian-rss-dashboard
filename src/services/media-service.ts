@@ -5,6 +5,7 @@ import {
   DisplaySettings,
   Tag,
 } from "../types/types";
+import { parseTwitchChannel } from "../utils/twitch-embed";
 import { isKnownVideoUrl } from "../utils/video-detection";
 import { MastodonService } from "./mastodon-service";
 import { getYouTubeRssFeed as resolveYouTubeRssFeed } from "./youtube-rss-resolver";
@@ -277,7 +278,11 @@ export class MediaService {
         }
       }
 
-      return isKnownVideoUrl(item.link);
+      // A Twitch channel link (the live entry in a twitchrss feed) has no
+      // video route in its URL, yet it plays in Twitch's live player.
+      return (
+        isKnownVideoUrl(item.link) || parseTwitchChannel(item.link) !== null
+      );
     };
 
     const hasVideo = feed.items.some((item) => isVideoItem(item));
