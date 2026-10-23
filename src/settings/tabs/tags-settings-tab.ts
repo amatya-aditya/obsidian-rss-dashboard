@@ -26,6 +26,24 @@ interface AutoTagSettingConfig {
 }
 
 /**
+ * After the tab re-renders, returns focus to the edited row's pencil. The
+ * refresh replaces the button that opened the dialog, so the modal's usual
+ * focus restoration cannot reach it and a keyboard user would restart tabbing
+ * from the top of the settings page.
+ */
+function focusTagRowEditor(ownerDocument: Document, tagName: string): void {
+  const chip = Array.from(
+    ownerDocument.querySelectorAll<HTMLElement>(
+      ".rss-dashboard-settings-tag-chip",
+    ),
+  ).find((element) => element.textContent?.trim() === tagName);
+  chip
+    ?.closest(".setting-item")
+    ?.querySelector<HTMLButtonElement>("button")
+    ?.focus();
+}
+
+/**
  * One row of the Tags list: the tag shown as a chip in its own color, a pencil
  * that opens the shared Edit tag dialog, and the delete button.
  */
@@ -52,11 +70,13 @@ function renderTagSettingsRow(
             app: plugin.app,
             settings: plugin.settings,
             tag,
-            onSave: async () => {
+            onSave: async (updatedTag) => {
+              const ownerDocument = parent.ownerDocument;
               await plugin.saveSettings();
               await plugin.refreshOpenTagColorViews();
               plugin.app.workspace.trigger("rss-dashboard:tags-mutated");
               onRefresh();
+              focusTagRowEditor(ownerDocument, updatedTag.name);
             },
           });
         }),

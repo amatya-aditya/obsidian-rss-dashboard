@@ -9,8 +9,15 @@ import {
 import { renderTagsSettingsTab } from "../../../src/settings/tabs/tags-settings-tab";
 import { ConfirmActionModal } from "../../../src/settings/modals/settings-modals";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
-import { findIconButton } from "../test-icon-helpers";
 import type RssDashboardPlugin from "../../../main";
+
+/** Resolve the modal's accessible name from the heading it points at. */
+function dialogName(dialog: Element | null): string | null {
+  const container = dialog?.closest("[role='dialog']");
+  const id = container?.getAttribute("aria-labelledby");
+  if (!container || !id) return null;
+  return container.querySelector(`#${id}`)?.textContent?.trim() ?? null;
+}
 
 function flushPromises(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
@@ -34,6 +41,18 @@ function getSettingByName(containerEl: HTMLElement, name: string): HTMLElement {
     throw new Error(`Setting not found: ${name}`);
   }
   return match as HTMLElement;
+}
+
+/** Find a control by the accessible name Obsidian's setTooltip writes. */
+function findButtonByName(
+  container: ParentNode,
+  name: string,
+): HTMLButtonElement | null {
+  return (
+    Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.getAttribute("aria-label") === name,
+    ) ?? null
+  );
 }
 
 function cloneSettings(): RssDashboardSettings {
@@ -316,8 +335,8 @@ describe("renderTagsSettingsTab()", () => {
     expect(chip?.textContent).toBe("tag1");
     expect(chip?.style.getPropertyValue("--tag-color")).toBe("#000000");
     expect(row.querySelector('input[type="color"]')).toBeNull();
-    expect(findIconButton(row, "edit-3")).not.toBeNull();
-    expect(findIconButton(row, "trash-2")).not.toBeNull();
+    expect(findButtonByName(row, "Edit tag")).not.toBeNull();
+    expect(findButtonByName(row, "Delete tag")).not.toBeNull();
   });
 
   it("renames and recolors a tag from the Edit tag dialog, including folder rules and auto-tag defaults", async () => {
@@ -356,6 +375,7 @@ describe("renderTagsSettingsTab()", () => {
     ];
     settings.media.defaultVideoTag = "tag1";
     settings.media.defaultVideoTags = ["tag1"];
+    settings.dashboardMultiFilters.tagFilters = ["tag1"];
 
     const trigger = vi.fn();
     const mockApp = obsidian.App.createMock();
@@ -372,10 +392,14 @@ describe("renderTagsSettingsTab()", () => {
 
     renderTagsSettingsTab(containerEl, plugin, onRefresh);
 
-    findIconButton(getSettingByName(containerEl, "tag1"), "edit-3")?.click();
+    findButtonByName(
+      getSettingByName(containerEl, "tag1"),
+      "Edit tag",
+    )?.click();
 
     const dialog = document.querySelector(".rss-dashboard-edit-tag-modal");
     expect(dialog).not.toBeNull();
+    expect(dialogName(dialog)).toBe("Edit tag");
 
     const nameInput = dialog?.querySelector<HTMLInputElement>(
       ".rss-dashboard-tag-modal-name-input",
@@ -403,6 +427,7 @@ describe("renderTagsSettingsTab()", () => {
     ]);
     expect(plugin.settings.media.defaultVideoTag).toBe("renamed");
     expect(plugin.settings.media.defaultVideoTags).toEqual(["renamed"]);
+    expect(plugin.settings.dashboardMultiFilters.tagFilters).toEqual([]);
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(plugin.refreshOpenTagColorViews)).toHaveBeenCalledTimes(1);
     expect(trigger).toHaveBeenCalledWith("rss-dashboard:tags-mutated");
@@ -425,7 +450,10 @@ describe("renderTagsSettingsTab()", () => {
 
     renderTagsSettingsTab(containerEl, plugin, onRefresh);
 
-    findIconButton(getSettingByName(containerEl, "tag1"), "edit-3")?.click();
+    findButtonByName(
+      getSettingByName(containerEl, "tag1"),
+      "Edit tag",
+    )?.click();
     Array.from(document.querySelectorAll("button"))
       .find((button) => button.textContent === "Cancel")
       ?.click();
@@ -436,6 +464,74 @@ describe("renderTagsSettingsTab()", () => {
     ]);
     expect(vi.mocked(plugin.saveSettings)).not.toHaveBeenCalled();
     expect(onRefresh).not.toHaveBeenCalled();
+  });
+
+  it("opens the dialog for the row whose pencil was clicked", () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const settings = cloneSettings();
+    settings.availableTags = [
+      { name: "tag1", color: "#000000" },
+      { name: "tag2", color: "#ffffff" },
+    ];
+
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      refreshOpenTagColorViews: vi.fn(async () => {}),
+    } as unknown as RssDashboardPlugin;
+
+    renderTagsSettingsTab(containerEl, plugin, vi.fn());
+
+    findButtonByName(
+      getSettingByName(containerEl, "tag2"),
+      "Edit tag",
+    )?.click();
+
+    expect(
+      document.querySelector<HTMLInputElement>(
+        ".rss-dashboard-tag-modal-name-input",
+      )?.value,
+    ).toBe("tag2");
+  });
+
+  it("returns focus to the renamed row's Edit tag button after saving", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const settings = cloneSettings();
+    settings.availableTags = [{ name: "tag1", color: "#000000" }];
+
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      refreshOpenTagColorViews: vi.fn(async () => {}),
+    } as unknown as RssDashboardPlugin;
+    const onRefresh = (): void => {
+      containerEl.empty();
+      renderTagsSettingsTab(containerEl, plugin, onRefresh);
+    };
+
+    renderTagsSettingsTab(containerEl, plugin, onRefresh);
+
+    findButtonByName(
+      getSettingByName(containerEl, "tag1"),
+      "Edit tag",
+    )?.click();
+    const nameInput = document.querySelector<HTMLInputElement>(
+      ".rss-dashboard-tag-modal-name-input",
+    );
+    if (nameInput) nameInput.value = "renamed";
+    document
+      .querySelector<HTMLButtonElement>("button.rss-dashboard-primary-button")
+      ?.click();
+    await flushPromises();
+
+    const editButton = findButtonByName(
+      getSettingByName(containerEl, "renamed"),
+      "Edit tag",
+    );
+    expect(editButton).not.toBeNull();
+    expect(document.activeElement).toBe(editButton);
   });
 
   it("deletes an existing tag and refreshes", async () => {
@@ -454,9 +550,9 @@ describe("renderTagsSettingsTab()", () => {
 
     renderTagsSettingsTab(containerEl, plugin, onRefresh);
 
-    const deleteBtn = findIconButton(
+    const deleteBtn = findButtonByName(
       containerEl,
-      "trash-2",
+      "Delete tag",
     ) as HTMLButtonElement;
     deleteBtn.click();
     await flushPromises();
@@ -482,9 +578,9 @@ describe("renderTagsSettingsTab()", () => {
 
     renderTagsSettingsTab(containerEl, plugin, onRefresh);
 
-    const deleteBtn = findIconButton(
+    const deleteBtn = findButtonByName(
       containerEl,
-      "trash-2",
+      "Delete tag",
     ) as HTMLButtonElement;
     deleteBtn.click();
     await flushPromises();
@@ -688,7 +784,7 @@ describe("renderTagsSettingsTab()", () => {
 
     function clickDelete(containerEl: HTMLElement, tagName: string): void {
       const row = getSettingByName(containerEl, tagName);
-      const button = findIconButton(row, "trash-2");
+      const button = findButtonByName(row, "Delete tag");
       if (!button) throw new Error("Delete button not found");
       button.click();
     }

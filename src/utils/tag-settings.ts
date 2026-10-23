@@ -1,4 +1,5 @@
 import type {
+  Feed,
   Folder,
   MediaSettings,
   RssDashboardSettings,
@@ -45,6 +46,42 @@ function updateFolderAutoTags(
 }
 
 /**
+ * Renames the tag in every per-feed custom tag list. Parsing resolves those
+ * names against `availableTags` and drops unknown ones, so a rename that skips
+ * them silently turns the feed's per-feed tagging off on the next refresh.
+ */
+function remapFeedCustomTags(
+  feeds: readonly Feed[],
+  oldTagName: string,
+  newTagName: string,
+): void {
+  for (const feed of feeds) {
+    if (feed.customTags?.includes(oldTagName)) {
+      feed.customTags = feed.customTags.map((name) =>
+        name === oldTagName ? newTagName : name,
+      );
+    }
+  }
+}
+
+/**
+ * Drops a renamed tag from the saved dashboard filter state. The agreed
+ * behavior is that a tag filter clears on rename instead of following the new
+ * name; clearing the stored list too keeps a dashboard that is closed during
+ * the rename from reopening with a filter that matches nothing.
+ */
+function clearSavedTagFilter(
+  settings: Readonly<RssDashboardSettings>,
+  tagName: string,
+): void {
+  const { tagFilters } = settings.dashboardMultiFilters;
+  if (!tagFilters.includes(tagName)) return;
+  settings.dashboardMultiFilters.tagFilters = tagFilters.filter(
+    (name) => name !== tagName,
+  );
+}
+
+/**
  * Renames the tag in the Auto tagging default tag lists, both the plural
  * arrays and the legacy single values, so a rename does not orphan the media
  * defaults that reference it.
@@ -55,9 +92,9 @@ function remapMediaTagNames(
   newTagName: string,
 ): void {
   for (const key of MEDIA_TAG_LIST_KEYS) {
-    media[key] = media[key].map((name) =>
-      name === oldTagName ? newTagName : name,
-    );
+    const names = media[key];
+    if (!Array.isArray(names)) continue;
+    media[key] = names.map((name) => (name === oldTagName ? newTagName : name));
   }
   for (const key of MEDIA_TAG_SINGLE_KEYS) {
     if (media[key] === oldTagName) {
@@ -71,10 +108,16 @@ export function updateTagInSettings(
   oldTag: Readonly<Tag>,
   newTagUpdate: Readonly<Partial<Tag>>,
 ): Tag[] {
+  const trimmedName = newTagUpdate.name?.trim();
+  const tagUpdate: Readonly<Partial<Tag>> =
+    trimmedName === undefined
+      ? newTagUpdate
+      : { ...newTagUpdate, name: trimmedName };
+
   // Update the tag definition in availableTags
   const updatedTags = settings.availableTags.map((tag) => {
     if (tag.name === oldTag.name) {
-      return { ...tag, ...newTagUpdate };
+      return { ...tag, ...tagUpdate };
     }
     return tag;
   });
@@ -89,7 +132,7 @@ export function updateTagInSettings(
       if (item.tags?.some((t) => t.name === oldTag.name)) {
         item.tags = item.tags.map((t) => {
           if (t.name === oldTag.name) {
-            return { ...t, ...newTagUpdate };
+            return { ...t, ...tagUpdate };
           }
           return t;
         });
@@ -97,11 +140,12 @@ export function updateTagInSettings(
     }
   }
 
-  updateFolderAutoTags(settings.folders, oldTag.name, newTagUpdate);
+  updateFolderAutoTags(settings.folders, oldTag.name, tagUpdate);
 
-  const newTagName = newTagUpdate.name?.trim();
-  if (newTagName && newTagName !== oldTag.name) {
-    remapMediaTagNames(settings.media, oldTag.name, newTagName);
+  if (trimmedName && trimmedName !== oldTag.name) {
+    remapFeedCustomTags(settings.feeds, oldTag.name, trimmedName);
+    remapMediaTagNames(settings.media, oldTag.name, trimmedName);
+    clearSavedTagFilter(settings, oldTag.name);
   }
 
   return updatedTags;

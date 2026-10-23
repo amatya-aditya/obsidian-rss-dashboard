@@ -26,6 +26,11 @@ function makeSettings(tags: TestTag[]): RssDashboardSettings {
     media: JSON.parse(
       JSON.stringify(DEFAULT_SETTINGS.media),
     ) as RssDashboardSettings["media"],
+    dashboardMultiFilters: {
+      statusFilters: [],
+      tagFilters: [],
+      logic: "OR",
+    },
     feeds: [
       {
         items: [

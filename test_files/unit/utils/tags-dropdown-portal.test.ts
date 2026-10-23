@@ -179,6 +179,35 @@ describe("createTagsDropdownPortal tag editing", () => {
       close();
     });
 
+    it("propagates a rename to folder rules and auto-tag defaults", async () => {
+      const { settings, close } = openPortal();
+      settings.folders = [
+        {
+          name: "Tech",
+          subfolders: [],
+          autoTags: [{ name: "News", color: "#ff0000" }],
+        },
+      ];
+      settings.media.defaultVideoTags = ["News"];
+
+      document
+        .querySelector<HTMLElement>(".rss-dashboard-tag-edit-button")!
+        .click();
+      document.querySelector<HTMLInputElement>(
+        ".rss-dashboard-tag-modal-name-input",
+      )!.value = "Updates";
+      document
+        .querySelector<HTMLButtonElement>(
+          "button.rss-dashboard-primary-button",
+        )!
+        .click();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(settings.folders[0].autoTags?.[0]?.name).toBe("Updates");
+      expect(settings.media.defaultVideoTags).toEqual(["Updates"]);
+      close();
+    });
+
     it("deletes the tag when the Delete button is clicked", () => {
       const { settings, close } = openPortal();
       document

@@ -109,6 +109,11 @@ describe("Sidebar Core", () => {
         ) as RssDashboardSettings["media"]),
         useDomainIconsRss: false,
       },
+      dashboardMultiFilters: {
+        statusFilters: [],
+        tagFilters: [],
+        logic: "AND",
+      },
     } as unknown as RssDashboardSettings;
 
     options = {
@@ -234,6 +239,14 @@ describe("Sidebar Core", () => {
     });
 
     it("opens the edit modal from the tag menu and saves the selected tag", async () => {
+      settings.folders = [
+        {
+          name: "Tech",
+          subfolders: [],
+          autoTags: [{ name: "Research", color: "#3498db" }],
+        } as Folder,
+      ];
+      settings.media.defaultVideoTags = ["Research"];
       const row = container.querySelector<HTMLElement>(
         ".rss-dashboard-sidebar-tag-row",
       );
@@ -261,6 +274,8 @@ describe("Sidebar Core", () => {
       await vi.waitFor(() => {
         expect(settings.availableTags[0]?.name).toBe("Reading");
       });
+      expect(settings.folders[0]?.autoTags?.[0]?.name).toBe("Reading");
+      expect(settings.media.defaultVideoTags).toEqual(["Reading"]);
       expect(plugin.saveSettings).toHaveBeenCalledOnce();
       expect(plugin.refreshOpenTagColorViews).toHaveBeenCalledOnce();
       expect(callbacks.onTagToggle).not.toHaveBeenCalled();

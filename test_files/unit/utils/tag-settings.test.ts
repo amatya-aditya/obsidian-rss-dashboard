@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_SETTINGS,
+  type Feed,
+  type FeedItem,
   type RssDashboardSettings,
 } from "../../../src/types/types";
+import { MediaService } from "../../../src/services/media-service";
 import { getFolderAutoTags } from "../../../src/utils/tag-utils";
 import {
   deleteTagFromSettings,
@@ -18,6 +21,7 @@ function makeSettings(): RssDashboardSettings {
     feeds: [
       {
         url: "https://a.example/feed",
+        customTags: ["Video", "News"],
         items: [
           {
             title: "a",
@@ -28,6 +32,11 @@ function makeSettings(): RssDashboardSettings {
           },
         ],
       },
+      {
+        url: "https://b.example/feed",
+        customTags: ["News"],
+        items: [],
+      },
     ],
     media: {
       ...(JSON.parse(
@@ -37,12 +46,18 @@ function makeSettings(): RssDashboardSettings {
       defaultVideoTags: ["Video"],
       defaultYouTubeTag: "Video",
       defaultYouTubeTags: ["Video", "News"],
+      defaultPodcastTags: ["Video"],
       defaultRssTag: "Video",
       defaultRssTags: ["Video"],
       defaultSmallwebTag: "Video",
       defaultSmallwebTags: ["Video"],
       defaultMastodonTag: "Video",
       defaultMastodonTags: ["Video"],
+    },
+    dashboardMultiFilters: {
+      statusFilters: [],
+      tagFilters: ["Video", "News"],
+      logic: "AND",
     },
     folders: [
       {
@@ -61,6 +76,20 @@ function makeSettings(): RssDashboardSettings {
       },
     ],
   } as unknown as RssDashboardSettings;
+}
+
+function makeItem(): FeedItem {
+  return {
+    title: "New article",
+    link: "https://a.example/new",
+    guid: "new",
+    description: "",
+    pubDate: "",
+    feedTitle: "Feed",
+    feedUrl: "https://a.example/feed",
+    coverImage: "",
+    tags: [],
+  } as FeedItem;
 }
 
 describe("deleteTagFromSettings", () => {
@@ -132,6 +161,9 @@ describe("updateTagInSettings", () => {
     expect(settings.folders[0].subfolders[0].autoTags).toEqual([
       { name: "Videos", color: "#00ff00" },
     ]);
+    expect(settings.feeds[0].customTags).toEqual(["Videos", "News"]);
+    expect(settings.feeds[1].customTags).toEqual(["News"]);
+    expect(settings.dashboardMultiFilters.tagFilters).toEqual(["News"]);
   });
 
   it("keeps a renamed folder rule applying to the same tag", () => {
@@ -161,6 +193,7 @@ describe("updateTagInSettings", () => {
     expect(settings.media.defaultVideoTags).toEqual(["Videos"]);
     expect(settings.media.defaultYouTubeTag).toBe("Videos");
     expect(settings.media.defaultYouTubeTags).toEqual(["Videos", "News"]);
+    expect(settings.media.defaultPodcastTags).toEqual(["Videos"]);
     expect(settings.media.defaultRssTag).toBe("Videos");
     expect(settings.media.defaultRssTags).toEqual(["Videos"]);
     expect(settings.media.defaultSmallwebTag).toBe("Videos");
@@ -187,6 +220,11 @@ describe("updateTagInSettings", () => {
     ]);
     expect(settings.media.defaultVideoTag).toBe("Video");
     expect(settings.media.defaultVideoTags).toEqual(["Video"]);
+    expect(settings.feeds[0].customTags).toEqual(["Video", "News"]);
+    expect(settings.dashboardMultiFilters.tagFilters).toEqual([
+      "Video",
+      "News",
+    ]);
   });
 
   it("leaves other tags, folder rules, and default lists untouched", () => {
@@ -203,8 +241,78 @@ describe("updateTagInSettings", () => {
       color: "#3498db",
     });
     expect(settings.media.defaultYouTubeTags).toEqual(["Videos", "News"]);
-    expect(settings.media.defaultPodcastTags).toEqual(
-      DEFAULT_SETTINGS.media.defaultPodcastTags,
+    expect(settings.feeds[1].customTags).toEqual(["News"]);
+  });
+
+  it("applies a renamed folder rule to new articles on the next parse", () => {
+    const settings = makeSettings();
+
+    updateTagInSettings(
+      settings,
+      { name: "Video", color: "#d04747" },
+      { name: "Videos", color: "#d04747" },
     );
+    settings.media.defaultRssTag = "";
+    settings.media.defaultRssTags = [];
+
+    const parsed = MediaService.applyMediaTags(
+      {
+        url: "https://a.example/feed",
+        folder: "Tech",
+        customTags: [],
+        items: [makeItem()],
+      } as unknown as Feed,
+      settings.availableTags,
+      settings.media,
+      settings.folders,
+    );
+    const names = (parsed.items[0].tags ?? []).map((tag) => tag.name);
+
+    expect(names).toContain("Videos");
+    expect(names).not.toContain("Video");
+  });
+
+  it("keeps a renamed per-feed custom tag applying on the next parse", () => {
+    const settings = makeSettings();
+
+    updateTagInSettings(
+      settings,
+      { name: "Video", color: "#d04747" },
+      { name: "Videos", color: "#d04747" },
+    );
+    settings.media.defaultRssTag = "";
+    settings.media.defaultRssTags = [];
+
+    const parsed = MediaService.applyMediaTags(
+      {
+        url: "https://a.example/feed",
+        folder: "",
+        customTags: settings.feeds[0].customTags,
+        items: [makeItem()],
+      } as unknown as Feed,
+      settings.availableTags,
+      settings.media,
+      settings.folders,
+    );
+    const names = (parsed.items[0].tags ?? []).map((tag) => tag.name);
+
+    expect(names).toContain("Videos");
+    expect(names).not.toContain("Video");
+  });
+
+  it("trims the new name everywhere it is stored", () => {
+    const settings = makeSettings();
+
+    updateTagInSettings(
+      settings,
+      { name: "Video", color: "#d04747" },
+      { name: "  Videos  " },
+    );
+
+    expect(settings.availableTags[0].name).toBe("Videos");
+    expect(settings.feeds[0].items[0].tags?.[0].name).toBe("Videos");
+    expect(settings.folders[0].autoTags?.[0].name).toBe("Videos");
+    expect(settings.feeds[0].customTags?.[0]).toBe("Videos");
+    expect(settings.media.defaultVideoTag).toBe("Videos");
   });
 });
