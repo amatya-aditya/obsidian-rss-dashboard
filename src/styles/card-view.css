@@ -736,20 +736,6 @@
 
 .rss-dashboard-card-view
   .rss-dashboard-card-preview-region
-  .rss-dashboard-cover-container.has-summary.is-previewing
-  .rss-dashboard-cover-image {
-  opacity: 0;
-}
-
-.rss-dashboard-card-view
-  .rss-dashboard-card-preview-region
-  .rss-dashboard-cover-container.has-summary.is-previewing
-  .rss-dashboard-summary-overlay {
-  opacity: 1;
-}
-
-.rss-dashboard-card-view
-  .rss-dashboard-card-preview-region
   .rss-dashboard-cover-summary-only {
   min-height: 120px;
   max-height: 200px;

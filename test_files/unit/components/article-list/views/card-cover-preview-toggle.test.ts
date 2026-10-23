@@ -55,6 +55,15 @@ describe("card cover Preview toggle (#1530)", () => {
     vi.restoreAllMocks();
   });
 
+  it("keeps the Preview a keyboard stop, so focus can reveal it", () => {
+    stubHover("hover");
+    const { overlay } = render();
+
+    expect(overlay.getAttribute("tabindex")).toBe("0");
+    overlay.focus();
+    expect(document.activeElement).toBe(overlay);
+  });
+
   describe("on a no-hover device", () => {
     beforeEach(() => stubHover("none"));
 

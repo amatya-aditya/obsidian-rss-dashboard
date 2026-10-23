@@ -35,6 +35,7 @@ function keepTextStopEnterLocal(element: HTMLElement): void {
 }
 
 const PREVIEWING_CLASS = "is-previewing";
+const NO_HOVER_QUERY = "(hover: none)";
 
 /**
  * On a device with no hover, tapping the cover toggles the Preview instead of
@@ -49,13 +50,10 @@ function attachCoverPreviewToggle(
 ): void {
   coverContainer.addEventListener("click", (event: MouseEvent) => {
     const view = coverContainer.ownerDocument.defaultView;
-    if (!view?.matchMedia?.("(hover: none)").matches) return;
+    if (!view?.matchMedia?.(NO_HOVER_QUERY).matches) return;
     event.stopPropagation();
     const showing = coverContainer.classList.toggle(PREVIEWING_CLASS);
-    if (
-      !showing &&
-      summaryOverlay.contains(summaryOverlay.ownerDocument.activeElement)
-    ) {
+    if (!showing && summaryOverlay.matches(":focus-within")) {
       summaryOverlay.blur();
     }
   });

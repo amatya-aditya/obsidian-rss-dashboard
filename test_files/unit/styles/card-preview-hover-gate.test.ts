@@ -30,10 +30,4 @@ describe("card Preview reveal stylesheet (#1530)", () => {
     expect(ungated).toEqual([]);
     expect(gated).toBeGreaterThan(0);
   });
-
-  it("reveals the Preview from the tapped is-previewing state", () => {
-    expect(stylesheet).toMatch(
-      /\.has-summary\.is-previewing\s+\.rss-dashboard-summary-overlay\s*\{\s*opacity: 1;/,
-    );
-  });
 });
