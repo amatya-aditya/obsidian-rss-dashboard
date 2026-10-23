@@ -92,3 +92,47 @@ describe("ReaderView video-id-not-found Watch on YouTube link (#1297)", () => {
     );
   });
 });
+
+describe("ReaderView plays a Twitch live channel link (#1539)", () => {
+  it("renders the live embed for a video item whose link is a channel", async () => {
+    const readerView = new ReaderView(
+      new MockLeaf({
+        workspace: {
+          getLeavesOfType: vi.fn().mockReturnValue([]),
+          setActiveLeaf: vi.fn(),
+          revealLeaf: vi.fn(),
+        },
+        vault: { getAbstractFileByPath: vi.fn() },
+      }) as never,
+      {
+        ...DEFAULT_SETTINGS,
+        useWebViewer: false,
+        corsProxyEnabled: false,
+      } as RssDashboardSettings,
+      {
+        saveArticle: vi.fn(),
+        checkSavedFileExists: vi.fn().mockReturnValue(true),
+      } as never,
+      vi.fn(),
+      vi.fn(),
+    );
+    (readerView as unknown as { contentEl: HTMLElement }).contentEl =
+      createDiv();
+    await readerView.onOpen();
+    const internals = readerView as unknown as {
+      readingContainer: HTMLElement;
+      displayVideo: (item: FeedItem) => Promise<void>;
+    };
+
+    await internals.displayVideo(
+      makeVideoItem("https://www.twitch.tv/riotgames"),
+    );
+
+    expect(
+      internals.readingContainer.querySelector("iframe")?.getAttribute("src"),
+    ).toContain("channel=riotgames&");
+    expect(
+      internals.readingContainer.querySelector(".rss-reader-error"),
+    ).toBeNull();
+  });
+});
