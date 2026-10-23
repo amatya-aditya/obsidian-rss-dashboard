@@ -131,6 +131,13 @@ export class UserStateStore {
   private onUserStateHealthChange?: () => void;
   private app: App;
   private journal: UserStateJournal | null = null;
+  /**
+   * This device's checkpoint the current load replayed over, waiting for the
+   * load to finish so the write gate is open again. The load holds the gate
+   * closed while it hydrates, so `truncateJournal` would skip the work if it
+   * ran there (#1520).
+   */
+  private pendingLoadTruncationCheckpoint = 0;
   /** Configured by the settings store, which owns the one write gate. */
   private isPersistenceSuppressed!: () => boolean;
   private getStorageMode!: () => RssDashboardSettings["storageMode"];
@@ -209,6 +216,7 @@ export class UserStateStore {
    * with none, and reports whether `user-state.json` was loaded.
    */
   public async applyToFeeds(settings: RssDashboardSettings): Promise<boolean> {
+    this.pendingLoadTruncationCheckpoint = 0;
     this.restoredUserStateKeys.clear();
     const userStateResult = await this.readUserState(settings);
     this.recordUserStateHealth(userStateResult.status);
@@ -286,10 +294,25 @@ export class UserStateStore {
     if (!replay) return;
     foldUserStateJournalRecords(states, records, checkpointByDevice);
     // This load read the snapshot back with its checkpoint intact, so this
-    // device's records that checkpoint covers are no longer the only copy; drop
-    // them now. A foreign device's checkpoint never bounds this device's
-    // journal (#1380).
-    await this.truncateJournal(checkpointByDevice[this.journal.deviceId] ?? 0);
+    // device's records that checkpoint covers are no longer the only copy. The
+    // load holds the write gate closed until it finishes, though, so hand the
+    // truncation to `completeLoad` for once the gate reopens (#1520). A foreign
+    // device's checkpoint never bounds this device's journal (#1380).
+    this.pendingLoadTruncationCheckpoint =
+      checkpointByDevice[this.journal.deviceId] ?? 0;
+  }
+
+  /**
+   * Finishes the current load's journal bookkeeping once the write gate has
+   * reopened: drops the records the snapshot read at the start of the load
+   * already covers. A load that failed, unreadable vault metadata, and the 3.0
+   * read-only cutoff all leave the gate closed, so nothing is dropped then; the
+   * remembered checkpoint is cleared either way (#1520).
+   */
+  public async completeLoad(): Promise<void> {
+    const checkpointSequence = this.pendingLoadTruncationCheckpoint;
+    this.pendingLoadTruncationCheckpoint = 0;
+    await this.truncateJournal(checkpointSequence);
   }
 
   /**
