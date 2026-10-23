@@ -327,7 +327,7 @@ describe("focus mode command", () => {
 
     expect(byId("toggle-youtube-focus-mode").checkCallback).toBeUndefined();
     expect(byId("toggle-youtube-focus-mode").name).toBe(
-      "Toggle YouTube focus mode",
+      "Toggle video focus mode",
     );
 
     await run("toggle-youtube-focus-mode");

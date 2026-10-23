@@ -46,6 +46,7 @@ export interface PaletteCommandPlugin {
   getActiveReaderView: () => Promise<ReaderCommandTarget | null>;
   openSettingsToTab: (tabName: string) => Promise<void>;
   openShortcutHelp: () => void;
+  toggleVideoFocusMode?: () => void;
   toggleYouTubeFocusMode: () => void;
   togglePodcastChapterMarkers: () => void;
 }
@@ -207,16 +208,22 @@ function registerShortcutHelpCommand(plugin: PaletteCommandPlugin): void {
 }
 
 /**
- * Adds the global command that flips YouTube Focus mode. It is available from
+ * Adds the global command that flips Video Focus mode. It is available from
  * any view, like the settings commands, and delegates the flip to the plugin so
  * the Settings → Media toggle and the `Shift+F` keymap action stay in step.
+ * The command id keeps toggle-youtube-focus-mode for hotkey compatibility (#1538).
  */
 function registerFocusModeCommand(plugin: PaletteCommandPlugin): void {
   plugin.addCommand({
+    // Keep toggle-youtube-focus-mode id for compatibility with existing user hotkeys (#1538).
     id: "toggle-youtube-focus-mode",
-    name: "Toggle YouTube focus mode",
+    name: "Toggle video focus mode",
     callback: () => {
-      void plugin.toggleYouTubeFocusMode();
+      if (plugin.toggleVideoFocusMode) {
+        void plugin.toggleVideoFocusMode();
+      } else {
+        void plugin.toggleYouTubeFocusMode();
+      }
     },
   });
 }

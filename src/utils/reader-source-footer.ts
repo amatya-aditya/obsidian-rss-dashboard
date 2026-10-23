@@ -2,8 +2,29 @@ import { setTooltip } from "obsidian";
 import type { FeedItem } from "../types/types";
 import { getOpenableHttpHref } from "./url-utils";
 
+import { moveFocusIfRemoved } from "./focus-utils";
+
 const SOURCE_FOOTER_CLASS = "rss-reader-source-footer";
 const SOURCE_FOOTER_LABEL = "Source";
+
+/**
+ * Removes any source footer elements currently in `container` (#1538).
+ * If `focusFallback` is supplied and a removed footer held keyboard focus,
+ * moves focus to `focusFallback`.
+ */
+export function clearSourceFooter(
+  container: HTMLElement,
+  focusFallback?: HTMLElement | null,
+): void {
+  for (const child of Array.from(container.children)) {
+    if (child.classList.contains(SOURCE_FOOTER_CLASS)) {
+      if (child.instanceOf(HTMLElement)) {
+        moveFocusIfRemoved(child, focusFallback);
+      }
+      child.remove();
+    }
+  }
+}
 
 /**
  * Appends the article's source URL below the reader content (#1507): a muted
@@ -18,9 +39,7 @@ export function renderSourceFooter(
   container: HTMLElement,
   item: FeedItem,
 ): void {
-  for (const child of Array.from(container.children)) {
-    if (child.classList.contains(SOURCE_FOOTER_CLASS)) child.remove();
-  }
+  clearSourceFooter(container);
   const href = getOpenableHttpHref(item.link);
   if (!href) return;
 

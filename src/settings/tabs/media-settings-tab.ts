@@ -23,6 +23,7 @@ interface MediaSettingsPlugin {
   getActiveReaderView?(): Promise<{
     updatePodcastTheme: (theme: PodcastTheme) => void;
   } | null>;
+  applyVideoFocusMode?(hide: boolean): Promise<void>;
   applyYouTubeFocusMode(hide: boolean): Promise<void>;
   applyPodcastChapterMarkers(enabled: boolean): Promise<void>;
   applyPodcastSleepTimerBand(enabled: boolean): Promise<void>;
@@ -115,20 +116,24 @@ export function renderMediaSettingsTab(
       settingsUiCompatibility.markDestructive(button);
     });
 
-  // ── YouTube player ────────────────────────────────────────────────────────
-  new Setting(containerEl).setName("YouTube player").setHeading();
+  // ── Video player ──────────────────────────────────────────────────────────
+  new Setting(containerEl).setName("Video player").setHeading();
 
   new Setting(containerEl)
-    .setName("Focus mode")
+    .setName("Video focus mode")
     .setDesc(
-      "Show only the video: hide the description and the related videos below it. The stored description is kept for search and saved notes.",
+      "Show only the video for YouTube videos and twitch VODs: hide the description, related videos, watch link and source line. The stored description is kept for search and saved notes.",
     )
     .addToggle((toggle) =>
       toggle
         .setValue(plugin.settings.media.youtubeFocusMode ?? false)
         .onChange(async (value) => {
           plugin.settings.media.youtubeFocusMode = value;
-          await plugin.applyYouTubeFocusMode(value);
+          if (plugin.applyVideoFocusMode) {
+            await plugin.applyVideoFocusMode(value);
+          } else {
+            await plugin.applyYouTubeFocusMode(value);
+          }
           await plugin.saveSettings();
         }),
     );

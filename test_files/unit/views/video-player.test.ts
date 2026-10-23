@@ -633,7 +633,7 @@ describe("VideoPlayer", () => {
       expect(container.querySelector(".rss-video-related")).not.toBeNull();
     });
 
-    it("shows only the video: no title, channel, date, tags, description or related list", () => {
+    it("shows only the video: no watch link, title, channel, date, tags, description or related list", () => {
       const container = createContainer();
       const item = withDescription();
       new VideoPlayer(
@@ -645,6 +645,7 @@ describe("VideoPlayer", () => {
         true,
       ).loadVideo(item);
 
+      expect(container.querySelector(".rss-video-watch")).toBeNull();
       expect(container.querySelector(".rss-video-description")).toBeNull();
       expect(container.querySelector(".rss-video-related")).toBeNull();
       expect(container.textContent).not.toContain("Promo");
@@ -659,13 +660,14 @@ describe("VideoPlayer", () => {
       expect(item.description).toContain("Promo");
     });
 
-    it("toggles both blocks live without recreating the iframe", () => {
+    it("toggles all blocks live without recreating the iframe", () => {
       const container = createContainer();
       const player = new VideoPlayer(container);
       player.loadVideo(withDescription());
       const iframe = container.querySelector("iframe");
 
       player.setFocusMode(true);
+      expect(container.querySelector(".rss-video-watch")).toBeNull();
       expect(container.querySelector(".rss-video-details")).toBeNull();
       expect(container.querySelector(".rss-video-description")).toBeNull();
       expect(container.querySelector(".rss-video-related")).toBeNull();
@@ -673,6 +675,7 @@ describe("VideoPlayer", () => {
 
       player.setFocusMode(true);
       player.setFocusMode(false);
+      expect(container.querySelectorAll(".rss-video-watch")).toHaveLength(1);
       expect(container.querySelector(".rss-video-title")).not.toBeNull();
       expect(container.querySelector(".rss-video-channel")?.textContent).toBe(
         "Channel Name",
@@ -682,14 +685,84 @@ describe("VideoPlayer", () => {
         1,
       );
       const order = Array.from(
-        container.querySelector(".rss-video-details")?.parentElement
-          ?.children ?? [],
+        container.querySelector(".rss-video-player")?.children ?? [],
       ).map((child) => child.className.split(" ")[0]);
+      expect(order.indexOf("rss-video-container")).toBeLessThan(
+        order.indexOf("rss-video-watch"),
+      );
+      expect(order.indexOf("rss-video-watch")).toBeLessThan(
+        order.indexOf("rss-video-details"),
+      );
       expect(order.indexOf("rss-video-details")).toBeLessThan(
         order.indexOf("rss-video-related"),
       );
       expect(container.querySelectorAll(".rss-video-related")).toHaveLength(1);
       expect(container.querySelector("iframe")).toBe(iframe);
+    });
+
+    it("hides and restores the watch link for a Twitch VOD on the same iframe", () => {
+      const container = createContainer();
+      const player = new VideoPlayer(
+        container,
+        undefined,
+        undefined,
+        true,
+        false,
+        true,
+      );
+      const twitchItem = baseItem({
+        link: "https://www.twitch.tv/videos/2904335457",
+        videoId: undefined,
+      });
+      player.loadVideo(twitchItem);
+
+      expect(container.querySelector(".rss-video-watch")).toBeNull();
+      const iframe = container.querySelector("iframe");
+      expect(iframe).not.toBeNull();
+
+      player.setFocusMode(false);
+      const watchLink =
+        container.querySelector<HTMLAnchorElement>(".rss-video-watch");
+      expect(watchLink).not.toBeNull();
+      expect(watchLink?.textContent).toContain("Watch on Twitch");
+      expect(container.querySelector("iframe")).toBe(iframe);
+    });
+
+    it("moves focus to fallback when watch link was focused", () => {
+      const container = createContainer();
+      const fallback = document.body.createEl("button");
+      const player = new VideoPlayer(container);
+      player.loadVideo(withDescription());
+
+      const watchLink =
+        container.querySelector<HTMLAnchorElement>(".rss-video-watch");
+      expect(watchLink).not.toBeNull();
+      watchLink?.focus();
+      expect(document.activeElement).toBe(watchLink);
+
+      player.setFocusMode(true, fallback);
+      expect(container.querySelector(".rss-video-watch")).toBeNull();
+      expect(document.activeElement).toBe(fallback);
+
+      // Turning focus mode off never moves focus
+      const other = document.body.createEl("button");
+      other.focus();
+      player.setFocusMode(false, fallback);
+      expect(document.activeElement).toBe(other);
+    });
+
+    it("leaves focus alone when activeElement is outside the watch link", () => {
+      const container = createContainer();
+      const fallback = document.body.createEl("button");
+      const other = document.body.createEl("button");
+      const player = new VideoPlayer(container);
+      player.loadVideo(withDescription());
+
+      other.focus();
+      expect(document.activeElement).toBe(other);
+
+      player.setFocusMode(true, fallback);
+      expect(document.activeElement).toBe(other);
     });
 
     it("restores related videos supplied while focus mode was on", () => {

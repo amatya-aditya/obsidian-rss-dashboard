@@ -42,7 +42,10 @@ import {
   renderVideoSourceBanner,
   shouldRenderVideoSourceBanner,
 } from "../utils/reader-article-fetch";
-import { renderSourceFooter } from "../utils/reader-source-footer";
+import {
+  clearSourceFooter,
+  renderSourceFooter,
+} from "../utils/reader-source-footer";
 import {
   RssDashboardSettings,
   FeedItem,
@@ -1000,11 +1003,18 @@ export class ReaderView extends ItemView {
   }
 
   /**
-   * Action: Toggle YouTube Focus mode from the `Shift+F` keymap binding.
+   * Action: Toggle Video Focus mode from the `Shift+F` keymap binding.
    * @internal
    */
+  public actionToggleVideoFocusMode(): void {
+    const plugin = this.getRssDashboardPlugin();
+    void (
+      plugin?.toggleVideoFocusMode?.() ?? plugin?.toggleYouTubeFocusMode?.()
+    );
+  }
+
   public actionToggleYouTubeFocusMode(): void {
-    void this.getRssDashboardPlugin()?.toggleYouTubeFocusMode?.();
+    this.actionToggleVideoFocusMode();
   }
 
   getViewType(): string {
@@ -1415,7 +1425,7 @@ export class ReaderView extends ItemView {
     this.updateToggleButtons();
 
     const route = resolveReaderMediaRoute(item);
-    this.syncYouTubeFocusChrome(this.settings.media.youtubeFocusMode);
+    this.syncVideoFocusChrome(this.settings.media.youtubeFocusMode);
     if (route === "video") {
       await this.displayVideo(item);
     } else if (route === "video-podcast") {
@@ -1582,7 +1592,9 @@ export class ReaderView extends ItemView {
       if (this.relatedItems.length > 0) {
         this.videoPlayer.setRelatedVideos(this.relatedItems);
       }
-      renderSourceFooter(this.readingContainer, item);
+      if (!this.settings.media.youtubeFocusMode) {
+        renderSourceFooter(this.readingContainer, item);
+      }
     } else {
       const errorContainer = container.createDiv({
         cls: "rss-reader-error",
@@ -1685,20 +1697,43 @@ export class ReaderView extends ItemView {
     }
   }
 
-  setYouTubeFocusMode(hide: boolean): void {
-    this.videoPlayer?.setFocusMode(hide);
-    this.syncYouTubeFocusChrome(hide);
-  }
-
-  /**
-   * In Focus mode a YouTube video drops the toolbar and title from the header
-   * and keeps only the back button; articles and podcasts keep the full one.
-   */
-  private syncYouTubeFocusChrome(focusMode: boolean): void {
+  setVideoFocusMode(hide: boolean): void {
     const isVideo =
       this.currentItem !== null &&
       resolveReaderMediaRoute(this.currentItem) === "video";
-    this.headerEl?.toggleClass("rss-youtube-focus", focusMode && isVideo);
+    const backButton =
+      this.headerEl?.querySelector<HTMLElement>(".rss-reader-back-button") ??
+      null;
+    this.videoPlayer?.setFocusMode(hide, backButton);
+    this.syncVideoFocusChrome(hide);
+    if (isVideo && this.readingContainer) {
+      if (hide) {
+        clearSourceFooter(this.readingContainer, backButton);
+      } else {
+        if (this.currentItem) {
+          renderSourceFooter(this.readingContainer, this.currentItem);
+        }
+      }
+    }
+  }
+
+  setYouTubeFocusMode(hide: boolean): void {
+    this.setVideoFocusMode(hide);
+  }
+
+  /**
+   * In Focus mode a video drops the toolbar and title from the header
+   * and keeps only the back button; articles and podcasts keep the full one.
+   */
+  private syncVideoFocusChrome(focusMode: boolean): void {
+    const isVideo =
+      this.currentItem !== null &&
+      resolveReaderMediaRoute(this.currentItem) === "video";
+    this.headerEl?.toggleClass("rss-video-focus", focusMode && isVideo);
+  }
+
+  private syncYouTubeFocusChrome(focusMode: boolean): void {
+    this.syncVideoFocusChrome(focusMode);
   }
 
   updatePodcastTheme(theme: string): void {
@@ -2769,6 +2804,7 @@ export class ReaderView extends ItemView {
   private getRssDashboardPlugin(): {
     saveSettings: () => Promise<void>;
     refreshOpenTagColorViews?: () => Promise<void>;
+    toggleVideoFocusMode?: () => void;
     toggleYouTubeFocusMode?: () => void;
   } | null {
     try {
@@ -2794,6 +2830,7 @@ export class ReaderView extends ItemView {
         | {
             saveSettings?: unknown;
             refreshOpenTagColorViews?: unknown;
+            toggleVideoFocusMode?: unknown;
             toggleYouTubeFocusMode?: unknown;
           }
         | undefined;
@@ -2801,6 +2838,7 @@ export class ReaderView extends ItemView {
         return plugin as {
           saveSettings: () => Promise<void>;
           refreshOpenTagColorViews?: () => Promise<void>;
+          toggleVideoFocusMode?: () => void;
           toggleYouTubeFocusMode?: () => void;
         };
       }

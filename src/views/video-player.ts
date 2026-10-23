@@ -18,12 +18,15 @@ import {
 } from "../utils/twitch-embed";
 import { resolveVideoSource, type VideoSource } from "../utils/video-source";
 import { resolveDisplayDate } from "../services/feed-parser/feed-retention";
+import { moveFocusIfRemoved } from "../utils/focus-utils";
 
 export class VideoPlayer {
   private container: HTMLElement;
   private currentItem: FeedItem | null = null;
   private playerEl: HTMLElement | null = null;
   private iframeEl: HTMLIFrameElement | null = null;
+  private videoContainerEl: HTMLElement | null = null;
+  private watchLinkEl: HTMLElement | null = null;
   private progressInterval: number | null = null;
   /** The player's last reported position; null until it reports one. */
   private reportedPosition: number | null = null;
@@ -110,6 +113,7 @@ export class VideoPlayer {
     const videoContainer = this.playerEl.createDiv({
       cls: "rss-video-container",
     });
+    this.videoContainerEl = videoContainer;
     const iframe =
       source.kind === "twitch"
         ? this.createTwitchIframe(videoContainer, source.id)
@@ -117,7 +121,9 @@ export class VideoPlayer {
     this.iframeEl = iframe;
 
     videoContainer.appendChild(iframe);
-    this.renderWatchLink(source);
+    if (!this.focusMode) {
+      this.renderWatchLink(source);
+    }
     // Twitch's embed has no position channel, so only YouTube reports progress.
     if (source.kind === "youtube") this.connectPlayer(iframe);
 
@@ -171,36 +177,56 @@ export class VideoPlayer {
    * The always-visible fallback, shown whether or not the player loads. The
    * host is undocumented, so the link must work on its own.
    */
-  private renderWatchLink(source: VideoSource): void {
-    if (!this.playerEl) return;
+  private renderWatchLink(source?: VideoSource): void {
+    const currentSource =
+      source ??
+      (this.currentItem ? resolveVideoSource(this.currentItem) : null);
+    if (!this.playerEl || !currentSource) return;
+    this.watchLinkEl?.remove();
     const link = this.playerEl.createEl("a", { cls: "rss-video-watch" });
     // The play glyph takes the player's brand color, so a Twitch link must not
     // carry YouTube's red.
-    if (source.kind === "twitch") link.addClass("rss-video-watch--twitch");
+    if (currentSource.kind === "twitch")
+      link.addClass("rss-video-watch--twitch");
     link.href =
-      source.kind === "twitch"
-        ? twitchVodWatchUrl(source.id)
-        : youTubeWatchUrl(source.id);
+      currentSource.kind === "twitch"
+        ? twitchVodWatchUrl(currentSource.id)
+        : youTubeWatchUrl(currentSource.id);
     link.target = "_blank";
     link.rel = "noopener noreferrer";
     const icon = link.createSpan({ cls: "rss-video-watch-icon" });
     setIcon(icon, "play");
     link.appendChild(
       this.playerEl.ownerDocument.createTextNode(
-        source.kind === "twitch" ? "Watch on Twitch" : "Watch on YouTube",
+        currentSource.kind === "twitch"
+          ? "Watch on Twitch"
+          : "Watch on YouTube",
       ),
     );
+    if (this.videoContainerEl) {
+      this.videoContainerEl.insertAdjacentElement("afterend", link);
+    }
+    this.watchLinkEl = link;
   }
 
   /**
-   * Focus mode shows only the video: it drops everything below it (title,
-   * channel, date, tag chips, description and the related list). Only those
-   * blocks are added or removed, so the iframe and playback state survive a
-   * preference change.
+   * Focus mode shows only the video: it drops everything below it (watch link,
+   * title, channel, date, tag chips, description and the related list). Only
+   * those blocks are added or removed, so the iframe and playback state survive
+   * a preference change (#1538).
    */
-  setFocusMode(enabled: boolean): void {
+  setFocusMode(enabled: boolean, focusFallback?: HTMLElement | null): void {
     if (this.focusMode === enabled) return;
     this.focusMode = enabled;
+    if (this.focusMode) {
+      if (this.watchLinkEl) {
+        moveFocusIfRemoved(this.watchLinkEl, focusFallback);
+        this.watchLinkEl.remove();
+        this.watchLinkEl = null;
+      }
+    } else {
+      this.renderWatchLink();
+    }
     this.renderDetails();
     this.renderRelatedVideos();
   }
@@ -450,6 +476,9 @@ export class VideoPlayer {
       this.iframeEl.remove();
       this.iframeEl = null;
     }
+    this.watchLinkEl?.remove();
+    this.watchLinkEl = null;
+    this.videoContainerEl = null;
     this.playerEl = null;
     this.detailsEl = null;
     this.descriptionEl = null;

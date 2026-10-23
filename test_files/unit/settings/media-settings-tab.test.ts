@@ -299,7 +299,7 @@ describe("renderMediaSettingsTab()", () => {
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
   });
 
-  it("persists Focus mode and applies it to open players", async () => {
+  it("persists Video focus mode and applies it to open players", async () => {
     const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();
     const applyYouTubeFocusMode = vi.fn(async () => {});
@@ -313,9 +313,10 @@ describe("renderMediaSettingsTab()", () => {
 
     renderMediaSettingsTab(containerEl, plugin);
 
-    const toggle = getSettingByName(containerEl, "Focus mode").querySelector(
-      'input[type="checkbox"]',
-    ) as HTMLInputElement;
+    const toggle = getSettingByName(
+      containerEl,
+      "Video focus mode",
+    ).querySelector('input[type="checkbox"]') as HTMLInputElement;
     expect(isToggleOn(toggle)).toBe(false);
 
     setToggle(toggle, true);

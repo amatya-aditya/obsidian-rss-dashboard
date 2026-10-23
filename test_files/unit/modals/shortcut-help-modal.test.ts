@@ -267,8 +267,8 @@ describe("ShortcutHelpModal", () => {
     });
   });
 
-  describe("YouTube focus mode shortcut", () => {
-    it("lists Shift+F as toggling YouTube focus mode in the modal and the guide", () => {
+  describe("video focus mode shortcut", () => {
+    it("lists Shift+F as toggling video focus mode in the modal and the guide", () => {
       const modal = new ShortcutHelpModal(
         createMockApp(),
         structuredClone(DEFAULT_SETTINGS),
@@ -283,14 +283,14 @@ describe("ShortcutHelpModal", () => {
       });
       modal.onClose();
 
-      expect(rows.get("Shift + f")).toBe("Toggle YouTube focus mode");
+      expect(rows.get("Shift + f")).toBe("Toggle video focus mode");
 
       const guide = readFileSync("docs/user/keyboard-shortcuts.md", "utf8");
       const row = guide
         .split("\n")
         .find((line) => line.startsWith("| Shift + f "));
       expect(row).toBeDefined();
-      expect(row).toContain("Toggle YouTube focus mode");
+      expect(row).toContain("Toggle video focus mode");
     });
   });
 
@@ -521,7 +521,7 @@ describe("ShortcutHelpModal", () => {
       modal.onClose();
     });
 
-    it("writes the YouTube focus mode row into the saved note", async () => {
+    it("writes the video focus mode row into the saved note", async () => {
       const app = App.createMock();
       const modal = new ShortcutHelpModal(app, createSettings(""));
       modal.onOpen();
@@ -531,7 +531,7 @@ describe("ShortcutHelpModal", () => {
       const file = app.vault.getAbstractFileByPath("keyboard-shortcuts.md");
       expect(file).not.toBeNull();
       const content = await app.vault.read(file as never);
-      expect(content).toContain("| Shift + f | Toggle YouTube focus mode |");
+      expect(content).toContain("| Shift + f | Toggle video focus mode |");
       modal.onClose();
     });
   });

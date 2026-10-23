@@ -906,11 +906,18 @@ export class RssDashboardView extends ItemView {
   }
 
   /**
-   * Action: Toggle YouTube Focus mode from the `Shift+F` keymap binding.
+   * Action: Toggle Video Focus mode from the `Shift+F` keymap binding.
    * @internal
    */
+  public actionToggleVideoFocusMode(): void {
+    void (
+      this.plugin.toggleVideoFocusMode?.() ??
+      this.plugin.toggleYouTubeFocusMode()
+    );
+  }
+
   public actionToggleYouTubeFocusMode(): void {
-    void this.plugin.toggleYouTubeFocusMode();
+    this.actionToggleVideoFocusMode();
   }
 
   // --- Render pipeline ---
@@ -3412,9 +3419,17 @@ export class RssDashboardView extends ItemView {
     this.articleList?.setSelectedArticle(article);
   }
 
+  public setVideoFocusMode(hide: boolean): void {
+    const backButton =
+      this.containerEl.querySelector<HTMLElement>(
+        ".inline-reader-header .rss-reader-back-button",
+      ) ?? null;
+    this.articleRenderer?.setVideoFocusMode(hide, backButton);
+    this.syncInlineVideoFocusChrome(hide);
+  }
+
   public setYouTubeFocusMode(hide: boolean): void {
-    this.articleRenderer?.setYouTubeFocusMode(hide);
-    this.syncInlineYouTubeFocusChrome(hide);
+    this.setVideoFocusMode(hide);
   }
 
   /** Apply the chapter-marker setting to an open inline podcast player. */
@@ -3428,10 +3443,10 @@ export class RssDashboardView extends ItemView {
   }
 
   /**
-   * In Focus mode an inline YouTube video drops the toolbar and title from the
+   * In Focus mode an inline video drops the toolbar and title from the
    * inline header and keeps only the back button.
    */
-  private syncInlineYouTubeFocusChrome(
+  private syncInlineVideoFocusChrome(
     focusMode: boolean,
     header: HTMLElement | null = this.containerEl.querySelector<HTMLElement>(
       ".inline-reader-header",
@@ -3440,7 +3455,16 @@ export class RssDashboardView extends ItemView {
     const isVideo =
       this.inlineArticle !== null &&
       resolveReaderMediaRoute(this.inlineArticle) === "video";
-    header?.toggleClass("rss-youtube-focus", focusMode && isVideo);
+    header?.toggleClass("rss-video-focus", focusMode && isVideo);
+  }
+
+  private syncInlineYouTubeFocusChrome(
+    focusMode: boolean,
+    header: HTMLElement | null = this.containerEl.querySelector<HTMLElement>(
+      ".inline-reader-header",
+    ),
+  ): void {
+    this.syncInlineVideoFocusChrome(focusMode, header);
   }
 
   public refreshTagColors(): void {
@@ -4692,7 +4716,7 @@ export class RssDashboardView extends ItemView {
     const header = container.createDiv({
       cls: "rss-reader-header inline-reader-header",
     });
-    this.syncInlineYouTubeFocusChrome(
+    this.syncInlineVideoFocusChrome(
       this.settings.media.youtubeFocusMode,
       header,
     );
