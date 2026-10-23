@@ -38,6 +38,6 @@ describe("getReleaseNoteForVersion", () => {
   });
 
   it("returns null when the release line has no note", () => {
-    expect(getReleaseNoteForVersion("2.8.0")).toBeNull();
+    expect(getReleaseNoteForVersion("2.9.0")).toBeNull();
   });
 });
