@@ -37,14 +37,14 @@ describe("keymap table", () => {
     expect(new Set(slots).size).toBe(slots.length);
   });
 
-  it("binds Shift+F to toggle YouTube focus mode in the dashboard and the Reader", () => {
+  it("binds Shift+F to toggle video focus mode in the dashboard and the Reader", () => {
     expect(
       findDashboardBinding({ key: "F", shiftKey: true }, () => false)?.id,
-    ).toBe("toggle-youtube-focus-mode");
+    ).toBe("toggle-video-focus-mode");
     expect(
       readerBindings().find((binding) => binding.key === "f" && binding.shift)
         ?.id,
-    ).toBe("toggle-youtube-focus-mode");
+    ).toBe("toggle-video-focus-mode");
   });
 
   it("binds Shift+C to the selected article's cover-image action", () => {

@@ -29,7 +29,7 @@ const shortcuts = [
   [[], "m", "actionToggleReadStatus"],
   [["Shift"], "a", "actionMarkAllAsRead"],
   [[], "f", "actionToggleStarStatus"],
-  [["Shift"], "f", "actionToggleYouTubeFocusMode"],
+  [["Shift"], "f", "actionToggleVideoFocusMode"],
   [[], "t", "actionToggleTagsMenu"],
   [[], "s", "actionSaveCurrentArticle"],
   [[], ",", "actionMarkReadAndNext"],

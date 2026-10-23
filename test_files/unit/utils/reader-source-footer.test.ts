@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { FeedItem } from "../../../src/types/types";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
-import { renderSourceFooter } from "../../../src/utils/reader-source-footer";
+import {
+  clearSourceFooter,
+  renderSourceFooter,
+} from "../../../src/utils/reader-source-footer";
 
 installObsidianDomPolyfills();
 
@@ -130,5 +133,43 @@ describe("renderSourceFooter", () => {
     expect(container.lastElementChild?.className).toContain(
       "rss-reader-source-footer",
     );
+  });
+});
+
+describe("clearSourceFooter", () => {
+  it("removes the source footer from container", () => {
+    const container = document.body.createDiv();
+    renderSourceFooter(container, makeItem());
+    expect(container.querySelector(".rss-reader-source-footer")).not.toBeNull();
+
+    clearSourceFooter(container);
+    expect(container.querySelector(".rss-reader-source-footer")).toBeNull();
+  });
+
+  it("moves focus to fallback when the source link was focused", () => {
+    const container = document.body.createDiv();
+    const fallback = document.body.createEl("button");
+    renderSourceFooter(container, makeItem());
+    const link = container.querySelector<HTMLAnchorElement>(
+      ".rss-reader-source-footer a",
+    );
+    link?.focus();
+    expect(document.activeElement).toBe(link);
+
+    clearSourceFooter(container, fallback);
+    expect(container.querySelector(".rss-reader-source-footer")).toBeNull();
+    expect(document.activeElement).toBe(fallback);
+  });
+
+  it("leaves focus alone when activeElement is outside the footer", () => {
+    const container = document.body.createDiv();
+    const fallback = document.body.createEl("button");
+    const other = document.body.createEl("button");
+    renderSourceFooter(container, makeItem());
+    other.focus();
+    expect(document.activeElement).toBe(other);
+
+    clearSourceFooter(container, fallback);
+    expect(document.activeElement).toBe(other);
   });
 });

@@ -90,8 +90,8 @@ export const DASHBOARD_ACTIONS: Readonly<Record<string, DashboardAction>> = {
   "toggle-star": (view) => {
     void view.actionToggleStarStatus();
   },
-  "toggle-youtube-focus-mode": (view) => {
-    view.actionToggleYouTubeFocusMode();
+  "toggle-video-focus-mode": (view) => {
+    view.actionToggleVideoFocusMode();
   },
   "cover-image-action": (view) => view.actionRunCoverImageAction(),
   "toggle-tags": (view) => {

@@ -11,6 +11,7 @@ import { RssDashboardView } from "../../../src/views/dashboard-view";
 
 vi.mock("../../../src/utils/platform-utils", () => ({
   robustFetch: vi.fn(),
+  robustFetchDetailed: vi.fn(),
   ensureUtf8Meta: (html: string) => html,
   shouldUseMobileSidebarLayout: () => false,
 }));
@@ -30,6 +31,11 @@ vi.mock("../../../src/components/article-list", () => ({
     }
     removeArticleInPlace(..._args: unknown[]): void {}
     updateArticleInPlace(..._args: unknown[]): void {}
+    setEmptyStateContext(..._args: unknown[]): void {}
+    clearEmptyStateContext(..._args: unknown[]): void {}
+    setSearchQuery(..._args: unknown[]): void {}
+    clearSearchQuery(..._args: unknown[]): void {}
+    updateRefreshButtonText(..._args: unknown[]): void {}
   },
 }));
 
@@ -112,17 +118,24 @@ interface DashboardViewInternal {
   inlineArticle: FeedItem | null;
   selectedArticle: FeedItem | null;
   render(): void;
-  setYouTubeFocusMode(enabled: boolean): void;
+  setVideoFocusMode(enabled: boolean): void;
+  setVideoFocusMode(enabled: boolean): void;
+  actionToggleVideoFocusMode(): void;
   refreshTagColors(): void;
   createArticleRenderer(): void;
 }
 
-function makeView(settings: RssDashboardSettings): DashboardViewInternal {
+function makeView(
+  settings: RssDashboardSettings,
+  pluginOverrides: Record<string, unknown> = {},
+): DashboardViewInternal {
   const app = new App();
   const plugin = {
     settings,
     saveSettings: vi.fn(async () => {}),
     updateArticle: vi.fn(async () => {}),
+    toggleVideoFocusMode: vi.fn(async () => true),
+    ...pluginOverrides,
   };
   const leaf = {
     app,
@@ -153,7 +166,7 @@ const video = (): FeedItem =>
     tags: [{ name: "Video", color: "#e11d48" }],
   });
 
-describe("Dashboard inline Reader YouTube focus mode", () => {
+describe("Dashboard inline Reader Video focus mode", () => {
   beforeEach(() => {
     installObsidianDomPolyfills();
     document.body.empty();
@@ -185,36 +198,81 @@ describe("Dashboard inline Reader YouTube focus mode", () => {
       view.containerEl.querySelectorAll(".rss-video-details .rss-reader-tag"),
     ).map((chip) => chip.textContent ?? "");
 
-  it("shows the tag chips and the full header when focus mode is off", async () => {
+  it("shows the tag chips, source footer, and the full header when focus mode is off", async () => {
     const { view } = await openInline(false, video());
 
     expect(chips(view)).toEqual(["Video"]);
-    expect(header(view).classList.contains("rss-youtube-focus")).toBe(false);
+    expect(header(view).classList.contains("rss-video-focus")).toBe(false);
+    expect(
+      view.containerEl.querySelector(".rss-reader-source-footer"),
+    ).not.toBeNull();
   });
 
-  it("hides the chips and marks the header as focused when focus mode is on, keeping the back button", async () => {
+  it("hides the chips and source footer and marks the header as focused when focus mode is on, keeping the back button", async () => {
     const { view } = await openInline(true, video());
 
     expect(chips(view)).toEqual([]);
     expect(view.containerEl.querySelector(".rss-video-details")).toBeNull();
-    expect(header(view).classList.contains("rss-youtube-focus")).toBe(true);
     expect(
-      header(view).querySelector("button.rss-reader-back-button"),
-    ).not.toBeNull();
+      view.containerEl.querySelector(".rss-reader-source-footer"),
+    ).toBeNull();
+    expect(header(view).classList.contains("rss-video-focus")).toBe(true);
+    const backBtn = header(view).querySelector<HTMLButtonElement>(
+      "button.rss-reader-back-button",
+    );
+    expect(backBtn).not.toBeNull();
+
+    // Clicking the inline back button exits the inline reader
+    backBtn?.click();
+    expect(view.inlineArticle).toBeNull();
   });
 
   it("applies and removes focus mode live on the open video", async () => {
     const { view, settings } = await openInline(false, video());
 
     settings.media.youtubeFocusMode = true;
-    view.setYouTubeFocusMode(true);
+    view.setVideoFocusMode(true);
     expect(chips(view)).toEqual([]);
-    expect(header(view).classList.contains("rss-youtube-focus")).toBe(true);
+    expect(
+      view.containerEl.querySelector(".rss-reader-source-footer"),
+    ).toBeNull();
+    expect(header(view).classList.contains("rss-video-focus")).toBe(true);
 
     settings.media.youtubeFocusMode = false;
-    view.setYouTubeFocusMode(false);
+    view.setVideoFocusMode(false);
     expect(chips(view)).toEqual(["Video"]);
-    expect(header(view).classList.contains("rss-youtube-focus")).toBe(false);
+    expect(
+      view.containerEl.querySelectorAll(".rss-reader-source-footer"),
+    ).toHaveLength(1);
+    expect(header(view).classList.contains("rss-video-focus")).toBe(false);
+  });
+
+  it("moves focus to the inline back button when the source link was focused and focus mode turns on", async () => {
+    const { view } = await openInline(false, video());
+
+    const sourceLink = view.containerEl.querySelector<HTMLAnchorElement>(
+      ".rss-reader-source-footer a",
+    );
+    expect(sourceLink).not.toBeNull();
+    sourceLink?.focus();
+    expect(document.activeElement).toBe(sourceLink);
+
+    const backBtn = header(view).querySelector<HTMLButtonElement>(
+      "button.rss-reader-back-button",
+    );
+    expect(backBtn).not.toBeNull();
+
+    view.setVideoFocusMode(true);
+    expect(
+      view.containerEl.querySelector(".rss-reader-source-footer"),
+    ).toBeNull();
+    expect(document.activeElement).toBe(backBtn);
+
+    // Turning focus mode off never moves focus
+    const other = document.body.createEl("button");
+    other.focus();
+    view.setVideoFocusMode(false);
+    expect(document.activeElement).toBe(other);
   });
 
   it("does not focus the header for an article while focus mode is on", async () => {
@@ -223,7 +281,20 @@ describe("Dashboard inline Reader YouTube focus mode", () => {
       makeItem({ guid: "article-1", mediaType: "article" }),
     );
 
-    expect(header(view).classList.contains("rss-youtube-focus")).toBe(false);
+    expect(header(view).classList.contains("rss-video-focus")).toBe(false);
+    expect(
+      view.containerEl.querySelector(".rss-reader-source-footer"),
+    ).not.toBeNull();
+  });
+
+  it("delegates actionToggleVideoFocusMode to the plugin toggle", () => {
+    const toggleSpy = vi.fn(async () => true);
+    const settings = cloneSettings(false);
+    const view = makeView(settings, { toggleVideoFocusMode: toggleSpy });
+
+    view.actionToggleVideoFocusMode();
+
+    expect(toggleSpy).toHaveBeenCalledTimes(1);
   });
 
   it("recolors the chips when tag colors change", async () => {

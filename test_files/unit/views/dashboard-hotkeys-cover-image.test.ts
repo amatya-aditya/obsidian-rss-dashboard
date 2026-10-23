@@ -116,7 +116,7 @@ interface Harness {
     updateArticle: MockInstance;
     fetchPageCoverImage: MockInstance;
     warmCoverImage: MockInstance;
-    toggleYouTubeFocusMode: MockInstance;
+    toggleVideoFocusMode: MockInstance;
   };
   press: () => KeyboardEvent;
   articleEl: () => HTMLElement | null;
@@ -208,7 +208,7 @@ describe("Shift+C runs the selected article's cover-image action (#1466)", () =>
         url: PAGE_IMAGE,
       })),
       warmCoverImage: vi.fn(),
-      toggleYouTubeFocusMode: vi.fn(),
+      toggleVideoFocusMode: vi.fn(),
       resolveCachedImageUrl: (url: string) => url,
       refreshFeeds: vi.fn().mockResolvedValue(undefined),
       openTagsSettings: vi.fn(),
@@ -519,7 +519,7 @@ describe("Shift+C runs the selected article's cover-image action (#1466)", () =>
     });
     document.body.dispatchEvent(event);
 
-    expect(h.plugin.toggleYouTubeFocusMode).toHaveBeenCalledTimes(1);
+    expect(h.plugin.toggleVideoFocusMode).toHaveBeenCalledTimes(1);
     expect(event.defaultPrevented).toBe(true);
     expect(h.plugin.fetchPageCoverImage).not.toHaveBeenCalled();
     h.cleanup();

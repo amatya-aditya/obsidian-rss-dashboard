@@ -233,7 +233,7 @@ describe("renderMediaSettingsTab()", () => {
       settings,
       saveSettings: vi.fn(async () => {}),
       clearPlaybackProgress: vi.fn(async () => 0),
-      applyYouTubeFocusMode: vi.fn(async () => {}),
+      applyVideoFocusMode: vi.fn(async () => {}),
       applyPodcastChapterMarkers,
     } as unknown as RssDashboardPlugin;
 
@@ -270,7 +270,7 @@ describe("renderMediaSettingsTab()", () => {
       settings,
       saveSettings: vi.fn(async () => {}),
       clearPlaybackProgress: vi.fn(async () => 0),
-      applyYouTubeFocusMode: vi.fn(async () => {}),
+      applyVideoFocusMode: vi.fn(async () => {}),
       applyPodcastChapterMarkers: vi.fn(async () => {}),
       applyPodcastSleepTimerBand,
     } as unknown as RssDashboardPlugin;
@@ -299,23 +299,24 @@ describe("renderMediaSettingsTab()", () => {
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
   });
 
-  it("persists Focus mode and applies it to open players", async () => {
+  it("persists Video focus mode and applies it to open players", async () => {
     const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();
-    const applyYouTubeFocusMode = vi.fn(async () => {});
+    const applyVideoFocusMode = vi.fn(async () => {});
     const plugin = {
       app: obsidian.App.createMock(),
       settings,
       saveSettings: vi.fn(async () => {}),
       clearPlaybackProgress: vi.fn(async () => 0),
-      applyYouTubeFocusMode,
+      applyVideoFocusMode,
     } as unknown as RssDashboardPlugin;
 
     renderMediaSettingsTab(containerEl, plugin);
 
-    const toggle = getSettingByName(containerEl, "Focus mode").querySelector(
-      'input[type="checkbox"]',
-    ) as HTMLInputElement;
+    const toggle = getSettingByName(
+      containerEl,
+      "Video focus mode",
+    ).querySelector('input[type="checkbox"]') as HTMLInputElement;
     expect(isToggleOn(toggle)).toBe(false);
 
     setToggle(toggle, true);
@@ -323,6 +324,6 @@ describe("renderMediaSettingsTab()", () => {
 
     expect(settings.media.youtubeFocusMode).toBe(true);
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
-    expect(applyYouTubeFocusMode).toHaveBeenCalledWith(true);
+    expect(applyVideoFocusMode).toHaveBeenCalledWith(true);
   });
 });
