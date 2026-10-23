@@ -402,6 +402,14 @@
   }
 }
 
+/* ================ Tag list ================ */
+
+.rss-dashboard-settings-tag-chip {
+  display: inline-block;
+  vertical-align: middle;
+  font-weight: 500;
+}
+
 /* ================ Tag multi-select dropdown control ================ */
 
 .rss-dashboard-tag-multi-select {

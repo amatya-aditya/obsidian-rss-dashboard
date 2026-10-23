@@ -8,10 +8,11 @@
 import { Notice, Setting } from "obsidian";
 import RssDashboardPlugin from "../../../main";
 import { addTagMultiSelectControl } from "../../components/tag-multi-select-control";
-import { DEFAULT_SETTINGS } from "../../types/types";
+import { DEFAULT_SETTINGS, type Tag } from "../../types/types";
 import { DEFAULT_TAG_COLOR } from "../../utils/tag-colors";
-import { updateTagInSettings } from "../../utils/tag-utils";
+import { showEditTagModal } from "../../utils/tag-utils";
 import { deleteTagFromSettings } from "../../utils/tag-settings";
+import { setCssProps } from "../../utils/platform-utils";
 import { ConfirmActionModal } from "../modals/settings-modals";
 import { renderTagShapeControl } from "./tag-shape-control";
 import { addInputClearButton } from "../../utils/input-clear-button";
@@ -22,6 +23,143 @@ interface AutoTagSettingConfig {
   menuTitle: string;
   getSelectedTagNames: () => string[];
   setSelectedTagNames: (selected: string[]) => void;
+}
+
+/**
+ * After the tab re-renders, returns focus to the edited row's pencil. The
+ * refresh replaces the button that opened the dialog, so the modal's usual
+ * focus restoration cannot reach it and a keyboard user would restart tabbing
+ * from the top of the settings page.
+ */
+function focusTagRowEditor(ownerDocument: Document, tagName: string): void {
+  const chip = Array.from(
+    ownerDocument.querySelectorAll<HTMLElement>(
+      ".rss-dashboard-settings-tag-chip",
+    ),
+  ).find((element) => element.textContent?.trim() === tagName);
+  chip
+    ?.closest(".setting-item")
+    ?.querySelector<HTMLButtonElement>("button")
+    ?.focus();
+}
+
+/**
+ * One row of the Tags list: the tag shown as a chip in its own color, a pencil
+ * that opens the shared Edit tag dialog, and the delete button.
+ */
+function renderTagSettingsRow(
+  parent: HTMLElement,
+  plugin: RssDashboardPlugin,
+  tag: Tag,
+  onRefresh: () => void,
+): void {
+  const tagSetting = new Setting(parent);
+  const tagChip = tagSetting.nameEl.createSpan({
+    cls: "rss-dashboard-tag-badge rss-dashboard-settings-tag-chip",
+    text: tag.name,
+  });
+  setCssProps(tagChip, { "--tag-color": tag.color });
+
+  tagSetting
+    .addButton((button) =>
+      button
+        .setIcon("pencil")
+        .setTooltip("Edit tag")
+        .onClick(() => {
+          showEditTagModal({
+            app: plugin.app,
+            settings: plugin.settings,
+            tag,
+            onSave: async (updatedTag) => {
+              const ownerDocument = parent.ownerDocument;
+              await plugin.saveSettings();
+              await plugin.refreshOpenTagColorViews();
+              plugin.app.workspace.trigger("rss-dashboard:tags-mutated");
+              onRefresh();
+              focusTagRowEditor(ownerDocument, updatedTag.name);
+            },
+          });
+        }),
+    )
+    .addButton((button) =>
+      button
+        .setIcon("trash")
+        .setTooltip("Delete tag")
+        .onClick(() => {
+          void (async () => {
+            const confirm = new ConfirmActionModal(plugin.app, {
+              title: "Delete tag?",
+              message: `"${tag.name}" will be removed from your tags and from every article using it.`,
+              confirmLabel: "Delete",
+            });
+            confirm.open();
+            const shouldDelete = await confirm.waitForClose();
+            if (!shouldDelete) return;
+            deleteTagFromSettings(plugin.settings, tag.name);
+            await plugin.saveSettings();
+            await plugin.refreshOpenTagColorViews();
+            plugin.app.workspace.trigger("rss-dashboard:tags-mutated");
+            onRefresh();
+          })();
+        }),
+    );
+}
+
+/**
+ * The "Add new tag" heading, name field, color picker, and Add tag button.
+ */
+function renderAddTagSection(
+  containerEl: HTMLElement,
+  plugin: RssDashboardPlugin,
+  onRefresh: () => void,
+): void {
+  new Setting(containerEl).setName("Add new tag").setHeading();
+
+  const newTagContainer = containerEl.createDiv();
+
+  const tagNameSetting = new Setting(newTagContainer)
+    .setName("Tag name")
+    .addText((text) => {
+      text.setPlaceholder("Enter tag name");
+      addInputClearButton(text.inputEl);
+    });
+
+  const tagColorSetting = new Setting(newTagContainer)
+    .setName("Tag color")
+    .addColorPicker((colorPicker) => colorPicker.setValue(DEFAULT_TAG_COLOR));
+
+  new Setting(newTagContainer).addButton((button) =>
+    button.setButtonText("Add tag").onClick(() => {
+      void (async () => {
+        const nameInput = tagNameSetting.components[0] as unknown as {
+          inputEl: HTMLInputElement;
+        };
+        const colorPicker = tagColorSetting.components[0] as unknown as {
+          getValue: () => string;
+        };
+        const name = nameInput.inputEl.value.trim();
+
+        if (!name) {
+          new Notice("Please enter a tag name!");
+          return;
+        }
+        const duplicate = plugin.settings.availableTags.some(
+          (tag) => tag.name.toLowerCase() === name.toLowerCase(),
+        );
+        if (duplicate) {
+          new Notice("A tag with this name already exists!");
+          return;
+        }
+
+        plugin.settings.availableTags.push({
+          name,
+          color: colorPicker.getValue(),
+        });
+        await plugin.saveSettings();
+        onRefresh();
+      })();
+    }),
+  );
 }
 
 export function renderTagsSettingsTab(
@@ -145,86 +283,8 @@ export function renderTagsSettingsTab(
   for (let i = 0; i < plugin.settings.availableTags.length; i++) {
     const tag = plugin.settings.availableTags[i];
     if (!tag) continue;
-
-    new Setting(tagsContainer)
-      .setName(tag.name)
-      .addColorPicker((colorPicker) =>
-        colorPicker.setValue(tag.color).onChange(async (value) => {
-          updateTagInSettings(plugin.settings, tag, { color: value });
-          await plugin.saveSettings();
-          await plugin.refreshOpenTagColorViews();
-          plugin.app.workspace.trigger("rss-dashboard:tags-mutated");
-        }),
-      )
-      .addButton((button) =>
-        button
-          .setIcon("trash")
-          .setTooltip("Delete tag")
-          .onClick(() => {
-            void (async () => {
-              const confirm = new ConfirmActionModal(plugin.app, {
-                title: "Delete tag?",
-                message: `"${tag.name}" will be removed from your tags and from every article using it.`,
-                confirmLabel: "Delete",
-              });
-              confirm.open();
-              const shouldDelete = await confirm.waitForClose();
-              if (!shouldDelete) return;
-              deleteTagFromSettings(plugin.settings, tag.name);
-              await plugin.saveSettings();
-              await plugin.refreshOpenTagColorViews();
-              plugin.app.workspace.trigger("rss-dashboard:tags-mutated");
-              onRefresh();
-            })();
-          }),
-      );
+    renderTagSettingsRow(tagsContainer, plugin, tag, onRefresh);
   }
 
-  new Setting(containerEl).setName("Add new tag").setHeading();
-
-  const newTagContainer = containerEl.createDiv();
-
-  const tagNameSetting = new Setting(newTagContainer)
-    .setName("Tag name")
-    .addText((text) => {
-      text.setPlaceholder("Enter tag name");
-      addInputClearButton(text.inputEl);
-    });
-
-  const tagColorSetting = new Setting(newTagContainer)
-    .setName("Tag color")
-    .addColorPicker((colorPicker) => colorPicker.setValue(DEFAULT_TAG_COLOR));
-
-  new Setting(newTagContainer).addButton((button) =>
-    button.setButtonText("Add tag").onClick(() => {
-      void (async () => {
-        const nameInput = tagNameSetting.components[0] as unknown as {
-          inputEl: HTMLInputElement;
-        };
-        const colorPicker = tagColorSetting.components[0] as unknown as {
-          getValue: () => string;
-        };
-        const name = nameInput.inputEl.value.trim();
-
-        if (!name) {
-          new Notice("Please enter a tag name!");
-          return;
-        }
-        const duplicate = plugin.settings.availableTags.some(
-          (tag) => tag.name.toLowerCase() === name.toLowerCase(),
-        );
-        if (duplicate) {
-          new Notice("A tag with this name already exists!");
-          return;
-        }
-
-        plugin.settings.availableTags.push({
-          name,
-          color: colorPicker.getValue(),
-        });
-        await plugin.saveSettings();
-        onRefresh();
-      })();
-    }),
-  );
+  renderAddTagSection(containerEl, plugin, onRefresh);
 }

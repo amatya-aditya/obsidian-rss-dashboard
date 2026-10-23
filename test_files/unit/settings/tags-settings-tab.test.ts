@@ -9,8 +9,15 @@ import {
 import { renderTagsSettingsTab } from "../../../src/settings/tabs/tags-settings-tab";
 import { ConfirmActionModal } from "../../../src/settings/modals/settings-modals";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
-import { findIconButton } from "../test-icon-helpers";
 import type RssDashboardPlugin from "../../../main";
+
+/** Resolve the modal's accessible name from the heading it points at. */
+function dialogName(dialog: Element | null): string | null {
+  const container = dialog?.closest("[role='dialog']");
+  const id = container?.getAttribute("aria-labelledby");
+  if (!container || !id) return null;
+  return container.querySelector(`#${id}`)?.textContent?.trim() ?? null;
+}
 
 function flushPromises(): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, 0));
@@ -34,6 +41,18 @@ function getSettingByName(containerEl: HTMLElement, name: string): HTMLElement {
     throw new Error(`Setting not found: ${name}`);
   }
   return match as HTMLElement;
+}
+
+/** Find a control by the accessible name Obsidian's setTooltip writes. */
+function findButtonByName(
+  container: ParentNode,
+  name: string,
+): HTMLButtonElement | null {
+  return (
+    Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.getAttribute("aria-label") === name,
+    ) ?? null
+  );
 }
 
 function cloneSettings(): RssDashboardSettings {
@@ -296,7 +315,31 @@ describe("renderTagsSettingsTab()", () => {
     expect(onRefresh).toHaveBeenCalledTimes(1);
   });
 
-  it("persists color changes, updates applied tags, and refreshes open tag views", async () => {
+  it("shows each tag as a read-only chip with edit and delete controls", () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const settings = cloneSettings();
+    settings.availableTags = [{ name: "tag1", color: "#000000" }];
+
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      refreshOpenTagColorViews: vi.fn(async () => {}),
+    } as unknown as RssDashboardPlugin;
+
+    renderTagsSettingsTab(containerEl, plugin, vi.fn());
+
+    const row = getSettingByName(containerEl, "tag1");
+    const chip = row.querySelector<HTMLElement>(".rss-dashboard-tag-badge");
+
+    expect(chip?.textContent).toBe("tag1");
+    expect(chip?.style.getPropertyValue("--tag-color")).toBe("#000000");
+    expect(row.querySelector('input[type="color"]')).toBeNull();
+    expect(findButtonByName(row, "Edit tag")).not.toBeNull();
+    expect(findButtonByName(row, "Delete tag")).not.toBeNull();
+  });
+
+  it("renames and recolors a tag from the Edit tag dialog, including folder rules and auto-tag defaults", async () => {
     const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();
     settings.availableTags = [{ name: "tag1", color: "#000000" }];
@@ -323,6 +366,16 @@ describe("renderTagsSettingsTab()", () => {
         ],
       } as unknown as Feed,
     ];
+    settings.folders = [
+      {
+        name: "Tech",
+        subfolders: [],
+        autoTags: [{ name: "tag1", color: "#000000" }],
+      } as Folder,
+    ];
+    settings.media.defaultVideoTag = "tag1";
+    settings.media.defaultVideoTags = ["tag1"];
+    settings.dashboardMultiFilters.tagFilters = ["tag1"];
 
     const trigger = vi.fn();
     const mockApp = obsidian.App.createMock();
@@ -335,22 +388,150 @@ describe("renderTagsSettingsTab()", () => {
       saveSettings: vi.fn(async () => {}),
       refreshOpenTagColorViews: vi.fn(async () => {}),
     } as unknown as RssDashboardPlugin;
+    const onRefresh = vi.fn();
 
-    renderTagsSettingsTab(containerEl, plugin, vi.fn());
+    renderTagsSettingsTab(containerEl, plugin, onRefresh);
 
-    const tagSetting = getSettingByName(containerEl, "tag1");
-    const picker = tagSetting.querySelector(
-      'input[type="color"]',
-    ) as HTMLInputElement;
-    picker.value = "#ff0000";
-    picker.dispatchEvent(new Event("input"));
+    findButtonByName(
+      getSettingByName(containerEl, "tag1"),
+      "Edit tag",
+    )?.click();
+
+    const dialog = document.querySelector(".rss-dashboard-edit-tag-modal");
+    expect(dialog).not.toBeNull();
+    expect(dialogName(dialog)).toBe("Edit tag");
+
+    const nameInput = dialog?.querySelector<HTMLInputElement>(
+      ".rss-dashboard-tag-modal-name-input",
+    );
+    const colorInput = dialog?.querySelector<HTMLInputElement>(
+      ".rss-dashboard-tag-modal-color-picker",
+    );
+    expect(nameInput?.value).toBe("tag1");
+
+    if (nameInput) nameInput.value = "renamed";
+    if (colorInput) colorInput.value = "#ff0000";
+    dialog
+      ?.querySelector<HTMLButtonElement>("button.rss-dashboard-primary-button")
+      ?.click();
     await flushPromises();
 
-    expect(plugin.settings.availableTags[0].color).toBe("#ff0000");
-    expect(plugin.settings.feeds[0].items[0].tags?.[0].color).toBe("#ff0000");
+    expect(plugin.settings.availableTags).toEqual([
+      { name: "renamed", color: "#ff0000" },
+    ]);
+    expect(plugin.settings.feeds[0].items[0].tags).toEqual([
+      { name: "renamed", color: "#ff0000" },
+    ]);
+    expect(plugin.settings.folders[0].autoTags).toEqual([
+      { name: "renamed", color: "#ff0000" },
+    ]);
+    expect(plugin.settings.media.defaultVideoTag).toBe("renamed");
+    expect(plugin.settings.media.defaultVideoTags).toEqual(["renamed"]);
+    expect(plugin.settings.dashboardMultiFilters.tagFilters).toEqual([]);
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
     expect(vi.mocked(plugin.refreshOpenTagColorViews)).toHaveBeenCalledTimes(1);
     expect(trigger).toHaveBeenCalledWith("rss-dashboard:tags-mutated");
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(document.querySelector(".rss-dashboard-edit-tag-modal")).toBeNull();
+  });
+
+  it("leaves the tag unchanged when the Edit tag dialog is cancelled", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const settings = cloneSettings();
+    settings.availableTags = [{ name: "tag1", color: "#000000" }];
+
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      refreshOpenTagColorViews: vi.fn(async () => {}),
+    } as unknown as RssDashboardPlugin;
+    const onRefresh = vi.fn();
+
+    renderTagsSettingsTab(containerEl, plugin, onRefresh);
+
+    findButtonByName(
+      getSettingByName(containerEl, "tag1"),
+      "Edit tag",
+    )?.click();
+    Array.from(document.querySelectorAll("button"))
+      .find((button) => button.textContent === "Cancel")
+      ?.click();
+    await flushPromises();
+
+    expect(plugin.settings.availableTags).toEqual([
+      { name: "tag1", color: "#000000" },
+    ]);
+    expect(vi.mocked(plugin.saveSettings)).not.toHaveBeenCalled();
+    expect(onRefresh).not.toHaveBeenCalled();
+  });
+
+  it("opens the dialog for the row whose pencil was clicked", () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const settings = cloneSettings();
+    settings.availableTags = [
+      { name: "tag1", color: "#000000" },
+      { name: "tag2", color: "#ffffff" },
+    ];
+
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      refreshOpenTagColorViews: vi.fn(async () => {}),
+    } as unknown as RssDashboardPlugin;
+
+    renderTagsSettingsTab(containerEl, plugin, vi.fn());
+
+    findButtonByName(
+      getSettingByName(containerEl, "tag2"),
+      "Edit tag",
+    )?.click();
+
+    expect(
+      document.querySelector<HTMLInputElement>(
+        ".rss-dashboard-tag-modal-name-input",
+      )?.value,
+    ).toBe("tag2");
+  });
+
+  it("returns focus to the renamed row's Edit tag button after saving", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const settings = cloneSettings();
+    settings.availableTags = [{ name: "tag1", color: "#000000" }];
+
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      refreshOpenTagColorViews: vi.fn(async () => {}),
+    } as unknown as RssDashboardPlugin;
+    const onRefresh = (): void => {
+      containerEl.empty();
+      renderTagsSettingsTab(containerEl, plugin, onRefresh);
+    };
+
+    renderTagsSettingsTab(containerEl, plugin, onRefresh);
+
+    findButtonByName(
+      getSettingByName(containerEl, "tag1"),
+      "Edit tag",
+    )?.click();
+    const nameInput = document.querySelector<HTMLInputElement>(
+      ".rss-dashboard-tag-modal-name-input",
+    );
+    if (nameInput) nameInput.value = "renamed";
+    document
+      .querySelector<HTMLButtonElement>("button.rss-dashboard-primary-button")
+      ?.click();
+    await flushPromises();
+
+    const editButton = findButtonByName(
+      getSettingByName(containerEl, "renamed"),
+      "Edit tag",
+    );
+    expect(editButton).not.toBeNull();
+    expect(document.activeElement).toBe(editButton);
   });
 
   it("deletes an existing tag and refreshes", async () => {
@@ -369,9 +550,9 @@ describe("renderTagsSettingsTab()", () => {
 
     renderTagsSettingsTab(containerEl, plugin, onRefresh);
 
-    const deleteBtn = findIconButton(
+    const deleteBtn = findButtonByName(
       containerEl,
-      "trash-2",
+      "Delete tag",
     ) as HTMLButtonElement;
     deleteBtn.click();
     await flushPromises();
@@ -397,9 +578,9 @@ describe("renderTagsSettingsTab()", () => {
 
     renderTagsSettingsTab(containerEl, plugin, onRefresh);
 
-    const deleteBtn = findIconButton(
+    const deleteBtn = findButtonByName(
       containerEl,
-      "trash-2",
+      "Delete tag",
     ) as HTMLButtonElement;
     deleteBtn.click();
     await flushPromises();
@@ -603,7 +784,7 @@ describe("renderTagsSettingsTab()", () => {
 
     function clickDelete(containerEl: HTMLElement, tagName: string): void {
       const row = getSettingByName(containerEl, tagName);
-      const button = row.querySelector<HTMLElement>("button");
+      const button = findButtonByName(row, "Delete tag");
       if (!button) throw new Error("Delete button not found");
       button.click();
     }
