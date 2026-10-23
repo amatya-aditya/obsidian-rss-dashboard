@@ -26,9 +26,32 @@ describe("resolveVideoSource", () => {
     ).toEqual({ kind: "youtube", id: "abcdefghijk" });
   });
 
-  it("finds no player for a link that is not a VOD", () => {
+  it("plays an item with a Twitch channel link in Twitch's live player", () => {
     expect(
-      resolveVideoSource({ link: "https://www.twitch.tv/riotgames" }),
-    ).toBeNull();
+      resolveVideoSource({ link: "https://www.twitch.tv/RiotGames" }),
+    ).toEqual({ kind: "twitch-live", id: "riotgames" });
+  });
+
+  it("prefers the YouTube id over a channel link", () => {
+    expect(
+      resolveVideoSource({
+        link: "https://www.twitch.tv/riotgames",
+        videoId: "abcdefghijk",
+      }),
+    ).toEqual({ kind: "youtube", id: "abcdefghijk" });
+  });
+
+  it("never resolves a VOD link to a live channel", () => {
+    expect(
+      resolveVideoSource({ link: "https://www.twitch.tv/videos/42" }),
+    ).toEqual({ kind: "twitch", id: "42" });
+  });
+
+  it.each([
+    "https://www.twitch.tv/directory",
+    "https://www.twitch.tv/riotgames/videos",
+    "https://example.com/riotgames",
+  ])("finds no player for %s", (link) => {
+    expect(resolveVideoSource({ link })).toBeNull();
   });
 });

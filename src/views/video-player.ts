@@ -13,6 +13,8 @@ import {
 } from "../utils/youtube-player-channel";
 import {
   TWITCH_PLAYER_ALLOW,
+  twitchChannelWatchUrl,
+  twitchLivePlayerSourceUrl,
   twitchPlayerSourceUrl,
   twitchVodWatchUrl,
 } from "../utils/twitch-embed";
@@ -111,14 +113,15 @@ export class VideoPlayer {
       cls: "rss-video-container",
     });
     const iframe =
-      source.kind === "twitch"
-        ? this.createTwitchIframe(videoContainer, source.id)
-        : this.createYouTubeIframe(videoContainer, source.id);
+      source.kind === "youtube"
+        ? this.createYouTubeIframe(videoContainer, source.id)
+        : this.createTwitchIframe(videoContainer, source);
     this.iframeEl = iframe;
 
     videoContainer.appendChild(iframe);
     this.renderWatchLink(source);
     // Twitch's embed has no position channel, so only YouTube reports progress.
+    // A live stream has no position to resume either way.
     if (source.kind === "youtube") this.connectPlayer(iframe);
 
     this.tags = this.currentItem.tags;
@@ -147,11 +150,14 @@ export class VideoPlayer {
 
   private createTwitchIframe(
     videoContainer: HTMLElement,
-    vodId: string,
+    source: Exclude<VideoSource, { kind: "youtube" }>,
   ): HTMLIFrameElement {
     const iframe = videoContainer.win.createEl("iframe");
     iframe.id = `twitch-player-${Math.random().toString(36).substring(2, 11)}`;
-    iframe.src = twitchPlayerSourceUrl(vodId, { autoplay: true });
+    iframe.src =
+      source.kind === "twitch-live"
+        ? twitchLivePlayerSourceUrl(source.id)
+        : twitchPlayerSourceUrl(source.id, { autoplay: true });
     iframe.setAttribute("allow", TWITCH_PLAYER_ALLOW);
     iframe.allowFullscreen = true;
     return iframe;
@@ -176,20 +182,28 @@ export class VideoPlayer {
     const link = this.playerEl.createEl("a", { cls: "rss-video-watch" });
     // The play glyph takes the player's brand color, so a Twitch link must not
     // carry YouTube's red.
-    if (source.kind === "twitch") link.addClass("rss-video-watch--twitch");
-    link.href =
-      source.kind === "twitch"
-        ? twitchVodWatchUrl(source.id)
-        : youTubeWatchUrl(source.id);
+    if (source.kind !== "youtube") link.addClass("rss-video-watch--twitch");
+    link.href = this.watchUrl(source);
     link.target = "_blank";
     link.rel = "noopener noreferrer";
     const icon = link.createSpan({ cls: "rss-video-watch-icon" });
     setIcon(icon, "play");
     link.appendChild(
       this.playerEl.ownerDocument.createTextNode(
-        source.kind === "twitch" ? "Watch on Twitch" : "Watch on YouTube",
+        source.kind === "youtube" ? "Watch on YouTube" : "Watch on Twitch",
       ),
     );
+  }
+
+  private watchUrl(source: VideoSource): string {
+    switch (source.kind) {
+      case "youtube":
+        return youTubeWatchUrl(source.id);
+      case "twitch":
+        return twitchVodWatchUrl(source.id);
+      case "twitch-live":
+        return twitchChannelWatchUrl(source.id);
+    }
   }
 
   /**
@@ -405,7 +419,12 @@ export class VideoPlayer {
         const thumbnailSrc = video.videoId
           ? `https://img.youtube.com/vi/${video.videoId}/mqdefault.jpg`
           : video.coverImage;
-        if (thumbnailSrc) {
+        if (resolveVideoSource(video)?.kind === "twitch-live") {
+          // A live item shows a LIVE label in the thumbnail slot, not a cover.
+          videoItem
+            .createDiv({ cls: "rss-video-related-thumbnail" })
+            .createSpan({ cls: "rss-video-live-label", text: "LIVE" });
+        } else if (thumbnailSrc) {
           const thumbnail = videoItem.createDiv({
             cls: "rss-video-related-thumbnail",
           });
