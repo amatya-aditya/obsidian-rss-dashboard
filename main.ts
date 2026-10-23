@@ -869,10 +869,6 @@ export default class RssDashboardPlugin extends Plugin {
     await this.forEachPlayerHostView((view) => view.setVideoFocusMode(hide));
   }
 
-  public async applyYouTubeFocusMode(hide: boolean): Promise<void> {
-    await this.applyVideoFocusMode(hide);
-  }
-
   /**
    * Flips Video Focus mode, applies it to every open Reader and dashboard,
    * persists it, refreshes an open settings tab, and announces the new state.
@@ -887,10 +883,6 @@ export default class RssDashboardPlugin extends Plugin {
     this.settingTab?.refresh();
     new Notice(hide ? "Video focus mode on" : "Video focus mode off");
     return hide;
-  }
-
-  public async toggleYouTubeFocusMode(): Promise<boolean> {
-    return this.toggleVideoFocusMode();
   }
 
   /**

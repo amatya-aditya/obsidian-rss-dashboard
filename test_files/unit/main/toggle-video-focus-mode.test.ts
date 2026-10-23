@@ -81,14 +81,4 @@ describe("toggleVideoFocusMode", () => {
 
     await expect(plugin.toggleVideoFocusMode()).resolves.toBe(true);
   });
-
-  it("preserves toggleYouTubeFocusMode as a working compatibility alias", async () => {
-    plugin.settings.media.youtubeFocusMode = false;
-
-    await expect(plugin.toggleYouTubeFocusMode()).resolves.toBe(true);
-
-    expect(plugin.settings.media.youtubeFocusMode).toBe(true);
-    expect(applySpy).toHaveBeenLastCalledWith(true);
-    expect(notices()).toEqual(["Video focus mode on"]);
-  });
 });

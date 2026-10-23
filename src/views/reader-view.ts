@@ -1007,14 +1007,7 @@ export class ReaderView extends ItemView {
    * @internal
    */
   public actionToggleVideoFocusMode(): void {
-    const plugin = this.getRssDashboardPlugin();
-    void (
-      plugin?.toggleVideoFocusMode?.() ?? plugin?.toggleYouTubeFocusMode?.()
-    );
-  }
-
-  public actionToggleYouTubeFocusMode(): void {
-    this.actionToggleVideoFocusMode();
+    void this.getRssDashboardPlugin()?.toggleVideoFocusMode?.();
   }
 
   getViewType(): string {
@@ -1717,10 +1710,6 @@ export class ReaderView extends ItemView {
     }
   }
 
-  setYouTubeFocusMode(hide: boolean): void {
-    this.setVideoFocusMode(hide);
-  }
-
   /**
    * In Focus mode a video drops the toolbar and title from the header
    * and keeps only the back button; articles and podcasts keep the full one.
@@ -1730,10 +1719,6 @@ export class ReaderView extends ItemView {
       this.currentItem !== null &&
       resolveReaderMediaRoute(this.currentItem) === "video";
     this.headerEl?.toggleClass("rss-video-focus", focusMode && isVideo);
-  }
-
-  private syncYouTubeFocusChrome(focusMode: boolean): void {
-    this.syncVideoFocusChrome(focusMode);
   }
 
   updatePodcastTheme(theme: string): void {
@@ -2805,7 +2790,6 @@ export class ReaderView extends ItemView {
     saveSettings: () => Promise<void>;
     refreshOpenTagColorViews?: () => Promise<void>;
     toggleVideoFocusMode?: () => void;
-    toggleYouTubeFocusMode?: () => void;
   } | null {
     try {
       const appWithPlugins = this.app as unknown as {
@@ -2831,7 +2815,6 @@ export class ReaderView extends ItemView {
             saveSettings?: unknown;
             refreshOpenTagColorViews?: unknown;
             toggleVideoFocusMode?: unknown;
-            toggleYouTubeFocusMode?: unknown;
           }
         | undefined;
       if (plugin && typeof plugin.saveSettings === "function") {
@@ -2839,7 +2822,6 @@ export class ReaderView extends ItemView {
           saveSettings: () => Promise<void>;
           refreshOpenTagColorViews?: () => Promise<void>;
           toggleVideoFocusMode?: () => void;
-          toggleYouTubeFocusMode?: () => void;
         };
       }
     } catch {

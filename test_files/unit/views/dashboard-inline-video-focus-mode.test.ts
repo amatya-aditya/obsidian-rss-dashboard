@@ -119,7 +119,7 @@ interface DashboardViewInternal {
   selectedArticle: FeedItem | null;
   render(): void;
   setVideoFocusMode(enabled: boolean): void;
-  setYouTubeFocusMode(enabled: boolean): void;
+  setVideoFocusMode(enabled: boolean): void;
   actionToggleVideoFocusMode(): void;
   refreshTagColors(): void;
   createArticleRenderer(): void;

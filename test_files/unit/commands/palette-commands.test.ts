@@ -111,7 +111,7 @@ function setup(open: { dashboard?: boolean; reader?: boolean } = {}) {
     getActiveReaderView: vi.fn(async () => reader),
     openSettingsToTab: vi.fn(async () => {}),
     openShortcutHelp: vi.fn(),
-    toggleYouTubeFocusMode: vi.fn(),
+    toggleVideoFocusMode: vi.fn(),
     togglePodcastChapterMarkers: vi.fn(),
   };
   registerPaletteCommands(plugin);
@@ -332,7 +332,7 @@ describe("focus mode command", () => {
 
     await run("toggle-youtube-focus-mode");
 
-    expect(plugin.toggleYouTubeFocusMode).toHaveBeenCalledTimes(1);
+    expect(plugin.toggleVideoFocusMode).toHaveBeenCalledTimes(1);
     expect(plugin.getActiveDashboardView).not.toHaveBeenCalled();
     expect(plugin.getActiveReaderView).not.toHaveBeenCalled();
   });

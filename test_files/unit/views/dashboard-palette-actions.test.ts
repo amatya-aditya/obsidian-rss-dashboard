@@ -88,7 +88,7 @@ describe("dashboard actions behind palette commands", () => {
       settings: structuredClone(DEFAULT_SETTINGS),
       saveSettings: vi.fn(),
       queueArticleStateSave: vi.fn(),
-      toggleYouTubeFocusMode: toggleFocusSpy,
+      toggleVideoFocusMode: toggleFocusSpy,
     } as unknown as RssDashboardPlugin;
     view = new RssDashboardView(leaf, plugin);
     privateView = view as unknown as PrivateView;
@@ -177,8 +177,8 @@ describe("dashboard actions behind palette commands", () => {
     ]);
   });
 
-  it("actionToggleYouTubeFocusMode delegates to the plugin toggle", () => {
-    view.actionToggleYouTubeFocusMode();
+  it("actionToggleVideoFocusMode delegates to the plugin toggle", () => {
+    view.actionToggleVideoFocusMode();
 
     expect(toggleFocusSpy).toHaveBeenCalledTimes(1);
   });

@@ -681,13 +681,6 @@ export class ArticleRenderer {
     }
   }
 
-  public setYouTubeFocusMode(
-    hide: boolean,
-    focusFallback?: HTMLElement | null,
-  ): void {
-    this.setVideoFocusMode(hide, focusFallback);
-  }
-
   public setPodcastChapterMarkers(enabled: boolean): void {
     this.podcastPlayer?.setChapterMarkersEnabled(enabled);
   }

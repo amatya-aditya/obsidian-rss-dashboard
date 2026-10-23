@@ -46,8 +46,7 @@ export interface PaletteCommandPlugin {
   getActiveReaderView: () => Promise<ReaderCommandTarget | null>;
   openSettingsToTab: (tabName: string) => Promise<void>;
   openShortcutHelp: () => void;
-  toggleVideoFocusMode?: () => void;
-  toggleYouTubeFocusMode: () => void;
+  toggleVideoFocusMode: () => void;
   togglePodcastChapterMarkers: () => void;
 }
 
@@ -219,11 +218,7 @@ function registerFocusModeCommand(plugin: PaletteCommandPlugin): void {
     id: "toggle-youtube-focus-mode",
     name: "Toggle video focus mode",
     callback: () => {
-      if (plugin.toggleVideoFocusMode) {
-        void plugin.toggleVideoFocusMode();
-      } else {
-        void plugin.toggleYouTubeFocusMode();
-      }
+      void plugin.toggleVideoFocusMode();
     },
   });
 }

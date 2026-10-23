@@ -910,14 +910,7 @@ export class RssDashboardView extends ItemView {
    * @internal
    */
   public actionToggleVideoFocusMode(): void {
-    void (
-      this.plugin.toggleVideoFocusMode?.() ??
-      this.plugin.toggleYouTubeFocusMode()
-    );
-  }
-
-  public actionToggleYouTubeFocusMode(): void {
-    this.actionToggleVideoFocusMode();
+    void this.plugin.toggleVideoFocusMode();
   }
 
   // --- Render pipeline ---
@@ -3428,10 +3421,6 @@ export class RssDashboardView extends ItemView {
     this.syncInlineVideoFocusChrome(hide);
   }
 
-  public setYouTubeFocusMode(hide: boolean): void {
-    this.setVideoFocusMode(hide);
-  }
-
   /** Apply the chapter-marker setting to an open inline podcast player. */
   public setPodcastChapterMarkers(enabled: boolean): void {
     this.articleRenderer?.setPodcastChapterMarkers(enabled);
@@ -3456,15 +3445,6 @@ export class RssDashboardView extends ItemView {
       this.inlineArticle !== null &&
       resolveReaderMediaRoute(this.inlineArticle) === "video";
     header?.toggleClass("rss-video-focus", focusMode && isVideo);
-  }
-
-  private syncInlineYouTubeFocusChrome(
-    focusMode: boolean,
-    header: HTMLElement | null = this.containerEl.querySelector<HTMLElement>(
-      ".inline-reader-header",
-    ),
-  ): void {
-    this.syncInlineVideoFocusChrome(focusMode, header);
   }
 
   public refreshTagColors(): void {
