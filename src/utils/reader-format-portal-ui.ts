@@ -16,6 +16,24 @@ export type ReaderFormatPortalOptions = {
 type ReaderFormatPortalClose = (flushSave: boolean) => void;
 type IconButtonOptions = { cls: string; label: string; icon: string };
 type StepperSettingKey = "fontScalePct" | "lineHeightPct";
+type StepperRowOptions = {
+  controlsContainer: HTMLElement;
+  format: ReaderFormatSettings;
+  settingKey: StepperSettingKey;
+  label: string;
+  values: number[];
+  onFormatMutated: () => void;
+};
+type DesktopDropdownOptions = {
+  anchor: HTMLElement;
+  portalDropdown: HTMLElement;
+  targetDocument: Document;
+  targetBody: HTMLElement;
+  targetWindow: Window;
+  close: ReaderFormatPortalClose;
+  isClosed: () => boolean;
+  setOutsideHandler: (handler: ((event: MouseEvent) => void) | null) => void;
+};
 
 type ReaderFormatPortalControlOptions = Pick<
   ReaderFormatPortalOptions,
@@ -52,14 +70,15 @@ function createFormatIconButton(
   });
 }
 
-function createStepperRow(
-  controlsContainer: HTMLElement,
-  format: ReaderFormatSettings,
-  settingKey: StepperSettingKey,
-  label: string,
-  values: number[],
-  onFormatMutated: () => void,
-): { sync: () => void } {
+function createStepperRow(options: StepperRowOptions): { sync: () => void } {
+  const {
+    controlsContainer,
+    format,
+    settingKey,
+    label,
+    values,
+    onFormatMutated,
+  } = options;
   const row = controlsContainer.createDiv({
     cls: "rss-reader-format-row",
     attr: { "data-setting": settingKey },
@@ -196,22 +215,22 @@ function createReaderFormatControls(
   });
   syncFontButtons();
 
-  const fontSizeRow = createStepperRow(
+  const fontSizeRow = createStepperRow({
     controlsContainer,
     format,
-    "fontScalePct",
-    "Font size",
-    [80, 90, 100, 110, 120, 130, 150, 175, 200],
+    settingKey: "fontScalePct",
+    label: "Font size",
+    values: [80, 90, 100, 110, 120, 130, 150, 175, 200],
     onFormatMutated,
-  );
-  const lineHeightRow = createStepperRow(
+  });
+  const lineHeightRow = createStepperRow({
     controlsContainer,
     format,
-    "lineHeightPct",
-    "Line height",
-    [100, 110, 120, 130, 140, 150, 160, 180, 200],
+    settingKey: "lineHeightPct",
+    label: "Line height",
+    values: [100, 110, 120, 130, 140, 150, 160, 180, 200],
     onFormatMutated,
-  );
+  });
 
   const footer = controlsContainer.createDiv({
     cls: "rss-reader-format-footer",
@@ -301,16 +320,17 @@ function configureMobileViewport(
   };
 }
 
-function positionDesktopDropdown(
-  anchor: HTMLElement,
-  portalDropdown: HTMLElement,
-  targetDocument: Document,
-  targetBody: HTMLElement,
-  targetWindow: Window,
-  close: ReaderFormatPortalClose,
-  isClosed: () => boolean,
-  setOutsideHandler: (handler: ((event: MouseEvent) => void) | null) => void,
-): void {
+function positionDesktopDropdown(options: DesktopDropdownOptions): void {
+  const {
+    anchor,
+    portalDropdown,
+    targetDocument,
+    targetBody,
+    targetWindow,
+    close,
+    isClosed,
+    setOutsideHandler,
+  } = options;
   const rect = anchor.getBoundingClientRect();
   const dropdownRect = portalDropdown.getBoundingClientRect();
   const appContainer = anchor.closest(".workspace-leaf-content") || targetBody;
@@ -430,17 +450,17 @@ export function createReaderFormatPortal(options: ReaderFormatPortalOptions): {
     return { close };
   }
 
-  positionDesktopDropdown(
+  positionDesktopDropdown({
     anchor,
     portalDropdown,
     targetDocument,
     targetBody,
     targetWindow,
     close,
-    () => closed,
-    (handler) => {
+    isClosed: () => closed,
+    setOutsideHandler: (handler) => {
       outsideHandler = handler;
     },
-  );
+  });
   return { close };
 }
