@@ -10,7 +10,8 @@ accepted
 
 ## Date
 
-2026-10-05
+2026-10-05 (filename cap updated 2026-10-24 in
+[Issue #1545](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1545))
 
 ## Context and problem
 
@@ -51,6 +52,13 @@ complete Unicode code points. A numeric collision suffix counts toward both
 stem caps. When a different note already occupies the generated path, use the
 first available suffix (`name 2.md`, `name 3.md`, and so on); never silently
 replace that note.
+
+The 245-code-point cap matches Obsidian Web Clipper. It replaces the earlier
+100-code-point cap while retaining the byte and sanitization contract settled
+in [Issue #1544](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1544).
+Keep this cap fixed rather than deriving it from the vault path length; verify
+long-path behavior in Obsidian itself as specified by
+[Issue #1545](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1545).
 
 Apply this filename behavior to all article-saving paths, including Web
 Viewer. When the same saved article is identified, update its existing note at
@@ -119,6 +127,8 @@ stay at their recorded paths.
 ## Related
 
 - [ADR 0017 — Select Saved Article Templates by Feed, Then Global Default](0017-select-saved-article-templates-by-feed-then-global-default.md)
+- [GitHub Issue #1545 — Raise the saved-article filename cap from 100 to 245 characters](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1545)
+- [GitHub Issue #1544 — Saved-article filename byte and sanitization rules](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1544)
 - [GitHub Issue #763 — Customize filenames for saved articles](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/763)
 - [GitHub Issue #762 — Manage saved templates in Article Saving settings](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/762)
 - [GitHub Issue #757 — Article saving: coordinate save fixes and template customization](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/757)
