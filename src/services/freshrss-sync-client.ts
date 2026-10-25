@@ -98,6 +98,7 @@ function parseItemIdsResponse(
       }
       itemRefs.push(entry.id);
     }
+    if (itemRefs.length > Math.max(0, Math.floor(limit))) return null;
 
     if (
       parsed.continuation !== undefined &&
@@ -109,7 +110,7 @@ function parseItemIdsResponse(
     }
 
     return {
-      itemRefs: itemRefs.slice(0, Math.max(0, Math.floor(limit))),
+      itemRefs,
       continuation:
         typeof parsed.continuation === "string" && parsed.continuation
           ? parsed.continuation
