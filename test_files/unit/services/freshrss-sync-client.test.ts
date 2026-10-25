@@ -75,7 +75,7 @@ describe("FreshRSS sync client", () => {
     });
   });
 
-  it("caps the returned article IDs at the requested page size", async () => {
+  it("rejects an article ID page larger than the requested page size", async () => {
     const request = vi.fn<FreshRssHttpClient["request"]>().mockResolvedValue({
       status: 200,
       text: JSON.stringify({
@@ -94,11 +94,7 @@ describe("FreshRSS sync client", () => {
     );
 
     await expect(client.listItemIds("feed/with space", 2)).resolves.toEqual({
-      outcome: "ok",
-      data: {
-        itemRefs: ["article/1", "article/2"],
-        continuation: "next-page",
-      },
+      outcome: "unavailable",
     });
     expect(request).toHaveBeenCalledWith(
       expect.objectContaining({
