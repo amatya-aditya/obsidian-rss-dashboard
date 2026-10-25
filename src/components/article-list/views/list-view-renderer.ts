@@ -1,0 +1,248 @@
+import { setTooltip } from "obsidian";
+import type { FeedItem } from "../../../types/types";
+import { formatArticleDate } from "../../../utils/platform-utils";
+import {
+  getPubDateMs,
+  resolveDisplayDate,
+} from "../../../services/feed-parser/feed-retention";
+import { MAX_VISIBLE_TAGS } from "../utils/tag-layout-utils";
+import type { BaseViewContext, ViewDeps } from "./view-types";
+
+export interface ListViewContext extends BaseViewContext {
+  showListToolbar: boolean;
+  listToolbarStyle: "left-grid" | "bottom-row" | "minimal";
+}
+
+interface ListArticleElements {
+  articleEl: HTMLElement;
+  contentEl: HTMLElement;
+  mainGrid: HTMLElement;
+  actionsEl: HTMLElement;
+  dateInfo: ReturnType<typeof formatArticleDate>;
+  useBottomRow: boolean;
+  useMinimal: boolean;
+}
+
+function getListArticleClasses(
+  article: FeedItem,
+  selectedArticle: FeedItem | null,
+): string {
+  return (
+    "rss-dashboard-article-item" +
+    (selectedArticle &&
+    article.guid === selectedArticle.guid &&
+    article.feedUrl === selectedArticle.feedUrl
+      ? " active"
+      : "") +
+    (article.read ? " read" : " unread") +
+    (article.starred ? " starred" : " unstarred") +
+    (article.saved ? " saved" : "") +
+    (article.mediaType === "video" ? " video" : "") +
+    (article.mediaType === "podcast" ? " podcast" : "")
+  );
+}
+
+function createListArticleElements(
+  container: HTMLElement,
+  article: FeedItem,
+  ctx: ListViewContext,
+  deps: ViewDeps,
+): ListArticleElements {
+  const articleEl = container.createDiv({
+    cls: getListArticleClasses(article, ctx.selectedArticle),
+    attr: {
+      id: `article-${article.guid}`,
+      "data-feed-url": article.feedUrl,
+    },
+  });
+  const useBottomRow =
+    ctx.showListToolbar && ctx.listToolbarStyle === "bottom-row";
+  const useMinimal = ctx.showListToolbar && ctx.listToolbarStyle === "minimal";
+  if (useBottomRow) {
+    articleEl.addClass("rss-dashboard-list-item-bottom-row");
+  }
+  const contentEl = articleEl.createDiv("rss-dashboard-article-content");
+  const mainGrid = contentEl.createDiv("rss-dashboard-article-grid");
+  if (ctx.showFeedSource) {
+    mainGrid.addClass("rss-dashboard-list-has-source");
+  }
+  if (ctx.showListToolbar && !useBottomRow) {
+    mainGrid.addClass("rss-dashboard-list-has-actions");
+  }
+  const headlineEl = mainGrid.createDiv("rss-dashboard-grid-headline");
+  const titleEl = headlineEl.createDiv({
+    cls: "rss-dashboard-article-title rss-dashboard-list-title",
+  });
+  if (ctx.highlightService && ctx.settings.highlights.highlightInTitles) {
+    ctx.highlightService.setHighlightedText(titleEl, article.title);
+  } else {
+    titleEl.textContent = article.title;
+  }
+  titleEl.dataset.articleTitle = article.title;
+  deps.scheduleMathRendering?.(titleEl);
+  const displayDate = resolveDisplayDate(
+    article,
+    ctx.settings.useFirstSeenDateFallback,
+  );
+  const dateInfo = formatArticleDate(
+    displayDate,
+    ctx.settings.display.articleDateStyle ?? "relative",
+    {
+      isFirstSeenFallback: getPubDateMs(article.pubDate) <= 0 && !!displayDate,
+    },
+  );
+  if (!useBottomRow) {
+    const timeEl = mainGrid.createDiv("rss-dashboard-grid-time");
+    const dateEl = timeEl.createSpan("rss-dashboard-article-date");
+    dateEl.textContent = dateInfo.text;
+    setTooltip(dateEl, dateInfo.title);
+  }
+  const actionsEl = mainGrid.createDiv("rss-dashboard-grid-actions");
+  return {
+    articleEl,
+    contentEl,
+    mainGrid,
+    actionsEl,
+    dateInfo,
+    useBottomRow,
+    useMinimal,
+  };
+}
+
+function renderListGridActionsAndSource(
+  elements: ListArticleElements,
+  article: FeedItem,
+  ctx: ListViewContext,
+  deps: ViewDeps,
+): void {
+  if (ctx.showListToolbar && !elements.useBottomRow) {
+    const actionToolbar = elements.actionsEl.createDiv(
+      "rss-dashboard-action-toolbar rss-dashboard-list-toolbar",
+    );
+    deps.createArticleActionButtons(
+      actionToolbar,
+      article,
+      elements.useMinimal ? "minimal-read" : "full",
+    );
+    if (!elements.useMinimal && article.tags && article.tags.length > 0) {
+      const articleTags = actionToolbar.createDiv(
+        "rss-dashboard-tag-container",
+      );
+      article.tags.forEach((tag) => {
+        const tagEl = articleTags.createDiv({
+          cls: "rss-dashboard-tag-badge",
+          text: tag.name,
+        });
+        tagEl.style.setProperty(
+          "--tag-color",
+          tag.color || "var(--interactive-accent)",
+        );
+      });
+    }
+  } else {
+    elements.actionsEl.addClass("rss-dashboard-grid-actions-empty");
+  }
+  if (ctx.showFeedSource) {
+    const sourceEl = elements.mainGrid.createDiv("rss-dashboard-grid-source");
+    const metaEl = sourceEl.createDiv("rss-dashboard-article-meta");
+    deps.renderFeedIcon(metaEl, article.feedUrl, article.mediaType);
+    const sourceSpan = metaEl.createSpan("rss-dashboard-article-source");
+    sourceSpan.setText(article.feedTitle);
+    setTooltip(sourceSpan, article.feedTitle);
+  }
+}
+
+function renderListBottomRow(
+  elements: ListArticleElements,
+  article: FeedItem,
+  ctx: ListViewContext,
+  deps: ViewDeps,
+): void {
+  if (article.tags && article.tags.length > 0) {
+    const bodyTags = elements.contentEl.createDiv(
+      "rss-dashboard-tag-container rss-dashboard-list-body-tags",
+    );
+    const tagsToShow = article.tags.slice(0, MAX_VISIBLE_TAGS);
+    tagsToShow.forEach((tag) => {
+      const tagEl = bodyTags.createDiv({
+        cls: "rss-dashboard-tag-badge",
+        text: tag.name,
+      });
+      tagEl.style.setProperty(
+        "--tag-color",
+        tag.color || "var(--interactive-accent)",
+      );
+    });
+    if (article.tags.length > MAX_VISIBLE_TAGS) {
+      const overflowTag = bodyTags.createDiv({
+        cls: "rss-dashboard-tag-overflow",
+        text: `+${article.tags.length - MAX_VISIBLE_TAGS}`,
+      });
+      setTooltip(
+        overflowTag,
+        article.tags
+          .slice(MAX_VISIBLE_TAGS)
+          .map((t) => t.name)
+          .join(", "),
+      );
+    }
+  }
+
+  // A div, not a <footer>: see the card footer (WCAG 2.2 1.3.1).
+  const listFooter = elements.contentEl.createDiv({
+    cls: "rss-dashboard-list-footer",
+  });
+  const footerToolbar = listFooter.createDiv(
+    "rss-dashboard-action-toolbar rss-dashboard-list-toolbar rss-dashboard-list-toolbar-bottom-row",
+  );
+  deps.createArticleActionButtons(
+    footerToolbar,
+    article,
+    elements.useMinimal ? "minimal-read" : "full",
+  );
+  const footerDateEl = listFooter.createDiv({
+    cls: "rss-dashboard-article-date rss-dashboard-list-footer-date",
+  });
+  footerDateEl.textContent = elements.dateInfo.text;
+  setTooltip(footerDateEl, elements.dateInfo.title);
+}
+
+function attachListArticleEvents(
+  articleEl: HTMLElement,
+  article: FeedItem,
+  ctx: ListViewContext,
+  deps: ViewDeps,
+): void {
+  articleEl.addEventListener("click", () => {
+    ctx.callbacks.onArticleClick(article);
+  });
+  articleEl.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    deps.showArticleContextMenu(e, article);
+  });
+}
+
+function renderListArticle(
+  container: HTMLElement,
+  article: FeedItem,
+  ctx: ListViewContext,
+  deps: ViewDeps,
+): void {
+  const elements = createListArticleElements(container, article, ctx, deps);
+  renderListGridActionsAndSource(elements, article, ctx, deps);
+  if (ctx.showListToolbar && elements.useBottomRow) {
+    renderListBottomRow(elements, article, ctx, deps);
+  }
+  attachListArticleEvents(elements.articleEl, article, ctx, deps);
+}
+
+export function renderListView(
+  container: HTMLElement,
+  articles: FeedItem[],
+  ctx: ListViewContext,
+  deps: ViewDeps,
+): void {
+  for (const article of articles) {
+    renderListArticle(container, article, ctx, deps);
+  }
+}
