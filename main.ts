@@ -103,8 +103,16 @@ import {
 import {
   canonicalizeFreshRssEndpoint,
   FreshRssConnectionService,
+  parseCredentialBundle as parseFreshRssCredentialBundle,
+  type FreshRssConnectionScope,
 } from "./src/services/freshrss-connection-service";
 import { FreshRssConnectionScopeRepository } from "./src/services/freshrss-connection-scope-repository";
+import {
+  FreshRssSyncCancelledError,
+  FreshRssSyncCoordinator,
+  type FreshRssSyncOutcome,
+} from "./src/services/freshrss-sync-coordinator";
+import { createFreshRssHttpClient } from "./src/services/freshrss-request-url-client";
 
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
 import { ImportStarredModal } from "./src/modals/import-starred-modal";
@@ -809,6 +817,10 @@ export default class RssDashboardPlugin extends Plugin {
 
   public get globalRefreshProgress(): { completed: number; total: number } {
     return this.feedOperationTracker.progress;
+  }
+
+  public get globalOperationName(): string {
+    return this.feedOperationTracker.operationName;
   }
 
   /**
@@ -2714,6 +2726,120 @@ export default class RssDashboardPlugin extends Plugin {
       ensureSidecarFolder: () => this.ensureFreshRssSidecarFolder(),
       setStatus: (status) => this.setFreshRssConnectionStatus(status),
     });
+  }
+
+  public async syncFreshRssNow(): Promise<void> {
+    const capability = this.getFreshRssCapability();
+    if (capability !== "available") {
+      new Notice("FreshRSS sync is unavailable until the connection is ready.");
+      return;
+    }
+    if (this.settings.freshRss.status !== "connected") {
+      new Notice("Test the FreshRSS connection before syncing.");
+      return;
+    }
+
+    const secretStorage = this.getFreshRssSecretStorage();
+    let credentialBundleText: string | null;
+    try {
+      credentialBundleText =
+        secretStorage?.getSecret(this.settings.freshRss.credentialReference) ??
+        null;
+    } catch {
+      new Notice(
+        "FreshRSS sync is unavailable because SecretStorage could not be read.",
+      );
+      return;
+    }
+    const credentials = credentialBundleText
+      ? parseFreshRssCredentialBundle(credentialBundleText)
+      : null;
+    if (!credentials) {
+      new Notice("Select a valid FreshRSS credential bundle before syncing.");
+      return;
+    }
+
+    const endpoint = this.settings.freshRss.endpoint;
+    let scope: FreshRssConnectionScope | null;
+    try {
+      scope =
+        await this.getFreshRssConnectionScopeRepository().readActiveScope();
+    } catch {
+      scope = null;
+    }
+    if (!scope || scope.endpoint !== endpoint) {
+      new Notice("Test the FreshRSS connection before syncing.");
+      return;
+    }
+
+    const signal = this.feedOperationTracker.begin(0, "FreshRSS sync");
+    if (!signal) return;
+
+    let outcome: FreshRssSyncOutcome;
+    try {
+      const coordinator = new FreshRssSyncCoordinator({
+        httpClient: createFreshRssHttpClient(),
+        getSettings: () => this.settings,
+        saveSettings: () => this.saveSettings(),
+        sidecarRepository: this.getFreshRssConnectionScopeRepository(),
+        getView: () => this.getActiveDashboardView(),
+      });
+      outcome = await coordinator.run({
+        endpoint,
+        credentials,
+        scope,
+        owner: {
+          signal,
+          beginCommit: () => this.feedOperationTracker.disableCancellation(),
+          throwIfInactive: () => {
+            if (signal.aborted) throw new FreshRssSyncCancelledError();
+          },
+        },
+      });
+    } catch (error) {
+      if (error instanceof FreshRssSyncCancelledError || signal.aborted) return;
+      new Notice("FreshRSS sync failed while saving local data.");
+      return;
+    } finally {
+      await this.feedOperationTracker.end();
+    }
+
+    await this.reportFreshRssSyncOutcome(outcome);
+  }
+
+  private async reportFreshRssSyncOutcome(
+    outcome: FreshRssSyncOutcome,
+  ): Promise<void> {
+    if (outcome.outcome === "scope-mismatch") {
+      await this.setFreshRssConnectionStatus("test-required");
+      new Notice(
+        "FreshRSS account changed. Test the connection before syncing.",
+      );
+      return;
+    }
+    if (outcome.outcome === "credentials-rejected") {
+      await this.setFreshRssConnectionStatus("credentials-rejected");
+      new Notice("FreshRSS sync failed because the credentials were rejected.");
+      return;
+    }
+    if (outcome.outcome === "server-unavailable") {
+      new Notice(
+        "FreshRSS sync failed because the server did not respond as expected.",
+      );
+      return;
+    }
+
+    const parts = [
+      `${outcome.createdFeedCount} feed${outcome.createdFeedCount === 1 ? "" : "s"} created`,
+      `${outcome.linkedFeedCount} linked`,
+      `${outcome.importedArticleCount} article${outcome.importedArticleCount === 1 ? "" : "s"} imported`,
+    ];
+    if (outcome.ambiguousSubscriptionCount > 0) {
+      parts.push(`${outcome.ambiguousSubscriptionCount} ambiguous`);
+    }
+    new Notice(
+      `FreshRSS sync ${outcome.partial ? "partially " : ""}completed: ${parts.join(", ")}.`,
+    );
   }
 
   private getFreshRssSecretStorage(): FreshRssSecretStorage | null {

@@ -28,6 +28,7 @@ function createPlugin(capability: FreshRssCapability = "available") {
     }),
     openFreshRssStorageMigrationChoice: vi.fn(),
     testFreshRssConnection: vi.fn(async () => "connected" as const),
+    syncFreshRssNow: vi.fn(async () => {}),
   };
   plugin satisfies FreshRssSettingsPlugin;
   return plugin;
@@ -111,5 +112,27 @@ describe("FreshRSS settings", () => {
     await Promise.resolve();
 
     expect(plugin.testFreshRssConnection).toHaveBeenCalledTimes(1);
+  });
+
+  it("allows Sync now only after connection succeeds and runs it from the settings tab", async () => {
+    const containerEl = createDiv();
+    const plugin = createPlugin();
+    const syncButton = () =>
+      Array.from(containerEl.querySelectorAll("button")).find(
+        (candidate) => candidate.textContent === "Sync now",
+      );
+
+    renderFreshRssSettingsTab(containerEl, plugin);
+    expect(syncButton()?.disabled).toBe(true);
+
+    plugin.settings.freshRss.status = "connected";
+    containerEl.empty();
+    renderFreshRssSettingsTab(containerEl, plugin);
+    const button = syncButton();
+    expect(button?.disabled).toBe(false);
+    button?.click();
+    await Promise.resolve();
+
+    expect(plugin.syncFreshRssNow).toHaveBeenCalledOnce();
   });
 });

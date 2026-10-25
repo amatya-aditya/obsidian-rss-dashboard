@@ -147,3 +147,47 @@ describe("FeedOperationTracker soft timeout", () => {
     expect(removeListener).toHaveBeenCalledWith("abort", expect.any(Function));
   });
 });
+
+describe("FeedOperationTracker named operations", () => {
+  it("cancels a sync without scheduling a deferred feed refresh", () => {
+    const onCancelled = vi.fn();
+    const tracker = new FeedOperationTracker(App.createMock(), {
+      activeRefreshState: new Map<string, FeedRefreshState>(),
+      renderStatus: vi.fn().mockResolvedValue(undefined),
+      renderSidebar: vi.fn().mockResolvedValue(undefined),
+      renderSidebarStatus: vi.fn().mockResolvedValue(undefined),
+      onCancelled,
+    });
+
+    try {
+      const signal = tracker.begin(0, "FreshRSS sync");
+      expect(tracker.isRunning).toBe(true);
+      tracker.cancel();
+
+      expect(signal?.aborted).toBe(true);
+      expect(onCancelled).not.toHaveBeenCalled();
+    } finally {
+      tracker.dispose();
+    }
+  });
+
+  it("keeps the operation lock while disabling cancellation for persistence", async () => {
+    const tracker = new FeedOperationTracker(App.createMock(), {
+      activeRefreshState: new Map<string, FeedRefreshState>(),
+      renderStatus: vi.fn().mockResolvedValue(undefined),
+      renderSidebar: vi.fn().mockResolvedValue(undefined),
+      renderSidebarStatus: vi.fn().mockResolvedValue(undefined),
+      onCancelled: vi.fn(),
+    });
+
+    const signal = tracker.begin(0, "FreshRSS sync");
+    tracker.disableCancellation();
+    tracker.cancel();
+
+    expect(tracker.isRunning).toBe(true);
+    expect(tracker.isCancellable).toBe(false);
+    expect(signal?.aborted).toBe(false);
+    await tracker.end();
+    tracker.dispose();
+  });
+});

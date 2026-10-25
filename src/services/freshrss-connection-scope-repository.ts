@@ -9,17 +9,34 @@ export interface FreshRssConnectionScopeStore {
   write(path: string, contents: string): Promise<void>;
 }
 
-export type FreshRssConnectionScopeActivationResult =
-  { outcome: "activated" } | { outcome: "sidecar-invalid" };
+export interface FreshRssFeedBinding {
+  feedId: string;
+  remoteSubscriptionId: string;
+}
 
-interface FreshRssSidecarShell {
+export interface FreshRssArticleBinding {
+  feedId: string;
+  guid: string;
+  remoteArticleId: string;
+}
+
+export interface FreshRssSyncCheckpoint {
+  remoteSubscriptionId: string;
+  completedAtMs: number;
+}
+
+export interface FreshRssSidecarFile {
   version: number;
   scope: FreshRssConnectionScope;
   pendingFacetMutations: unknown[];
-  feedBindings: unknown[];
-  articleBindings: unknown[];
-  checkpoints: unknown[];
+  feedBindings: FreshRssFeedBinding[];
+  articleBindings: FreshRssArticleBinding[];
+  checkpoints: FreshRssSyncCheckpoint[];
+  [key: string]: unknown;
 }
+
+export type FreshRssConnectionScopeActivationResult =
+  { outcome: "activated" } | { outcome: "sidecar-invalid" };
 
 function isConnectionScope(value: unknown): value is FreshRssConnectionScope {
   return (
@@ -31,16 +48,60 @@ function isConnectionScope(value: unknown): value is FreshRssConnectionScope {
   );
 }
 
-function hasSidecarShape(value: unknown): value is FreshRssSidecarShell {
+function isFeedBinding(value: unknown): value is FreshRssFeedBinding {
   return (
     isRecord(value) &&
-    value.version === FRESHRSS_SIDECAR_VERSION &&
-    isConnectionScope(value.scope) &&
-    Array.isArray(value.pendingFacetMutations) &&
-    Array.isArray(value.feedBindings) &&
-    Array.isArray(value.articleBindings) &&
-    Array.isArray(value.checkpoints)
+    typeof value.feedId === "string" &&
+    Boolean(value.feedId) &&
+    typeof value.remoteSubscriptionId === "string" &&
+    Boolean(value.remoteSubscriptionId)
   );
+}
+
+function isArticleBinding(value: unknown): value is FreshRssArticleBinding {
+  return (
+    isRecord(value) &&
+    typeof value.feedId === "string" &&
+    Boolean(value.feedId) &&
+    typeof value.guid === "string" &&
+    Boolean(value.guid) &&
+    typeof value.remoteArticleId === "string" &&
+    Boolean(value.remoteArticleId)
+  );
+}
+
+function isSyncCheckpoint(value: unknown): value is FreshRssSyncCheckpoint {
+  return (
+    isRecord(value) &&
+    typeof value.remoteSubscriptionId === "string" &&
+    Boolean(value.remoteSubscriptionId) &&
+    typeof value.completedAtMs === "number" &&
+    Number.isFinite(value.completedAtMs)
+  );
+}
+
+function parseSidecar(contents: string): FreshRssSidecarFile | null {
+  try {
+    const parsed: unknown = JSON.parse(contents);
+    if (
+      !isRecord(parsed) ||
+      parsed.version !== FRESHRSS_SIDECAR_VERSION ||
+      !isConnectionScope(parsed.scope) ||
+      !Array.isArray(parsed.pendingFacetMutations) ||
+      !Array.isArray(parsed.feedBindings) ||
+      !parsed.feedBindings.every(isFeedBinding) ||
+      !Array.isArray(parsed.articleBindings) ||
+      !parsed.articleBindings.every(isArticleBinding) ||
+      !Array.isArray(parsed.checkpoints) ||
+      !parsed.checkpoints.every(isSyncCheckpoint)
+    ) {
+      return null;
+    }
+
+    return parsed as unknown as FreshRssSidecarFile;
+  } catch {
+    return null;
+  }
 }
 
 function hasSameScope(
@@ -97,15 +158,8 @@ export class FreshRssConnectionScopeRepository {
       return { outcome: "sidecar-invalid" };
     }
 
-    let current: unknown;
-    try {
-      current = JSON.parse(contents) as unknown;
-    } catch {
-      await this.store.write(this.paths.createQuarantinePath(), contents);
-      return { outcome: "sidecar-invalid" };
-    }
-
-    if (!hasSidecarShape(current) || !isConnectionScope(current.scope)) {
+    const current = parseSidecar(contents);
+    if (!current) {
       await this.store.write(this.paths.createQuarantinePath(), contents);
       return { outcome: "sidecar-invalid" };
     }
@@ -117,6 +171,37 @@ export class FreshRssConnectionScopeRepository {
     await this.store.write(this.paths.createQuarantinePath(), contents);
     await this.writeEmptySidecar(scope);
     return { outcome: "activated" };
+  }
+
+  public async readActiveScope(): Promise<FreshRssConnectionScope | null> {
+    if (!(await this.store.exists(this.paths.sidecarPath))) return null;
+    const contents = await this.store.read(this.paths.sidecarPath);
+    return parseSidecar(contents)?.scope ?? null;
+  }
+
+  public async read(
+    scope: FreshRssConnectionScope,
+  ): Promise<FreshRssSidecarFile | null> {
+    if (!(await this.store.exists(this.paths.sidecarPath))) return null;
+    const contents = await this.store.read(this.paths.sidecarPath);
+    const sidecar = parseSidecar(contents);
+    if (!sidecar || !hasSameScope(sidecar.scope, scope)) return null;
+    return sidecar;
+  }
+
+  public async write(sidecar: FreshRssSidecarFile): Promise<void> {
+    const current = await this.read(sidecar.scope);
+    if (!current) {
+      throw new Error("FreshRSS sync sidecar is missing or has changed scope.");
+    }
+    await this.store.write(
+      this.paths.sidecarPath,
+      JSON.stringify(
+        { ...current, ...sidecar, version: FRESHRSS_SIDECAR_VERSION },
+        null,
+        2,
+      ),
+    );
   }
 
   private async writeEmptySidecar(

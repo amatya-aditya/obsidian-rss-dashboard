@@ -5,6 +5,7 @@ export interface FreshRssHttpRequest {
   method: "GET" | "POST";
   body?: string;
   headers?: Record<string, string>;
+  signal?: AbortSignal;
 }
 
 export interface FreshRssHttpResponse {
@@ -33,6 +34,11 @@ export interface FreshRssCredentialBundle {
 
 export type FreshRssAuthenticationResult =
   | { outcome: "authenticated"; authToken: string }
+  | { outcome: "credentials-rejected" }
+  | { outcome: "server-unavailable" };
+
+export type FreshRssIdentityResult =
+  | { outcome: "identified"; remoteUserId: string }
   | { outcome: "credentials-rejected" }
   | { outcome: "server-unavailable" };
 
@@ -117,6 +123,7 @@ export async function authenticateFreshRss(
   httpClient: FreshRssHttpClient,
   endpoint: string,
   credentials: FreshRssCredentialBundle,
+  signal?: AbortSignal,
 ): Promise<FreshRssAuthenticationResult> {
   try {
     const login = await httpClient.request({
@@ -124,6 +131,7 @@ export async function authenticateFreshRss(
       method: "POST",
       body: `Email=${encodeURIComponent(credentials.username)}&Passwd=${encodeURIComponent(credentials.apiPassword)}`,
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      ...(signal ? { signal } : {}),
     });
     if (isRejectedStatus(login.status)) {
       return { outcome: "credentials-rejected" };
@@ -135,6 +143,32 @@ export async function authenticateFreshRss(
     }
 
     return { outcome: "authenticated", authToken };
+  } catch {
+    return { outcome: "server-unavailable" };
+  }
+}
+
+export async function identifyFreshRssUser(
+  httpClient: FreshRssHttpClient,
+  endpoint: string,
+  authToken: string,
+  signal?: AbortSignal,
+): Promise<FreshRssIdentityResult> {
+  try {
+    const response = await httpClient.request({
+      url: `${endpoint}/reader/api/0/user-info?output=json`,
+      method: "GET",
+      headers: { Authorization: `GoogleLogin auth=${authToken}` },
+      ...(signal ? { signal } : {}),
+    });
+    if (isRejectedStatus(response.status))
+      return { outcome: "credentials-rejected" };
+
+    const remoteUserId =
+      response.status === 200 ? getRemoteUserId(response.text) : null;
+    return remoteUserId
+      ? { outcome: "identified", remoteUserId }
+      : { outcome: "server-unavailable" };
   } catch {
     return { outcome: "server-unavailable" };
   }

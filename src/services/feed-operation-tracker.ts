@@ -45,6 +45,7 @@ export class FeedOperationTracker {
   private readonly activeOperationControllers = new Set<AbortController>();
   private globalRefreshTotal = 0;
   private globalRefreshCompleted = 0;
+  private activeOperationName = "Refresh";
   private refreshStatusRenderTimeoutId: number | null = null;
   private disposed = false;
 
@@ -73,6 +74,10 @@ export class FeedOperationTracker {
     return this.disposed;
   }
 
+  public get operationName(): string {
+    return this.activeOperationName;
+  }
+
   public get progress(): { completed: number; total: number } {
     return {
       completed: this.globalRefreshCompleted,
@@ -80,7 +85,7 @@ export class FeedOperationTracker {
     };
   }
 
-  public begin(total: number): AbortSignal | null {
+  public begin(total: number, operationName = "Refresh"): AbortSignal | null {
     if (this.disposed) return null;
     if (this.isMultiFeedRefreshRunning) {
       new Notice("A feed operation is already in progress.");
@@ -92,6 +97,7 @@ export class FeedOperationTracker {
     this.activeOperationAbortController = this.globalRefreshAbortController;
     this.activeOperationControllers.add(this.globalRefreshAbortController);
     this.isGlobalRefreshCancelled = false;
+    this.activeOperationName = operationName;
     this.globalRefreshTotal = total;
     this.globalRefreshCompleted = 0;
     void this.renderStatus();
@@ -111,15 +117,22 @@ export class FeedOperationTracker {
     this.isGlobalRefreshCancelled = this.disposed;
     this.globalRefreshTotal = 0;
     this.globalRefreshCompleted = 0;
+    this.activeOperationName = "Refresh";
     if (!this.disposed) await this.options.renderStatus();
   }
 
   public cancel(): void {
     if (this.disposed || !this.isCancellable) return;
     this.isGlobalRefreshCancelled = true;
-    this.options.onCancelled();
+    if (this.activeOperationName === "Refresh") this.options.onCancelled();
     this.globalRefreshAbortController?.abort();
-    new Notice("Refresh stopped.");
+    new Notice(`${this.activeOperationName} stopped.`);
+  }
+
+  public disableCancellation(): void {
+    if (this.disposed || !this.isMultiFeedRefreshRunning) return;
+    this.globalRefreshAbortController = null;
+    void this.renderStatus();
   }
 
   public updateProgress(completed: number, total: number): void {
@@ -144,6 +157,7 @@ export class FeedOperationTracker {
     const controller = new AbortController();
     this.activeOperationAbortController = controller;
     this.activeOperationControllers.add(controller);
+    this.activeOperationName = "Refresh";
     this.globalRefreshAbortController = isCancellableIntent ? controller : null;
     this.isGlobalRefreshCancelled = false;
     if (isCancellableIntent) {
@@ -177,6 +191,7 @@ export class FeedOperationTracker {
   public markIdle(): void {
     this.options.activeRefreshState.clear();
     this.isMultiFeedRefreshRunning = false;
+    this.activeOperationName = "Refresh";
   }
 
   public recordSettled(): void {
