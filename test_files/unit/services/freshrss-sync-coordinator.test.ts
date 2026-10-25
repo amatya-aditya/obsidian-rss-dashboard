@@ -8,6 +8,7 @@ import type {
   FreshRssHttpClient,
 } from "../../../src/services/freshrss-connection-service";
 import type { FreshRssSidecarFile } from "../../../src/services/freshrss-connection-scope-repository";
+import { queueFreshRssReadStateChanges } from "../../../src/services/freshrss-article-state";
 import {
   FreshRssSyncCoordinator,
   type FreshRssSyncOwner,
@@ -527,7 +528,8 @@ describe("FreshRSS sync coordinator", () => {
 
   it("flushes durable read changes before importing read state for bound articles", async () => {
     const settings = makeSettings();
-    settings.freshRss.stateSyncMode = "two-way";
+    settings.freshRss.stateSyncMode = "receive-only";
+    settings.freshRss.endpoint = endpoint;
     settings.feeds = [
       {
         feedId: "local-feed",
@@ -556,15 +558,26 @@ describe("FreshRSS sync coordinator", () => {
       guid: "article/42",
       remoteArticleId: "article/42",
     });
-    sidecar.pendingFacetMutations.push({
-      operationId: "operation-read-1",
-      remoteArticleId: "article/42",
-      facet: "read",
-      desiredState: true,
-      createdAtMs: 100,
-      attemptCount: 0,
-      lastError: null,
+    const sidecarRepository = {
+      readActiveScope: async () => scope,
+      read: async () => sidecar,
+      write: async (next: FreshRssSidecarFile) => {
+        Object.assign(sidecar, next);
+      },
+    };
+    await queueFreshRssReadStateChanges({
+      settings,
+      changes: [
+        {
+          feedUrl: "https://feed.example.test/rss.xml",
+          guid: "article/42",
+          changes: { read: true },
+        },
+      ],
+      sidecarRepository,
     });
+    expect(sidecar.pendingFacetMutations).toHaveLength(1);
+    settings.freshRss.stateSyncMode = "two-way";
     const { request, httpClient } = createClient([
       { status: 200, text: "Auth=session-token" },
       { status: 200, text: "write-token" },
@@ -587,12 +600,7 @@ describe("FreshRSS sync coordinator", () => {
       httpClient,
       getSettings: () => settings,
       saveSettings: async () => {},
-      sidecarRepository: {
-        read: async () => sidecar,
-        write: async (next) => {
-          Object.assign(sidecar, next);
-        },
-      },
+      sidecarRepository,
       getView: async () => null,
     });
 
