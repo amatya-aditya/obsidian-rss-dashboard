@@ -2669,12 +2669,14 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   public async saveFreshRssEndpoint(endpoint: string): Promise<void> {
-    this.settings.freshRss.endpoint = canonicalizeFreshRssEndpoint(endpoint);
+    const trimmedEndpoint = endpoint.trim();
+    this.settings.freshRss.endpoint = trimmedEndpoint
+      ? canonicalizeFreshRssEndpoint(trimmedEndpoint)
+      : "";
     this.settings.freshRss.status = this.settings.freshRss.credentialReference
       ? "test-required"
       : "credentials-unconfigured";
     await this.saveSettings();
-    this.settingTab?.refresh();
   }
 
   public async saveFreshRssCredentialReference(
@@ -2704,7 +2706,7 @@ export default class RssDashboardPlugin extends Plugin {
       endpoint: this.settings.freshRss.endpoint,
       connectionService: new FreshRssConnectionService({
         request: async (request) => {
-          const response = await requestUrl(request);
+          const response = await requestUrl({ ...request, throw: false });
           return { status: response.status, text: response.text };
         },
       }),

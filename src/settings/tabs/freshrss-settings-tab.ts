@@ -39,8 +39,8 @@ function statusDescription(status: FreshRssConnectionStatus): string {
 function renderStatus(
   containerEl: HTMLElement,
   status: FreshRssConnectionStatus,
-): void {
-  new Setting(containerEl)
+): Setting {
+  return new Setting(containerEl)
     .setName("Connection status")
     .setDesc(statusDescription(status))
     .setDisabled(true);
@@ -70,23 +70,50 @@ export function renderFreshRssSettingsTab(
     return;
   }
 
+  const connectionStatusSetting = renderStatus(
+    containerEl,
+    plugin.settings.freshRss.status,
+  );
+  let testConnectionButton: HTMLButtonElement | null = null;
+  let endpointSaveSequence = 0;
+  let endpointInputInvalid = false;
+
   new Setting(containerEl)
     .setName("FreshRSS endpoint")
     .setDesc("The secure FreshRSS endpoint, without credentials.")
-    .addText((text) =>
-      text
-        .setValue(plugin.settings.freshRss.endpoint)
-        .setPlaceholder("https://reader.example.com/api/greader.php")
-        .onChange(async (value) => {
-          try {
-            await plugin.saveFreshRssEndpoint(value);
-          } catch {
-            new Notice(
-              "Enter a valid secure FreshRSS endpoint without credentials.",
-            );
+    .addText((text) => {
+      text.setValue(plugin.settings.freshRss.endpoint);
+      text.setPlaceholder("https://reader.example.com/api/greader.php");
+      text.inputEl.addEventListener("blur", () => {
+        if (!endpointInputInvalid) return;
+        endpointInputInvalid = false;
+        text.setValue(plugin.settings.freshRss.endpoint);
+        new Notice(
+          "Enter a valid secure FreshRSS endpoint without credentials.",
+        );
+      });
+      text.onChange(async (value) => {
+        const saveSequence = ++endpointSaveSequence;
+        const save = plugin.saveFreshRssEndpoint(value);
+        if (testConnectionButton) {
+          testConnectionButton.disabled =
+            !plugin.settings.freshRss.endpoint ||
+            !plugin.settings.freshRss.credentialReference;
+        }
+        try {
+          await save;
+          if (saveSequence !== endpointSaveSequence) return;
+          endpointInputInvalid = false;
+          connectionStatusSetting.setDesc(
+            statusDescription(plugin.settings.freshRss.status),
+          );
+        } catch {
+          if (saveSequence === endpointSaveSequence) {
+            endpointInputInvalid = true;
           }
-        }),
-    );
+        }
+      });
+    });
 
   new Setting(containerEl)
     .setName("FreshRSS credential bundle")
@@ -105,13 +132,13 @@ export function renderFreshRssSettingsTab(
         });
     });
 
-  renderStatus(containerEl, plugin.settings.freshRss.status);
   new Setting(containerEl)
     .setName("Test connection")
     .setDesc(
       "Checks login, identity, and write authorization without changing FreshRSS state.",
     )
     .addButton((button) => {
+      testConnectionButton = button.buttonEl;
       button.setButtonText("Test connection");
       button.buttonEl.disabled =
         !plugin.settings.freshRss.endpoint ||

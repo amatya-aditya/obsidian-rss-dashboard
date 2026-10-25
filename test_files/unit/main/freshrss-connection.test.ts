@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RequestUrlResponse } from "obsidian";
 import * as obsidian from "obsidian";
 import RssDashboardPlugin from "../../../main";
+import { RssDashboardSettingTab } from "../../../src/settings/settings-tab";
 import {
   DEFAULT_SETTINGS,
   type RssDashboardSettings,
@@ -126,6 +127,75 @@ describe("FreshRSS connection activation", () => {
     expect(sidecar).not.toContain("secret-value");
     expect(sidecar).not.toContain("session-value");
     expect(sidecar).not.toContain("write-token");
+  });
+
+  it("keeps the endpoint input mounted while the user types a valid endpoint", async () => {
+    vi.spyOn(obsidian, "requireApiVersion").mockReturnValue(true);
+    const app = obsidian.App.createMock();
+    setSecretStorage(app, {
+      getSecret: () => '{"username":"reader","apiPassword":"secret-value"}',
+      listSecrets: () => ["freshrss-primary"],
+    });
+    const plugin = createPlugin(app);
+    configureReadyPlugin(plugin);
+    const settingTab = new RssDashboardSettingTab(app, plugin);
+    plugin.settingTab = settingTab;
+    document.body.appendChild(settingTab.containerEl);
+    settingTab.activateTab("FreshRSS");
+
+    const endpointInput = settingTab.containerEl.querySelector("input");
+    expect(endpointInput).not.toBeNull();
+    endpointInput?.focus();
+    if (!endpointInput) return;
+
+    endpointInput.value = "https://r";
+    endpointInput.dispatchEvent(new Event("input"));
+    await vi.waitFor(() => {
+      expect(plugin.settings.freshRss.endpoint).toBe("https://r");
+    });
+
+    expect(settingTab.containerEl.querySelector("input")).toBe(endpointInput);
+    expect(document.activeElement).toBe(endpointInput);
+  });
+
+  it("allows clearing the endpoint without redrawing the settings tab", async () => {
+    const app = obsidian.App.createMock();
+    const plugin = createPlugin(app);
+    configureReadyPlugin(plugin);
+    const refresh = vi.fn();
+    plugin.settingTab = { refresh } as unknown as RssDashboardSettingTab;
+
+    await plugin.saveFreshRssEndpoint("");
+
+    expect(plugin.settings.freshRss.endpoint).toBe("");
+    expect(plugin.settings.freshRss.status).toBe("test-required");
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  it("classifies HTTP 401 responses returned by Obsidian as rejected credentials", async () => {
+    vi.spyOn(obsidian, "requireApiVersion").mockReturnValue(true);
+    const requestUrl = vi.spyOn(obsidian, "requestUrl");
+    requestUrl.mockResolvedValueOnce({
+      ...response("Unauthorized"),
+      status: 401,
+    });
+    const app = obsidian.App.createMock();
+    setSecretStorage(app, {
+      getSecret: () => '{"username":"reader","apiPassword":"bad-password"}',
+      listSecrets: () => ["freshrss-primary"],
+    });
+    const plugin = createPlugin(app);
+    configureReadyPlugin(plugin);
+
+    await expect(plugin.testFreshRssConnection()).resolves.toBe(
+      "credentials-rejected",
+    );
+    expect(requestUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        method: "POST",
+        throw: false,
+      }),
+    );
   });
 
   it("does not send a request when the selected SecretStorage entry cannot be read", async () => {
