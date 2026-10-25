@@ -115,6 +115,7 @@ const PALETTE_COMMAND_LOG = [
   "addCommand:open-settings-highlights",
   "addCommand:open-settings-import-export",
   "addCommand:open-settings-tags",
+  "addCommand:open-settings-freshrss",
   "addCommand:open-settings-about",
   "addCommand:dashboard-focus-search",
   "addCommand:dashboard-clear-filters",

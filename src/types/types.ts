@@ -596,6 +596,23 @@ export interface FeedRetentionProtections {
   protectUnread?: boolean;
 }
 
+export type FreshRssConnectionStatus =
+  | "capability-unavailable"
+  | "storage-migration-required"
+  | "credentials-unconfigured"
+  | "test-required"
+  | "credentials-rejected"
+  | "server-unavailable"
+  | "connected";
+
+export interface FreshRssSettings {
+  /** Google Reader-compatible endpoint, without embedded credentials. */
+  endpoint: string;
+  /** User-managed Obsidian SecretStorage ID, never the secret value. */
+  credentialReference: string;
+  status: FreshRssConnectionStatus;
+}
+
 export interface RssDashboardSettings {
   feeds: Feed[];
   folders: Folder[];
@@ -720,6 +737,7 @@ export interface RssDashboardSettings {
    * Schema version for metadata storage to support future migrations.
    */
   metadataStorageSchemaVersion: number;
+  freshRss: FreshRssSettings;
 }
 
 export type PersistedRssDashboardSettings = Omit<
@@ -1007,4 +1025,9 @@ guid: "{{guid}}"
   metadataStorageMode: "plugin-default",
   metadataStorageFolder: ".rss-dashboard-data",
   metadataStorageSchemaVersion: 1,
+  freshRss: {
+    endpoint: "",
+    credentialReference: "",
+    status: "credentials-unconfigured",
+  },
 };
