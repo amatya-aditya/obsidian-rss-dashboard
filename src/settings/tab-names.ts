@@ -17,6 +17,7 @@ export const SETTINGS_TAB_NAMES = [
   "Highlights",
   "Import/Export",
   "Tags",
+  "FreshRSS",
   "About",
 ] as const;
 

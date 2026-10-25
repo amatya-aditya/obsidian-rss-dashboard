@@ -33,6 +33,7 @@ import { renderRulesSettingsTab } from "./tabs/rules-settings-tab";
 import { renderHighlightsSettingsTab } from "./tabs/highlights-settings-tab";
 import { renderImportExportSettingsTab } from "./tabs/import-export-settings-tab";
 import { renderTagsSettingsTab } from "./tabs/tags-settings-tab";
+import { renderFreshRssSettingsTab } from "./tabs/freshrss-settings-tab";
 import { renderAboutTab } from "./tabs/about-settings-tab";
 import {
   SETTINGS_TAB_NAMES,
@@ -163,6 +164,10 @@ export class RssDashboardSettingTab extends PluginSettingTab {
         break;
       case "Tags":
         renderTagsSettingsTab(tabContent, this.plugin, onRefresh);
+        this.pendingSection = null;
+        break;
+      case "FreshRSS":
+        renderFreshRssSettingsTab(tabContent, this.plugin);
         this.pendingSection = null;
         break;
       case "About":

@@ -73,6 +73,43 @@ describe("settings-loader", () => {
   // ── loadAndNormalizeSettings ─────────────────────────────────────────────────
 
   describe("loadAndNormalizeSettings", () => {
+    it("defaults FreshRSS settings and repairs malformed persisted values", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      expect(loadAndNormalizeSettings({}).freshRss).toEqual({
+        endpoint: "",
+        credentialReference: "",
+        status: "credentials-unconfigured",
+      });
+      expect(
+        loadAndNormalizeSettings({
+          freshRss: {
+            endpoint: "https://reader.example.test/greader.php",
+            credentialReference: "entry-id",
+            status: "connected",
+          },
+        }).freshRss,
+      ).toEqual({
+        endpoint: "https://reader.example.test/greader.php",
+        credentialReference: "entry-id",
+        status: "connected",
+      });
+      expect(
+        loadAndNormalizeSettings({
+          freshRss: {
+            endpoint: 42 as unknown as string,
+            credentialReference: null as unknown as string,
+            status: "invalid" as unknown as "connected",
+          },
+        }).freshRss,
+      ).toEqual({
+        endpoint: "",
+        credentialReference: "",
+        status: "credentials-unconfigured",
+      });
+    });
+
     it("defaults the version status bar off and preserves an explicit saved value", async () => {
       const { loadAndNormalizeSettings } =
         await import("../../../src/utils/settings-loader");
