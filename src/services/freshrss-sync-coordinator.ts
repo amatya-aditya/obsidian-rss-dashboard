@@ -182,6 +182,15 @@ type FreshRssPreparedSync =
       outcome: "credentials-rejected" | "scope-mismatch" | "server-unavailable";
     };
 
+type FreshRssArticleStatePreparation =
+  | {
+      outcome: "ready";
+      labelMappings: FreshRssLabelMapping[];
+      remoteLabels: FreshRssLabel[];
+      availableTags: Tag[];
+    }
+  | { outcome: "credentials-rejected" | "server-unavailable" };
+
 async function prepareFreshRssSync(
   input: FreshRssSyncRunInput,
   deps: Pick<
@@ -236,6 +245,75 @@ async function prepareFreshRssSync(
   };
 }
 
+async function prepareFreshRssArticleState(
+  client: FreshRssSyncClient,
+  sidecarRepository: Pick<FreshRssConnectionScopeRepository, "read" | "write">,
+  scope: FreshRssConnectionScope,
+  sidecarState: FreshRssSidecarFile,
+  settings: RssDashboardSettings,
+  owner: FreshRssSyncOwner,
+): Promise<FreshRssArticleStatePreparation> {
+  let labelMappings = [...(sidecarState.labelMappings ?? [])];
+  let remoteLabels: FreshRssLabel[] = [];
+  const availableTags = settings.availableTags.map((tag) => ({ ...tag }));
+
+  const pendingStateOutcome = await flushPendingFacetMutations(
+    client,
+    sidecarRepository,
+    scope,
+    sidecarState.pendingFacetMutations,
+    labelMappings,
+    owner,
+    (mutation) => mutation.facet !== "labels",
+  );
+  if (pendingStateOutcome !== "complete") {
+    return { outcome: pendingStateOutcome };
+  }
+
+  const labelsResult = await client.listLabels();
+  owner.throwIfInactive();
+  if (labelsResult.outcome !== "ok") {
+    return {
+      outcome:
+        labelsResult.outcome === "auth-rejected"
+          ? "credentials-rejected"
+          : "server-unavailable",
+    };
+  }
+  remoteLabels = labelsResult.data;
+  const labelState = reconcileLabelMappings(
+    remoteLabels,
+    labelMappings,
+    availableTags,
+  );
+  labelMappings = labelState.mappings;
+
+  const labelMutationOutcome = await flushPendingFacetMutations(
+    client,
+    sidecarRepository,
+    scope,
+    sidecarState.pendingFacetMutations,
+    labelMappings,
+    owner,
+    (mutation) => mutation.facet === "labels",
+  );
+  if (labelMutationOutcome !== "complete") {
+    return { outcome: labelMutationOutcome };
+  }
+
+  appendPendingRemoteLabels(
+    remoteLabels,
+    sidecarState.pendingFacetMutations,
+    labelMappings,
+  );
+  return {
+    outcome: "ready",
+    labelMappings,
+    remoteLabels,
+    availableTags,
+  };
+}
+
 /** Imports remote subscriptions and bounded article history into current Core storage. */
 export class FreshRssSyncCoordinator {
   constructor(private readonly deps: FreshRssSyncCoordinatorDeps) {}
@@ -249,59 +327,18 @@ export class FreshRssSyncCoordinator {
     let remoteLabels: FreshRssLabel[] = [];
     let availableTags = settings.availableTags.map((tag) => ({ ...tag }));
     if (settings.freshRss.stateSyncMode === "two-way") {
-      const labelsResult = await client.listLabels();
-      owner.throwIfInactive();
-      if (labelsResult.outcome !== "ok") {
-        return mapFatalOutcome(labelsResult.outcome);
-      }
-      remoteLabels = labelsResult.data;
-      const labelState = reconcileLabelMappings(
-        remoteLabels,
-        labelMappings,
-        availableTags,
-      );
-      labelMappings = labelState.mappings;
-      availableTags = labelState.availableTags;
-      const flushOutcome = await flushPendingFacetMutations(
+      const articleState = await prepareFreshRssArticleState(
         client,
         this.deps.sidecarRepository,
         input.scope,
-        sidecarState.pendingFacetMutations,
-        labelMappings,
+        sidecarState,
+        settings,
         owner,
       );
-      if (flushOutcome === "credentials-rejected") {
-        return { outcome: "credentials-rejected" };
-      }
-      if (flushOutcome === "server-unavailable") {
-        return { outcome: "server-unavailable" };
-      }
-      for (const value of sidecarState.pendingFacetMutations) {
-        if (
-          !isFreshRssPendingFacetMutation(value) ||
-          value.facet !== "labels"
-        ) {
-          continue;
-        }
-        for (const name of value.desiredState) {
-          const mapping = labelMappings.find(
-            (candidate) =>
-              normalizedLabelKey(candidate.localTagName) ===
-              normalizedLabelKey(name),
-          );
-          if (
-            mapping &&
-            !remoteLabels.some(
-              (label) => label.remoteLabelId === mapping.remoteLabelId,
-            )
-          ) {
-            remoteLabels.push({
-              remoteLabelId: mapping.remoteLabelId,
-              name: mapping.localTagName,
-            });
-          }
-        }
-      }
+      if (articleState.outcome !== "ready") return articleState;
+      labelMappings = articleState.labelMappings;
+      remoteLabels = articleState.remoteLabels;
+      availableTags = articleState.availableTags;
     }
 
     const subscriptionsResult = await client.listSubscriptions();
@@ -829,6 +866,36 @@ function reconcileLabelMappings(
   return { mappings, availableTags };
 }
 
+function appendPendingRemoteLabels(
+  remoteLabels: FreshRssLabel[],
+  pendingValues: unknown[],
+  labelMappings: FreshRssLabelMapping[],
+): void {
+  for (const value of pendingValues) {
+    if (!isFreshRssPendingFacetMutation(value) || value.facet !== "labels") {
+      continue;
+    }
+    for (const name of value.desiredState) {
+      const mapping = labelMappings.find(
+        (candidate) =>
+          normalizedLabelKey(candidate.localTagName) ===
+          normalizedLabelKey(name),
+      );
+      if (
+        mapping &&
+        !remoteLabels.some(
+          (label) => label.remoteLabelId === mapping.remoteLabelId,
+        )
+      ) {
+        remoteLabels.push({
+          remoteLabelId: mapping.remoteLabelId,
+          name: mapping.localTagName,
+        });
+      }
+    }
+  }
+}
+
 function findBoundArticle(
   feeds: Feed[],
   binding: FreshRssArticleBinding | undefined,
@@ -933,11 +1000,13 @@ async function flushPendingFacetMutations(
   pendingValues: unknown[],
   labelMappings: FreshRssLabelMapping[],
   owner: FreshRssSyncOwner,
+  shouldFlush: (mutation: FreshRssPendingFacetMutation) => boolean = () => true,
 ): Promise<FreshRssMutationFlushOutcome> {
   const pending = pendingValues.filter(
     (value): value is FreshRssPendingFacetMutation =>
       isFreshRssPendingFacetMutation(value) &&
-      value.retryDisposition !== "manual",
+      value.retryDisposition !== "manual" &&
+      shouldFlush(value),
   );
   if (pending.length === 0) return "complete";
 
