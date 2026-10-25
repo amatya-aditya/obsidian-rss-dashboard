@@ -82,6 +82,75 @@ function makeSettings(): RssDashboardSettings {
 }
 
 describe("FreshRSS sync coordinator", () => {
+  it("previews live subscriptions and their bounded articles without writing", async () => {
+    const settings = makeSettings();
+    settings.freshRss.endpoint = endpoint;
+    const sidecar = createSidecar();
+    sidecar.pendingFacetMutations.push({
+      operationId: "queued-read",
+      remoteArticleId: "article/42",
+      facet: "read",
+      desiredState: true,
+      createdAtMs: 100,
+      attemptCount: 0,
+      lastError: null,
+    });
+    const { httpClient } = createClient([
+      { status: 200, text: "Auth=session-token" },
+      { status: 200, text: subscriptionList() },
+      {
+        status: 200,
+        text: JSON.stringify({ itemRefs: [{ id: "article/42" }] }),
+      },
+      {
+        status: 200,
+        text: JSON.stringify({
+          items: [
+            {
+              id: "article/42",
+              title: "Preview article",
+              alternate: [{ href: "https://article.example.test/42" }],
+            },
+          ],
+        }),
+      },
+    ]);
+    const write = vi.fn(async () => {});
+    const coordinator = new FreshRssSyncCoordinator({
+      httpClient,
+      getSettings: () => settings,
+      saveSettings: vi.fn(async () => {}),
+      sidecarRepository: { read: async () => sidecar, write },
+      getView: async () => null,
+    });
+
+    await expect(
+      coordinator.preview({
+        endpoint,
+        credentials: { username: "reader", apiPassword: "secret" },
+        scope,
+        owner: createOwner(),
+      }),
+    ).resolves.toMatchObject({
+      outcome: "ready",
+      subscriptions: [
+        {
+          title: "Remote title",
+          url: "https://feed.example.test/rss.xml",
+          articles: [
+            {
+              remoteArticleId: "article/42",
+              title: "Preview article",
+              link: "https://article.example.test/42",
+            },
+          ],
+        },
+      ],
+      pendingMutations: [{ operationId: "queued-read", facet: "read" }],
+    });
+    expect(write).not.toHaveBeenCalled();
+  });
+
   it("does not sync or reuse sidecar state for a different authenticated account", async () => {
     const request = vi.fn<FreshRssHttpClient["request"]>(async (input) =>
       input.url.endsWith("/accounts/ClientLogin")

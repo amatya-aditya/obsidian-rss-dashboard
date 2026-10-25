@@ -37,6 +37,52 @@ export function queueFreshRssArticleStateChanges(input: {
   );
 }
 
+/** Makes one terminal mutation eligible for a later sync without changing its desired state. */
+export async function retryFreshRssMutation(
+  repository: Pick<
+    FreshRssConnectionScopeRepository,
+    "readActiveScope" | "read" | "write"
+  >,
+  operationId: string,
+): Promise<void> {
+  await withFreshRssSidecarMutationLock(async () => {
+    const scope = await repository.readActiveScope();
+    if (!scope) return;
+    const sidecar = await repository.read(scope);
+    if (!sidecar) return;
+    const pendingFacetMutations = sidecar.pendingFacetMutations.map((value) =>
+      isFreshRssPendingFacetMutation(value) && value.operationId === operationId
+        ? { ...value, retryDisposition: "automatic" as const, lastError: null }
+        : value,
+    );
+    await repository.write({ ...sidecar, pendingFacetMutations });
+  });
+}
+
+/** Removes only the selected pending remote mutation; local article state is untouched. */
+export async function cancelFreshRssMutation(
+  repository: Pick<
+    FreshRssConnectionScopeRepository,
+    "readActiveScope" | "read" | "write"
+  >,
+  operationId: string,
+): Promise<void> {
+  await withFreshRssSidecarMutationLock(async () => {
+    const scope = await repository.readActiveScope();
+    if (!scope) return;
+    const sidecar = await repository.read(scope);
+    if (!sidecar) return;
+    await repository.write({
+      ...sidecar,
+      pendingFacetMutations: sidecar.pendingFacetMutations.filter(
+        (value) =>
+          !isFreshRssPendingFacetMutation(value) ||
+          value.operationId !== operationId,
+      ),
+    });
+  });
+}
+
 async function persistFreshRssArticleStateChanges(input: {
   settings: RssDashboardSettings;
   changes: readonly ArticleStateChange[];
