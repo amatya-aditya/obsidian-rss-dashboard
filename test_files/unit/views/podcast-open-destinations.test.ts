@@ -53,6 +53,28 @@ describe("resolvePodcastOpenDestinations", () => {
     expect(destinations[4]?.url).toBe("https://example.com/feed.xml");
   });
 
+  it("falls back to the enclosure when audioUrl contains only whitespace", () => {
+    const item = createItem({
+      audioUrl: " ",
+      enclosure: {
+        url: "https://cdn.example.com/fallback.mp3",
+        type: "audio/mpeg",
+        length: "1",
+      },
+    });
+
+    expect(
+      resolvePodcastOpenDestinations(item, {
+        url: "",
+        siteUrl: undefined,
+      }),
+    ).toContainEqual({
+      id: "audio",
+      title: "Audio file",
+      url: "https://cdn.example.com/fallback.mp3",
+    });
+  });
+
   it("includes guid as a separate option when it is a URL", () => {
     const item = createItem({
       link: "https://example.com/ep1",

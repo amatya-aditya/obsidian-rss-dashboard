@@ -119,7 +119,7 @@ export function resolvePodcastOpenDestinations(
     }
   }
 
-  const audioUrl = (item.audioUrl || item.enclosure?.url || "").trim();
+  const audioUrl = (item.audioUrl?.trim() || item.enclosure?.url || "").trim();
   if (audioUrl && audioUrl !== "#" && isOpenableHttpUrl(audioUrl)) {
     destinations.push({ id: "audio", title: "Audio file", url: audioUrl });
   }
