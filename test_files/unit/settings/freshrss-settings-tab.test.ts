@@ -34,6 +34,12 @@ function createPlugin(capability: FreshRssCapability = "available") {
     openFreshRssStorageMigrationChoice: vi.fn(),
     testFreshRssConnection: vi.fn(async () => "connected" as const),
     syncFreshRssNow: vi.fn(async () => {}),
+    openFreshRssSyncPreview: vi.fn(),
+    getFreshRssPendingMutations: vi.fn(async () => []),
+    cancelFreshRssSyncNow: vi.fn(),
+    retryFreshRssMutation: vi.fn(async () => {}),
+    cancelFreshRssMutation: vi.fn(async () => {}),
+    getFreshRssStateSyncMode: vi.fn(() => settings.freshRss.stateSyncMode),
   };
   plugin satisfies FreshRssSettingsPlugin;
   return plugin;
@@ -138,7 +144,7 @@ describe("FreshRSS settings", () => {
     button?.click();
     await Promise.resolve();
 
-    expect(plugin.syncFreshRssNow).toHaveBeenCalledOnce();
+    expect(plugin.openFreshRssSyncPreview).toHaveBeenCalledOnce();
   });
 
   it("persists Receive-only mode while keeping Two-way as the default", async () => {

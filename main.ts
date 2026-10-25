@@ -114,6 +114,12 @@ import {
 } from "./src/services/freshrss-sync-coordinator";
 import { createFreshRssHttpClient } from "./src/services/freshrss-request-url-client";
 import { queueFreshRssArticleStateChanges } from "./src/services/freshrss-article-state";
+import {
+  cancelFreshRssMutation as cancelPendingFreshRssMutation,
+  retryFreshRssMutation as retryPendingFreshRssMutation,
+  isFreshRssPendingFacetMutation,
+} from "./src/services/freshrss-article-state";
+import { FreshRssSyncModal } from "./src/modals/freshrss-sync-modal";
 
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
 import { ImportStarredModal } from "./src/modals/import-starred-modal";
@@ -2813,6 +2819,42 @@ export default class RssDashboardPlugin extends Plugin {
     }
 
     await this.reportFreshRssSyncOutcome(outcome);
+  }
+
+  public openFreshRssSyncPreview(): void {
+    new FreshRssSyncModal(this.app, this).open();
+  }
+
+  public getFreshRssStateSyncMode(): "two-way" | "receive-only" {
+    return this.settings.freshRss.stateSyncMode;
+  }
+
+  public async getFreshRssPendingMutations() {
+    const repository = this.getFreshRssConnectionScopeRepository();
+    const scope = await repository.readActiveScope();
+    if (!scope || scope.endpoint !== this.settings.freshRss.endpoint) return [];
+    const sidecar = await repository.read(scope);
+    return (sidecar?.pendingFacetMutations ?? []).filter(
+      isFreshRssPendingFacetMutation,
+    );
+  }
+
+  public cancelFreshRssSyncNow(): void {
+    this.feedOperationTracker.cancel();
+  }
+
+  public async retryFreshRssMutation(operationId: string): Promise<void> {
+    await retryPendingFreshRssMutation(
+      this.getFreshRssConnectionScopeRepository(),
+      operationId,
+    );
+  }
+
+  public async cancelFreshRssMutation(operationId: string): Promise<void> {
+    await cancelPendingFreshRssMutation(
+      this.getFreshRssConnectionScopeRepository(),
+      operationId,
+    );
   }
 
   private async reportFreshRssSyncOutcome(

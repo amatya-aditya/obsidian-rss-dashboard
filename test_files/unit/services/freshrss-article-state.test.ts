@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_SETTINGS } from "../../../src/types/types";
 import {
+  cancelFreshRssMutation,
   queueFreshRssArticleStateChanges,
   isFreshRssPendingFacetMutation,
+  retryFreshRssMutation,
 } from "../../../src/services/freshrss-article-state";
 import {
   FreshRssConnectionScopeRepository,
@@ -38,6 +40,76 @@ function createSidecar(): FreshRssSidecarFile {
 }
 
 describe("FreshRSS article state queue", () => {
+  it("retries a terminal mutation durably without changing its desired state", async () => {
+    const sidecar = createSidecar();
+    sidecar.pendingFacetMutations.push({
+      operationId: "retry-me",
+      remoteArticleId: "opaque-article/42",
+      facet: "read",
+      desiredState: true,
+      createdAtMs: 100,
+      attemptCount: 2,
+      retryDisposition: "manual",
+      lastError: "rejected",
+    });
+    const repository = {
+      readActiveScope: async () => scope,
+      read: async () => sidecar,
+      write: async (value: FreshRssSidecarFile) => {
+        Object.assign(sidecar, value);
+      },
+    };
+
+    await retryFreshRssMutation(repository, "retry-me");
+
+    expect(sidecar.pendingFacetMutations).toMatchObject([
+      {
+        operationId: "retry-me",
+        desiredState: true,
+        attemptCount: 2,
+        retryDisposition: "automatic",
+        lastError: null,
+      },
+    ]);
+  });
+
+  it("cancels only one durable mutation in the active scope", async () => {
+    const sidecar = createSidecar();
+    sidecar.pendingFacetMutations.push(
+      {
+        operationId: "cancel-me",
+        remoteArticleId: "opaque-article/42",
+        facet: "read",
+        desiredState: true,
+        createdAtMs: 100,
+        attemptCount: 2,
+        retryDisposition: "manual",
+        lastError: "rejected",
+      },
+      {
+        operationId: "keep-me",
+        remoteArticleId: "opaque-article/43",
+        facet: "starred",
+        desiredState: true,
+        createdAtMs: 101,
+        attemptCount: 0,
+        lastError: null,
+      },
+    );
+    const repository = {
+      readActiveScope: async () => scope,
+      read: async () => sidecar,
+      write: async (value: FreshRssSidecarFile) => {
+        Object.assign(sidecar, value);
+      },
+    };
+
+    await cancelFreshRssMutation(repository, "cancel-me");
+
+    expect(sidecar.pendingFacetMutations).toMatchObject([
+      { operationId: "keep-me", remoteArticleId: "opaque-article/43" },
+    ]);
+  });
   it("coalesces local read choices into durable scoped mutations", async () => {
     const settings = structuredClone(DEFAULT_SETTINGS);
     settings.freshRss = {

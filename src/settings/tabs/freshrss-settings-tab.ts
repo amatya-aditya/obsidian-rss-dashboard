@@ -3,6 +3,7 @@ import type {
   FreshRssConnectionStatus,
   FreshRssSettings,
 } from "../../types/types";
+import type { FreshRssPendingFacetMutation } from "../../services/freshrss-connection-scope-repository";
 
 export type FreshRssCapability =
   "available" | "capability-unavailable" | "storage-migration-required";
@@ -19,6 +20,12 @@ export interface FreshRssSettingsPlugin {
   openFreshRssStorageMigrationChoice(): void;
   testFreshRssConnection(): Promise<FreshRssConnectionStatus>;
   syncFreshRssNow(): Promise<void>;
+  openFreshRssSyncPreview(): void;
+  getFreshRssPendingMutations(): Promise<FreshRssPendingFacetMutation[]>;
+  cancelFreshRssSyncNow(): void;
+  retryFreshRssMutation(operationId: string): Promise<void>;
+  cancelFreshRssMutation(operationId: string): Promise<void>;
+  getFreshRssStateSyncMode(): FreshRssSettings["stateSyncMode"];
 }
 
 function statusDescription(status: FreshRssConnectionStatus): string {
@@ -188,7 +195,7 @@ export function renderFreshRssSettingsTab(
       button.onClick(async () => {
         button.buttonEl.disabled = true;
         try {
-          await plugin.syncFreshRssNow();
+          plugin.openFreshRssSyncPreview();
         } finally {
           button.buttonEl.disabled =
             plugin.settings.freshRss.status !== "connected";
