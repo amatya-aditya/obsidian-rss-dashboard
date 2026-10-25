@@ -936,6 +936,9 @@ export class Sidebar {
       this.plugin.isMultiFeedRefreshActive ||
       (this.plugin.activeRefreshState?.size ?? 0) > 0;
     const isCancellable = this.plugin.isGlobalRefreshCancellable ?? false;
+    const operationName = this.plugin.globalOperationName ?? "Refresh";
+    const stopLabel =
+      operationName === "Refresh" ? "Stop refresh" : `Stop ${operationName}`;
 
     // Feed icon (refresh button) - clickable
     const refreshLabelId = `rss-dashboard-refresh-all-feeds-${Math.random()
@@ -944,7 +947,7 @@ export class Sidebar {
     allFeedsButton.createSpan({
       cls: "rss-dashboard-refresh-details-sr-only",
       text: isCancellable
-        ? "Refresh in progress. Click to stop."
+        ? `${operationName} in progress. Click to stop.`
         : "Refresh all feeds. Shift+click to retry failed feeds.",
       attr: { id: refreshLabelId },
     });
@@ -954,7 +957,7 @@ export class Sidebar {
         (isCancellable ? " stop" : isRefreshActive ? " refreshing" : ""),
       attr: {
         type: "button",
-        "aria-label": isCancellable ? "Stop refresh" : "Refresh all feeds",
+        "aria-label": isCancellable ? stopLabel : "Refresh all feeds",
         "aria-labelledby": refreshLabelId,
       },
     });
