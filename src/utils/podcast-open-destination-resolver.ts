@@ -132,7 +132,7 @@ function getShowNotesDestinations(
 }
 
 function getAudioDestination(item: FeedItem): PodcastOpenDestination[] {
-  const audioUrl = (item.audioUrl || item.enclosure?.url || "").trim();
+  const audioUrl = (item.audioUrl?.trim() || item.enclosure?.url || "").trim();
   if (audioUrl && audioUrl !== "#" && isOpenableHttpUrl(audioUrl)) {
     return [{ id: "audio", title: "Audio file", url: audioUrl }];
   }

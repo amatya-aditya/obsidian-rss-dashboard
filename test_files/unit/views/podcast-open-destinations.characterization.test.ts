@@ -204,7 +204,7 @@ describe("resolvePodcastOpenDestinations characterization", () => {
     ]);
   });
 
-  it("keeps a whitespace-only audioUrl ahead of a valid enclosure", () => {
+  it("falls back to the enclosure when audioUrl contains only whitespace", () => {
     const item = createItem({
       audioUrl: " ",
       enclosure: {
@@ -214,12 +214,17 @@ describe("resolvePodcastOpenDestinations characterization", () => {
       },
     });
 
-    // BUG: pinned, see #1567
     expect(
       resolvePodcastOpenDestinations(item, {
         url: "",
         siteUrl: undefined,
       }),
-    ).toEqual([]);
+    ).toEqual([
+      {
+        id: "audio",
+        title: "Audio file",
+        url: "https://cdn.example.com/fallback.mp3",
+      },
+    ]);
   });
 });
