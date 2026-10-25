@@ -1484,3 +1484,44 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
 .rss-edit-feed-modal .rss-dashboard-feed-error-section {
   margin-top: 0;
 }
+
+.rss-freshrss-sync-preview,
+.rss-freshrss-sync-failure {
+  padding: 0.75em;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  margin-block: 0.75em;
+}
+
+.rss-freshrss-sync-failure {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5em;
+}
+
+.rss-freshrss-sync-failure span {
+  flex: 1 1 16em;
+  overflow-wrap: anywhere;
+}
+
+.rss-freshrss-sync-failure button,
+.rss-freshrss-sync-preview button {
+  min-height: 36px;
+}
+
+.rss-freshrss-sync-status {
+  padding: 0.5em 0;
+}
+
+@media (max-width: 600px) {
+  .rss-freshrss-sync-failure {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .rss-freshrss-sync-failure button {
+    min-height: 44px;
+    width: 100%;
+  }
+}

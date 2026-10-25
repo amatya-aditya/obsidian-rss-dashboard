@@ -43,6 +43,34 @@ export interface FreshRssSyncOwner {
   throwIfInactive(): void;
 }
 
+export interface FreshRssPreviewArticle {
+  remoteArticleId: string;
+  title: string;
+  link: string | null;
+}
+
+export interface FreshRssPreviewSubscription {
+  remoteSubscriptionId: string;
+  title: string;
+  url: string;
+  articles: FreshRssPreviewArticle[];
+  partial: boolean;
+}
+
+export type FreshRssSyncPreviewOutcome =
+  | {
+      outcome: "ready";
+      subscriptions: FreshRssPreviewSubscription[];
+      pendingMutations: FreshRssPendingFacetMutation[];
+      partial: boolean;
+    }
+  | {
+      outcome: "credentials-rejected" | "scope-mismatch" | "server-unavailable";
+    };
+
+export type FreshRssSyncRunStatus =
+  "completed" | "failed" | "cancelled" | "not-started";
+
 export class FreshRssSyncCancelledError extends Error {
   constructor() {
     super("FreshRSS sync was cancelled or unloaded.");
@@ -317,6 +345,78 @@ async function prepareFreshRssArticleState(
 /** Imports remote subscriptions and bounded article history into current Core storage. */
 export class FreshRssSyncCoordinator {
   constructor(private readonly deps: FreshRssSyncCoordinatorDeps) {}
+
+  /** Reads the bounded incoming change set without applying or persisting it. */
+  public async preview(
+    input: FreshRssSyncRunInput,
+  ): Promise<FreshRssSyncPreviewOutcome> {
+    const prepared = await prepareFreshRssSync(input, this.deps);
+    if (prepared.outcome !== "ready") return prepared;
+    const subscriptionsResult = await prepared.client.listSubscriptions();
+    input.owner.throwIfInactive();
+    if (subscriptionsResult.outcome !== "ok") {
+      return {
+        outcome:
+          subscriptionsResult.outcome === "auth-rejected"
+            ? "credentials-rejected"
+            : "server-unavailable",
+      };
+    }
+
+    let partial = false;
+    const subscriptions: FreshRssPreviewSubscription[] = [];
+    for (const subscription of subscriptionsResult.data) {
+      input.owner.throwIfInactive();
+      const idsResult = await prepared.client.listItemIds(
+        subscription.remoteSubscriptionId,
+        FRESHRSS_SYNC_ARTICLES_PER_SUBSCRIPTION,
+      );
+      input.owner.throwIfInactive();
+      if (idsResult.outcome === "auth-rejected") {
+        return { outcome: "credentials-rejected" };
+      }
+      if (idsResult.outcome !== "ok") {
+        partial = true;
+        subscriptions.push({ ...subscription, articles: [], partial: true });
+        continue;
+      }
+
+      const articlesResult = await prepared.client.getItemContents(
+        idsResult.data.itemRefs,
+      );
+      input.owner.throwIfInactive();
+      if (articlesResult.outcome === "auth-rejected") {
+        return { outcome: "credentials-rejected" };
+      }
+      if (articlesResult.outcome !== "ok") {
+        partial = true;
+        subscriptions.push({ ...subscription, articles: [], partial: true });
+        continue;
+      }
+
+      subscriptions.push({
+        ...subscription,
+        articles: articlesResult.data.map(
+          ({ remoteArticleId, title, link }) => ({
+            remoteArticleId,
+            title,
+            link,
+          }),
+        ),
+        partial: idsResult.data.continuation !== null,
+      });
+      partial ||= idsResult.data.continuation !== null;
+    }
+
+    return {
+      outcome: "ready",
+      subscriptions,
+      pendingMutations: prepared.sidecarState.pendingFacetMutations.filter(
+        isFreshRssPendingFacetMutation,
+      ),
+      partial,
+    };
+  }
 
   public async run(input: FreshRssSyncRunInput): Promise<FreshRssSyncOutcome> {
     const { owner } = input;
