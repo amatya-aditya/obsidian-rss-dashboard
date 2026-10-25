@@ -101,11 +101,6 @@
       "count": 1
     }
   },
-  "src/utils/settings-migration.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
   "src/utils/substack-image-url.ts": {
     "complexity": {
       "count": 1

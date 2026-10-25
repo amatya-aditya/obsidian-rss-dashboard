@@ -13,11 +13,11 @@ import {
 import {
   migrateDisplaySettings,
   migrateDefaultFilterToDashboardMultiFilters,
-  migrateKeywordRulesSettings,
   migrateMediaVideoTagSettings,
   migrateMediaDefaultTagArrays,
   removeObsoleteSettingsKeys,
 } from "./settings-migration";
+import { migrateKeywordRulesSettings } from "./keyword-rules-migration";
 import { migrateSaveVersionSetting } from "./save-version";
 import { normalizeTagChipRadius, repairTagChipRadius } from "./tag-chip-radius";
 import { canonicalizeItemIdentityUrl } from "./url-utils";
