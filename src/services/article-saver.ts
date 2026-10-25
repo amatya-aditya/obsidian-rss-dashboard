@@ -65,6 +65,8 @@ import {
 } from "../utils/save-version";
 
 const MAX_FILENAME_LENGTH = 100;
+const MAX_FILENAME_BYTES = 255;
+const MARKDOWN_EXTENSION_BYTES = 3;
 const RSS_FALLBACK_MARKER =
   "> RSS feed content shown because the full article could not be fetched.";
 
@@ -73,15 +75,58 @@ export function sanitizeFilename(name: string): string {
 }
 
 function sanitizeFilenameStem(name: string): string {
-  const stem = name
-    .replace(/[/\\:*?"<>|]/g, "")
+  const cleaned = name
+    .replace(/[/\\:*?"<>|#\x5b\x5d^]/g, "")
     .replace(/\s+/g, " ")
     .trim()
-    .slice(0, MAX_FILENAME_LENGTH)
-    .trim();
+    .replace(/[. ]+$/g, "");
+  const stem = truncateFilenameStem(
+    cleaned,
+    MAX_FILENAME_LENGTH,
+    MAX_FILENAME_BYTES - MARKDOWN_EXTENSION_BYTES,
+  )
+    .trim()
+    .replace(/[. ]+$/g, "");
   return /^(?:CON|PRN|AUX|NUL|COM[1-9¹²³]|LPT[1-9¹²³])$/i.test(stem)
     ? ""
     : stem;
+}
+
+function truncateFilenameStem(
+  value: string,
+  maxCharacters: number,
+  maxBytes: number,
+): string {
+  let characterCount = 0;
+  let byteCount = 0;
+  let result = "";
+  for (const character of value) {
+    const codePoint = character.codePointAt(0);
+    if (
+      codePoint === undefined ||
+      (codePoint >= 0xd800 && codePoint <= 0xdfff)
+    ) {
+      continue;
+    }
+    const characterBytes =
+      codePoint <= 0x7f
+        ? 1
+        : codePoint <= 0x7ff
+          ? 2
+          : codePoint <= 0xffff
+            ? 3
+            : 4;
+    if (
+      characterCount >= maxCharacters ||
+      byteCount + characterBytes > maxBytes
+    ) {
+      break;
+    }
+    result += character;
+    characterCount += 1;
+    byteCount += characterBytes;
+  }
+  return result;
 }
 
 export function buildArticleFilename(
@@ -131,13 +176,34 @@ export function findAvailableArticlePath(
   let suffix = 2;
   while (app.vault.getAbstractFileByPath(pathFor(candidate)) !== null) {
     const suffixText = ` ${suffix}`;
-    const shortened = filename
-      .slice(0, MAX_FILENAME_LENGTH - suffixText.length)
-      .trim();
+    const shortened = truncateFilenameStem(
+      filename,
+      MAX_FILENAME_LENGTH - [...suffixText].length,
+      MAX_FILENAME_BYTES -
+        MARKDOWN_EXTENSION_BYTES -
+        utf8ByteLength(suffixText),
+    ).trim();
     candidate = `${shortened}${suffixText}`;
     suffix += 1;
   }
   return pathFor(candidate);
+}
+
+function utf8ByteLength(value: string): number {
+  let byteCount = 0;
+  for (const character of value) {
+    const codePoint = character.codePointAt(0);
+    if (codePoint === undefined) continue;
+    byteCount +=
+      codePoint <= 0x7f
+        ? 1
+        : codePoint <= 0x7ff
+          ? 2
+          : codePoint <= 0xffff
+            ? 3
+            : 4;
+  }
+  return byteCount;
 }
 
 export class ArticleSaver {
