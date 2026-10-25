@@ -108,4 +108,41 @@ describe("FreshRSS connection scope repository", () => {
     expect(files.get("quarantine.json")).toBe(malformed);
     expect(getContents()).toBe(malformed);
   });
+
+  it("reads and writes sync state without dropping other FreshRSS metadata", async () => {
+    const existing = JSON.stringify({
+      version: 2,
+      scope,
+      pendingFacetMutations: [],
+      feedBindings: [],
+      articleBindings: [],
+      checkpoints: [],
+      labelMappings: [{ remoteLabelId: "label/1", localTagName: "News" }],
+      syncHealth: { consecutiveTransientFailureCount: 2, backoffUntilMs: 500 },
+    });
+    const { store, getContents } = createStore(existing);
+    const repository = new FreshRssConnectionScopeRepository(store, {
+      sidecarPath: "sidecar.json",
+      createQuarantinePath: () => "quarantine.json",
+    });
+    const sidecar = await repository.read(scope);
+    expect(sidecar?.labelMappings).toEqual([
+      { remoteLabelId: "label/1", localTagName: "News" },
+    ]);
+    expect(sidecar?.syncHealth).toEqual({
+      consecutiveTransientFailureCount: 2,
+      backoffUntilMs: 500,
+    });
+
+    await repository.write({
+      ...sidecar!,
+      feedBindings: [{ feedId: "local-feed", remoteSubscriptionId: "feed/6" }],
+    });
+
+    expect(JSON.parse(getContents() ?? "{}")).toMatchObject({
+      labelMappings: [{ remoteLabelId: "label/1", localTagName: "News" }],
+      syncHealth: { consecutiveTransientFailureCount: 2, backoffUntilMs: 500 },
+      feedBindings: [{ feedId: "local-feed", remoteSubscriptionId: "feed/6" }],
+    });
+  });
 });
