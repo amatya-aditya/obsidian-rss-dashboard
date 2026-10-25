@@ -113,7 +113,7 @@ import {
   type FreshRssSyncOutcome,
 } from "./src/services/freshrss-sync-coordinator";
 import { createFreshRssHttpClient } from "./src/services/freshrss-request-url-client";
-import { queueFreshRssReadStateChanges } from "./src/services/freshrss-article-state";
+import { queueFreshRssArticleStateChanges } from "./src/services/freshrss-article-state";
 
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
 import { ImportStarredModal } from "./src/modals/import-starred-modal";
@@ -2916,7 +2916,7 @@ export default class RssDashboardPlugin extends Plugin {
     await this.settingsStore.queueArticleStateSave(
       articleStateJournalChanges(this.settings.feeds, changes),
     );
-    await this.queueFreshRssReadStateChanges(changes);
+    await this.queueFreshRssArticleStateChanges(changes);
   }
 
   /** Writes queued article-state changes now and resolves after they land. */
@@ -2938,24 +2938,31 @@ export default class RssDashboardPlugin extends Plugin {
       articleStateJournalChanges(this.settings.feeds, changes),
     );
     await this.saveSettings(this.settingsStore.articleStatePersistOptions());
-    await this.queueFreshRssReadStateChanges(changes);
+    await this.queueFreshRssArticleStateChanges(changes);
   }
 
-  private async queueFreshRssReadStateChanges(
+  private async queueFreshRssArticleStateChanges(
     changes: readonly ArticleStateChange[],
   ): Promise<void> {
-    if (!changes.some((change) => typeof change.changes.read === "boolean")) {
+    if (
+      !changes.some(
+        (change) =>
+          typeof change.changes.read === "boolean" ||
+          typeof change.changes.starred === "boolean" ||
+          change.changes.tags !== undefined,
+      )
+    ) {
       return;
     }
     try {
-      await queueFreshRssReadStateChanges({
+      await queueFreshRssArticleStateChanges({
         settings: this.settings,
         changes,
         sidecarRepository: this.getFreshRssConnectionScopeRepository(),
       });
     } catch {
       new Notice(
-        "Read state was saved locally, but its FreshRSS sync could not be queued.",
+        "Article state was saved locally, but its FreshRSS sync could not be queued.",
       );
     }
   }

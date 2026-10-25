@@ -237,6 +237,7 @@ describe("FreshRSS connection activation", () => {
       .mockResolvedValueOnce(response("write-token"))
       .mockResolvedValueOnce(response("Auth=sync-token"))
       .mockResolvedValueOnce(response('{"userId":"remote-user"}'))
+      .mockResolvedValueOnce(response(JSON.stringify({ tags: [] })))
       .mockResolvedValueOnce(
         response(
           JSON.stringify({
@@ -356,6 +357,7 @@ describe("FreshRSS connection activation", () => {
       .mockResolvedValueOnce(response("write-token"))
       .mockResolvedValueOnce(response("Auth=sync-token"))
       .mockResolvedValueOnce(response('{"userId":"remote-user"}'))
+      .mockResolvedValueOnce(response(JSON.stringify({ tags: [] })))
       .mockResolvedValueOnce(
         response(
           JSON.stringify({
@@ -382,7 +384,7 @@ describe("FreshRSS connection activation", () => {
       .length;
 
     const sync = plugin.syncFreshRssNow();
-    await vi.waitFor(() => expect(requestUrl).toHaveBeenCalledTimes(7));
+    await vi.waitFor(() => expect(requestUrl).toHaveBeenCalledTimes(8));
     plugin.cancelGlobalRefresh();
     await expect(sync).resolves.toBeUndefined();
 
