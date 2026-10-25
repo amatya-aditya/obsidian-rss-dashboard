@@ -386,7 +386,7 @@ describe("FreshRSS connection activation", () => {
     const sync = plugin.syncFreshRssNow();
     await vi.waitFor(() => expect(requestUrl).toHaveBeenCalledTimes(8));
     plugin.cancelGlobalRefresh();
-    await expect(sync).resolves.toBeUndefined();
+    await expect(sync).resolves.toBe("cancelled");
 
     expect(plugin.settings.feeds).toEqual([]);
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(

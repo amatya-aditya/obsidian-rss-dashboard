@@ -33,7 +33,7 @@ function createPlugin(capability: FreshRssCapability = "available") {
     ),
     openFreshRssStorageMigrationChoice: vi.fn(),
     testFreshRssConnection: vi.fn(async () => "connected" as const),
-    syncFreshRssNow: vi.fn(async () => {}),
+    syncFreshRssNow: vi.fn(async () => "completed" as const),
     openFreshRssSyncPreview: vi.fn(),
     getFreshRssPendingMutations: vi.fn(async () => []),
     cancelFreshRssSyncNow: vi.fn(),

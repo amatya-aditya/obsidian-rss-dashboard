@@ -4,6 +4,7 @@ import type {
   FreshRssSettings,
 } from "../../types/types";
 import type { FreshRssPendingFacetMutation } from "../../services/freshrss-connection-scope-repository";
+import type { FreshRssSyncRunStatus } from "../../services/freshrss-sync-coordinator";
 
 export type FreshRssCapability =
   "available" | "capability-unavailable" | "storage-migration-required";
@@ -19,7 +20,7 @@ export interface FreshRssSettingsPlugin {
   ): Promise<void>;
   openFreshRssStorageMigrationChoice(): void;
   testFreshRssConnection(): Promise<FreshRssConnectionStatus>;
-  syncFreshRssNow(): Promise<void>;
+  syncFreshRssNow(): Promise<FreshRssSyncRunStatus>;
   openFreshRssSyncPreview(): void;
   getFreshRssPendingMutations(): Promise<FreshRssPendingFacetMutation[]>;
   cancelFreshRssSyncNow(): void;

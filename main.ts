@@ -110,14 +110,16 @@ import { FreshRssConnectionScopeRepository } from "./src/services/freshrss-conne
 import {
   FreshRssSyncCancelledError,
   FreshRssSyncCoordinator,
+  type FreshRssSyncPreviewOutcome,
+  type FreshRssSyncRunStatus,
   type FreshRssSyncOutcome,
 } from "./src/services/freshrss-sync-coordinator";
 import { createFreshRssHttpClient } from "./src/services/freshrss-request-url-client";
-import { queueFreshRssArticleStateChanges } from "./src/services/freshrss-article-state";
 import {
   cancelFreshRssMutation as cancelPendingFreshRssMutation,
-  retryFreshRssMutation as retryPendingFreshRssMutation,
   isFreshRssPendingFacetMutation,
+  queueFreshRssArticleStateChanges,
+  retryFreshRssMutation as retryPendingFreshRssMutation,
 } from "./src/services/freshrss-article-state";
 import { FreshRssSyncModal } from "./src/modals/freshrss-sync-modal";
 
@@ -2742,15 +2744,15 @@ export default class RssDashboardPlugin extends Plugin {
     });
   }
 
-  public async syncFreshRssNow(): Promise<void> {
+  public async syncFreshRssNow(): Promise<FreshRssSyncRunStatus> {
     const capability = this.getFreshRssCapability();
     if (capability !== "available") {
       new Notice("FreshRSS sync is unavailable until the connection is ready.");
-      return;
+      return "not-started";
     }
     if (this.settings.freshRss.status !== "connected") {
       new Notice("Test the FreshRSS connection before syncing.");
-      return;
+      return "not-started";
     }
 
     const secretStorage = this.getFreshRssSecretStorage();
@@ -2763,14 +2765,14 @@ export default class RssDashboardPlugin extends Plugin {
       new Notice(
         "FreshRSS sync is unavailable because SecretStorage could not be read.",
       );
-      return;
+      return "not-started";
     }
     const credentials = credentialBundleText
       ? parseFreshRssCredentialBundle(credentialBundleText)
       : null;
     if (!credentials) {
       new Notice("Select a valid FreshRSS credential bundle before syncing.");
-      return;
+      return "not-started";
     }
 
     const endpoint = this.settings.freshRss.endpoint;
@@ -2783,11 +2785,11 @@ export default class RssDashboardPlugin extends Plugin {
     }
     if (!scope || scope.endpoint !== endpoint) {
       new Notice("Test the FreshRSS connection before syncing.");
-      return;
+      return "not-started";
     }
 
     const signal = this.feedOperationTracker.begin(0, "FreshRSS sync");
-    if (!signal) return;
+    if (!signal) return "not-started";
 
     let outcome: FreshRssSyncOutcome;
     try {
@@ -2811,14 +2813,77 @@ export default class RssDashboardPlugin extends Plugin {
         },
       });
     } catch (error) {
-      if (error instanceof FreshRssSyncCancelledError || signal.aborted) return;
+      if (error instanceof FreshRssSyncCancelledError || signal.aborted)
+        return "cancelled";
       new Notice("FreshRSS sync failed while saving local data.");
-      return;
+      return "failed";
     } finally {
       await this.feedOperationTracker.end();
     }
 
-    await this.reportFreshRssSyncOutcome(outcome);
+    return this.reportFreshRssSyncOutcome(outcome);
+  }
+
+  public async getFreshRssSyncPreview(): Promise<FreshRssSyncPreviewOutcome> {
+    if (this.getFreshRssCapability() !== "available") {
+      return { outcome: "server-unavailable" };
+    }
+    if (this.settings.freshRss.status !== "connected") {
+      return { outcome: "server-unavailable" };
+    }
+    const secretStorage = this.getFreshRssSecretStorage();
+    let credentialBundleText: string | null;
+    try {
+      credentialBundleText =
+        secretStorage?.getSecret(this.settings.freshRss.credentialReference) ??
+        null;
+    } catch {
+      return { outcome: "credentials-rejected" };
+    }
+    const credentials = credentialBundleText
+      ? parseFreshRssCredentialBundle(credentialBundleText)
+      : null;
+    if (!credentials) return { outcome: "credentials-rejected" };
+
+    const endpoint = this.settings.freshRss.endpoint;
+    let scope: FreshRssConnectionScope | null;
+    try {
+      scope =
+        await this.getFreshRssConnectionScopeRepository().readActiveScope();
+    } catch {
+      return { outcome: "server-unavailable" };
+    }
+    if (!scope || scope.endpoint !== endpoint) {
+      return { outcome: "scope-mismatch" };
+    }
+
+    const operation = this.feedOperationTracker.trackOperation();
+    try {
+      const coordinator = new FreshRssSyncCoordinator({
+        httpClient: createFreshRssHttpClient(),
+        getSettings: () => this.settings,
+        saveSettings: () => this.saveSettings(),
+        sidecarRepository: this.getFreshRssConnectionScopeRepository(),
+        getView: () => this.getActiveDashboardView(),
+      });
+      return await coordinator.preview({
+        endpoint,
+        credentials,
+        scope,
+        owner: {
+          signal: operation.signal,
+          beginCommit: () => {},
+          throwIfInactive: () => {
+            if (operation.signal.aborted)
+              throw new FreshRssSyncCancelledError();
+          },
+        },
+      });
+    } catch {
+      return { outcome: "server-unavailable" };
+    } finally {
+      operation.release();
+    }
   }
 
   public openFreshRssSyncPreview(): void {
@@ -2859,24 +2924,24 @@ export default class RssDashboardPlugin extends Plugin {
 
   private async reportFreshRssSyncOutcome(
     outcome: FreshRssSyncOutcome,
-  ): Promise<void> {
+  ): Promise<Extract<FreshRssSyncRunStatus, "completed" | "failed">> {
     if (outcome.outcome === "scope-mismatch") {
       await this.setFreshRssConnectionStatus("test-required");
       new Notice(
         "FreshRSS account changed. Test the connection before syncing.",
       );
-      return;
+      return "failed";
     }
     if (outcome.outcome === "credentials-rejected") {
       await this.setFreshRssConnectionStatus("credentials-rejected");
       new Notice("FreshRSS sync failed because the credentials were rejected.");
-      return;
+      return "failed";
     }
     if (outcome.outcome === "server-unavailable") {
       new Notice(
         "FreshRSS sync failed because the server did not respond as expected.",
       );
-      return;
+      return "failed";
     }
 
     const parts = [
@@ -2890,6 +2955,7 @@ export default class RssDashboardPlugin extends Plugin {
     new Notice(
       `FreshRSS sync ${outcome.partial ? "partially " : ""}completed: ${parts.join(", ")}.`,
     );
+    return "completed";
   }
 
   private getFreshRssSecretStorage(): FreshRssSecretStorage | null {

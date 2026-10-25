@@ -4,12 +4,35 @@ import {
   FreshRssSyncModal,
   type FreshRssSyncModalHost,
 } from "../../../src/modals/freshrss-sync-modal";
+import type { FreshRssSyncPreviewOutcome } from "../../../src/services/freshrss-sync-coordinator";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 function host(mode: "two-way" | "receive-only"): FreshRssSyncModalHost {
   return {
+    getFreshRssSyncPreview: vi.fn(
+      async (): Promise<FreshRssSyncPreviewOutcome> => ({
+        outcome: "ready",
+        pendingMutations: [],
+        subscriptions: [
+          {
+            remoteSubscriptionId: "feed/6",
+            title: "Preview feed",
+            url: "https://feed.example.test/rss.xml",
+            articles: [
+              {
+                remoteArticleId: "article/1",
+                title: "Preview article",
+                link: "https://article.example.test/1",
+              },
+            ],
+            partial: false,
+          },
+        ],
+        partial: false,
+      }),
+    ),
     getFreshRssPendingMutations: vi.fn(async () => []),
-    syncFreshRssNow: vi.fn(async () => {}),
+    syncFreshRssNow: vi.fn(async () => "completed" as const),
     cancelFreshRssSyncNow: vi.fn(),
     retryFreshRssMutation: vi.fn(async () => {}),
     cancelFreshRssMutation: vi.fn(async () => {}),
@@ -24,13 +47,12 @@ describe("FreshRSS sync preview modal", () => {
 
     modal.onOpen();
     await vi.waitFor(() => {
-      expect(modal.contentEl.querySelector('[role="status"]')).not.toBeNull();
+      expect(modal.contentEl.textContent).toContain("Preview feed");
     });
 
     expect(modal.contentEl.textContent).toContain("Incoming");
-    expect(modal.contentEl.textContent).toContain(
-      "Subscriptions and recent articles",
-    );
+    expect(modal.contentEl.textContent).toContain("Preview feed");
+    expect(modal.contentEl.textContent).toContain("Preview article");
     expect(modal.contentEl.textContent).toContain(
       "Read, starred, and normalized-label changes",
     );
@@ -70,7 +92,11 @@ describe("FreshRSS sync preview modal", () => {
 
     modal.onOpen();
     await vi.waitFor(() => {
-      expect(modal.contentEl.querySelector("button")).not.toBeNull();
+      expect(
+        Array.from(modal.contentEl.querySelectorAll("button")).some(
+          (button) => button.textContent === "Retry",
+        ),
+      ).toBe(true);
     });
 
     const buttons = Array.from(modal.contentEl.querySelectorAll("button"));
@@ -85,14 +111,16 @@ describe("FreshRSS sync preview modal", () => {
     installObsidianDomPolyfills();
     const api = host("two-way");
     vi.mocked(api.syncFreshRssNow).mockImplementation(
-      () => new Promise<void>(() => {}),
+      () => new Promise<"completed">(() => {}),
     );
     const modal = new FreshRssSyncModal({} as App, api);
     const close = vi.spyOn(modal, "close");
 
     modal.onOpen();
     await vi.waitFor(() => {
-      expect(modal.contentEl.querySelector("button")).not.toBeNull();
+      expect(
+        modal.contentEl.querySelector('[role="status"]')?.textContent,
+      ).toBe("Preview ready.");
     });
     const buttons = Array.from(modal.contentEl.querySelectorAll("button"));
     buttons.find((button) => button.textContent === "Start sync")?.click();
@@ -102,7 +130,51 @@ describe("FreshRSS sync preview modal", () => {
     buttons.find((button) => button.textContent === "Cancel")?.click();
 
     expect(api.cancelFreshRssSyncNow).toHaveBeenCalledOnce();
-    expect(close).toHaveBeenCalledOnce();
+    expect(close).not.toHaveBeenCalled();
+    modal.onClose();
+  });
+
+  it("shows an error and keeps the dialog controls when saved sync state cannot be read", async () => {
+    installObsidianDomPolyfills();
+    const api = host("two-way");
+    vi.mocked(api.getFreshRssSyncPreview).mockResolvedValue({
+      outcome: "server-unavailable",
+    });
+    vi.mocked(api.getFreshRssPendingMutations).mockRejectedValue(
+      new Error("vault read failed"),
+    );
+    const modal = new FreshRssSyncModal({} as App, api);
+
+    modal.onOpen();
+    await vi.waitFor(() => {
+      expect(modal.contentEl.querySelector('[role="alert"]')).not.toBeNull();
+    });
+
+    expect(modal.contentEl.textContent).toContain("could not be read");
+    expect(modal.contentEl.querySelector("button")?.textContent).toBe("Cancel");
+    modal.onClose();
+  });
+
+  it("announces a failed sync as failed instead of finished", async () => {
+    installObsidianDomPolyfills();
+    const api = host("two-way");
+    vi.mocked(api.syncFreshRssNow).mockResolvedValue("failed");
+    const modal = new FreshRssSyncModal({} as App, api);
+
+    modal.onOpen();
+    await vi.waitFor(() => {
+      expect(
+        modal.contentEl.querySelector('[role="status"]')?.textContent,
+      ).toBe("Preview ready.");
+    });
+    modal.contentEl
+      .querySelector<HTMLButtonElement>("button:last-child")
+      ?.click();
+    await vi.waitFor(() => {
+      expect(
+        modal.contentEl.querySelector('[role="status"]')?.textContent,
+      ).toBe("FreshRSS sync failed.");
+    });
     modal.onClose();
   });
 });
