@@ -796,6 +796,148 @@ describe("FreshRSS sync coordinator", () => {
     expect(settings.feeds[0]?.items[0]?.read).toBe(true);
   });
 
+  it("does not drop a newer local read choice during an older acknowledgement", async () => {
+    const settings = makeSettings();
+    settings.freshRss.endpoint = endpoint;
+    settings.feeds = [
+      {
+        feedId: "local-feed",
+        title: "Feed",
+        url: "https://feed.example.test/rss.xml",
+        folder: "RSS",
+        lastUpdated: 10,
+        items: [
+          {
+            title: "Article",
+            link: "https://article.example.test/42",
+            description: "",
+            pubDate: "2026-10-24T00:00:00.000Z",
+            guid: "article/42",
+            read: true,
+            feedTitle: "Feed",
+            feedUrl: "https://feed.example.test/rss.xml",
+            coverImage: "",
+          },
+        ],
+      },
+    ];
+    const sidecar = createSidecar();
+    sidecar.feedBindings.push({
+      feedId: "local-feed",
+      remoteSubscriptionId: "feed/6",
+    });
+    sidecar.articleBindings.push({
+      feedId: "local-feed",
+      guid: "article/42",
+      remoteArticleId: "article/42",
+    });
+    sidecar.pendingFacetMutations.push({
+      operationId: "older-read-operation",
+      remoteArticleId: "article/42",
+      facet: "read",
+      desiredState: true,
+      createdAtMs: 100,
+      attemptCount: 0,
+      lastError: null,
+    });
+
+    let mutationAcknowledged = false;
+    const request = vi.fn<FreshRssHttpClient["request"]>(async ({ url }) => {
+      if (url.endsWith("/accounts/ClientLogin"))
+        return { status: 200, text: "Auth=session-token" };
+      if (url.includes("/user-info?"))
+        return {
+          status: 200,
+          text: JSON.stringify({ userId: scope.remoteUserId }),
+        };
+      if (url.endsWith("/token")) return { status: 200, text: "write-token" };
+      if (url.endsWith("/edit-tag")) {
+        mutationAcknowledged = true;
+        return { status: 200, text: "OK" };
+      }
+      if (url.endsWith("/subscription/list?output=json"))
+        return { status: 200, text: subscriptionList() };
+      if (url.includes("/stream/items/ids?"))
+        return { status: 200, text: JSON.stringify({ itemRefs: [] }) };
+      if (url.endsWith("/stream/items/contents"))
+        return {
+          status: 200,
+          text: JSON.stringify({
+            items: [
+              {
+                id: "article/42",
+                categories: ["user/-/state/com.google/read"],
+              },
+            ],
+          }),
+        };
+      throw new Error(`Unexpected request: ${url}`);
+    });
+
+    let signalAcknowledgementWriteStarted: (() => void) | undefined;
+    const acknowledgementWriteStarted = new Promise<void>((resolve) => {
+      signalAcknowledgementWriteStarted = resolve;
+    });
+    let releaseAcknowledgementWrite: (() => void) | undefined;
+    const acknowledgementWriteGate = new Promise<void>((resolve) => {
+      releaseAcknowledgementWrite = resolve;
+    });
+    let pausedAcknowledgementWrite = false;
+    let sidecarRepository: {
+      readActiveScope: () => Promise<FreshRssConnectionScope>;
+      read: () => Promise<FreshRssSidecarFile>;
+      write: (next: FreshRssSidecarFile) => Promise<void>;
+    };
+    sidecarRepository = {
+      readActiveScope: async () => scope,
+      read: async () => sidecar,
+      write: async (next) => {
+        if (mutationAcknowledged && !pausedAcknowledgementWrite) {
+          pausedAcknowledgementWrite = true;
+          signalAcknowledgementWriteStarted?.();
+          await acknowledgementWriteGate;
+        }
+        Object.assign(sidecar, next);
+      },
+    };
+
+    const coordinator = new FreshRssSyncCoordinator({
+      httpClient: { request },
+      getSettings: () => settings,
+      saveSettings: async () => {},
+      sidecarRepository,
+      getView: async () => null,
+    });
+
+    const syncPromise = coordinator.run({
+      endpoint,
+      credentials: { username: "reader", apiPassword: "secret" },
+      scope,
+      owner: createOwner(),
+    });
+    await acknowledgementWriteStarted;
+    settings.feeds[0].items[0].read = false;
+    const newChoicePromise = queueFreshRssReadStateChanges({
+      settings,
+      changes: [
+        {
+          feedUrl: "https://feed.example.test/rss.xml",
+          guid: "article/42",
+          changes: { read: false },
+        },
+      ],
+      sidecarRepository,
+    });
+    releaseAcknowledgementWrite?.();
+    await expect(syncPromise).resolves.toMatchObject({ outcome: "synced" });
+    await newChoicePromise;
+
+    expect(pausedAcknowledgementWrite).toBe(true);
+    expect(sidecar.pendingFacetMutations).toMatchObject([
+      { remoteArticleId: "article/42", desiredState: false },
+    ]);
+  });
+
   it("retains an unacknowledged read mutation after a FreshRSS write failure", async () => {
     const settings = makeSettings();
     const sidecar = createSidecar();

@@ -15,7 +15,10 @@ import {
   type FreshRssPendingReadMutation,
   type FreshRssSyncCheckpoint,
 } from "./freshrss-connection-scope-repository";
-import { isFreshRssPendingReadMutation } from "./freshrss-article-state";
+import {
+  isFreshRssPendingReadMutation,
+  withFreshRssSidecarMutationLock,
+} from "./freshrss-article-state";
 import {
   FreshRssSyncClient,
   type FreshRssSubscription,
@@ -251,37 +254,43 @@ export class FreshRssSyncCoordinator {
     }
 
     owner.throwIfInactive();
-    const latestSidecar = await this.deps.sidecarRepository.read(input.scope);
-    owner.throwIfInactive();
-    if (!latestSidecar) return { outcome: "server-unavailable" };
-    if (
-      applyPendingReadOverrides(
-        syncState.feeds,
-        syncState.articleBindings,
-        latestSidecar.pendingFacetMutations,
-      )
-    ) {
-      syncState.settingsChanged = true;
-    }
-
-    owner.beginCommit();
-    if (syncState.settingsChanged) {
-      settings.feeds = syncState.feeds;
-      try {
-        await this.deps.saveSettings();
-      } catch (error) {
-        settings.feeds = originalFeeds;
-        throw error;
+    const commitOutcome = await withFreshRssSidecarMutationLock(async () => {
+      const latestSidecar = await this.deps.sidecarRepository.read(input.scope);
+      owner.throwIfInactive();
+      if (!latestSidecar) return "server-unavailable" as const;
+      if (
+        applyPendingReadOverrides(
+          syncState.feeds,
+          syncState.articleBindings,
+          latestSidecar.pendingFacetMutations,
+        )
+      ) {
+        syncState.settingsChanged = true;
       }
-    }
-    await this.deps.sidecarRepository.write({
-      ...latestSidecar,
-      version: 2,
-      scope: input.scope,
-      feedBindings: syncState.feedBindings,
-      articleBindings: syncState.articleBindings,
-      checkpoints: syncState.checkpoints,
+
+      owner.beginCommit();
+      if (syncState.settingsChanged) {
+        settings.feeds = syncState.feeds;
+        try {
+          await this.deps.saveSettings();
+        } catch (error) {
+          settings.feeds = originalFeeds;
+          throw error;
+        }
+      }
+      await this.deps.sidecarRepository.write({
+        ...latestSidecar,
+        version: 2,
+        scope: input.scope,
+        feedBindings: syncState.feedBindings,
+        articleBindings: syncState.articleBindings,
+        checkpoints: syncState.checkpoints,
+      });
+      return "committed" as const;
     });
+    if (commitOutcome !== "committed") {
+      return { outcome: commitOutcome };
+    }
     await refreshViewOnce(this.deps.getView);
 
     return {
@@ -576,40 +585,46 @@ async function flushPendingReadMutations(
       owner.throwIfInactive();
       if (result.outcome === "auth-rejected") return "credentials-rejected";
 
-      const current = await repository.read(scope);
-      if (!current) return "server-unavailable";
       const operationIds = new Set(
         group.mutations.map((mutation) => mutation.operationId),
       );
-      const currentPending = current.pendingFacetMutations;
-      if (result.outcome === "ok") {
-        await repository.write({
-          ...current,
-          pendingFacetMutations: currentPending.filter(
-            (value) =>
-              !isFreshRssPendingReadMutation(value) ||
-              !operationIds.has(value.operationId),
-          ),
-        });
-      } else {
-        await repository.write({
-          ...current,
-          pendingFacetMutations: currentPending.map((value) => {
-            if (
-              !isFreshRssPendingReadMutation(value) ||
-              !operationIds.has(value.operationId)
-            ) {
-              return value;
-            }
-            return {
-              ...value,
-              attemptCount: value.attemptCount + 1,
-              lastError: "FreshRSS did not acknowledge the read-state update.",
-            } satisfies FreshRssPendingReadMutation;
-          }),
-        });
-        return "server-unavailable";
-      }
+      const mutationOutcome = await withFreshRssSidecarMutationLock(
+        async () => {
+          const current = await repository.read(scope);
+          if (!current) return "server-unavailable" as const;
+          const currentPending = current.pendingFacetMutations;
+          if (result.outcome === "ok") {
+            await repository.write({
+              ...current,
+              pendingFacetMutations: currentPending.filter(
+                (value) =>
+                  !isFreshRssPendingReadMutation(value) ||
+                  !operationIds.has(value.operationId),
+              ),
+            });
+            return "acknowledged" as const;
+          }
+          await repository.write({
+            ...current,
+            pendingFacetMutations: currentPending.map((value) => {
+              if (
+                !isFreshRssPendingReadMutation(value) ||
+                !operationIds.has(value.operationId)
+              ) {
+                return value;
+              }
+              return {
+                ...value,
+                attemptCount: value.attemptCount + 1,
+                lastError:
+                  "FreshRSS did not acknowledge the read-state update.",
+              } satisfies FreshRssPendingReadMutation;
+            }),
+          });
+          return "server-unavailable" as const;
+        },
+      );
+      if (mutationOutcome === "server-unavailable") return mutationOutcome;
     }
   }
   return "complete";

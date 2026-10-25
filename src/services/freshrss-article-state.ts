@@ -12,7 +12,16 @@ function createOperationId(): string {
   );
 }
 
-let pendingReadChanges: Promise<void> = Promise.resolve();
+let pendingSidecarMutation: Promise<unknown> = Promise.resolve();
+
+/** Serializes sidecar read-modify-write operations across repository instances. */
+export function withFreshRssSidecarMutationLock<T>(
+  mutation: () => Promise<T>,
+): Promise<T> {
+  const next = pendingSidecarMutation.then(mutation);
+  pendingSidecarMutation = next.catch(() => undefined);
+  return next;
+}
 
 /** Persists a bound local read choice in the active FreshRSS scope. */
 export function queueFreshRssReadStateChanges(input: {
@@ -23,11 +32,9 @@ export function queueFreshRssReadStateChanges(input: {
     "readActiveScope" | "read" | "write"
   >;
 }): Promise<void> {
-  const next = pendingReadChanges.then(() =>
+  return withFreshRssSidecarMutationLock(() =>
     persistFreshRssReadStateChanges(input),
   );
-  pendingReadChanges = next.catch(() => {});
-  return next;
 }
 
 async function persistFreshRssReadStateChanges(input: {
