@@ -1,5 +1,9 @@
 ## Unreleased
 
+### Fixes
+
+- Podcast destination menus now fall back to the enclosure when an item's audio URL contains only whitespace. [GH Issue #1567](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1567)
+
 ### Features
 
 - Saved article filenames can now use up to 245 characters, including any collision suffix, while preserving the 255-byte filename limit. [GH Issue #1545](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1545)
