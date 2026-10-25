@@ -611,6 +611,8 @@ export interface FreshRssSettings {
   /** User-managed Obsidian SecretStorage ID, never the secret value. */
   credentialReference: string;
   status: FreshRssConnectionStatus;
+  /** Read state is shared unless the user opts into local-only article state. */
+  stateSyncMode: "two-way" | "receive-only";
 }
 
 export interface RssDashboardSettings {
@@ -1029,5 +1031,6 @@ guid: "{{guid}}"
     endpoint: "",
     credentialReference: "",
     status: "credentials-unconfigured",
+    stateSyncMode: "two-way",
   },
 };

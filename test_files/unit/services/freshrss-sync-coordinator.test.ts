@@ -444,4 +444,216 @@ describe("FreshRSS sync coordinator", () => {
       excludeFromRefresh: true,
     });
   });
+
+  it("flushes durable read changes before importing read state for bound articles", async () => {
+    const settings = makeSettings();
+    settings.freshRss.stateSyncMode = "two-way";
+    settings.feeds = [
+      {
+        feedId: "local-feed",
+        title: "Feed",
+        url: "https://feed.example.test/rss.xml",
+        folder: "RSS",
+        lastUpdated: 10,
+        items: [
+          {
+            title: "Article",
+            link: "https://article.example.test/42",
+            description: "",
+            pubDate: "2026-10-24T00:00:00.000Z",
+            guid: "article/42",
+            read: false,
+            feedTitle: "Feed",
+            feedUrl: "https://feed.example.test/rss.xml",
+            coverImage: "",
+          },
+        ],
+      },
+    ];
+    const sidecar = createSidecar();
+    sidecar.articleBindings.push({
+      feedId: "local-feed",
+      guid: "article/42",
+      remoteArticleId: "article/42",
+    });
+    sidecar.pendingFacetMutations.push({
+      operationId: "operation-read-1",
+      remoteArticleId: "article/42",
+      facet: "read",
+      desiredState: true,
+      createdAtMs: 100,
+      attemptCount: 0,
+      lastError: null,
+    });
+    const { request, httpClient } = createClient([
+      { status: 200, text: "Auth=session-token" },
+      { status: 200, text: "write-token" },
+      { status: 200, text: "OK" },
+      { status: 200, text: subscriptionList() },
+      { status: 200, text: JSON.stringify({ itemRefs: [] }) },
+      {
+        status: 200,
+        text: JSON.stringify({
+          items: [
+            {
+              id: "article/42",
+              categories: ["user/-/state/com.google/read"],
+            },
+          ],
+        }),
+      },
+    ]);
+    const coordinator = new FreshRssSyncCoordinator({
+      httpClient,
+      getSettings: () => settings,
+      saveSettings: async () => {},
+      sidecarRepository: {
+        read: async () => sidecar,
+        write: async (next) => {
+          Object.assign(sidecar, next);
+        },
+      },
+      getView: async () => null,
+    });
+
+    const syncOutcome = await coordinator.run({
+      endpoint,
+      credentials: { username: "reader", apiPassword: "secret" },
+      scope,
+      owner: createOwner(),
+    });
+    expect(syncOutcome).toMatchObject({ outcome: "synced", partial: false });
+
+    expect(request).toHaveBeenNthCalledWith(
+      4,
+      expect.objectContaining({
+        url: `${endpoint}/reader/api/0/edit-tag`,
+        body: expect.stringContaining("i=article%2F42"),
+      }),
+    );
+    expect(settings.feeds[0]?.items[0]?.read).toBe(true);
+    expect(sidecar.pendingFacetMutations).toEqual([]);
+  });
+
+  it("keeps read state local and pending mutations untouched in Receive-only mode", async () => {
+    const settings = makeSettings();
+    settings.freshRss.stateSyncMode = "receive-only";
+    settings.feeds = [
+      {
+        feedId: "local-feed",
+        title: "Feed",
+        url: "https://feed.example.test/rss.xml",
+        folder: "RSS",
+        lastUpdated: 10,
+        items: [],
+      },
+    ];
+    const sidecar = createSidecar();
+    sidecar.pendingFacetMutations.push({
+      operationId: "operation-read-1",
+      remoteArticleId: "article/42",
+      facet: "read",
+      desiredState: false,
+      createdAtMs: 100,
+      attemptCount: 0,
+      lastError: null,
+    });
+    const { request, httpClient } = createClient([
+      { status: 200, text: "Auth=session-token" },
+      { status: 200, text: subscriptionList() },
+      {
+        status: 200,
+        text: JSON.stringify({ itemRefs: [{ id: "article/42" }] }),
+      },
+      {
+        status: 200,
+        text: JSON.stringify({
+          items: [
+            {
+              id: "article/42",
+              title: "Remote read article",
+              categories: ["user/-/state/com.google/read"],
+            },
+          ],
+        }),
+      },
+    ]);
+    const coordinator = new FreshRssSyncCoordinator({
+      httpClient,
+      getSettings: () => settings,
+      saveSettings: async () => {},
+      sidecarRepository: {
+        read: async () => sidecar,
+        write: async (next) => {
+          Object.assign(sidecar, next);
+        },
+      },
+      getView: async () => null,
+    });
+
+    const syncOutcome = await coordinator.run({
+      endpoint,
+      credentials: { username: "reader", apiPassword: "secret" },
+      scope,
+      owner: createOwner(),
+    });
+    expect(syncOutcome).toMatchObject({ outcome: "synced" });
+
+    expect(settings.feeds[0]?.items[0]?.read).toBe(false);
+    expect(sidecar.pendingFacetMutations).toHaveLength(1);
+    expect(request).toHaveBeenCalledTimes(5);
+    expect(
+      request.mock.calls.some(([input]) => input.url.endsWith("/token")),
+    ).toBe(false);
+  });
+
+  it("retains an unacknowledged read mutation after a FreshRSS write failure", async () => {
+    const settings = makeSettings();
+    const sidecar = createSidecar();
+    sidecar.pendingFacetMutations.push({
+      operationId: "operation-read-1",
+      remoteArticleId: "article/42",
+      facet: "read",
+      desiredState: true,
+      createdAtMs: 100,
+      attemptCount: 0,
+      lastError: null,
+    });
+    const { httpClient } = createClient([
+      { status: 200, text: "Auth=session-token" },
+      { status: 200, text: subscriptionList() },
+      { status: 200, text: "write-token" },
+      { status: 503, text: "unavailable" },
+    ]);
+    const coordinator = new FreshRssSyncCoordinator({
+      httpClient,
+      getSettings: () => settings,
+      saveSettings: async () => {},
+      sidecarRepository: {
+        read: async () => sidecar,
+        write: async (next) => {
+          Object.assign(sidecar, next);
+        },
+      },
+      getView: async () => null,
+    });
+
+    await expect(
+      coordinator.run({
+        endpoint,
+        credentials: { username: "reader", apiPassword: "secret" },
+        scope,
+        owner: createOwner(),
+      }),
+    ).resolves.toEqual({ outcome: "server-unavailable" });
+
+    expect(sidecar.pendingFacetMutations).toMatchObject([
+      {
+        operationId: "operation-read-1",
+        desiredState: true,
+        attemptCount: 1,
+      },
+    ]);
+    expect(settings.feeds).toEqual([]);
+  });
 });

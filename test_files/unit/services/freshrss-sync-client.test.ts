@@ -139,8 +139,75 @@ describe("FreshRSS sync client", () => {
           content: "Summary body",
           author: null,
           publishedMs: null,
+          read: null,
         },
       ],
+    });
+  });
+
+  it("reads FreshRSS read state from article categories", async () => {
+    const client = new FreshRssSyncClient(
+      {
+        request: vi.fn().mockResolvedValue({
+          status: 200,
+          text: JSON.stringify({
+            items: [
+              {
+                id: "article/1",
+                categories: ["user/-/state/com.google/read"],
+              },
+              { id: "article/2", categories: [] },
+            ],
+          }),
+        }),
+      },
+      "https://rss.example.test",
+      "session-token",
+    );
+
+    await expect(
+      client.getItemContents(["article/1", "article/2"]),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      data: [
+        { remoteArticleId: "article/1", read: true },
+        { remoteArticleId: "article/2", read: false },
+      ],
+    });
+  });
+
+  it("retrieves a FreshRSS write token and posts a scoped read-state mutation", async () => {
+    const request = vi
+      .fn<FreshRssHttpClient["request"]>()
+      .mockResolvedValueOnce({ status: 200, text: "write-token\n" })
+      .mockResolvedValueOnce({ status: 200, text: "OK" });
+    const client = new FreshRssSyncClient(
+      { request },
+      "https://rss.example.test",
+      "session-token",
+    );
+
+    await expect(client.getModificationToken()).resolves.toEqual({
+      outcome: "ok",
+      data: "write-token",
+    });
+    await expect(
+      client.updateReadState(["article/42"], true, "write-token"),
+    ).resolves.toEqual({ outcome: "ok", data: undefined });
+
+    expect(request).toHaveBeenNthCalledWith(1, {
+      url: "https://rss.example.test/reader/api/0/token",
+      method: "GET",
+      headers: { Authorization: "GoogleLogin auth=session-token" },
+    });
+    expect(request).toHaveBeenNthCalledWith(2, {
+      url: "https://rss.example.test/reader/api/0/edit-tag",
+      method: "POST",
+      body: "T=write-token&i=article%2F42&a=user%2F-%2Fstate%2Fcom.google%2Fread",
+      headers: {
+        Authorization: "GoogleLogin auth=session-token",
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
     });
   });
 });

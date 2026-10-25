@@ -27,6 +27,7 @@ export interface FreshRssRemoteArticle {
   content: string | null;
   author: string | null;
   publishedMs: number | null;
+  read: boolean | null;
 }
 
 function parseSubscriptionListResponse(
@@ -150,6 +151,14 @@ function parseItemContentsResponse(
         content,
         author: typeof entry.author === "string" ? entry.author : null,
         publishedMs,
+        read: Array.isArray(entry.categories)
+          ? entry.categories.some((category) =>
+              typeof category === "string"
+                ? category === "user/-/state/com.google/read"
+                : isRecord(category) &&
+                  category.id === "user/-/state/com.google/read",
+            )
+          : null,
       });
     }
 
@@ -248,6 +257,58 @@ export class FreshRssSyncClient {
       return articles
         ? { outcome: "ok", data: articles }
         : { outcome: "unavailable" };
+    } catch {
+      return { outcome: "unavailable" };
+    }
+  }
+
+  public async getModificationToken(): Promise<FreshRssRequestOutcome<string>> {
+    try {
+      const response = await this.httpClient.request({
+        url: `${this.endpoint}/reader/api/0/token`,
+        method: "GET",
+        headers: this.authHeaders(),
+        ...(this.signal ? { signal: this.signal } : {}),
+      });
+      if (isRejectedStatus(response.status))
+        return { outcome: "auth-rejected" };
+      if (response.status !== 200 || !response.text.trim())
+        return { outcome: "unavailable" };
+      return { outcome: "ok", data: response.text.trim() };
+    } catch {
+      return { outcome: "unavailable" };
+    }
+  }
+
+  public async updateReadState(
+    remoteArticleIds: string[],
+    read: boolean,
+    modificationToken: string,
+  ): Promise<FreshRssRequestOutcome<void>> {
+    if (remoteArticleIds.length === 0)
+      return { outcome: "ok", data: undefined };
+
+    const params = new URLSearchParams();
+    params.set("T", modificationToken);
+    remoteArticleIds.forEach((id) => params.append("i", id));
+    params.set(read ? "a" : "r", "user/-/state/com.google/read");
+
+    try {
+      const response = await this.httpClient.request({
+        url: `${this.endpoint}/reader/api/0/edit-tag`,
+        method: "POST",
+        body: params.toString(),
+        headers: {
+          ...this.authHeaders(),
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        ...(this.signal ? { signal: this.signal } : {}),
+      });
+      if (isRejectedStatus(response.status))
+        return { outcome: "auth-rejected" };
+      if (response.status !== 200 || response.text.trim() !== "OK")
+        return { outcome: "unavailable" };
+      return { outcome: "ok", data: undefined };
     } catch {
       return { outcome: "unavailable" };
     }

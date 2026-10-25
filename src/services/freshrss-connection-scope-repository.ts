@@ -25,6 +25,16 @@ export interface FreshRssSyncCheckpoint {
   completedAtMs: number;
 }
 
+export interface FreshRssPendingReadMutation {
+  operationId: string;
+  remoteArticleId: string;
+  facet: "read";
+  desiredState: boolean;
+  createdAtMs: number;
+  attemptCount: number;
+  lastError: string | null;
+}
+
 export interface FreshRssSidecarFile {
   version: number;
   scope: FreshRssConnectionScope;
