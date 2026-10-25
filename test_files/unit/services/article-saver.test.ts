@@ -6,6 +6,7 @@ import {
   vi,
   type MockInstance,
 } from "vitest";
+import { Buffer } from "node:buffer";
 import { App, TFile } from "obsidian";
 import type {
   ArticleSavingSettings,
@@ -14,6 +15,7 @@ import type {
 } from "../../../src/types/types";
 import {
   ArticleSaver,
+  buildArticleFilename,
   sanitizeFilename,
 } from "../../../src/services/article-saver";
 import * as fetchHelpers from "../../../src/utils/fetch-helpers";
@@ -77,9 +79,60 @@ describe("sanitizeFilename", () => {
     expect(sanitizeFilename("com1")).toBe("Untitled Article");
     expect(sanitizeFilename("LPT³")).toBe("Untitled Article");
   });
+
+  it.each([100, 300])(
+    "limits a %i-character CJK title to 255 UTF-8 bytes including .md",
+    (length) => {
+      const title = "漢".repeat(length);
+      const stem = sanitizeFilename(title);
+
+      expect(stem).toBe("漢".repeat(84));
+      expect(Buffer.byteLength(`${stem}.md`, "utf8")).toBeLessThanOrEqual(255);
+      expect(
+        buildArticleFilename(createItem({ title }), undefined, false),
+      ).toBe(stem);
+    },
+  );
+
+  it("does not split an emoji when shortening a title to the byte limit", () => {
+    const stem = sanitizeFilename(`a${"😀".repeat(200)}`);
+
+    expect(stem).toBe(`a${"😀".repeat(62)}`);
+    expect(Buffer.byteLength(`${stem}.md`, "utf8")).toBeLessThanOrEqual(255);
+  });
+
+  it("removes clipper filename characters and trailing dots or spaces", () => {
+    expect(sanitizeFilename("Title...")).toBe("Title");
+    expect(sanitizeFilename("Title. .")).toBe("Title");
+    expect(sanitizeFilename("A #1 [draft] ^x")).toBe("A 1 draft x");
+    expect(sanitizeFilename("#^[] . ")).toBe("Untitled Article");
+  });
 });
 
 describe("ArticleSaver.saveArticle", () => {
+  it("saves a long CJK title with a filename under the UTF-8 byte limit", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(app, createSettings());
+    const filename = `${"漢".repeat(84)}.md`;
+
+    await saver.saveArticle(createItem({ title: "漢".repeat(100) }));
+
+    expect(app.vault.getAbstractFileByPath(filename)).toBeInstanceOf(TFile);
+    expect(Buffer.byteLength(filename, "utf8")).toBeLessThanOrEqual(255);
+  });
+
+  it("keeps a collision suffix inside the UTF-8 filename byte limit", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(app, createSettings());
+    await app.vault.create(`${"漢".repeat(84)}.md`, "existing");
+
+    await saver.saveArticle(createItem({ title: "漢".repeat(100) }));
+
+    const filename = `${"漢".repeat(83)} 2.md`;
+    expect(app.vault.getAbstractFileByPath(filename)).toBeInstanceOf(TFile);
+    expect(Buffer.byteLength(filename, "utf8")).toBeLessThanOrEqual(255);
+  });
+
   it("previews the first available filename that a save will use", async () => {
     const app = App.createMock();
     const saver = new ArticleSaver(app, createSettings());
