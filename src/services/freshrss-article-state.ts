@@ -2,7 +2,7 @@ import type { RssDashboardSettings } from "../types/types";
 import type { ArticleStateChange } from "../utils/article-update";
 import type {
   FreshRssConnectionScopeRepository,
-  FreshRssPendingReadMutation,
+  FreshRssPendingFacetMutation,
 } from "./freshrss-connection-scope-repository";
 
 function createOperationId(): string {
@@ -23,8 +23,8 @@ export function withFreshRssSidecarMutationLock<T>(
   return next;
 }
 
-/** Persists a bound local read choice in the active FreshRSS scope. */
-export function queueFreshRssReadStateChanges(input: {
+/** Persists bound local article-state choices in the active FreshRSS scope. */
+export function queueFreshRssArticleStateChanges(input: {
   settings: RssDashboardSettings;
   changes: readonly ArticleStateChange[];
   sidecarRepository: Pick<
@@ -33,11 +33,11 @@ export function queueFreshRssReadStateChanges(input: {
   >;
 }): Promise<void> {
   return withFreshRssSidecarMutationLock(() =>
-    persistFreshRssReadStateChanges(input),
+    persistFreshRssArticleStateChanges(input),
   );
 }
 
-async function persistFreshRssReadStateChanges(input: {
+async function persistFreshRssArticleStateChanges(input: {
   settings: RssDashboardSettings;
   changes: readonly ArticleStateChange[];
   sidecarRepository: Pick<
@@ -56,9 +56,8 @@ async function persistFreshRssReadStateChanges(input: {
   if (!sidecar) return;
 
   const pending = [...sidecar.pendingFacetMutations];
-  const updates: FreshRssPendingReadMutation[] = [];
+  const updates: FreshRssPendingFacetMutation[] = [];
   for (const change of input.changes) {
-    if (typeof change.changes.read !== "boolean") continue;
     const feed = input.settings.feeds.find(
       (candidate) => candidate.url === change.feedUrl,
     );
@@ -68,22 +67,40 @@ async function persistFreshRssReadStateChanges(input: {
         binding.feedId === feed.feedId && binding.guid === change.guid,
     );
     if (!articleBinding) continue;
-    updates.push({
-      operationId: createOperationId(),
-      remoteArticleId: articleBinding.remoteArticleId,
-      facet: "read",
-      desiredState: change.changes.read,
-      createdAtMs: Date.now(),
-      attemptCount: 0,
-      lastError: null,
-    });
+    for (const facet of ["read", "starred"] as const) {
+      const desiredState = change.changes[facet];
+      if (typeof desiredState !== "boolean") continue;
+      updates.push({
+        operationId: createOperationId(),
+        remoteArticleId: articleBinding.remoteArticleId,
+        facet,
+        desiredState,
+        createdAtMs: Date.now(),
+        attemptCount: 0,
+        lastError: null,
+      });
+    }
+    if (change.changes.tags !== undefined) {
+      updates.push({
+        operationId: createOperationId(),
+        remoteArticleId: articleBinding.remoteArticleId,
+        facet: "labels",
+        desiredState: normalizeLabelNames(
+          change.changes.tags.map((tag) => tag.name),
+        ),
+        createdAtMs: Date.now(),
+        attemptCount: 0,
+        lastError: null,
+      });
+    }
   }
   if (updates.length === 0) return;
 
   for (const update of updates) {
     const existingIndex = pending.findIndex(
       (candidate) =>
-        isFreshRssPendingReadMutation(candidate) &&
+        isFreshRssPendingFacetMutation(candidate) &&
+        candidate.facet === update.facet &&
         candidate.remoteArticleId === update.remoteArticleId,
     );
     if (existingIndex === -1) pending.push(update);
@@ -96,18 +113,16 @@ async function persistFreshRssReadStateChanges(input: {
   });
 }
 
-export function isFreshRssPendingReadMutation(
+export function isFreshRssPendingFacetMutation(
   value: unknown,
-): value is FreshRssPendingReadMutation {
+): value is FreshRssPendingFacetMutation {
   if (typeof value !== "object" || value === null) return false;
   const record = value as Record<string, unknown>;
-  return (
+  const validBase =
     typeof record.operationId === "string" &&
     Boolean(record.operationId) &&
     typeof record.remoteArticleId === "string" &&
     Boolean(record.remoteArticleId) &&
-    record.facet === "read" &&
-    typeof record.desiredState === "boolean" &&
     typeof record.createdAtMs === "number" &&
     Number.isFinite(record.createdAtMs) &&
     typeof record.attemptCount === "number" &&
@@ -115,6 +130,29 @@ export function isFreshRssPendingReadMutation(
     (record.lastError === null || typeof record.lastError === "string") &&
     (record.retryDisposition === undefined ||
       record.retryDisposition === "automatic" ||
-      record.retryDisposition === "manual")
+      record.retryDisposition === "manual");
+  if (!validBase) return false;
+  if (record.facet === "read" || record.facet === "starred") {
+    return typeof record.desiredState === "boolean";
+  }
+  return (
+    record.facet === "labels" &&
+    Array.isArray(record.desiredState) &&
+    record.desiredState.every(
+      (label) => typeof label === "string" && Boolean(label.trim()),
+    )
   );
+}
+
+function normalizeLabelNames(names: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const normalized: string[] = [];
+  for (const name of names) {
+    const trimmed = name.trim();
+    const key = trimmed.toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    normalized.push(trimmed);
+  }
+  return normalized;
 }

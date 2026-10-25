@@ -25,16 +25,33 @@ export interface FreshRssSyncCheckpoint {
   completedAtMs: number;
 }
 
-export interface FreshRssPendingReadMutation {
+export interface FreshRssLabelMapping {
+  remoteLabelId: string;
+  localTagName: string;
+}
+
+interface FreshRssPendingMutationBase {
   operationId: string;
   remoteArticleId: string;
-  facet: "read";
-  desiredState: boolean;
   createdAtMs: number;
   attemptCount: number;
   lastError: string | null;
   retryDisposition?: "automatic" | "manual";
 }
+
+export type FreshRssPendingFacetMutation =
+  | (FreshRssPendingMutationBase & {
+      facet: "read";
+      desiredState: boolean;
+    })
+  | (FreshRssPendingMutationBase & {
+      facet: "starred";
+      desiredState: boolean;
+    })
+  | (FreshRssPendingMutationBase & {
+      facet: "labels";
+      desiredState: string[];
+    });
 
 export interface FreshRssSidecarFile {
   version: number;
@@ -43,6 +60,7 @@ export interface FreshRssSidecarFile {
   feedBindings: FreshRssFeedBinding[];
   articleBindings: FreshRssArticleBinding[];
   checkpoints: FreshRssSyncCheckpoint[];
+  labelMappings?: FreshRssLabelMapping[];
   [key: string]: unknown;
 }
 
@@ -91,6 +109,16 @@ function isSyncCheckpoint(value: unknown): value is FreshRssSyncCheckpoint {
   );
 }
 
+function isLabelMapping(value: unknown): value is FreshRssLabelMapping {
+  return (
+    isRecord(value) &&
+    typeof value.remoteLabelId === "string" &&
+    Boolean(value.remoteLabelId) &&
+    typeof value.localTagName === "string" &&
+    Boolean(value.localTagName.trim())
+  );
+}
+
 function parseSidecar(contents: string): FreshRssSidecarFile | null {
   try {
     const parsed: unknown = JSON.parse(contents);
@@ -104,7 +132,10 @@ function parseSidecar(contents: string): FreshRssSidecarFile | null {
       !Array.isArray(parsed.articleBindings) ||
       !parsed.articleBindings.every(isArticleBinding) ||
       !Array.isArray(parsed.checkpoints) ||
-      !parsed.checkpoints.every(isSyncCheckpoint)
+      !parsed.checkpoints.every(isSyncCheckpoint) ||
+      (parsed.labelMappings !== undefined &&
+        (!Array.isArray(parsed.labelMappings) ||
+          !parsed.labelMappings.every(isLabelMapping)))
     ) {
       return null;
     }

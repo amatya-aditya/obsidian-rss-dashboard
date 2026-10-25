@@ -20,6 +20,11 @@ export interface FreshRssSubscription {
   categoryLabel: string | null;
 }
 
+export interface FreshRssLabel {
+  remoteLabelId: string;
+  name: string;
+}
+
 export interface FreshRssItemIdsPage {
   itemRefs: string[];
   continuation: string | null;
@@ -115,6 +120,32 @@ function parseItemIdsResponse(
           ? parsed.continuation
           : null,
     };
+  } catch {
+    return null;
+  }
+}
+
+function parseLabelListResponse(text: string): FreshRssLabel[] | null {
+  try {
+    const parsed: unknown = JSON.parse(text);
+    if (!isRecord(parsed) || !Array.isArray(parsed.tags)) return null;
+    const labels: FreshRssLabel[] = [];
+    for (const entry of parsed.tags) {
+      if (!isRecord(entry) || typeof entry.id !== "string") return null;
+      if (!entry.id.startsWith("user/-/label/")) continue;
+      let name = typeof entry.label === "string" ? entry.label.trim() : "";
+      if (!name) {
+        const encodedName = entry.id.slice("user/-/label/".length);
+        try {
+          name = decodeURIComponent(encodedName).trim();
+        } catch {
+          name = encodedName.trim();
+        }
+      }
+      if (!name) continue;
+      labels.push({ remoteLabelId: entry.id, name });
+    }
+    return labels;
   } catch {
     return null;
   }
@@ -222,6 +253,26 @@ export class FreshRssSyncClient {
     }
   }
 
+  public async listLabels(): Promise<FreshRssRequestOutcome<FreshRssLabel[]>> {
+    try {
+      const response = await this.httpClient.request({
+        url: `${this.endpoint}/reader/api/0/tag/list?output=json`,
+        method: "GET",
+        headers: this.authHeaders(),
+        ...(this.signal ? { signal: this.signal } : {}),
+      });
+      if (isRejectedStatus(response.status))
+        return { outcome: "auth-rejected" };
+      if (response.status !== 200) return { outcome: "unavailable" };
+      const labels = parseLabelListResponse(response.text);
+      return labels
+        ? { outcome: "ok", data: labels }
+        : { outcome: "unavailable" };
+    } catch {
+      return { outcome: "unavailable" };
+    }
+  }
+
   public async listItemIds(
     remoteSubscriptionId: string,
     limit: number,
@@ -304,13 +355,28 @@ export class FreshRssSyncClient {
     read: boolean,
     modificationToken: string,
   ): Promise<FreshRssMutationOutcome> {
+    return this.updateArticleState(
+      remoteArticleIds,
+      [read ? "user/-/state/com.google/read" : ""].filter(Boolean),
+      [read ? "" : "user/-/state/com.google/read"].filter(Boolean),
+      modificationToken,
+    );
+  }
+
+  public async updateArticleState(
+    remoteArticleIds: string[],
+    addTags: string[],
+    removeTags: string[],
+    modificationToken: string,
+  ): Promise<FreshRssMutationOutcome> {
     if (remoteArticleIds.length === 0)
       return { outcome: "ok", data: undefined };
 
     const params = new URLSearchParams();
     params.set("T", modificationToken);
     remoteArticleIds.forEach((id) => params.append("i", id));
-    params.set(read ? "a" : "r", "user/-/state/com.google/read");
+    addTags.forEach((tag) => params.append("a", tag));
+    removeTags.forEach((tag) => params.append("r", tag));
 
     try {
       const response = await this.httpClient.request({

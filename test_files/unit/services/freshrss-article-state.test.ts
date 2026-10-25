@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_SETTINGS } from "../../../src/types/types";
 import {
-  queueFreshRssReadStateChanges,
-  isFreshRssPendingReadMutation,
+  queueFreshRssArticleStateChanges,
+  isFreshRssPendingFacetMutation,
 } from "../../../src/services/freshrss-article-state";
 import {
   FreshRssConnectionScopeRepository,
@@ -66,7 +66,7 @@ describe("FreshRSS article state queue", () => {
       write,
     };
 
-    await queueFreshRssReadStateChanges({
+    await queueFreshRssArticleStateChanges({
       settings,
       changes: [
         {
@@ -93,8 +93,99 @@ describe("FreshRSS article state queue", () => {
       lastError: null,
     });
     expect(
-      isFreshRssPendingReadMutation(sidecar.pendingFacetMutations[0]),
+      isFreshRssPendingFacetMutation(sidecar.pendingFacetMutations[0]),
     ).toBe(true);
+  });
+
+  it("queues starred and normalized label state while Receive-only is active", async () => {
+    const settings = structuredClone(DEFAULT_SETTINGS);
+    settings.freshRss.endpoint = scope.endpoint;
+    settings.freshRss.stateSyncMode = "receive-only";
+    settings.feeds = [
+      {
+        feedId: "feed-local",
+        title: "Feed",
+        url: "https://feed.example.test/rss.xml",
+        folder: "RSS",
+        lastUpdated: 0,
+        items: [],
+      },
+    ];
+    const sidecar = createSidecar();
+    const repository = {
+      readActiveScope: async () => scope,
+      read: async () => structuredClone(sidecar),
+      write: async (value: FreshRssSidecarFile) => {
+        Object.assign(sidecar, value);
+      },
+    };
+
+    await queueFreshRssArticleStateChanges({
+      settings,
+      changes: [
+        {
+          feedUrl: "https://feed.example.test/rss.xml",
+          guid: "article-guid",
+          changes: {
+            starred: true,
+            tags: [
+              { name: "  News ", color: "#123456" },
+              { name: "news", color: "#abcdef" },
+              { name: "Later", color: "#fedcba" },
+            ],
+          },
+        },
+      ],
+      sidecarRepository: repository,
+    });
+
+    expect(sidecar.pendingFacetMutations).toMatchObject([
+      {
+        remoteArticleId: "opaque-article/42",
+        facet: "starred",
+        desiredState: true,
+      },
+      {
+        remoteArticleId: "opaque-article/42",
+        facet: "labels",
+        desiredState: ["News", "Later"],
+      },
+    ]);
+  });
+
+  it("retains failed writes without pretending the mutations were queued", async () => {
+    const settings = structuredClone(DEFAULT_SETTINGS);
+    settings.freshRss.endpoint = scope.endpoint;
+    settings.feeds = [
+      {
+        feedId: "feed-local",
+        title: "Feed",
+        url: "https://feed.example.test/rss.xml",
+        folder: "RSS",
+        lastUpdated: 0,
+        items: [],
+      },
+    ];
+
+    await expect(
+      queueFreshRssArticleStateChanges({
+        settings,
+        changes: [
+          {
+            feedUrl: "https://feed.example.test/rss.xml",
+            guid: "article-guid",
+            changes: { starred: true },
+          },
+        ],
+        sidecarRepository: {
+          readActiveScope: async () => scope,
+          read: async () => createSidecar(),
+          write: async () => {
+            throw new Error("disk full");
+          },
+        },
+      }),
+    ).rejects.toThrow("disk full");
   });
 
   it("does not write mutations into a different endpoint namespace", async () => {
@@ -107,7 +198,7 @@ describe("FreshRSS article state queue", () => {
     };
     const write = vi.fn(async () => {});
 
-    await queueFreshRssReadStateChanges({
+    await queueFreshRssArticleStateChanges({
       settings,
       changes: [
         {
@@ -156,7 +247,7 @@ describe("FreshRSS article state queue", () => {
 
     await Promise.all(
       ["article-guid", "article-guid-2"].map((guid) =>
-        queueFreshRssReadStateChanges({
+        queueFreshRssArticleStateChanges({
           settings,
           changes: [change(guid)],
           sidecarRepository: repository,
@@ -171,7 +262,7 @@ describe("FreshRSS article state queue", () => {
     ]);
   });
 
-  it("retains queued read state when the sidecar repository is reopened", async () => {
+  it("recovers queued article facets when the sidecar repository is reopened", async () => {
     const settings = structuredClone(DEFAULT_SETTINGS);
     settings.freshRss.endpoint = scope.endpoint;
     settings.freshRss.stateSyncMode = "receive-only";
@@ -206,13 +297,20 @@ describe("FreshRSS article state queue", () => {
     await repository.activate(scope);
     await repository.write(createSidecar());
 
-    await queueFreshRssReadStateChanges({
+    await queueFreshRssArticleStateChanges({
       settings,
       changes: [
         {
           feedUrl: "https://feed.example.test/rss.xml",
           guid: "article-guid",
-          changes: { read: true },
+          changes: {
+            read: true,
+            starred: true,
+            tags: [
+              { name: "News", color: "#123456" },
+              { name: " news ", color: "#abcdef" },
+            ],
+          },
         },
       ],
       sidecarRepository: repository,
@@ -220,7 +318,21 @@ describe("FreshRSS article state queue", () => {
 
     const reopenedSidecar = await createRepository().read(scope);
     expect(reopenedSidecar?.pendingFacetMutations).toMatchObject([
-      { remoteArticleId: "opaque-article/42", desiredState: true },
+      {
+        remoteArticleId: "opaque-article/42",
+        facet: "read",
+        desiredState: true,
+      },
+      {
+        remoteArticleId: "opaque-article/42",
+        facet: "starred",
+        desiredState: true,
+      },
+      {
+        remoteArticleId: "opaque-article/42",
+        facet: "labels",
+        desiredState: ["News"],
+      },
     ]);
   });
 });
