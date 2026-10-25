@@ -13,6 +13,9 @@ export interface FreshRssSettingsPlugin {
   getFreshRssSecretReferences(): string[];
   saveFreshRssEndpoint(endpoint: string): Promise<void>;
   saveFreshRssCredentialReference(reference: string): Promise<void>;
+  saveFreshRssStateSyncMode(
+    mode: FreshRssSettings["stateSyncMode"],
+  ): Promise<void>;
   openFreshRssStorageMigrationChoice(): void;
   testFreshRssConnection(): Promise<FreshRssConnectionStatus>;
   syncFreshRssNow(): Promise<void>;
@@ -130,6 +133,23 @@ export function renderFreshRssSettingsTab(
         .setValue(plugin.settings.freshRss.credentialReference)
         .onChange(async (reference) => {
           await plugin.saveFreshRssCredentialReference(reference);
+        });
+    });
+
+  new Setting(containerEl)
+    .setName("Article state sync")
+    .setDesc(
+      "Two-way sync shares read state with FreshRSS. Receive-only imports feeds and articles while keeping read state local.",
+    )
+    .addDropdown((dropdown) => {
+      dropdown
+        .addOption("two-way", "Two-way")
+        .addOption("receive-only", "Receive-only")
+        .setValue(plugin.settings.freshRss.stateSyncMode)
+        .onChange(async (value) => {
+          await plugin.saveFreshRssStateSyncMode(
+            value as FreshRssSettings["stateSyncMode"],
+          );
         });
     });
 

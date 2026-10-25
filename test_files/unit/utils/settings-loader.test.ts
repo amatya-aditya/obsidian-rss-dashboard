@@ -81,6 +81,7 @@ describe("settings-loader", () => {
         endpoint: "",
         credentialReference: "",
         status: "credentials-unconfigured",
+        stateSyncMode: "two-way",
       });
       expect(
         loadAndNormalizeSettings({
@@ -94,6 +95,7 @@ describe("settings-loader", () => {
         endpoint: "https://reader.example.test/greader.php",
         credentialReference: "entry-id",
         status: "connected",
+        stateSyncMode: "two-way",
       });
       expect(
         loadAndNormalizeSettings({
@@ -107,6 +109,7 @@ describe("settings-loader", () => {
         endpoint: "",
         credentialReference: "",
         status: "credentials-unconfigured",
+        stateSyncMode: "two-way",
       });
     });
 
