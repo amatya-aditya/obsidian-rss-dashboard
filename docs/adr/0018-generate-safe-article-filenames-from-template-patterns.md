@@ -45,7 +45,7 @@ The settings field is labeled “Filename pattern” and shows this helper text:
 An unset or unusable pattern falls back to the article title, then to
 `Untitled Article`. Filename sanitization removes filesystem-invalid and
 clipper-disallowed characters, strips trailing dots and spaces, and caps the
-stem at 100 Unicode code points and 252 UTF-8 bytes. Including the `.md`
+stem at 245 Unicode code points and 252 UTF-8 bytes. Including the `.md`
 extension, a saved filename stays within 255 UTF-8 bytes. Truncation preserves
 complete Unicode code points. A numeric collision suffix counts toward both
 stem caps. When a different note already occupies the generated path, use the
@@ -79,7 +79,7 @@ as a product-wide conformance claim.
 
 - Collision suffixes can make the saved filename differ from the requested
   pattern.
-- The 100-code-point and 252-byte stem limits may truncate a long generated
+- The 245-code-point and 252-byte stem limits may truncate a long generated
   name or its collision suffix.
 - Changing a template's folder or pattern does not reorganize notes already
   saved with that template.
