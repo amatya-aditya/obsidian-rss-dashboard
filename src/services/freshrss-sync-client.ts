@@ -7,6 +7,12 @@ export type FreshRssRequestOutcome<T> =
   | { outcome: "auth-rejected" }
   | { outcome: "unavailable" };
 
+export type FreshRssMutationOutcome =
+  | { outcome: "ok"; data: void }
+  | { outcome: "auth-rejected" }
+  | { outcome: "terminal-error"; status: 400 | 404 | 422 }
+  | { outcome: "unavailable" };
+
 export interface FreshRssSubscription {
   remoteSubscriptionId: string;
   title: string;
@@ -27,6 +33,7 @@ export interface FreshRssRemoteArticle {
   content: string | null;
   author: string | null;
   publishedMs: number | null;
+  read: boolean | null;
 }
 
 function parseSubscriptionListResponse(
@@ -92,6 +99,15 @@ function parseItemIdsResponse(
       itemRefs.push(entry.id);
     }
 
+    if (
+      parsed.continuation !== undefined &&
+      parsed.continuation !== null &&
+      (typeof parsed.continuation !== "string" ||
+        parsed.continuation.length === 0)
+    ) {
+      return null;
+    }
+
     return {
       itemRefs: itemRefs.slice(0, Math.max(0, Math.floor(limit))),
       continuation:
@@ -150,6 +166,14 @@ function parseItemContentsResponse(
         content,
         author: typeof entry.author === "string" ? entry.author : null,
         publishedMs,
+        read: Array.isArray(entry.categories)
+          ? entry.categories.some((category) =>
+              typeof category === "string"
+                ? category === "user/-/state/com.google/read"
+                : isRecord(category) &&
+                  category.id === "user/-/state/com.google/read",
+            )
+          : null,
       });
     }
 
@@ -201,10 +225,14 @@ export class FreshRssSyncClient {
   public async listItemIds(
     remoteSubscriptionId: string,
     limit: number,
+    continuation: string | null = null,
   ): Promise<FreshRssRequestOutcome<FreshRssItemIdsPage>> {
     try {
+      const continuationParameter = continuation
+        ? `&c=${encodeURIComponent(continuation)}`
+        : "";
       const response = await this.httpClient.request({
-        url: `${this.endpoint}/reader/api/0/stream/items/ids?output=json&n=${limit}&s=${encodeURIComponent(remoteSubscriptionId)}`,
+        url: `${this.endpoint}/reader/api/0/stream/items/ids?output=json&n=${limit}&s=${encodeURIComponent(remoteSubscriptionId)}${continuationParameter}`,
         method: "GET",
         headers: this.authHeaders(),
         ...(this.signal ? { signal: this.signal } : {}),
@@ -248,6 +276,64 @@ export class FreshRssSyncClient {
       return articles
         ? { outcome: "ok", data: articles }
         : { outcome: "unavailable" };
+    } catch {
+      return { outcome: "unavailable" };
+    }
+  }
+
+  public async getModificationToken(): Promise<FreshRssRequestOutcome<string>> {
+    try {
+      const response = await this.httpClient.request({
+        url: `${this.endpoint}/reader/api/0/token`,
+        method: "GET",
+        headers: this.authHeaders(),
+        ...(this.signal ? { signal: this.signal } : {}),
+      });
+      if (isRejectedStatus(response.status))
+        return { outcome: "auth-rejected" };
+      if (response.status !== 200 || !response.text.trim())
+        return { outcome: "unavailable" };
+      return { outcome: "ok", data: response.text.trim() };
+    } catch {
+      return { outcome: "unavailable" };
+    }
+  }
+
+  public async updateReadState(
+    remoteArticleIds: string[],
+    read: boolean,
+    modificationToken: string,
+  ): Promise<FreshRssMutationOutcome> {
+    if (remoteArticleIds.length === 0)
+      return { outcome: "ok", data: undefined };
+
+    const params = new URLSearchParams();
+    params.set("T", modificationToken);
+    remoteArticleIds.forEach((id) => params.append("i", id));
+    params.set(read ? "a" : "r", "user/-/state/com.google/read");
+
+    try {
+      const response = await this.httpClient.request({
+        url: `${this.endpoint}/reader/api/0/edit-tag`,
+        method: "POST",
+        body: params.toString(),
+        headers: {
+          ...this.authHeaders(),
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        ...(this.signal ? { signal: this.signal } : {}),
+      });
+      if (isRejectedStatus(response.status))
+        return { outcome: "auth-rejected" };
+      switch (response.status) {
+        case 400:
+        case 404:
+        case 422:
+          return { outcome: "terminal-error", status: response.status };
+      }
+      if (response.status !== 200 || response.text.trim() !== "OK")
+        return { outcome: "unavailable" };
+      return { outcome: "ok", data: undefined };
     } catch {
       return { outcome: "unavailable" };
     }

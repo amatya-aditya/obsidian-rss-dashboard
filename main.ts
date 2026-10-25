@@ -113,6 +113,7 @@ import {
   type FreshRssSyncOutcome,
 } from "./src/services/freshrss-sync-coordinator";
 import { createFreshRssHttpClient } from "./src/services/freshrss-request-url-client";
+import { queueFreshRssReadStateChanges } from "./src/services/freshrss-article-state";
 
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
 import { ImportStarredModal } from "./src/modals/import-starred-modal";
@@ -2702,6 +2703,13 @@ export default class RssDashboardPlugin extends Plugin {
     this.settingTab?.refresh();
   }
 
+  public async saveFreshRssStateSyncMode(
+    mode: RssDashboardSettings["freshRss"]["stateSyncMode"],
+  ): Promise<void> {
+    this.settings.freshRss.stateSyncMode = mode;
+    await this.saveSettings();
+  }
+
   public openFreshRssStorageMigrationChoice(): void {
     new StorageMigrationModal(this.app, this).open();
   }
@@ -2902,12 +2910,13 @@ export default class RssDashboardPlugin extends Plugin {
    * abrupt close keeps it. Callers update memory and the UI first and never
    * await persistence here (#1380).
    */
-  public queueArticleStateSave(
+  public async queueArticleStateSave(
     changes: readonly ArticleStateChange[] = [],
   ): Promise<void> {
-    return this.settingsStore.queueArticleStateSave(
+    await this.settingsStore.queueArticleStateSave(
       articleStateJournalChanges(this.settings.feeds, changes),
     );
+    await this.queueFreshRssReadStateChanges(changes);
   }
 
   /** Writes queued article-state changes now and resolves after they land. */
@@ -2929,6 +2938,26 @@ export default class RssDashboardPlugin extends Plugin {
       articleStateJournalChanges(this.settings.feeds, changes),
     );
     await this.saveSettings(this.settingsStore.articleStatePersistOptions());
+    await this.queueFreshRssReadStateChanges(changes);
+  }
+
+  private async queueFreshRssReadStateChanges(
+    changes: readonly ArticleStateChange[],
+  ): Promise<void> {
+    if (!changes.some((change) => typeof change.changes.read === "boolean")) {
+      return;
+    }
+    try {
+      await queueFreshRssReadStateChanges({
+        settings: this.settings,
+        changes,
+        sidecarRepository: this.getFreshRssConnectionScopeRepository(),
+      });
+    } catch {
+      new Notice(
+        "Read state was saved locally, but its FreshRSS sync could not be queued.",
+      );
+    }
   }
 
   migrateMetadataToVaultLocation(): Promise<void> {

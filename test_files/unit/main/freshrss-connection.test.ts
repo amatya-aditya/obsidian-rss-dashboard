@@ -129,6 +129,7 @@ describe("FreshRSS connection activation", () => {
       endpoint: "https://reader.example.test/api/greader.php",
       credentialReference: "freshrss-primary",
       status: "connected",
+      stateSyncMode: "two-way",
     });
     const sidecar = await app.vault.adapter.read(
       ".rss-dashboard-data/freshrss-state.json",

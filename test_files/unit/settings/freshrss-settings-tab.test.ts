@@ -26,6 +26,11 @@ function createPlugin(capability: FreshRssCapability = "available") {
       settings.freshRss.credentialReference = reference;
       settings.freshRss.status = "test-required";
     }),
+    saveFreshRssStateSyncMode: vi.fn(
+      async (mode: "two-way" | "receive-only") => {
+        settings.freshRss.stateSyncMode = mode;
+      },
+    ),
     openFreshRssStorageMigrationChoice: vi.fn(),
     testFreshRssConnection: vi.fn(async () => "connected" as const),
     syncFreshRssNow: vi.fn(async () => {}),
@@ -134,5 +139,28 @@ describe("FreshRSS settings", () => {
     await Promise.resolve();
 
     expect(plugin.syncFreshRssNow).toHaveBeenCalledOnce();
+  });
+
+  it("persists Receive-only mode while keeping Two-way as the default", async () => {
+    const containerEl = createDiv();
+    const plugin = createPlugin();
+    renderFreshRssSettingsTab(containerEl, plugin);
+
+    const modeSetting = Array.from(
+      containerEl.querySelectorAll(".setting-item"),
+    ).find((setting) => setting.textContent?.includes("Article state sync"));
+    const modeSelect = modeSetting?.querySelector(
+      "select",
+    ) as HTMLSelectElement;
+
+    expect(modeSelect.value).toBe("two-way");
+    modeSelect.value = "receive-only";
+    modeSelect.dispatchEvent(new Event("change"));
+    await Promise.resolve();
+
+    expect(plugin.saveFreshRssStateSyncMode).toHaveBeenCalledWith(
+      "receive-only",
+    );
+    expect(plugin.settings.freshRss.stateSyncMode).toBe("receive-only");
   });
 });

@@ -83,6 +83,8 @@ function normalizeFreshRssSettings(
     status: isFreshRssConnectionStatus(status)
       ? status
       : DEFAULT_SETTINGS.freshRss.status,
+    stateSyncMode:
+      raw?.stateSyncMode === "receive-only" ? "receive-only" : "two-way",
   };
 }
 
