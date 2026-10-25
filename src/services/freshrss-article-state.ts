@@ -112,6 +112,9 @@ export function isFreshRssPendingReadMutation(
     Number.isFinite(record.createdAtMs) &&
     typeof record.attemptCount === "number" &&
     Number.isFinite(record.attemptCount) &&
-    (record.lastError === null || typeof record.lastError === "string")
+    (record.lastError === null || typeof record.lastError === "string") &&
+    (record.retryDisposition === undefined ||
+      record.retryDisposition === "automatic" ||
+      record.retryDisposition === "manual")
   );
 }

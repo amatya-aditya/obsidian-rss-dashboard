@@ -33,6 +33,7 @@ export interface FreshRssPendingReadMutation {
   createdAtMs: number;
   attemptCount: number;
   lastError: string | null;
+  retryDisposition?: "automatic" | "manual";
 }
 
 export interface FreshRssSidecarFile {

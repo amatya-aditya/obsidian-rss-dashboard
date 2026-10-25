@@ -26,6 +26,12 @@ import {
 
 /** Maximum recent article IDs requested for each FreshRSS subscription. */
 export const FRESHRSS_SYNC_ARTICLES_PER_SUBSCRIPTION = 50;
+/** Maximum item IDs requested in one FreshRSS state-stream page. */
+export const FRESHRSS_SYNC_STATE_PAGE_SIZE = 1000;
+/** Maximum item IDs reconciled from one FreshRSS state stream per cycle. */
+export const FRESHRSS_SYNC_STATE_ID_CAP = 25_000;
+const FRESHRSS_READ_STATE_STREAM = "user/-/state/com.google/read";
+const FRESHRSS_UNREAD_STATE_STREAM = "user/-/state/com.google/unread";
 
 export interface FreshRssSyncOwner {
   signal: AbortSignal;
@@ -79,12 +85,23 @@ interface FreshRssSyncAccumulator {
   feedBindings: FreshRssFeedBinding[];
   articleBindings: FreshRssArticleBinding[];
   checkpoints: FreshRssSyncCheckpoint[];
+  pendingCheckpointSubscriptionIds: string[];
   createdFeedCount: number;
   linkedFeedCount: number;
   ambiguousSubscriptionCount: number;
   importedArticleCount: number;
   partial: boolean;
   settingsChanged: boolean;
+}
+
+interface FreshRssSyncCommitInput {
+  settings: RssDashboardSettings;
+  originalFeeds: Feed[];
+  syncState: FreshRssSyncAccumulator;
+  scope: FreshRssConnectionScope;
+  sidecarRepository: Pick<FreshRssConnectionScopeRepository, "read" | "write">;
+  saveSettings: () => Promise<void>;
+  owner: FreshRssSyncOwner;
 }
 
 type FreshRssSubscriptionResult =
@@ -230,6 +247,7 @@ export class FreshRssSyncCoordinator {
       checkpoints: sidecarState.checkpoints.map((checkpoint) => ({
         ...checkpoint,
       })),
+      pendingCheckpointSubscriptionIds: [],
       createdFeedCount: 0,
       linkedFeedCount: 0,
       ambiguousSubscriptionCount: 0,
@@ -238,55 +256,40 @@ export class FreshRssSyncCoordinator {
       settingsChanged: false,
     };
 
-    for (const subscription of subscriptionsResult.data) {
-      owner.throwIfInactive();
-      const result = await this.syncSubscription(
-        subscription,
+    const subscriptionOutcome = await this.syncSubscriptions(
+      subscriptionsResult.data,
+      client,
+      syncState,
+      settings,
+      owner,
+    );
+    if (subscriptionOutcome === "credentials-rejected") {
+      return { outcome: "credentials-rejected" };
+    }
+
+    if (settings.freshRss.stateSyncMode === "two-way") {
+      const readStateOutcome = await reconcileReadStateAndCheckpoints(
         client,
         syncState,
-        settings,
         owner,
       );
-      if (result === "credentials-rejected") {
+      if (readStateOutcome === "credentials-rejected") {
         return { outcome: "credentials-rejected" };
       }
-      if (result === "partial") syncState.partial = true;
+      if (readStateOutcome === "partial") {
+        syncState.partial = true;
+      }
     }
 
     owner.throwIfInactive();
-    const commitOutcome = await withFreshRssSidecarMutationLock(async () => {
-      const latestSidecar = await this.deps.sidecarRepository.read(input.scope);
-      owner.throwIfInactive();
-      if (!latestSidecar) return "server-unavailable" as const;
-      if (
-        applyPendingReadOverrides(
-          syncState.feeds,
-          syncState.articleBindings,
-          latestSidecar.pendingFacetMutations,
-        )
-      ) {
-        syncState.settingsChanged = true;
-      }
-
-      owner.beginCommit();
-      if (syncState.settingsChanged) {
-        settings.feeds = syncState.feeds;
-        try {
-          await this.deps.saveSettings();
-        } catch (error) {
-          settings.feeds = originalFeeds;
-          throw error;
-        }
-      }
-      await this.deps.sidecarRepository.write({
-        ...latestSidecar,
-        version: 2,
-        scope: input.scope,
-        feedBindings: syncState.feedBindings,
-        articleBindings: syncState.articleBindings,
-        checkpoints: syncState.checkpoints,
-      });
-      return "committed" as const;
+    const commitOutcome = await commitFreshRssSync({
+      settings,
+      originalFeeds,
+      syncState,
+      scope: input.scope,
+      sidecarRepository: this.deps.sidecarRepository,
+      saveSettings: this.deps.saveSettings,
+      owner,
     });
     if (commitOutcome !== "committed") {
       return { outcome: commitOutcome };
@@ -392,72 +395,193 @@ export class FreshRssSyncCoordinator {
       syncState.settingsChanged = true;
     }
 
-    if (settings.freshRss.stateSyncMode === "two-way") {
-      const result = await syncBoundReadStates({
-        client,
-        syncState,
-        feedId: feed.feedId ?? "",
-        feedIndex,
-        importedRemoteIds: requestedIds,
-        owner,
-      });
-      if (result === "credentials-rejected") return result;
-    }
-
     if (idsResult.data.continuation !== null) return "partial";
-    upsertCheckpoint(syncState.checkpoints, subscription.remoteSubscriptionId);
+    if (settings.freshRss.stateSyncMode === "two-way") {
+      syncState.pendingCheckpointSubscriptionIds.push(
+        subscription.remoteSubscriptionId,
+      );
+    } else {
+      upsertCheckpoint(
+        syncState.checkpoints,
+        subscription.remoteSubscriptionId,
+      );
+    }
     return "complete";
   }
+
+  private async syncSubscriptions(
+    subscriptions: FreshRssSubscription[],
+    client: FreshRssSyncClient,
+    syncState: FreshRssSyncAccumulator,
+    settings: RssDashboardSettings,
+    owner: FreshRssSyncOwner,
+  ): Promise<"complete" | "credentials-rejected"> {
+    for (const subscription of subscriptions) {
+      owner.throwIfInactive();
+      const result = await this.syncSubscription(
+        subscription,
+        client,
+        syncState,
+        settings,
+        owner,
+      );
+      if (result === "credentials-rejected") return result;
+      if (result === "partial") syncState.partial = true;
+    }
+    return "complete";
+  }
+}
+
+async function commitFreshRssSync(
+  input: FreshRssSyncCommitInput,
+): Promise<"committed" | "server-unavailable"> {
+  return withFreshRssSidecarMutationLock(async () => {
+    const latestSidecar = await input.sidecarRepository.read(input.scope);
+    input.owner.throwIfInactive();
+    if (!latestSidecar) return "server-unavailable";
+    if (
+      applyPendingReadOverrides(
+        input.syncState.feeds,
+        input.syncState.articleBindings,
+        latestSidecar.pendingFacetMutations,
+      )
+    ) {
+      input.syncState.settingsChanged = true;
+    }
+
+    input.owner.beginCommit();
+    if (input.syncState.settingsChanged) {
+      input.settings.feeds = input.syncState.feeds;
+      try {
+        await input.saveSettings();
+      } catch (error) {
+        input.settings.feeds = input.originalFeeds;
+        throw error;
+      }
+    }
+    await input.sidecarRepository.write({
+      ...latestSidecar,
+      version: 2,
+      scope: input.scope,
+      feedBindings: input.syncState.feedBindings,
+      articleBindings: input.syncState.articleBindings,
+      checkpoints: input.syncState.checkpoints,
+    });
+    return "committed";
+  });
 }
 
 async function syncBoundReadStates(input: {
   client: FreshRssSyncClient;
   syncState: FreshRssSyncAccumulator;
-  feedId: string;
-  feedIndex: number;
-  importedRemoteIds: string[];
   owner: FreshRssSyncOwner;
-}): Promise<"complete" | "credentials-rejected"> {
-  const existingBindings = input.syncState.articleBindings.filter(
-    (binding) => binding.feedId === input.feedId,
+}): Promise<"complete" | "partial" | "credentials-rejected"> {
+  if (input.syncState.articleBindings.length === 0) return "complete";
+
+  const readScan = await scanReadStateIds(
+    input.client,
+    FRESHRSS_READ_STATE_STREAM,
+    input.owner,
   );
-  const importedRemoteIds = new Set(input.importedRemoteIds);
-  const boundIdsToRead = existingBindings
-    .map((binding) => binding.remoteArticleId)
-    .filter((remoteId) => !importedRemoteIds.has(remoteId));
+  if (readScan.outcome === "credentials-rejected") return readScan.outcome;
+  const unreadScan = await scanReadStateIds(
+    input.client,
+    FRESHRSS_UNREAD_STATE_STREAM,
+    input.owner,
+  );
+  if (unreadScan.outcome === "credentials-rejected") return unreadScan.outcome;
 
-  for (let offset = 0; offset < boundIdsToRead.length; offset += 100) {
-    input.owner.throwIfInactive();
-    const stateResult = await input.client.getItemContents(
-      boundIdsToRead.slice(offset, offset + 100),
-    );
-    input.owner.throwIfInactive();
-    if (stateResult.outcome === "auth-rejected") return "credentials-rejected";
-    if (stateResult.outcome === "unavailable") {
-      input.syncState.partial = true;
-      continue;
-    }
+  applyRemoteReadIds(input.syncState, readScan.itemIds, unreadScan.itemIds);
+  return readScan.outcome === "complete" && unreadScan.outcome === "complete"
+    ? "complete"
+    : "partial";
+}
 
-    const remoteById = new Map(
-      stateResult.data.map((article) => [article.remoteArticleId, article]),
-    );
-    for (const binding of existingBindings) {
-      const remoteArticle = remoteById.get(binding.remoteArticleId);
-      const localArticle = input.syncState.feeds[input.feedIndex]?.items.find(
-        (item) => item.guid === binding.guid,
-      );
-      if (
-        remoteArticle?.read !== null &&
-        remoteArticle !== undefined &&
-        localArticle &&
-        localArticle.read !== remoteArticle.read
-      ) {
-        localArticle.read = remoteArticle.read;
-        input.syncState.settingsChanged = true;
-      }
+async function reconcileReadStateAndCheckpoints(
+  client: FreshRssSyncClient,
+  syncState: FreshRssSyncAccumulator,
+  owner: FreshRssSyncOwner,
+): Promise<"complete" | "partial" | "credentials-rejected"> {
+  const outcome = await syncBoundReadStates({ client, syncState, owner });
+  if (outcome === "complete") {
+    for (const remoteSubscriptionId of syncState.pendingCheckpointSubscriptionIds) {
+      upsertCheckpoint(syncState.checkpoints, remoteSubscriptionId);
     }
   }
-  return "complete";
+  return outcome;
+}
+
+type FreshRssReadStateScanResult =
+  | { outcome: "complete" | "partial"; itemIds: Set<string> }
+  | { outcome: "credentials-rejected" };
+
+async function scanReadStateIds(
+  client: FreshRssSyncClient,
+  streamId: string,
+  owner: FreshRssSyncOwner,
+): Promise<FreshRssReadStateScanResult> {
+  const itemIds = new Set<string>();
+  const seenContinuations = new Set<string>();
+  let continuation: string | null = null;
+  let scannedIds = 0;
+  while (scannedIds < FRESHRSS_SYNC_STATE_ID_CAP) {
+    owner.throwIfInactive();
+    const requestedCount = Math.min(
+      FRESHRSS_SYNC_STATE_PAGE_SIZE,
+      FRESHRSS_SYNC_STATE_ID_CAP - scannedIds,
+    );
+    const stateResult = await client.listItemIds(
+      streamId,
+      requestedCount,
+      continuation,
+    );
+    owner.throwIfInactive();
+    if (stateResult.outcome === "auth-rejected") {
+      return { outcome: "credentials-rejected" };
+    }
+    if (stateResult.outcome === "unavailable") {
+      return { outcome: "partial", itemIds };
+    }
+
+    scannedIds += stateResult.data.itemRefs.length;
+    for (const remoteId of stateResult.data.itemRefs) {
+      itemIds.add(remoteId);
+    }
+    if (stateResult.data.continuation === null) {
+      return { outcome: "complete", itemIds };
+    }
+    if (
+      seenContinuations.has(stateResult.data.continuation) ||
+      stateResult.data.itemRefs.length === 0
+    ) {
+      return { outcome: "partial", itemIds };
+    }
+    if (scannedIds >= FRESHRSS_SYNC_STATE_ID_CAP) {
+      return { outcome: "partial", itemIds };
+    }
+    seenContinuations.add(stateResult.data.continuation);
+    continuation = stateResult.data.continuation;
+  }
+  return { outcome: "partial", itemIds };
+}
+
+function applyRemoteReadIds(
+  syncState: FreshRssSyncAccumulator,
+  remoteReadIds: Set<string>,
+  remoteUnreadIds: Set<string>,
+): void {
+  for (const binding of syncState.articleBindings) {
+    const remoteIsRead = remoteReadIds.has(binding.remoteArticleId);
+    const remoteIsUnread = remoteUnreadIds.has(binding.remoteArticleId);
+    if (remoteIsRead === remoteIsUnread) continue;
+    const localArticle = syncState.feeds
+      .find((feed) => feed.feedId === binding.feedId)
+      ?.items.find((item) => item.guid === binding.guid);
+    if (localArticle && localArticle.read !== remoteIsRead) {
+      localArticle.read = remoteIsRead;
+      syncState.settingsChanged = true;
+    }
+  }
 }
 
 function resolveFeedForSubscription(
@@ -554,7 +678,11 @@ async function flushPendingReadMutations(
   pendingValues: unknown[],
   owner: FreshRssSyncOwner,
 ): Promise<FreshRssMutationFlushOutcome> {
-  const pending = pendingValues.filter(isFreshRssPendingReadMutation);
+  const pending = pendingValues.filter(
+    (value): value is FreshRssPendingReadMutation =>
+      isFreshRssPendingReadMutation(value) &&
+      value.retryDisposition !== "manual",
+  );
   if (pending.length === 0) return "complete";
 
   const tokenResult = await client.getModificationToken();
@@ -617,7 +745,12 @@ async function flushPendingReadMutations(
                 ...value,
                 attemptCount: value.attemptCount + 1,
                 lastError:
-                  "FreshRSS did not acknowledge the read-state update.",
+                  result.outcome === "terminal-error"
+                    ? `FreshRSS rejected the read-state update (HTTP ${result.status}).`
+                    : "FreshRSS did not acknowledge the read-state update.",
+                ...(result.outcome === "terminal-error"
+                  ? { retryDisposition: "manual" as const }
+                  : {}),
               } satisfies FreshRssPendingReadMutation;
             }),
           });

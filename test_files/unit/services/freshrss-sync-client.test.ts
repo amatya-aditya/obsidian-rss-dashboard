@@ -107,6 +107,47 @@ describe("FreshRSS sync client", () => {
     );
   });
 
+  it("passes a continuation cursor when listing a state stream page", async () => {
+    const request = vi.fn<FreshRssHttpClient["request"]>().mockResolvedValue({
+      status: 200,
+      text: JSON.stringify({ itemRefs: [{ id: "article/2" }] }),
+    });
+    const client = new FreshRssSyncClient(
+      { request },
+      "https://rss.example.test",
+      "session-token",
+    );
+
+    await expect(
+      client.listItemIds("user/-/state/com.google/read", 1000, "12345"),
+    ).resolves.toMatchObject({
+      outcome: "ok",
+      data: { itemRefs: ["article/2"], continuation: null },
+    });
+    expect(request).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "https://rss.example.test/reader/api/0/stream/items/ids?output=json&n=1000&s=user%2F-%2Fstate%2Fcom.google%2Fread&c=12345",
+      }),
+    );
+  });
+
+  it("rejects an invalid continuation cursor instead of treating it as the end", async () => {
+    const client = new FreshRssSyncClient(
+      {
+        request: vi.fn<FreshRssHttpClient["request"]>().mockResolvedValue({
+          status: 200,
+          text: JSON.stringify({ itemRefs: [], continuation: 12345 }),
+        }),
+      },
+      "https://rss.example.test",
+      "session-token",
+    );
+
+    await expect(client.listItemIds("feed/6", 1000)).resolves.toEqual({
+      outcome: "unavailable",
+    });
+  });
+
   it("treats an invalid article timestamp as missing and uses the summary fallback", async () => {
     const client = new FreshRssSyncClient(
       {
@@ -210,4 +251,24 @@ describe("FreshRSS sync client", () => {
       },
     });
   });
+
+  it.each([400, 404, 422])(
+    "classifies HTTP %i read-state mutation responses as terminal",
+    async (status) => {
+      const client = new FreshRssSyncClient(
+        {
+          request: vi.fn<FreshRssHttpClient["request"]>().mockResolvedValue({
+            status,
+            text: "invalid mutation",
+          }),
+        },
+        "https://rss.example.test",
+        "session-token",
+      );
+
+      await expect(
+        client.updateReadState(["article/42"], true, "write-token"),
+      ).resolves.toEqual({ outcome: "terminal-error", status });
+    },
+  );
 });

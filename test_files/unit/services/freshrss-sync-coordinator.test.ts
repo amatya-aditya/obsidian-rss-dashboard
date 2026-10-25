@@ -209,6 +209,8 @@ describe("FreshRSS sync coordinator", () => {
           ],
         }),
       },
+      { status: 200, text: JSON.stringify({ itemRefs: [] }) },
+      { status: 200, text: JSON.stringify({ itemRefs: [] }) },
     ]);
     const saveSettings = vi.fn(async () => {});
     const coordinator = new FreshRssSyncCoordinator({
@@ -234,7 +236,7 @@ describe("FreshRSS sync coordinator", () => {
       partial: false,
     });
 
-    expect(request).toHaveBeenCalledTimes(5);
+    expect(request).toHaveBeenCalledTimes(7);
     expect(settings.feeds[0]).toMatchObject({
       feedId: "local-feed",
       title: "My local title",
@@ -586,15 +588,9 @@ describe("FreshRSS sync coordinator", () => {
       { status: 200, text: JSON.stringify({ itemRefs: [] }) },
       {
         status: 200,
-        text: JSON.stringify({
-          items: [
-            {
-              id: "article/42",
-              categories: ["user/-/state/com.google/read"],
-            },
-          ],
-        }),
+        text: JSON.stringify({ itemRefs: [{ id: "article/42" }] }),
       },
+      { status: 200, text: JSON.stringify({ itemRefs: [] }) },
     ]);
     const coordinator = new FreshRssSyncCoordinator({
       httpClient,
@@ -739,25 +735,25 @@ describe("FreshRSS sync coordinator", () => {
         };
       if (url.endsWith("/subscription/list?output=json"))
         return { status: 200, text: subscriptionList() };
-      if (url.includes("/stream/items/ids?"))
+      if (url.includes("/stream/items/ids?")) {
+        const query = new URL(url).searchParams;
+        if (query.get("s") === "user/-/state/com.google/read") {
+          settings.feeds[0].items[0].read = true;
+          sidecar.pendingFacetMutations.push({
+            operationId: "operation-read-during-pull",
+            remoteArticleId: "article/42",
+            facet: "read",
+            desiredState: true,
+            createdAtMs: 200,
+            attemptCount: 0,
+            lastError: null,
+          });
+          return {
+            status: 200,
+            text: JSON.stringify({ itemRefs: [{ id: "article/42" }] }),
+          };
+        }
         return { status: 200, text: JSON.stringify({ itemRefs: [] }) };
-      if (url.endsWith("/stream/items/contents")) {
-        settings.feeds[0].items[0].read = true;
-        sidecar.pendingFacetMutations.push({
-          operationId: "operation-read-during-pull",
-          remoteArticleId: "article/42",
-          facet: "read",
-          desiredState: true,
-          createdAtMs: 200,
-          attemptCount: 0,
-          lastError: null,
-        });
-        return {
-          status: 200,
-          text: JSON.stringify({
-            items: [{ id: "article/42", categories: [] }],
-          }),
-        };
       }
       throw new Error(`Unexpected request: ${url}`);
     });
@@ -785,7 +781,7 @@ describe("FreshRSS sync coordinator", () => {
     ).resolves.toMatchObject({ outcome: "synced" });
 
     expect(request.mock.calls.map(([input]) => input.url).join("\n")).toContain(
-      "/stream/items/contents",
+      "s=user%2F-%2Fstate%2Fcom.google%2Fread",
     );
     expect(sidecar.pendingFacetMutations).toMatchObject([
       {
@@ -794,6 +790,302 @@ describe("FreshRSS sync coordinator", () => {
       },
     ]);
     expect(settings.feeds[0]?.items[0]?.read).toBe(true);
+  });
+
+  it("reconciles bound read state from paged FreshRSS ID streams", async () => {
+    const settings = makeSettings();
+    settings.feeds = [
+      {
+        feedId: "local-feed",
+        title: "Feed",
+        url: "https://feed.example.test/rss.xml",
+        folder: "RSS",
+        lastUpdated: 10,
+        items: [
+          {
+            title: "Read remotely",
+            link: "https://article.example.test/42",
+            description: "",
+            pubDate: "2026-10-24T00:00:00.000Z",
+            guid: "article/42",
+            read: false,
+            feedTitle: "Feed",
+            feedUrl: "https://feed.example.test/rss.xml",
+            coverImage: "",
+          },
+          {
+            title: "Unread remotely",
+            link: "https://article.example.test/43",
+            description: "",
+            pubDate: "2026-10-24T00:00:00.000Z",
+            guid: "article/43",
+            read: true,
+            feedTitle: "Feed",
+            feedUrl: "https://feed.example.test/rss.xml",
+            coverImage: "",
+          },
+        ],
+      },
+    ];
+    const sidecar = createSidecar();
+    sidecar.articleBindings.push(
+      {
+        feedId: "local-feed",
+        guid: "article/42",
+        remoteArticleId: "article/42",
+      },
+      {
+        feedId: "local-feed",
+        guid: "article/43",
+        remoteArticleId: "article/43",
+      },
+    );
+    const statePageCalls: URL[] = [];
+    const request = vi.fn<FreshRssHttpClient["request"]>(async ({ url }) => {
+      if (url.endsWith("/accounts/ClientLogin"))
+        return { status: 200, text: "Auth=session-token" };
+      if (url.includes("/user-info?"))
+        return {
+          status: 200,
+          text: JSON.stringify({ userId: scope.remoteUserId }),
+        };
+      if (url.endsWith("/subscription/list?output=json"))
+        return { status: 200, text: subscriptionList() };
+      if (url.includes("/stream/items/ids?")) {
+        const requestUrl = new URL(url);
+        const streamId = requestUrl.searchParams.get("s");
+        if (streamId === "user/-/state/com.google/unread") {
+          return {
+            status: 200,
+            text: JSON.stringify({ itemRefs: [{ id: "article/43" }] }),
+          };
+        }
+        if (streamId !== "user/-/state/com.google/read") {
+          return { status: 200, text: JSON.stringify({ itemRefs: [] }) };
+        }
+        statePageCalls.push(requestUrl);
+        if (requestUrl.searchParams.get("c") === null) {
+          return {
+            status: 200,
+            text: JSON.stringify({
+              itemRefs: [{ id: "article/42" }],
+              continuation: "12345",
+            }),
+          };
+        }
+        return {
+          status: 200,
+          text: JSON.stringify({ itemRefs: [{ id: "article/other" }] }),
+        };
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const coordinator = new FreshRssSyncCoordinator({
+      httpClient: { request },
+      getSettings: () => settings,
+      saveSettings: async () => {},
+      sidecarRepository: {
+        read: async () => sidecar,
+        write: async (next) => {
+          Object.assign(sidecar, next);
+        },
+      },
+      getView: async () => null,
+    });
+
+    await expect(
+      coordinator.run({
+        endpoint,
+        credentials: { username: "reader", apiPassword: "secret" },
+        scope,
+        owner: createOwner(),
+      }),
+    ).resolves.toMatchObject({ outcome: "synced", partial: false });
+
+    expect(statePageCalls).toHaveLength(2);
+    expect(statePageCalls[0]?.searchParams.get("n")).toBe("1000");
+    expect(statePageCalls[0]?.searchParams.get("c")).toBeNull();
+    expect(statePageCalls[1]?.searchParams.get("c")).toBe("12345");
+    expect(
+      request.mock.calls.some(([input]) =>
+        input.url.endsWith("/stream/items/contents"),
+      ),
+    ).toBe(false);
+    expect(settings.feeds[0]?.items.map((item) => item.read)).toEqual([
+      true,
+      false,
+    ]);
+    expect(sidecar.checkpoints).toMatchObject([
+      { remoteSubscriptionId: "feed/6" },
+    ]);
+  });
+
+  it("does not clear absent read state or advance checkpoints at the ID scan cap", async () => {
+    const settings = makeSettings();
+    settings.feeds = [
+      {
+        feedId: "local-feed",
+        title: "Feed",
+        url: "https://feed.example.test/rss.xml",
+        folder: "RSS",
+        lastUpdated: 10,
+        items: [
+          {
+            title: "Unknown beyond cap",
+            link: "https://article.example.test/42",
+            description: "",
+            pubDate: "2026-10-24T00:00:00.000Z",
+            guid: "article/42",
+            read: true,
+            feedTitle: "Feed",
+            feedUrl: "https://feed.example.test/rss.xml",
+            coverImage: "",
+          },
+        ],
+      },
+    ];
+    const sidecar = createSidecar();
+    sidecar.articleBindings.push({
+      feedId: "local-feed",
+      guid: "article/42",
+      remoteArticleId: "article/42",
+    });
+    sidecar.checkpoints.push({
+      remoteSubscriptionId: "feed/6",
+      completedAtMs: 100,
+    });
+    let statePageCalls = 0;
+    const request = vi.fn<FreshRssHttpClient["request"]>(async ({ url }) => {
+      if (url.endsWith("/accounts/ClientLogin"))
+        return { status: 200, text: "Auth=session-token" };
+      if (url.includes("/user-info?"))
+        return {
+          status: 200,
+          text: JSON.stringify({ userId: scope.remoteUserId }),
+        };
+      if (url.endsWith("/subscription/list?output=json"))
+        return { status: 200, text: subscriptionList() };
+      if (url.includes("/stream/items/ids?")) {
+        const requestUrl = new URL(url);
+        if (
+          requestUrl.searchParams.get("s") !== "user/-/state/com.google/read"
+        ) {
+          return { status: 200, text: JSON.stringify({ itemRefs: [] }) };
+        }
+        statePageCalls++;
+        const itemRefs = Array.from({ length: 1000 }, (_, index) => ({
+          id: `remote-${statePageCalls}-${index}`,
+        }));
+        return {
+          status: 200,
+          text: JSON.stringify({
+            itemRefs,
+            continuation: `cursor-${statePageCalls}`,
+          }),
+        };
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const coordinator = new FreshRssSyncCoordinator({
+      httpClient: { request },
+      getSettings: () => settings,
+      saveSettings: async () => {},
+      sidecarRepository: {
+        read: async () => sidecar,
+        write: async (next) => {
+          Object.assign(sidecar, next);
+        },
+      },
+      getView: async () => null,
+    });
+
+    await expect(
+      coordinator.run({
+        endpoint,
+        credentials: { username: "reader", apiPassword: "secret" },
+        scope,
+        owner: createOwner(),
+      }),
+    ).resolves.toMatchObject({ outcome: "synced", partial: true });
+
+    expect(statePageCalls).toBe(25);
+    expect(settings.feeds[0]?.items[0]?.read).toBe(true);
+    expect(sidecar.checkpoints).toEqual([
+      { remoteSubscriptionId: "feed/6", completedAtMs: 100 },
+    ]);
+  });
+
+  it("keeps the prior checkpoint when a remote read-state page fails", async () => {
+    const settings = makeSettings();
+    settings.feeds = [
+      {
+        feedId: "local-feed",
+        title: "Feed",
+        url: "https://feed.example.test/rss.xml",
+        folder: "RSS",
+        lastUpdated: 10,
+        items: [
+          {
+            title: "Keep local read state until the scan completes",
+            link: "https://article.example.test/42",
+            description: "",
+            pubDate: "2026-10-24T00:00:00.000Z",
+            guid: "article/42",
+            read: true,
+            feedTitle: "Feed",
+            feedUrl: "https://feed.example.test/rss.xml",
+            coverImage: "",
+          },
+        ],
+      },
+    ];
+    const sidecar = createSidecar();
+    sidecar.articleBindings.push({
+      feedId: "local-feed",
+      guid: "article/42",
+      remoteArticleId: "article/42",
+    });
+    sidecar.checkpoints.push({
+      remoteSubscriptionId: "feed/6",
+      completedAtMs: 100,
+    });
+    const { httpClient } = createClient([
+      { status: 200, text: "Auth=session-token" },
+      { status: 200, text: subscriptionList() },
+      { status: 200, text: JSON.stringify({ itemRefs: [] }) },
+      {
+        status: 200,
+        text: JSON.stringify({ itemRefs: [], continuation: "12345" }),
+      },
+      { status: 503, text: "temporary failure" },
+      { status: 200, text: JSON.stringify({ itemRefs: [] }) },
+    ]);
+    const coordinator = new FreshRssSyncCoordinator({
+      httpClient,
+      getSettings: () => settings,
+      saveSettings: async () => {},
+      sidecarRepository: {
+        read: async () => sidecar,
+        write: async (next) => {
+          Object.assign(sidecar, next);
+        },
+      },
+      getView: async () => null,
+    });
+
+    await expect(
+      coordinator.run({
+        endpoint,
+        credentials: { username: "reader", apiPassword: "secret" },
+        scope,
+        owner: createOwner(),
+      }),
+    ).resolves.toMatchObject({ outcome: "synced", partial: true });
+
+    expect(settings.feeds[0]?.items[0]?.read).toBe(true);
+    expect(sidecar.checkpoints).toEqual([
+      { remoteSubscriptionId: "feed/6", completedAtMs: 100 },
+    ]);
   });
 
   it("does not drop a newer local read choice during an older acknowledgement", async () => {
@@ -986,5 +1278,76 @@ describe("FreshRSS sync coordinator", () => {
       },
     ]);
     expect(settings.feeds).toEqual([]);
+  });
+
+  it("does not automatically replay a terminal FreshRSS read mutation", async () => {
+    const settings = makeSettings();
+    const sidecar = createSidecar();
+    sidecar.pendingFacetMutations.push({
+      operationId: "operation-read-terminal",
+      remoteArticleId: "article/42",
+      facet: "read",
+      desiredState: true,
+      createdAtMs: 100,
+      attemptCount: 0,
+      lastError: null,
+    });
+    const request = vi.fn<FreshRssHttpClient["request"]>(async ({ url }) => {
+      if (url.endsWith("/accounts/ClientLogin"))
+        return { status: 200, text: "Auth=session-token" };
+      if (url.includes("/user-info?"))
+        return {
+          status: 200,
+          text: JSON.stringify({ userId: scope.remoteUserId }),
+        };
+      if (url.endsWith("/token")) return { status: 200, text: "write-token" };
+      if (url.endsWith("/edit-tag"))
+        return { status: 422, text: "invalid article" };
+      if (url.endsWith("/subscription/list?output=json"))
+        return { status: 200, text: subscriptionList() };
+      if (url.includes("/stream/items/ids?"))
+        return { status: 200, text: JSON.stringify({ itemRefs: [] }) };
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const coordinator = new FreshRssSyncCoordinator({
+      httpClient: { request },
+      getSettings: () => settings,
+      saveSettings: async () => {},
+      sidecarRepository: {
+        read: async () => sidecar,
+        write: async (next) => {
+          Object.assign(sidecar, next);
+        },
+      },
+      getView: async () => null,
+    });
+
+    await expect(
+      coordinator.run({
+        endpoint,
+        credentials: { username: "reader", apiPassword: "secret" },
+        scope,
+        owner: createOwner(),
+      }),
+    ).resolves.toEqual({ outcome: "server-unavailable" });
+    expect(sidecar.pendingFacetMutations).toMatchObject([
+      {
+        operationId: "operation-read-terminal",
+        retryDisposition: "manual",
+        lastError: expect.stringContaining("422"),
+      },
+    ]);
+
+    await expect(
+      coordinator.run({
+        endpoint,
+        credentials: { username: "reader", apiPassword: "secret" },
+        scope,
+        owner: createOwner(),
+      }),
+    ).resolves.toMatchObject({ outcome: "synced" });
+    expect(
+      request.mock.calls.filter(([input]) => input.url.endsWith("/edit-tag")),
+    ).toHaveLength(1);
   });
 });
