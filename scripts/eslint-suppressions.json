@@ -76,11 +76,6 @@
       "count": 3
     }
   },
-  "src/utils/podcast-open-destinations.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
   "src/utils/reader-format-portal.ts": {
     "max-lines-per-function": {
       "count": 1
