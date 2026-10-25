@@ -75,6 +75,7 @@ See the [ADR Policy](POLICY.md) for the complete lifecycle, authoring, and maint
 | [0035](0035-test-real-obsidian-sync-in-the-real-vault.md)                      | Test Real Obsidian Sync in the Real Vault                                | accepted | An attended Real Sync pass may attach an agent over CDP to the real profile.                                                                                                     |
 | [0036](0036-merge-a-synced-data-json-against-an-ancestor.md)                   | Merge a Synced data.json Against an Ancestor                             | proposed | Merge a delivered data.json per entry against a device-local ancestor, so an edit made on one device survives a save on another.                                                 |
 | [0037](0037-read-site-specific-content-only-from-the-fetched-page.md)          | Read Site-Specific Content Only from the Page the Fetch Already Returned | accepted | Allow a site-specific content extractor only if it reads the page the fetch already returned, with no extra request or impersonation; narrows ADR 0013 to Reddit.                |
+| [0038](0038-keep-freshrss-in-core.md)                                          | Keep FreshRSS in Core for v1                                             | accepted | Ship FreshRSS within the existing RSS Dashboard plugin and release lifecycle; revisit a separate connector boundary only if a concrete need emerges.                             |
 
 ## Creating a new ADR
 
