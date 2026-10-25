@@ -80,7 +80,17 @@ describe("FreshRSS sync coordinator", () => {
             text: JSON.stringify({ userId: "different-user" }),
           },
     );
-    const read = vi.fn(async () => createSidecar());
+    const sidecar = createSidecar();
+    sidecar.pendingFacetMutations.push({
+      operationId: "operation-read-1",
+      remoteArticleId: "article/42",
+      facet: "read",
+      desiredState: true,
+      createdAtMs: 100,
+      attemptCount: 0,
+      lastError: null,
+    });
+    const read = vi.fn(async () => sidecar);
     const saveSettings = vi.fn(async () => {});
     const coordinator = new FreshRssSyncCoordinator({
       httpClient: { request },
@@ -102,6 +112,9 @@ describe("FreshRSS sync coordinator", () => {
     expect(request).toHaveBeenCalledTimes(2);
     expect(read).not.toHaveBeenCalled();
     expect(saveSettings).not.toHaveBeenCalled();
+    expect(sidecar.pendingFacetMutations).toMatchObject([
+      { operationId: "operation-read-1", desiredState: true },
+    ]);
   });
 
   it("recreates a still-subscribed feed when its stored local binding is stale", async () => {
@@ -336,6 +349,74 @@ describe("FreshRSS sync coordinator", () => {
 
     expect(settings.feeds).toEqual([]);
     expect(saveSettings).not.toHaveBeenCalled();
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it("keeps pending read state when cancellation follows an in-flight mutation", async () => {
+    const settings = makeSettings();
+    const sidecar = createSidecar();
+    sidecar.pendingFacetMutations.push({
+      operationId: "operation-read-1",
+      remoteArticleId: "article/42",
+      facet: "read",
+      desiredState: true,
+      createdAtMs: 100,
+      attemptCount: 0,
+      lastError: null,
+    });
+    const controller = new AbortController();
+    const httpClient: FreshRssHttpClient = {
+      request: vi.fn(async ({ url }) => {
+        if (url.endsWith("/accounts/ClientLogin"))
+          return { status: 200, text: "Auth=session-token" };
+        if (url.includes("/user-info?"))
+          return {
+            status: 200,
+            text: JSON.stringify({ userId: scope.remoteUserId }),
+          };
+        if (url.endsWith("/token")) return { status: 200, text: "write-token" };
+        if (url.endsWith("/edit-tag")) {
+          controller.abort();
+          return { status: 200, text: "OK" };
+        }
+        throw new Error(`Unexpected request: ${url}`);
+      }),
+    };
+    const write = vi.fn(async (next: FreshRssSidecarFile) => {
+      Object.assign(sidecar, next);
+    });
+    const coordinator = new FreshRssSyncCoordinator({
+      httpClient,
+      getSettings: () => settings,
+      saveSettings: async () => {},
+      sidecarRepository: {
+        read: async () => sidecar,
+        write,
+      },
+      getView: async () => null,
+    });
+
+    await expect(
+      coordinator.run({
+        endpoint,
+        credentials: { username: "reader", apiPassword: "secret" },
+        scope,
+        owner: {
+          signal: controller.signal,
+          beginCommit: () => {},
+          throwIfInactive: () => {
+            if (controller.signal.aborted) throw new Error("cancelled");
+          },
+        },
+      }),
+    ).rejects.toThrow("cancelled");
+
+    expect(sidecar.pendingFacetMutations).toMatchObject([
+      {
+        operationId: "operation-read-1",
+        desiredState: true,
+      },
+    ]);
     expect(write).not.toHaveBeenCalled();
   });
 

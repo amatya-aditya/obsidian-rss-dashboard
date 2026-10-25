@@ -4,7 +4,11 @@ import {
   queueFreshRssReadStateChanges,
   isFreshRssPendingReadMutation,
 } from "../../../src/services/freshrss-article-state";
-import type { FreshRssSidecarFile } from "../../../src/services/freshrss-connection-scope-repository";
+import {
+  FreshRssConnectionScopeRepository,
+  type FreshRssConnectionScopeStore,
+  type FreshRssSidecarFile,
+} from "../../../src/services/freshrss-connection-scope-repository";
 
 const scope = {
   endpoint: "https://reader.example.test/api/greader.php",
@@ -22,6 +26,11 @@ function createSidecar(): FreshRssSidecarFile {
         feedId: "feed-local",
         guid: "article-guid",
         remoteArticleId: "opaque-article/42",
+      },
+      {
+        feedId: "feed-local",
+        guid: "article-guid-2",
+        remoteArticleId: "opaque-article/43",
       },
     ],
     checkpoints: [],
@@ -115,5 +124,103 @@ describe("FreshRSS article state queue", () => {
     });
 
     expect(write).not.toHaveBeenCalled();
+  });
+
+  it("preserves concurrent read changes for different bound articles", async () => {
+    const settings = structuredClone(DEFAULT_SETTINGS);
+    settings.freshRss.endpoint = scope.endpoint;
+    settings.freshRss.stateSyncMode = "receive-only";
+    settings.feeds = [
+      {
+        feedId: "feed-local",
+        title: "Feed",
+        url: "https://feed.example.test/rss.xml",
+        folder: "RSS",
+        lastUpdated: 0,
+        items: [],
+      },
+    ];
+    const sidecar = createSidecar();
+    const repository = {
+      readActiveScope: async () => scope,
+      read: async () => structuredClone(sidecar),
+      write: async (value: FreshRssSidecarFile) => {
+        Object.assign(sidecar, value);
+      },
+    };
+    const change = (guid: string) => ({
+      feedUrl: "https://feed.example.test/rss.xml",
+      guid,
+      changes: { read: true },
+    });
+
+    await Promise.all(
+      ["article-guid", "article-guid-2"].map((guid) =>
+        queueFreshRssReadStateChanges({
+          settings,
+          changes: [change(guid)],
+          sidecarRepository: repository,
+        }),
+      ),
+    );
+
+    expect(sidecar.pendingFacetMutations).toHaveLength(2);
+    expect(sidecar.pendingFacetMutations).toMatchObject([
+      { remoteArticleId: "opaque-article/42", desiredState: true },
+      { remoteArticleId: "opaque-article/43", desiredState: true },
+    ]);
+  });
+
+  it("retains queued read state when the sidecar repository is reopened", async () => {
+    const settings = structuredClone(DEFAULT_SETTINGS);
+    settings.freshRss.endpoint = scope.endpoint;
+    settings.freshRss.stateSyncMode = "receive-only";
+    settings.feeds = [
+      {
+        feedId: "feed-local",
+        title: "Feed",
+        url: "https://feed.example.test/rss.xml",
+        folder: "RSS",
+        lastUpdated: 0,
+        items: [],
+      },
+    ];
+    const files = new Map<string, string>();
+    const store: FreshRssConnectionScopeStore = {
+      exists: async (path) => files.has(path),
+      read: async (path) => {
+        const contents = files.get(path);
+        if (contents === undefined) throw new Error("missing sidecar");
+        return contents;
+      },
+      write: async (path, contents) => {
+        files.set(path, contents);
+      },
+    };
+    const createRepository = () =>
+      new FreshRssConnectionScopeRepository(store, {
+        sidecarPath: "rss-dashboard-data/freshrss-state.json",
+        createQuarantinePath: () => "rss-dashboard-data/quarantine.json",
+      });
+    const repository = createRepository();
+    await repository.activate(scope);
+    await repository.write(createSidecar());
+
+    await queueFreshRssReadStateChanges({
+      settings,
+      changes: [
+        {
+          feedUrl: "https://feed.example.test/rss.xml",
+          guid: "article-guid",
+          changes: { read: true },
+        },
+      ],
+      sidecarRepository: repository,
+    });
+
+    const reopenedSidecar = await createRepository().read(scope);
+    expect(reopenedSidecar?.pendingFacetMutations).toMatchObject([
+      { remoteArticleId: "opaque-article/42", desiredState: true },
+    ]);
   });
 });

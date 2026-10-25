@@ -12,8 +12,25 @@ function createOperationId(): string {
   );
 }
 
+let pendingReadChanges: Promise<void> = Promise.resolve();
+
 /** Persists a bound local read choice in the active FreshRSS scope. */
-export async function queueFreshRssReadStateChanges(input: {
+export function queueFreshRssReadStateChanges(input: {
+  settings: RssDashboardSettings;
+  changes: readonly ArticleStateChange[];
+  sidecarRepository: Pick<
+    FreshRssConnectionScopeRepository,
+    "readActiveScope" | "read" | "write"
+  >;
+}): Promise<void> {
+  const next = pendingReadChanges.then(() =>
+    persistFreshRssReadStateChanges(input),
+  );
+  pendingReadChanges = next.catch(() => {});
+  return next;
+}
+
+async function persistFreshRssReadStateChanges(input: {
   settings: RssDashboardSettings;
   changes: readonly ArticleStateChange[];
   sidecarRepository: Pick<
