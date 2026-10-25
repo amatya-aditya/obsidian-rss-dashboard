@@ -1,4 +1,4 @@
-import type { Feed, FeedItem, RssDashboardSettings } from "../types/types";
+import type { Feed, FeedItem, RssDashboardSettings, Tag } from "../types/types";
 import { normalizeUrlForComparison } from "../utils/url-utils";
 import { applyFeedRetentionLimits, mergeFeedHistoryItems } from "./feed-parser";
 import {
@@ -12,16 +12,19 @@ import {
   FreshRssConnectionScopeRepository,
   type FreshRssArticleBinding,
   type FreshRssFeedBinding,
-  type FreshRssPendingReadMutation,
+  type FreshRssPendingFacetMutation,
+  type FreshRssLabelMapping,
+  type FreshRssSidecarFile,
   type FreshRssSyncCheckpoint,
 } from "./freshrss-connection-scope-repository";
 import {
-  isFreshRssPendingReadMutation,
+  isFreshRssPendingFacetMutation,
   withFreshRssSidecarMutationLock,
 } from "./freshrss-article-state";
 import {
   FreshRssSyncClient,
   type FreshRssSubscription,
+  type FreshRssLabel,
 } from "./freshrss-sync-client";
 
 /** Maximum recent article IDs requested for each FreshRSS subscription. */
@@ -32,6 +35,7 @@ export const FRESHRSS_SYNC_STATE_PAGE_SIZE = 1000;
 export const FRESHRSS_SYNC_STATE_ID_CAP = 25_000;
 const FRESHRSS_READ_STATE_STREAM = "user/-/state/com.google/read";
 const FRESHRSS_UNREAD_STATE_STREAM = "user/-/state/com.google/unread";
+const FRESHRSS_STARRED_STATE_STREAM = "user/-/state/com.google/starred";
 
 export interface FreshRssSyncOwner {
   signal: AbortSignal;
@@ -84,6 +88,9 @@ interface FreshRssSyncAccumulator {
   feeds: Feed[];
   feedBindings: FreshRssFeedBinding[];
   articleBindings: FreshRssArticleBinding[];
+  labelMappings: FreshRssLabelMapping[];
+  availableTags: Tag[];
+  remoteLabels: FreshRssLabel[];
   checkpoints: FreshRssSyncCheckpoint[];
   pendingCheckpointSubscriptionIds: string[];
   createdFeedCount: number;
@@ -97,6 +104,7 @@ interface FreshRssSyncAccumulator {
 interface FreshRssSyncCommitInput {
   settings: RssDashboardSettings;
   originalFeeds: Feed[];
+  originalAvailableTags: Tag[];
   syncState: FreshRssSyncAccumulator;
   scope: FreshRssConnectionScope;
   sidecarRepository: Pick<FreshRssConnectionScopeRepository, "read" | "write">;
@@ -163,67 +171,174 @@ async function refreshViewOnce(
   view.render();
 }
 
+type FreshRssPreparedSync =
+  | {
+      outcome: "ready";
+      client: FreshRssSyncClient;
+      sidecarState: FreshRssSidecarFile;
+      settings: RssDashboardSettings;
+    }
+  | {
+      outcome: "credentials-rejected" | "scope-mismatch" | "server-unavailable";
+    };
+
+type FreshRssArticleStatePreparation =
+  | {
+      outcome: "ready";
+      labelMappings: FreshRssLabelMapping[];
+      remoteLabels: FreshRssLabel[];
+      availableTags: Tag[];
+    }
+  | { outcome: "credentials-rejected" | "server-unavailable" };
+
+async function prepareFreshRssSync(
+  input: FreshRssSyncRunInput,
+  deps: Pick<
+    FreshRssSyncCoordinatorDeps,
+    "httpClient" | "sidecarRepository" | "getSettings"
+  >,
+): Promise<FreshRssPreparedSync> {
+  const { owner } = input;
+  owner.throwIfInactive();
+  const authResult = await authenticateFreshRss(
+    deps.httpClient,
+    input.endpoint,
+    input.credentials,
+    owner.signal,
+  );
+  owner.throwIfInactive();
+  if (authResult.outcome !== "authenticated") {
+    return { outcome: authResult.outcome };
+  }
+
+  const identityResult = await identifyFreshRssUser(
+    deps.httpClient,
+    input.endpoint,
+    authResult.authToken,
+    owner.signal,
+  );
+  owner.throwIfInactive();
+  if (identityResult.outcome !== "identified") {
+    return { outcome: identityResult.outcome };
+  }
+  if (
+    input.scope.endpoint !== input.endpoint ||
+    identityResult.remoteUserId !== input.scope.remoteUserId
+  ) {
+    return { outcome: "scope-mismatch" };
+  }
+
+  const client = new FreshRssSyncClient(
+    deps.httpClient,
+    input.endpoint,
+    authResult.authToken,
+    owner.signal,
+  );
+  const sidecarState = await deps.sidecarRepository.read(input.scope);
+  owner.throwIfInactive();
+  if (!sidecarState) return { outcome: "server-unavailable" };
+  return {
+    outcome: "ready",
+    client,
+    sidecarState,
+    settings: deps.getSettings(),
+  };
+}
+
+async function prepareFreshRssArticleState(
+  client: FreshRssSyncClient,
+  sidecarRepository: Pick<FreshRssConnectionScopeRepository, "read" | "write">,
+  scope: FreshRssConnectionScope,
+  sidecarState: FreshRssSidecarFile,
+  settings: RssDashboardSettings,
+  owner: FreshRssSyncOwner,
+): Promise<FreshRssArticleStatePreparation> {
+  let labelMappings = [...(sidecarState.labelMappings ?? [])];
+  let remoteLabels: FreshRssLabel[] = [];
+  const availableTags = settings.availableTags.map((tag) => ({ ...tag }));
+
+  const pendingStateOutcome = await flushPendingFacetMutations(
+    client,
+    sidecarRepository,
+    scope,
+    sidecarState.pendingFacetMutations,
+    labelMappings,
+    owner,
+    (mutation) => mutation.facet !== "labels",
+  );
+  if (pendingStateOutcome !== "complete") {
+    return { outcome: pendingStateOutcome };
+  }
+
+  const labelsResult = await client.listLabels();
+  owner.throwIfInactive();
+  if (labelsResult.outcome !== "ok") {
+    return {
+      outcome:
+        labelsResult.outcome === "auth-rejected"
+          ? "credentials-rejected"
+          : "server-unavailable",
+    };
+  }
+  remoteLabels = labelsResult.data;
+  const labelState = reconcileLabelMappings(
+    remoteLabels,
+    labelMappings,
+    availableTags,
+  );
+  labelMappings = labelState.mappings;
+
+  const labelMutationOutcome = await flushPendingFacetMutations(
+    client,
+    sidecarRepository,
+    scope,
+    sidecarState.pendingFacetMutations,
+    labelMappings,
+    owner,
+    (mutation) => mutation.facet === "labels",
+  );
+  if (labelMutationOutcome !== "complete") {
+    return { outcome: labelMutationOutcome };
+  }
+
+  appendPendingRemoteLabels(
+    remoteLabels,
+    sidecarState.pendingFacetMutations,
+    labelMappings,
+  );
+  return {
+    outcome: "ready",
+    labelMappings,
+    remoteLabels,
+    availableTags,
+  };
+}
+
 /** Imports remote subscriptions and bounded article history into current Core storage. */
 export class FreshRssSyncCoordinator {
   constructor(private readonly deps: FreshRssSyncCoordinatorDeps) {}
 
   public async run(input: FreshRssSyncRunInput): Promise<FreshRssSyncOutcome> {
     const { owner } = input;
-    owner.throwIfInactive();
-
-    const authResult = await authenticateFreshRss(
-      this.deps.httpClient,
-      input.endpoint,
-      input.credentials,
-      owner.signal,
-    );
-    owner.throwIfInactive();
-    if (authResult.outcome !== "authenticated") {
-      return { outcome: authResult.outcome };
-    }
-
-    const identityResult = await identifyFreshRssUser(
-      this.deps.httpClient,
-      input.endpoint,
-      authResult.authToken,
-      owner.signal,
-    );
-    owner.throwIfInactive();
-    if (identityResult.outcome !== "identified") {
-      return { outcome: identityResult.outcome };
-    }
-    if (
-      input.scope.endpoint !== input.endpoint ||
-      identityResult.remoteUserId !== input.scope.remoteUserId
-    ) {
-      return { outcome: "scope-mismatch" };
-    }
-
-    const client = new FreshRssSyncClient(
-      this.deps.httpClient,
-      input.endpoint,
-      authResult.authToken,
-      owner.signal,
-    );
-    const sidecarState = await this.deps.sidecarRepository.read(input.scope);
-    owner.throwIfInactive();
-    if (!sidecarState) return { outcome: "server-unavailable" };
-
-    const settings = this.deps.getSettings();
+    const prepared = await prepareFreshRssSync(input, this.deps);
+    if (prepared.outcome !== "ready") return prepared;
+    const { client, sidecarState, settings } = prepared;
+    let labelMappings = [...(sidecarState.labelMappings ?? [])];
+    let remoteLabels: FreshRssLabel[] = [];
+    let availableTags = settings.availableTags.map((tag) => ({ ...tag }));
     if (settings.freshRss.stateSyncMode === "two-way") {
-      const flushOutcome = await flushPendingReadMutations(
+      const articleState = await prepareFreshRssArticleState(
         client,
         this.deps.sidecarRepository,
         input.scope,
-        sidecarState.pendingFacetMutations,
+        sidecarState,
+        settings,
         owner,
       );
-      if (flushOutcome === "credentials-rejected") {
-        return { outcome: "credentials-rejected" };
-      }
-      if (flushOutcome === "server-unavailable") {
-        return { outcome: "server-unavailable" };
-      }
+      if (articleState.outcome !== "ready") return articleState;
+      labelMappings = articleState.labelMappings;
+      remoteLabels = articleState.remoteLabels;
+      availableTags = articleState.availableTags;
     }
 
     const subscriptionsResult = await client.listSubscriptions();
@@ -244,6 +359,9 @@ export class FreshRssSyncCoordinator {
       articleBindings: sidecarState.articleBindings.map((binding) => ({
         ...binding,
       })),
+      labelMappings,
+      availableTags,
+      remoteLabels,
       checkpoints: sidecarState.checkpoints.map((checkpoint) => ({
         ...checkpoint,
       })),
@@ -253,7 +371,7 @@ export class FreshRssSyncCoordinator {
       ambiguousSubscriptionCount: 0,
       importedArticleCount: 0,
       partial: false,
-      settingsChanged: false,
+      settingsChanged: availableTags.length !== settings.availableTags.length,
     };
 
     const subscriptionOutcome = await this.syncSubscriptions(
@@ -268,7 +386,7 @@ export class FreshRssSyncCoordinator {
     }
 
     if (settings.freshRss.stateSyncMode === "two-way") {
-      const readStateOutcome = await reconcileReadStateAndCheckpoints(
+      const readStateOutcome = await reconcileArticleStateAndCheckpoints(
         client,
         syncState,
         owner,
@@ -285,6 +403,7 @@ export class FreshRssSyncCoordinator {
     const commitOutcome = await commitFreshRssSync({
       settings,
       originalFeeds,
+      originalAvailableTags: settings.availableTags,
       syncState,
       scope: input.scope,
       sidecarRepository: this.deps.sidecarRepository,
@@ -440,10 +559,12 @@ async function commitFreshRssSync(
     input.owner.throwIfInactive();
     if (!latestSidecar) return "server-unavailable";
     if (
-      applyPendingReadOverrides(
+      applyPendingFacetOverrides(
         input.syncState.feeds,
         input.syncState.articleBindings,
         latestSidecar.pendingFacetMutations,
+        input.syncState.availableTags,
+        input.syncState.labelMappings,
       )
     ) {
       input.syncState.settingsChanged = true;
@@ -452,10 +573,12 @@ async function commitFreshRssSync(
     input.owner.beginCommit();
     if (input.syncState.settingsChanged) {
       input.settings.feeds = input.syncState.feeds;
+      input.settings.availableTags = input.syncState.availableTags;
       try {
         await input.saveSettings();
       } catch (error) {
         input.settings.feeds = input.originalFeeds;
+        input.settings.availableTags = input.originalAvailableTags;
         throw error;
       }
     }
@@ -466,12 +589,13 @@ async function commitFreshRssSync(
       feedBindings: input.syncState.feedBindings,
       articleBindings: input.syncState.articleBindings,
       checkpoints: input.syncState.checkpoints,
+      labelMappings: input.syncState.labelMappings,
     });
     return "committed";
   });
 }
 
-async function syncBoundReadStates(input: {
+async function syncBoundArticleStates(input: {
   client: FreshRssSyncClient;
   syncState: FreshRssSyncAccumulator;
   owner: FreshRssSyncOwner;
@@ -491,18 +615,54 @@ async function syncBoundReadStates(input: {
   );
   if (unreadScan.outcome === "credentials-rejected") return unreadScan.outcome;
 
-  applyRemoteReadIds(input.syncState, readScan.itemIds, unreadScan.itemIds);
-  return readScan.outcome === "complete" && unreadScan.outcome === "complete"
+  const starredScan = await scanReadStateIds(
+    input.client,
+    FRESHRSS_STARRED_STATE_STREAM,
+    input.owner,
+  );
+  if (starredScan.outcome === "credentials-rejected")
+    return starredScan.outcome;
+
+  if (readScan.outcome === "complete" && unreadScan.outcome === "complete") {
+    applyRemoteReadIds(input.syncState, readScan.itemIds, unreadScan.itemIds);
+  }
+  if (starredScan.outcome === "complete") {
+    applyRemoteStarredIds(input.syncState, starredScan.itemIds);
+  }
+
+  let labelsComplete = true;
+  const labelStates = new Map<string, Set<string>>();
+  for (const label of input.syncState.remoteLabels) {
+    const labelScan = await scanReadStateIds(
+      input.client,
+      label.remoteLabelId,
+      input.owner,
+    );
+    if (labelScan.outcome === "credentials-rejected") {
+      return labelScan.outcome;
+    }
+    if (labelScan.outcome === "complete") {
+      labelStates.set(label.remoteLabelId, labelScan.itemIds);
+    } else {
+      labelsComplete = false;
+    }
+  }
+  if (labelsComplete) applyRemoteLabelStates(input.syncState, labelStates);
+
+  return readScan.outcome === "complete" &&
+    unreadScan.outcome === "complete" &&
+    starredScan.outcome === "complete" &&
+    labelsComplete
     ? "complete"
     : "partial";
 }
 
-async function reconcileReadStateAndCheckpoints(
+async function reconcileArticleStateAndCheckpoints(
   client: FreshRssSyncClient,
   syncState: FreshRssSyncAccumulator,
   owner: FreshRssSyncOwner,
 ): Promise<"complete" | "partial" | "credentials-rejected"> {
-  const outcome = await syncBoundReadStates({ client, syncState, owner });
+  const outcome = await syncBoundArticleStates({ client, syncState, owner });
   if (outcome === "complete") {
     for (const remoteSubscriptionId of syncState.pendingCheckpointSubscriptionIds) {
       upsertCheckpoint(syncState.checkpoints, remoteSubscriptionId);
@@ -582,6 +742,168 @@ function applyRemoteReadIds(
       syncState.settingsChanged = true;
     }
   }
+}
+
+function applyRemoteStarredIds(
+  syncState: FreshRssSyncAccumulator,
+  remoteStarredIds: Set<string>,
+): void {
+  for (const binding of syncState.articleBindings) {
+    const article = findBoundArticle(syncState.feeds, binding);
+    if (!article) continue;
+    const starred = remoteStarredIds.has(binding.remoteArticleId);
+    if (article.starred !== starred) {
+      article.starred = starred;
+      syncState.settingsChanged = true;
+    }
+  }
+}
+
+function applyRemoteLabelStates(
+  syncState: FreshRssSyncAccumulator,
+  statesByRemoteId: Map<string, Set<string>>,
+): void {
+  const taggedArticleIds = new Map<string, Set<string>>();
+  for (const mapping of syncState.labelMappings) {
+    const articleIds = statesByRemoteId.get(mapping.remoteLabelId);
+    if (!articleIds) continue;
+    const key = normalizedLabelKey(mapping.localTagName);
+    const aggregate = taggedArticleIds.get(key) ?? new Set<string>();
+    for (const articleId of articleIds) aggregate.add(articleId);
+    taggedArticleIds.set(key, aggregate);
+  }
+  for (const binding of syncState.articleBindings) {
+    const article = findBoundArticle(syncState.feeds, binding);
+    if (!article) continue;
+    const desiredTags: Tag[] = [];
+    for (const mapping of syncState.labelMappings) {
+      const key = normalizedLabelKey(mapping.localTagName);
+      if (
+        !taggedArticleIds.get(key)?.has(binding.remoteArticleId) ||
+        desiredTags.some((tag) => normalizedLabelKey(tag.name) === key)
+      ) {
+        continue;
+      }
+      const tag = resolveLocalTag(
+        syncState,
+        mapping.localTagName,
+        article.tags,
+      );
+      if (tag) desiredTags.push(tag);
+    }
+    if (sameNormalizedLabelSet(article.tags ?? [], desiredTags)) continue;
+    article.tags = desiredTags;
+    syncState.settingsChanged = true;
+  }
+}
+
+function resolveLocalTag(
+  syncState: FreshRssSyncAccumulator,
+  name: string,
+  articleTags?: Tag[],
+): Tag | undefined {
+  const key = normalizedLabelKey(name);
+  const existing =
+    syncState.availableTags.find(
+      (tag) => normalizedLabelKey(tag.name) === key,
+    ) ??
+    syncState.feeds
+      .flatMap((feed) => feed.items)
+      .flatMap((item) => item.tags ?? [])
+      .find((tag) => normalizedLabelKey(tag.name) === key) ??
+    articleTags?.find((tag) => normalizedLabelKey(tag.name) === key);
+  return existing ? { ...existing, name: existing.name.trim() } : undefined;
+}
+
+function sameNormalizedLabelSet(left: Tag[], right: Tag[]): boolean {
+  const leftKeys = new Set(left.map((tag) => normalizedLabelKey(tag.name)));
+  const rightKeys = new Set(right.map((tag) => normalizedLabelKey(tag.name)));
+  return (
+    leftKeys.size === rightKeys.size &&
+    [...leftKeys].every((key) => rightKeys.has(key))
+  );
+}
+
+function normalizedLabelKey(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+function reconcileLabelMappings(
+  remoteLabels: FreshRssLabel[],
+  previousMappings: FreshRssLabelMapping[],
+  availableTags: Tag[],
+): { mappings: FreshRssLabelMapping[]; availableTags: Tag[] } {
+  const mappings = previousMappings.map((mapping) => ({ ...mapping }));
+  for (const remoteLabel of remoteLabels) {
+    const previous = previousMappings.find(
+      (mapping) => mapping.remoteLabelId === remoteLabel.remoteLabelId,
+    );
+    const localTag = availableTags.find(
+      (tag) =>
+        normalizedLabelKey(tag.name) === normalizedLabelKey(remoteLabel.name),
+    );
+    const localTagName =
+      previous?.localTagName ?? localTag?.name ?? remoteLabel.name;
+    const existingIndex = mappings.findIndex(
+      (mapping) => mapping.remoteLabelId === remoteLabel.remoteLabelId,
+    );
+    if (existingIndex >= 0) {
+      const existing = mappings[existingIndex];
+      if (existing) {
+        const resolvedName = existing.localTagName || localTagName;
+        mappings[existingIndex] = {
+          remoteLabelId: remoteLabel.remoteLabelId,
+          localTagName: resolvedName,
+        };
+      }
+      continue;
+    }
+    mappings.push({ remoteLabelId: remoteLabel.remoteLabelId, localTagName });
+    if (!localTag) {
+      availableTags.push({ name: localTagName, color: "#808080" });
+    }
+  }
+  return { mappings, availableTags };
+}
+
+function appendPendingRemoteLabels(
+  remoteLabels: FreshRssLabel[],
+  pendingValues: unknown[],
+  labelMappings: FreshRssLabelMapping[],
+): void {
+  for (const value of pendingValues) {
+    if (!isFreshRssPendingFacetMutation(value) || value.facet !== "labels") {
+      continue;
+    }
+    for (const name of value.desiredState) {
+      const mapping = labelMappings.find(
+        (candidate) =>
+          normalizedLabelKey(candidate.localTagName) ===
+          normalizedLabelKey(name),
+      );
+      if (
+        mapping &&
+        !remoteLabels.some(
+          (label) => label.remoteLabelId === mapping.remoteLabelId,
+        )
+      ) {
+        remoteLabels.push({
+          remoteLabelId: mapping.remoteLabelId,
+          name: mapping.localTagName,
+        });
+      }
+    }
+  }
+}
+
+function findBoundArticle(
+  feeds: Feed[],
+  binding: FreshRssArticleBinding | undefined,
+): FeedItem | undefined {
+  if (!binding) return undefined;
+  return feeds
+    .find((feed) => feed.feedId === binding.feedId)
+    ?.items.find((item) => item.guid === binding.guid);
 }
 
 function resolveFeedForSubscription(
@@ -671,17 +993,20 @@ function mapFatalOutcome(
 type FreshRssMutationFlushOutcome =
   "complete" | "credentials-rejected" | "server-unavailable";
 
-async function flushPendingReadMutations(
+async function flushPendingFacetMutations(
   client: FreshRssSyncClient,
   repository: Pick<FreshRssConnectionScopeRepository, "read" | "write">,
   scope: FreshRssConnectionScope,
   pendingValues: unknown[],
+  labelMappings: FreshRssLabelMapping[],
   owner: FreshRssSyncOwner,
+  shouldFlush: (mutation: FreshRssPendingFacetMutation) => boolean = () => true,
 ): Promise<FreshRssMutationFlushOutcome> {
   const pending = pendingValues.filter(
-    (value): value is FreshRssPendingReadMutation =>
-      isFreshRssPendingReadMutation(value) &&
-      value.retryDisposition !== "manual",
+    (value): value is FreshRssPendingFacetMutation =>
+      isFreshRssPendingFacetMutation(value) &&
+      value.retryDisposition !== "manual" &&
+      shouldFlush(value),
   );
   if (pending.length === 0) return "complete";
 
@@ -690,101 +1015,182 @@ async function flushPendingReadMutations(
   if (tokenResult.outcome === "auth-rejected") return "credentials-rejected";
   if (tokenResult.outcome !== "ok") return "server-unavailable";
 
-  for (let offset = 0; offset < pending.length; offset += 50) {
-    const batch = pending.slice(offset, offset + 50);
-    const groups = [
-      {
-        read: true,
-        mutations: batch.filter((mutation) => mutation.desiredState),
-      },
-      {
-        read: false,
-        mutations: batch.filter((mutation) => !mutation.desiredState),
-      },
-    ];
-    for (const group of groups) {
-      if (group.mutations.length === 0) continue;
-      owner.throwIfInactive();
-      const result = await client.updateReadState(
-        group.mutations.map((mutation) => mutation.remoteArticleId),
-        group.read,
-        tokenResult.data,
-      );
-      owner.throwIfInactive();
-      if (result.outcome === "auth-rejected") return "credentials-rejected";
+  for (const mutation of pending) {
+    const { addTags, removeTags } = getRemoteMutationTags(
+      mutation,
+      labelMappings,
+    );
+    if (mutation.facet === "labels") {
+      for (const name of mutation.desiredState) {
+        const key = normalizedLabelKey(name);
+        if (
+          !labelMappings.some(
+            (mapping) => normalizedLabelKey(mapping.localTagName) === key,
+          )
+        ) {
+          labelMappings.push({
+            remoteLabelId: `user/-/label/${name}`,
+            localTagName: name,
+          });
+        }
+      }
+    }
+    const operationIds = new Set([mutation.operationId]);
+    owner.throwIfInactive();
+    const result = await client.updateArticleState(
+      [mutation.remoteArticleId],
+      addTags,
+      removeTags,
+      tokenResult.data,
+    );
+    owner.throwIfInactive();
+    if (result.outcome === "auth-rejected") return "credentials-rejected";
 
-      const operationIds = new Set(
-        group.mutations.map((mutation) => mutation.operationId),
-      );
-      const mutationOutcome = await withFreshRssSidecarMutationLock(
-        async () => {
-          const current = await repository.read(scope);
-          if (!current) return "server-unavailable" as const;
-          const currentPending = current.pendingFacetMutations;
-          if (result.outcome === "ok") {
-            await repository.write({
-              ...current,
-              pendingFacetMutations: currentPending.filter(
-                (value) =>
-                  !isFreshRssPendingReadMutation(value) ||
-                  !operationIds.has(value.operationId),
-              ),
-            });
-            return "acknowledged" as const;
-          }
+    let mutationOutcome: "acknowledged" | "server-unavailable";
+    try {
+      mutationOutcome = await withFreshRssSidecarMutationLock(async () => {
+        const current = await repository.read(scope);
+        if (!current) return "server-unavailable" as const;
+        const currentPending = current.pendingFacetMutations;
+        if (result.outcome === "ok") {
           await repository.write({
             ...current,
-            pendingFacetMutations: currentPending.map((value) => {
-              if (
-                !isFreshRssPendingReadMutation(value) ||
-                !operationIds.has(value.operationId)
-              ) {
-                return value;
-              }
-              return {
-                ...value,
-                attemptCount: value.attemptCount + 1,
-                lastError:
-                  result.outcome === "terminal-error"
-                    ? `FreshRSS rejected the read-state update (HTTP ${result.status}).`
-                    : "FreshRSS did not acknowledge the read-state update.",
-                ...(result.outcome === "terminal-error"
-                  ? { retryDisposition: "manual" as const }
-                  : {}),
-              } satisfies FreshRssPendingReadMutation;
-            }),
+            labelMappings,
+            pendingFacetMutations: currentPending.filter(
+              (value) =>
+                !isFreshRssPendingFacetMutation(value) ||
+                !operationIds.has(value.operationId),
+            ),
           });
-          return "server-unavailable" as const;
-        },
-      );
-      if (mutationOutcome === "server-unavailable") return mutationOutcome;
+          return "acknowledged" as const;
+        }
+        await repository.write({
+          ...current,
+          pendingFacetMutations: currentPending.map((value) => {
+            if (
+              !isFreshRssPendingFacetMutation(value) ||
+              !operationIds.has(value.operationId)
+            ) {
+              return value;
+            }
+            return {
+              ...value,
+              attemptCount: value.attemptCount + 1,
+              lastError:
+                result.outcome === "terminal-error"
+                  ? `FreshRSS rejected the ${value.facet}-state update (HTTP ${result.status}).`
+                  : `FreshRSS did not acknowledge the ${value.facet}-state update.`,
+              ...(result.outcome === "terminal-error"
+                ? { retryDisposition: "manual" as const }
+                : {}),
+            } satisfies FreshRssPendingFacetMutation;
+          }),
+        });
+        return "server-unavailable" as const;
+      });
+    } catch {
+      return "server-unavailable";
     }
+    if (mutationOutcome === "server-unavailable") return mutationOutcome;
   }
   return "complete";
 }
 
-function applyPendingReadOverrides(
+function getRemoteMutationTags(
+  mutation: FreshRssPendingFacetMutation,
+  mappings: FreshRssLabelMapping[],
+): { addTags: string[]; removeTags: string[] } {
+  if (mutation.facet === "read") {
+    return {
+      addTags: mutation.desiredState ? ["user/-/state/com.google/read"] : [],
+      removeTags: mutation.desiredState ? [] : ["user/-/state/com.google/read"],
+    };
+  }
+  if (mutation.facet === "starred") {
+    return {
+      addTags: mutation.desiredState ? [FRESHRSS_STARRED_STATE_STREAM] : [],
+      removeTags: mutation.desiredState ? [] : [FRESHRSS_STARRED_STATE_STREAM],
+    };
+  }
+
+  const desired = new Set(mutation.desiredState.map(normalizedLabelKey));
+  const addTags: string[] = [];
+  const seenDesired = new Set<string>();
+  for (const name of mutation.desiredState) {
+    const key = normalizedLabelKey(name);
+    if (seenDesired.has(key)) continue;
+    seenDesired.add(key);
+    const mapping = mappings.find(
+      (candidate) => normalizedLabelKey(candidate.localTagName) === key,
+    );
+    addTags.push(mapping?.remoteLabelId ?? `user/-/label/${name}`);
+  }
+  const removeTags = mappings
+    .filter((mapping) => !desired.has(normalizedLabelKey(mapping.localTagName)))
+    .map((mapping) => mapping.remoteLabelId);
+  return { addTags, removeTags };
+}
+
+function applyPendingFacetOverrides(
   feeds: Feed[],
   bindings: FreshRssArticleBinding[],
   pendingValues: unknown[],
+  availableTags: Tag[],
+  labelMappings: FreshRssLabelMapping[],
 ): boolean {
-  const pendingByRemoteId = new Map<string, FreshRssPendingReadMutation>();
+  const pendingByKey = new Map<string, FreshRssPendingFacetMutation>();
   for (const value of pendingValues) {
-    if (isFreshRssPendingReadMutation(value)) {
-      pendingByRemoteId.set(value.remoteArticleId, value);
+    if (isFreshRssPendingFacetMutation(value)) {
+      pendingByKey.set(`${value.remoteArticleId}:${value.facet}`, value);
     }
   }
 
   let changed = false;
   for (const binding of bindings) {
-    const pending = pendingByRemoteId.get(binding.remoteArticleId);
-    if (!pending) continue;
-    const article = feeds
-      .find((feed) => feed.feedId === binding.feedId)
-      ?.items.find((item) => item.guid === binding.guid);
-    if (!article || article.read === pending.desiredState) continue;
-    article.read = pending.desiredState;
-    changed = true;
+    const article = findBoundArticle(feeds, binding);
+    if (!article) continue;
+    const starred = pendingByKey.get(`${binding.remoteArticleId}:starred`);
+    if (
+      starred &&
+      starred.facet === "starred" &&
+      article.starred !== starred.desiredState
+    ) {
+      article.starred = starred.desiredState;
+      changed = true;
+    }
+    const labels = pendingByKey.get(`${binding.remoteArticleId}:labels`);
+    if (labels?.facet === "labels") {
+      const tags = labels.desiredState.flatMap((name) => {
+        const mapping = labelMappings.find(
+          (candidate) =>
+            normalizedLabelKey(candidate.localTagName) ===
+            normalizedLabelKey(name),
+        );
+        const key = normalizedLabelKey(name);
+        const tag =
+          availableTags.find(
+            (candidate) => normalizedLabelKey(candidate.name) === key,
+          ) ??
+          article.tags?.find(
+            (candidate) => normalizedLabelKey(candidate.name) === key,
+          );
+        return [
+          {
+            name: tag?.name ?? mapping?.localTagName ?? name,
+            color: tag?.color ?? "#808080",
+          },
+        ];
+      });
+      if (!sameNormalizedLabelSet(article.tags ?? [], tags)) {
+        article.tags = tags;
+        changed = true;
+      }
+    }
+    const read = pendingByKey.get(`${binding.remoteArticleId}:read`);
+    if (read?.facet === "read" && article.read !== read.desiredState) {
+      article.read = read.desiredState;
+      changed = true;
+    }
   }
   return changed;
 }

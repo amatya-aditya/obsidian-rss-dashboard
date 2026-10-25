@@ -213,6 +213,63 @@ describe("FreshRSS sync client", () => {
     });
   });
 
+  it("lists normalized FreshRSS labels and excludes state tags", async () => {
+    const client = new FreshRssSyncClient(
+      {
+        request: vi.fn<FreshRssHttpClient["request"]>().mockResolvedValue({
+          status: 200,
+          text: JSON.stringify({
+            tags: [
+              { id: "user/-/state/com.google/starred" },
+              { id: "user/-/label/News", label: " News " },
+              { id: "user/-/label/Read%20Later", label: "Read Later" },
+            ],
+          }),
+        }),
+      },
+      "https://rss.example.test",
+      "session-token",
+    );
+
+    await expect(client.listLabels()).resolves.toEqual({
+      outcome: "ok",
+      data: [
+        { remoteLabelId: "user/-/label/News", name: "News" },
+        { remoteLabelId: "user/-/label/Read%20Later", name: "Read Later" },
+      ],
+    });
+  });
+
+  it("posts starred and label additions/removals through edit-tag", async () => {
+    const request = vi
+      .fn<FreshRssHttpClient["request"]>()
+      .mockResolvedValue({ status: 200, text: "OK" });
+    const client = new FreshRssSyncClient(
+      { request },
+      "https://rss.example.test",
+      "session-token",
+    );
+
+    await expect(
+      client.updateArticleState(
+        ["article/42"],
+        ["user/-/state/com.google/starred", "user/-/label/News"],
+        ["user/-/label/Old"],
+        "write-token",
+      ),
+    ).resolves.toEqual({ outcome: "ok", data: undefined });
+
+    expect(request).toHaveBeenCalledWith({
+      url: "https://rss.example.test/reader/api/0/edit-tag",
+      method: "POST",
+      body: "T=write-token&i=article%2F42&a=user%2F-%2Fstate%2Fcom.google%2Fstarred&a=user%2F-%2Flabel%2FNews&r=user%2F-%2Flabel%2FOld",
+      headers: {
+        Authorization: "GoogleLogin auth=session-token",
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    });
+  });
+
   it("retrieves a FreshRSS write token and posts a scoped read-state mutation", async () => {
     const request = vi
       .fn<FreshRssHttpClient["request"]>()

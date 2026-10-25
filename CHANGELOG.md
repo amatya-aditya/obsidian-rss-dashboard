@@ -2,6 +2,7 @@
 
 ### Features
 
+- FreshRSS now syncs starred and normalized label state in both directions for bound articles in Two-way mode. Receive-only leaves those changes local and queued until Two-way is restored; Dashboard tag colors stay local. [GH Issue #1560](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1560)
 - FreshRSS now syncs read/unread state in both directions by default. Choose **Receive-only** to keep article state local while importing subscriptions and articles; local read changes stay queued for FreshRSS until two-way sync is enabled again. [GH Issue #1559](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1559)
 - FreshRSS connection setup now accepts a user-managed SecretStorage entry and tests the HTTPS connection, identity, and write authorization without changing server state. RSS Dashboard stores only the selected entry reference and validated connection scope; credentials and authentication tokens are not written to the vault. [GH Issue #50](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/50)
 - **Sync now** links FreshRSS subscriptions to matching local feeds or creates them in your configured RSS folder, then imports up to 50 recent articles per subscription. It verifies the active account before importing, and stopping a sync prevents unfinished local changes from being saved. Local feed placement and retention stay in RSS Dashboard, and removing a remote subscription never deletes a local feed. [GH Issue #1079](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1079)
