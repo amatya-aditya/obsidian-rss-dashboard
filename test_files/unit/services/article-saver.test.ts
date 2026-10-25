@@ -63,11 +63,20 @@ beforeEach(() => {
 });
 
 describe("sanitizeFilename", () => {
-  it("removes invalid characters and caps long titles at 100 characters", () => {
-    const title = `  ${"a".repeat(98)} /  zzz`;
+  it("removes invalid characters and caps long titles at 245 characters", () => {
+    const title = `  ${"a".repeat(243)} /  zzz`;
 
-    expect(sanitizeFilename(title)).toBe(`${"a".repeat(98)} z`);
+    expect(sanitizeFilename(title)).toBe(`${"a".repeat(243)} z`);
   });
+
+  it.each([244, 245, 246, 300])(
+    "keeps a %i-character title within the 245-character cap",
+    (length) => {
+      const stem = sanitizeFilename("a".repeat(length));
+
+      expect(stem).toBe("a".repeat(Math.min(length, 245)));
+    },
+  );
 
   it("falls back to a safe filename when sanitization removes everything", () => {
     expect(sanitizeFilename(' / \\\\ : * ? " < > | ')).toBe("Untitled Article");
@@ -131,6 +140,45 @@ describe("ArticleSaver.saveArticle", () => {
     const filename = `${"漢".repeat(83)} 2.md`;
     expect(app.vault.getAbstractFileByPath(filename)).toBeInstanceOf(TFile);
     expect(Buffer.byteLength(filename, "utf8")).toBeLessThanOrEqual(255);
+  });
+
+  it("keeps the 245-character cap when two saves use the same long title", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(app, createSettings());
+    const title = "a".repeat(300);
+
+    await saver.saveArticle(createItem({ title, guid: "long-title-one" }));
+    await saver.saveArticle(createItem({ title, guid: "long-title-two" }));
+
+    expect(
+      app.vault.getAbstractFileByPath(`${"a".repeat(245)}.md`),
+    ).toBeInstanceOf(TFile);
+    expect(
+      app.vault.getAbstractFileByPath(`${"a".repeat(243)} 2.md`),
+    ).toBeInstanceOf(TFile);
+  });
+
+  it("caps a long title rendered by a filename pattern", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(app, createSettings());
+    const title = "a".repeat(300);
+
+    await saver.saveArticle(
+      createItem({ title }),
+      undefined,
+      undefined,
+      undefined,
+      {
+        id: "title-pattern",
+        name: "Title pattern",
+        template: "{{title}}",
+        filenamePattern: "{{title}}",
+      },
+    );
+
+    expect(
+      app.vault.getAbstractFileByPath(`${"a".repeat(245)}.md`),
+    ).toBeInstanceOf(TFile);
   });
 
   it("previews the first available filename that a save will use", async () => {
@@ -1057,7 +1105,7 @@ title: "{{title}}"
       id: "long",
       name: "Long",
       template: "{{title}}",
-      filenamePattern: "x".repeat(100),
+      filenamePattern: "x".repeat(245),
     };
     const longFirst = await saver.saveArticle(
       createItem({ guid: "long-one" }),
@@ -1075,8 +1123,8 @@ title: "{{title}}"
     );
 
     expect(unusable?.path).toBe("Title fallback.md");
-    expect(longFirst?.basename.length).toBe(100);
-    expect(longSecond?.basename.length).toBe(100);
+    expect(longFirst?.basename.length).toBe(245);
+    expect(longSecond?.basename.length).toBe(245);
     expect(longSecond?.basename.endsWith(" 2")).toBe(true);
   });
 

@@ -64,7 +64,7 @@ import {
   type SaveReport,
 } from "../utils/save-version";
 
-const MAX_FILENAME_LENGTH = 100;
+const MAX_FILENAME_LENGTH = 245;
 const MAX_FILENAME_BYTES = 255;
 const MARKDOWN_EXTENSION_BYTES = 3;
 const RSS_FALLBACK_MARKER =
