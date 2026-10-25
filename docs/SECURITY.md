@@ -96,7 +96,7 @@ RSS feeds are hosted on external servers — the plugin must fetch feed content 
 
 - Feed subscription URLs (required to fetch content). If a direct fetch fails and the CORS proxy is on, the feed URL is also sent to the proxy services listed below
 - Minimal HTTP metadata (standard HTTP headers, including the User-Agent Obsidian sends)
-- **No user credentials** are transmitted
+- Ordinary feed requests do not transmit user credentials. FreshRSS connection tests send the selected credential bundle to the configured HTTPS endpoint only, through the Google Reader-compatible ClientLogin request; credentials are never placed in the endpoint URL.
 - **No vault content** is sent to external servers
 
 ### Request Logging:
@@ -115,7 +115,7 @@ RSS feeds are hosted on external servers — the plugin must fetch feed content 
 
 ### Other network requests
 
-Beyond the feeds you subscribe to, RSS Dashboard makes these requests. None of them sends vault content or credentials.
+Beyond the feeds you subscribe to, RSS Dashboard makes these requests. They do not send vault content; the FreshRSS connection test is the only request here that sends credentials, and it sends them only to the user-configured HTTPS endpoint described below.
 
 - **CORS proxy fallback (on by default, set to `auto`).** When a direct fetch fails, the plugin retries through a third-party proxy, so the feed or article URL is sent to that proxy. `auto` tries AllOrigins, CodeTabs, isomorphic-git, ThingProxy and RSS2JSON in turn (`src/utils/proxy-utils.ts`). Turn it off in **Settings → RSS Dashboard → General → Proxy**, or pick a single proxy
 - **On-demand proxy check (Settings → RSS Dashboard → General → Proxy).** **Test all proxies** and **Test selected proxy** send one request per proxy to the fixed neutral page `https://example.com/`, and nothing at all until you press a button. The target is never a configured feed URL, an article URL, or browsing history, so repeated presses send the same synthetic request rather than a reading target. Results are held in memory for the session only (`src/utils/proxy-check.ts`, `src/settings/proxy-check-controls.ts`)
@@ -124,6 +124,7 @@ Beyond the feeds you subscribe to, RSS Dashboard makes these requests. None of t
 - **iTunes Search and Lookup.** Podcast links are resolved through `itunes.apple.com`, sending the podcast name or ID (`src/services/feed-parser/podcast-platform-resolver.ts`, `src/services/apple-podcasts-service.ts`)
 - **Kagi Smallweb.** The Smallweb view loads its list from `kagi.com`, and looks for a blog's feed with HEAD and GET requests to that blog (`src/views/kagi-smallweb-view.ts`)
 - **Mastodon profiles.** Adding a Mastodon profile fetches the profile page from its server to find the feed (`src/services/mastodon-service.ts`)
+- **FreshRSS connection test.** When you choose **Test connection** in Settings → RSS Dashboard → FreshRSS, the selected Obsidian SecretStorage entry is read and sent to the FreshRSS endpoint you configured. The endpoint must use HTTPS. The test checks login, account identity, and write authorization without changing FreshRSS state; its session and write tokens remain in memory. RSS Dashboard stores only the SecretStorage entry reference in plugin settings and the validated endpoint/account scope in `freshrss-state.json` under the configured metadata storage folder (`.rss-dashboard-data` by default).
 - **YouTube.** Video thumbnails come from `img.youtube.com`. Adding a channel by handle or custom name fetches the channel page from `www.youtube.com` to read the channel ID, with no `User-Agent` override (see [ADR 0025](adr/0025-identify-outbound-requests-as-obsidian.md)). Playback uses the `www.youtube-nocookie.com` iframe (`src/services/media-service.ts`, `src/services/youtube-rss-resolver.ts`)
 - **Twitch.** A Twitch VOD item (a `twitch.tv/videos/<id>` link) or live channel item (a `twitch.tv/<channel>` link) plays in an iframe from `player.twitch.tv`, built only from the numeric VOD ID or the validated channel login (letters, digits and underscores, up to 25), with `localhost` and `obsidian.md` as the embedding `parent`. A live channel starts muted. Nothing is requested from Twitch until you open the video, and playback progress is not tracked (`src/utils/twitch-embed.ts`, `src/views/video-player.ts`)
 - **Publisher-hosted images and audio.** Article images, podcast audio and artwork are loaded from the publisher's servers. Preview images are cached under the plugin folder (`src/services/preview-image-cache.ts`)

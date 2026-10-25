@@ -33,6 +33,7 @@ const EXPECTED_SETTINGS_IDS = [
   "open-settings-highlights",
   "open-settings-import-export",
   "open-settings-tags",
+  "open-settings-freshrss",
   "open-settings-about",
 ];
 

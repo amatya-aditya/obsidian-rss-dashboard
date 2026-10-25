@@ -6,6 +6,8 @@ import {
   Platform,
   requireApiVersion,
   TFolder,
+  normalizePath,
+  requestUrl,
   type ObsidianProtocolData,
 } from "obsidian";
 
@@ -92,6 +94,17 @@ import {
   type AddFeedUriRequest,
 } from "./src/services/uri-action-handler";
 import { getMetadataPath } from "./src/services/metadata-location";
+import {
+  getFreshRssCapability as evaluateFreshRssCapability,
+  getFreshRssSecretReferences,
+  testFreshRssConnection as runFreshRssConnectionTest,
+  type FreshRssSecretStorage,
+} from "./src/services/freshrss-connection-manager";
+import {
+  canonicalizeFreshRssEndpoint,
+  FreshRssConnectionService,
+} from "./src/services/freshrss-connection-service";
+import { FreshRssConnectionScopeRepository } from "./src/services/freshrss-connection-scope-repository";
 
 import { ImportOpmlModal } from "./src/modals/import-opml-modal";
 import { ImportStarredModal } from "./src/modals/import-starred-modal";
@@ -198,6 +211,10 @@ function getShellFromModule(value: unknown): DesktopShell | undefined {
   return isDesktopShell(value.shell) ? value.shell : undefined;
 }
 
+type AppWithFreshRssSecretStorage = App & {
+  secretStorage?: FreshRssSecretStorage;
+};
+
 // Re-exported for backward compatibility with callers that import from main.ts
 export type {
   FeedIngestionCandidate,
@@ -239,6 +256,7 @@ export default class RssDashboardPlugin extends Plugin {
   private readonly settingsImportApplier: SettingsImportApplier;
   private readonly savedArticleAssociationService =
     new SavedArticleAssociationService();
+  private freshRssQuarantineSequence = 0;
 
   constructor(app: App, manifest: ConstructorParameters<typeof Plugin>[1]) {
     super(app, manifest);
@@ -2626,6 +2644,128 @@ export default class RssDashboardPlugin extends Plugin {
 
   saveSettings(options: PersistSettingsOptions = {}): Promise<void> {
     return this.settingsStore.saveSettings(options);
+  }
+
+  public getFreshRssCapability():
+    "available" | "capability-unavailable" | "storage-migration-required" {
+    const apiAvailable = requireApiVersion("1.11.5");
+    const secretStorage = apiAvailable ? this.getFreshRssSecretStorage() : null;
+    return evaluateFreshRssCapability({
+      apiAvailable,
+      secretStorage,
+      storageMode: this.settings.storageMode,
+      metadataStorageMode: this.settings.metadataStorageMode,
+      metadataStorageSchemaVersion: this.settings.metadataStorageSchemaVersion,
+    });
+  }
+
+  public getFreshRssSecretReferences(): string[] {
+    const capability = this.getFreshRssCapability();
+    if (capability !== "available") return [];
+    return getFreshRssSecretReferences(
+      capability,
+      this.getFreshRssSecretStorage(),
+    );
+  }
+
+  public async saveFreshRssEndpoint(endpoint: string): Promise<void> {
+    const trimmedEndpoint = endpoint.trim();
+    this.settings.freshRss.endpoint = trimmedEndpoint
+      ? canonicalizeFreshRssEndpoint(trimmedEndpoint)
+      : "";
+    this.settings.freshRss.status = this.settings.freshRss.credentialReference
+      ? "test-required"
+      : "credentials-unconfigured";
+    await this.saveSettings();
+  }
+
+  public async saveFreshRssCredentialReference(
+    reference: string,
+  ): Promise<void> {
+    this.settings.freshRss.credentialReference = reference;
+    this.settings.freshRss.status = this.settings.freshRss.endpoint
+      ? "test-required"
+      : "credentials-unconfigured";
+    await this.saveSettings();
+    this.settingTab?.refresh();
+  }
+
+  public openFreshRssStorageMigrationChoice(): void {
+    new StorageMigrationModal(this.app, this).open();
+  }
+
+  public async testFreshRssConnection(): Promise<
+    RssDashboardSettings["freshRss"]["status"]
+  > {
+    const capability = this.getFreshRssCapability();
+    return runFreshRssConnectionTest({
+      capability,
+      credentialReference: this.settings.freshRss.credentialReference,
+      secretStorage:
+        capability === "available" ? this.getFreshRssSecretStorage() : null,
+      endpoint: this.settings.freshRss.endpoint,
+      connectionService: new FreshRssConnectionService({
+        request: async (request) => {
+          const response = await requestUrl({ ...request, throw: false });
+          return { status: response.status, text: response.text };
+        },
+      }),
+      getScopeRepository: () => this.getFreshRssConnectionScopeRepository(),
+      ensureSidecarFolder: () => this.ensureFreshRssSidecarFolder(),
+      setStatus: (status) => this.setFreshRssConnectionStatus(status),
+    });
+  }
+
+  private getFreshRssSecretStorage(): FreshRssSecretStorage | null {
+    if (requireApiVersion("1.11.5")) {
+      const secretStorage = (this.app as AppWithFreshRssSecretStorage)
+        .secretStorage;
+      if (
+        secretStorage &&
+        typeof secretStorage.getSecret === "function" &&
+        typeof secretStorage.listSecrets === "function"
+      ) {
+        return secretStorage;
+      }
+    }
+    return null;
+  }
+
+  private getFreshRssConnectionScopeRepository(): FreshRssConnectionScopeRepository {
+    const folder = this.getFreshRssSidecarFolder();
+    const sidecarPath = normalizePath(`${folder}/freshrss-state.json`);
+    return new FreshRssConnectionScopeRepository(this.app.vault.adapter, {
+      sidecarPath,
+      createQuarantinePath: () => {
+        this.freshRssQuarantineSequence += 1;
+        return normalizePath(
+          `${folder}/freshrss-state.quarantine-${Date.now()}-${this.freshRssQuarantineSequence}.json`,
+        );
+      },
+    });
+  }
+
+  private getFreshRssSidecarFolder(): string {
+    const configuredFolder = this.settings.metadataStorageFolder.trim();
+    return normalizePath(
+      (configuredFolder || ".rss-dashboard-data").replace(/^\/+|\/+$/g, ""),
+    );
+  }
+
+  private async ensureFreshRssSidecarFolder(): Promise<void> {
+    const folder = this.getFreshRssSidecarFolder();
+    if (!(await this.app.vault.adapter.exists(folder))) {
+      await this.app.vault.createFolder(folder);
+    }
+  }
+
+  private async setFreshRssConnectionStatus(
+    status: RssDashboardSettings["freshRss"]["status"],
+  ): Promise<RssDashboardSettings["freshRss"]["status"]> {
+    this.settings.freshRss.status = status;
+    await this.saveSettings();
+    this.settingTab?.refresh();
+    return status;
   }
 
   /**

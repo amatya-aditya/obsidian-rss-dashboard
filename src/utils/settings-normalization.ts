@@ -1,6 +1,7 @@
 import type {
   Feed,
   FeedItem,
+  FreshRssConnectionStatus,
   MediaSettings,
   RssDashboardSettings,
 } from "../types/types";
@@ -46,6 +47,44 @@ const PAGE_SIZE_FIELDS: Array<
   "savedArticlesPageSize",
   "starredArticlesPageSize",
 ];
+
+const FRESH_RSS_CONNECTION_STATUSES: readonly FreshRssConnectionStatus[] = [
+  "capability-unavailable",
+  "storage-migration-required",
+  "credentials-unconfigured",
+  "test-required",
+  "credentials-rejected",
+  "server-unavailable",
+  "connected",
+];
+
+function isFreshRssConnectionStatus(
+  value: unknown,
+): value is FreshRssConnectionStatus {
+  return (
+    typeof value === "string" &&
+    FRESH_RSS_CONNECTION_STATUSES.some((status) => status === value)
+  );
+}
+
+function normalizeFreshRssSettings(
+  raw: DeepPartial<RssDashboardSettings>["freshRss"],
+): RssDashboardSettings["freshRss"] {
+  const status = raw?.status;
+  return {
+    endpoint:
+      typeof raw?.endpoint === "string"
+        ? raw.endpoint
+        : DEFAULT_SETTINGS.freshRss.endpoint,
+    credentialReference:
+      typeof raw?.credentialReference === "string"
+        ? raw.credentialReference
+        : DEFAULT_SETTINGS.freshRss.credentialReference,
+    status: isFreshRssConnectionStatus(status)
+      ? status
+      : DEFAULT_SETTINGS.freshRss.status,
+  };
+}
 
 /**
  * Infer the legacy storage mode on an existing install whose persisted data
@@ -334,6 +373,7 @@ export function loadAndNormalizeSettings(
   rawData?: DeepPartial<RssDashboardSettings> | null,
 ): RssDashboardSettings {
   const settings = Object.assign({}, DEFAULT_SETTINGS, rawData ?? {});
+  settings.freshRss = normalizeFreshRssSettings(rawData?.freshRss);
 
   applyLegacyStorageMode(settings, rawData);
   normalizeScalarFields(settings);
