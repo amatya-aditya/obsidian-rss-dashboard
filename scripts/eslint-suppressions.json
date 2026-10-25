@@ -60,11 +60,6 @@
       "count": 3
     }
   },
-  "src/utils/reader-format-portal.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/utils/substack-image-url.ts": {
     "complexity": {
       "count": 1
