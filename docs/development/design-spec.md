@@ -15,7 +15,7 @@ related:
 
 ## Update History
 
-- 2026-10-26: Define shared article action icon states and semantic colors across Dashboard and Reader surfaces, with matching responsive borders
+- 2026-10-26: Define shared article action icon hover previews and semantic colors across Dashboard and Reader surfaces, with responsive borders on Dashboard controls only
 - 2026-10-20: Folder fields use Obsidian's `AbstractInputSuggest` list, styled only through `.rss-folder-suggest-container`, replacing the hand-built dropdown (#1377)
 - 2026-10-13: Add **Input Clear Buttons**: every free-text input gets Obsidian's own circle-x clear button through `addInputClearButton`, replacing the plain Lucide `x` buttons; record Obsidian's clear button as a core surface
 - 2026-10-12: Pin the keyboard shortcut help rows to the text baseline with the key flush right, remove the native close button so only the header one shows, and stack the help header on mobile (#1013)
@@ -141,7 +141,7 @@ Current governed surfaces:
   - Purpose: read, save, star, and manage tags for an article
   - Visual hierarchy role: compact article utility actions
   - States: shared inactive, hover, focus-visible, and action-specific selected-state treatment across Dashboard card, feed, list, and Reader presentations; see **Article Action Button States**
-  - Breakpoint notes: each presentation may size and place buttons for its layout; at tablet and mobile tiers, controls use the same subtle border treatment
+  - Breakpoint notes: Dashboard Card, Feed, and List actions share a subtle border at tablet and mobile tiers; Reader toolbar actions stay borderless
 - Discover cards
   - Canonical selector / owner: `.rss-discover-card` family in `src/styles/discover.css`
   - Purpose: feed and Smallweb result presentation with metadata and actions
@@ -367,20 +367,23 @@ appear in Dashboard card, feed, and list presentations or in Reader views:
 
 - **Inactive:** use `--text-muted` for the icon. Do not combine it with a
   reduced `opacity`, which would further lower contrast.
-- **Hover and focus:** an inactive icon uses `--text-normal` on hover-capable
-  pointers and when keyboard-focused. Hover or focus must never reduce the
-  emphasis of a selected action. Preserve the visible `:focus-visible`
-  outline.
+- **Hover and focus:** inactive Save previews `--interactive-accent`, Read
+  previews `--color-green`, and Star previews `--color-yellow`; an inactive
+  Star shows a filled star instead of its crossed-out idle icon. Tags stays
+  neutral and uses `--text-normal`. Apply the same previews on hover-capable
+  pointers and keyboard `:focus-visible`, with a smooth transition that
+  honors `prefers-reduced-motion`. Selected actions keep their semantic color
+  and brighten on hover. Preserve the visible `:focus-visible` outline.
 - **Selected state:** use the same action-specific token on every surface:
   Save uses `--interactive-accent`, Read uses `--color-green`, and Star uses
   `--color-yellow` with its filled-star indicator. The Reader and Dashboard
   must not define different colors for the same action. Tags remains neutral
   unless it represents a persistent selected state.
-- **Responsive border:** at tablet and mobile widths (`<= 1200px`), give
-  article action buttons a `1px solid var(--background-modifier-border)`
-  border. Keep the responsive border treatment consistent across Dashboard
-  card, feed, list, and Reader presentations. Desktop controls remain
-  borderless unless a component has a documented exception.
+- **Responsive border:** Dashboard Card, Feed, and List action buttons use a
+  `1px solid var(--background-modifier-border)` border at tablet and mobile
+  widths (`<= 1200px`) and remain borderless on desktop. Keep all four
+  Dashboard action surfaces consistent, including on coarse-pointer devices.
+  Reader toolbar actions remain borderless at every viewport width.
 - **Layout ownership:** button size, spacing, placement, and touch-target
   dimensions may vary with the containing view. Keep those differences local
   to the view; do not let them change the shared color and interaction states.

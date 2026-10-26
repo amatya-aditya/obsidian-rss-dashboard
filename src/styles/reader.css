@@ -90,6 +90,28 @@
   padding: 4px;
   border-radius: 4px;
   color: var(--text-muted);
+  transition:
+    color 150ms ease,
+    background-color 150ms ease;
+}
+.rss-reader-actions .rss-reader-action-button svg {
+  transition: filter 150ms ease;
+}
+.rss-reader-star-icon,
+.rss-reader-star-preview-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 150ms ease;
+}
+.rss-reader-star-preview-icon {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.rss-reader-star-toggle {
+  position: relative;
 }
 @media (hover: hover) {
   .rss-reader-action-button:hover {
@@ -121,9 +143,9 @@
 }
 
 .rss-reader-actions
-  button.rss-reader-action-button:not(.saved):not(.read):not(
-    .starred
-  ):focus-visible {
+  button.rss-reader-action-button:not(.rss-reader-save-toggle):not(
+    .rss-reader-read-toggle
+  ):not(.rss-reader-star-toggle):focus-visible {
   color: var(--text-normal);
 }
 
@@ -136,6 +158,40 @@
 }
 .rss-reader-actions button.rss-reader-action-button.saved {
   color: var(--interactive-accent);
+}
+.rss-reader-actions button.rss-reader-save-toggle:not(.saved):hover,
+.rss-reader-actions button.rss-reader-save-toggle:not(.saved):focus-visible {
+  color: var(--interactive-accent);
+}
+.rss-reader-actions button.rss-reader-read-toggle:not(.read):hover,
+.rss-reader-actions button.rss-reader-read-toggle:not(.read):focus-visible {
+  color: var(--color-green);
+}
+.rss-reader-actions button.rss-reader-star-toggle.unstarred:hover,
+.rss-reader-actions button.rss-reader-star-toggle.unstarred:focus-visible {
+  color: var(--color-yellow);
+}
+.rss-reader-actions button.rss-reader-save-toggle.saved:hover svg,
+.rss-reader-actions button.rss-reader-read-toggle.read:hover svg,
+.rss-reader-actions button.rss-reader-star-toggle.starred:hover svg {
+  filter: brightness(1.2);
+}
+.rss-reader-actions button.rss-reader-save-toggle.saved:focus-visible svg,
+.rss-reader-actions button.rss-reader-read-toggle.read:focus-visible svg,
+.rss-reader-actions button.rss-reader-star-toggle.starred:focus-visible svg {
+  filter: brightness(1.2);
+}
+.rss-reader-star-toggle.unstarred:hover .rss-reader-star-icon,
+.rss-reader-star-toggle.unstarred:focus-visible .rss-reader-star-icon {
+  opacity: 0;
+}
+.rss-reader-star-toggle.unstarred:hover .rss-reader-star-preview-icon,
+.rss-reader-star-toggle.unstarred:focus-visible .rss-reader-star-preview-icon {
+  opacity: 1;
+}
+.rss-reader-star-preview-icon svg {
+  color: var(--color-yellow);
+  fill: var(--color-yellow);
 }
 .rss-reader-actions button.rss-reader-action-button:focus-visible,
 .rss-reader-actions .rss-reader-star-toggle:focus-visible {
@@ -972,13 +1028,6 @@ mark.rss-highlight {
 
 .rss-reader-action-button.saved {
   color: var(--interactive-accent);
-}
-
-@media (max-width: 1200px) {
-  .rss-reader-actions button.rss-reader-action-button {
-    border: 1px solid var(--background-modifier-border);
-    background-color: var(--background-primary);
-  }
 }
 
 @media (max-width: 768px) {

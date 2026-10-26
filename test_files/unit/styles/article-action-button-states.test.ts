@@ -63,7 +63,7 @@ function declarationsAtMaxWidth(
 }
 
 describe("Article action button states", () => {
-  it("keeps inactive dashboard icons muted and brightens them on hover", () => {
+  it("keeps dashboard actions muted at rest and previews each enabled color on hover and focus", () => {
     const dashboardActions = [
       ".rss-dashboard-save-toggle",
       ".rss-dashboard-read-toggle",
@@ -73,15 +73,32 @@ describe("Article action button states", () => {
 
     for (const selector of dashboardActions) {
       const idle = declarationsFor(selector);
-      const hover = declarationsFor(`${selector}:hover`);
+      const state = selector.includes("save")
+        ? ".rss-dashboard-save-toggle:not(.saved)"
+        : selector.includes("read")
+          ? ".rss-dashboard-read-toggle:not(.read)"
+          : selector.includes("star")
+            ? ".rss-dashboard-star-toggle.unstarred"
+            : selector;
+      const hover = declarationsFor(`${state}:hover`);
+      const focus = declarationsFor(`${state}:focus-visible`);
 
       expect(idle.get("color")).toBe("var(--text-muted)");
       expect(idle.has("opacity")).toBe(false);
-      expect(hover.get("color")).toBe("var(--text-normal)");
+      expect(hover.get("color")).toBe(
+        state.includes("save")
+          ? "var(--interactive-accent)"
+          : state.includes("read")
+            ? "var(--color-green)"
+            : state.includes("star")
+              ? "var(--color-yellow)"
+              : "var(--text-normal)",
+      );
+      expect(focus.get("color")).toBe(hover.get("color"));
     }
   });
 
-  it("keeps inactive Reader toolbar icons muted and brightens them on hover", () => {
+  it("keeps Reader actions muted at rest and previews each enabled color on hover and focus", () => {
     const idle = declarationsFor(
       ".rss-reader-actions button.rss-reader-action-button",
     );
@@ -90,7 +107,45 @@ describe("Article action button states", () => {
     );
 
     expect(idle.get("color")).toBe("var(--text-muted)");
+    expect(
+      declarationsFor(
+        ".rss-reader-actions button.rss-reader-save-toggle:not(.saved):hover",
+      ).get("color"),
+    ).toBe("var(--interactive-accent)");
+    expect(
+      declarationsFor(
+        ".rss-reader-actions button.rss-reader-read-toggle:not(.read):hover",
+      ).get("color"),
+    ).toBe("var(--color-green)");
+    expect(
+      declarationsFor(
+        ".rss-reader-actions button.rss-reader-star-toggle:not(.starred):hover",
+        ".rss-reader-actions button.rss-reader-star-toggle.unstarred:hover",
+      ).get("color"),
+    ).toBe("var(--color-yellow)");
     expect(hover.get("color")).toBe("var(--text-normal)");
+    expect(
+      declarationsFor(
+        ".rss-reader-actions button.rss-reader-read-toggle:not(.read):focus-visible",
+      ).get("color"),
+    ).toBe("var(--color-green)");
+    expect(
+      declarationsFor(
+        ".rss-reader-actions button.rss-reader-star-toggle.unstarred:focus-visible",
+      ).get("color"),
+    ).toBe("var(--color-yellow)");
+    expect(
+      declarationsFor(
+        ".rss-reader-actions button.rss-reader-save-toggle:not(.saved):focus-visible",
+      ).get("color"),
+    ).toBe("var(--interactive-accent)");
+    for (const selector of [
+      ".rss-reader-actions button.rss-reader-save-toggle.saved:focus-visible svg",
+      ".rss-reader-actions button.rss-reader-read-toggle.read:focus-visible svg",
+      ".rss-reader-actions button.rss-reader-star-toggle.starred:focus-visible svg",
+    ]) {
+      expect(declarationsFor(selector).get("filter")).toBe("brightness(1.2)");
+    }
   });
 
   it("uses the same semantic color for matching saved and read actions", () => {
@@ -148,9 +203,26 @@ describe("Article action button states", () => {
     expect(
       declarationsFor(".rss-dashboard-save-toggle.saved:hover").has("opacity"),
     ).toBe(false);
+    for (const selector of [
+      ".rss-dashboard-save-toggle.saved:hover svg",
+      ".rss-dashboard-read-toggle.read:hover svg",
+      ".rss-dashboard-star-toggle.starred:hover svg",
+      ".rss-dashboard-save-toggle.saved:focus-visible svg",
+      ".rss-dashboard-read-toggle.read:focus-visible svg",
+      ".rss-dashboard-star-toggle.starred:focus-visible svg",
+    ]) {
+      expect(declarationsFor(selector).get("filter")).toBe("brightness(1.2)");
+    }
+    for (const selector of [
+      ".rss-reader-actions button.rss-reader-save-toggle.saved:hover svg",
+      ".rss-reader-actions button.rss-reader-read-toggle.read:hover svg",
+      ".rss-reader-actions button.rss-reader-star-toggle.starred:hover svg",
+    ]) {
+      expect(declarationsFor(selector).get("filter")).toBe("brightness(1.2)");
+    }
   });
 
-  it("gives dashboard and Reader article action controls a shared responsive border", () => {
+  it("gives dashboard actions a responsive border while keeping Reader toolbar actions borderless", () => {
     const dashboardActions = [
       ".rss-dashboard-action-toolbar .rss-dashboard-save-toggle",
       ".rss-dashboard-action-toolbar .rss-dashboard-read-toggle",
@@ -170,8 +242,6 @@ describe("Article action button states", () => {
       1200,
       ".rss-reader-actions button.rss-reader-action-button",
     );
-    expect(reader.get("border")).toBe(
-      "1px solid var(--background-modifier-border)",
-    );
+    expect(reader.has("border")).toBe(false);
   });
 });
