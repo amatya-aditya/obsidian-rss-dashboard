@@ -338,30 +338,25 @@ body .rss-dashboard-tags-toggle svg {
   stroke-width: 2;
 }
 
-.rss-dashboard-save-toggle:hover,
-.rss-dashboard-read-toggle:hover,
-.rss-dashboard-star-toggle:hover,
-.rss-dashboard-tags-toggle:hover {
+@media (hover: hover) {
+  .rss-dashboard-save-toggle:hover,
+  .rss-dashboard-read-toggle:hover,
+  .rss-dashboard-star-toggle:hover,
+  .rss-dashboard-tags-toggle:hover {
+    color: var(--text-normal);
+  }
+}
+
+.rss-dashboard-save-toggle:focus-visible,
+.rss-dashboard-read-toggle:focus-visible,
+.rss-dashboard-star-toggle:focus-visible,
+.rss-dashboard-tags-toggle:focus-visible {
   color: var(--text-normal);
 }
 
 /* Save toggle states */
-.rss-dashboard-save-toggle {
-  opacity: 0.7;
-  transition: opacity 0.2s ease;
-}
-
-.rss-dashboard-save-toggle:hover {
-  opacity: 1;
-}
-
 .rss-dashboard-save-toggle.saved {
-  opacity: 1;
   color: var(--interactive-accent);
-}
-
-.rss-dashboard-save-toggle.saved:hover {
-  opacity: 0.8;
 }
 
 .rss-dashboard-save-toggle.saving {
@@ -388,11 +383,11 @@ body .rss-dashboard-tags-toggle svg {
 
 /* Read toggle state */
 .rss-dashboard-read-toggle.read {
-  color: #2ecc71;
+  color: var(--color-green);
 }
 
 body .rss-dashboard-read-toggle.read svg {
-  color: #43a047;
+  color: var(--color-green);
 }
 
 /* Star toggle states */
@@ -409,16 +404,10 @@ body .rss-dashboard-read-toggle.read svg {
 .rss-dashboard-star-toggle.unstarred,
 .rss-reader-star-toggle.unstarred {
   color: var(--text-muted);
-  opacity: 1;
 }
 
 body .rss-dashboard-star-toggle svg {
   opacity: 1;
-}
-
-.rss-dashboard-star-toggle:hover svg,
-.rss-reader-star-toggle:hover svg {
-  stroke: color-mix(in srgb, var(--color-yellow) 50%, #000);
 }
 
 /* The cover-image control (#1314, #1330): one control shared by the article
@@ -746,6 +735,17 @@ body .rss-dashboard-tag-action-button svg {
   }
 }
 
+/* Keep compact article action controls outlined at tablet and mobile widths. */
+@media (max-width: 1200px) {
+  .rss-dashboard-action-toolbar .rss-dashboard-save-toggle,
+  .rss-dashboard-action-toolbar .rss-dashboard-read-toggle,
+  .rss-dashboard-action-toolbar .rss-dashboard-star-toggle,
+  .rss-dashboard-action-toolbar .rss-dashboard-tags-toggle {
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
+  }
+}
+
 /* Mobile (≤ 768px) — touch-target sizing for action toggles */
 @media (max-width: 768px) {
   .rss-dashboard-action-toolbar .rss-dashboard-save-toggle,
@@ -757,8 +757,6 @@ body .rss-dashboard-tag-action-button svg {
     height: 36px;
     border-radius: 12px;
     padding: 0 10px;
-    border: 1px solid var(--background-modifier-border);
-    background-color: var(--background-primary);
   }
 
   /* Grid-style mobile list: square icon-only buttons */

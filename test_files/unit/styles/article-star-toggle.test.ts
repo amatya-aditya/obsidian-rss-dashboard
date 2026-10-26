@@ -74,7 +74,7 @@ describe("Article star toggle styles", () => {
     expect(reader.get("fill")).toBe(dashboard.get("fill"));
   });
 
-  it("darkens the star outline on hover while keeping its yellow fill", () => {
+  it("keeps the star's selected color instead of darkening its outline on hover", () => {
     const dashboardHover = declarationsFor(
       ".rss-dashboard-star-toggle:hover svg",
     );
@@ -84,10 +84,8 @@ describe("Article star toggle styles", () => {
       ".rss-reader-star-toggle.starred svg",
     );
 
-    expect(dashboardHover.get("stroke")).toBe(
-      "color-mix(in srgb, var(--color-yellow) 50%, #000)",
-    );
-    expect(readerHover.get("stroke")).toBe(dashboardHover.get("stroke"));
+    expect(dashboardHover.has("stroke")).toBe(false);
+    expect(readerHover.has("stroke")).toBe(false);
     expect(starred.get("fill")).toBe("var(--color-yellow)");
   });
 

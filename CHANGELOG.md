@@ -2,6 +2,7 @@
 
 ### Fixes
 
+- Dashboard article action icons now use consistent inactive, hover, and selected-state colors across card, feed, list, and Reader views, with a shared border at tablet and mobile widths. [GH Issue #1603](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1603)
 - The Edit tag dialog now gives the name field usable width on mobile, keeps Cancel and Save the same size and shape, and can scroll when the keyboard reduces the visible area. [GH Issue #1599](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1599)
 - Reader format portals no longer register an outside-click listener if they close before deferred setup runs. [GH Issue #1578](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1578)
 - Podcast destination menus now fall back to the enclosure when an item's audio URL contains only whitespace. [GH Issue #1567](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1567)

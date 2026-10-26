@@ -14,6 +14,10 @@ _Avoid_: Obsidian accessibility (unqualified), all content
 The row at the bottom of an article in card view and feed view that holds the article's action buttons (read, save, star, tags) and its date. In the standard layout the buttons come first at the left, with Mark read leftmost, and the date sits at the right. List view has its own footer arrangements and is not covered by this term.
 _Avoid_: Card footer (when feed view is also meant), toolbar (the buttons alone)
 
+**Article action button**:
+One of the per-article controls for reading, saving, starring, or managing tags, available in Dashboard card, feed, and list presentations and in Reader views. Its action and selected-state meaning stay consistent across presentations, while its size and placement follow the containing view.
+_Avoid_: Article footer (the row), favorite button (use star button)
+
 **Mirrored footer**:
 The [[Article footer]] with its order reversed: Mark read at the far right, the other buttons extending leftward from it, and the date at the left. Offered as the "Left-handed layout" setting, kept per device. Mark read stays the first footer Tab stop, so keyboard focus starts at the primary action and moves leftward through the other buttons.
 _Avoid_: Left-handed mode, RTL layout, flipped footer

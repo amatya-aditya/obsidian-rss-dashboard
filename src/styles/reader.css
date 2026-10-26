@@ -91,9 +91,11 @@
   border-radius: 4px;
   color: var(--text-muted);
 }
-.rss-reader-action-button:hover {
-  background-color: var(--background-modifier-hover);
-  color: var(--text-normal);
+@media (hover: hover) {
+  .rss-reader-action-button:hover {
+    background-color: var(--background-modifier-hover);
+    color: var(--text-normal);
+  }
 }
 /* The toolbar buttons are native buttons: neutralize Obsidian's base button
    chrome so they keep the icon look the div controls had. Scoped to the
@@ -110,11 +112,21 @@
   margin: 0;
   padding: 4px;
 }
-.rss-reader-actions button.rss-reader-action-button:hover {
-  background-color: var(--background-modifier-hover);
-  box-shadow: none;
+@media (hover: hover) {
+  .rss-reader-actions button.rss-reader-action-button:hover {
+    background-color: var(--background-modifier-hover);
+    box-shadow: none;
+    color: var(--text-normal);
+  }
+}
+
+.rss-reader-actions
+  button.rss-reader-action-button:not(.saved):not(.read):not(
+    .starred
+  ):focus-visible {
   color: var(--text-normal);
 }
+
 /* State colors, repeated at the button rule's specificity so they still win. */
 .rss-reader-actions button.rss-reader-star-toggle.starred {
   color: var(--color-yellow);
@@ -960,6 +972,13 @@ mark.rss-highlight {
 
 .rss-reader-action-button.saved {
   color: var(--interactive-accent);
+}
+
+@media (max-width: 1200px) {
+  .rss-reader-actions button.rss-reader-action-button {
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
+  }
 }
 
 @media (max-width: 768px) {
