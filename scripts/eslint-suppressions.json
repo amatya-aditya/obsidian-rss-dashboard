@@ -4,11 +4,6 @@
       "count": 1
     }
   },
-  "src/components/folder-selector-popup.ts": {
-    "complexity": {
-      "count": 1
-    }
-  },
   "src/modals/feed-manager/edit-feed-modal.ts": {
     "complexity": {
       "count": 2
