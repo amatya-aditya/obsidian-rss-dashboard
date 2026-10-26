@@ -32,6 +32,7 @@ vi.mock("../../../src/utils/export-utils", () => ({
 vi.mock("../../../src/services/opml-manager", () => ({
   OpmlManager: {
     generateOpml: vi.fn().mockReturnValue("<opml>mock</opml>"),
+    generateFreshRssOpml: vi.fn().mockReturnValue("<opml>freshrss</opml>"),
   },
 }));
 
@@ -129,6 +130,27 @@ describe("ImportExportService", () => {
             type: "text/xml",
           }) as unknown as Blob,
           filename: "feeds.opml",
+        }),
+      );
+      expect(result).toBe("downloaded");
+    });
+  });
+
+  describe("exportFreshRssOpml", () => {
+    it("exports the FreshRSS profile as a UTF-8 OPML file", async () => {
+      const svc = new ImportExportService({
+        settings: makeSettings(),
+        isMobile: false,
+      });
+
+      const result = await svc.exportFreshRssOpml();
+
+      expect(exportBlob).toHaveBeenCalledWith(
+        expect.objectContaining({
+          blob: expect.objectContaining({
+            type: "text/xml;charset=utf-8",
+          }) as unknown as Blob,
+          filename: "rss-dashboard-freshrss-subscriptions.opml",
         }),
       );
       expect(result).toBe("downloaded");

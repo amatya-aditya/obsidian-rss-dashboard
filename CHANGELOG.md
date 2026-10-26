@@ -2,6 +2,7 @@
 
 ### Features
 
+- Export subscriptions as FreshRSS-compatible OPML in one **RSS Dashboard** category. The export includes feed titles and addresses, not article state or other local catalog data. [GH Issue #1561](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1561)
 - RSS Dashboard 3.0 requires Obsidian 1.11.5 or later. Obsidian versions below 1.11.5 will no longer receive updates. [GH Issue #403](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/403)
 - FreshRSS **Sync now** opens a preview with mode-aware incoming and outgoing changes, progress, cancellation, and per-mutation retry or cancel for terminal failures. [GH Issue #1562](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1562)
 
