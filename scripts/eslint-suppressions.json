@@ -60,11 +60,6 @@
       "count": 3
     }
   },
-  "src/utils/tags-dropdown-portal.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/views/discover-view.ts": {
     "complexity": {
       "count": 1
