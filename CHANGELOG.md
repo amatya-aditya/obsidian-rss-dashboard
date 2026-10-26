@@ -2,6 +2,7 @@
 
 ### Fixes
 
+- Reader format portals no longer register an outside-click listener if they close before deferred setup runs. [GH Issue #1578](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1578)
 - Podcast destination menus now fall back to the enclosure when an item's audio URL contains only whitespace. [GH Issue #1567](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1567)
 
 ### Features

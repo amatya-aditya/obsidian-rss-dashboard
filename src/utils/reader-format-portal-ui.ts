@@ -353,6 +353,8 @@ function positionDesktopDropdown(options: DesktopDropdownOptions): void {
   portalDropdown.style.left = `${left}px`;
   portalDropdown.style.top = `${top}px`;
   targetWindow.setTimeout(() => {
+    if (isClosed()) return;
+
     const outsideHandler = (event: MouseEvent) => {
       if (isClosed()) return;
       if (
