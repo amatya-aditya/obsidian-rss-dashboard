@@ -3,6 +3,7 @@ import type RssDashboardPlugin from "../../main";
 import { collectFolderPaths } from "../utils/folder-paths";
 import { FolderNameModal } from "../modals/folder-name-modal";
 import { addInputClearButton } from "../utils/input-clear-button";
+import { createFolderSelectorKeydownHandler } from "./folder-selector-keyboard";
 import {
   FOLDER_POPUP_MOBILE_MAX_WIDTH_PX,
   isNarrowViewport,
@@ -382,9 +383,19 @@ export class FolderSelectorPopup {
     }, 0);
 
     // Keyboard navigation
-    this.keydownHandler = (e: KeyboardEvent) => {
-      this.handleKeydown(e);
-    };
+    this.keydownHandler = createFolderSelectorKeydownHandler({
+      isDestroyed: () => this.isDestroyed,
+      isInert: () => this.isInert,
+      listEl: this.listEl,
+      inputEl: () => this.inputEl,
+      isListOnly: () => this.listOnly,
+      clearSelection: () => this.clearSelection(),
+      scrollSelectedItemIntoView: () => this.scrollSelectedItemIntoView(),
+      selectFolder: (folderName) => this.selectFolder(folderName),
+      selectRoot: () => this.selectRoot(),
+      openCreateFolderModal: () => this.openCreateFolderModal(),
+      close: () => this.close(),
+    });
     activeDocument.addEventListener("keydown", this.keydownHandler);
   }
 
@@ -404,90 +415,6 @@ export class FolderSelectorPopup {
 
     this.selectedIndex = 0;
     this.renderFolderList();
-  }
-
-  /**
-   * Handles keyboard navigation
-   */
-  private handleKeydown(e: KeyboardEvent): void {
-    if (this.isDestroyed || this.isInert) return;
-
-    const items = this.listEl.querySelectorAll(".rss-folder-selector-item");
-    const itemCount = items.length;
-
-    // Find current selected index
-    let currentIndex = -1;
-    items.forEach((item, index) => {
-      if (item.hasClass("is-selected")) {
-        currentIndex = index;
-      }
-    });
-
-    switch (e.key) {
-      case "ArrowDown":
-        e.preventDefault();
-        if (itemCount > 0) {
-          const newIndex = currentIndex < itemCount - 1 ? currentIndex + 1 : 0;
-          this.clearSelection();
-          items[newIndex]?.addClass("is-selected");
-          this.scrollSelectedItemIntoView();
-        }
-        break;
-
-      case "ArrowUp":
-        e.preventDefault();
-        if (itemCount > 0) {
-          const newIndex = currentIndex > 0 ? currentIndex - 1 : itemCount - 1;
-          this.clearSelection();
-          items[newIndex]?.addClass("is-selected");
-          this.scrollSelectedItemIntoView();
-        }
-        break;
-
-      case "Enter": {
-        e.preventDefault();
-        const selectedItem = this.listEl.querySelector(
-          ".rss-folder-selector-item.is-selected",
-        );
-        const query = this.inputEl?.value.trim() || "";
-
-        if (selectedItem) {
-          if (
-            !this.listOnly &&
-            selectedItem.hasClass("rss-folder-selector-create")
-          ) {
-            // Create new folder with the typed text (only if not in list-only mode)
-            this.selectFolder(query);
-          } else if (selectedItem.hasClass("rss-folder-selector-root")) {
-            this.selectRoot();
-          } else if (selectedItem.hasClass("rss-folder-selector-add-new")) {
-            this.openCreateFolderModal();
-          } else {
-            // Select existing folder
-            const textEl = selectedItem.querySelector(
-              ".rss-folder-selector-text",
-            );
-            if (textEl) {
-              this.selectFolder(textEl.textContent || "");
-            }
-          }
-        } else if (!this.listOnly && query.length > 0) {
-          // No item selected but there's text - create new folder (only if not in list-only mode)
-          this.selectFolder(query);
-        }
-        break;
-      }
-
-      case "Escape":
-        e.preventDefault();
-        this.close();
-        break;
-
-      case "Tab":
-        // Close on tab
-        this.close();
-        break;
-    }
   }
 
   /**
