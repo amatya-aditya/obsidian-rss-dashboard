@@ -54,7 +54,7 @@ function parseRssItem(item: Element): FeedPreviewArticle {
   return {
     title,
     link,
-    description: sanitizeText(description),
+    description: sanitizeFeedPreviewText(description),
     pubDate,
     author,
     image,
@@ -112,7 +112,7 @@ function parseAtomEntry(entry: Element): FeedPreviewArticle {
   return {
     title,
     link,
-    description: sanitizeText(description),
+    description: sanitizeFeedPreviewText(description),
     pubDate,
     author,
   };
@@ -122,7 +122,7 @@ function readAtomEntryText(entry: Element, selector: string): string {
   return entry.querySelector(selector)?.textContent?.trim() || "";
 }
 
-function sanitizeText(text: string): string {
+export function sanitizeFeedPreviewText(text: string): string {
   if (!text) return "";
 
   return decodeHtmlEntities(text.replace(/<[^>]*>/g, ""))
