@@ -100,14 +100,14 @@ describe("FreshRSS sync coordinator", () => {
       { status: 200, text: subscriptionList() },
       {
         status: 200,
-        text: JSON.stringify({ itemRefs: [{ id: "article/42" }] }),
+        text: JSON.stringify({ itemRefs: [{ id: "42" }] }),
       },
       {
         status: 200,
         text: JSON.stringify({
           items: [
             {
-              id: "article/42",
+              id: "tag:google.com,2005:reader/item/000000000000002a",
               title: "Preview article",
               alternate: [{ href: "https://article.example.test/42" }],
             },
@@ -139,7 +139,8 @@ describe("FreshRSS sync coordinator", () => {
           url: "https://feed.example.test/rss.xml",
           articles: [
             {
-              remoteArticleId: "article/42",
+              remoteArticleId:
+                "tag:google.com,2005:reader/item/000000000000002a",
               title: "Preview article",
               link: "https://article.example.test/42",
             },
@@ -302,14 +303,14 @@ describe("FreshRSS sync coordinator", () => {
       { status: 200, text: subscriptionList() },
       {
         status: 200,
-        text: JSON.stringify({ itemRefs: [{ id: "article/42" }] }),
+        text: JSON.stringify({ itemRefs: [{ id: "42" }] }),
       },
       {
         status: 200,
         text: JSON.stringify({
           items: [
             {
-              id: "article/42",
+              id: "tag:google.com,2005:reader/item/000000000000002a",
               title: "New article",
               alternate: [{ href: "https://article.example.test/42" }],
               content: { content: "<p>Article body</p>" },
@@ -355,7 +356,7 @@ describe("FreshRSS sync coordinator", () => {
       excludeFromRefresh: false,
     });
     expect(settings.feeds[0].items[0]).toMatchObject({
-      guid: "article/42",
+      guid: "tag:google.com,2005:reader/item/000000000000002a",
       link: "https://article.example.test/42",
       description: "<p>Article body</p>",
       feedTitle: "My local title",
@@ -367,8 +368,8 @@ describe("FreshRSS sync coordinator", () => {
     expect(sidecar.articleBindings).toEqual([
       {
         feedId: "local-feed",
-        guid: "article/42",
-        remoteArticleId: "article/42",
+        guid: "tag:google.com,2005:reader/item/000000000000002a",
+        remoteArticleId: "tag:google.com,2005:reader/item/000000000000002a",
       },
     ]);
     expect(sidecar.labelMappings).toEqual([

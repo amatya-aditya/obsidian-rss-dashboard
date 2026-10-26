@@ -127,6 +127,81 @@ describe("FreshRSS sync client", () => {
     );
   });
 
+  it("normalizes FreshRSS decimal IDs to Google Reader IDs without losing 64-bit precision", async () => {
+    const request = vi.fn<FreshRssHttpClient["request"]>().mockResolvedValue({
+      status: 200,
+      text: JSON.stringify({
+        itemRefs: [
+          { id: "18446744073709551615" },
+          { id: "tag:google.com,2005:reader/item/2a" },
+        ],
+        continuation: "18446744073709551615",
+      }),
+    });
+    const client = new FreshRssSyncClient(
+      { request },
+      "https://rss.example.test",
+      "session-token",
+    );
+
+    await expect(client.listItemIds("feed/6", 2)).resolves.toEqual({
+      outcome: "ok",
+      data: {
+        itemRefs: [
+          "tag:google.com,2005:reader/item/ffffffffffffffff",
+          "tag:google.com,2005:reader/item/2a",
+        ],
+        continuation: "18446744073709551615",
+      },
+    });
+  });
+
+  it("pads normalized Google Reader item IDs to FreshRSS's 64-bit hex width", async () => {
+    const client = new FreshRssSyncClient(
+      {
+        request: vi.fn<FreshRssHttpClient["request"]>().mockResolvedValue({
+          status: 200,
+          text: JSON.stringify({ itemRefs: [{ id: "42" }] }),
+        }),
+      },
+      "https://rss.example.test",
+      "session-token",
+    );
+
+    await expect(client.listItemIds("feed/6", 1)).resolves.toMatchObject({
+      outcome: "ok",
+      data: {
+        itemRefs: ["tag:google.com,2005:reader/item/000000000000002a"],
+      },
+    });
+  });
+
+  it("converts normalized Google Reader IDs back to FreshRSS decimal IDs for content requests", async () => {
+    const request = vi.fn<FreshRssHttpClient["request"]>().mockResolvedValue({
+      status: 200,
+      text: JSON.stringify({ items: [] }),
+    });
+    const client = new FreshRssSyncClient(
+      { request },
+      "https://rss.example.test",
+      "session-token",
+    );
+
+    await client.getItemContents([
+      "tag:google.com,2005:reader/item/ffffffffffffffff",
+    ]);
+
+    expect(request).toHaveBeenCalledWith({
+      url: "https://rss.example.test/reader/api/0/stream/items/contents",
+      method: "POST",
+      body: "output=json&i=18446744073709551615",
+      headers: {
+        Authorization: "GoogleLogin auth=session-token",
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    });
+  });
+
   it("rejects an invalid continuation cursor instead of treating it as the end", async () => {
     const client = new FreshRssSyncClient(
       {
