@@ -4,11 +4,6 @@
       "count": 1
     }
   },
-  "src/components/tag-multi-select-control.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/modals/feed-manager/edit-feed-modal.ts": {
     "complexity": {
       "count": 2
