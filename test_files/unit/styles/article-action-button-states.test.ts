@@ -13,6 +13,10 @@ const stylesheets = [
 ].map((file) =>
   readFileSync(path.resolve(testDir, `../../../src/styles/${file}`), "utf-8"),
 );
+const designSpec = readFileSync(
+  path.resolve(testDir, "../../../docs/development/design-spec.md"),
+  "utf-8",
+);
 
 function declarationsFor(...selectors: string[]): Map<string, string> {
   const declarations = new Map<string, string>();
@@ -63,6 +67,26 @@ function declarationsAtMaxWidth(
 }
 
 describe("Article action button states", () => {
+  it("documents the same hover and focus contract as the action styles", () => {
+    const actionStateRow = designSpec
+      .split(/\r?\n/)
+      .find((line) => line.startsWith("| Article action buttons"));
+
+    expect(actionStateRow).toBeDefined();
+    expect(actionStateRow).toContain(
+      "Inactive previews the action color; selected keeps semantic color and brightens",
+    );
+    expect(actionStateRow).toContain(
+      "Action-color preview; selected brightens; visible outline",
+    );
+    expect(actionStateRow).toContain(
+      "Save: `--interactive-accent`; Read: `--color-green`; Star: `--color-yellow`; Tags: neutral unless selected",
+    );
+    expect(designSpec.replace(/\s+/g, " ")).toContain(
+      "Selected actions keep their semantic color and brighten on hover and focus.",
+    );
+  });
+
   it("keeps dashboard actions muted at rest and previews each enabled color on hover and focus", () => {
     const dashboardActions = [
       ".rss-dashboard-save-toggle",
