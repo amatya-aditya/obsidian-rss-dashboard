@@ -41,6 +41,24 @@ export interface FreshRssRemoteArticle {
   read: boolean | null;
 }
 
+const GOOGLE_READER_ITEM_ID_PREFIX = "tag:google.com,2005:reader/item/";
+
+function normalizeItemId(id: string): string {
+  if (!/^\d+$/.test(id)) return id;
+
+  // FreshRSS returns 64-bit decimal IDs from /ids and Google Reader hex IDs
+  // from /contents. BigInt keeps the conversion exact beyond Number's range.
+  return `${GOOGLE_READER_ITEM_ID_PREFIX}${BigInt(id).toString(16).padStart(16, "0")}`;
+}
+
+function toFreshRssItemId(id: string): string {
+  if (!id.startsWith(GOOGLE_READER_ITEM_ID_PREFIX)) return id;
+
+  const hexId = id.slice(GOOGLE_READER_ITEM_ID_PREFIX.length);
+  if (!/^[\da-f]+$/i.test(hexId)) return id;
+  return BigInt(`0x${hexId}`).toString(10);
+}
+
 function parseSubscriptionListResponse(
   text: string,
 ): FreshRssSubscription[] | null {
@@ -115,7 +133,7 @@ function parseItemIdsResponse(
     }
 
     return {
-      itemRefs,
+      itemRefs: itemRefs.map(normalizeItemId),
       continuation:
         typeof parsed.continuation === "string" && parsed.continuation
           ? parsed.continuation
@@ -308,7 +326,9 @@ export class FreshRssSyncClient {
     try {
       const body = [
         "output=json",
-        ...remoteArticleIds.map((id) => `i=${encodeURIComponent(id)}`),
+        ...remoteArticleIds.map(
+          (id) => `i=${encodeURIComponent(toFreshRssItemId(id))}`,
+        ),
       ].join("&");
       const response = await this.httpClient.request({
         url: `${this.endpoint}/reader/api/0/stream/items/contents`,
