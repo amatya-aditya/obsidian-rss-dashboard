@@ -116,8 +116,7 @@ describe("createReaderFormatPortal characterization", () => {
     expect(listeners.has("scroll")).toBe(false);
     expect(visualViewport.removeEventListener).toHaveBeenCalledTimes(2);
   });
-  it("pins the deferred outside-click listener installed after close", () => {
-    // BUG: pinned, see #1578
+  it("does not install outside-click handling after closing before registration", () => {
     setNarrowViewport(false);
     const addListener = vi.spyOn(document, "addEventListener");
     const removeListener = vi.spyOn(document, "removeEventListener");
@@ -134,10 +133,36 @@ describe("createReaderFormatPortal characterization", () => {
     handle.close(false);
     vi.runOnlyPendingTimers();
 
-    expect(addListener).toHaveBeenCalledWith("mousedown", expect.any(Function));
+    expect(addListener).not.toHaveBeenCalledWith(
+      "mousedown",
+      expect.any(Function),
+    );
     expect(removeListener).not.toHaveBeenCalledWith(
       "mousedown",
       expect.any(Function),
     );
+  });
+
+  it("closes on an outside click after listener registration", () => {
+    setNarrowViewport(false);
+    const flushSave = vi.fn();
+    const handle = createReaderFormatPortal({
+      anchor: (document.body as ObsidianHTMLElement).createDiv(),
+      format: createFormat(),
+      defaults: createFormat(),
+      applyFormat: vi.fn(),
+      scheduleSave: vi.fn(),
+      flushSave,
+      openReaderDisplaySettings: vi.fn(),
+    });
+
+    vi.runOnlyPendingTimers();
+    document.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+
+    expect(
+      document.querySelector(".rss-reader-format-dropdown-portal"),
+    ).toBeNull();
+    expect(flushSave).toHaveBeenCalledTimes(1);
+    handle.close(false);
   });
 });
