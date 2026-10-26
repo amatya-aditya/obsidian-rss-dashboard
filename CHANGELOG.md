@@ -2,6 +2,7 @@
 
 ### Features
 
+- RSS Dashboard 3.0 requires Obsidian 1.11.5 or later. Obsidian versions below 1.11.5 will no longer receive updates. [GH Issue #403](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/403)
 - FreshRSS **Sync now** opens a preview with mode-aware incoming and outgoing changes, progress, cancellation, and per-mutation retry or cancel for terminal failures. [GH Issue #1562](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1562)
 
 - FreshRSS now syncs starred and normalized label state in both directions for bound articles in Two-way mode. Receive-only leaves those changes local and queued until Two-way is restored; Dashboard tag colors stay local. [GH Issue #1560](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1560)

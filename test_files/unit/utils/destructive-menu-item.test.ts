@@ -25,7 +25,7 @@ describe("markMenuItemDestructive", () => {
     expect(ObsidianStubs.Menu.lastItems[0].isWarning).toBe(true);
   });
 
-  it("keeps the item usable on Obsidian 1.8.7, where MenuItem has no setWarning", () => {
+  it("keeps the item usable on legacy Obsidian 1.8.7 without setWarning", () => {
     ObsidianStubs.__setObsidianVersion("1.8.7");
     const item = makeItem();
 
