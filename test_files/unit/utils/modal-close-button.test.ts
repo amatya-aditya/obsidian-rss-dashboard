@@ -1,7 +1,6 @@
 // The native modal close button changed class across Obsidian versions. The
 // helper must remove both generations: `.modal-header-button` (1.13.7 and
-// 1.14.4) and `.modal-close-button` (1.8.7, the minimum supported version;
-// observed on 1.8.7, #431).
+// 1.14.4) and `.modal-close-button` (observed on 1.8.7, #431).
 import { describe, expect, it } from "vitest";
 import { removeNativeModalCloseButton } from "../../../src/utils/modal-close-button";
 
@@ -19,7 +18,7 @@ describe("removeNativeModalCloseButton", () => {
     expect(modalEl.querySelector(".modal-content")).not.toBeNull();
   });
 
-  it("removes the minimum-version close button (.modal-close-button)", () => {
+  it("removes the legacy close button (.modal-close-button)", () => {
     const modalEl = createDiv();
     modalEl.createDiv({ cls: "modal-close-button" });
     modalEl.createDiv({ cls: "modal-content" });

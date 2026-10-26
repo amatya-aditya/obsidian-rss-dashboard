@@ -27,12 +27,12 @@ type ApiVersionChecker = (version: string) => boolean;
 /**
  * Provides the settings-control behavior shared by supported Obsidian versions.
  *
- * Obsidian 1.8.7 through 1.12.x need the legacy DOM presentation. This branch
+ * Obsidian 1.11.5 through 1.12.x need the legacy DOM presentation. This branch
  * can be removed when the plugin minimum version increases to 1.13.0.
  *
  * The API version is read on every call, not once at creation: the running
  * version never changes, but reading it live lets a test switch the stub's
- * version to exercise the minimum-version path (#431).
+ * version to exercise the 1.11.5 support-floor path (#431).
  */
 export function createSettingsUiCompatibility(
   hasApiVersion: ApiVersionChecker = requireApiVersion,
