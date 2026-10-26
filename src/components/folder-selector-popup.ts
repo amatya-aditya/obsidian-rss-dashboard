@@ -456,8 +456,20 @@ export class FolderSelectorPopup {
       onSubmit: (folderName) => {
         this.selectFolder(folderName);
       },
+      onCancel: () => this.setInert(false),
       onClose: () => {
-        this.setInert(false);
+        const popupWindow = this.popupEl.ownerDocument.defaultView;
+        if (!popupWindow) {
+          this.setInert(false);
+          return;
+        }
+
+        // Obsidian closes a modal from its window-level Escape handler. Keep
+        // the popup inert until that same event has finished bubbling to the
+        // popup's document-level keyboard handler.
+        popupWindow.queueMicrotask(() => {
+          if (!this.isDestroyed) this.setInert(false);
+        });
       },
     });
 
