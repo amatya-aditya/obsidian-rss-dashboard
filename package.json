@@ -57,7 +57,7 @@
     "@typescript-eslint/utils": "^8.71.1",
     "@vitest/coverage-v8": "4.1.11",
     "esbuild": "0.28.2",
-    "eslint": "^9.39.2",
+    "eslint": "^10.13.0",
     "eslint-plugin-obsidianmd": "^0.4.2",
     "globals": "^17.13.0",
     "jsdom": "^28.1.0",
