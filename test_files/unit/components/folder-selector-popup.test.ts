@@ -591,6 +591,60 @@ describe("FolderSelectorPopup", () => {
     expect(onSelect).toHaveBeenCalledWith("");
   });
 
+  it("listOnly mode: pressing Escape to cancel Add new folder leaves the popup open and usable", async () => {
+    vi.useFakeTimers();
+
+    const anchorEl = createDiv();
+    vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
+      left: 0,
+      top: 0,
+      bottom: 0,
+      right: 0,
+      width: 0,
+      height: 0,
+    } as DOMRect);
+
+    const onSelect = vi.fn();
+    new FolderSelectorPopup(createPluginStub([]), {
+      anchorEl,
+      onSelect,
+      listOnly: true,
+    });
+    vi.runAllTimers();
+
+    const addNewItem = document.body.querySelector(
+      ".rss-folder-selector-add-new",
+    ) as HTMLElement;
+    addNewItem.click();
+
+    const modalCloseButton = document.body.querySelector(
+      ".modal-header-button",
+    ) as HTMLElement;
+    const closeModalOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") modalCloseButton.click();
+    };
+    window.addEventListener("keydown", closeModalOnEscape, true);
+
+    // Obsidian closes the modal during its window-level Escape handling,
+    // before the same event reaches the folder selector's document listener.
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+    window.removeEventListener("keydown", closeModalOnEscape, true);
+
+    expect(document.body.querySelector(".rss-folder-name-modal")).toBeNull();
+    expect(
+      document.body.querySelector(".rss-folder-selector-popup"),
+    ).not.toBeNull();
+
+    await Promise.resolve();
+    const rootItem = document.body.querySelector(
+      ".rss-folder-selector-root",
+    ) as HTMLElement;
+    rootItem.click();
+    expect(onSelect).toHaveBeenCalledWith("");
+  });
+
   // New bug: while the create-folder modal is open, the folder list behind
   // it (rendered by this same popup) was still fully clickable — z-index
   // alone doesn't stop real Obsidian's modal backdrop from being defeated by
