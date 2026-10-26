@@ -36,6 +36,7 @@ export interface ImportExportSettingsPlugin {
   importUserSettingsJsonFromFile(file: File): Promise<ImportResult>;
   copyUserSettingsJsonToClipboard(): Promise<void>;
   exportOpml(): void;
+  exportFreshRssOpml(): void;
   copyOpmlToClipboard(): Promise<void>;
   performFactoryReset(): Promise<void>;
 }

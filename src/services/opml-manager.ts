@@ -372,4 +372,25 @@ export class OpmlManager {
 
     return opmlContent;
   }
+
+  /** Generate a FreshRSS-compatible OPML profile with all subscriptions in one category. */
+  static generateFreshRssOpml(feeds: Feed[]): string {
+    const category = "RSS Dashboard";
+    let opmlContent = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    opmlContent += '<opml version="2.0">\n';
+    opmlContent += "  <head>\n";
+    opmlContent += "    <title>RSS Dashboard subscriptions</title>\n";
+    opmlContent += "  </head>\n";
+    opmlContent += "  <body>\n";
+    opmlContent += `    <outline text="${escapeXml(category)}" title="${escapeXml(category)}">\n`;
+
+    for (const feed of feeds) {
+      opmlContent += `      <outline text="${escapeXml(feed.title)}" title="${escapeXml(feed.title)}" type="rss" xmlUrl="${escapeXml(feed.url)}"/>\n`;
+    }
+
+    opmlContent += "    </outline>\n";
+    opmlContent += "  </body>\n";
+    opmlContent += "</opml>";
+    return opmlContent;
+  }
 }

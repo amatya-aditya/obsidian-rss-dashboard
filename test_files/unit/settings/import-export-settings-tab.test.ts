@@ -61,6 +61,7 @@ function createPlugin() {
     exportUserSettingsJson: vi.fn(async () => {}),
     copyUserSettingsJsonToClipboard: vi.fn(async () => {}),
     exportOpml: vi.fn(async () => {}),
+    exportFreshRssOpml: vi.fn(async () => {}),
     copyOpmlToClipboard: vi.fn(async () => {}),
     exportPortableDataBundle: vi.fn(async () => {}),
     importPortableDataBundleFromFile: vi.fn(
@@ -488,6 +489,14 @@ describe("Auto Backup Helpers", () => {
         containerEl.querySelectorAll<HTMLButtonElement>("button"),
       ).map((button) => button.textContent?.trim());
       expect(buttons).toContain("Import starred articles");
+      expect(buttons).toContain("Export OPML for FreshRSS");
+      const freshrssExportButton = Array.from(
+        containerEl.querySelectorAll<HTMLButtonElement>("button"),
+      ).find(
+        (button) => button.textContent?.trim() === "Export OPML for FreshRSS",
+      );
+      freshrssExportButton?.click();
+      expect(plugin.exportFreshRssOpml).toHaveBeenCalledOnce();
 
       const settingNames = Array.from(
         containerEl.querySelectorAll<HTMLElement>(".setting-item-name"),

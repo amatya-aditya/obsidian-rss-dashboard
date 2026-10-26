@@ -173,6 +173,14 @@ export class ImportExportService {
     });
   }
 
+  /** Export subscriptions in one FreshRSS category, without local article state. */
+  async exportFreshRssOpml(): Promise<ExportBlobResult> {
+    const opmlContent = OpmlManager.generateFreshRssOpml(this.settings.feeds);
+    const filename = "rss-dashboard-freshrss-subscriptions.opml";
+    const blob = new Blob([opmlContent], { type: "text/xml;charset=utf-8" });
+    return exportBlob({ blob, filename, isMobile: this.isMobile });
+  }
+
   /**
    * Export portable data bundle containing all feeds, folders, and settings.
    * Does not show a Notice — the caller (main.ts/views) turns the result into

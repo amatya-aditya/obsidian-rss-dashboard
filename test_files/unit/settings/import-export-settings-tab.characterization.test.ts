@@ -235,6 +235,7 @@ describe("renderImportExportSettingsTab() layout", () => {
       ["", "Copy user preferences to clipboard"],
       ["Import OPML/XML", null],
       ["Export OPML", null],
+      ["Export OPML for FreshRSS", null],
       ["", "Copy feeds.opml to clipboard"],
       ["Import starred articles", null],
       ["Factory reset", null],

@@ -2114,6 +2114,16 @@ export default class RssDashboardPlugin extends Plugin {
     })();
   }
 
+  exportFreshRssOpml(): void {
+    void (async () => {
+      const result = await this.importExportService.exportFreshRssOpml();
+      this.showExportNotice(
+        result,
+        "rss-dashboard-freshrss-subscriptions.opml",
+      );
+    })();
+  }
+
   public async copyDataJsonToClipboard(): Promise<void> {
     await this.flushPendingWrites();
     const result = await this.importExportService.copyDataJsonToClipboard();
