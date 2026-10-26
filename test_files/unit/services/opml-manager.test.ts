@@ -262,3 +262,70 @@ describe("OpmlManager.generateOpml", () => {
     expect(xmlDoc.getElementsByTagName("outline")).toHaveLength(0);
   });
 });
+
+describe("OpmlManager.generateFreshRssOpml", () => {
+  it("exports subscriptions only in one escaped category and parses back", () => {
+    const feeds = [
+      createFeed({
+        title: 'News & "Views" <daily>',
+        url: "https://example.com/feed?topic=food&lang=fr",
+        folder: "Local/Folder A",
+        items: [
+          {
+            title: "Local article state",
+            link: "https://example.com/article",
+            description: "Local description",
+            pubDate: "2026-01-01",
+            guid: "local-article-guid",
+            read: true,
+            starred: true,
+            feedTitle: "News & Views",
+            feedUrl: "https://example.com/feed",
+            coverImage: "",
+          },
+        ],
+      }),
+      createFeed({
+        title: "Another feed",
+        url: "https://example.org/rss",
+        folder: "Different folder",
+      }),
+    ];
+
+    const opml = OpmlManager.generateFreshRssOpml(feeds);
+    const xmlDoc = new DOMParser().parseFromString(opml, "text/xml");
+    const parserError = xmlDoc.getElementsByTagName("parsererror");
+
+    expect(opml).toContain('<?xml version="1.0" encoding="UTF-8"?>');
+    expect(opml).toContain('<opml version="2.0">');
+    expect(opml).toContain('text="RSS Dashboard" title="RSS Dashboard"');
+    expect(parserError).toHaveLength(0);
+    const categories = Array.from(xmlDoc.querySelectorAll("body > outline"));
+    expect(categories).toHaveLength(1);
+    expect(categories[0]?.getAttribute("text")).toBe("RSS Dashboard");
+    expect(categories[0]?.querySelectorAll(":scope > outline")).toHaveLength(2);
+    expect(opml).not.toContain("Local article state");
+    expect(opml).not.toContain("Local/Folder A");
+
+    const imported = OpmlManager.parseOpmlMetadata(opml);
+    expect(
+      imported.feeds.map(({ title, url, folder }) => ({
+        title,
+        url,
+        folder,
+      })),
+    ).toEqual([
+      {
+        title: 'News & "Views" <daily>',
+        url: "https://example.com/feed?topic=food&lang=fr",
+        folder: "RSS Dashboard",
+      },
+      {
+        title: "Another feed",
+        url: "https://example.org/rss",
+        folder: "RSS Dashboard",
+      },
+    ]);
+    expect(imported.folders).toEqual([createFolder("RSS Dashboard")]);
+  });
+});

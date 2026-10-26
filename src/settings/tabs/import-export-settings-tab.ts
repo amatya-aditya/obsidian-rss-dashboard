@@ -426,6 +426,12 @@ export function renderImportExportSettingsTab(
     )
     .addButton((button) =>
       button
+        .setIcon("download")
+        .setButtonText("Export OPML for FreshRSS")
+        .onClick(() => plugin.exportFreshRssOpml()),
+    )
+    .addButton((button) =>
+      button
         .setIcon("copy")
         .setTooltip("Copy feeds.opml to clipboard")
         .onClick(() => {
