@@ -91,12 +91,13 @@ Want to contribute or understand how the plugin works internally?
 
 ## Quick Links
 
-| Need          | Link                                                                                                                        |
-| ------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| First time?   | [Getting Started](./user/getting-started.md)                                                                                |
-| Install help  | [Installation Methods](./user/installation.md)                                                                              |
-| Tag questions | [Tags Primer](./user/tags-primer.md)                                                                                        |
-| Sync issues   | [Syncing Guide](./user/syncing.md)                                                                                          |
-| Stuck?        | [Troubleshooting](./user/troubleshooting.md)                                                                                |
-| Want to help? | [Contributing](../CONTRIBUTING.md)                                                                                          |
-| Feedback?     | [Discord](https://discord.gg/9bu7V9BBbs) or [GitHub Issues](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues) |
+| Need           | Link                                                                                                                        |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| First time?    | [Getting Started](./user/getting-started.md)                                                                                |
+| Install help   | [Installation Methods](./user/installation.md)                                                                              |
+| Tag questions  | [Tags Primer](./user/tags-primer.md)                                                                                        |
+| Sync issues    | [Syncing Guide](./user/syncing.md)                                                                                          |
+| FreshRSS HTTPS | [Connect FreshRSS over HTTPS](./user/freshrss-https-setup.md)                                                               |
+| Stuck?         | [Troubleshooting](./user/troubleshooting.md)                                                                                |
+| Want to help?  | [Contributing](../CONTRIBUTING.md)                                                                                          |
+| Feedback?      | [Discord](https://discord.gg/9bu7V9BBbs) or [GitHub Issues](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues) |
