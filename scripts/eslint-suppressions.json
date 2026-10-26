@@ -12,11 +12,6 @@
       "count": 1
     }
   },
-  "src/modals/feed-manager/feed-manager-modal.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/modals/feed-preview-modal.ts": {
     "complexity": {
       "count": 2
