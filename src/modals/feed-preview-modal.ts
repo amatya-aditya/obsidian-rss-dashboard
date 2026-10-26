@@ -2,20 +2,15 @@ import { App, setIcon, Setting } from "obsidian";
 import { AccessibleModal } from "../utils/accessible-modal";
 import { FeedMetadata } from "../types/discover-types";
 import { fetchFeedXml } from "../services/feed-parser";
-import { decodeHtmlEntities } from "../services/feed-parser/xml-parser/xml-html-utils";
-
-interface PreviewArticle {
-  title: string;
-  link: string;
-  description: string;
-  pubDate: string;
-  author?: string;
-  image?: string;
-}
+import {
+  parseFeedPreviewXml,
+  sanitizeFeedPreviewText,
+  type FeedPreviewArticle,
+} from "./feed-preview-parser";
 
 export class FeedPreviewModal extends AccessibleModal {
   private feed: FeedMetadata;
-  private articles: PreviewArticle[] = [];
+  private articles: FeedPreviewArticle[] = [];
   private isLoading = true;
   private error: string | null = null;
 
@@ -128,114 +123,12 @@ export class FeedPreviewModal extends AccessibleModal {
     }
   }
 
-  private parseFeedXml(xmlString: string): PreviewArticle[] {
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(xmlString, "text/xml");
-
-      const articles: PreviewArticle[] = [];
-
-      const channel = doc.querySelector("channel");
-      const rssItems = channel
-        ? Array.from(channel.children).filter(
-            (el) => el.tagName.toLowerCase() === "item",
-          )
-        : [];
-
-      if (rssItems.length > 0) {
-        rssItems.forEach((item, index) => {
-          if (index >= 10) return;
-
-          // Use direct children to avoid bleeding text from nested/malformed item markup.
-          const title =
-            item.querySelector(":scope > title")?.textContent?.trim() || "";
-          const link =
-            item.querySelector(":scope > link")?.textContent?.trim() || "";
-          const description =
-            item.querySelector(":scope > description")?.textContent?.trim() ||
-            "";
-          const pubDate =
-            item.querySelector(":scope > pubDate")?.textContent?.trim() || "";
-          const author =
-            item.querySelector(":scope > author")?.textContent?.trim() ||
-            item.querySelector(":scope > dc\\:creator")?.textContent?.trim() ||
-            "";
-
-          let image = "";
-          const content =
-            item.querySelector(":scope > content\\:encoded")?.textContent ||
-            description;
-          const imgMatch = content.match(
-            /<img[^>]+src=["']([^"']+)["'][^>]*>/i,
-          );
-          if (imgMatch?.[1]) {
-            image = imgMatch[1];
-          } else {
-            const mediaContent = item.querySelector(":scope > media\\:content");
-            if (mediaContent) {
-              const mediaUrl = mediaContent.getAttribute("url");
-              if (mediaUrl) {
-                image = mediaUrl;
-              }
-            } else {
-              const enclosure = item.querySelector(
-                ':scope > enclosure[type^="image"]',
-              );
-              if (enclosure) {
-                image = enclosure.getAttribute("url") || "";
-              }
-            }
-          }
-
-          articles.push({
-            title,
-            link,
-            description: this.sanitizeText(description),
-            pubDate,
-            author,
-            image,
-          });
-        });
-      } else {
-        const entries = doc.querySelectorAll("entry");
-        entries.forEach((entry, index) => {
-          if (index >= 10) return;
-
-          const title = entry.querySelector("title")?.textContent?.trim() || "";
-          const link = entry.querySelector("link")?.getAttribute("href") || "";
-          const description =
-            entry.querySelector("summary")?.textContent?.trim() ||
-            entry.querySelector("content")?.textContent?.trim() ||
-            "";
-          const pubDate =
-            entry.querySelector("published")?.textContent?.trim() ||
-            entry.querySelector("updated")?.textContent?.trim() ||
-            "";
-          const author =
-            entry.querySelector("author > name")?.textContent?.trim() || "";
-
-          articles.push({
-            title,
-            link,
-            description: this.sanitizeText(description),
-            pubDate,
-            author,
-          });
-        });
-      }
-
-      return articles;
-    } catch {
-      return [];
-    }
+  private parseFeedXml(xmlString: string): FeedPreviewArticle[] {
+    return parseFeedPreviewXml(xmlString);
   }
 
   private sanitizeText(text: string): string {
-    if (!text) return "";
-
-    return decodeHtmlEntities(text.replace(/<[^>]*>/g, ""))
-      .replace(/\s+/g, " ")
-      .trim();
+    return sanitizeFeedPreviewText(text);
   }
 
   private renderError(): void {
@@ -280,7 +173,7 @@ export class FeedPreviewModal extends AccessibleModal {
 
   private renderArticleCard(
     container: HTMLElement,
-    article: PreviewArticle,
+    article: FeedPreviewArticle,
   ): void {
     const card = container.createDiv({ cls: "feed-preview-article-card" });
 
