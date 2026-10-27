@@ -81,6 +81,7 @@ describe("settings UI compatibility", () => {
     expect(button.calls).toEqual([]);
     expect(button.buttonEl.classList.contains("mod-warning")).toBe(true);
     expect(valueEl?.textContent).toBe("5 MiB");
+    expect(valueEl?.hasAttribute("aria-live")).toBe(false);
 
     slider.sliderEl.value = "12";
     slider.sliderEl.dispatchEvent(new Event("input"));
