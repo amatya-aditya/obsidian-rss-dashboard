@@ -1154,7 +1154,7 @@ export class ReaderView extends ItemView {
 
     this.saveButton = createIconButton({
       parent: actions,
-      cls: "rss-reader-action-button",
+      cls: "rss-reader-action-button rss-reader-save-toggle",
       label: "Save article",
       icon: "save",
       action: "save",
@@ -1198,6 +1198,15 @@ export class ReaderView extends ItemView {
         }
       },
     });
+    this.starToggleButton.empty();
+    const starIcon = this.starToggleButton.createSpan({
+      cls: "rss-reader-star-icon",
+    });
+    setIcon(starIcon, "star-off");
+    const starPreviewIcon = this.starToggleButton.createSpan({
+      cls: "rss-reader-star-preview-icon",
+    });
+    setIcon(starPreviewIcon, "star");
 
     // Tags button (same portal menu as dashboard cards)
     const tagsButton = (this.tagsToggleButton = createIconButton({
@@ -2939,10 +2948,15 @@ export class ReaderView extends ItemView {
 
     // Update star toggle
     if (this.starToggleButton) {
-      setIcon(
-        this.starToggleButton,
-        this.currentItem.starred ? "star" : "star-off",
+      const starIcon = this.starToggleButton.querySelector(
+        ".rss-reader-star-icon",
       );
+      if (starIcon) {
+        setIcon(
+          starIcon as HTMLElement,
+          this.currentItem.starred ? "star" : "star-off",
+        );
+      }
       this.starToggleButton.classList.toggle(
         "starred",
         this.currentItem.starred,
