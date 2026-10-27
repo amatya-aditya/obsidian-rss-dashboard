@@ -2,6 +2,7 @@
 
 ### Fixes
 
+- Feed previews now pick an article's image in the order its feed offers them: the first image in the article body (`content:encoded`), then an image `media:content`, then an image enclosure. Previously the preview skipped the body and `media:content` images and fell back to the enclosure, or showed none. A `media:content` that is audio or video, or has no address, is skipped in favour of the next source. [GH Issue #1609](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1609)
 - A successful Retry in the feed preview now removes the earlier error message and Retry button, and a failed Retry shows a single error instead of stacking another. [GH Issue #1610](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1610)
 - Read, Save, Star, and Tags actions no longer change the selected article or scroll the dashboard when activated in List, Card, or Feed view. [GH Issue #1613](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1613)
 - Dashboard and Reader article actions now share dim idle icons, semantic-color hover and keyboard-focus previews, and brighter selected-action hover states; inactive Stars preview as filled yellow stars. Dashboard Card, Feed, and List controls share the same responsive surfaces and tablet/mobile border, while Reader toolbar actions stay borderless. [GH Issue #1603](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1603)
