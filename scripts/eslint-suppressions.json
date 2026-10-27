@@ -26,10 +26,5 @@
     "max-lines-per-function": {
       "count": 1
     }
-  },
-  "src/settings/tabs/sidebar-settings-tab.ts": {
-    "max-lines-per-function": {
-      "count": 3
-    }
   }
 }
