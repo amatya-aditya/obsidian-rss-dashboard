@@ -55,6 +55,12 @@ Run `npm ci` in the worktree only when the branch changes `package.json` or
 `package-lock.json`, and remove the junction first: `npm ci` through a link
 rewrites the main checkout's packages.
 
+An install run through the link can also leave a nested `node_modules/node_modules`
+in the main checkout. It loads a second jsdom, and the cross-window unit tests
+then fail with `Failed to execute 'appendChild' on 'Node'`. `npm run
+check:node-modules` (part of `check:compliance`) detects it; delete the nested
+directory itself.
+
 `git worktree remove` leaves the junction behind. Unlink it with a plain `rm`
 (or `cmd /c rmdir` without `/s`) on the link itself, then remove the empty
 folder. Never `rm -rf` or `Remove-Item -Recurse` it: that deletes the main
