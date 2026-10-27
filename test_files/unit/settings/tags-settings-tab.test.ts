@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
+import { readFileSync } from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import postcss from "postcss";
 import {
   type RssDashboardSettings,
   type Feed,
@@ -10,6 +14,25 @@ import { renderTagsSettingsTab } from "../../../src/settings/tabs/tags-settings-
 import { ConfirmActionModal } from "../../../src/settings/modals/settings-modals";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import type RssDashboardPlugin from "../../../main";
+
+const testDir = path.dirname(fileURLToPath(import.meta.url));
+const settingsStylesheet = postcss.parse(
+  readFileSync(
+    path.resolve(testDir, "../../../src/styles/settings.css"),
+    "utf8",
+  ),
+);
+
+function declarationsFor(selector: string): Map<string, string> {
+  const declarations = new Map<string, string>();
+  settingsStylesheet.walkRules((rule) => {
+    if (!rule.selectors.includes(selector)) return;
+    rule.walkDecls((declaration) => {
+      declarations.set(declaration.prop, declaration.value);
+    });
+  });
+  return declarations;
+}
 
 /** Resolve the modal's accessible name from the heading it points at. */
 function dialogName(dialog: Element | null): string | null {
@@ -998,6 +1021,41 @@ describe("renderTagsSettingsTab() tag shape control", () => {
     ).toEqual(["false", "false", "false"]);
     // With no preset checked the first radio stays reachable by Tab.
     expect(radios(containerEl)[0]?.tabIndex).toBe(0);
+  });
+
+  it("keeps the empty validation status described and visually hidden until an error is shown", () => {
+    const { containerEl } = render();
+    const input = customInput(containerEl);
+    const error = containerEl.querySelector<HTMLElement>(
+      ".rss-dashboard-tag-shape-error",
+    );
+
+    expect(error).not.toBeNull();
+    expect(error?.textContent).toBe("");
+    expect(error?.getAttribute("role")).toBe("status");
+    expect(error?.getAttribute("aria-live")).toBe("polite");
+    expect(input.getAttribute("aria-describedby")).toBe(error?.id);
+
+    const emptyError = declarationsFor(
+      ".rss-dashboard-tag-shape .rss-dashboard-tag-shape-error:empty",
+    );
+    expect(emptyError.get("display")).not.toBe("none");
+    expect(emptyError.get("position")).toBe("absolute");
+    expect(emptyError.get("clip")).toBe("rect(0, 0, 0, 0)");
+    expect(emptyError.get("overflow")).toBe("hidden");
+
+    type(input, "red");
+
+    expect(containerEl.querySelector(".rss-dashboard-tag-shape-error")).toBe(
+      error,
+    );
+    expect(error?.textContent).toContain("non-negative");
+    expect(input.getAttribute("aria-describedby")).toBe(error?.id);
+    const visibleError = declarationsFor(
+      ".rss-dashboard-tag-shape .rss-dashboard-tag-shape-error",
+    );
+    expect(visibleError.get("position")).toBeUndefined();
+    expect(visibleError.get("clip")).toBeUndefined();
   });
 
   it("flags invalid input accessibly and keeps the last valid radius", () => {
