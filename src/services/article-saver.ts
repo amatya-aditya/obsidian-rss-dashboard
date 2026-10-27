@@ -42,11 +42,12 @@ import {
   feedLanguageFor,
 } from "../utils/article-metadata-persistence";
 import {
+  bodyLeadsWithHero,
   noteLeadsWithHero,
   resolveNoteTemplate,
+  templateImageUrl,
 } from "./article-template/note-template";
 import { renderArticleTemplate } from "./article-template/render-template";
-import { templatePlacesImage } from "./article-template/template-variables";
 import {
   ARTICLE_SAVER_FRONTMATTER_STEPS,
   ARTICLE_FILENAME_STEPS,
@@ -337,19 +338,7 @@ export class ArticleSaver {
   }
 
   private getFallbackHeroUrl(item: FeedItem): string {
-    const enclosureImageUrl =
-      item.enclosure?.type?.startsWith("image/") && item.enclosure.url
-        ? item.enclosure.url
-        : "";
-
-    const heroUrl = firstNonFormulaImageUrl([
-      item.coverImage,
-      item.image,
-      item.itunes?.image?.href,
-      enclosureImageUrl,
-    ]);
-
-    return normalizeSubstackImageUrl((heroUrl || "").trim());
+    return templateImageUrl(item);
   }
 
   /**
@@ -482,7 +471,7 @@ guid: "{{guid}}"
   ): string {
     const content = rawContent
       ? rawContent
-      : this.feedHtmlAsMarkdown(item, !templatePlacesImage(template));
+      : this.feedHtmlAsMarkdown(item, bodyLeadsWithHero(template, item));
 
     return renderArticleTemplate(
       template,
@@ -648,7 +637,12 @@ guid: "{{guid}}"
           ? this.convertFetchedHtmlToMarkdown(
               item,
               readerContent.fetchedHtml,
-              noteLeadsWithHero(this.settings, customTemplate, savedTemplate),
+              noteLeadsWithHero(
+                this.settings,
+                customTemplate,
+                savedTemplate,
+                item,
+              ),
             )
           : "";
       if (markdown.trim()) {
@@ -700,6 +694,7 @@ guid: "{{guid}}"
       this.settings,
       customTemplate,
       savedTemplate,
+      item,
     )
       ? this.getFeedHeroUrl(item)
       : "";
@@ -826,7 +821,7 @@ guid: "{{guid}}"
       const markdownContent = this.convertFetchedHtmlToMarkdown(
         item,
         fetchResult.content,
-        noteLeadsWithHero(this.settings, customTemplate, savedTemplate),
+        noteLeadsWithHero(this.settings, customTemplate, savedTemplate, item),
       );
       if (!markdownContent.trim()) {
         loadingNotice.hide();

@@ -13,8 +13,9 @@ vi.mock("../../../src/utils/full-article-fetch", async () => ({
   fetchFullArticleContentWithOutcome: fetchMock,
 }));
 
-function item(coverImage = ""): FeedItem {
+function item(coverImage = "", pageImage = ""): FeedItem {
   return {
+    ...(pageImage ? { pageImage } : {}),
     title: "Ad page article",
     link: "https://example.com/ad-page",
     description: "<p>Short feed blurb</p>",
@@ -46,7 +47,11 @@ describe("Reader save strips ad containers from fetched content (#1195)", () => 
 
   const openWithFetched = async (
     fetched: FullArticleFetchResult,
-    options: { defaultTemplate?: string; coverImage?: string } = {},
+    options: {
+      defaultTemplate?: string;
+      coverImage?: string;
+      pageImage?: string;
+    } = {},
   ): Promise<ReturnType<typeof vi.fn>> => {
     const app = App.createMock();
     const settings = structuredClone(DEFAULT_SETTINGS);
@@ -71,7 +76,7 @@ describe("Reader save strips ad containers from fetched content (#1195)", () => 
     await view.onOpen();
     fetchMock.mockResolvedValueOnce(fetched);
 
-    await view.displayItem(item(options.coverImage));
+    await view.displayItem(item(options.coverImage, options.pageImage));
     // The Reader only saves its own Markdown once the fetched version is shown.
     const toggle = findContentToggle(container);
     if (!toggle) throw new Error("Missing content toggle");
@@ -130,6 +135,18 @@ describe("Reader save strips ad containers from fetched content (#1195)", () => 
       expect(readerContent.markdown).toContain("A substantial opening");
       expect(readerContent.markdown).not.toContain("Hero image");
       expect(readerContent.markdown).not.toContain(COVER);
+    });
+
+    it("keeps the hero lead when the template names the image but the article has none for it", async () => {
+      const pageImage = "https://page.example.com/og.jpg";
+      const save = await openWithFetched(FETCHED, {
+        defaultTemplate: "![]({{image}})\n\n{{content}}",
+        coverImage: "",
+        pageImage,
+      });
+
+      const readerContent = save.mock.calls[0]?.[4] as { markdown?: string };
+      expect(readerContent.markdown).toContain(`![Hero image](${pageImage})`);
     });
   });
 });

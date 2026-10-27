@@ -105,6 +105,31 @@ describe("ArticleSaver - {{image}} in the note body replaces the hero lead", () 
     expect(written).not.toContain(PAGE_IMAGE);
   });
 
+  it("keeps the hero lead when the article has no image for {{image}} to fill", async () => {
+    const app = App.createMock();
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content: "<p>Fetched body.</p>",
+      failureType: "none",
+      pageImage: PAGE_IMAGE,
+    });
+    // No cover, image, iTunes image or enclosure: {{image}} is empty, so the
+    // page's own image must still lead the note rather than leaving it bare.
+    const item = createItem({ coverImage: "" });
+
+    const written = await readSaved(
+      app,
+      await createSaver(app, {
+        saveVersion: "fetched",
+      }).saveArticleWithFullContent(item),
+    );
+
+    expect(written).toContain(`![Hero image](${PAGE_IMAGE})`);
+    expect(written).toContain("Fetched body.");
+  });
+
   it("writes the image once when the Reader hands over fetched HTML", async () => {
     const app = App.createMock();
     const item = createItem({ coverImage: COVER, pageImage: PAGE_IMAGE });
