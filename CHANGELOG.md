@@ -2,6 +2,7 @@
 
 ### Fixes
 
+- A successful Retry in the feed preview now removes the earlier error message and Retry button, and a failed Retry shows a single error instead of stacking another. [GH Issue #1610](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1610)
 - Read, Save, Star, and Tags actions no longer change the selected article or scroll the dashboard when activated in List, Card, or Feed view. [GH Issue #1613](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1613)
 - Dashboard and Reader article actions now share dim idle icons, semantic-color hover and keyboard-focus previews, and brighter selected-action hover states; inactive Stars preview as filled yellow stars. Dashboard Card, Feed, and List controls share the same responsive surfaces and tablet/mobile border, while Reader toolbar actions stay borderless. [GH Issue #1603](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1603)
 - The Edit tag dialog now gives the name field usable width on mobile, keeps Cancel and Save the same size and shape, and can scroll when the keyboard reduces the visible area. [GH Issue #1599](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1599)

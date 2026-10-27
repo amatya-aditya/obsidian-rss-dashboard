@@ -106,6 +106,7 @@ export class FeedPreviewModal extends AccessibleModal {
     try {
       this.isLoading = true;
       this.error = null;
+      this.clearPreviewState();
 
       const xmlString = await fetchFeedXml(
         this.feed.url,
@@ -121,6 +122,14 @@ export class FeedPreviewModal extends AccessibleModal {
     } finally {
       this.isLoading = false;
     }
+  }
+
+  private clearPreviewState(): void {
+    this.contentEl
+      .querySelectorAll(
+        ":scope > .feed-preview-error, :scope > .feed-preview-content, :scope > .feed-preview-empty",
+      )
+      .forEach((el) => el.remove());
   }
 
   private parseFeedXml(xmlString: string): FeedPreviewArticle[] {
