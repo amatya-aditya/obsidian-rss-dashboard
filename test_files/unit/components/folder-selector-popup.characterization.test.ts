@@ -14,7 +14,7 @@ function createPlugin(folders: Folder[] = []): TestPlugin {
     JSON.stringify(DEFAULT_SETTINGS),
   ) as RssDashboardSettings;
   settings.folders = folders;
-  return { settings, app: {} } as unknown as TestPlugin;
+  return { settings, app: {}, register: () => {} } as unknown as TestPlugin;
 }
 
 function createPopup(
