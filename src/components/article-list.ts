@@ -1,5 +1,8 @@
 import { type App, Notice, setIcon, setTooltip } from "obsidian";
 import {
+  ARTICLE_TITLE_SCALE_DEFAULT,
+  ARTICLE_TITLE_SCALE_MAX,
+  ARTICLE_TITLE_SCALE_MIN,
   ArticleGroupByOption,
   FeedItem,
   RssDashboardSettings,
@@ -408,6 +411,20 @@ export class ArticleList {
       return 15;
     }
     return Math.max(0, Math.min(40, Math.round(value)));
+  }
+
+  /** The saved title size as a CSS multiplier, kept inside the slider's range. */
+  private getArticleTitleScale(): number {
+    const value = this.settings.display.articleTitleScale;
+    if (!Number.isFinite(value)) {
+      return ARTICLE_TITLE_SCALE_DEFAULT / 100;
+    }
+    return (
+      Math.max(
+        ARTICLE_TITLE_SCALE_MIN,
+        Math.min(ARTICLE_TITLE_SCALE_MAX, value),
+      ) / 100
+    );
   }
 
   private getCardGridTemplateColumns(cardColumns: number): string | null {
@@ -1448,6 +1465,10 @@ export class ArticleList {
     });
     this.applyLeftHandedLayoutClass(articlesList);
     this.attachControlActivation(articlesList);
+    articlesList.style.setProperty(
+      "--rss-dashboard-article-title-scale",
+      String(this.getArticleTitleScale()),
+    );
     if (this.settings.viewStyle === "card") {
       // Keep card layout controls in one render-time path so both hamburger
       // controls and formal settings stay in sync with the same persisted fields.

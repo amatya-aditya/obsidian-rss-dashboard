@@ -70,6 +70,62 @@ describe("ArticleList view layout", () => {
     });
   });
 
+  describe("Article title scale", () => {
+    const scaleOf = (): string =>
+      (
+        container.querySelector(".rss-dashboard-articles-list") as HTMLElement
+      ).style.getPropertyValue("--rss-dashboard-article-title-scale");
+
+    it.each(["card", "list", "feed"] as const)(
+      "applies the saved title size to %s view as a multiplier",
+      (viewStyle) => {
+        settings.viewStyle = viewStyle;
+        settings.display.articleTitleScale = 150;
+        createArticleListInstance(
+          container,
+          settings,
+          articles,
+          mockCallbacks,
+          null,
+          2,
+        ).render();
+
+        expect(scaleOf()).toBe("1.5");
+      },
+    );
+
+    it("leaves titles at their normal size by default", () => {
+      createArticleListInstance(
+        container,
+        settings,
+        articles,
+        mockCallbacks,
+        null,
+        2,
+      ).render();
+
+      expect(scaleOf()).toBe("1");
+    });
+
+    it.each([
+      [10, "0.5"],
+      [900, "2"],
+      [Number.NaN, "1"],
+    ])("keeps a saved value of %s inside the supported range", (saved, css) => {
+      settings.display.articleTitleScale = saved;
+      createArticleListInstance(
+        container,
+        settings,
+        articles,
+        mockCallbacks,
+        null,
+        2,
+      ).render();
+
+      expect(scaleOf()).toBe(css);
+    });
+  });
+
   describe("Card Spacing Layout", () => {
     it("updates the card gap variable without re-running tag layout on live spacing changes", () => {
       settings.viewStyle = "card";

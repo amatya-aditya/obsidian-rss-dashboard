@@ -380,6 +380,12 @@ export interface ArticleSavingSettings {
 export const IMAGE_CACHE_LIMIT_MIN_MIB = 1;
 export const IMAGE_CACHE_LIMIT_MAX_MIB = 1_024;
 
+/** Article title size, as a percentage of each view's normal title size. */
+export const ARTICLE_TITLE_SCALE_MIN = 50;
+export const ARTICLE_TITLE_SCALE_MAX = 200;
+export const ARTICLE_TITLE_SCALE_STEP = 5;
+export const ARTICLE_TITLE_SCALE_DEFAULT = 100;
+
 export interface DisplaySettings {
   showCoverImage: boolean;
   allowImageCaching: boolean;
@@ -418,6 +424,7 @@ export interface DisplaySettings {
   sidebarItemPaddingRight: number;
   cardColumnsPerRow: number;
   cardSpacing: number;
+  articleTitleScale: number;
   hideEmptyFeeds: boolean;
   hideFeedFetchErrorBadges: boolean;
 
@@ -948,6 +955,7 @@ guid: "{{guid}}"
     sidebarItemPaddingRight: 2,
     cardColumnsPerRow: 0,
     cardSpacing: 15,
+    articleTitleScale: ARTICLE_TITLE_SCALE_DEFAULT,
     hideEmptyFeeds: false,
     hideFeedFetchErrorBadges: false,
     hideIconDashboard: false,
