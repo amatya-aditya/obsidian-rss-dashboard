@@ -134,7 +134,9 @@ choosing where the image goes, as in Web Clipper. `noteLeadsWithHero`
 path: the saver's RSS, Fetched and fetch-failure builders, and the Reader's own
 Markdown (`buildReaderSaveMarkdown`). An `{{image}}` that sits only in a leading
 frontmatter block (`cover: {{image}}`) does not count, so that body keeps its
-hero. The hero the body would have led with can differ in size from `{{image}}`,
+hero. Neither does an `{{image}}` the item cannot fill (`templateImageUrl` is
+empty, as for a feed with no cover whose image comes only from the fetched
+page): the body keeps its hero, so the note is not left with no image. The hero the body would have led with can differ in size from `{{image}}`,
 which is why the "already in the body" check could not prevent the repeat.
 
 ## Why the plugin fetches pages only on open

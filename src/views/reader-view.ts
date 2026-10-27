@@ -867,6 +867,7 @@ export class ReaderView extends ItemView {
                   this.settings.articleSaving,
                   template,
                   savedTemplate,
+                  item,
                 ),
               )
             : undefined,
