@@ -75,6 +75,11 @@ describe("article-actions utils", () => {
       const toggle = actionToolbar.querySelector(".rss-dashboard-star-toggle");
       expect(toggle).toBeTruthy();
       expect(toggle?.classList.contains("unstarred")).toBe(true);
+      expect(
+        toggle?.querySelector(
+          ".rss-dashboard-star-preview-icon svg.lucide-star",
+        ),
+      ).toBeTruthy();
     });
 
     it("renders as starred when article is starred", () => {

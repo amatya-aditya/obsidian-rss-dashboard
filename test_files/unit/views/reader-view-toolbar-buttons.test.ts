@@ -210,6 +210,12 @@ describe("ReaderView toolbar icon buttons", () => {
       expect(byName("Mark as read/unread").className).toContain(
         "rss-reader-read-toggle",
       );
+      expect(byAction("save").className).toContain("rss-reader-save-toggle");
+      expect(
+        byName("Star/unstar article").querySelector(
+          ".rss-reader-star-preview-icon svg.lucide-star",
+        ),
+      ).toBeTruthy();
       expect(byName("Reader settings").className).toContain(
         "rss-reader-format-button",
       );
