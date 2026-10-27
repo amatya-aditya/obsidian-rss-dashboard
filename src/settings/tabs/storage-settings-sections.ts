@@ -360,8 +360,14 @@ async function applyStorageSettings(
     return;
   }
 
-  if (!(await confirmStorageFolderChange(plugin, folderChanged))) {
-    return;
+  if (folderChanged) {
+    const unloadedFeedCount = plugin.getUnloadedShardFeedCount();
+    if (
+      unloadedFeedCount > 0 &&
+      !(await confirmStorageFolderChange(plugin, unloadedFeedCount))
+    ) {
+      return;
+    }
   }
 
   if (!modeChanged && folderChanged) {
@@ -374,14 +380,8 @@ async function applyStorageSettings(
 
 async function confirmStorageFolderChange(
   plugin: StorageSettingsPlugin,
-  folderChanged: boolean,
+  unloadedFeedCount: number,
 ): Promise<boolean> {
-  const unloadedFeedCount = folderChanged
-    ? plugin.getUnloadedShardFeedCount()
-    : 0;
-  if (unloadedFeedCount <= 0) {
-    return true;
-  }
   const warningModal = new UnloadedFeedsFolderChangeModal(plugin.app, {
     unloadedFeedCount,
     totalFeedCount: plugin.settings.feeds.length,
