@@ -31,13 +31,5 @@
     "max-lines-per-function": {
       "count": 3
     }
-  },
-  "src/settings/tabs/storage-settings-tab.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 3
-    }
   }
 }
