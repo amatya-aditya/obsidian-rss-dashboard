@@ -122,6 +122,12 @@ describe("dashboard refresh live region", () => {
     expect(found).toHaveLength(1);
     expect(found[0]?.getAttribute("role")).toBe("status");
     expect(found[0]?.textContent).toBe("");
+    const visibleStatusText = view.containerEl.querySelector(
+      ".rss-dashboard-refresh-status-text",
+    );
+    expect(visibleStatusText).not.toBeNull();
+    expect(visibleStatusText?.hasAttribute("aria-live")).toBe(false);
+    expect(visibleStatusText?.getAttribute("role")).toBeNull();
     await view.onClose();
   });
 
