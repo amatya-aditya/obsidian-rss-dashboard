@@ -32,6 +32,11 @@ import {
   loadVaultLocalStorage,
   saveVaultLocalStorage,
 } from "../utils/vault-local-storage";
+import {
+  renderDiscoverFeedSummary,
+  renderDiscoverFeedResults,
+  sortDiscoverFeeds,
+} from "../discover/discover-feed-results";
 
 import feedsData from "../discover/discover-feeds.json";
 
@@ -324,44 +329,7 @@ export class DiscoverView extends ItemView {
   }
 
   private sortFeeds(): void {
-    this.filteredFeeds.sort((a, b) => {
-      switch (this.currentSort) {
-        case "title-asc":
-          return a.title.localeCompare(b.title);
-        case "title-desc":
-          return b.title.localeCompare(a.title);
-        case "created-desc":
-          return (
-            new Date(b.createdAt || 0).getTime() -
-            new Date(a.createdAt || 0).getTime()
-          );
-        case "created-asc":
-          return (
-            new Date(a.createdAt || 0).getTime() -
-            new Date(b.createdAt || 0).getTime()
-          );
-        case "tags-desc":
-          return b.tags.length - a.tags.length;
-        case "tags-asc":
-          return a.tags.length - b.tags.length;
-        case "category-asc": {
-          const categoryA = a.domain[0] || "";
-          const categoryB = b.domain[0] || "";
-          return categoryA.localeCompare(categoryB);
-        }
-        case "tag-name-asc": {
-          const tagA = a.tags[0] || "";
-          const tagB = b.tags[0] || "";
-          return tagA.localeCompare(tagB);
-        }
-        case "type-asc":
-          return (a.type || "").localeCompare(b.type || "");
-        case "type-desc":
-          return (b.type || "").localeCompare(a.type || "");
-        default:
-          return 0;
-      }
-    });
+    sortDiscoverFeeds(this.filteredFeeds, this.currentSort);
   }
 
   private saveFilterState(): void {
@@ -1067,32 +1035,14 @@ export class DiscoverView extends ItemView {
       cls: "rss-discover-filter-header",
     });
 
-    const leftSection = filterHeader.createDiv({
-      cls: "rss-discover-filter-header-left",
-    });
+    renderDiscoverFeedSummary(
+      filterHeader,
+      this.filteredFeeds.length,
+      (leftSection) => this.renderAddAllButton(leftSection),
+      (leftSection) => this.renderSelectedFilters(leftSection),
+    );
 
-    const resultsCount = leftSection.createDiv({
-      cls: "rss-discover-results-count",
-    });
-    resultsCount.textContent = `${this.filteredFeeds.length} feeds found`;
-    this.renderAddAllButton(leftSection);
-
-    this.renderSelectedFilters(leftSection);
-
-    const rightSection = filterHeader.createDiv({
-      cls: "rss-discover-filter-header-right",
-    });
-
-    const desktopFilterControls = rightSection.createDiv({
-      cls: "rss-discover-filter-controls",
-    });
-
-    // Follow status + sort controls stay in desktop header.
-    this.renderFollowStatusDropdown(desktopFilterControls);
-    this.renderSortDropdown(desktopFilterControls);
-    if (this.hasActiveFilters()) {
-      this.renderClearFiltersButton(desktopFilterControls);
-    }
+    const rightSection = this.renderDesktopFilterControls(filterHeader);
 
     const mobileFiltersMenu = rightSection.createDiv({
       cls: "rss-discover-mobile-filters-menu",
@@ -1189,42 +1139,49 @@ export class DiscoverView extends ItemView {
       mobileFiltersMenu.classList.toggle("active");
     });
 
-    const grid = container.createDiv({ cls: "rss-discover-grid" });
+    renderDiscoverFeedResults({
+      container,
+      feeds: this.filteredFeeds,
+      pageSize: this.pageSize,
+      currentPage: this.currentPage,
+      onCurrentPageChange: (page) => {
+        this.currentPage = page;
+      },
+      renderFeedCard: (grid, feed) => this.renderFeedCard(grid, feed),
+      renderPagination: (
+        paginationContainer,
+        currentPage,
+        totalPages,
+        pageSize,
+        totalFeeds,
+      ) =>
+        this.renderPagination(
+          paginationContainer,
+          currentPage,
+          totalPages,
+          pageSize,
+          totalFeeds,
+        ),
+    });
+  }
 
-    if (this.filteredFeeds.length === 0) {
-      const emptyState = container.createDiv({
-        cls: "rss-discover-empty",
-      });
-      setIcon(emptyState, "search");
-      emptyState.appendText(" No feeds match your filters");
-      return;
+  private renderDesktopFilterControls(container: HTMLElement): HTMLElement {
+    const rightSection = container.createDiv({
+      cls: "rss-discover-filter-header-right",
+    });
+
+    const desktopFilterControls = rightSection.createDiv({
+      cls: "rss-discover-filter-controls",
+    });
+
+    // Follow status + sort controls stay in desktop header.
+    this.renderFollowStatusDropdown(desktopFilterControls);
+    this.renderSortDropdown(desktopFilterControls);
+    if (this.hasActiveFilters()) {
+      this.renderClearFiltersButton(desktopFilterControls);
     }
 
-    const pagination = computePagination({
-      totalItems: this.filteredFeeds.length,
-      pageSize: this.pageSize,
-      requestedPage: this.currentPage,
-    });
-    this.currentPage = pagination.currentPage;
-    const feedsForPage = this.filteredFeeds.slice(
-      pagination.startIdx,
-      pagination.endIdx,
-    );
-
-    feedsForPage.forEach((feed) => {
-      this.renderFeedCard(grid, feed);
-    });
-
-    const paginationWrapper = container.createDiv({
-      cls: "rss-dashboard-pagination-wrapper",
-    });
-    this.renderPagination(
-      paginationWrapper,
-      this.currentPage,
-      pagination.totalPages,
-      this.pageSize,
-      this.filteredFeeds.length,
-    );
+    return rightSection;
   }
 
   private renderSortDropdown(
