@@ -75,18 +75,12 @@ import {
   loadLeftHandedLayout,
 } from "../utils/left-handed-layout";
 
-const ARTICLE_CONTROL_SELECTOR = [
-  ".rss-dashboard-read-toggle",
-  ".rss-dashboard-star-toggle",
-  ".rss-dashboard-save-toggle",
-  ".rss-dashboard-tags-toggle",
-  `.${COVER_IMAGE_FETCH_BUTTON_CLASS}`,
-].join(", ");
+const ARTICLE_CONTROL_SELECTOR = `.${COVER_IMAGE_FETCH_BUTTON_CLASS}`;
 
 interface ArticleListCallbacks {
   onArticleClick: (article: FeedItem) => void;
   /**
-   * A footer or cover control on a card was activated. The dashboard selects
+   * The separate cover-image control was activated. The dashboard selects
    * that article without opening it; a mouse activation also takes focus back
    * so the shortcut named in the tooltip works at once (#1468).
    */
@@ -1418,10 +1412,11 @@ export class ArticleList {
   }
 
   /**
-   * Activating a footer or cover control selects its card before the control
-   * runs, so the shortcut in its tooltip refers to the card just used. The
-   * capture phase runs ahead of the control's own handler, which may remove
-   * the card (#1468). Enter and Space reach the control as keydown, not click.
+   * Activating the separate cover-image control selects its card before the
+   * control runs, so the shortcut in its tooltip refers to the card just used.
+   * The capture phase runs ahead of the control's own handler, which may
+   * remove the card (#1468). Article toolbar actions do not change selection.
+   * Enter and Space reach the control as keydown, not click.
    */
   private attachControlActivation(articlesList: HTMLElement): void {
     const report = (event: Event, byMouse: boolean): void => {
