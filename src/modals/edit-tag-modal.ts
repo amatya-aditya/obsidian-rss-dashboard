@@ -1,5 +1,6 @@
 import { App, Notice, Setting } from "obsidian";
 import { AccessibleModal } from "../utils/accessible-modal";
+import { DEFAULT_TAG_COLOR } from "../utils/tag-colors";
 import type { RssDashboardSettings, Tag } from "../types/types";
 import { updateTagInSettings } from "../utils/tag-settings";
 import { addInputClearButton } from "../utils/input-clear-button";
@@ -35,7 +36,7 @@ export class EditTagModal extends AccessibleModal {
     const colorInput = formContainer.createEl("input", {
       attr: {
         type: "color",
-        value: tag.color || "var(--interactive-accent)",
+        value: tag.color ?? DEFAULT_TAG_COLOR,
       },
       cls: "rss-dashboard-tag-modal-color-picker",
     });

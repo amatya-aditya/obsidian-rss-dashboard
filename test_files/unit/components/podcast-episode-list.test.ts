@@ -66,6 +66,30 @@ describe("PodcastEpisodeList", () => {
     );
   });
 
+  it("renders episode tags using the authoritative registry appearance", () => {
+    const first = {
+      ...episode(1),
+      tags: [{ name: "Topic", color: "#stale", textColor: "#stale" }],
+    };
+    const container = document.body.createDiv();
+    new PodcastEpisodeList(container, {
+      episodes: [first, episode(2)],
+      theme: "obsidian",
+      sortOrder: "recent",
+      tagAppearanceSettings: {
+        availableTags: [
+          { name: "Topic", color: "#234567", textColor: "#765432" },
+        ],
+      },
+      onEpisodeSelected: vi.fn(),
+      onSortRequested: vi.fn(),
+    }).render();
+
+    const tag = container.querySelector<HTMLElement>(".episode-list-row-tag");
+    expect(tag?.style.getPropertyValue("--tag-color")).toBe("#234567");
+    expect(tag?.style.getPropertyValue("--tag-text-color")).toBe("#765432");
+  });
+
   it("omits the date row rather than showing 'Invalid Date' for an undated episode, and shows first-seen when the fallback is on", () => {
     const undated: FeedItem = { ...episode(1), pubDate: "" };
     const other = episode(2);

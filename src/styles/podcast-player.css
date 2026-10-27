@@ -130,8 +130,8 @@
   padding: 2px 8px;
   border-radius: var(--rss-dashboard-tag-chip-radius, 999px);
   font-size: 0.8em;
-  background: var(--background-modifier-border);
-  color: var(--text-on-accent);
+  background: var(--tag-color, var(--background-modifier-border));
+  color: var(--tag-text-color, var(--text-on-accent));
 }
 
 .podcast-tag-more {
@@ -923,8 +923,8 @@
   border-radius: var(--rss-dashboard-tag-chip-radius, 999px);
   font-size: 0.8em;
   line-height: 1.2;
-  background: var(--interactive-accent);
-  color: var(--text-on-accent);
+  background: var(--tag-color, var(--interactive-accent));
+  color: var(--tag-text-color, var(--text-on-accent));
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;

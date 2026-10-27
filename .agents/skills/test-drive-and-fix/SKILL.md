@@ -12,6 +12,14 @@ you ping them only for decisions and never wait on them. (For a list the user
 clicks through by hand, they invoke `/manual-test-checklist`. To run the same
 checklist without changing any code, they invoke `/test-drive`.)
 
+For Obsidian, prefer the repository's guarded headless CDP route. Use the
+Computer Use skill only when a specific CDP limitation blocks the check or the
+scenario requires verifying real mouse/keyboard clicks, drag behavior, native
+chrome, or an OS dialog. Do not load or use Computer Use just to inspect DOM,
+application state, or screenshots that CDP can provide. Before escalating,
+state which observable CDP could not establish; then read and follow the
+Computer Use skill's access and interaction rules.
+
 ## 1. Build the checklist
 
 Read `docs/development/test_coverage/test-scenarios.md` in full and build the
@@ -25,6 +33,11 @@ they are watching. Done when every item has action → expected result → route
 Read `docs/development/test_coverage/test-execution.md` in full for the routes,
 sandbox setup, evidence rules, statuses, and report format, and follow it. You
 hold write authority here, so 🔧 Fixed is available to you.
+
+For an Obsidian scenario, begin with guarded CDP and verify the attached
+window's vault path with `--expect-vault`. Escalate to Computer Use only under
+the conditions above; a request for screenshots or a visual inspection alone
+does not require real clicks.
 
 ## 3. Fix what fails
 

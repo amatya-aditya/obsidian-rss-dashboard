@@ -447,7 +447,7 @@ export class ArticleList {
 
     this.cardLayoutFrame = window.requestAnimationFrame(() => {
       this.cardLayoutFrame = null;
-      layoutCardTagRows(root, this.articles);
+      layoutCardTagRows(root, this.articles, this.settings);
     });
   }
 
@@ -469,11 +469,11 @@ export class ArticleList {
       return;
     }
 
-    renderSingleRowCardTagChips(tagsContainer, article.tags);
+    renderSingleRowCardTagChips(tagsContainer, article.tags, this.settings);
   }
 
   private renderTagChips(container: HTMLElement, tags: Tag[]): void {
-    renderTagChips(container, tags);
+    renderTagChips(container, tags, this.settings);
   }
 
   private ensureCardTagsContainer(articleEl: HTMLElement): HTMLElement | null {
@@ -1310,7 +1310,7 @@ export class ArticleList {
         (articleEl.classList.contains("rss-dashboard-feed-item") &&
           isFeedTagStrip)
       ) {
-        renderSingleRowCardTagChips(container, tags);
+        renderSingleRowCardTagChips(container, tags, this.settings);
         return;
       }
 
@@ -1609,6 +1609,7 @@ export class ArticleList {
       selectedArticle: this.selectedArticle,
       showFeedSource: this.showFeedSource,
       settings: this.settings,
+      tagAppearanceSettings: this.settings,
       resolveCachedImageUrl: this.callbacks.onResolveCachedImageUrl,
       highlightService: this.highlightService,
       callbacks: this.callbacks,

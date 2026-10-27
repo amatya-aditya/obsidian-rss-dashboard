@@ -137,11 +137,11 @@ describe("ReaderView Tag Synchronization", () => {
     expect(tagElement?.style.getPropertyValue("--tag-color")).toBe("#22c55e");
   });
 
-  it("should refresh reader tag colors from settings after tag edits", async () => {
+  it("refreshes inherited reader colors without storing resolved values on the article", async () => {
     mockSettings.availableTags = [{ name: "Feature", color: "#22c55e" }];
 
     const item = makeItem({
-      tags: [{ name: "Feature", color: "#8b5cf6" }],
+      tags: [{ name: "Feature" }],
     });
     getInternals(readerView).fetchFullArticleContent = vi
       .fn()
@@ -154,7 +154,7 @@ describe("ReaderView Tag Synchronization", () => {
         ".rss-reader-tag",
       );
     expect(tagBeforeRefresh?.style.getPropertyValue("--tag-color")).toBe(
-      "#8b5cf6",
+      "#22c55e",
     );
 
     mockSettings.availableTags = [{ name: "Feature", color: "#ef4444" }];
@@ -167,9 +167,9 @@ describe("ReaderView Tag Synchronization", () => {
     expect(tagAfterRefresh?.style.getPropertyValue("--tag-color")).toBe(
       "#ef4444",
     );
-    expect(getInternals(readerView).currentItem.tags?.[0]?.color).toBe(
-      "#ef4444",
-    );
+    expect(getInternals(readerView).currentItem.tags).toEqual([
+      { name: "Feature" },
+    ]);
   });
 
   it("should remove tags DOM when tags are removed via applyExternalUpdate", async () => {

@@ -367,6 +367,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
+  background-color: var(--tag-color, var(--interactive-accent));
   margin-right: 8px;
   flex-shrink: 0;
 }

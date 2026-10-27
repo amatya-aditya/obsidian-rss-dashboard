@@ -1,5 +1,6 @@
 import { setIcon } from "obsidian";
 import { RssDashboardSettings } from "../types/types";
+import { applyTagAppearance } from "../utils/tag-colors";
 
 export interface FilterChangeEvent {
   type: string;
@@ -601,10 +602,7 @@ export class ArticleFilterMenu {
       });
       checkbox.checked = pendingTagFilters.has(tag.name);
       const colorDot = item.createDiv({ cls: "rss-dashboard-tag-color-dot" });
-      colorDot.style.setProperty(
-        "--tag-color",
-        tag.color || "var(--interactive-accent)",
-      );
+      applyTagAppearance(colorDot, tag, this.settings);
       item.createDiv({
         cls: "rss-dashboard-filter-menu-text",
         text: tag.name,
