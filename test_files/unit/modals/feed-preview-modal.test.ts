@@ -170,6 +170,68 @@ describe("FeedPreviewModal", () => {
     expect(fetchFeedXmlMock).toHaveBeenCalledTimes(2);
   });
 
+  async function openAndClickRetry(): Promise<
+    InstanceType<
+      (typeof import("../../../src/modals/feed-preview-modal"))["FeedPreviewModal"]
+    >
+  > {
+    const { FeedPreviewModal } =
+      await import("../../../src/modals/feed-preview-modal");
+    const app = obsidian.App.createMock();
+    const modal = new FeedPreviewModal(
+      app as unknown as obsidian.App,
+      baseFeed as unknown as FeedMetadata,
+    );
+    modal.open();
+    await flushPromises();
+    modal.contentEl.querySelector<HTMLButtonElement>("button.mod-cta")?.click();
+    await flushPromises();
+    return modal;
+  }
+
+  it("clears the error and Retry button after a successful retry", async () => {
+    fetchFeedXmlMock
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockResolvedValueOnce(
+        `<?xml version="1.0"?><rss><channel><item><title>Ok</title><link>x</link></item></channel></rss>`,
+      );
+
+    const modal = await openAndClickRetry();
+
+    expect(modal.contentEl.querySelector(".feed-preview-error")).toBeNull();
+    expect(modal.contentEl.querySelector("button.mod-cta")).toBeNull();
+    expect(
+      modal.contentEl.querySelectorAll(".feed-preview-article-card"),
+    ).toHaveLength(1);
+    expect(
+      modal.contentEl.querySelector(".feed-preview-header"),
+    ).not.toBeNull();
+  });
+
+  it("shows a single error block after a failed retry", async () => {
+    fetchFeedXmlMock.mockRejectedValue(new Error("boom"));
+
+    const modal = await openAndClickRetry();
+
+    expect(
+      modal.contentEl.querySelectorAll(".feed-preview-error"),
+    ).toHaveLength(1);
+    expect(modal.contentEl.querySelectorAll("button.mod-cta")).toHaveLength(1);
+  });
+
+  it("shows only the empty state after a retry returns no articles", async () => {
+    fetchFeedXmlMock
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockResolvedValueOnce(
+        `<?xml version="1.0"?><rss><channel></channel></rss>`,
+      );
+
+    const modal = await openAndClickRetry();
+
+    expect(modal.contentEl.querySelector(".feed-preview-error")).toBeNull();
+    expect(modal.contentEl.querySelector(".feed-preview-empty")).not.toBeNull();
+  });
+
   it("shows an empty state when no articles are found", async () => {
     const { FeedPreviewModal } =
       await import("../../../src/modals/feed-preview-modal");
