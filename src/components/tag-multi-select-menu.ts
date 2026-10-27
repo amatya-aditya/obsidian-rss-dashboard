@@ -1,5 +1,6 @@
 import { setIcon } from "obsidian";
 import type { Tag } from "../types/types";
+import { applyTagAppearance } from "../utils/tag-colors";
 import { isDomNode } from "../utils/dom-node";
 import { isNarrowViewport } from "../utils/platform-utils";
 
@@ -205,7 +206,7 @@ function renderMenuList(
     setIcon(check, isSelected ? "check" : "plus");
 
     const swatch = option.createSpan({ cls: CLS_MENU_SWATCH });
-    swatch.style.setProperty("--tag-color", tag.color);
+    applyTagAppearance(swatch, tag, { availableTags: opts.availableTags });
 
     option.createSpan({
       cls: `${CLS_MENU_OPTION}-label`,

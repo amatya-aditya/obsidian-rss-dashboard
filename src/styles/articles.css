@@ -660,7 +660,7 @@ body .rss-dashboard-tag-inline-button svg {
   padding: 2px 8px;
   border-radius: var(--rss-dashboard-tag-chip-radius, 999px);
   font-size: 0.95em;
-  color: #fff;
+  color: var(--tag-text-color, #fff);
   background: var(--tag-color, var(--interactive-accent));
   font-weight: 500;
 }
@@ -670,7 +670,7 @@ body .rss-dashboard-tag-inline-button svg {
   padding: 1px 6px;
   border-radius: var(--rss-dashboard-tag-chip-radius, 999px);
   font-size: 11px;
-  color: #fff;
+  color: var(--tag-text-color, #fff);
   cursor: pointer;
   flex-grow: 1;
   background-color: var(--tag-color, var(--interactive-accent));

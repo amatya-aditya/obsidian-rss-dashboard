@@ -190,7 +190,8 @@ function createFilenamePatternControls(
       id: "rss-dashboard-filename-pattern",
       type: "text",
       placeholder: "{{title}}",
-      "aria-describedby": "rss-dashboard-filename-pattern-description",
+      "aria-describedby":
+        "rss-dashboard-filename-pattern-description rss-dashboard-filename-preview",
     },
   });
   addInputClearButton(input, { fill: true, label: "Clear filename pattern" });
@@ -201,7 +202,7 @@ function createFilenamePatternControls(
   });
   const preview = content.createEl("p", {
     cls: "setting-item-description rss-dashboard-filename-preview",
-    attr: { "aria-live": "polite" },
+    attr: { id: "rss-dashboard-filename-preview" },
   });
   const getEffectivePattern = () =>
     input.value.trim() || getTemplatePattern()?.trim() || undefined;

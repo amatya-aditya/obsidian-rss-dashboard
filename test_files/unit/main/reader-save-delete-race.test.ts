@@ -243,10 +243,7 @@ describe("Reader save/delete continuations", () => {
           readerUpdated.mock.results.map((result) => result.value),
         );
         expect(backingItem).toMatchObject({ saved: true, savedFilePath: path });
-        expect(backingItem.tags).toContainEqual({
-          name: "Saved",
-          color: "#3498db",
-        });
+        expect(backingItem.tags).toContainEqual({ name: "Saved" });
       }
       await app.vault.delete(file as never);
       const deleteHandler = handlers.get("delete");

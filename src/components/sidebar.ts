@@ -18,7 +18,7 @@ import {
   removeAllTagsFromFeeds,
   syncFolderAutoTagsOnFeeds,
 } from "../utils/folder-tag-sync";
-import { DEFAULT_TAG_COLOR } from "../utils/tag-colors";
+import { applyTagAppearance, DEFAULT_TAG_COLOR } from "../utils/tag-colors";
 import { AddTagModal } from "../modals/add-tag-modal";
 import { showEditTagModal } from "../utils/tag-utils";
 import { deleteTagFromSettings } from "../utils/tag-settings";
@@ -798,7 +798,7 @@ export class Sidebar {
       tagCheckbox.checked = selected;
 
       const dot = row.createDiv({ cls: "rss-dashboard-tag-color-dot" });
-      dot.style.backgroundColor = tag.color;
+      applyTagAppearance(dot, tag, this.settings);
 
       row.createSpan({
         text: tag.name,

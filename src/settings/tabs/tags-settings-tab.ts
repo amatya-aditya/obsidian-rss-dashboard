@@ -9,10 +9,9 @@ import { Notice, Setting } from "obsidian";
 import RssDashboardPlugin from "../../../main";
 import { addTagMultiSelectControl } from "../../components/tag-multi-select-control";
 import { DEFAULT_SETTINGS, type Tag } from "../../types/types";
-import { DEFAULT_TAG_COLOR } from "../../utils/tag-colors";
+import { applyTagAppearance, DEFAULT_TAG_COLOR } from "../../utils/tag-colors";
 import { showEditTagModal } from "../../utils/tag-utils";
 import { deleteTagFromSettings } from "../../utils/tag-settings";
-import { setCssProps } from "../../utils/platform-utils";
 import { ConfirmActionModal } from "../modals/settings-modals";
 import { renderTagShapeControl } from "./tag-shape-control";
 import { addInputClearButton } from "../../utils/input-clear-button";
@@ -58,7 +57,7 @@ function renderTagSettingsRow(
     cls: "rss-dashboard-tag-badge rss-dashboard-settings-tag-chip",
     text: tag.name,
   });
-  setCssProps(tagChip, { "--tag-color": tag.color });
+  applyTagAppearance(tagChip, tag, plugin.settings);
 
   tagSetting
     .addButton((button) =>

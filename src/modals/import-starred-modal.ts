@@ -640,7 +640,7 @@ export class ImportStarredModal extends AccessibleModal {
 
     const list = section.createDiv({ cls: "import-new-tags-list" });
     for (const tag of newTags) {
-      const chip = createTagChip(list, tag, "button");
+      const chip = createTagChip(list, tag, "button", this.plugin.settings);
       chip.addClass("import-new-tags-chip");
       chip.setAttr("type", "button");
       chip.setAttr("aria-label", `Edit "${tag.name}" tag`);
@@ -935,7 +935,7 @@ export class ImportStarredModal extends AccessibleModal {
       setIcon(placeholder, "tag");
       return;
     }
-    renderSingleRowCardTagChips(control, tags);
+    renderSingleRowCardTagChips(control, tags, this.plugin.settings);
   }
 
   /**
@@ -1113,7 +1113,11 @@ export class ImportStarredModal extends AccessibleModal {
         const lowerName = tag.name.toLowerCase();
         if (existingByLowerName.has(lowerName)) continue;
 
-        const newTag: Tag = { name: tag.name, color: tag.color };
+        const newTag: Tag = {
+          name: tag.name,
+          ...(tag.color === undefined ? {} : { color: tag.color }),
+          ...(tag.textColor === undefined ? {} : { textColor: tag.textColor }),
+        };
         availableTags.push(newTag);
         existingByLowerName.set(lowerName, newTag);
       }

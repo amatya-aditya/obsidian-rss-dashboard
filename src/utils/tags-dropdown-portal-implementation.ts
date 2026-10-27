@@ -1,6 +1,6 @@
 import { type App, Notice, setIcon } from "obsidian";
 import type { Tag } from "../types/types";
-import { DEFAULT_TAG_COLOR } from "./tag-colors";
+import { applyTagAppearance, DEFAULT_TAG_COLOR } from "./tag-colors";
 import { showEditTagModal } from "./tag-utils";
 import { createIconButton } from "./icon-button";
 import { isNarrowViewport, windowInstanceOf } from "./platform-utils";
@@ -242,7 +242,7 @@ function appendTagItem(
     cls: "rss-dashboard-tag-label",
     text: tag.name,
   });
-  tagLabel.style.setProperty("--tag-color", tag.color);
+  applyTagAppearance(tagLabel, tag, context.settings);
 
   createTagItemButtons(context, tag, tagItem);
   tagCheckbox.addEventListener("change", (e) => {
