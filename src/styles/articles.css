@@ -131,7 +131,7 @@
  * ============================================ */
 
 .rss-dashboard-article-title {
-  font-size: 1.1em;
+  font-size: calc(1.1em * var(--rss-dashboard-article-title-scale, 1));
   font-weight: 600;
   color: var(--text-normal);
   margin-bottom: 2px;
@@ -800,7 +800,11 @@ body .rss-dashboard-tag-action-button svg {
 
 /* Mobile (≤ 900px) — reduce typography scale */
 @media (max-width: 900px) {
-  .rss-dashboard-article-title,
+  .rss-dashboard-article-title {
+    font-size: calc(1em * var(--rss-dashboard-article-title-scale, 1));
+    line-clamp: 2;
+  }
+
   .rss-dashboard-article-summary {
     font-size: 1em;
     line-clamp: 2;
