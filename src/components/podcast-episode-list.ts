@@ -76,11 +76,19 @@ export class PodcastEpisodeList {
     autoplayLabel.createSpan({ text: "Autoplay next episode" });
 
     const statusRow = section.createDiv({ cls: "episode-list-status-row" });
-    statusRow.createDiv({
+    const rangeStatus = statusRow.createDiv({
       cls: "episode-list-range",
-      text: `Showing ${this.visibleCount} of ${this.options.episodes.length}`,
       attr: { role: "status" },
     });
+    const updateRangeStatus = () => {
+      if (!rangeStatus.isConnected) return;
+      rangeStatus.setText(
+        `Showing ${this.visibleCount} of ${this.options.episodes.length}`,
+      );
+    };
+    const ownerWindow = rangeStatus.ownerDocument.defaultView;
+    if (ownerWindow) ownerWindow.setTimeout(updateRangeStatus, 0);
+    else updateRangeStatus();
     this.renderControls(statusRow);
 
     const list = section.createDiv({ cls: "episode-list" });
