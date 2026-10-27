@@ -28,6 +28,24 @@ export function sortDiscoverFeeds(
   feeds.sort((a, b) => (comparator ? comparator(a, b) : 0));
 }
 
+export function renderDiscoverFeedSummary(
+  container: HTMLElement,
+  totalFeeds: number,
+  renderAddAllButton: (container: HTMLElement) => void,
+  renderSelectedFilters: (container: HTMLElement) => void,
+): void {
+  const leftSection = container.createDiv({
+    cls: "rss-discover-filter-header-left",
+  });
+
+  const resultsCount = leftSection.createDiv({
+    cls: "rss-discover-results-count",
+  });
+  resultsCount.textContent = `${totalFeeds} feeds found`;
+  renderAddAllButton(leftSection);
+  renderSelectedFilters(leftSection);
+}
+
 interface RenderDiscoverFeedResultsOptions {
   container: HTMLElement;
   feeds: FeedMetadata[];
