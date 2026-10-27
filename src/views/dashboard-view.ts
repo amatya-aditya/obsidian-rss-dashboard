@@ -1630,10 +1630,9 @@ export class RssDashboardView extends ItemView {
   }
 
   /**
-   * The static refresh summary row. Its live-region text span stays untouched;
-   * the error control is a separate button beside it, because an interactive
-   * control inside `aria-live="polite"` re-announces badly, and it is rendered
-   * only while something is failing.
+   * The visible refresh summary is recreated with the view content and has no
+   * live-region semantics. Transient announcements belong to the stable region
+   * mounted by mountRefreshAnnouncer(); the error control stays adjacent.
    */
   private renderRefreshStatusRow(
     subheaderContent: HTMLElement,
@@ -1649,7 +1648,6 @@ export class RssDashboardView extends ItemView {
     refreshStatusRow.createSpan({
       cls: "rss-dashboard-filter-stats-text rss-dashboard-refresh-status-text",
       text: refreshStatusText,
-      attr: { "aria-live": "polite" },
     });
     if (refreshStatus.failingCount > 0) {
       this.renderRefreshErrorButton(refreshStatusRow, refreshStatus);
