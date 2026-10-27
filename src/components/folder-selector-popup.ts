@@ -42,6 +42,7 @@ export class FolderSelectorPopup {
   private clickOutsideHandler!: (e: MouseEvent) => void;
   private keydownHandler!: (e: KeyboardEvent) => void;
   private isDestroyed = false;
+  private releasePluginCleanupReference?: () => void;
   // True while a modal this popup opened (e.g. create-folder) is on top of
   // it — see setInert().
   private isInert = false;
@@ -62,6 +63,17 @@ export class FolderSelectorPopup {
       options.initialQuery,
     );
     this.attachEventListeners();
+    const popupReference: { current?: FolderSelectorPopup } = {
+      current: this,
+    };
+    this.plugin.register(() => {
+      const popup = popupReference.current;
+      popupReference.current = undefined;
+      popup?.close();
+    });
+    this.releasePluginCleanupReference = () => {
+      popupReference.current = undefined;
+    };
 
     if (!this.listOnly && options.initialQuery) {
       this.filterFolders(options.initialQuery);
@@ -338,6 +350,8 @@ export class FolderSelectorPopup {
    * Attaches event listeners for user interaction
    */
   private attachEventListeners(): void {
+    const popupDocument = this.popupEl.ownerDocument;
+
     // Swallow clicks on this popup's own contents while inert (a modal it
     // opened, e.g. create-folder, is on top of it). Registered in the
     // capture phase directly on popupEl so it runs before any individual
@@ -379,7 +393,9 @@ export class FolderSelectorPopup {
       }
     };
     window.setTimeout(() => {
-      activeDocument.addEventListener("click", this.clickOutsideHandler);
+      if (!this.isDestroyed) {
+        popupDocument.addEventListener("click", this.clickOutsideHandler);
+      }
     }, 0);
 
     // Keyboard navigation
@@ -396,7 +412,7 @@ export class FolderSelectorPopup {
       openCreateFolderModal: () => this.openCreateFolderModal(),
       close: () => this.close(),
     });
-    activeDocument.addEventListener("keydown", this.keydownHandler);
+    popupDocument.addEventListener("keydown", this.keydownHandler);
   }
 
   /**
@@ -525,9 +541,12 @@ export class FolderSelectorPopup {
   close(): void {
     if (this.isDestroyed) return;
     this.isDestroyed = true;
+    this.releasePluginCleanupReference?.();
+    this.releasePluginCleanupReference = undefined;
 
-    activeDocument.removeEventListener("click", this.clickOutsideHandler);
-    activeDocument.removeEventListener("keydown", this.keydownHandler);
+    const popupDocument = this.popupEl.ownerDocument;
+    popupDocument.removeEventListener("click", this.clickOutsideHandler);
+    popupDocument.removeEventListener("keydown", this.keydownHandler);
     this.popupEl.remove();
     this.onClose?.();
   }

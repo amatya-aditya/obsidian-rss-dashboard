@@ -25,6 +25,7 @@ function createFolders(): Folder[] {
 
 type TestPluginWithMocks = TestPlugin & {
   ensureFolderExists: ReturnType<typeof vi.fn>;
+  registeredCleanups: Array<() => unknown>;
 };
 
 function createPluginStub(
@@ -32,9 +33,14 @@ function createPluginStub(
 ): TestPluginWithMocks {
   const settings = cloneSettings();
   settings.folders = folders;
+  const registeredCleanups: Array<() => unknown> = [];
   return {
     settings,
     app: {},
+    register: vi.fn((cleanup: () => unknown) => {
+      registeredCleanups.push(cleanup);
+    }),
+    registeredCleanups,
     // Mirrors the real FolderService.ensureFolderExists closely enough for
     // these tests: adds a missing top-level folder to settings.folders.
     ensureFolderExists: vi.fn(async (folderPath: string) => {
@@ -332,6 +338,43 @@ describe("FolderSelectorPopup", () => {
     // Enter selects current
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
     expect(onSelect).toHaveBeenCalledWith("Alpha");
+  });
+
+  it("closes and stops handling keys when the plugin unloads", () => {
+    vi.useFakeTimers();
+    const anchorEl = createDiv();
+    const onClose = vi.fn();
+    const plugin = createPluginStub();
+    const addEventListener = vi.spyOn(document, "addEventListener");
+
+    new FolderSelectorPopup(plugin, {
+      anchorEl,
+      onSelect: () => {},
+      onClose,
+      listOnly: true,
+    });
+
+    expect(
+      document.body.querySelector(".rss-folder-selector-popup"),
+    ).not.toBeNull();
+
+    plugin.registeredCleanups.forEach((cleanup) => cleanup());
+    vi.runAllTimers();
+
+    expect(
+      document.body.querySelector(".rss-folder-selector-popup"),
+    ).toBeNull();
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(
+      addEventListener.mock.calls.filter(([type]) => type === "click"),
+    ).toHaveLength(0);
+
+    const keydown = new KeyboardEvent("keydown", {
+      key: "ArrowDown",
+      cancelable: true,
+    });
+    document.dispatchEvent(keydown);
+    expect(keydown.defaultPrevented).toBe(false);
   });
 
   it("closes on Escape/Tab and on outside click", () => {
