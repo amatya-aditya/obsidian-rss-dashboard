@@ -11,21 +11,10 @@ import type RssDashboardPlugin from "../../main";
 import { setCssProps } from "../utils/platform-utils";
 import { addInputClearButton } from "../utils/input-clear-button";
 import { FolderSelectorPopup } from "../components/folder-selector-popup";
+import { parseSmallwebAtomFeed } from "../discover/smallweb-atom-feed-parser";
+import type { SmallwebEntry } from "../discover/smallweb-atom-feed-parser";
 
 export const RSS_SMALLWEB_VIEW_TYPE = "rss-smallweb-view";
-
-/**
- * Represents a single entry from the Kagi Smallweb Atom feed
- */
-interface SmallwebEntry {
-  postTitle: string;
-  postUrl: string;
-  blogName: string;
-  blogUrl: string;
-  updatedAt: Date;
-  excerpt: string;
-  domain: string;
-}
 
 /**
  * Cache structure for Smallweb feed data
@@ -144,85 +133,9 @@ export class KagiSmallwebView extends ItemView {
   }
 
   private parseSmallwebAtomFeed(xmlText: string): SmallwebEntry[] {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(xmlText, "text/xml");
-
-    // Extract feed-level updated timestamp
-    const feedUpdatedStr =
-      doc.querySelector("feed > updated")?.textContent || "";
-    if (feedUpdatedStr) {
-      const feedUpdatedAt = new Date(feedUpdatedStr);
-      this.smallwebFeedUpdatedAt = Number.isNaN(feedUpdatedAt.getTime())
-        ? null
-        : feedUpdatedAt;
-    }
-
-    const entryElements = Array.from(doc.querySelectorAll("entry"));
-
-    const entries: SmallwebEntry[] = [];
-
-    for (const entry of entryElements) {
-      try {
-        const postTitle =
-          entry.querySelector("title")?.textContent || "Untitled";
-
-        const linkEl =
-          entry.querySelector("link[rel='alternate']") ||
-          entry.querySelector("link");
-        const postUrl = linkEl?.getAttribute("href") || "";
-
-        if (!postUrl) continue;
-
-        const authorName = entry.querySelector("author > name")?.textContent;
-
-        let blogUrl: string;
-        let domain: string;
-        try {
-          const url = new URL(postUrl);
-          blogUrl = url.origin;
-          domain = url.hostname;
-        } catch {
-          continue;
-        }
-
-        const blogName = authorName || domain;
-
-        const updatedStr = entry.querySelector("updated")?.textContent || "";
-        const parsedUpdatedAt = new Date(updatedStr);
-        const updatedAt: Date = Number.isNaN(parsedUpdatedAt.getTime())
-          ? new Date()
-          : parsedUpdatedAt;
-
-        const summaryEl = entry.querySelector("summary");
-        const contentEl = entry.querySelector("content");
-        const rawText = summaryEl?.textContent || contentEl?.textContent || "";
-        const excerpt = this.stripHtmlAndTruncate(rawText, 200);
-
-        entries.push({
-          postTitle,
-          postUrl,
-          blogName,
-          blogUrl,
-          updatedAt,
-          excerpt,
-          domain,
-        });
-      } catch {
-        continue;
-      }
-    }
-
-    return entries;
-  }
-
-  private stripHtmlAndTruncate(html: string, maxLength: number): string {
-    const doc = new DOMParser().parseFromString(html, "text/html");
-    const text = doc.body.textContent || "";
-    const normalized = text.replace(/\s+/g, " ").trim();
-    if (normalized.length <= maxLength) {
-      return normalized;
-    }
-    return normalized.substring(0, maxLength - 3) + "...";
+    return parseSmallwebAtomFeed(xmlText, (updatedAt) => {
+      this.smallwebFeedUpdatedAt = updatedAt;
+    });
   }
 
   /**

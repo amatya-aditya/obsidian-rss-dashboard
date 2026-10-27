@@ -39,10 +39,5 @@
     "max-lines-per-function": {
       "count": 3
     }
-  },
-  "src/views/kagi-smallweb-view.ts": {
-    "complexity": {
-      "count": 1
-    }
   }
 }
