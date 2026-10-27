@@ -277,7 +277,7 @@
   height: auto;
   border: none;
   background: var(--tag-color, var(--interactive-accent));
-  color: var(--text-on-accent);
+  color: var(--tag-text-color, var(--text-on-accent));
   box-shadow: none;
   font-family: inherit;
 }

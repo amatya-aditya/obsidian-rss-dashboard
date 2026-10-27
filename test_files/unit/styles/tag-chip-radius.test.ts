@@ -152,10 +152,22 @@ describe("Tag chip stylesheet - shared radius", () => {
       "episode-list-row-tag episode-list-row-tag-more",
     );
     expect(read("modals/import-starred-modal.ts")).toMatch(
-      /createTagChip\(list, tag, "button"\)[\s\S]{0,80}import-new-tags-chip/,
+      /createTagChip\(list, tag, "button", this\.plugin\.settings\)[\s\S]{0,100}chip\.addClass\("import-new-tags-chip"\)/,
     );
     expect(read("components/article-list/utils/tag-layout-utils.ts")).toContain(
       '"rss-dashboard-tag-badge"',
+    );
+  });
+
+  it("uses the resolved tag colors for overflow chips", () => {
+    const css = readFileSync(path.join(stylesDir, "card-view.css"), "utf-8");
+    const rule = css.match(/\.rss-dashboard-tag-overflow\s*\{([^}]*)\}/)?.[1];
+
+    expect(rule).toContain(
+      "background: var(--tag-color, var(--interactive-accent))",
+    );
+    expect(rule).toContain(
+      "color: var(--tag-text-color, var(--text-on-accent))",
     );
   });
 

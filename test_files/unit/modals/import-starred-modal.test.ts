@@ -12,6 +12,7 @@ import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { isToggleOn, setToggle } from "../test-toggle-helpers";
 import type { FullArticleFetchResult } from "../../../src/utils/fetch-helpers";
 import type { Tag } from "../../../src/types/types";
+import { DEFAULT_TAG_COLOR } from "../../../src/utils/tag-colors";
 
 const fetchFullArticleContentWithOutcomeMock = vi.hoisted(() => vi.fn());
 
@@ -1480,7 +1481,7 @@ describe("ImportStarredModal", () => {
       };
       const previous = call.item.tags!.find((t) => t.name === "Design")!;
       expect(newTagChip("Design")?.style.getPropertyValue("--tag-color")).toBe(
-        previous.color,
+        DEFAULT_TAG_COLOR,
       );
 
       call.onTagEdited?.({ ...previous }, { name: "Design", color: "#00ff00" });

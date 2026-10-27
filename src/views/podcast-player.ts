@@ -16,6 +16,11 @@ import {
   type PodcastChapter,
 } from "../utils/podcast-chapters";
 import { SeekBarMarkerLayer } from "../components/seek-bar-marker-layer";
+import {
+  applyTagAppearance,
+  DEFAULT_TAG_APPEARANCE_SETTINGS,
+  type TagAppearanceSettings,
+} from "../utils/tag-colors";
 
 /** The speeds the player's control offers, in menu order. */
 const PLAY_SPEEDS: readonly number[] = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3];
@@ -43,6 +48,8 @@ export class PodcastPlayer {
   private useFirstSeenDateFallback: boolean;
   private chapterMarkersEnabled: boolean;
   private sleepTimerBandEnabled: boolean;
+  private tagAppearanceSettings: TagAppearanceSettings =
+    DEFAULT_TAG_APPEARANCE_SETTINGS;
   private chapters: PodcastChapter[] = [];
   private currentNotesHtml = "";
   private markerLayer: SeekBarMarkerLayer | null = null;
@@ -139,6 +146,10 @@ export class PodcastPlayer {
     this.currentPlaylistIndex = 0;
     this.isShuffled = false;
     this.episodeVisibleCount = 20;
+  }
+
+  setTagAppearanceSettings(settings: TagAppearanceSettings): void {
+    this.tagAppearanceSettings = settings;
   }
 
   loadEpisode(
@@ -246,9 +257,7 @@ export class PodcastPlayer {
 
     tagsToShow.forEach((tag) => {
       const tagEl = tagsStrip.createDiv({ cls: "podcast-tag", text: tag.name });
-      if (tag.color) {
-        tagEl.style.backgroundColor = tag.color;
-      }
+      applyTagAppearance(tagEl, tag, this.tagAppearanceSettings);
     });
 
     if (remainingCount > 0) {
@@ -736,6 +745,7 @@ export class PodcastPlayer {
       sortOrder: this.sortOrder,
       visibleCount: this.episodeVisibleCount,
       progressData: this.progressData,
+      tagAppearanceSettings: this.tagAppearanceSettings,
       onEpisodeSelected: (episode) => {
         this.loadEpisode(episode, undefined, {
           notify: true,

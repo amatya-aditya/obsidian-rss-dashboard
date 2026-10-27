@@ -286,7 +286,8 @@ export interface FeedIngestionResult {
 
 export interface Tag {
   name: string;
-  color: string;
+  color?: string;
+  textColor?: string;
 }
 
 export interface Folder {

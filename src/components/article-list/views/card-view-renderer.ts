@@ -375,7 +375,11 @@ function renderCardTags(
     const tagsContainer = tagsRegion.createDiv({
       cls: "rss-dashboard-tag-container",
     });
-    renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
+    renderSingleRowCardTagChips(
+      tagsContainer,
+      article.tags ?? [],
+      ctx.tagAppearanceSettings,
+    );
 
     if (coverImageAction) {
       renderCoverImageControl({

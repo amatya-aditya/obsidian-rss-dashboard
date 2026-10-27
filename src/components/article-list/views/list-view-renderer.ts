@@ -5,8 +5,15 @@ import {
   getPubDateMs,
   resolveDisplayDate,
 } from "../../../services/feed-parser/feed-retention";
-import { MAX_VISIBLE_TAGS } from "../utils/tag-layout-utils";
+import {
+  createTagOverflowChip,
+  MAX_VISIBLE_TAGS,
+} from "../utils/tag-layout-utils";
 import type { BaseViewContext, ViewDeps } from "./view-types";
+import {
+  applyTagAppearance,
+  DEFAULT_TAG_APPEARANCE_SETTINGS,
+} from "../../../utils/tag-colors";
 
 export interface ListViewContext extends BaseViewContext {
   showListToolbar: boolean;
@@ -133,9 +140,10 @@ function renderListGridActionsAndSource(
           cls: "rss-dashboard-tag-badge",
           text: tag.name,
         });
-        tagEl.style.setProperty(
-          "--tag-color",
-          tag.color || "var(--interactive-accent)",
+        applyTagAppearance(
+          tagEl,
+          tag,
+          ctx.tagAppearanceSettings ?? DEFAULT_TAG_APPEARANCE_SETTINGS,
         );
       });
     }
@@ -168,22 +176,17 @@ function renderListBottomRow(
         cls: "rss-dashboard-tag-badge",
         text: tag.name,
       });
-      tagEl.style.setProperty(
-        "--tag-color",
-        tag.color || "var(--interactive-accent)",
+      applyTagAppearance(
+        tagEl,
+        tag,
+        ctx.tagAppearanceSettings ?? DEFAULT_TAG_APPEARANCE_SETTINGS,
       );
     });
     if (article.tags.length > MAX_VISIBLE_TAGS) {
-      const overflowTag = bodyTags.createDiv({
-        cls: "rss-dashboard-tag-overflow",
-        text: `+${article.tags.length - MAX_VISIBLE_TAGS}`,
-      });
-      setTooltip(
-        overflowTag,
-        article.tags
-          .slice(MAX_VISIBLE_TAGS)
-          .map((t) => t.name)
-          .join(", "),
+      createTagOverflowChip(
+        bodyTags,
+        article.tags.slice(MAX_VISIBLE_TAGS),
+        ctx.tagAppearanceSettings ?? DEFAULT_TAG_APPEARANCE_SETTINGS,
       );
     }
   }

@@ -292,14 +292,16 @@ describe("tag-utils.applyAutomaticArticleTags", () => {
     } as unknown as RssDashboardSettings;
 
     const updates = applyAutomaticArticleTags(
-      { tags: [{ name: "Saved", color: "#123456" }] } as unknown as FeedItem,
+      {
+        tags: [{ name: "Saved", color: "#123456", textColor: "#654321" }],
+      } as unknown as FeedItem,
       { saved: true },
       settings,
     );
 
     expect(updates.tags).toBeUndefined();
     expect(settings.availableTags).toEqual([
-      { name: "Saved", color: "#123456" },
+      { name: "Saved", color: "#123456", textColor: "#654321" },
     ]);
   });
 
@@ -336,9 +338,7 @@ describe("tag-utils.applyAutomaticArticleTags", () => {
     expect(settings.availableTags).toHaveLength(0);
   });
 
-  it("uses existing availableTags Saved color when registering the article tag", () => {
-    // When there is already a Saved tag in availableTags (e.g. user customized it),
-    // the article tag should inherit that color, not the fallback.
+  it("keeps an auto-added Saved tag inheriting its registry appearance", () => {
     const settings = {
       availableTags: [{ name: "Saved", color: "#custom1" }],
       articleSaving: { addSavedTag: true },
@@ -350,10 +350,7 @@ describe("tag-utils.applyAutomaticArticleTags", () => {
       settings,
     );
 
-    expect(updates.tags?.[0]).toMatchObject({
-      name: "Saved",
-      color: "#custom1",
-    });
+    expect(updates.tags).toEqual([{ name: "Saved" }]);
     // availableTags should still have exactly one entry
     expect(settings.availableTags).toHaveLength(1);
   });

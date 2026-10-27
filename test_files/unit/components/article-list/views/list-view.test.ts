@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderListView } from "../../../../../src/components/article-list/views/list-view";
+import { MAX_VISIBLE_TAGS } from "../../../../../src/components/article-list/utils/tag-layout-utils";
+import type { Tag } from "../../../../../src/types/types";
 import { baseViewContext, baseViewDeps, makeArticle } from "./test-helpers";
 
 describe("list-view", () => {
@@ -31,6 +33,71 @@ describe("list-view", () => {
     expect(item).toBeTruthy();
     expect(item?.querySelector(".rss-dashboard-list-title")?.textContent).toBe(
       "Test Article",
+    );
+  });
+
+  it("renders list tags from the registry when article copies are stale", () => {
+    const context = baseViewContext();
+    context.tagAppearanceSettings = {
+      availableTags: [
+        { name: "Topic", color: "#234567", textColor: "#765432" },
+      ],
+    };
+    renderListView(
+      container,
+      [
+        makeArticle({
+          tags: [{ name: "Topic", color: "#stale", textColor: "#stale" }],
+        }),
+      ],
+      {
+        ...context,
+        showListToolbar: true,
+        listToolbarStyle: "left-grid",
+      },
+      baseViewDeps(),
+    );
+
+    const chip = container.querySelector<HTMLElement>(
+      ".rss-dashboard-action-toolbar .rss-dashboard-tag-badge",
+    );
+    expect(chip?.style.getPropertyValue("--tag-color")).toBe("#234567");
+    expect(chip?.style.getPropertyValue("--tag-text-color")).toBe("#765432");
+  });
+
+  it("renders list overflow chips with the first hidden tag's resolved appearance", () => {
+    const context = baseViewContext();
+    context.tagAppearanceSettings = {
+      availableTags: [
+        { name: "Hidden", color: "#234567", textColor: "#765432" },
+      ],
+    };
+    const tags: Tag[] = Array.from(
+      { length: MAX_VISIBLE_TAGS },
+      (_, index) => ({
+        name: `Visible ${index + 1}`,
+        color: "#111111",
+      }),
+    );
+    tags.push({ name: "Hidden", color: "#stale", textColor: "#stale" });
+
+    renderListView(
+      container,
+      [makeArticle({ tags })],
+      {
+        ...context,
+        showListToolbar: true,
+        listToolbarStyle: "bottom-row",
+      },
+      baseViewDeps(),
+    );
+
+    const overflow = container.querySelector<HTMLElement>(
+      ".rss-dashboard-list-body-tags .rss-dashboard-tag-overflow",
+    );
+    expect(overflow?.style.getPropertyValue("--tag-color")).toBe("#234567");
+    expect(overflow?.style.getPropertyValue("--tag-text-color")).toBe(
+      "#765432",
     );
   });
 

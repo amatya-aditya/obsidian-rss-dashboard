@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_TAG_COLOR,
+  DEFAULT_TAG_TEXT_COLOR,
   randomTagColors,
+  resolveTagAppearance,
 } from "../../../src/utils/tag-colors";
 
 function hexToHsl(hex: string): { h: number; s: number; l: number } {
@@ -37,6 +39,52 @@ function hueDistance(a: number, b: number): number {
 describe("tag-colors", () => {
   it("uses #8a5cf5 as the default tag color", () => {
     expect(DEFAULT_TAG_COLOR).toBe("#8a5cf5");
+    expect(DEFAULT_TAG_TEXT_COLOR).toBe("#ffffff");
+  });
+
+  it("resolves a registry entry before stale article copies, then uses global defaults", () => {
+    const settings = {
+      availableTags: [{ name: "Topic" }],
+      defaultTagColor: "#123456",
+      defaultTagTextColor: "#654321",
+    };
+
+    expect(
+      resolveTagAppearance(
+        { name: "topic", color: "#abcdef", textColor: "#fedcba" },
+        settings,
+      ),
+    ).toEqual({ background: "#123456", text: "#654321" });
+  });
+
+  it("resolves explicit registry appearance independently for each value", () => {
+    const settings = {
+      availableTags: [
+        { name: "Topic", color: "#123456", textColor: "#654321" },
+      ],
+      defaultTagColor: "#000000",
+      defaultTagTextColor: "#ffffff",
+    };
+
+    expect(resolveTagAppearance({ name: "Topic" }, settings)).toEqual({
+      background: "#123456",
+      text: "#654321",
+    });
+  });
+
+  it("uses orphan overrides and the standard defaults when no registry entry exists", () => {
+    const settings = { availableTags: [] };
+
+    expect(
+      resolveTagAppearance(
+        { name: "Orphan", color: "#123456", textColor: "#654321" },
+        settings,
+      ),
+    ).toEqual({ background: "#123456", text: "#654321" });
+    expect(resolveTagAppearance({ name: "New" }, settings)).toEqual({
+      background: DEFAULT_TAG_COLOR,
+      text: DEFAULT_TAG_TEXT_COLOR,
+    });
   });
 
   it("returns one hex color per requested tag", () => {

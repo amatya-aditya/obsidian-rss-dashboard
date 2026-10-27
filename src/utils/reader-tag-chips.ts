@@ -1,4 +1,9 @@
 import type { Tag } from "../types/types";
+import {
+  applyTagAppearance,
+  DEFAULT_TAG_APPEARANCE_SETTINGS,
+  type TagAppearanceSettings,
+} from "./tag-colors";
 
 /**
  * Renders an article's tag chips in a Reader header, in place. Reuses the
@@ -8,6 +13,7 @@ import type { Tag } from "../types/types";
 export function renderReaderTagChips(
   headerContainer: HTMLElement,
   tags: readonly Tag[] | undefined,
+  settings: TagAppearanceSettings = DEFAULT_TAG_APPEARANCE_SETTINGS,
 ): void {
   const existing = headerContainer.querySelector<HTMLElement>(
     ":scope > .rss-reader-tags",
@@ -25,7 +31,7 @@ export function renderReaderTagChips(
   for (const tag of tags) {
     const tagElement = tagsContainer.createDiv({ cls: "rss-reader-tag" });
     tagElement.textContent = tag.name;
-    tagElement.style.setProperty("--tag-color", tag.color);
+    applyTagAppearance(tagElement, tag, settings);
   }
 }
 
@@ -33,9 +39,10 @@ export function renderReaderTagChips(
 export function refreshReaderHeaderTags(
   container: HTMLElement,
   tags: readonly Tag[] | undefined,
+  settings: TagAppearanceSettings = DEFAULT_TAG_APPEARANCE_SETTINGS,
 ): void {
   const header = container.querySelector<HTMLElement>(
     ".rss-reader-article-header",
   );
-  if (header) renderReaderTagChips(header, tags);
+  if (header) renderReaderTagChips(header, tags, settings);
 }
