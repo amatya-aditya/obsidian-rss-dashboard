@@ -13,7 +13,7 @@ import type { ShardBaselines } from "./shard-baselines";
 import type { UserStateStore } from "./user-state-store";
 import {
   createComparableFeedShardJson,
-  createFeedShard,
+  createSerializableFeedShard,
   dropInvalidShardItems,
   getFeedShardPath,
   isHiddenFromSync,
@@ -659,7 +659,7 @@ async function writeFeedShard(
     // Only a shard that is written needs its full text; an unchanged feed
     // is never serialized for the save.
     const shardJson = JSON.stringify(
-      createFeedShard(feed, context.isV2),
+      createSerializableFeedShard(feed, context.isV2),
       null,
       2,
     );

@@ -72,14 +72,44 @@ export function createFeedShard(
   };
 }
 
+/**
+ * The shard `createFeedShard` builds, with items that are shallow copies
+ * sharing nested values with the feed instead of a deep clone. It serializes
+ * to the same text, because stringifying drops the same values a JSON
+ * round-trip does, and it skips a full parse and stringify of every article.
+ * Only top-level item keys are removed, and only from the copies. Serialize it
+ * and drop it: never mutate or keep it.
+ */
+export function createSerializableFeedShard(
+  feed: Feed,
+  stripState = false,
+): FeedItemsShard {
+  return {
+    version: SHARD_VERSION,
+    feedId: feed.feedId ?? "",
+    feedUrl: feed.url,
+    updatedAt: Date.now(),
+    items: (feed.items ?? []).map((source) => {
+      const item = { ...source };
+      if (stripState) {
+        delete item.read;
+        delete item.starred;
+        delete item.tags;
+        delete item.saved;
+        delete item.savedFilePath;
+        delete item.playbackProgress;
+      }
+      return item;
+    }),
+  };
+}
+
 export function createComparableFeedShardJson(
   feed: Feed,
   stripState = false,
 ): string {
-  const { updatedAt: _updatedAt, ...shardWithoutTimestamp } = createFeedShard(
-    feed,
-    stripState,
-  );
+  const { updatedAt: _updatedAt, ...shardWithoutTimestamp } =
+    createSerializableFeedShard(feed, stripState);
   void _updatedAt;
   return JSON.stringify(shardWithoutTimestamp, null, 2);
 }
