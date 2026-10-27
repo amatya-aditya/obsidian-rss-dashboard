@@ -3466,18 +3466,13 @@ export class RssDashboardView extends ItemView {
 
     const backing = this.findBackingArticleForDisplayItem(inline);
     const source = backing ?? inline;
-    inline.tags = (source.tags ?? []).map((tag) => {
-      const definition = this.settings.availableTags.find(
-        (available) => available.name === tag.name,
-      );
-      return definition ? { ...tag, color: definition.color } : { ...tag };
-    });
+    inline.tags = (source.tags ?? []).map((tag) => ({ ...tag }));
 
     const header = this.containerEl.querySelector<HTMLElement>(
       ".inline-reader-content .rss-reader-article-header",
     );
     if (header) {
-      renderReaderTagChips(header, inline.tags);
+      renderReaderTagChips(header, inline.tags, this.settings);
     }
     this.articleRenderer?.setVideoTags(inline.tags);
   }

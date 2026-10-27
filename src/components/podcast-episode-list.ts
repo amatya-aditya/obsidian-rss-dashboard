@@ -1,5 +1,10 @@
 import type { FeedItem } from "../types/types";
 import { resolveDisplayDate } from "../services/feed-parser/feed-retention";
+import {
+  applyTagAppearance,
+  DEFAULT_TAG_APPEARANCE_SETTINGS,
+  type TagAppearanceSettings,
+} from "../utils/tag-colors";
 
 const EPISODE_BATCH_SIZE = 20;
 
@@ -12,6 +17,7 @@ export interface PodcastEpisodeListOptions {
   isAutoplayEnabled?: boolean;
   visibleCount?: number;
   progressData?: ReadonlyMap<string, { position: number; duration: number }>;
+  tagAppearanceSettings?: TagAppearanceSettings;
   onEpisodeSelected: (episode: FeedItem) => void;
   onSortRequested: (order: "recent" | "oldest") => void;
   onAutoplayChanged?: (enabled: boolean) => void;
@@ -180,7 +186,11 @@ export class PodcastEpisodeList {
         cls: "episode-list-row-tag",
         text: tag.name,
       });
-      if (tag.color) tagEl.style.backgroundColor = tag.color;
+      applyTagAppearance(
+        tagEl,
+        tag,
+        this.options.tagAppearanceSettings ?? DEFAULT_TAG_APPEARANCE_SETTINGS,
+      );
     });
     if (tags.length > 3) {
       const remainingTags = tags

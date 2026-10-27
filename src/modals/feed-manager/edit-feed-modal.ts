@@ -46,6 +46,7 @@ import {
 } from "../../services/tag-applier";
 import { resolveTagObjects } from "../../utils/tag-resolver";
 import { getEffectiveDateMs } from "../../services/feed-parser/feed-retention.js";
+import { applyTagAppearance } from "../../utils/tag-colors";
 
 const EMPTY_FEED_VALIDATION_WARNING =
   "Feed validation passed, however no content detected.";
@@ -488,7 +489,7 @@ export class EditFeedModal extends AccessibleModal {
           cls: "rss-dashboard-tag-badge",
           text: tag.name,
         });
-        tagEl.setCssProps({ "--tag-color": tag.color });
+        applyTagAppearance(tagEl, tag, this.plugin.settings);
       });
     }
 

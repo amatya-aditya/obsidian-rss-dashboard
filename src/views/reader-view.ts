@@ -61,6 +61,7 @@ import { resolveDisplayDate } from "../services/feed-parser/feed-retention";
 import { ArticleSaver } from "../services/article-saver";
 import { noteLeadsWithHero } from "../services/article-template/note-template";
 import { setCssProps } from "../utils/platform-utils";
+import { applyTagAppearance } from "../utils/tag-colors";
 import { createIconButton } from "../utils/icon-button";
 import { attachRovingToolbar } from "../utils/roving-toolbar";
 import { fetchFullArticleContentWithOutcome } from "../utils/full-article-fetch";
@@ -1677,6 +1678,7 @@ export class ReaderView extends ItemView {
         this.settings.media.showPodcastChapterMarkers ?? true,
         this.settings.media.showPodcastSleepTimerBand ?? true,
       );
+      this.podcastPlayer.setTagAppearanceSettings(this.settings);
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
       renderSourceFooter(this.readingContainer, item);
     } else {
@@ -1700,6 +1702,7 @@ export class ReaderView extends ItemView {
           this.settings.media.showPodcastChapterMarkers ?? true,
           this.settings.media.showPodcastSleepTimerBand ?? true,
         );
+        this.podcastPlayer.setTagAppearanceSettings(this.settings);
         this.podcastPlayer.loadEpisode(podcastItem, fullFeedEpisodes);
         renderSourceFooter(this.readingContainer, item);
       } else {
@@ -1921,7 +1924,7 @@ export class ReaderView extends ItemView {
           cls: "rss-reader-tag",
         });
         tagElement.textContent = tag.name;
-        tagElement.style.setProperty("--tag-color", tag.color);
+        applyTagAppearance(tagElement, tag, this.settings);
       }
     }
 
@@ -2449,9 +2452,6 @@ export class ReaderView extends ItemView {
       return;
     }
 
-    this.currentItem.tags = this.syncTagColorsWithSettings(
-      this.currentItem.tags,
-    );
     this.refreshReaderHeaderTags();
 
     if (this.podcastPlayer && this.currentItem.mediaType === "podcast") {
@@ -2643,32 +2643,20 @@ export class ReaderView extends ItemView {
       this.videoPlayer &&
       resolveReaderMediaRoute(this.currentItem) === "video"
     ) {
-      this.videoPlayer.setTags(this.currentItem.tags);
+      this.videoPlayer.setTags(this.currentItem.tags, this.settings);
       return;
     }
 
     visitReaderContent(
       this.contentVersions,
       this.readingContainer,
-      (container) => refreshReaderHeaderTags(container, this.currentItem?.tags),
+      (container) =>
+        refreshReaderHeaderTags(
+          container,
+          this.currentItem?.tags,
+          this.settings,
+        ),
     );
-  }
-
-  private syncTagColorsWithSettings(tags: FeedItem["tags"]): Tag[] {
-    return (tags ?? []).map((tag) => {
-      const matchingTag = this.settings.availableTags.find(
-        (availableTag) => availableTag.name === tag.name,
-      );
-
-      if (!matchingTag || matchingTag.color === tag.color) {
-        return tag;
-      }
-
-      return {
-        ...tag,
-        color: matchingTag.color,
-      };
-    });
   }
 
   private resolveReaderFontFamily(

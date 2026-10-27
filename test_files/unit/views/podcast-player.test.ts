@@ -203,6 +203,46 @@ describe("PodcastPlayer", () => {
   });
 
   describe("live tag updates", () => {
+    it("renders current and playlist tags from the authoritative registry", () => {
+      const container: HTMLDivElement = createDiv();
+      document.body.appendChild(container);
+      const settings = {
+        availableTags: [
+          { name: "Topic", color: "#234567", textColor: "#765432" },
+        ],
+      };
+      const player = new PodcastPlayer(
+        container,
+        new App(),
+        "obsidian",
+        undefined,
+        undefined,
+        undefined,
+        true,
+        1,
+        false,
+        undefined,
+        true,
+        true,
+      );
+      player.setTagAppearanceSettings(settings);
+      const episode = {
+        ...baseEpisode(),
+        tags: [{ name: "Topic", color: "#stale", textColor: "#stale" }],
+      };
+
+      player.loadEpisode(episode, [episode, { ...episode, guid: "other" }]);
+
+      const chips = container.querySelectorAll<HTMLElement>(
+        ".podcast-tag, .episode-list-row-tag",
+      );
+      expect(chips.length).toBeGreaterThan(1);
+      chips.forEach((chip) => {
+        expect(chip.style.getPropertyValue("--tag-color")).toBe("#234567");
+        expect(chip.style.getPropertyValue("--tag-text-color")).toBe("#765432");
+      });
+    });
+
     it("refreshTags + refreshPlaylistTags update player strip and episode-list row", () => {
       const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);

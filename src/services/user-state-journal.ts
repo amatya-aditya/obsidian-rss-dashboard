@@ -73,6 +73,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function copyTag(tag: Tag): Tag {
+  return {
+    name: tag.name,
+    ...(tag.color === undefined ? {} : { color: tag.color }),
+    ...(tag.textColor === undefined ? {} : { textColor: tag.textColor }),
+  };
+}
+
 /**
  * The article-state fields of an in-memory update, ready to journal. Fields the
  * update does not carry are omitted so replay leaves them as the snapshot has
@@ -97,10 +105,7 @@ export function articleStateFromUpdates(
     clearedFields.push("savedFilePath");
   }
   if (Array.isArray(updates.tags)) {
-    state.tags = updates.tags.map((tag) => ({
-      name: tag.name,
-      color: tag.color,
-    }));
+    state.tags = updates.tags.map(copyTag);
   } else if ("tags" in updates && updates.tags === undefined) {
     clearedFields.push("tags");
   }
@@ -128,7 +133,7 @@ export function articleStateFromItem(item: FeedItem): ArticleUserState {
     saved: Boolean(item.saved),
   };
   if (item.tags && item.tags.length > 0) {
-    state.tags = item.tags.map((tag) => ({ name: tag.name, color: tag.color }));
+    state.tags = item.tags.map(copyTag);
   }
   if (item.savedFilePath) state.savedFilePath = item.savedFilePath;
   if (item.playbackProgress) {
@@ -145,7 +150,8 @@ function isTag(value: unknown): value is Tag {
   return (
     isRecord(value) &&
     typeof value.name === "string" &&
-    typeof value.color === "string"
+    (!("color" in value) || typeof value.color === "string") &&
+    (!("textColor" in value) || typeof value.textColor === "string")
   );
 }
 
@@ -192,10 +198,7 @@ function readChangedFields(value: unknown): UserStateJournalChanges | null {
 
   if ("tags" in value) {
     if (!Array.isArray(value.tags) || !value.tags.every(isTag)) return null;
-    changes.tags = value.tags.map((tag) => ({
-      name: tag.name,
-      color: tag.color,
-    }));
+    changes.tags = value.tags.map(copyTag);
   }
 
   if ("savedFilePath" in value) {

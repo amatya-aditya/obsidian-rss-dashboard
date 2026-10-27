@@ -34,6 +34,31 @@ describe("card-view", () => {
     ).toBe("Test Article");
   });
 
+  it("renders card tags from the registry when article copies are stale", () => {
+    const context = baseViewContext();
+    context.tagAppearanceSettings = {
+      availableTags: [
+        { name: "Topic", color: "#234567", textColor: "#765432" },
+      ],
+    };
+    renderCardView(
+      container,
+      [
+        makeArticle({
+          tags: [{ name: "Topic", color: "#stale", textColor: "#stale" }],
+        }),
+      ],
+      { ...context, showCardToolbar: false },
+      baseViewDeps(),
+    );
+
+    const chip = container.querySelector<HTMLElement>(
+      ".rss-dashboard-card-tags-region .rss-dashboard-tag-badge",
+    );
+    expect(chip?.style.getPropertyValue("--tag-color")).toBe("#234567");
+    expect(chip?.style.getPropertyValue("--tag-text-color")).toBe("#765432");
+  });
+
   it("orders keyboard stops as card opener, text, toolbar actions, then the next card", () => {
     const toolbarActions = [
       "Mark as read",

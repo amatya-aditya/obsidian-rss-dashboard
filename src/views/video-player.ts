@@ -1,5 +1,6 @@
 import { Notice, Setting, setIcon } from "obsidian";
 import { renderReaderTagChips } from "../utils/reader-tag-chips";
+import type { TagAppearanceSettings } from "../utils/tag-colors";
 import { FeedItem, Tag } from "../types/types";
 import { youTubeWatchUrl } from "../utils/youtube-embed";
 import {
@@ -52,6 +53,7 @@ export class VideoPlayer {
   private relatedEl: HTMLElement | null = null;
   private tagsEl: HTMLElement | null = null;
   private tags: Tag[] | undefined;
+  private tagAppearanceSettings?: TagAppearanceSettings;
   private detailsEl: HTMLElement | null = null;
   private descriptionEl: HTMLElement | null = null;
 
@@ -275,15 +277,16 @@ export class VideoPlayer {
   }
 
   /** Replaces the tag chips under the title, channel and date line. */
-  setTags(tags: Tag[] | undefined): void {
+  setTags(tags: Tag[] | undefined, settings?: TagAppearanceSettings): void {
     this.tags = tags;
+    this.tagAppearanceSettings = settings;
     this.renderTags();
   }
 
   private renderTags(): void {
     if (!this.tagsEl) return;
     this.tagsEl.empty();
-    renderReaderTagChips(this.tagsEl, this.tags);
+    renderReaderTagChips(this.tagsEl, this.tags, this.tagAppearanceSettings);
   }
 
   private renderDescription(): void {
