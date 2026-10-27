@@ -59,6 +59,7 @@ import {
 import { HighlightService } from "../services/highlight-service";
 import { resolveDisplayDate } from "../services/feed-parser/feed-retention";
 import { ArticleSaver } from "../services/article-saver";
+import { noteLeadsWithHero } from "../services/article-template/note-template";
 import { setCssProps } from "../utils/platform-utils";
 import { createIconButton } from "../utils/icon-button";
 import { attachRovingToolbar } from "../utils/roving-toolbar";
@@ -803,7 +804,11 @@ export class ReaderView extends ItemView {
     }
   }
 
-  private buildReaderSaveMarkdown(item: FeedItem): string {
+  /**
+   * The Markdown a Reader save hands the saver. `leadWithHero` is false when
+   * the note template places `{{image}}` itself, so the body takes no hero.
+   */
+  private buildReaderSaveMarkdown(item: FeedItem, leadWithHero = true): string {
     const htmlToSave =
       this.currentFullContent && this.currentContentIsFullArticle
         ? cleanFetchedArticleHtml(this.currentFullContent, {
@@ -817,10 +822,10 @@ export class ReaderView extends ItemView {
           })
         : this.currentFullContent || item.description || "";
     // Same ad stripping the saver applies on its own paths (#1195).
-    const htmlWithHero = this.prependFallbackHeroForSavedMarkdown(
-      item,
-      stripAdContainersFromHtml(htmlToSave),
-    );
+    const strippedHtml = stripAdContainersFromHtml(htmlToSave);
+    const htmlWithHero = leadWithHero
+      ? this.prependFallbackHeroForSavedMarkdown(item, strippedHtml)
+      : strippedHtml;
     const normalizedSaveHtml =
       this.normalizeBlockLinksForSavedMarkdown(htmlWithHero);
     return this.turndownService.turndown(
@@ -856,7 +861,15 @@ export class ReaderView extends ItemView {
       ? {
           fetchAttempted: true,
           markdown: this.currentContentIsFullArticle
-            ? this.buildReaderSaveMarkdown(item)
+            ? this.buildReaderSaveMarkdown(
+                item,
+                noteLeadsWithHero(
+                  this.settings.articleSaving,
+                  template,
+                  savedTemplate,
+                  item,
+                ),
+              )
             : undefined,
           fetchedHtml: this.currentFetchedArticleContent,
         }
