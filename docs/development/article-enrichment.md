@@ -127,6 +127,16 @@ request, no cache warm, no other field touched. A refresh that finds the feed's
 own image takes it back on its own, clearing the marker. See
 [ADR 0032](../adr/0032-record-fetched-cover-image-provenance-and-restore-it.md).
 
+A saved note's Markdown body leads with the hero (`![Hero image](...)`) unless
+the note template places `{{image}}` in the note body, which is the author
+choosing where the image goes, as in Web Clipper. `noteLeadsWithHero`
+(`src/services/article-template/note-template.ts`) decides it for every save
+path: the saver's RSS, Fetched and fetch-failure builders, and the Reader's own
+Markdown (`buildReaderSaveMarkdown`). An `{{image}}` that sits only in a leading
+frontmatter block (`cover: {{image}}`) does not count, so that body keeps its
+hero. The hero the body would have led with can differ in size from `{{image}}`,
+which is why the "already in the body" check could not prevent the repeat.
+
 ## Why the plugin fetches pages only on open
 
 Fetching a page per item per feed at refresh would reverse a deliberate choice.
