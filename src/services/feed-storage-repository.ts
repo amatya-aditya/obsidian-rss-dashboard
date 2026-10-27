@@ -138,6 +138,7 @@ export class FeedStorageRepository {
     lastPersistedShardJsonByFeedId: new ShardBaselines(),
     ownWrites: new OwnWriteRecord(),
     removedFeedShardBaselines: new Map(),
+    verifiedShardStats: new Map(),
     lastStorageFolderPath: null,
     feedShardHealthById: new Map<string, FeedShardHealth>(),
     retainedMissingFeedIds: new Set<string>(),
@@ -1066,6 +1067,7 @@ export class FeedStorageRepository {
 
   private async removeShardFile(shardPath: string): Promise<boolean> {
     this.state.ownWrites.forget(shardPath);
+    this.state.verifiedShardStats.delete(shardPath);
     const indexed = this.app.vault.getAbstractFileByPath(shardPath);
     if (indexed) {
       await this.app.fileManager.trashFile(indexed);

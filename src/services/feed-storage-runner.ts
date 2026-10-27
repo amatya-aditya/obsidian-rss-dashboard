@@ -122,6 +122,13 @@ export interface FeedStorageRunnerState {
    * a restart belongs to the storage health check (#318).
    */
   removedFeedShardBaselines: Map<string, RemovedFeedShardBaseline>;
+  /**
+   * The size and modified time a shard had when this device last read it and
+   * found it valid, by shard path. A save that changes no feed skips the
+   * health read of a shard whose stat still matches. Session-scoped; a
+   * missing entry only costs one read.
+   */
+  verifiedShardStats: Map<string, { mtime: number; size: number }>;
   lastPersistedMetadataJson: string | null;
   lastStorageFolderPath: string | null;
   shardFolderHiddenFromSync: boolean;
@@ -632,8 +639,6 @@ async function writeFeedShard(
     return false;
   }
 
-  const shard = createFeedShard(feed, context.isV2);
-  const shardJson = JSON.stringify(shard, null, 2);
   const currentComparableJson = createComparableFeedShardJson(
     feed,
     context.isV2,
@@ -644,17 +649,25 @@ async function writeFeedShard(
 
   const shardPath = getFeedShardPath(context.storageFolder, feed.feedId);
   const shardWriteDecision = await getShardWriteDecision(
-    host.app,
+    host,
     shardPath,
     context.forceAllShards || previousJson !== currentComparableJson,
     feed.feedId,
   );
 
   if (shardWriteDecision.needsWrite) {
+    // Only a shard that is written needs its full text; an unchanged feed
+    // is never serialized for the save.
+    const shardJson = JSON.stringify(
+      createFeedShard(feed, context.isV2),
+      null,
+      2,
+    );
     const rollbackOwnWrite = host.state.ownWrites.recordPendingWrite(
       shardPath,
       shardJson,
     );
+    host.state.verifiedShardStats.delete(shardPath);
     try {
       await host.app.vault.adapter.write(shardPath, shardJson);
     } catch (error) {
@@ -826,7 +839,7 @@ async function ensureStorageFolderExists(
 }
 
 async function getShardWriteDecision(
-  app: App,
+  host: FeedStorageRunnerHost,
   shardPath: string,
   alreadyChanged: boolean,
   feedId: string,
@@ -838,12 +851,23 @@ async function getShardWriteDecision(
     return { needsWrite: true, recoveredHealth: null };
   }
 
-  if (!(await app.vault.adapter.exists(shardPath))) {
+  const adapter = host.app.vault.adapter;
+  const verified = host.state.verifiedShardStats;
+  // The stat is taken before the read: a shard that changes in between
+  // records the older stat and is read again on the next save.
+  const stat = await adapter.stat(shardPath);
+  if (!stat) {
+    verified.delete(shardPath);
     return { needsWrite: true, recoveredHealth: "missing" };
   }
 
+  const known = verified.get(shardPath);
+  if (known?.mtime === stat.mtime && known.size === stat.size) {
+    return { needsWrite: false, recoveredHealth: null };
+  }
+
   try {
-    const parsed = JSON.parse(await app.vault.adapter.read(shardPath)) as {
+    const parsed = JSON.parse(await adapter.read(shardPath)) as {
       updatedAt?: unknown;
       feedId?: unknown;
       items?: unknown;
@@ -855,6 +879,7 @@ async function getShardWriteDecision(
     // feed is unchanged was written elsewhere, typically by another device
     // through sync. Rewriting it would replace newer data with this
     // device's stale copy.
+    verified.set(shardPath, { mtime: stat.mtime, size: stat.size });
     return { needsWrite: false, recoveredHealth: null };
   } catch {
     return { needsWrite: true, recoveredHealth: "corrupt" };
