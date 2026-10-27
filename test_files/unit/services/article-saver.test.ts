@@ -1844,7 +1844,8 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
   it("keeps the feed's own image as the RSS save's hero after a page cover fetch (#1354)", async () => {
     const app = App.createMock();
     const settings = createSettings({
-      defaultTemplate: "image: {{image}}\n\n{{content}}",
+      // {{image}} sits in the frontmatter only, so the body keeps its hero.
+      defaultTemplate: "---\nimage: {{image}}\n---\n\n{{content}}",
       includeFrontmatter: false,
       saveVersion: "rss",
     });

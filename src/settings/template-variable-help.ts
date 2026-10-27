@@ -156,7 +156,8 @@ export const TEMPLATE_VARIABLE_HELP_GROUPS: readonly TemplateVariableHelpGroup[]
         { name: "link", description: "The article’s URL." },
         {
           name: "image",
-          description: "The article’s image URL, when available.",
+          description:
+            "The article’s image URL, when available. When your note puts it in the note body and the article has an image, the saved note adds no image of its own above the content, so the image appears once, where you placed it.",
         },
       ],
     },
