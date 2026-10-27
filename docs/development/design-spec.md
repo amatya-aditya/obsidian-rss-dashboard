@@ -1,7 +1,7 @@
 ---
 status: active
 owner: maintainers
-last_reviewed: 2026-10-10
+last_reviewed: 2026-10-26
 obsidian_reference: "1.13.7 desktop"
 min_app_version: "1.8.7"
 related:
@@ -15,6 +15,7 @@ related:
 
 ## Update History
 
+- 2026-10-26: Define shared article action icon hover previews and semantic colors across Dashboard and Reader surfaces, with responsive borders on Dashboard controls only
 - 2026-10-20: Folder fields use Obsidian's `AbstractInputSuggest` list, styled only through `.rss-folder-suggest-container`, replacing the hand-built dropdown (#1377)
 - 2026-10-13: Add **Input Clear Buttons**: every free-text input gets Obsidian's own circle-x clear button through `addInputClearButton`, replacing the plain Lucide `x` buttons; record Obsidian's clear button as a core surface
 - 2026-10-12: Pin the keyboard shortcut help rows to the text baseline with the key flush right, remove the native close button so only the header one shows, and stack the help header on mobile (#1013)
@@ -135,6 +136,12 @@ Current governed surfaces:
   - Canonical selector / owner: `.clickable-icon` pattern with component scope in `src/styles/modals.css`, `src/styles/sidebar.css`, and component/view owners
   - Purpose: icon-only actions with keyboard parity
   - Visual hierarchy role: compact utility action
+- Article action buttons
+  - Canonical selector / owner: Dashboard `.rss-dashboard-save-toggle`, `.rss-dashboard-read-toggle`, `.rss-dashboard-star-toggle`, and `.rss-dashboard-tags-toggle` in `src/styles/articles.css`; Reader `.rss-reader-action-button` in `src/styles/reader.css`
+  - Purpose: read, save, star, and manage tags for an article
+  - Visual hierarchy role: compact article utility actions
+  - States: shared inactive, hover, focus-visible, and action-specific selected-state treatment across Dashboard card, feed, list, and Reader presentations; see **Article Action Button States**
+  - Breakpoint notes: Dashboard Card, Feed, and List actions share a subtle border at tablet and mobile tiers; Reader toolbar actions stay borderless
 - Discover cards
   - Canonical selector / owner: `.rss-discover-card` family in `src/styles/discover.css`
   - Purpose: feed and Smallweb result presentation with metadata and actions
@@ -275,6 +282,8 @@ Preferred tokens:
 - `--color-accent`
 - `--interactive-accent`
 - `--interactive-accent-hover`
+- `--color-green`
+- `--color-yellow`
 - `--text-normal`
 - `--text-muted`
 - `--text-on-accent`
@@ -309,6 +318,8 @@ Accent button pairing rule:
 | Token                          | Intended purpose                                             | Common usage examples                                                      | Avoid / non-goals                                                                   |
 | ------------------------------ | ------------------------------------------------------------ | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | `--interactive-accent`         | Default interactive accent fill and emphasis color           | Primary CTA states, pills, active controls, focus-adjacent emphasis        | Do not use as a neutral hover replacement for every control                         |
+| `--color-green`                | Semantic green state color                                   | Read article action state                                                  | Do not substitute a hard-coded green or vary it by presentation                     |
+| `--color-yellow`               | Semantic yellow state color                                  | Starred article action state                                               | Do not substitute a different favorite color in Reader or Dashboard                 |
 | `--color-accent`               | Theme accent for high-emphasis nav or legacy accent surfaces | Primary nav active fills, accent-forward tabs, established legacy surfaces | Do not introduce for new generic buttons when `--interactive-accent` fits           |
 | `--text-on-accent`             | Contrast-safe text/icon color on accent surfaces             | Text and icons on `--interactive-accent` or `--color-accent` backgrounds   | Do not use on neutral or transparent surfaces                                       |
 | `--text-normal`                | Primary readable text color                                  | Headers, labels, body copy, neutral button text                            | Do not use to imply inactive or disabled states                                     |
@@ -328,6 +339,9 @@ Accent button pairing rule:
 4. Prefer `--text-accent` for text-only emphasis and link-like affordances.
 5. Prefer neutral background and border tokens before introducing custom fills.
 
+For article action buttons, the action-specific state mapping below takes
+precedence over the generic active-control color rule.
+
 Rules:
 
 1. Use tokens before introducing hardcoded colors.
@@ -336,14 +350,44 @@ Rules:
 
 ## Interaction State Matrix
 
-| Control type            | Default                                           | Hover                                                               | Active / selected                                                              | Focus-visible                                                  | Disabled                                             | Loading                                                                    |
-| ----------------------- | ------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------- |
-| Primary nav buttons     | Neutral or subdued fill with semibold label       | May increase fill or border emphasis without outranking active peer | Filled accent surface with `--text-on-accent`                                  | Visible outline using accent-compatible token                  | Reduced emphasis, no fake active fill                | Preserve width; spinner/icon swaps must not shift layout noticeably        |
-| Secondary tabs          | Transparent, text-first tab styling               | Text emphasis only, no full fill                                    | Accent text plus underline indicator                                           | Visible outline that does not erase underline semantics        | Reduced contrast but still readable                  | Rare; avoid unless content mode switch truly waits on async state          |
-| Neutral buttons         | Neutral fill, border, `--text-normal`             | `--background-modifier-hover` and optional accent border            | May use subtle pressed or selected styling, but should not mimic CTA fill      | Visible outline                                                | Opacity and cursor changes without disappearing text | Preserve button label and width while showing progress if async            |
-| Accent buttons          | Accent fill plus `--text-on-accent`               | Hover brightness or accent-hover refinement                         | Same family as hover; active state may darken slightly                         | Accent-compatible outline with clear separation from fill edge | Lower emphasis but keep contrast legible             | Spinner allowed; keep text readable or reserve width                       |
-| Destructive buttons     | Distinct destructive treatment with readable text | Stronger destructive hover, no ambiguity with neutral controls      | Persistent destructive emphasis only when the state is truly destructive/armed | Visible outline maintained on destructive fills                | Lower emphasis, no misleading active danger state    | Preserve destructive intent while preventing duplicate actions             |
-| Clickable-icon controls | Compact hit area with scoped icon rendering       | Background or icon-color emphasis only                              | Optional selected state if the icon represents a toggle                        | Required keyboard-visible outline                              | Reduced opacity and no pointer affordance            | Avoid swapping icon size; loading may use spin only if motion is necessary |
+| Control type            | Default                                           | Hover                                                                           | Active / selected                                                                                          | Focus-visible                                                  | Disabled                                             | Loading                                                                    |
+| ----------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------- |
+| Primary nav buttons     | Neutral or subdued fill with semibold label       | May increase fill or border emphasis without outranking active peer             | Filled accent surface with `--text-on-accent`                                                              | Visible outline using accent-compatible token                  | Reduced emphasis, no fake active fill                | Preserve width; spinner/icon swaps must not shift layout noticeably        |
+| Secondary tabs          | Transparent, text-first tab styling               | Text emphasis only, no full fill                                                | Accent text plus underline indicator                                                                       | Visible outline that does not erase underline semantics        | Reduced contrast but still readable                  | Rare; avoid unless content mode switch truly waits on async state          |
+| Neutral buttons         | Neutral fill, border, `--text-normal`             | `--background-modifier-hover` and optional accent border                        | May use subtle pressed or selected styling, but should not mimic CTA fill                                  | Visible outline                                                | Opacity and cursor changes without disappearing text | Preserve button label and width while showing progress if async            |
+| Accent buttons          | Accent fill plus `--text-on-accent`               | Hover brightness or accent-hover refinement                                     | Same family as hover; active state may darken slightly                                                     | Accent-compatible outline with clear separation from fill edge | Lower emphasis but keep contrast legible             | Spinner allowed; keep text readable or reserve width                       |
+| Destructive buttons     | Distinct destructive treatment with readable text | Stronger destructive hover, no ambiguity with neutral controls                  | Persistent destructive emphasis only when the state is truly destructive/armed                             | Visible outline maintained on destructive fills                | Lower emphasis, no misleading active danger state    | Preserve destructive intent while preventing duplicate actions             |
+| Clickable-icon controls | Compact hit area with scoped icon rendering       | Background or icon-color emphasis only                                          | Optional selected state if the icon represents a toggle                                                    | Required keyboard-visible outline                              | Reduced opacity and no pointer affordance            | Avoid swapping icon size; loading may use spin only if motion is necessary |
+| Article action buttons  | Inactive: `--text-muted`, no extra opacity        | Inactive previews the action color; selected keeps semantic color and brightens | Save: `--interactive-accent`; Read: `--color-green`; Star: `--color-yellow`; Tags: neutral unless selected | Action-color preview; selected brightens; visible outline      | Honor disabled state without disguising selection    | Keep labels and selected-state colors stable during progress               |
+
+### Article Action Button States
+
+Use the same state and color contract for article action buttons wherever they
+appear in Dashboard card, feed, and list presentations or in Reader views:
+
+- **Inactive:** use `--text-muted` for the icon. Do not combine it with a
+  reduced `opacity`, which would further lower contrast.
+- **Hover and focus:** inactive Save previews `--interactive-accent`, Read
+  previews `--color-green`, and Star previews `--color-yellow`; an inactive
+  Star shows a filled star instead of its crossed-out idle icon. Tags stays
+  neutral and uses `--text-normal`. Apply the same previews on hover-capable
+  pointers and keyboard `:focus-visible`, with a smooth transition that
+  honors `prefers-reduced-motion`. Selected actions keep their semantic color
+  and brighten on hover and focus. Preserve the visible `:focus-visible`
+  outline.
+- **Selected state:** use the same action-specific token on every surface:
+  Save uses `--interactive-accent`, Read uses `--color-green`, and Star uses
+  `--color-yellow` with its filled-star indicator. The Reader and Dashboard
+  must not define different colors for the same action. Tags remains neutral
+  unless it represents a persistent selected state.
+- **Responsive border:** Dashboard Card, Feed, and List action buttons use a
+  `1px solid var(--background-modifier-border)` border at tablet and mobile
+  widths (`<= 1200px`) and remain borderless on desktop. Keep all four
+  Dashboard action surfaces consistent, including on coarse-pointer devices.
+  Reader toolbar actions remain borderless at every viewport width.
+- **Layout ownership:** button size, spacing, placement, and touch-target
+  dimensions may vary with the containing view. Keep those differences local
+  to the view; do not let them change the shared color and interaction states.
 
 ## Typography and Density
 

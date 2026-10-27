@@ -325,6 +325,9 @@
   font-family: inherit;
   background-color: var(--background-primary-alt);
   position: relative;
+  transition:
+    color 150ms ease,
+    background-color 150ms ease;
 }
 
 body .rss-dashboard-save-toggle svg,
@@ -336,32 +339,96 @@ body .rss-dashboard-tags-toggle svg {
   display: block;
   visibility: visible;
   stroke-width: 2;
+  transition: filter 150ms ease;
 }
 
-.rss-dashboard-save-toggle:hover,
-.rss-dashboard-read-toggle:hover,
-.rss-dashboard-star-toggle:hover,
-.rss-dashboard-tags-toggle:hover {
+.rss-dashboard-star-icon,
+.rss-dashboard-star-preview-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 150ms ease;
+}
+
+.rss-dashboard-star-preview-icon {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (hover: hover) {
+  .rss-dashboard-save-toggle:hover,
+  .rss-dashboard-read-toggle:hover,
+  .rss-dashboard-star-toggle:hover,
+  .rss-dashboard-tags-toggle:hover {
+    color: var(--text-normal);
+  }
+}
+
+.rss-dashboard-save-toggle:focus-visible,
+.rss-dashboard-read-toggle:focus-visible,
+.rss-dashboard-tags-toggle:focus-visible {
   color: var(--text-normal);
 }
 
-/* Save toggle states */
-.rss-dashboard-save-toggle {
-  opacity: 0.7;
-  transition: opacity 0.2s ease;
+@media (hover: hover) {
+  .rss-dashboard-save-toggle:not(.saved):hover {
+    color: var(--interactive-accent);
+  }
+
+  .rss-dashboard-read-toggle:not(.read):hover {
+    color: var(--color-green);
+  }
+
+  .rss-dashboard-star-toggle.unstarred:hover {
+    color: var(--color-yellow);
+  }
+
+  .rss-dashboard-save-toggle.saved:hover svg,
+  .rss-dashboard-read-toggle.read:hover svg,
+  .rss-dashboard-star-toggle.starred:hover svg {
+    filter: brightness(1.2);
+  }
 }
 
-.rss-dashboard-save-toggle:hover {
-  opacity: 1;
+.rss-dashboard-save-toggle.saved:focus-visible svg,
+.rss-dashboard-read-toggle.read:focus-visible svg,
+.rss-dashboard-star-toggle.starred:focus-visible svg {
+  filter: brightness(1.2);
 }
 
-.rss-dashboard-save-toggle.saved {
-  opacity: 1;
+.rss-dashboard-save-toggle:not(.saved):focus-visible {
   color: var(--interactive-accent);
 }
 
-.rss-dashboard-save-toggle.saved:hover {
-  opacity: 0.8;
+.rss-dashboard-read-toggle:not(.read):focus-visible {
+  color: var(--color-green);
+}
+
+.rss-dashboard-star-toggle.unstarred:focus-visible {
+  color: var(--color-yellow);
+}
+
+.rss-dashboard-star-toggle.unstarred:hover .rss-dashboard-star-icon,
+.rss-dashboard-star-toggle.unstarred:focus-visible .rss-dashboard-star-icon {
+  opacity: 0;
+}
+
+.rss-dashboard-star-toggle.unstarred:hover .rss-dashboard-star-preview-icon,
+.rss-dashboard-star-toggle.unstarred:focus-visible
+  .rss-dashboard-star-preview-icon {
+  opacity: 1;
+}
+
+.rss-dashboard-star-preview-icon svg {
+  color: var(--color-yellow);
+  fill: var(--color-yellow);
+}
+
+/* Save toggle states */
+.rss-dashboard-save-toggle.saved {
+  color: var(--interactive-accent);
 }
 
 .rss-dashboard-save-toggle.saving {
@@ -388,11 +455,11 @@ body .rss-dashboard-tags-toggle svg {
 
 /* Read toggle state */
 .rss-dashboard-read-toggle.read {
-  color: #2ecc71;
+  color: var(--color-green);
 }
 
 body .rss-dashboard-read-toggle.read svg {
-  color: #43a047;
+  color: var(--color-green);
 }
 
 /* Star toggle states */
@@ -409,16 +476,10 @@ body .rss-dashboard-read-toggle.read svg {
 .rss-dashboard-star-toggle.unstarred,
 .rss-reader-star-toggle.unstarred {
   color: var(--text-muted);
-  opacity: 1;
 }
 
 body .rss-dashboard-star-toggle svg {
   opacity: 1;
-}
-
-.rss-dashboard-star-toggle:hover svg,
-.rss-reader-star-toggle:hover svg {
-  stroke: color-mix(in srgb, var(--color-yellow) 50%, #000);
 }
 
 /* The cover-image control (#1314, #1330): one control shared by the article
@@ -746,6 +807,17 @@ body .rss-dashboard-tag-action-button svg {
   }
 }
 
+/* Keep compact article action controls outlined at tablet and mobile widths. */
+@media (max-width: 1200px) {
+  .rss-dashboard-action-toolbar .rss-dashboard-save-toggle,
+  .rss-dashboard-action-toolbar .rss-dashboard-read-toggle,
+  .rss-dashboard-action-toolbar .rss-dashboard-star-toggle,
+  .rss-dashboard-action-toolbar .rss-dashboard-tags-toggle {
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
+  }
+}
+
 /* Mobile (≤ 768px) — touch-target sizing for action toggles */
 @media (max-width: 768px) {
   .rss-dashboard-action-toolbar .rss-dashboard-save-toggle,
@@ -757,8 +829,6 @@ body .rss-dashboard-tag-action-button svg {
     height: 36px;
     border-radius: 12px;
     padding: 0 10px;
-    border: 1px solid var(--background-modifier-border);
-    background-color: var(--background-primary);
   }
 
   /* Grid-style mobile list: square icon-only buttons */
@@ -796,7 +866,6 @@ body .rss-dashboard-tag-action-button svg {
     min-height: 44px;
     height: 44px;
     border-radius: 12px;
-    background-color: var(--background-primary-alt);
   }
 }
 
