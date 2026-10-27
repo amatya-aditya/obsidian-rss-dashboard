@@ -25,6 +25,7 @@ import {
   FreshRssSyncClient,
   type FreshRssSubscription,
   type FreshRssLabel,
+  type FreshRssLabelList,
 } from "./freshrss-sync-client";
 
 /** Maximum recent article IDs requested for each FreshRSS subscription. */
@@ -62,6 +63,7 @@ export type FreshRssSyncPreviewOutcome =
       outcome: "ready";
       subscriptions: FreshRssPreviewSubscription[];
       pendingMutations: FreshRssPendingFacetMutation[];
+      labelConflicts: string[];
       partial: boolean;
     }
   | {
@@ -308,13 +310,23 @@ async function prepareFreshRssArticleState(
           : "server-unavailable",
     };
   }
-  remoteLabels = labelsResult.data;
+  const remoteLabelList = labelsResult.data;
+  remoteLabels = remoteLabelList.labels;
   const labelState = reconcileLabelMappings(
     remoteLabels,
+    remoteLabelList.folders,
     labelMappings,
     availableTags,
   );
   labelMappings = labelState.mappings;
+  const blockedPendingMutations = await markCategoryCollisionMutationsManual(
+    sidecarRepository,
+    scope,
+    sidecarState.pendingFacetMutations,
+    remoteLabelList.folders,
+    owner,
+  );
+  if (!blockedPendingMutations) return { outcome: "server-unavailable" };
 
   const labelMutationOutcome = await flushPendingFacetMutations(
     client,
@@ -362,6 +374,22 @@ export class FreshRssSyncCoordinator {
             : "server-unavailable",
       };
     }
+
+    const labelsResult = await prepared.client.listLabels();
+    input.owner.throwIfInactive();
+    if (labelsResult.outcome !== "ok") {
+      return {
+        outcome:
+          labelsResult.outcome === "auth-rejected"
+            ? "credentials-rejected"
+            : "server-unavailable",
+      };
+    }
+    const labelConflicts = findLabelCategoryConflicts(
+      labelsResult.data,
+      prepared.settings,
+      prepared.sidecarState.pendingFacetMutations,
+    );
 
     let partial = false;
     const subscriptions: FreshRssPreviewSubscription[] = [];
@@ -414,6 +442,7 @@ export class FreshRssSyncCoordinator {
       pendingMutations: prepared.sidecarState.pendingFacetMutations.filter(
         isFreshRssPendingFacetMutation,
       ),
+      labelConflicts,
       partial,
     };
   }
@@ -875,7 +904,20 @@ function applyRemoteLabelStates(
   for (const binding of syncState.articleBindings) {
     const article = findBoundArticle(syncState.feeds, binding);
     if (!article) continue;
-    const desiredTags: Tag[] = [];
+    const preservedKeys = new Set<string>();
+    const desiredTags: Tag[] = (article.tags ?? []).flatMap((tag) => {
+      const key = normalizedLabelKey(tag.name);
+      if (
+        preservedKeys.has(key) ||
+        syncState.labelMappings.some(
+          (mapping) => normalizedLabelKey(mapping.localTagName) === key,
+        )
+      ) {
+        return [];
+      }
+      preservedKeys.add(key);
+      return [{ ...tag }];
+    });
     for (const mapping of syncState.labelMappings) {
       const key = normalizedLabelKey(mapping.localTagName);
       if (
@@ -928,12 +970,119 @@ function normalizedLabelKey(name: string): string {
   return name.trim().toLowerCase();
 }
 
+function findLabelCategoryConflicts(
+  labelList: FreshRssLabelList,
+  settings: RssDashboardSettings,
+  pendingValues: unknown[],
+): string[] {
+  const localNames = new Map<string, string>();
+  const localTags = [
+    ...settings.availableTags,
+    ...settings.feeds.flatMap((feed) =>
+      feed.items.flatMap((item) => item.tags ?? []),
+    ),
+  ];
+  for (const tag of localTags) {
+    const name = tag.name.trim();
+    const key = normalizedLabelKey(name);
+    if (name && !localNames.has(key)) localNames.set(key, name);
+  }
+  for (const value of pendingValues) {
+    if (!isFreshRssPendingFacetMutation(value) || value.facet !== "labels") {
+      continue;
+    }
+    for (const name of value.desiredState) {
+      const trimmedName = name.trim();
+      const key = normalizedLabelKey(trimmedName);
+      if (trimmedName && !localNames.has(key)) {
+        localNames.set(key, trimmedName);
+      }
+    }
+  }
+
+  const conflicts = new Map<string, string>();
+  for (const folder of labelList.folders) {
+    const key = normalizedLabelKey(folder.name);
+    const localName = localNames.get(key);
+    if (localName && !conflicts.has(key)) conflicts.set(key, localName);
+  }
+  return [...conflicts.values()];
+}
+
+async function markCategoryCollisionMutationsManual(
+  repository: Pick<FreshRssConnectionScopeRepository, "read" | "write">,
+  scope: FreshRssConnectionScope,
+  pendingValues: unknown[],
+  folders: FreshRssLabel[],
+  owner: FreshRssSyncOwner,
+): Promise<boolean> {
+  const folderNames = new Map(
+    folders.map((folder) => [normalizedLabelKey(folder.name), folder.name]),
+  );
+  const hasQueuedCollision = pendingValues.some(
+    (value) =>
+      isFreshRssPendingFacetMutation(value) &&
+      value.facet === "labels" &&
+      value.retryDisposition !== "manual" &&
+      value.desiredState.some((name) =>
+        folderNames.has(normalizedLabelKey(name)),
+      ),
+  );
+  if (!hasQueuedCollision) return true;
+
+  owner.throwIfInactive();
+  return withFreshRssSidecarMutationLock(async () => {
+    owner.throwIfInactive();
+    const current = await repository.read(scope);
+    if (!current) return false;
+    let changed = false;
+    const pendingFacetMutations = current.pendingFacetMutations.map((value) => {
+      if (
+        !isFreshRssPendingFacetMutation(value) ||
+        value.facet !== "labels" ||
+        value.retryDisposition === "manual"
+      ) {
+        return value;
+      }
+      const collision = value.desiredState.find((name) =>
+        folderNames.has(normalizedLabelKey(name)),
+      );
+      if (!collision) return value;
+      const folderName = folderNames.get(normalizedLabelKey(collision));
+      changed = true;
+      return {
+        ...value,
+        attemptCount: value.attemptCount + 1,
+        retryDisposition: "manual",
+        lastError: `FreshRSS category "${folderName}" cannot sync as an article label. Rename the category or Dashboard tag, then retry.`,
+      } satisfies FreshRssPendingFacetMutation;
+    });
+    owner.throwIfInactive();
+    if (changed) {
+      await repository.write({ ...current, pendingFacetMutations });
+    }
+    pendingValues.splice(0, pendingValues.length, ...pendingFacetMutations);
+    return true;
+  });
+}
+
 function reconcileLabelMappings(
   remoteLabels: FreshRssLabel[],
+  folders: FreshRssLabel[],
   previousMappings: FreshRssLabelMapping[],
   availableTags: Tag[],
 ): { mappings: FreshRssLabelMapping[]; availableTags: Tag[] } {
-  const mappings = previousMappings.map((mapping) => ({ ...mapping }));
+  const remoteLabelIds = new Set(
+    remoteLabels.map((label) => label.remoteLabelId),
+  );
+  const folderIds = new Set(folders.map((folder) => folder.remoteLabelId));
+  const mappings = previousMappings.flatMap((mapping) => {
+    if (folderIds.has(mapping.remoteLabelId)) return [];
+    if (remoteLabelIds.has(mapping.remoteLabelId)) {
+      return [{ ...mapping, remoteType: "tag" as const }];
+    }
+    return mapping.remoteType === "tag" ? [{ ...mapping }] : [];
+  });
   for (const remoteLabel of remoteLabels) {
     const previous = previousMappings.find(
       (mapping) => mapping.remoteLabelId === remoteLabel.remoteLabelId,
@@ -954,11 +1103,16 @@ function reconcileLabelMappings(
         mappings[existingIndex] = {
           remoteLabelId: remoteLabel.remoteLabelId,
           localTagName: resolvedName,
+          remoteType: "tag",
         };
       }
       continue;
     }
-    mappings.push({ remoteLabelId: remoteLabel.remoteLabelId, localTagName });
+    mappings.push({
+      remoteLabelId: remoteLabel.remoteLabelId,
+      localTagName,
+      remoteType: "tag",
+    });
     if (!localTag) {
       availableTags.push({ name: localTagName, color: "#808080" });
     }
@@ -1131,6 +1285,7 @@ async function flushPendingFacetMutations(
           labelMappings.push({
             remoteLabelId: `user/-/label/${name}`,
             localTagName: name,
+            remoteType: "tag",
           });
         }
       }

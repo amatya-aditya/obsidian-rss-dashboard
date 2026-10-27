@@ -28,7 +28,9 @@ function createSidecar(): FreshRssSidecarFile {
     feedBindings: [],
     articleBindings: [],
     checkpoints: [],
-    labelMappings: [{ remoteLabelId: "label/1", localTagName: "Keep" }],
+    labelMappings: [
+      { remoteLabelId: "label/1", localTagName: "Keep", remoteType: "tag" },
+    ],
     syncHealth: { consecutiveTransientFailureCount: 0, backoffUntilMs: null },
   };
 }
@@ -44,14 +46,17 @@ function createOwner(): FreshRssSyncOwner {
   };
 }
 
-function createClient(responses: Array<{ status: number; text: string }>) {
+function createClient(
+  responses: Array<{ status: number; text: string }>,
+  labelList: { tags: unknown[] } = { tags: [] },
+) {
   responses.splice(1, 0, {
     status: 200,
     text: JSON.stringify({ userId: scope.remoteUserId }),
   });
   const request = vi.fn<FreshRssHttpClient["request"]>(async ({ url }) => {
     if (url.endsWith("/tag/list?output=json")) {
-      return { status: 200, text: JSON.stringify({ tags: [] }) };
+      return { status: 200, text: JSON.stringify(labelList) };
     }
     if (
       url.includes("/stream/items/ids?") &&
@@ -79,6 +84,85 @@ function subscriptionList(url = "https://feed.example.test/rss.xml"): string {
 
 function makeSettings(): RssDashboardSettings {
   return structuredClone(DEFAULT_SETTINGS);
+}
+
+function makeBoundLabelSettings(tagName: string): RssDashboardSettings {
+  const settings = makeSettings();
+  settings.availableTags = [{ name: tagName, color: "#123456" }];
+  settings.feeds = [
+    {
+      feedId: "local-feed",
+      title: "Feed",
+      url: "https://feed.example.test/rss.xml",
+      folder: "RSS",
+      lastUpdated: 10,
+      items: [
+        {
+          title: "Article",
+          link: "https://article.example.test/42",
+          description: "",
+          pubDate: "2026-10-24T00:00:00.000Z",
+          guid: "article/42",
+          read: false,
+          starred: false,
+          tags: [{ name: tagName, color: "#123456" }],
+          feedTitle: "Feed",
+          feedUrl: "https://feed.example.test/rss.xml",
+          coverImage: "",
+        },
+      ],
+    },
+  ];
+  return settings;
+}
+
+function bindArticle(sidecar: FreshRssSidecarFile): void {
+  sidecar.articleBindings.push({
+    feedId: "local-feed",
+    guid: "article/42",
+    remoteArticleId: "article/42",
+  });
+}
+
+function createLabelReconciliationHarness(
+  settings: RssDashboardSettings,
+  sidecar: FreshRssSidecarFile,
+  labelList: { tags: unknown[] },
+) {
+  const request = vi.fn<FreshRssHttpClient["request"]>(async ({ url }) => {
+    if (url.endsWith("/accounts/ClientLogin")) {
+      return { status: 200, text: "Auth=session-token" };
+    }
+    if (url.includes("/user-info?")) {
+      return {
+        status: 200,
+        text: JSON.stringify({ userId: scope.remoteUserId }),
+      };
+    }
+    if (url.endsWith("/tag/list?output=json")) {
+      return { status: 200, text: JSON.stringify(labelList) };
+    }
+    if (url.endsWith("/subscription/list?output=json")) {
+      return { status: 200, text: JSON.stringify({ subscriptions: [] }) };
+    }
+    if (url.includes("/stream/items/ids?")) {
+      return { status: 200, text: JSON.stringify({ itemRefs: [] }) };
+    }
+    throw new Error(`Unexpected request: ${url}`);
+  });
+  const coordinator = new FreshRssSyncCoordinator({
+    httpClient: { request },
+    getSettings: () => settings,
+    saveSettings: async () => {},
+    sidecarRepository: {
+      read: async () => sidecar,
+      write: async (next) => {
+        Object.assign(sidecar, next);
+      },
+    },
+    getView: async () => null,
+  });
+  return { coordinator, request };
 }
 
 describe("FreshRSS sync coordinator", () => {
@@ -148,6 +232,49 @@ describe("FreshRSS sync coordinator", () => {
         },
       ],
       pendingMutations: [{ operationId: "queued-read", facet: "read" }],
+    });
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it("previews normalized category collisions without queuing a label mutation", async () => {
+    const settings = makeSettings();
+    settings.availableTags = [{ name: " computing ", color: "#123456" }];
+    const sidecar = createSidecar();
+    const { httpClient } = createClient(
+      [
+        { status: 200, text: "Auth=session-token" },
+        { status: 200, text: subscriptionList() },
+        { status: 200, text: JSON.stringify({ itemRefs: [] }) },
+      ],
+      {
+        tags: [
+          {
+            id: "user/-/label/Computing",
+            label: "Computing",
+            type: "folder",
+          },
+        ],
+      },
+    );
+    const write = vi.fn(async () => {});
+    const coordinator = new FreshRssSyncCoordinator({
+      httpClient,
+      getSettings: () => settings,
+      saveSettings: vi.fn(async () => {}),
+      sidecarRepository: { read: async () => sidecar, write },
+      getView: async () => null,
+    });
+
+    await expect(
+      coordinator.preview({
+        endpoint,
+        credentials: { username: "reader", apiPassword: "secret" },
+        scope,
+        owner: createOwner(),
+      }),
+    ).resolves.toMatchObject({
+      outcome: "ready",
+      labelConflicts: ["computing"],
     });
     expect(write).not.toHaveBeenCalled();
   });
@@ -373,7 +500,7 @@ describe("FreshRSS sync coordinator", () => {
       },
     ]);
     expect(sidecar.labelMappings).toEqual([
-      { remoteLabelId: "label/1", localTagName: "Keep" },
+      { remoteLabelId: "label/1", localTagName: "Keep", remoteType: "tag" },
     ]);
     expect(saveSettings).toHaveBeenCalledOnce();
   });
@@ -988,10 +1115,22 @@ describe("FreshRSS sync coordinator", () => {
       { name: "Later", color: "#abcdef" },
     ]);
     expect(sidecar.labelMappings).toEqual([
-      { remoteLabelId: "label/1", localTagName: "Keep" },
-      { remoteLabelId: "user/-/label/news", localTagName: "News" },
-      { remoteLabelId: "user/-/label/News", localTagName: "News" },
-      { remoteLabelId: "user/-/label/Later", localTagName: "Later" },
+      { remoteLabelId: "label/1", localTagName: "Keep", remoteType: "tag" },
+      {
+        remoteLabelId: "user/-/label/news",
+        localTagName: "News",
+        remoteType: "tag",
+      },
+      {
+        remoteLabelId: "user/-/label/News",
+        localTagName: "News",
+        remoteType: "tag",
+      },
+      {
+        remoteLabelId: "user/-/label/Later",
+        localTagName: "Later",
+        remoteType: "tag",
+      },
     ]);
     expect(saveSettings).not.toHaveBeenCalled();
   });
@@ -1036,6 +1175,10 @@ describe("FreshRSS sync coordinator", () => {
       guid: "article/42",
       remoteArticleId: "article/42",
     });
+    sidecar.labelMappings = [
+      { remoteLabelId: "user/-/label/Local", localTagName: "Local" },
+      { remoteLabelId: "user/-/label/News", localTagName: "News" },
+    ];
     const request = vi.fn<FreshRssHttpClient["request"]>(async ({ url }) => {
       if (url.endsWith("/accounts/ClientLogin"))
         return { status: 200, text: "Auth=session-token" };
@@ -1048,7 +1191,14 @@ describe("FreshRSS sync coordinator", () => {
         return {
           status: 200,
           text: JSON.stringify({
-            tags: [{ id: "user/-/label/News", label: " news " }],
+            tags: [
+              {
+                id: "user/-/label/Local",
+                label: "Local",
+                type: "folder",
+              },
+              { id: "user/-/label/News", label: " news ", type: "tag" },
+            ],
           }),
         };
       if (url.endsWith("/subscription/list?output=json"))
@@ -1090,10 +1240,186 @@ describe("FreshRSS sync coordinator", () => {
       }),
     ).resolves.toMatchObject({ outcome: "synced", partial: false });
 
+    expect(
+      request.mock.calls.map(([input]) =>
+        new URL(input.url).searchParams.get("s"),
+      ),
+    ).toContain("user/-/label/News");
     expect(settings.feeds[0]?.items[0]).toMatchObject({
       starred: true,
-      tags: [{ name: "News", color: "#123456" }],
+      tags: [
+        { name: "Local", color: "#abcdef" },
+        { name: "News", color: "#123456" },
+      ],
     });
+    expect(sidecar.labelMappings).toEqual([
+      {
+        remoteLabelId: "user/-/label/News",
+        localTagName: "News",
+        remoteType: "tag",
+      },
+    ]);
+    expect(
+      request.mock.calls.some(([input]) => input.url.endsWith("/edit-tag")),
+    ).toBe(false);
+  });
+
+  it("preserves a local tag when a legacy folder mapping is no longer listed", async () => {
+    const settings = makeBoundLabelSettings("Computing");
+    const sidecar = createSidecar();
+    bindArticle(sidecar);
+    sidecar.labelMappings = [
+      { remoteLabelId: "user/-/label/Computing", localTagName: "Computing" },
+    ];
+    const { coordinator } = createLabelReconciliationHarness(
+      settings,
+      sidecar,
+      {
+        tags: [
+          {
+            id: "user/-/label/Engineering",
+            label: "Engineering",
+            type: "folder",
+          },
+        ],
+      },
+    );
+
+    await expect(
+      coordinator.run({
+        endpoint,
+        credentials: { username: "reader", apiPassword: "secret" },
+        scope,
+        owner: createOwner(),
+      }),
+    ).resolves.toMatchObject({ outcome: "synced", partial: false });
+
+    expect(settings.feeds[0]?.items[0]?.tags).toEqual([
+      { name: "Computing", color: "#123456" },
+    ]);
+    expect(sidecar.labelMappings).toEqual([]);
+  });
+
+  it("removes article tags when a previously known remote label is deleted", async () => {
+    const settings = makeBoundLabelSettings("News");
+    const sidecar = createSidecar();
+    bindArticle(sidecar);
+    sidecar.labelMappings = [
+      {
+        remoteLabelId: "user/-/label/News",
+        localTagName: "News",
+        remoteType: "tag",
+      },
+    ];
+    const { coordinator } = createLabelReconciliationHarness(
+      settings,
+      sidecar,
+      {
+        tags: [],
+      },
+    );
+
+    await expect(
+      coordinator.run({
+        endpoint,
+        credentials: { username: "reader", apiPassword: "secret" },
+        scope,
+        owner: createOwner(),
+      }),
+    ).resolves.toMatchObject({ outcome: "synced", partial: false });
+
+    expect(settings.feeds[0]?.items[0]?.tags).toEqual([]);
+    expect(sidecar.labelMappings).toEqual([
+      {
+        remoteLabelId: "user/-/label/News",
+        localTagName: "News",
+        remoteType: "tag",
+      },
+    ]);
+  });
+
+  it("parks pending label edits that collide with FreshRSS categories", async () => {
+    const settings = makeSettings();
+    settings.availableTags = [{ name: "Computing", color: "#123456" }];
+    const sidecar = createSidecar();
+    sidecar.labelMappings = [
+      { remoteLabelId: "user/-/label/Computing", localTagName: "Computing" },
+    ];
+    sidecar.pendingFacetMutations.push({
+      operationId: "folder-label-collision",
+      remoteArticleId: "article/42",
+      facet: "labels",
+      desiredState: ["Computing"],
+      createdAtMs: 100,
+      attemptCount: 0,
+      lastError: null,
+    });
+    const request = vi.fn<FreshRssHttpClient["request"]>(async ({ url }) => {
+      if (url.endsWith("/accounts/ClientLogin")) {
+        return { status: 200, text: "Auth=session-token" };
+      }
+      if (url.includes("/user-info?")) {
+        return {
+          status: 200,
+          text: JSON.stringify({ userId: scope.remoteUserId }),
+        };
+      }
+      if (url.endsWith("/tag/list?output=json")) {
+        return {
+          status: 200,
+          text: JSON.stringify({
+            tags: [
+              {
+                id: "user/-/label/Computing",
+                label: "Computing",
+                type: "folder",
+              },
+            ],
+          }),
+        };
+      }
+      if (url.endsWith("/subscription/list?output=json")) {
+        return { status: 200, text: JSON.stringify({ subscriptions: [] }) };
+      }
+      if (url.includes("/stream/items/ids?")) {
+        return { status: 200, text: JSON.stringify({ itemRefs: [] }) };
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const coordinator = new FreshRssSyncCoordinator({
+      httpClient: { request },
+      getSettings: () => settings,
+      saveSettings: async () => {},
+      sidecarRepository: {
+        read: async () => sidecar,
+        write: async (next) => {
+          Object.assign(sidecar, next);
+        },
+      },
+      getView: async () => null,
+    });
+
+    await expect(
+      coordinator.run({
+        endpoint,
+        credentials: { username: "reader", apiPassword: "secret" },
+        scope,
+        owner: createOwner(),
+      }),
+    ).resolves.toMatchObject({ outcome: "synced" });
+
+    expect(sidecar.labelMappings).toEqual([]);
+    expect(sidecar.pendingFacetMutations).toEqual([
+      expect.objectContaining({
+        operationId: "folder-label-collision",
+        attemptCount: 1,
+        retryDisposition: "manual",
+        lastError: expect.stringContaining('FreshRSS category "Computing"'),
+      }),
+    ]);
+    expect(
+      request.mock.calls.some(([input]) => input.url.endsWith("/edit-tag")),
+    ).toBe(false);
   });
 
   it("keeps pending starred and label choices over conflicting remote state", async () => {

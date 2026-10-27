@@ -25,6 +25,11 @@ export interface FreshRssLabel {
   name: string;
 }
 
+export interface FreshRssLabelList {
+  labels: FreshRssLabel[];
+  folders: FreshRssLabel[];
+}
+
 export interface FreshRssItemIdsPage {
   itemRefs: string[];
   continuation: string | null;
@@ -144,11 +149,12 @@ function parseItemIdsResponse(
   }
 }
 
-function parseLabelListResponse(text: string): FreshRssLabel[] | null {
+function parseLabelListResponse(text: string): FreshRssLabelList | null {
   try {
     const parsed: unknown = JSON.parse(text);
     if (!isRecord(parsed) || !Array.isArray(parsed.tags)) return null;
     const labels: FreshRssLabel[] = [];
+    const folders: FreshRssLabel[] = [];
     for (const entry of parsed.tags) {
       if (!isRecord(entry) || typeof entry.id !== "string") return null;
       if (!entry.id.startsWith("user/-/label/")) continue;
@@ -162,9 +168,14 @@ function parseLabelListResponse(text: string): FreshRssLabel[] | null {
         }
       }
       if (!name) continue;
-      labels.push({ remoteLabelId: entry.id, name });
+      const label = { remoteLabelId: entry.id, name };
+      if (entry.type === "folder") {
+        folders.push(label);
+      } else if (entry.type === undefined || entry.type === "tag") {
+        labels.push(label);
+      }
     }
-    return labels;
+    return { labels, folders };
   } catch {
     return null;
   }
@@ -272,7 +283,9 @@ export class FreshRssSyncClient {
     }
   }
 
-  public async listLabels(): Promise<FreshRssRequestOutcome<FreshRssLabel[]>> {
+  public async listLabels(): Promise<
+    FreshRssRequestOutcome<FreshRssLabelList>
+  > {
     try {
       const response = await this.httpClient.request({
         url: `${this.endpoint}/reader/api/0/tag/list?output=json`,

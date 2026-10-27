@@ -296,8 +296,17 @@ describe("FreshRSS sync client", () => {
           text: JSON.stringify({
             tags: [
               { id: "user/-/state/com.google/starred" },
+              {
+                id: "user/-/label/Computing",
+                label: "Computing",
+                type: "folder",
+              },
               { id: "user/-/label/News", label: " News " },
-              { id: "user/-/label/Read%20Later", label: "Read Later" },
+              {
+                id: "user/-/label/Read%20Later",
+                label: "Read Later",
+                type: "tag",
+              },
             ],
           }),
         }),
@@ -308,10 +317,18 @@ describe("FreshRSS sync client", () => {
 
     await expect(client.listLabels()).resolves.toEqual({
       outcome: "ok",
-      data: [
-        { remoteLabelId: "user/-/label/News", name: "News" },
-        { remoteLabelId: "user/-/label/Read%20Later", name: "Read Later" },
-      ],
+      data: {
+        labels: [
+          { remoteLabelId: "user/-/label/News", name: "News" },
+          {
+            remoteLabelId: "user/-/label/Read%20Later",
+            name: "Read Later",
+          },
+        ],
+        folders: [
+          { remoteLabelId: "user/-/label/Computing", name: "Computing" },
+        ],
+      },
     });
   });
 
