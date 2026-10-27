@@ -4,8 +4,8 @@
  * Settings → General → Proxy asks every proxy to fetch one fixed neutral page,
  * all in parallel against one shared deadline, and reports the response time.
  * It is a diagnostic: results live in memory for the session, nothing runs on
- * its own, and no real fetch changes its proxy order or time budget. #955
- * tracks the automatic tracker this deliberately is not.
+ * its own, and nothing it measures reaches a real fetch. The passive tracker
+ * that orders proxies from real fetches is `proxy-health.ts` (#955).
  */
 import { FEED_SOFT_TIMEOUT_MS } from "../services/feed-timeout";
 import { AUTO_PROXY_URL, PREDEFINED_PROXIES } from "./proxy-utils";

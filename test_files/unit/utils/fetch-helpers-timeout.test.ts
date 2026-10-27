@@ -11,6 +11,8 @@ import {
   fetchWithProxyFallbackDetailed,
   resolveFetchTimeoutMs,
 } from "../../../src/utils/fetch-helpers";
+import { proxyHealth } from "../../../src/utils/proxy-health";
+import { resolveProxyPrefixes } from "../../../src/utils/proxy-utils";
 
 const fetchMock = vi.mocked(robustFetchDetailed);
 const ARTICLE = `<html><head><title>T</title></head><body><article><p>${"Real article text. ".repeat(40)}</p></article></body></html>`;
@@ -245,5 +247,163 @@ describe("full-article fetch timeout (#928, #954)", () => {
       expect(resolveFetchTimeoutMs(bad)).toBe(10000);
     }
     expect(resolveFetchTimeoutMs(25)).toBe(25000);
+  });
+});
+
+describe("proxy health ordering in the full-article fetch (#955)", () => {
+  const URL_UNDER_TEST = "https://example.com/a";
+  const BLOCKED = { text: "", status: 200 };
+  const RAW_PROXIES = resolveProxyPrefixes("auto", { rawBodyOnly: true });
+  const requested = () => fetchMock.mock.calls.map(([target]) => target);
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    fetchMock.mockReset();
+  });
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("starts the next article with a different proxy after one hung", async () => {
+    fetchMock
+      .mockResolvedValueOnce(BLOCKED)
+      .mockReturnValueOnce(new Promise(() => {}));
+    const hung = fetchWithProxyFallbackDetailed(URL_UNDER_TEST, "auto", 10);
+    await vi.advanceTimersByTimeAsync(10000);
+    await expect(hung).resolves.toMatchObject({ failureReason: "timeout" });
+    expect(requested()[1]).toContain(RAW_PROXIES[0]);
+
+    fetchMock.mockReset();
+    fetchMock
+      .mockResolvedValueOnce(BLOCKED)
+      .mockResolvedValueOnce({ text: ARTICLE, status: 200 });
+    const result = await fetchWithProxyFallbackDetailed(
+      URL_UNDER_TEST,
+      "auto",
+      10,
+    );
+
+    expect(result.failureType).toBe("none");
+    expect(requested()).toHaveLength(2);
+    expect(requested()[1]).toContain(RAW_PROXIES[1]);
+  });
+
+  it("skips a proxy that has hung three times for its cooldown", async () => {
+    for (let i = 0; i < 3; i++) {
+      proxyHealth.record(RAW_PROXIES[0], "failure", 10000);
+    }
+    fetchMock
+      .mockResolvedValueOnce(BLOCKED)
+      .mockResolvedValueOnce({ text: ARTICLE, status: 200 });
+
+    await fetchWithProxyFallbackDetailed(URL_UNDER_TEST, "auto", 10);
+
+    expect(requested().join("\n")).not.toContain(RAW_PROXIES[0]);
+    expect(requested()[1]).toContain(RAW_PROXIES[1]);
+  });
+
+  it("skips a proxy whose requests keep failing on DNS", async () => {
+    fetchMock.mockImplementation((target) => {
+      if (target === URL_UNDER_TEST) return Promise.resolve(BLOCKED);
+      if (target.startsWith(RAW_PROXIES[0])) {
+        return Promise.reject(new Error("net::ERR_NAME_NOT_RESOLVED"));
+      }
+      return Promise.resolve({ text: ARTICLE, status: 200 });
+    });
+    for (let i = 0; i < 3; i++) {
+      await fetchWithProxyFallbackDetailed(URL_UNDER_TEST, "auto", 10);
+    }
+
+    fetchMock.mockClear();
+    await fetchWithProxyFallbackDetailed(URL_UNDER_TEST, "auto", 10);
+
+    expect(requested()).toHaveLength(2);
+    expect(requested()[1]).toContain(RAW_PROXIES[1]);
+  });
+
+  it("does not penalise a proxy for the site's own 403", async () => {
+    const forbidden = Object.assign(new Error("Request failed, status 403"), {
+      status: 403,
+    });
+    fetchMock.mockImplementation((target) =>
+      target === URL_UNDER_TEST
+        ? Promise.resolve(BLOCKED)
+        : Promise.reject(forbidden),
+    );
+    for (let i = 0; i < 4; i++) {
+      await fetchWithProxyFallbackDetailed(URL_UNDER_TEST, "auto", 10);
+    }
+
+    fetchMock.mockClear();
+    await fetchWithProxyFallbackDetailed(URL_UNDER_TEST, "auto", 10);
+
+    expect(requested()[1]).toContain(RAW_PROXIES[0]);
+  });
+
+  it("does not penalise a proxy when the direct request had already used the budget", async () => {
+    let finishDirect!: (value: { text: string; status: number }) => void;
+    for (let i = 0; i < 3; i++) {
+      fetchMock.mockReset();
+      fetchMock
+        .mockReturnValueOnce(new Promise((resolve) => (finishDirect = resolve)))
+        .mockReturnValueOnce(new Promise(() => {}));
+      const pending = fetchWithProxyFallbackDetailed(
+        URL_UNDER_TEST,
+        "auto",
+        10,
+      );
+      await vi.advanceTimersByTimeAsync(9000);
+      finishDirect(BLOCKED);
+      await vi.advanceTimersByTimeAsync(1000);
+      await expect(pending).resolves.toMatchObject({
+        failureReason: "timeout",
+      });
+    }
+
+    fetchMock.mockReset();
+    fetchMock
+      .mockResolvedValueOnce(BLOCKED)
+      .mockResolvedValueOnce({ text: ARTICLE, status: 200 });
+    await fetchWithProxyFallbackDetailed(URL_UNDER_TEST, "auto", 10);
+
+    expect(requested()[1]).toContain(RAW_PROXIES[0]);
+  });
+
+  it("still tries the proxies when every one is benched, least recently failed first", async () => {
+    const failureOrder = [2, 0, 1, 3];
+    for (const index of failureOrder) {
+      for (let i = 0; i < 3; i++) {
+        proxyHealth.record(RAW_PROXIES[index], "failure", 100);
+      }
+      await vi.advanceTimersByTimeAsync(1000);
+    }
+    fetchMock
+      .mockResolvedValueOnce(BLOCKED)
+      .mockResolvedValueOnce({ text: ARTICLE, status: 200 });
+
+    const result = await fetchWithProxyFallbackDetailed(
+      URL_UNDER_TEST,
+      "auto",
+      10,
+    );
+
+    expect(result.failureType).toBe("none");
+    expect(requested()[1]).toContain(RAW_PROXIES[2].replace(/\/$/, ""));
+  });
+
+  it("never benches a single configured proxy", async () => {
+    const custom = "https://proxy.test/?u=";
+    fetchMock.mockImplementation((target) =>
+      target === URL_UNDER_TEST
+        ? Promise.resolve(BLOCKED)
+        : Promise.reject(new Error("getaddrinfo ENOTFOUND proxy.test")),
+    );
+    for (let i = 0; i < 5; i++) {
+      await fetchWithProxyFallbackDetailed(URL_UNDER_TEST, custom, 10);
+    }
+
+    expect(requested().filter((t) => t.startsWith(custom))).toHaveLength(5);
   });
 });

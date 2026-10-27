@@ -570,7 +570,11 @@ _Avoid_: Backup cleanup, orphan file
 
 **Proxy check**:
 The on-demand diagnostic in **Settings → RSS Dashboard → General → Proxy** that asks each proxy to fetch one fixed neutral page (`https://example.com/`) and reports that proxy's response time. It answers "which proxy is slow, and does this one still work at all?" for the full-article fetch; feed refresh keeps its own hardcoded proxy list, so a green board says nothing about it. A result is **fast** under 2 s, **slow** up to the shared 5 s deadline, **timed out** past it, or **failed** with the reason, and the fastest is marked. Results last for the session only — the next run replaces them and a reload drops them — and nothing is scored, reordered, or persisted. No request is sent until a button is pressed.
-_Avoid_: Ping (the check times a complete response body, not time to first byte), proxy health, proxy benchmark
+_Avoid_: Ping (the check times a complete response body, not time to first byte), proxy benchmark
+
+**Proxy health**:
+What the full-article fetch has learned, in memory for the session, about how each `auto` proxy is doing, taken only from the fetches the user already makes. Proxies that have been working are tried first. A proxy that fails at the network level three times in a row is **benched**: skipped for 5 minutes, doubling up to an hour, then given one trial request. A site's own refusal (403, bot challenge, paywall) never counts against a proxy, and when every proxy is benched they are all tried anyway. It is separate from the **Proxy check**, which is the on-demand diagnostic; neither sends requests the fetch would not have made, and neither is persisted. See ADR 0038.
+_Avoid_: Proxy score, proxy ping
 
 ## Version support
 
