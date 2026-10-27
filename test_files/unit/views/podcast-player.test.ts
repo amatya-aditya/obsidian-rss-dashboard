@@ -129,7 +129,7 @@ describe("PodcastPlayer", () => {
   });
 
   describe("sorting", () => {
-    it("renders a bounded episode list and loads additional episodes without recreating audio", () => {
+    it("renders a bounded episode list and loads additional episodes without recreating audio", async () => {
       const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const app = new App();
@@ -144,6 +144,7 @@ describe("PodcastPlayer", () => {
       player.loadEpisode(episodes[4], episodes);
 
       expect(container.querySelectorAll(".episode-list-row")).toHaveLength(20);
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
       expect(container.querySelector(".episode-list-range")?.textContent).toBe(
         "Showing 20 of 25",
       );

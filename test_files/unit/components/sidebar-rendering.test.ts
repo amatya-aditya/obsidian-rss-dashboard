@@ -171,6 +171,7 @@ describe("Sidebar Rendering", () => {
     expect(allFeedsButton).not.toBeNull();
     allFeedsButton?.dispatchEvent(new MouseEvent("mouseenter"));
     await vi.advanceTimersByTimeAsync(350);
+    await vi.advanceTimersByTimeAsync(1);
 
     expect(
       document.body.querySelector(".rss-dashboard-refresh-details")
