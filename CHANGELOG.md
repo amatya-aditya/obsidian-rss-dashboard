@@ -2,6 +2,7 @@
 
 ### Fixes
 
+- The tag-shape custom-radius input's empty validation status remains available to assistive technology so its first error can be announced. [GH Issue #1651](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1651)
 - The dashboard keeps refresh details visible without treating the recreated summary as a second live region; transient refresh announcements use the stable view announcer. [GH Issue #1649](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1649)
 - Older Obsidian settings sliders keep showing their formatted value without announcing it separately from the native range control. [GH Issue #1647](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1647)
 - The Custom Save filename preview stays current while typing and is described by its input instead of announcing itself on each keystroke. [GH Issue #1644](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1644)
