@@ -18,6 +18,8 @@ describe("ReaderContentVersions pending status", () => {
     );
 
     const status = container.querySelector(".rss-reader-fetch-status");
+    expect(status?.getAttribute("role")).toBe("status");
+    expect(status?.getAttribute("aria-live")).toBe("polite");
     expect(status?.textContent).toBe("");
 
     await vi.advanceTimersByTimeAsync(0);
