@@ -65,29 +65,31 @@ function readRssItemText(item: Element, selector: string): string {
   return item.querySelector(selector)?.textContent?.trim() || "";
 }
 
+function findRssChild(item: Element, tagName: string): Element | undefined {
+  return Array.from(item.children).find((el) => el.tagName === tagName);
+}
+
+/** A media:content without medium or type is treated as an image. */
+function isImageMediaContent(media: Element): boolean {
+  const medium = media.getAttribute("medium");
+  if (medium) return medium === "image";
+  const type = media.getAttribute("type");
+  return !type || type.startsWith("image/");
+}
+
 function getRssItemImage(item: Element, description: string): string {
-  let image = "";
   const content =
-    item.querySelector(":scope > content\\:encoded")?.textContent ||
-    description;
+    findRssChild(item, "content:encoded")?.textContent || description;
   const imgMatch = content.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i);
-  if (imgMatch?.[1]) {
-    image = imgMatch[1];
-  } else {
-    const mediaContent = item.querySelector(":scope > media\\:content");
-    if (mediaContent) {
-      const mediaUrl = mediaContent.getAttribute("url");
-      if (mediaUrl) {
-        image = mediaUrl;
-      }
-    } else {
-      const enclosure = item.querySelector(':scope > enclosure[type^="image"]');
-      if (enclosure) {
-        image = enclosure.getAttribute("url") || "";
-      }
-    }
-  }
-  return image;
+  if (imgMatch?.[1]) return imgMatch[1];
+
+  const media = findRssChild(item, "media:content");
+  const mediaUrl =
+    media && isImageMediaContent(media) && media.getAttribute("url");
+  if (mediaUrl) return mediaUrl;
+
+  const enclosure = item.querySelector(':scope > enclosure[type^="image"]');
+  return enclosure?.getAttribute("url") || "";
 }
 
 function parseAtomEntries(entries: NodeListOf<Element>): FeedPreviewArticle[] {
