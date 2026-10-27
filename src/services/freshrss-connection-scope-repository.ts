@@ -28,6 +28,8 @@ export interface FreshRssSyncCheckpoint {
 export interface FreshRssLabelMapping {
   remoteLabelId: string;
   localTagName: string;
+  /** Missing on mappings written before category and article-label types were distinguished. */
+  remoteType?: "tag";
 }
 
 interface FreshRssPendingMutationBase {
@@ -115,7 +117,8 @@ function isLabelMapping(value: unknown): value is FreshRssLabelMapping {
     typeof value.remoteLabelId === "string" &&
     Boolean(value.remoteLabelId) &&
     typeof value.localTagName === "string" &&
-    Boolean(value.localTagName.trim())
+    Boolean(value.localTagName.trim()) &&
+    (value.remoteType === undefined || value.remoteType === "tag")
   );
 }
 

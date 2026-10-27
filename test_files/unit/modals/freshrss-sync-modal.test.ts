@@ -13,6 +13,7 @@ function host(mode: "two-way" | "receive-only"): FreshRssSyncModalHost {
       async (): Promise<FreshRssSyncPreviewOutcome> => ({
         outcome: "ready",
         pendingMutations: [],
+        labelConflicts: [],
         subscriptions: [
           {
             remoteSubscriptionId: "feed/6",
@@ -70,6 +71,35 @@ describe("FreshRSS sync preview modal", () => {
     });
 
     expect(modal.contentEl.textContent).toContain("Receive-only is active");
+    modal.onClose();
+  });
+
+  it("shows one local-only warning for each FreshRSS category name collision", async () => {
+    installObsidianDomPolyfills();
+    const api = host("two-way");
+    vi.mocked(api.getFreshRssSyncPreview).mockResolvedValue({
+      outcome: "ready",
+      pendingMutations: [],
+      labelConflicts: ["Computing", "News"],
+      subscriptions: [],
+      partial: false,
+    });
+    const modal = new FreshRssSyncModal({} as App, api);
+
+    modal.onOpen();
+    await vi.waitFor(() => {
+      expect(
+        modal.contentEl.querySelectorAll(".rss-freshrss-category-conflict"),
+      ).toHaveLength(2);
+    });
+
+    expect(modal.contentEl.textContent).toContain(
+      'FreshRSS category "Computing" cannot sync as an article label.',
+    );
+    expect(modal.contentEl.textContent).toContain(
+      'FreshRSS category "News" cannot sync as an article label.',
+    );
+    expect(modal.contentEl.textContent).toContain("kept locally");
     modal.onClose();
   });
 

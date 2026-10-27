@@ -117,7 +117,14 @@ describe("FreshRSS connection scope repository", () => {
       feedBindings: [],
       articleBindings: [],
       checkpoints: [],
-      labelMappings: [{ remoteLabelId: "label/1", localTagName: "News" }],
+      labelMappings: [
+        { remoteLabelId: "label/1", localTagName: "News" },
+        {
+          remoteLabelId: "label/2",
+          localTagName: "Later",
+          remoteType: "tag",
+        },
+      ],
       syncHealth: { consecutiveTransientFailureCount: 2, backoffUntilMs: 500 },
     });
     const { store, getContents } = createStore(existing);
@@ -128,6 +135,11 @@ describe("FreshRSS connection scope repository", () => {
     const sidecar = await repository.read(scope);
     expect(sidecar?.labelMappings).toEqual([
       { remoteLabelId: "label/1", localTagName: "News" },
+      {
+        remoteLabelId: "label/2",
+        localTagName: "Later",
+        remoteType: "tag",
+      },
     ]);
     expect(sidecar?.syncHealth).toEqual({
       consecutiveTransientFailureCount: 2,
@@ -140,7 +152,14 @@ describe("FreshRSS connection scope repository", () => {
     });
 
     expect(JSON.parse(getContents() ?? "{}")).toMatchObject({
-      labelMappings: [{ remoteLabelId: "label/1", localTagName: "News" }],
+      labelMappings: [
+        { remoteLabelId: "label/1", localTagName: "News" },
+        {
+          remoteLabelId: "label/2",
+          localTagName: "Later",
+          remoteType: "tag",
+        },
+      ],
       syncHealth: { consecutiveTransientFailureCount: 2, backoffUntilMs: 500 },
       feedBindings: [{ feedId: "local-feed", remoteSubscriptionId: "feed/6" }],
     });

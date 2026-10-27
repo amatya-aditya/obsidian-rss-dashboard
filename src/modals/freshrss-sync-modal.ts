@@ -110,7 +110,12 @@ export class FreshRssSyncModal extends AccessibleModal {
       previewResult.value.outcome === "ready"
     ) {
       this.renderIncomingPreview(incomingList, previewResult.value);
-      this.renderOutgoingPreview(outgoing, mode, pendingResult);
+      this.renderOutgoingPreview(
+        outgoing,
+        mode,
+        pendingResult,
+        previewResult.value.labelConflicts,
+      );
       status.textContent = previewResult.value.partial
         ? "Preview ready; some recent articles could not be loaded."
         : "Preview ready.";
@@ -168,10 +173,17 @@ export class FreshRssSyncModal extends AccessibleModal {
     container: HTMLElement,
     mode: "two-way" | "receive-only",
     pendingResult: PromiseSettledResult<FreshRssPendingFacetMutation[]>,
+    labelConflicts: string[],
   ): void {
     const previous = container.querySelector(".rss-freshrss-outgoing-list");
     previous?.remove();
     const list = container.createDiv({ cls: "rss-freshrss-outgoing-list" });
+    for (const name of labelConflicts) {
+      list.createEl("p", {
+        cls: "rss-freshrss-category-conflict",
+        text: `FreshRSS category "${name}" cannot sync as an article label. The Dashboard tag will be kept locally.`,
+      });
+    }
     if (pendingResult.status !== "fulfilled") {
       list.createEl("p", {
         text: "Pending article-state changes could not be loaded.",
