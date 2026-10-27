@@ -1071,6 +1071,17 @@ mark.rss-highlight {
   margin-block: var(--size-4-2);
   color: var(--text-muted);
 }
+.rss-reader-content .rss-reader-fetch-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 .rss-reader-content .rss-reader-content-toggle {
   margin-block-start: var(--size-4-2);
 }

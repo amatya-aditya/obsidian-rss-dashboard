@@ -2,6 +2,7 @@
 
 ### Fixes
 
+- Reader fetch status messages remain available to assistive technology without appearing beside the content toggle. [GH Issue #1655](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1655)
 - Podcast episode counts and refresh-status popup content are now populated after their status regions are inserted, so the first update can be announced. [GH Issue #1653](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1653)
 - The tag-shape custom-radius input's empty validation status remains available to assistive technology so its first error can be announced. [GH Issue #1651](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1651)
 - The dashboard keeps refresh details visible without treating the recreated summary as a second live region; transient refresh announcements use the stable view announcer. [GH Issue #1649](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1649)
