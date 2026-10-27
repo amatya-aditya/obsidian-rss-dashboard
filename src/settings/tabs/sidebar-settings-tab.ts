@@ -1,8 +1,8 @@
 /**
  * Sidebar Settings Tab renderer.
  *
- * Extracted from display-settings-tab.ts. The tab entry point stays here while
- * its renderers live in a focused module.
+ * The tab entry point stays here while its renderers live in
+ * sidebar-settings-sections.ts.
  * Exports:
  *   - renderSidebarSettingsTab(containerEl, plugin, onRefresh, targetSection) — main render fn
  *   - moveIconOrder(order, fromId, toId, insertAfter)  — testable pure helper

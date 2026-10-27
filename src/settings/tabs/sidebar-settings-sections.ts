@@ -12,8 +12,6 @@ import { addInputClearButton } from "../../utils/input-clear-button";
 import { renderFeedIconSettings } from "./sidebar-feed-icon-settings";
 import type { SidebarSettingsPlugin } from "./sidebar-settings-plugin";
 
-export type { SidebarSettingsPlugin };
-
 // ── Pure helpers (exported for unit tests) ────────────────────────────────────
 
 /**
