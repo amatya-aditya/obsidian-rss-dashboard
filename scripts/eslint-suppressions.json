@@ -40,14 +40,6 @@
       "count": 3
     }
   },
-  "src/views/discover-view.ts": {
-    "complexity": {
-      "count": 1
-    },
-    "max-lines-per-function": {
-      "count": 1
-    }
-  },
   "src/views/kagi-smallweb-view.ts": {
     "complexity": {
       "count": 1
