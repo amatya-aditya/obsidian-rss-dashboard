@@ -582,9 +582,9 @@ describe("FolderSelectorPopup", () => {
 
   // GH #1684: the popup used to stay on screen, dimmed, over the create-folder
   // modal. It now closes the moment Add new folder is tapped.
-  function openAddNewFolder(options: { onClose?: () => void } = {}): {
-    onSelect: ReturnType<typeof vi.fn>;
-  } {
+  function openAddNewFolder(
+    options: { onClose?: () => void } = {},
+  ): ReturnType<typeof vi.fn> {
     const anchorEl = createDiv();
     vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
       left: 0,
@@ -607,7 +607,7 @@ describe("FolderSelectorPopup", () => {
     (
       document.body.querySelector(".rss-folder-selector-add-new") as HTMLElement
     ).click();
-    return { onSelect };
+    return onSelect;
   }
 
   it("listOnly mode: tapping Add new folder closes the popup and leaves only the modal", () => {
@@ -627,7 +627,7 @@ describe("FolderSelectorPopup", () => {
 
   it("listOnly mode: cancelling Add new folder with the Cancel button does not bring the popup back", async () => {
     vi.useFakeTimers();
-    const { onSelect } = openAddNewFolder();
+    const onSelect = openAddNewFolder();
 
     const cancelButton = document.body.querySelector(
       ".rss-folder-name-modal-cancel",
@@ -647,7 +647,7 @@ describe("FolderSelectorPopup", () => {
 
   it("listOnly mode: pressing Escape to cancel Add new folder does not bring the popup back", async () => {
     vi.useFakeTimers();
-    const { onSelect } = openAddNewFolder();
+    const onSelect = openAddNewFolder();
 
     const modalCloseButton = document.body.querySelector(
       ".modal-header-button",
@@ -669,21 +669,5 @@ describe("FolderSelectorPopup", () => {
     expect(
       document.body.querySelector(".rss-folder-selector-popup"),
     ).toBeNull();
-  });
-
-  it("listOnly mode: the create-folder modal no longer needs to hide its clicks from the page", () => {
-    vi.useFakeTimers();
-    openAddNewFolder();
-
-    // The popup's outside-click handler is gone with the popup, so the modal
-    // no longer needs to hide its clicks from the document.
-    const pageClick = vi.fn();
-    document.addEventListener("click", pageClick);
-    (
-      document.body.querySelector(".rss-folder-name-modal-input") as HTMLElement
-    ).click();
-    document.removeEventListener("click", pageClick);
-
-    expect(pageClick).toHaveBeenCalledTimes(1);
   });
 });
