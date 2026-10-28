@@ -372,6 +372,11 @@ export class ArticleList {
     });
   }
 
+  public refreshTagColors(): void {
+    this.header?.refreshTagColors();
+    this.refreshVisibleArticleTags();
+  }
+
   public syncVisibleArticlesFromSource(
     resolveSourceArticle: (article: FeedItem) => FeedItem | null,
   ): void {

@@ -74,7 +74,12 @@ export function renderEditFeedOptionsSection(
   renderPerFeedLimitSettings(perFeedControlsBody, host);
   renderExcludeFromRefreshSetting(perFeedControlsBody, host);
   renderEditArticleTemplateSetting(perFeedControlsBody, host);
-  renderAutoTagsSetting(perFeedControlsBody, host, availableTags);
+  renderAutoTagsSetting(
+    perFeedControlsBody,
+    host,
+    availableTags,
+    host.plugin?.settings,
+  );
 }
 
 function renderInheritedTagsSetting(

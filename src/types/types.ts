@@ -644,6 +644,9 @@ export interface RssDashboardSettings {
   savedArticlesPageSize: number;
   starredArticlesPageSize: number;
   availableTags: Tag[];
+  /** Global appearance values used when a tag has no stored override. */
+  defaultTagColor?: string;
+  defaultTagTextColor?: string;
   folderSortOrder?: {
     by: "name" | "created" | "modified" | "custom";
     ascending: boolean;
@@ -840,6 +843,8 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     { name: "Video", color: "#d04747" },
     { name: "Podcast", color: "#8e44ad" },
   ],
+  defaultTagColor: "#8a5cf5",
+  defaultTagTextColor: "#ffffff",
   folderSortOrder: { by: "name", ascending: true },
   feedSortOrder: { by: "name", ascending: true },
   folderFeedSortOrders: {},

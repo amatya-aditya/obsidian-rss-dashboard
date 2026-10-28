@@ -407,10 +407,26 @@
 }
 
 .rss-dashboard-sidebar-add-tag-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 6px;
   padding: 4px 10px 8px;
+}
+
+.rss-dashboard-sidebar-add-tag-color-field {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.rss-dashboard-sidebar-add-tag-color-field
+  .rss-dashboard-tag-color-palette-control {
+  grid-column: 2;
+  width: 100%;
 }
 
 body .rss-dashboard-tag-color-picker {
@@ -441,7 +457,7 @@ body .rss-dashboard-tag-color-picker::-webkit-color-swatch {
 }
 
 .rss-dashboard-sidebar-add-tag-input {
-  flex-grow: 1;
+  grid-column: 1;
   height: 24px;
   font-size: 11px;
   padding: 0 6px;
@@ -449,6 +465,14 @@ body .rss-dashboard-tag-color-picker::-webkit-color-swatch {
   border: 1px solid var(--background-modifier-border);
   border-radius: 4px;
   color: var(--text-normal);
+}
+
+.rss-dashboard-sidebar-add-tag-btn {
+  grid-column: 2;
+}
+
+.rss-dashboard-sidebar-add-tag-cancel-btn {
+  grid-column: 3;
 }
 
 .rss-dashboard-sidebar-add-tag-btn {

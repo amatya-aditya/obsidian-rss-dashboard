@@ -112,6 +112,11 @@ describe("createTagsDropdownPortal tag editing", () => {
         ".rss-dashboard-tag-inline-color",
       )?.value,
     ).toBe("#8a5cf5");
+    expect(
+      document.querySelectorAll(
+        ".rss-dashboard-tag-inline-add-row .rss-dashboard-tag-color-palette-control",
+      ),
+    ).toHaveLength(2);
     close();
   });
 
@@ -230,6 +235,29 @@ describe("createTagsDropdownPortal tag editing", () => {
         .click();
 
       expect(settings.availableTags.map((t) => t.name)).toEqual(["Later"]);
+      close();
+    });
+
+    it("stores only an appearance value explicitly changed in the inline form", () => {
+      const { settings, close } = openPortal([]);
+      document.querySelector<HTMLInputElement>(
+        ".rss-dashboard-tag-inline-input",
+      )!.value = "Later";
+      const textColor = document.querySelector<HTMLInputElement>(
+        ".rss-dashboard-tag-inline-text-color",
+      )!;
+      textColor.value = "#123456";
+      textColor.dispatchEvent(new Event("change", { bubbles: true }));
+      document
+        .querySelector<HTMLElement>(
+          ".rss-dashboard-tag-inline-button:not(.rss-dashboard-tag-inline-settings)",
+        )!
+        .click();
+
+      expect(settings.availableTags).toContainEqual({
+        name: "Later",
+        textColor: "#123456",
+      });
       close();
     });
 

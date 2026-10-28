@@ -8,12 +8,23 @@
 import { Notice, Setting } from "obsidian";
 import RssDashboardPlugin from "../../../main";
 import { addTagMultiSelectControl } from "../../components/tag-multi-select-control";
-import { DEFAULT_SETTINGS, type Tag } from "../../types/types";
-import { applyTagAppearance, DEFAULT_TAG_COLOR } from "../../utils/tag-colors";
+import {
+  DEFAULT_SETTINGS,
+  type Folder,
+  type RssDashboardSettings,
+  type Tag,
+} from "../../types/types";
+import {
+  applyTagAppearance,
+  createTagWithAppearanceChanges,
+  DEFAULT_TAG_COLOR,
+  DEFAULT_TAG_TEXT_COLOR,
+} from "../../utils/tag-colors";
 import { showEditTagModal } from "../../utils/tag-utils";
 import { deleteTagFromSettings } from "../../utils/tag-settings";
 import { ConfirmActionModal } from "../modals/settings-modals";
 import { renderTagShapeControl } from "./tag-shape-control";
+import { addTagColorPaletteControl } from "../../components/tag-color-palette-control";
 import { addInputClearButton } from "../../utils/input-clear-button";
 
 interface AutoTagSettingConfig {
@@ -22,6 +33,187 @@ interface AutoTagSettingConfig {
   menuTitle: string;
   getSelectedTagNames: () => string[];
   setSelectedTagNames: (selected: string[]) => void;
+}
+
+function clearAppearanceOverrides(tags: Tag[]): void {
+  for (const tag of tags) {
+    delete tag.color;
+    delete tag.textColor;
+  }
+}
+
+function clearFolderTagOverrides(folders: Folder[]): void {
+  for (const folder of folders) {
+    if (folder.autoTags) clearAppearanceOverrides(folder.autoTags);
+    clearFolderTagOverrides(folder.subfolders);
+  }
+}
+
+function resetAllTagAppearance(settings: RssDashboardSettings): void {
+  clearAppearanceOverrides(settings.availableTags);
+  for (const feed of settings.feeds) {
+    for (const item of feed.items) {
+      if (item.tags) clearAppearanceOverrides(item.tags);
+    }
+  }
+  clearFolderTagOverrides(settings.folders);
+}
+
+function refreshRenderedTagChips(
+  containerEl: HTMLElement,
+  plugin: RssDashboardPlugin,
+): void {
+  for (const chip of containerEl.querySelectorAll<HTMLElement>(
+    ".rss-dashboard-settings-tag-chip",
+  )) {
+    const tag = plugin.settings.availableTags.find(
+      (candidate) =>
+        candidate.name.toLowerCase() === chip.textContent?.trim().toLowerCase(),
+    );
+    if (tag) applyTagAppearance(chip, tag, plugin.settings);
+  }
+}
+
+function updatePristineAddTagColorInputs(
+  containerEl: HTMLElement,
+  plugin: RssDashboardPlugin,
+): void {
+  const defaults = [
+    {
+      selector: ".rss-dashboard-tag-new-background-color",
+      value: plugin.settings.defaultTagColor ?? DEFAULT_TAG_COLOR,
+    },
+    {
+      selector: ".rss-dashboard-tag-new-text-color",
+      value: plugin.settings.defaultTagTextColor ?? DEFAULT_TAG_TEXT_COLOR,
+    },
+  ];
+
+  for (const { selector, value } of defaults) {
+    const input = containerEl.querySelector<HTMLInputElement>(selector);
+    if (!input) continue;
+    const previousDefault = input.dataset.rssDashboardDefaultColor;
+    if (
+      previousDefault !== undefined &&
+      input.value.toLowerCase() === previousDefault.toLowerCase()
+    ) {
+      input.value = value;
+      const ownerWindow = input.ownerDocument.defaultView;
+      if (ownerWindow) {
+        input.dispatchEvent(new ownerWindow.Event("input", { bubbles: true }));
+        input.dispatchEvent(new ownerWindow.Event("change", { bubbles: true }));
+      }
+    }
+    input.dataset.rssDashboardDefaultColor = value;
+  }
+}
+
+function renderTagAppearanceDefaults(
+  containerEl: HTMLElement,
+  plugin: RssDashboardPlugin,
+): void {
+  new Setting(containerEl).setName("Tag appearance defaults").setHeading();
+  const preview = containerEl.createSpan({
+    cls: "rss-dashboard-tag-badge rss-dashboard-tag-default-preview",
+    text: "Preview",
+  });
+  const updatePreview = () => {
+    applyTagAppearance(
+      preview,
+      { name: "Preview" },
+      {
+        availableTags: [],
+        defaultTagColor: plugin.settings.defaultTagColor ?? DEFAULT_TAG_COLOR,
+        defaultTagTextColor:
+          plugin.settings.defaultTagTextColor ?? DEFAULT_TAG_TEXT_COLOR,
+      },
+    );
+  };
+  updatePreview();
+  refreshRenderedTagChips(containerEl, plugin);
+
+  const backgroundSetting = new Setting(containerEl).setName("Background");
+  backgroundSetting.settingEl.addClass(
+    "rss-dashboard-tag-default-color-setting",
+  );
+  backgroundSetting.addColorPicker((colorPicker) => {
+    colorPicker.setValue(plugin.settings.defaultTagColor ?? DEFAULT_TAG_COLOR);
+    colorPicker.onChange(async (color) => {
+      plugin.settings.defaultTagColor = color;
+      updatePreview();
+      refreshRenderedTagChips(containerEl, plugin);
+      updatePristineAddTagColorInputs(containerEl, plugin);
+      await plugin.saveSettings();
+      await plugin.refreshOpenTagColorViews();
+    });
+  });
+  backgroundSetting.controlEl
+    .querySelector("input")
+    ?.addClass("rss-dashboard-tag-default-background");
+  const backgroundInput =
+    backgroundSetting.controlEl.querySelector<HTMLInputElement>(
+      'input[type="color"]',
+    );
+  if (backgroundInput) {
+    addTagColorPaletteControl({
+      container: backgroundSetting.controlEl,
+      input: backgroundInput,
+      fieldName: "Background",
+    });
+  }
+
+  const textSetting = new Setting(containerEl).setName("Text");
+  textSetting.settingEl.addClass("rss-dashboard-tag-default-color-setting");
+  textSetting.addColorPicker((colorPicker) => {
+    colorPicker.setValue(
+      plugin.settings.defaultTagTextColor ?? DEFAULT_TAG_TEXT_COLOR,
+    );
+    colorPicker.onChange(async (color) => {
+      plugin.settings.defaultTagTextColor = color;
+      updatePreview();
+      refreshRenderedTagChips(containerEl, plugin);
+      updatePristineAddTagColorInputs(containerEl, plugin);
+      await plugin.saveSettings();
+      await plugin.refreshOpenTagColorViews();
+    });
+  });
+  textSetting.controlEl
+    .querySelector("input")
+    ?.addClass("rss-dashboard-tag-default-text");
+  const textInput = textSetting.controlEl.querySelector<HTMLInputElement>(
+    'input[type="color"]',
+  );
+  if (textInput) {
+    addTagColorPaletteControl({
+      container: textSetting.controlEl,
+      input: textInput,
+      fieldName: "Text",
+    });
+  }
+
+  new Setting(containerEl)
+    .setName("Reset all tags to defaults")
+    .setDesc("Clear every tag's background and text overrides.")
+    .addButton((button) =>
+      button.setButtonText("Reset all tags to defaults").onClick(() => {
+        void (async () => {
+          const confirm = new ConfirmActionModal(plugin.app, {
+            title: "Reset all tags to defaults?",
+            message: "All tag background and text overrides will be cleared.",
+            confirmLabel: "Reset",
+          });
+          confirm.open();
+          if (!(await confirm.waitForClose())) return;
+
+          resetAllTagAppearance(plugin.settings);
+          refreshRenderedTagChips(containerEl, plugin);
+          await plugin.saveSettings();
+          await plugin.refreshOpenTagColorViews();
+          plugin.app.workspace.trigger("rss-dashboard:tags-mutated");
+          new Notice("All tags now use the global appearance defaults.");
+        })();
+      }),
+    );
 }
 
 /**
@@ -123,9 +315,41 @@ function renderAddTagSection(
       addInputClearButton(text.inputEl);
     });
 
+  const defaultTagColor = plugin.settings.defaultTagColor ?? DEFAULT_TAG_COLOR;
+  const defaultTagTextColor =
+    plugin.settings.defaultTagTextColor ?? DEFAULT_TAG_TEXT_COLOR;
   const tagColorSetting = new Setting(newTagContainer)
     .setName("Tag color")
-    .addColorPicker((colorPicker) => colorPicker.setValue(DEFAULT_TAG_COLOR));
+    .addColorPicker((colorPicker) => colorPicker.setValue(defaultTagColor));
+  const tagTextColorSetting = new Setting(newTagContainer)
+    .setName("Tag text color")
+    .addColorPicker((colorPicker) => colorPicker.setValue(defaultTagTextColor));
+  const tagColorInput =
+    tagColorSetting.controlEl.querySelector<HTMLInputElement>(
+      'input[type="color"]',
+    );
+  if (tagColorInput) {
+    tagColorInput.classList.add("rss-dashboard-tag-new-background-color");
+    tagColorInput.dataset.rssDashboardDefaultColor = defaultTagColor;
+    addTagColorPaletteControl({
+      container: tagColorSetting.controlEl,
+      input: tagColorInput,
+      fieldName: "Background",
+    });
+  }
+  const tagTextColorInput =
+    tagTextColorSetting.controlEl.querySelector<HTMLInputElement>(
+      'input[type="color"]',
+    );
+  if (tagTextColorInput) {
+    tagTextColorInput.classList.add("rss-dashboard-tag-new-text-color");
+    tagTextColorInput.dataset.rssDashboardDefaultColor = defaultTagTextColor;
+    addTagColorPaletteControl({
+      container: tagTextColorSetting.controlEl,
+      input: tagTextColorInput,
+      fieldName: "Text",
+    });
+  }
 
   new Setting(newTagContainer).addButton((button) =>
     button.setButtonText("Add tag").onClick(() => {
@@ -134,6 +358,10 @@ function renderAddTagSection(
           inputEl: HTMLInputElement;
         };
         const colorPicker = tagColorSetting.components[0] as unknown as {
+          getValue: () => string;
+        };
+        const textColorPicker = tagTextColorSetting
+          .components[0] as unknown as {
           getValue: () => string;
         };
         const name = nameInput.inputEl.value.trim();
@@ -150,10 +378,23 @@ function renderAddTagSection(
           return;
         }
 
-        plugin.settings.availableTags.push({
-          name,
-          color: colorPicker.getValue(),
-        });
+        plugin.settings.availableTags.push(
+          createTagWithAppearanceChanges(
+            name,
+            {
+              background: colorPicker.getValue(),
+              text: textColorPicker.getValue(),
+            },
+            {
+              background:
+                colorPicker.getValue() !==
+                (plugin.settings.defaultTagColor ?? DEFAULT_TAG_COLOR),
+              text:
+                textColorPicker.getValue() !==
+                (plugin.settings.defaultTagTextColor ?? DEFAULT_TAG_TEXT_COLOR),
+            },
+          ),
+        );
         await plugin.saveSettings();
         onRefresh();
       })();
@@ -237,6 +478,7 @@ export function renderTagsSettingsTab(
     addTagMultiSelectControl({
       setting,
       availableTags: plugin.settings.availableTags ?? [],
+      tagAppearanceSettings: plugin.settings,
       selectedTagNames: autoTagSetting.getSelectedTagNames(),
       triggerEmptyLabel: "None",
       menuTitle: autoTagSetting.menuTitle,
@@ -274,6 +516,7 @@ export function renderTagsSettingsTab(
 
   // Tags settings
   new Setting(containerEl).setName("Tags").setHeading();
+  renderTagAppearanceDefaults(containerEl, plugin);
 
   const tagsContainer = containerEl.createDiv({
     cls: "rss-dashboard-tags-container",

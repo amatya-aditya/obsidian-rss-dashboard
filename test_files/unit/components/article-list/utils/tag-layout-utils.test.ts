@@ -82,7 +82,7 @@ describe("tag-layout-utils", () => {
     });
 
     it("uses the global default color when tag has no color", () => {
-      const tags: Tag[] = [{ name: "NoColor", color: "" }];
+      const tags: Tag[] = [{ name: "NoColor" }];
 
       renderTagChips(container, tags);
 

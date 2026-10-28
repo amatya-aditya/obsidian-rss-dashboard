@@ -317,6 +317,7 @@ describe("Sidebar Core", () => {
 
       input.value = "  New topic  ";
       color.value = "#123456";
+      color.dispatchEvent(new Event("change", { bubbles: true }));
       input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
 
       expect(settings.availableTags).toContainEqual({
@@ -324,6 +325,42 @@ describe("Sidebar Core", () => {
         color: "#123456",
       });
       expect(plugin.saveSettings).toHaveBeenCalledOnce();
+    });
+
+    it("creates an inheriting tag when neither color picker is changed", () => {
+      (sidebar as unknown as TestSidebar).isAddTagExpanded = true;
+      sidebar.render();
+      const input = container.querySelector<HTMLInputElement>(
+        ".rss-dashboard-sidebar-add-tag-input",
+      );
+      if (!input) throw new Error("Expected the inline add input");
+
+      input.value = "  New topic  ";
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+
+      expect(settings.availableTags).toContainEqual({ name: "New topic" });
+    });
+
+    it("offers palette controls beside both inline tag color pickers", () => {
+      (sidebar as unknown as TestSidebar).isAddTagExpanded = true;
+      sidebar.render();
+
+      const controls = container.querySelectorAll(
+        ".rss-dashboard-tag-color-palette-control",
+      );
+      expect(controls).toHaveLength(2);
+      expect(
+        Array.from(controls).map((control) =>
+          control
+            .querySelector(
+              ".rss-dashboard-tag-color-palette-control-color-trigger",
+            )
+            ?.getAttribute("aria-label"),
+        ),
+      ).toEqual([
+        "Color for Background: Custom #8A5CF5",
+        "Color for Text: Custom #FFFFFF",
+      ]);
     });
 
     it("keeps empty and duplicate names rejected and Cancel closes the inline form", () => {

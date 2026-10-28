@@ -823,6 +823,39 @@ body
   align-items: center;
   gap: 30px;
 }
+.rss-dashboard-add-tag-modal .rss-dashboard-tag-modal-form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  width: 100%;
+}
+.rss-dashboard-add-tag-modal
+  .rss-dashboard-tag-modal-form
+  > .rss-dashboard-tag-modal-color-field {
+  display: grid;
+  grid-template-columns: auto minmax(38px, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 12px;
+  width: 100%;
+}
+.rss-dashboard-add-tag-modal .rss-dashboard-tag-modal-color-field > label {
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  white-space: nowrap;
+}
+.rss-dashboard-add-tag-modal
+  .rss-dashboard-tag-modal-color-field
+  > input[type="color"] {
+  grid-column: 2;
+}
+.rss-dashboard-add-tag-modal .rss-dashboard-tag-color-palette-control {
+  grid-column: 1 / -1;
+}
+.rss-dashboard-add-tag-modal .rss-dashboard-tag-modal-name-input {
+  width: 100%;
+  box-sizing: border-box;
+}
 body .rss-dashboard-tag-modal-color-picker {
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -861,13 +894,35 @@ body .rss-dashboard-tag-modal-color-picker::-moz-color-swatch {
 }
 
 .rss-dashboard-edit-tag-modal .rss-dashboard-tag-modal-form {
-  display: grid;
-  grid-template-columns: 38px minmax(0, 1fr);
-  align-items: center;
-  column-gap: 16px;
-  row-gap: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
   width: 100%;
   box-sizing: border-box;
+}
+.rss-dashboard-edit-tag-modal .rss-dashboard-tag-modal-form > .setting-item {
+  margin: 0;
+  width: 100%;
+}
+.rss-dashboard-tag-modal-default-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+}
+.rss-dashboard-tag-modal-default-label input {
+  margin: 0;
+}
+.rss-dashboard-tag-modal-preview {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: var(--rss-dashboard-tag-chip-radius, 999px);
+  background: var(--tag-color, var(--interactive-accent));
+  color: var(--tag-text-color, var(--text-on-accent));
 }
 .rss-dashboard-edit-tag-modal .rss-dashboard-tag-modal-name-input {
   min-width: 0;

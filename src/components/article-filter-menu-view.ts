@@ -536,6 +536,18 @@ export class ArticleFilterMenu {
     this.activeFilterToggleBtn = newToggle;
   }
 
+  public refreshTagColors(): void {
+    const dots = this.activePortal?.querySelectorAll<HTMLElement>(
+      ".rss-dashboard-tag-color-dot[data-tag-name]",
+    );
+    dots?.forEach((dot) => {
+      const tag = this.settings.availableTags.find(
+        (candidate) => candidate.name === dot.dataset.tagName,
+      );
+      if (tag) applyTagAppearance(dot, tag, this.settings);
+    });
+  }
+
   // Commit the staged filter state in one batch event.
   private applyFilters(state: {
     pendingFilterLogic: "AND" | "OR";
@@ -601,7 +613,10 @@ export class ArticleFilterMenu {
         cls: "rss-dashboard-filter-checkbox",
       });
       checkbox.checked = pendingTagFilters.has(tag.name);
-      const colorDot = item.createDiv({ cls: "rss-dashboard-tag-color-dot" });
+      const colorDot = item.createDiv({
+        cls: "rss-dashboard-tag-color-dot",
+        attr: { "data-tag-name": tag.name },
+      });
       applyTagAppearance(colorDot, tag, this.settings);
       item.createDiv({
         cls: "rss-dashboard-filter-menu-text",

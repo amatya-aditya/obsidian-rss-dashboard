@@ -20,6 +20,24 @@ export interface TagAppearanceSettings {
   defaultTagTextColor?: string;
 }
 
+export interface TagAppearanceChangeState {
+  background: boolean;
+  text: boolean;
+}
+
+/** Creates a tag with overrides only for values the user changed. */
+export function createTagWithAppearanceChanges(
+  name: string,
+  appearance: TagAppearance,
+  changed: TagAppearanceChangeState,
+): Tag {
+  return {
+    name,
+    ...(changed.background ? { color: appearance.background } : {}),
+    ...(changed.text ? { textColor: appearance.text } : {}),
+  };
+}
+
 export const DEFAULT_TAG_APPEARANCE_SETTINGS: TagAppearanceSettings = {
   availableTags: [],
   defaultTagColor: DEFAULT_TAG_COLOR,
@@ -39,10 +57,10 @@ export function resolveTagAppearance(
   );
   const source = registryTag ?? tag;
   return {
-    background: source.color || settings.defaultTagColor || DEFAULT_TAG_COLOR,
+    background: source.color ?? settings.defaultTagColor ?? DEFAULT_TAG_COLOR,
     text:
-      source.textColor ||
-      settings.defaultTagTextColor ||
+      source.textColor ??
+      settings.defaultTagTextColor ??
       DEFAULT_TAG_TEXT_COLOR,
   };
 }

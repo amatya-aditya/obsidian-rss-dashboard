@@ -23,6 +23,19 @@ const MEDIA_TAG_SINGLE_KEYS = [
   "defaultMastodonTag",
 ] as const satisfies readonly (keyof MediaSettings)[];
 
+export function mergeTagUpdate(tag: Tag, update: Readonly<Partial<Tag>>): Tag {
+  const merged = { ...tag, ...update };
+  for (const key of ["color", "textColor"] as const) {
+    if (
+      Object.prototype.hasOwnProperty.call(update, key) &&
+      update[key] === undefined
+    ) {
+      delete merged[key];
+    }
+  }
+  return merged;
+}
+
 /**
  * Applies a tag update to every folder auto-tag rule that uses the tag,
  * including nested subfolders. Folder rules re-apply their auto-tags on every
@@ -36,7 +49,7 @@ function updateFolderAutoTags(
   for (const folder of folders) {
     if (folder.autoTags?.some((tag) => tag.name === oldTagName)) {
       folder.autoTags = folder.autoTags.map((tag) =>
-        tag.name === oldTagName ? { ...tag, ...newTagUpdate } : tag,
+        tag.name === oldTagName ? mergeTagUpdate(tag, newTagUpdate) : tag,
       );
     }
     if (folder.subfolders?.length) {
@@ -117,7 +130,7 @@ export function updateTagInSettings(
   // Update the tag definition in availableTags
   const updatedTags = settings.availableTags.map((tag) => {
     if (tag.name === oldTag.name) {
-      return { ...tag, ...tagUpdate };
+      return mergeTagUpdate(tag, tagUpdate);
     }
     return tag;
   });
@@ -132,7 +145,7 @@ export function updateTagInSettings(
       if (item.tags?.some((t) => t.name === oldTag.name)) {
         item.tags = item.tags.map((t) => {
           if (t.name === oldTag.name) {
-            return { ...t, ...tagUpdate };
+            return mergeTagUpdate(t, tagUpdate);
           }
           return t;
         });

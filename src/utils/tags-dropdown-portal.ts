@@ -1,6 +1,11 @@
 import type { App } from "obsidian";
 import type { FeedItem, RssDashboardSettings, Tag } from "../types/types";
-import { createTagsDropdownPortalImplementation } from "./tags-dropdown-portal-implementation";
+import {
+  createTagsDropdownPortalImplementation,
+  refreshTagsDropdownPortalColors,
+} from "./tags-dropdown-portal-implementation";
+
+export { refreshTagsDropdownPortalColors };
 
 export type TagsDropdownPortalOptions = {
   app: App;
