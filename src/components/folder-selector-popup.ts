@@ -130,7 +130,7 @@ export class FolderSelectorPopup {
 
     // Default position: below the anchor
     let left = rect.left;
-    let top = rect.bottom + 4;
+    const top = rect.bottom + 4;
 
     // Check if popup would overflow right edge
     const popupWidth = 240; // Approximate width
@@ -140,23 +140,27 @@ export class FolderSelectorPopup {
 
     // Check if popup would overflow bottom edge
     const popupHeight = 200; // Approximate max height
+    // Placing the flipped popup by its bottom edge keeps it directly above the
+    // anchor whatever height its list ends up with; a `top` offset would make
+    // it grow downward over the anchor instead.
     if (top + popupHeight > viewportHeight - 16) {
-      top = rect.top - 4; // Position above instead
       popup.addClass("rss-folder-selector-popup-above");
+      popup.style.bottom = `${viewportHeight - rect.top + 4}px`;
+    } else {
+      popup.style.top = `${top}px`;
     }
 
     // On mobile, CSS controls the popup's horizontal sheet layout while the
-    // inline top keeps it anchored to the button. Desktop uses both offsets.
+    // inline vertical offset keeps it anchored to the button. Desktop sets
+    // the left offset too.
     const isMobile = isNarrowViewport(
       activeWindow,
       FOLDER_POPUP_MOBILE_MAX_WIDTH_PX,
     );
     if (isMobile) {
       popup.style.removeProperty("left");
-      popup.style.top = `${top}px`;
     } else {
       popup.style.left = `${left}px`;
-      popup.style.top = `${top}px`;
     }
 
     // Search input container — skip in list-only mode
