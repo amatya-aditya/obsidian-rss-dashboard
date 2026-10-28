@@ -261,6 +261,7 @@ export function renderAutoTagsSetting(
   perFeedControlsBody: HTMLElement,
   state: AddFeedOptionsState,
   availableTags: Tag[],
+  tagAppearanceSettings?: import("../../utils/tag-colors").TagAppearanceSettings,
 ): void {
   const autoTagSetting = new Setting(perFeedControlsBody)
     .setName("Custom auto-tags")
@@ -271,6 +272,7 @@ export function renderAutoTagsSetting(
   addTagMultiSelectControl({
     setting: autoTagSetting,
     availableTags,
+    tagAppearanceSettings,
     selectedTagNames: state.getCustomTags(),
     triggerEmptyLabel: "None",
     menuTitle: "Select auto-tags",

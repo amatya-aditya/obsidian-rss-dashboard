@@ -88,7 +88,7 @@ const INCLUDED_CHIPS: Array<{ className: string }> = [
 ];
 
 // The Tags settings tab previews the chosen shape with its own sample chip.
-const SHARED_VARIABLE_SAMPLE_RULES = 1;
+const SHARED_VARIABLE_SAMPLE_RULES = 2;
 
 // Chips whose shape comes from a base class they are always rendered with.
 const INHERITING_CHIPS = [
@@ -176,8 +176,8 @@ describe("Tag chip stylesheet - shared radius", () => {
       d.value.includes("--rss-dashboard-tag-chip-radius"),
     );
 
-    // The settings sample chip also reads the shared variable, so it is the
-    // one rule beyond the chips listed above.
+    // The settings and Edit tag sample chips also read the shared variable,
+    // so they are the rules beyond the chips listed above.
     expect(sharedDecls.length).toBe(
       INCLUDED_CHIPS.length + SHARED_VARIABLE_SAMPLE_RULES,
     );

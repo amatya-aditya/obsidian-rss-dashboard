@@ -650,6 +650,7 @@ export class EditFeedModal extends AccessibleModal {
     addTagMultiSelectControl({
       setting: autoTagSetting,
       availableTags,
+      tagAppearanceSettings: this.plugin?.settings,
       selectedTagNames: this.customTags,
       triggerEmptyLabel: "None",
       menuTitle: "Select auto-tags",

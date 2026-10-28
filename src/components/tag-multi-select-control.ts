@@ -1,10 +1,12 @@
 import { setIcon } from "obsidian";
 import type { Tag } from "../types/types";
+import type { TagAppearanceSettings } from "../utils/tag-colors";
 import { createTagMultiSelectMenuController } from "./tag-multi-select-menu";
 
 export interface TagMultiSelectControlOptions {
   setting: import("obsidian").Setting;
   availableTags: ReadonlyArray<Tag>;
+  tagAppearanceSettings?: TagAppearanceSettings;
   selectedTagNames: ReadonlyArray<string>;
   noneLabel?: string;
   triggerEmptyLabel?: string;
@@ -24,6 +26,7 @@ export function addTagMultiSelectControl(
   const {
     setting,
     availableTags,
+    tagAppearanceSettings,
     onChange,
     menuTitle = "Select tags",
     mobileSheetTitle = menuTitle,
@@ -60,6 +63,7 @@ export function addTagMultiSelectControl(
   const menuController = createTagMultiSelectMenuController({
     trigger,
     availableTags,
+    tagAppearanceSettings,
     selectedSet,
     emptySummary: getSummaryLabel(selectedSet, availableTags, opts),
     mobileSheetTitle,

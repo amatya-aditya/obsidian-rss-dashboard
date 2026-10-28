@@ -138,7 +138,9 @@ describe("ReaderView Tag Synchronization", () => {
   });
 
   it("refreshes inherited reader colors without storing resolved values on the article", async () => {
-    mockSettings.availableTags = [{ name: "Feature", color: "#22c55e" }];
+    mockSettings.availableTags = [
+      { name: "Feature", color: "#22c55e", textColor: "#fef3c7" },
+    ];
 
     const item = makeItem({
       tags: [{ name: "Feature" }],
@@ -156,8 +158,13 @@ describe("ReaderView Tag Synchronization", () => {
     expect(tagBeforeRefresh?.style.getPropertyValue("--tag-color")).toBe(
       "#22c55e",
     );
+    expect(tagBeforeRefresh?.style.getPropertyValue("--tag-text-color")).toBe(
+      "#fef3c7",
+    );
 
-    mockSettings.availableTags = [{ name: "Feature", color: "#ef4444" }];
+    mockSettings.availableTags = [
+      { name: "Feature", color: "#ef4444", textColor: "#111827" },
+    ];
     getInternals(readerView).refreshTagColors();
 
     const tagAfterRefresh =
@@ -166,6 +173,9 @@ describe("ReaderView Tag Synchronization", () => {
       );
     expect(tagAfterRefresh?.style.getPropertyValue("--tag-color")).toBe(
       "#ef4444",
+    );
+    expect(tagAfterRefresh?.style.getPropertyValue("--tag-text-color")).toBe(
+      "#111827",
     );
     expect(getInternals(readerView).currentItem.tags).toEqual([
       { name: "Feature" },

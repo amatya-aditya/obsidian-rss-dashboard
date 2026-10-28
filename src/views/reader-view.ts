@@ -19,6 +19,7 @@ import {
   setTooltip,
 } from "obsidian";
 import { refreshReaderHeaderTags } from "../utils/reader-tag-chips";
+import { refreshTagMultiSelectMenuColors } from "../components/tag-multi-select-menu";
 import { setIcon, Scope } from "obsidian";
 import {
   addMathTurndownRule,
@@ -101,6 +102,7 @@ import { WebViewerIntegration } from "../services/web-viewer-integration";
 import { MediaService } from "../services/media-service";
 import {
   createTagsDropdownPortal,
+  refreshTagsDropdownPortalColors,
   tagsPortalHoldsFocus,
 } from "../utils/tags-dropdown-portal";
 import { resolveItemExternalUrl } from "../utils/item-url-utils";
@@ -2448,6 +2450,14 @@ export class ReaderView extends ItemView {
   }
 
   public refreshTagColors(): void {
+    refreshTagMultiSelectMenuColors(
+      this.containerEl.ownerDocument,
+      this.settings,
+    );
+    refreshTagsDropdownPortalColors(
+      this.containerEl.ownerDocument,
+      this.settings,
+    );
     if (!this.currentItem) {
       return;
     }
