@@ -36,3 +36,23 @@ describe("Confirmation modal button alignment", () => {
     },
   );
 });
+
+describe("Storage upgrade modal buttons", () => {
+  it("wraps the button row", () => {
+    const declarations = declarationsFor(
+      ".rss-dashboard-storage-migration-modal .rss-dashboard-modal-buttons",
+    );
+
+    expect(declarations.get("flex-wrap")).toBe("wrap");
+  });
+
+  it("lets button labels wrap inside the button", () => {
+    const declarations = declarationsFor(
+      ".rss-dashboard-storage-migration-modal .rss-dashboard-modal-buttons button",
+    );
+
+    expect(declarations.get("white-space")).toBe("normal");
+    expect(declarations.get("height")).toBe("auto");
+    expect(declarations.get("max-width")).toBe("100%");
+  });
+});
