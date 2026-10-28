@@ -1,10 +1,16 @@
 import { type App, Notice, setIcon } from "obsidian";
 import type { Tag } from "../types/types";
-import { applyTagAppearance, DEFAULT_TAG_COLOR } from "./tag-colors";
+import {
+  applyTagAppearance,
+  createTagWithAppearanceChanges,
+  DEFAULT_TAG_COLOR,
+  DEFAULT_TAG_TEXT_COLOR,
+} from "./tag-colors";
 import { showEditTagModal } from "./tag-utils";
 import { createIconButton } from "./icon-button";
 import { isNarrowViewport, windowInstanceOf } from "./platform-utils";
 import { addInputClearButton } from "./input-clear-button";
+import { addTagColorPaletteControl } from "../components/tag-color-palette-control";
 import type { TagsDropdownPortalOptions } from "./tags-dropdown-portal";
 
 const TAB_STOP_SELECTOR = [
@@ -332,9 +338,42 @@ function addInlineTagControls(
   const inlineAddRow = context.portalDropdown.createDiv({
     cls: "rss-dashboard-tag-inline-add-row",
   });
-  const colorInput = inlineAddRow.createEl("input", {
-    attr: { type: "color", value: DEFAULT_TAG_COLOR },
+  const defaultTagColor = context.settings.defaultTagColor ?? DEFAULT_TAG_COLOR;
+  const defaultTagTextColor =
+    context.settings.defaultTagTextColor ?? DEFAULT_TAG_TEXT_COLOR;
+  const backgroundColorField = inlineAddRow.createDiv({
+    cls: "rss-dashboard-tag-inline-color-field",
+  });
+  const colorInput = backgroundColorField.createEl("input", {
+    attr: {
+      type: "color",
+      value: defaultTagColor,
+      "aria-label": "Tag background color",
+    },
     cls: "rss-dashboard-tag-inline-color",
+  });
+  colorInput.dataset.rssDashboardDefaultColor = defaultTagColor;
+  addTagColorPaletteControl({
+    container: backgroundColorField,
+    input: colorInput,
+    fieldName: "Background",
+  });
+  const textColorField = inlineAddRow.createDiv({
+    cls: "rss-dashboard-tag-inline-color-field",
+  });
+  const textColorInput = textColorField.createEl("input", {
+    attr: {
+      type: "color",
+      value: defaultTagTextColor,
+      "aria-label": "Tag text color",
+    },
+    cls: "rss-dashboard-tag-inline-color rss-dashboard-tag-inline-text-color",
+  });
+  textColorInput.dataset.rssDashboardDefaultColor = defaultTagTextColor;
+  addTagColorPaletteControl({
+    container: textColorField,
+    input: textColorInput,
+    fieldName: "Text",
   });
   const nameInput = inlineAddRow.createEl("input", {
     attr: {
@@ -362,7 +401,18 @@ function addInlineTagControls(
       new Notice("A tag with this name already exists!");
       return;
     }
-    const newTag: Tag = { name: tagName, color: colorInput.value };
+    const newTag = createTagWithAppearanceChanges(
+      tagName,
+      { background: colorInput.value, text: textColorInput.value },
+      {
+        background:
+          colorInput.value !==
+          (context.settings.defaultTagColor ?? DEFAULT_TAG_COLOR),
+        text:
+          textColorInput.value !==
+          (context.settings.defaultTagTextColor ?? DEFAULT_TAG_TEXT_COLOR),
+      },
+    );
     context.settings.availableTags.push(newTag);
     persistSettings(context);
     notifySettingsTagsMutated(context);
@@ -631,4 +681,47 @@ export function createTagsDropdownPortalImplementation(
   return context.isMobile
     ? positionMobilePortal(context, lifecycle)
     : positionDesktopPortal(context, lifecycle);
+}
+
+/** Refreshes inherited colors on every currently mounted tag selector portal. */
+export function refreshTagsDropdownPortalColors(
+  doc: Document,
+  settings: TagsDropdownPortalOptions["settings"],
+): void {
+  doc
+    .querySelectorAll<HTMLElement>(
+      ".rss-dashboard-tags-dropdown-content-portal .rss-dashboard-tag-label",
+    )
+    .forEach((label) => {
+      applyTagAppearance(label, { name: label.textContent ?? "" }, settings);
+    });
+
+  doc
+    .querySelectorAll<HTMLInputElement>(
+      ".rss-dashboard-tags-dropdown-content-portal .rss-dashboard-tag-inline-color",
+    )
+    .forEach((input) => {
+      const nextDefault = input.classList.contains(
+        "rss-dashboard-tag-inline-text-color",
+      )
+        ? (settings.defaultTagTextColor ?? DEFAULT_TAG_TEXT_COLOR)
+        : (settings.defaultTagColor ?? DEFAULT_TAG_COLOR);
+      const previousDefault = input.dataset.rssDashboardDefaultColor;
+      if (
+        previousDefault !== undefined &&
+        input.value.toLowerCase() === previousDefault.toLowerCase()
+      ) {
+        input.value = nextDefault;
+        const ownerWindow = input.ownerDocument.defaultView;
+        if (ownerWindow) {
+          input.dispatchEvent(
+            new ownerWindow.Event("input", { bubbles: true }),
+          );
+          input.dispatchEvent(
+            new ownerWindow.Event("change", { bubbles: true }),
+          );
+        }
+      }
+      input.dataset.rssDashboardDefaultColor = nextDefault;
+    });
 }

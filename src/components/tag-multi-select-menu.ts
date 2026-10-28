@@ -1,6 +1,9 @@
 import { setIcon } from "obsidian";
 import type { Tag } from "../types/types";
-import { applyTagAppearance } from "../utils/tag-colors";
+import {
+  applyTagAppearance,
+  type TagAppearanceSettings,
+} from "../utils/tag-colors";
 import { isDomNode } from "../utils/dom-node";
 import { isNarrowViewport } from "../utils/platform-utils";
 
@@ -20,9 +23,32 @@ const CLS_MOBILE_TITLE = `${CLS_WRAPPER}-mobile-title`;
 const CLS_MOBILE_DONE = `${CLS_WRAPPER}-mobile-done`;
 const ATTR_PORTAL = "data-rss-dashboard-tag-multi-select-portal";
 
+/** Refreshes swatches in open multi-select portals for the given host. */
+export function refreshTagMultiSelectMenuColors(
+  doc: Document,
+  settings: TagAppearanceSettings,
+): void {
+  const portals = doc.querySelectorAll<HTMLElement>(`[${ATTR_PORTAL}]`);
+  for (const portal of portals) {
+    const options = portal.querySelectorAll<HTMLElement>(
+      `.${CLS_MENU_OPTION}[data-tag-name]`,
+    );
+    for (const option of options) {
+      const tagName = option.getAttribute("data-tag-name");
+      const swatch = option.querySelector<HTMLElement>(`.${CLS_MENU_SWATCH}`);
+      if (!tagName || !swatch) continue;
+      const tag = settings.availableTags.find(
+        (candidate) => candidate.name.toLowerCase() === tagName.toLowerCase(),
+      ) ?? { name: tagName };
+      applyTagAppearance(swatch, tag, settings);
+    }
+  }
+}
+
 interface TagMultiSelectMenuOptions {
   trigger: HTMLButtonElement;
   availableTags: ReadonlyArray<Tag>;
+  tagAppearanceSettings?: TagAppearanceSettings;
   selectedSet: ReadonlySet<string>;
   emptySummary: string;
   mobileSheetTitle: string;
@@ -206,7 +232,10 @@ function renderMenuList(
     setIcon(check, isSelected ? "check" : "plus");
 
     const swatch = option.createSpan({ cls: CLS_MENU_SWATCH });
-    applyTagAppearance(swatch, tag, { availableTags: opts.availableTags });
+    applyTagAppearance(swatch, tag, {
+      ...opts.tagAppearanceSettings,
+      availableTags: opts.availableTags,
+    });
 
     option.createSpan({
       cls: `${CLS_MENU_OPTION}-label`,

@@ -934,6 +934,23 @@ describe("Dashboard reader location", () => {
       ]);
     });
 
+    it("refreshes inherited background and text defaults in the open Reader", async () => {
+      const { view, settings, feed, container } = await openInlineWithChips([
+        { name: "Inherited", color: "#123456" },
+      ]);
+      settings.availableTags = [{ name: "Inherited" }];
+      feed.items[0].tags = [{ name: "Inherited" }];
+      settings.defaultTagColor = "#345678";
+      settings.defaultTagTextColor = "#fef3c7";
+
+      (view as unknown as { refreshTagColors: () => void }).refreshTagColors();
+
+      const chip = container.querySelector<HTMLElement>(".rss-reader-tag");
+      expect(chip?.style.getPropertyValue("--tag-color")).toBe("#345678");
+      expect(chip?.style.getPropertyValue("--tag-text-color")).toBe("#fef3c7");
+      expect(view.inlineArticle?.tags).toEqual([{ name: "Inherited" }]);
+    });
+
     it("adds a chip when an assignment arrives from another tag-edit surface", async () => {
       const { view, feed, container } = await openInlineWithChips([]);
       container.querySelector(".rss-reader-tags")?.remove();

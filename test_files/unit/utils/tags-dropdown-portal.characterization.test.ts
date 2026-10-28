@@ -150,9 +150,7 @@ describe("tags dropdown portal characterization", () => {
       )!
       .click();
 
-    expect(settings.availableTags).toEqual([
-      { name: "Later", color: "#8a5cf5" },
-    ]);
+    expect(settings.availableTags).toEqual([{ name: "Later" }]);
     expect(callbacks).toEqual(["persist", "mutated", "assign:Later:true"]);
     expect(
       document.querySelector(".rss-dashboard-tag-label")?.textContent,

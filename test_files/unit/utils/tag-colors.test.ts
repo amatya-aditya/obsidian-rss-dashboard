@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  createTagWithAppearanceChanges,
   DEFAULT_TAG_COLOR,
   DEFAULT_TAG_TEXT_COLOR,
   randomTagColors,
@@ -37,6 +38,16 @@ function hueDistance(a: number, b: number): number {
 }
 
 describe("tag-colors", () => {
+  it("stores only the appearance values explicitly changed by the user", () => {
+    expect(
+      createTagWithAppearanceChanges(
+        "Topic",
+        { background: "#123456", text: "#abcdef" },
+        { background: false, text: true },
+      ),
+    ).toEqual({ name: "Topic", textColor: "#abcdef" });
+  });
+
   it("uses #8a5cf5 as the default tag color", () => {
     expect(DEFAULT_TAG_COLOR).toBe("#8a5cf5");
     expect(DEFAULT_TAG_TEXT_COLOR).toBe("#ffffff");
@@ -69,6 +80,19 @@ describe("tag-colors", () => {
     expect(resolveTagAppearance({ name: "Topic" }, settings)).toEqual({
       background: "#123456",
       text: "#654321",
+    });
+  });
+
+  it("uses nullish fallback semantics for empty stored appearance values", () => {
+    const settings = {
+      availableTags: [{ name: "Topic", color: "", textColor: "" }],
+      defaultTagColor: "#123456",
+      defaultTagTextColor: "#654321",
+    };
+
+    expect(resolveTagAppearance({ name: "Topic" }, settings)).toEqual({
+      background: "",
+      text: "",
     });
   });
 

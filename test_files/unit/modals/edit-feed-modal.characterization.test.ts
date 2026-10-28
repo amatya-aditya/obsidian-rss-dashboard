@@ -718,7 +718,9 @@ describe("EditFeedModal Feed options (characterization)", () => {
     it("lists the inherited tags as badges, right after the encoding setting", () => {
       const { modal } = openModal({
         settings: {
-          availableTags: [{ name: "Daily", color: "#112233" }],
+          availableTags: [{ name: "Daily" }],
+          defaultTagColor: "#112233",
+          defaultTagTextColor: "#ddeeff",
           media: { defaultRssTags: ["Daily"] },
         },
       });
@@ -731,6 +733,9 @@ describe("EditFeedModal Feed options (characterization)", () => {
           (el) => el.textContent,
         ),
       ).toEqual(["Daily"]);
+      const badge = row?.querySelector<HTMLElement>(".rss-dashboard-tag-badge");
+      expect(badge?.style.getPropertyValue("--tag-color")).toBe("#112233");
+      expect(badge?.style.getPropertyValue("--tag-text-color")).toBe("#ddeeff");
       const setting = row?.closest(".setting-item");
       expect(setting?.querySelector(".setting-item-name")?.textContent).toBe(
         "Inherited auto-tags",

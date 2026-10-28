@@ -434,6 +434,32 @@ describe("Sidebar Rendering", () => {
     expect(tag1?.textContent).toContain("Tag 1");
   });
 
+  it("renders and refreshes inherited appearance in the sidebar tag dot", () => {
+    settings.availableTags = [{ name: "Inherited" }];
+    settings.defaultTagColor = "#345678";
+    settings.defaultTagTextColor = "#fef3c7";
+    const sidebar = new Sidebar(
+      app as unknown as import("obsidian").App,
+      container,
+      plugin as unknown as RssDashboardPlugin,
+      settings,
+      options,
+      callbacks,
+    );
+    (sidebar as unknown as { isTagsExpanded: boolean }).isTagsExpanded = true;
+    sidebar.render();
+
+    const dot = container.querySelector<HTMLElement>(
+      ".rss-dashboard-tag-color-dot",
+    );
+    expect(dot?.style.getPropertyValue("--tag-color")).toBe("#345678");
+    expect(dot?.style.getPropertyValue("--tag-text-color")).toBe("#fef3c7");
+
+    settings.defaultTagColor = "#789abc";
+    sidebar.refreshTagColors();
+    expect(dot?.style.getPropertyValue("--tag-color")).toBe("#789abc");
+  });
+
   it("should call onTagToggle when a tag is clicked", () => {
     const sidebar = new Sidebar(
       app as unknown as import("obsidian").App,

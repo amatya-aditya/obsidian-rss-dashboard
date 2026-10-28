@@ -91,6 +91,10 @@ export class ArticleHeader {
     this.filterLogic = filterLogic;
   }
 
+  public refreshTagColors(): void {
+    this.filterMenu?.refreshTagColors();
+  }
+
   public updateTitle(title: string, tooltip: string | null): void {
     this.title = title;
     this.titleTooltip = tooltip;

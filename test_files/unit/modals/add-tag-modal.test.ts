@@ -112,4 +112,71 @@ describe("AddTagModal", () => {
       'Tag "Science" added successfully!',
     );
   });
+
+  it("applies preset colors to the add-tag draft and saves through Add tag", () => {
+    const settings = makeSettings();
+    new AddTagModal(new App(), { settings, onAdded: vi.fn() }).open();
+
+    const backgroundInput = document.querySelector<HTMLInputElement>(
+      ".rss-dashboard-add-tag-background-color",
+    )!;
+    const palette = document.querySelector<HTMLSelectElement>(
+      ".rss-dashboard-tag-modal-color-field select",
+    )!;
+    palette.value = "Vintage";
+    palette.dispatchEvent(new Event("change", { bubbles: true }));
+    document
+      .querySelector<HTMLButtonElement>(
+        ".rss-dashboard-tag-color-palette-control-color-trigger",
+      )!
+      .click();
+    Array.from(document.querySelectorAll<HTMLButtonElement>("[role=option]"))
+      .find((option) => option.getAttribute("aria-label") === "Blue #547CA5")!
+      .click();
+
+    expect(backgroundInput.value).toBe("#547ca5");
+    expect(
+      document
+        .querySelector<HTMLElement>(".rss-dashboard-tag-modal-preview")
+        ?.style.getPropertyValue("--tag-color"),
+    ).toBe("#547ca5");
+
+    nameInput().value = "Science";
+    clickButton("Add tag");
+
+    expect(
+      settings.availableTags.find((tag) => tag.name === "Science"),
+    ).toEqual({ name: "Science", color: "#547ca5" });
+  });
+
+  it("stores no appearance override until a color is changed", () => {
+    const settings = makeSettings();
+    new AddTagModal(new App(), { settings, onAdded: vi.fn() }).open();
+
+    nameInput().value = "Science";
+    clickButton("Add tag");
+
+    expect(settings.availableTags[settings.availableTags.length - 1]).toEqual({
+      name: "Science",
+    });
+  });
+
+  it("stores only the color changed during creation", () => {
+    const settings = makeSettings();
+    new AddTagModal(new App(), { settings, onAdded: vi.fn() }).open();
+
+    nameInput().value = "Science";
+    const textInput = document.querySelector<HTMLInputElement>(
+      ".rss-dashboard-add-tag-text-color",
+    );
+    if (!textInput) throw new Error("Expected the text color input");
+    textInput.value = "#123456";
+    textInput.dispatchEvent(new Event("input", { bubbles: true }));
+    clickButton("Add tag");
+
+    expect(settings.availableTags[settings.availableTags.length - 1]).toEqual({
+      name: "Science",
+      textColor: "#123456",
+    });
+  });
 });

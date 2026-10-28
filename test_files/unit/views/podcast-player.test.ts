@@ -244,6 +244,53 @@ describe("PodcastPlayer", () => {
       });
     });
 
+    it("refreshes inherited colors in the player strip and episode list", () => {
+      const container: HTMLDivElement = createDiv();
+      document.body.appendChild(container);
+      const settings: {
+        availableTags: { name: string; color?: string; textColor?: string }[];
+        defaultTagColor: string;
+        defaultTagTextColor: string;
+      } = {
+        availableTags: [{ name: "Topic" }],
+        defaultTagColor: "#345678",
+        defaultTagTextColor: "#fef3c7",
+      };
+      const player = new PodcastPlayer(container, new App(), "obsidian");
+      player.setTagAppearanceSettings(settings);
+      const episode = { ...baseEpisode(), tags: [{ name: "Topic" }] };
+      player.loadEpisode(episode, [episode, { ...episode, guid: "other" }]);
+
+      const expectResolvedColors = (background: string, text: string) => {
+        const chips = container.querySelectorAll<HTMLElement>(
+          ".podcast-tag, .episode-list-row-tag",
+        );
+        expect(chips.length).toBeGreaterThan(1);
+        chips.forEach((chip) => {
+          expect(chip.style.getPropertyValue("--tag-color")).toBe(background);
+          expect(chip.style.getPropertyValue("--tag-text-color")).toBe(text);
+        });
+      };
+      expectResolvedColors("#345678", "#fef3c7");
+
+      settings.defaultTagColor = "#789abc";
+      settings.defaultTagTextColor = "#111827";
+      player.refreshTags();
+      player.refreshPlaylistTags(episode.guid);
+
+      expectResolvedColors("#789abc", "#111827");
+
+      settings.availableTags[0] = {
+        name: "Topic",
+        color: "#123456",
+        textColor: "#fedcba",
+      };
+      player.refreshTags();
+      player.refreshPlaylistTags(episode.guid);
+
+      expectResolvedColors("#123456", "#fedcba");
+    });
+
     it("refreshTags + refreshPlaylistTags update player strip and episode-list row", () => {
       const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);

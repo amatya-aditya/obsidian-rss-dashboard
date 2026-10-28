@@ -12,6 +12,8 @@ import {
 } from "obsidian";
 import { resolveReaderMediaRoute } from "../utils/reader-article-render";
 import { renderReaderTagChips } from "../utils/reader-tag-chips";
+import { refreshTagsDropdownPortalColors } from "../utils/tags-dropdown-portal";
+import { refreshTagMultiSelectMenuColors } from "../components/tag-multi-select-menu";
 import {
   Feed,
   FeedKeywordRulesSettings,
@@ -3446,11 +3448,20 @@ export class RssDashboardView extends ItemView {
   }
 
   public refreshTagColors(): void {
+    refreshTagMultiSelectMenuColors(
+      this.containerEl.ownerDocument,
+      this.settings,
+    );
+    refreshTagsDropdownPortalColors(
+      this.containerEl.ownerDocument,
+      this.settings,
+    );
     this.refreshInlineArticleTags();
+    this.sidebar?.refreshTagColors();
     this.articleList?.syncVisibleArticlesFromSource((article) =>
       this.findBackingArticleForDisplayItem(article),
     );
-    this.articleList?.refreshVisibleArticleTags();
+    this.articleList?.refreshTagColors();
   }
 
   /**
