@@ -217,7 +217,13 @@ describe("renderTagsSettingsTab()", () => {
       expect(control.firstElementChild?.matches("input[type='color']")).toBe(
         true,
       );
-      expect(control.children[1]?.className).toContain(
+      // The dice sits right after the picker, then the palette control.
+      expect(
+        control.children[1]?.classList.contains(
+          "rss-dashboard-tag-color-randomize",
+        ),
+      ).toBe(true);
+      expect(control.children[2]?.className).toContain(
         "rss-dashboard-tag-color-palette-control",
       );
     }
@@ -1422,6 +1428,73 @@ describe("renderTagsSettingsTab() tag appearance defaults", () => {
     );
     expect(settings.defaultTagColor).toBe(DEFAULT_SETTINGS.defaultTagColor);
     expect(plugin.saveSettings).not.toHaveBeenCalled();
+  });
+
+  describe("Randomize buttons", () => {
+    const dice = (row: Element) =>
+      row.querySelector<HTMLButtonElement>(
+        ".rss-dashboard-tag-color-randomize",
+      )!;
+    const rowFor = (containerEl: HTMLElement, name: string) =>
+      getSettingByName(containerEl, name);
+
+    it("puts one named dice beside the picker in all four color rows", () => {
+      const { containerEl } = render();
+
+      for (const name of [
+        "Background",
+        "Text",
+        "Tag color",
+        "Tag text color",
+      ]) {
+        const button = dice(rowFor(containerEl, name));
+        expect(button.getAttribute("aria-label")).toBe("Randomize");
+        expect(
+          button.previousElementSibling?.matches('input[type="color"]'),
+        ).toBe(true);
+      }
+    });
+
+    it("rolls a color into the draft only, with no readability check", async () => {
+      vi.spyOn(Math, "random").mockReturnValue(0.5);
+      const { containerEl, settings, plugin } = render();
+      const chip = defaultsPreviewChip(containerEl);
+
+      dice(rowFor(containerEl, "Background")).click();
+      expect(backgroundPicker(containerEl).value).toBe("#808080");
+      expect(chip.style.getPropertyValue("--tag-color")).toBe("#808080");
+
+      dice(rowFor(containerEl, "Text")).click();
+      expect(textPicker(containerEl).value).toBe("#808080");
+      expect(chip.style.getPropertyValue("--tag-text-color")).toBe("#808080");
+
+      expect(settings.defaultTagColor).toBe(DEFAULT_SETTINGS.defaultTagColor);
+      expect(plugin.saveSettings).not.toHaveBeenCalled();
+      expect(applyButton(containerEl).disabled).toBe(false);
+    });
+
+    it("rolls the new tag colors and updates its preview", () => {
+      vi.spyOn(Math, "random").mockReturnValue(0.25);
+      const { containerEl } = render();
+      const colorInput = (name: string) =>
+        getSettingByName(containerEl, name).querySelector<HTMLInputElement>(
+          'input[type="color"]',
+        )!;
+      const preview = getSettingByName(
+        containerEl,
+        "Tag name",
+      ).querySelector<HTMLElement>(".rss-dashboard-tag-new-preview")!;
+
+      dice(rowFor(containerEl, "Tag color")).click();
+      dice(rowFor(containerEl, "Tag text color")).click();
+
+      expect(colorInput("Tag color").value).toBe("#404040");
+      expect(colorInput("Tag text color").value).toBe("#404040");
+      expect(preview.style.getPropertyValue("--tag-color")).toBe("#404040");
+      expect(preview.style.getPropertyValue("--tag-text-color")).toBe(
+        "#404040",
+      );
+    });
   });
 
   describe("tag shape previews", () => {

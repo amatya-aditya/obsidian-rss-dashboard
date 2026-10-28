@@ -231,7 +231,7 @@
 .rss-dashboard-tag-color-setting.setting-item {
   display: grid;
   grid-template-columns:
-    7rem 32px minmax(0, 1fr) minmax(7rem, 9.5rem)
+    7rem 32px 32px minmax(0, 1fr) minmax(7rem, 9.5rem)
     minmax(9rem, 14rem);
   align-items: center;
   column-gap: 8px;
@@ -246,14 +246,48 @@
   grid-column: 2;
 }
 
+.rss-dashboard-tag-color-setting .rss-dashboard-tag-color-randomize {
+  grid-column: 3;
+}
+
 .rss-dashboard-tag-color-setting
   .rss-dashboard-tag-color-palette-control-palette-field {
-  grid-column: 4;
+  grid-column: 5;
 }
 
 .rss-dashboard-tag-color-setting
   .rss-dashboard-tag-color-palette-control-color-field {
-  grid-column: 5;
+  grid-column: 6;
+}
+
+/* The dice beside a color picker: a quiet icon button, scoped per the native
+ * icon-button pattern so host button styles do not leak in. */
+.rss-dashboard-tag-color-randomize {
+  --icon-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  contain: layout style;
+}
+
+.rss-dashboard-tag-color-randomize:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.rss-dashboard-tag-color-randomize > svg {
+  display: block;
+  width: var(--icon-size);
+  height: var(--icon-size);
 }
 
 .rss-dashboard-tag-color-setting

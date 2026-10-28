@@ -3,6 +3,7 @@ import {
   createTagWithAppearanceChanges,
   DEFAULT_TAG_COLOR,
   DEFAULT_TAG_TEXT_COLOR,
+  randomHexColor,
   randomTagColors,
   resolveTagAppearance,
 } from "../../../src/utils/tag-colors";
@@ -143,5 +144,48 @@ describe("tag-colors", () => {
   it("produces a different set of colors on each roll", () => {
     const random = seededRandom(3);
     expect(randomTagColors(3, random)).not.toEqual(randomTagColors(3, random));
+  });
+});
+
+describe("randomHexColor", () => {
+  it("always returns a #rrggbb color", () => {
+    const random = seededRandom(11);
+    for (let roll = 0; roll < 300; roll += 1) {
+      expect(randomHexColor(random)).toMatch(/^#[0-9a-f]{6}$/);
+    }
+    expect(randomHexColor()).toMatch(/^#[0-9a-f]{6}$/);
+  });
+
+  it("maps the ends of the random range to black and white", () => {
+    expect(randomHexColor(() => 0)).toBe("#000000");
+    expect(randomHexColor(() => 0.999999)).toBe("#ffffff");
+    expect(randomHexColor(() => 0.5)).toBe("#808080");
+  });
+
+  it("uses an independent byte per channel, in red, green, blue order", () => {
+    const rolls = [0.1, 0.5, 0.9];
+
+    expect(randomHexColor(() => rolls.shift() ?? 0)).toBe("#1980e6");
+  });
+
+  it("is not restricted: over many rolls every channel reaches both extremes", () => {
+    const random = seededRandom(3);
+    const channels = [0, 1, 2].map(() => ({ low: false, high: false }));
+    for (let roll = 0; roll < 300; roll += 1) {
+      const hex = randomHexColor(random);
+      channels.forEach((seen, channel) => {
+        const value = parseInt(hex.slice(1 + channel * 2, 3 + channel * 2), 16);
+        if (value < 40) seen.low = true;
+        if (value > 215) seen.high = true;
+      });
+    }
+    for (const seen of channels) {
+      expect(seen).toEqual({ low: true, high: true });
+    }
+  });
+
+  it("gives a different color for different rolls", () => {
+    const random = seededRandom(9);
+    expect(randomHexColor(random)).not.toBe(randomHexColor(random));
   });
 });

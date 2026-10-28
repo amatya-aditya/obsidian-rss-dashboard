@@ -9,6 +9,7 @@ import type { RssDashboardSettings, Tag } from "../types/types";
 import { updateTagInSettings } from "../utils/tag-settings";
 import { addInputClearButton } from "../utils/input-clear-button";
 import { addTagColorPaletteControl } from "../components/tag-color-palette-control";
+import { addRandomizeColorButton } from "../components/tag-color-randomize-button";
 
 export interface EditTagModalOptions {
   settings: Readonly<RssDashboardSettings>;
@@ -59,7 +60,10 @@ function createAppearanceSection(
     cls: "rss-dashboard-tag-modal-section-title",
     text: config.name,
   });
-  const useDefaultLabel = header.createEl("label", {
+  const actions = header.createDiv({
+    cls: "rss-dashboard-tag-modal-section-actions",
+  });
+  const useDefaultLabel = actions.createEl("label", {
     cls: "rss-dashboard-tag-modal-default-label",
   });
   const useDefault = useDefaultLabel.createEl("input", {
@@ -85,6 +89,10 @@ function createAppearanceSection(
     attr: { type: "color", "aria-label": `${config.name} custom color` },
     cls: `rss-dashboard-tag-modal-color-picker ${config.inputClass}`,
   });
+
+  // The dice sits before "Use default". Randomizing counts as picking a color,
+  // so the picker's own `input` handler below switches Use default off.
+  actions.prepend(addRandomizeColorButton({ input, parent: actions }));
 
   // While "Use default" is on, the picker shows the inherited color and stays
   // clickable; changing it switches the override on.

@@ -932,6 +932,11 @@ body .rss-dashboard-tag-modal-color-picker::-moz-color-swatch {
   gap: 12px;
   margin-bottom: 10px;
 }
+.rss-dashboard-edit-tag-modal .rss-dashboard-tag-modal-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .rss-dashboard-edit-tag-modal .rss-dashboard-tag-modal-section-title {
   color: var(--text-normal);
   font-size: var(--font-ui-medium);

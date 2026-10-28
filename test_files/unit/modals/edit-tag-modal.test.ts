@@ -120,9 +120,9 @@ describe("EditTagModal", () => {
     expect(palettes).toHaveLength(2);
     palettes[0].value = "Vintage";
     palettes[0].dispatchEvent(new Event("change", { bubbles: true }));
-    palettes[1].value = "Neon/Synthwave";
+    palettes[1].value = "High Contrast";
     palettes[1].dispatchEvent(new Event("change", { bubbles: true }));
-    expect(palettes[1].value).toBe("Neon/Synthwave");
+    expect(palettes[1].value).toBe("High Contrast");
 
     const triggers = document.querySelectorAll<HTMLButtonElement>(
       ".rss-dashboard-tag-color-palette-control-color-trigger",
@@ -133,14 +133,14 @@ describe("EditTagModal", () => {
       ?.click();
     triggers[1].click();
     Array.from(document.querySelectorAll<HTMLButtonElement>("[role=option]"))
-      .find((option) => option.getAttribute("aria-label") === "Violet #A78BFA")
+      .find((option) => option.getAttribute("aria-label") === "Purple #7700FF")
       ?.click();
 
     expect(
       document.querySelector<HTMLInputElement>(
         ".rss-dashboard-tag-modal-text-input",
       )?.value,
-    ).toBe("#a78bfa");
+    ).toBe("#7700ff");
     expect(
       document.querySelector<HTMLInputElement>(
         ".rss-dashboard-tag-modal-text-default",
@@ -160,7 +160,7 @@ describe("EditTagModal", () => {
       document
         .querySelector<HTMLElement>(".rss-dashboard-tag-modal-preview")
         ?.style.getPropertyValue("--tag-text-color"),
-    ).toBe("#a78bfa");
+    ).toBe("#7700ff");
 
     document
       .querySelector<HTMLButtonElement>("button.rss-dashboard-primary-button")!
@@ -170,7 +170,7 @@ describe("EditTagModal", () => {
     expect(settings.availableTags[0]).toEqual({
       name: "Tech",
       color: "#547ca5",
-      textColor: "#a78bfa",
+      textColor: "#7700ff",
     });
     expect(onSave).toHaveBeenCalledOnce();
   });
@@ -354,6 +354,100 @@ describe("EditTagModal", () => {
       name: "Tech",
       color: undefined,
       textColor: "#dddddd",
+    });
+  });
+
+  describe("Randomize buttons", () => {
+    function openWith(tag: {
+      name: string;
+      color?: string;
+      textColor?: string;
+    }) {
+      const settings = makeSettings();
+      settings.availableTags[0] = tag;
+      const onSave = vi.fn();
+      new EditTagModal(new App(), { settings, tag, onSave }).open();
+      return { settings, onSave };
+    }
+    const sectionDice = (section: "background" | "text") =>
+      document.querySelector<HTMLButtonElement>(
+        `.rss-dashboard-tag-modal-section-${section} .rss-dashboard-tag-color-randomize`,
+      )!;
+    const picker = (section: "background" | "text") =>
+      document.querySelector<HTMLInputElement>(
+        `.rss-dashboard-tag-modal-${section}-input`,
+      )!;
+    const useDefault = (section: "background" | "text") =>
+      document.querySelector<HTMLInputElement>(
+        `.rss-dashboard-tag-modal-${section}-default`,
+      )!;
+
+    it("puts a Randomize dice before Use default in each section header", () => {
+      openWith({ name: "Plain" });
+
+      for (const section of ["background", "text"] as const) {
+        const button = sectionDice(section);
+        expect(button.getAttribute("aria-label")).toBe("Randomize");
+        const actions = button.parentElement!;
+        expect(
+          actions.classList.contains("rss-dashboard-tag-modal-section-actions"),
+        ).toBe(true);
+        expect(actions.firstElementChild).toBe(button);
+        expect(actions.lastElementChild?.textContent).toBe("Use default");
+        expect(
+          actions.parentElement?.classList.contains(
+            "rss-dashboard-tag-modal-section-header",
+          ),
+        ).toBe(true);
+      }
+    });
+
+    it("unchecks Use default, applies the roll and updates the preview", () => {
+      openWith({ name: "Plain" });
+      expect(useDefault("background").checked).toBe(true);
+
+      sectionDice("background").click();
+
+      expect(useDefault("background").checked).toBe(false);
+      expect(useDefault("text").checked).toBe(true);
+      const preview = document.querySelector<HTMLElement>(
+        ".rss-dashboard-tag-modal-preview",
+      )!;
+      expect(preview.style.getPropertyValue("--tag-color")).toBe(
+        picker("background").value,
+      );
+    });
+
+    it("rolls any color for either section, with no readability check", () => {
+      vi.spyOn(Math, "random").mockReturnValue(0.5);
+      openWith({ name: "Plain", textColor: "#808080" });
+
+      sectionDice("background").click();
+      sectionDice("text").click();
+
+      expect(picker("background").value).toBe("#808080");
+      expect(picker("text").value).toBe("#808080");
+      expect(useDefault("background").checked).toBe(false);
+      expect(useDefault("text").checked).toBe(false);
+    });
+
+    it("saves the rolled colors", async () => {
+      vi.spyOn(Math, "random").mockReturnValue(0.75);
+      const { settings, onSave } = openWith({ name: "Plain" });
+
+      sectionDice("background").click();
+      sectionDice("text").click();
+      document
+        .querySelector<HTMLButtonElement>(".rss-dashboard-primary-button")!
+        .click();
+      await flushPromises();
+
+      expect(settings.availableTags[0]).toMatchObject({
+        name: "Plain",
+        color: "#c0c0c0",
+        textColor: "#c0c0c0",
+      });
+      expect(onSave).toHaveBeenCalledTimes(1);
     });
   });
 

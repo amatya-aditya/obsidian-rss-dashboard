@@ -15,7 +15,7 @@ related:
 
 ## Update History
 
-- 2026-10-28: Add **Dropdown Controls**: every dropdown trigger and select shows Obsidian's up/down chevron (`chevrons-up-down`) at its right edge, and every native color picker shows the same hover and focus ring. Settings color rows put the picker right after the row name with no hex readout; Tag appearance defaults are a draft, previewed in their own card, until the user applies them; Tag shape previews are drawn in the applied default colors, and Add new tag shows a live preview chip
+- 2026-10-28: Add **Dropdown Controls**: every dropdown trigger and select shows Obsidian's up/down chevron (`chevrons-up-down`) at its right edge, and every native color picker shows the same hover and focus ring. Settings color rows put the picker right after the row name with no hex readout; Tag appearance defaults are a draft, previewed in their own card, until the user applies them; Tag shape previews are drawn in the applied default colors, and Add new tag shows a live preview chip; native color pickers get a Randomize dice button that rolls any color
 - 2026-10-26: Define shared article action icon hover previews and semantic colors across Dashboard and Reader surfaces, with responsive borders on Dashboard controls only
 - 2026-10-20: Folder fields use Obsidian's `AbstractInputSuggest` list, styled only through `.rss-folder-suggest-container`, replacing the hand-built dropdown (#1377)
 - 2026-10-13: Add **Input Clear Buttons**: every free-text input gets Obsidian's own circle-x clear button through `addInputClearButton`, replacing the plain Lucide `x` buttons; record Obsidian's clear button as a core surface
@@ -634,6 +634,21 @@ Starred picker (whose input is transparent, so the ring sits on its wrapper).
 A new color picker joins the group in `src/styles/tag-color-palette.css`
 instead of inventing its own hover. The ring is a static `box-shadow` with no
 transition, so it needs nothing under `prefers-reduced-motion`.
+
+#### Randomize buttons
+
+A native color picker for a tag background or text color has a dice icon button
+beside it (`dices`, label and hover text "Randomize", `addRandomizeColorButton`
+in `src/components/tag-color-randomize-button.ts`). In settings rows it sits
+right after the picker; in the Add/edit tag modal it sits before "Use default".
+
+- **Any color.** A roll is a uniformly random color, with no readability
+  guard, so it can be hard to read against the paired color. (Import Starred's
+  randomizer is separate and keeps its own lightness band.)
+- **Same as picking.** The button sets the picker and fires `input` then
+  `change`, so everything listening reacts as it would to a hand-picked color:
+  the settings draft and Preview update (nothing saves until Apply), and in the
+  modal it switches Use default off.
 
 ### Android WebView SVG Rendering: Avoiding `!important`
 

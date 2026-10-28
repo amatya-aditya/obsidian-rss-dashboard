@@ -31,6 +31,7 @@ import {
   renderTagShapeControl,
 } from "./tag-shape-control";
 import { addTagColorPaletteControl } from "../../components/tag-color-palette-control";
+import { addRandomizeColorButton } from "../../components/tag-color-randomize-button";
 import { addInputClearButton } from "../../utils/input-clear-button";
 
 interface AutoTagSettingConfig {
@@ -351,6 +352,7 @@ function renderTagAppearanceDefaults(
       showFieldLabels: false,
       showValueReadout: false,
     });
+    addRandomizeColorButton({ input: backgroundInput });
   }
 
   const textSetting = new Setting(containerEl).setName("Text");
@@ -379,6 +381,7 @@ function renderTagAppearanceDefaults(
       showFieldLabels: false,
       showValueReadout: false,
     });
+    addRandomizeColorButton({ input: textInput });
   }
 
   const previewSetting = new Setting(containerEl)
@@ -550,6 +553,7 @@ function renderAddTagSection(
       showFieldLabels: false,
       showValueReadout: false,
     });
+    addRandomizeColorButton({ input: tagColorInput });
   }
   const tagTextColorInput =
     tagTextColorSetting.controlEl.querySelector<HTMLInputElement>(
@@ -565,6 +569,7 @@ function renderAddTagSection(
       showFieldLabels: false,
       showValueReadout: false,
     });
+    addRandomizeColorButton({ input: tagTextColorInput });
   }
 
   // The name, its field, a live preview of the new tag and the Add tag button
