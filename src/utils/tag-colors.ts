@@ -134,3 +134,17 @@ export function randomTagColors(
     ),
   );
 }
+
+/**
+ * Any color at all: each channel is an independent random byte. Unlike
+ * `randomTagColors`, nothing keeps the result readable against another color.
+ */
+export function randomHexColor(random: () => number = Math.random): string {
+  return `#${[0, 1, 2]
+    .map(() =>
+      Math.min(255, Math.floor(random() * 256))
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+}

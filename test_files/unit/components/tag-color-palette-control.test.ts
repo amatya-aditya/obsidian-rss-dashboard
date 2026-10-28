@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { addTagColorPaletteControl } from "../../../src/components/tag-color-palette-control";
 import { TAG_COLOR_PALETTES } from "../../../src/utils/tag-color-palettes";
+import { DEFAULT_TAG_COLOR } from "../../../src/utils/tag-colors";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 beforeEach(() => {
@@ -10,15 +11,15 @@ beforeEach(() => {
 });
 
 describe("tag color palette controls", () => {
-  it("contains the exact four named 12-color palettes", () => {
+  it("contains the exact four named 11-color palettes", () => {
     expect(TAG_COLOR_PALETTES.map(({ name }) => name)).toEqual([
       "System",
       "Vintage",
       "Pastel",
-      "Neon/Synthwave",
+      "High Contrast",
     ]);
     expect(TAG_COLOR_PALETTES.map(({ colors }) => colors.length)).toEqual([
-      12, 12, 12, 12,
+      11, 11, 11, 11,
     ]);
     expect(
       TAG_COLOR_PALETTES.map(({ colors }) =>
@@ -34,8 +35,7 @@ describe("tag color palette controls", () => {
         "Teal #00C3D0",
         "Cyan #00C0E8",
         "Blue #0088FF",
-        "Indigo #6155F5",
-        "Purple #CB30E0",
+        "Purple #8A5CF5",
         "Pink #FF2D55",
         "Brown #AC7F5E",
       ],
@@ -48,8 +48,7 @@ describe("tag color palette controls", () => {
         "Teal #579B9A",
         "Cyan #78B7C4",
         "Blue #547CA5",
-        "Indigo #7775AA",
-        "Purple #A36A9B",
+        "Purple #7E6AA8",
         "Pink #D77991",
         "Brown #A98263",
       ],
@@ -62,26 +61,145 @@ describe("tag color palette controls", () => {
         "Teal #72B4B8",
         "Cyan #8DC5D4",
         "Blue #86A9D3",
-        "Indigo #A6A0D3",
-        "Purple #C49BC4",
+        "Purple #B5A3DC",
         "Pink #DEA0B5",
         "Brown #BDA18A",
       ],
       [
-        "Red #FF4D6D",
-        "Orange #FF8A24",
-        "Yellow #FFD447",
-        "Green #4ADE80",
-        "Mint #22D3C5",
-        "Teal #14B8D4",
-        "Cyan #38BDF8",
-        "Blue #3B82F6",
-        "Indigo #6366F1",
-        "Purple #D946EF",
-        "Pink #F472B6",
-        "Violet #A78BFA",
+        "Red #FF0022",
+        "Orange #FF6200",
+        "Yellow #FFE600",
+        "Green #00FF2A",
+        "Mint #00FFA2",
+        "Teal #00FFF7",
+        "Cyan #00CCFF",
+        "Blue #004CFF",
+        "Purple #7700FF",
+        "Pink #FF00A2",
+        "Brown #803000",
       ],
     ]);
+  });
+
+  it("has no Indigo, so Purple stays distinct, and System Purple is Obsidian purple", () => {
+    for (const { colors } of TAG_COLOR_PALETTES) {
+      expect(colors.map(({ name }) => name)).not.toContain("Indigo");
+    }
+    expect(
+      TAG_COLOR_PALETTES[0]?.colors.find(({ name }) => name === "Purple")?.hex,
+    ).toBe(DEFAULT_TAG_COLOR.toUpperCase());
+  });
+
+  it("makes every High Contrast color the extreme of its hue", () => {
+    const highContrast = TAG_COLOR_PALETTES.find(
+      ({ name }) => name === "High Contrast",
+    );
+    expect(highContrast).toBeDefined();
+    for (const { name, hex } of highContrast?.colors ?? []) {
+      const channels = [1, 3, 5].map((offset) =>
+        parseInt(hex.slice(offset, offset + 2), 16),
+      );
+      // Top-right of the RGB picker: a channel at 0 ...
+      expect(Math.min(...channels), `${name} ${hex}`).toBe(0);
+      // ... and a channel at 255. Brown is the dark end of its hue, because
+      // full brightness would just be orange.
+      if (name !== "Brown") {
+        expect(Math.max(...channels), `${name} ${hex}`).toBe(255);
+      }
+    }
+  });
+
+  it("marks the Color trigger as a dropdown with a decorative up/down chevron", () => {
+    const field = createField("Background", "#123456");
+    const trigger = field.querySelector<HTMLButtonElement>(
+      ".rss-dashboard-tag-color-palette-control-color-trigger",
+    )!;
+
+    const chevron = trigger.querySelector<HTMLElement>(
+      ".rss-dashboard-tag-color-palette-control-chevron",
+    );
+    expect(chevron).not.toBeNull();
+    expect(chevron?.getAttribute("aria-hidden")).toBe("true");
+    expect(chevron?.querySelector("svg")).not.toBeNull();
+    // The icon is an svg, so the visible label text is unchanged.
+    expect(trigger.textContent).toBe("Custom #123456");
+    // The chevron sits after the label so it lands at the trigger's right edge.
+    expect(trigger.lastElementChild).toBe(chevron);
+  });
+
+  it("gives the Palette select the same decorative chevron, beside its native arrow reset", () => {
+    const field = createField("Background", "#123456");
+    const select = field.querySelector<HTMLSelectElement>("select")!;
+
+    const chevron = select.parentElement?.querySelector<HTMLElement>(
+      ".rss-dashboard-tag-color-palette-control-select-chevron",
+    );
+    expect(chevron?.getAttribute("aria-hidden")).toBe("true");
+    expect(chevron?.querySelector("svg")).not.toBeNull();
+    expect(select.getAttribute("aria-label")).toBe("Palette for Background");
+    expect(
+      field.querySelector(".rss-dashboard-tag-color-palette-control-select"),
+    ).toBe(select.parentElement);
+  });
+
+  it("shows the Palette and Color captions unless a row turns them off", () => {
+    const labelsOf = (host: HTMLElement) =>
+      Array.from(
+        host.querySelectorAll(".rss-dashboard-tag-color-palette-control-label"),
+      ).map((label) => label.textContent);
+
+    expect(labelsOf(createField("Background", "#123456"))).toEqual([
+      "Palette",
+      "Color",
+    ]);
+
+    const quiet = createDiv();
+    document.body.appendChild(quiet);
+    addTagColorPaletteControl({
+      container: quiet,
+      input: quiet.createEl("input", {
+        attr: { type: "color", value: "#123456" },
+      }),
+      fieldName: "Text",
+      showFieldLabels: false,
+    });
+    expect(labelsOf(quiet)).toEqual([]);
+    expect(quiet.querySelector("select")?.getAttribute("aria-label")).toBe(
+      "Palette for Text",
+    );
+    expect(
+      quiet
+        .querySelector(".rss-dashboard-tag-color-palette-control-color-trigger")
+        ?.getAttribute("aria-label"),
+    ).toContain("Color for Text");
+  });
+
+  it("keeps the hex readout by default and never attaches it when turned off", () => {
+    const readoutIn = (host: HTMLElement) =>
+      host.querySelector(
+        ".rss-dashboard-tag-color-palette-control-value-readout",
+      );
+
+    expect(readoutIn(createField("Background", "#123456"))?.textContent).toBe(
+      "#123456",
+    );
+
+    const quiet = createDiv();
+    document.body.appendChild(quiet);
+    addTagColorPaletteControl({
+      container: quiet,
+      input: quiet.createEl("input", {
+        attr: { type: "color", value: "#123456" },
+      }),
+      fieldName: "Text",
+      showValueReadout: false,
+    });
+    expect(readoutIn(quiet)).toBeNull();
+    expect(
+      quiet.querySelector(
+        ".rss-dashboard-tag-color-palette-control-selected-label",
+      )?.textContent,
+    ).toBe("Custom #123456");
   });
 
   it("preserves custom values on palette switches and selects a named preset", () => {
@@ -106,7 +224,7 @@ describe("tag color palette controls", () => {
     trigger.click();
     const options =
       field.querySelectorAll<HTMLButtonElement>('[role="option"]');
-    expect(options).toHaveLength(12);
+    expect(options).toHaveLength(11);
     const blue = Array.from(options).find(
       (option) => option.getAttribute("aria-label") === "Blue #547CA5",
     )!;
@@ -148,10 +266,10 @@ describe("tag color palette controls", () => {
 
     const backgroundPalette = background.querySelector("select")!;
     const textPalette = text.querySelector("select")!;
-    backgroundPalette.value = "Neon/Synthwave";
+    backgroundPalette.value = "High Contrast";
     backgroundPalette.dispatchEvent(new Event("change", { bubbles: true }));
 
-    expect(backgroundPalette.value).toBe("Neon/Synthwave");
+    expect(backgroundPalette.value).toBe("High Contrast");
     expect(textPalette.value).toBe("System");
   });
 

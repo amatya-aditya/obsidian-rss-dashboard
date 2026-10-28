@@ -358,7 +358,7 @@ describe("Sidebar Core", () => {
             ?.getAttribute("aria-label"),
         ),
       ).toEqual([
-        "Color for Background: Custom #8A5CF5",
+        "Color for Background: Purple #8A5CF5",
         "Color for Text: Custom #FFFFFF",
       ]);
     });

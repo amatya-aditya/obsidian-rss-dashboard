@@ -128,7 +128,12 @@ describe("ArticleList tag edits after a tag toggle", () => {
     setChecked(portal, "Tech", true);
     setChecked(portal, "Tech", false);
     await renameTag(portal, "Favorite", "OCTOPUS");
-    closeTagsPopover(harness);
+    // Opening the editor already dismissed the popover.
+    expect(
+      document.body.querySelector(
+        ".rss-dashboard-tags-dropdown-content-portal",
+      ),
+    ).toBeNull();
 
     portal = openTagsPopover(harness);
     const box = tagRow(portal, "OCTOPUS").querySelector<HTMLInputElement>(
@@ -142,7 +147,6 @@ describe("ArticleList tag edits after a tag toggle", () => {
     setChecked(portal, "Tech", true);
     setChecked(portal, "Tech", false);
     await renameTag(portal, "Favorite", "OCTOPUS");
-    closeTagsPopover(harness);
 
     portal = openTagsPopover(harness);
     setChecked(portal, "Tech", true);

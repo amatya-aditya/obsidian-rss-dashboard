@@ -143,24 +143,16 @@ describe("Tags dropdown portal (regression)", () => {
 
     expect(label?.style.getPropertyValue("--tag-color")).toBe("#123456");
     expect(label?.style.getPropertyValue("--tag-text-color")).toBe("#abcdef");
-    expect(
-      document.querySelector<HTMLInputElement>(
-        ".rss-dashboard-tag-inline-color:not(.rss-dashboard-tag-inline-text-color)",
-      )?.value,
-    ).toBe("#123456");
-    expect(
-      document.querySelector<HTMLInputElement>(
-        ".rss-dashboard-tag-inline-text-color",
-      )?.value,
-    ).toBe("#abcdef");
     cleanup();
   });
 
-  it("preserves inline color drafts while refreshing the defaults they compare against", () => {
+  it("adds an inline tag without color overrides even when the profile defaults changed", () => {
     const anchor = createDiv().createEl("button");
     document.body.appendChild(anchor.parentElement!);
     const settings = cloneSettings();
-    settings.availableTags = [{ name: "Inherited" }];
+    settings.availableTags = [];
+    settings.defaultTagColor = "#123456";
+    settings.defaultTagTextColor = "#abcdef";
     const cleanup = createTagsDropdownPortal({
       app: new App(),
       anchor,
@@ -168,17 +160,19 @@ describe("Tags dropdown portal (regression)", () => {
       item: buildArticle(),
       onTagAssignmentChange: () => {},
     });
-    const backgroundInput = document.querySelector<HTMLInputElement>(
-      ".rss-dashboard-tag-inline-color:not(.rss-dashboard-tag-inline-text-color)",
-    );
-    expect(backgroundInput).not.toBeNull();
-    backgroundInput!.value = "#fedcba";
-    backgroundInput!.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(
+      document.querySelector(
+        ".rss-dashboard-tag-inline-add-row input[type='color']",
+      ),
+    ).toBeNull();
+    document.querySelector<HTMLInputElement>(
+      ".rss-dashboard-tag-inline-input",
+    )!.value = "Later";
+    document
+      .querySelector<HTMLButtonElement>(".rss-dashboard-tag-inline-add")!
+      .click();
 
-    settings.defaultTagColor = "#123456";
-    refreshTagsDropdownPortalColors(document, settings);
-
-    expect(backgroundInput?.value).toBe("#fedcba");
+    expect(settings.availableTags).toStrictEqual([{ name: "Later" }]);
     cleanup();
   });
 
