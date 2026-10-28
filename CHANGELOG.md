@@ -80,6 +80,7 @@
 
 ### Fixes
 
+- FreshRSS **Sync now** reports an incomplete sync when it cannot confirm that remote read and unread state was reconciled for bound articles. [GH Issue #1680](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1680)
 - FreshRSS sync now imports articles when its ID list returns decimal IDs and article content returns Google Reader hexadecimal IDs. [GH Issue #1563](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1563)
 - Article titles no longer show literal HTML tags when a feed sends its title as escaped markup, such as The Atlantic's `<em>Wicker</em> Asks Whether Love and Marriage Are Incompatible`. The tags are removed when the feed is parsed, so the title reads as plain text in the dashboard, Reader, search, saved-note filenames and templates; feed titles are cleaned the same way, and descriptions and article content keep their HTML. [GH Issue #1534](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1534)
 - On phones and tablets, a card's Preview now stays hidden until you ask for it: a cover image you fetch arrives as the image instead of already covered by the Preview text, tapping the image shows the Preview without opening the article, and tapping it again returns to the image. Tapping elsewhere on the card still opens the article. On devices with hover, hovering or keyboard focus still reveals the Preview and clicking the image still opens the article. [GH Issue #1530](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1530)

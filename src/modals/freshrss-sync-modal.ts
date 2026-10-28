@@ -295,6 +295,8 @@ export class FreshRssSyncModal extends AccessibleModal {
     switch (status) {
       case "completed":
         return "FreshRSS sync completed.";
+      case "incomplete":
+        return "FreshRSS sync incomplete. Article-state reconciliation could not be confirmed.";
       case "failed":
         return "FreshRSS sync failed.";
       case "cancelled":
