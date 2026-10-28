@@ -84,6 +84,24 @@ describe("tag color palette controls", () => {
     ]);
   });
 
+  it("marks the Color trigger as a dropdown with a decorative up/down chevron", () => {
+    const field = createField("Background", "#123456");
+    const trigger = field.querySelector<HTMLButtonElement>(
+      ".rss-dashboard-tag-color-palette-control-color-trigger",
+    )!;
+
+    const chevron = trigger.querySelector<HTMLElement>(
+      ".rss-dashboard-tag-color-palette-control-chevron",
+    );
+    expect(chevron).not.toBeNull();
+    expect(chevron?.getAttribute("aria-hidden")).toBe("true");
+    expect(chevron?.querySelector("svg")).not.toBeNull();
+    // The icon is an svg, so the visible label text is unchanged.
+    expect(trigger.textContent).toBe("Custom #123456");
+    // The chevron sits after the label so it lands at the trigger's right edge.
+    expect(trigger.lastElementChild).toBe(chevron);
+  });
+
   it("preserves custom values on palette switches and selects a named preset", () => {
     const field = createField("Background", "#123456");
     const input = field.querySelector<HTMLInputElement>("input[type=color]")!;

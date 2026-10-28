@@ -1,4 +1,4 @@
-import { setTooltip } from "obsidian";
+import { setIcon, setTooltip } from "obsidian";
 import type {
   TagColorPalette,
   TagColorPaletteEntry,
@@ -65,6 +65,11 @@ function createPaletteControlElements(
   const selectedLabel = colorButton.createSpan({
     cls: `${CLS_CONTROL}-selected-label`,
   });
+  const chevron = colorButton.createSpan({
+    cls: `${CLS_CONTROL}-chevron`,
+    attr: { "aria-hidden": "true" },
+  });
+  setIcon(chevron, "chevrons-up-down");
   const valueReadout = container.createSpan({
     cls: `${CLS_CONTROL}-value-readout`,
     attr: { "aria-live": "off" },

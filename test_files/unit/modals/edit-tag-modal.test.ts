@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFileSync } from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import postcss from "postcss";
 import { App } from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { EditTagModal } from "../../../src/modals/edit-tag-modal";
@@ -404,6 +405,50 @@ describe("EditTagModal", () => {
       )?.[1];
 
       expect(rule).toMatch(/cursor:\s*pointer/);
+    });
+
+    it("gives Cancel and Save one shared shape: theme radius on desktop, a pill on mobile", () => {
+      // jsdom does not run the cascade, so assert the stylesheet contract.
+      // The scoped selector targets every footer button, so they cannot diverge.
+      const root = postcss.parse(
+        readFileSync(
+          path.resolve(
+            path.dirname(fileURLToPath(import.meta.url)),
+            "../../../src/styles/modals.css",
+          ),
+          "utf-8",
+        ),
+      );
+      const footerButtons =
+        ".rss-dashboard-edit-tag-modal .rss-dashboard-modal-buttons button";
+      const radiusIn = (container: postcss.Root | postcss.AtRule) => {
+        let radius: string | undefined;
+        container.each((node) => {
+          if (
+            node.type === "rule" &&
+            node.selectors
+              .map((s) => s.replace(/\s+/g, " "))
+              .includes(footerButtons)
+          ) {
+            node.each((decl) => {
+              if (decl.type === "decl" && decl.prop === "border-radius") {
+                radius = decl.value;
+              }
+            });
+          }
+        });
+        return radius;
+      };
+      const mobile = root.nodes.find(
+        (node): node is postcss.AtRule =>
+          node.type === "atrule" &&
+          node.name === "media" &&
+          node.params === "(max-width: 768px)" &&
+          radiusIn(node) !== undefined,
+      );
+
+      expect(radiusIn(root)).toBe("var(--button-radius, 6px)");
+      expect(mobile && radiusIn(mobile)).toBe("999px");
     });
 
     it("keeps the Custom color picker a fixed-size circle", () => {

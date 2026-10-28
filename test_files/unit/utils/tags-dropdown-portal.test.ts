@@ -310,6 +310,49 @@ describe("createTagsDropdownPortal tag editing", () => {
     );
     close();
   });
+
+  it("dismisses the popover once the tag editor opens, and still reports a saved edit", async () => {
+    const { anchor } = createModalWithAnchor();
+    const settings = JSON.parse(
+      JSON.stringify(DEFAULT_SETTINGS),
+    ) as typeof DEFAULT_SETTINGS;
+    settings.availableTags = [{ name: "News", color: "#ff0000" }];
+    const onClosed = vi.fn();
+    const onTagEdited = vi.fn();
+    const close = createTagsDropdownPortal({
+      app: new App(),
+      anchor,
+      settings,
+      item: makeItem(),
+      onTagAssignmentChange: vi.fn(),
+      onTagEdited,
+      onClosed,
+    });
+
+    document
+      .querySelector<HTMLElement>(".rss-dashboard-tag-edit-button")!
+      .click();
+
+    expect(
+      document.querySelector(".rss-dashboard-tags-dropdown-content-portal"),
+    ).toBeNull();
+    expect(onClosed).toHaveBeenCalledTimes(1);
+    expect(
+      document.querySelector(".rss-dashboard-edit-tag-modal"),
+    ).not.toBeNull();
+
+    document.querySelector<HTMLInputElement>(
+      ".rss-dashboard-tag-modal-name-input",
+    )!.value = "Updates";
+    document
+      .querySelector<HTMLButtonElement>("button.rss-dashboard-primary-button")!
+      .click();
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(onTagEdited).toHaveBeenCalledTimes(1);
+    expect(onTagEdited.mock.calls[0][1]).toMatchObject({ name: "Updates" });
+    close();
+  });
 });
 
 describe("createTagsDropdownPortal keyboard operation", () => {

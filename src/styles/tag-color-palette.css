@@ -61,7 +61,22 @@
   background: var(--tag-color-swatch, transparent);
 }
 
+.rss-dashboard-tag-color-palette-control-chevron {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  margin-left: auto;
+  color: var(--text-muted);
+}
+
+.rss-dashboard-tag-color-palette-control-chevron svg {
+  width: var(--icon-s);
+  height: var(--icon-s);
+}
+
 .rss-dashboard-tag-color-palette-control-selected-label {
+  flex: 0 1 auto;
+  min-width: 0;
   overflow: hidden;
   color: var(--text-normal);
   text-overflow: ellipsis;

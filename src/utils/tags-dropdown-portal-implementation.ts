@@ -50,6 +50,7 @@ interface PortalContext {
 interface PortalContentContext extends PortalContext {
   tagsListContainer: HTMLElement;
   tagSeparator: HTMLElement;
+  closeDropdown: PortalLifecycle["closeDropdown"];
 }
 
 interface PortalLifecycle {
@@ -127,9 +128,11 @@ function createPortalContext(
 
 function createPortalContentContext(
   context: PortalContext,
+  closeDropdown: PortalLifecycle["closeDropdown"],
 ): PortalContentContext {
   return {
     ...context,
+    closeDropdown,
     tagsListContainer: context.portalDropdown.createDiv({
       cls: "rss-dashboard-tag-list",
     }),
@@ -302,9 +305,10 @@ function createTagItemButtons(
           persistSettings(context);
           notifySettingsTagsMutated(context);
           context.onTagEdited?.(previousTag, updatedTag);
-          rerenderTagItems(context);
         },
       });
+      // The editor takes over, so the popover (or mobile sheet) steps aside.
+      context.closeDropdown();
     },
   });
   const deleteButton = createIconButton({
@@ -320,14 +324,6 @@ function createTagItemButtons(
     },
   });
   tagItem.appendChild(deleteButton);
-}
-
-function rerenderTagItems(context: PortalContentContext): void {
-  context.tagsListContainer.empty();
-  for (const nextTag of context.settings.availableTags) {
-    appendTagItem(context, nextTag);
-  }
-  updateTagSeparatorVisibility(context);
 }
 
 function addInlineTagControls(
@@ -669,7 +665,7 @@ export function createTagsDropdownPortalImplementation(
   const closeDropdown = (restoreFocus?: boolean) =>
     lifecycle.closeDropdown(restoreFocus);
   addMobileSheetHeader(context, closeDropdown);
-  const contentContext = createPortalContentContext(context);
+  const contentContext = createPortalContentContext(context, closeDropdown);
   addPortalContent(contentContext, closeDropdown);
   context.mountEl.appendChild(context.portalDropdown);
   context.portalDropdown.addClass("rss-dashboard-tags-dropdown-content-portal");

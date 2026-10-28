@@ -1028,6 +1028,7 @@ body .rss-dashboard-tag-modal-color-picker::-moz-color-swatch {
   box-sizing: border-box;
   margin: 0;
   padding: 0 16px;
+  border-radius: var(--button-radius, 6px);
   line-height: 1.2;
   cursor: pointer;
 }
@@ -1044,6 +1045,10 @@ body .rss-dashboard-tag-modal-color-picker::-moz-color-swatch {
   }
   .rss-dashboard-edit-tag-modal .rss-dashboard-tag-modal-name-input {
     font-size: 16px;
+  }
+  /* Obsidian's mobile buttons are pills; Cancel and Save share that shape. */
+  .rss-dashboard-edit-tag-modal .rss-dashboard-modal-buttons button {
+    border-radius: 999px;
   }
 }
 
