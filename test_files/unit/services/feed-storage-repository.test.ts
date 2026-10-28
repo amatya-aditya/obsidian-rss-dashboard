@@ -271,6 +271,37 @@ describe("FeedStorageRepository", () => {
     expect(saveData).not.toHaveBeenCalled();
   });
 
+  it("does not persist settings when a shard write silently leaves an empty file", async () => {
+    const settings = cloneSettings();
+    settings.storageMode = "vault-shards";
+    settings.storageFolder = "RSS Data/Feeds";
+    settings.feeds = [makeFeed({ feedId: "feed-1" })];
+    await app.vault.createFolder("RSS Data/Feeds");
+
+    const originalWrite = vaultAdapter(app).write.bind(app.vault.adapter);
+    vi.spyOn(app.vault.adapter, "write").mockImplementation(
+      async (path, content) => {
+        await originalWrite(
+          path,
+          path === "RSS Data/Feeds/feed-1.json" ? "" : content,
+        );
+      },
+    );
+
+    await expect(
+      repository.persistSettings(settings, saveData, {
+        forceAllShards: true,
+        forceMetadata: true,
+      }),
+    ).rejects.toThrow("Feed shard write could not be verified.");
+
+    expect(await vaultAdapter(app).read("RSS Data/Feeds/feed-1.json")).toBe("");
+    expect(saveData).not.toHaveBeenCalled();
+    expect(repository.getFeedShardHealth(settings.feeds[0])).not.toBe(
+      "rebuilt",
+    );
+  });
+
   it("reports a missing shard after hydration", async () => {
     const settings = cloneSettings();
     settings.storageMode = "vault-shards";
