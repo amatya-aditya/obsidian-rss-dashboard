@@ -412,6 +412,19 @@ body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
   white-space: normal;
   overflow-wrap: anywhere;
 }
+/* The storage-upgrade prompt can show three long labels; wrap them inside
+ * their buttons instead of letting the text spill past the edges. */
+.rss-dashboard-storage-migration-modal .rss-dashboard-modal-buttons {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.rss-dashboard-storage-migration-modal .rss-dashboard-modal-buttons button {
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 /* The display rule above would otherwise override the hidden attribute. */
 .rss-dashboard-custom-save-modal .rss-dashboard-modal-buttons button[hidden] {
   display: none;
