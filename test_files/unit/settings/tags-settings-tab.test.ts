@@ -477,7 +477,7 @@ describe("renderTagsSettingsTab()", () => {
 
     const dialog = document.querySelector(".rss-dashboard-edit-tag-modal");
     expect(dialog).not.toBeNull();
-    expect(dialogName(dialog)).toBe("Edit tag");
+    expect(dialogName(dialog)).toBe("Add/edit tag");
 
     const nameInput = dialog?.querySelector<HTMLInputElement>(
       ".rss-dashboard-tag-modal-name-input",

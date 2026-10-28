@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { App } from "obsidian";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { EditTagModal } from "../../../src/modals/edit-tag-modal";
@@ -199,16 +202,39 @@ describe("EditTagModal", () => {
     expect(useTextDefault.checked).toBe(false);
     useBackgroundDefault.click();
     expect(backgroundInput.disabled).toBe(true);
-    expect(backgroundInput.value).toBe("");
+    // The picker stays visible, showing the inherited color.
+    expect(backgroundInput.type).toBe("color");
+    expect(backgroundInput.value).toBe("#123456");
     expect(textInput.disabled).toBe(false);
     expect(preview.style.getPropertyValue("--tag-color")).toBe("#123456");
     expect(preview.style.getPropertyValue("--tag-text-color")).toBe("#dddddd");
 
     useTextDefault.click();
     expect(textInput.disabled).toBe(true);
-    expect(textInput.value).toBe("");
+    expect(textInput.type).toBe("color");
+    expect(textInput.value).toBe("#abcdef");
     expect(preview.style.getPropertyValue("--tag-color")).toBe("#123456");
     expect(preview.style.getPropertyValue("--tag-text-color")).toBe("#abcdef");
+  });
+
+  it("restores the custom color when Use default is switched back off", () => {
+    const settings = makeSettings();
+    settings.defaultTagColor = "#123456";
+    const tag = settings.availableTags[0];
+    new EditTagModal(new App(), { settings, tag }).open();
+
+    const backgroundInput = document.querySelector<HTMLInputElement>(
+      ".rss-dashboard-tag-modal-background-input",
+    )!;
+    const useBackgroundDefault = document.querySelector<HTMLInputElement>(
+      ".rss-dashboard-tag-modal-background-default",
+    )!;
+
+    useBackgroundDefault.click();
+    expect(backgroundInput.value).toBe("#123456");
+    useBackgroundDefault.click();
+    expect(backgroundInput.disabled).toBe(false);
+    expect(backgroundInput.value).toBe("#111111");
   });
 
   it("saves cleared overrides as inheritance and preserves the other override", async () => {
@@ -239,6 +265,162 @@ describe("EditTagModal", () => {
       name: "Tech",
       color: undefined,
       textColor: "#dddddd",
+    });
+  });
+
+  describe("layout", () => {
+    function openModal() {
+      const settings = makeSettings();
+      new EditTagModal(new App(), {
+        settings,
+        tag: settings.availableTags[0],
+      }).open();
+      return document.querySelector<HTMLElement>(
+        ".rss-dashboard-edit-tag-modal",
+      )!;
+    }
+
+    it("names the dialog Add/edit tag so the modal can serve both flows", () => {
+      openModal();
+
+      const container =
+        document.querySelector<HTMLElement>(".modal-container")!;
+      const headingId = container.getAttribute("aria-labelledby")!;
+      expect(document.getElementById(headingId)?.textContent).toBe(
+        "Add/edit tag",
+      );
+    });
+
+    it("labels the name field above the input", () => {
+      const dialog = openModal();
+
+      const label = dialog.querySelector(".rss-dashboard-tag-modal-name-label");
+      expect(label?.textContent).toBe("Tag name");
+      // The clear-button helper wraps the input, so the label's next sibling
+      // contains the input rather than being it.
+      expect(
+        label?.nextElementSibling?.querySelector(
+          "input.rss-dashboard-tag-modal-name-input",
+        ),
+      ).not.toBeNull();
+      expect(label?.getAttribute("for")).toBe(
+        dialog
+          .querySelector(".rss-dashboard-tag-modal-name-input")
+          ?.getAttribute("id"),
+      );
+    });
+
+    it("lists Background then Text, each with Use default, Palette, Color and Custom rows", () => {
+      const dialog = openModal();
+
+      const sections = Array.from(
+        dialog.querySelectorAll<HTMLElement>(
+          ".rss-dashboard-tag-modal-section",
+        ),
+      );
+      expect(
+        sections.map(
+          (section) =>
+            section.querySelector(".rss-dashboard-tag-modal-section-title")
+              ?.textContent,
+        ),
+      ).toEqual(["Background", "Text"]);
+
+      for (const section of sections) {
+        const header = section.querySelector(
+          ".rss-dashboard-tag-modal-section-header",
+        )!;
+        expect(header.textContent).toContain("Use default");
+        expect(header.querySelector("input[type=checkbox]")).not.toBeNull();
+        expect(
+          section.querySelector(
+            ".rss-dashboard-tag-color-palette-control select",
+          ),
+        ).not.toBeNull();
+        expect(
+          section.querySelector(
+            ".rss-dashboard-tag-color-palette-control-color-trigger",
+          ),
+        ).not.toBeNull();
+
+        const custom = section.querySelector(
+          ".rss-dashboard-tag-modal-custom-row",
+        )!;
+        expect(custom.textContent).toContain("Custom");
+        expect(
+          custom.querySelector("input.rss-dashboard-tag-modal-color-picker"),
+        ).not.toBeNull();
+        expect(
+          custom.querySelector(
+            ".rss-dashboard-tag-color-palette-control-value-readout",
+          ),
+        ).not.toBeNull();
+      }
+    });
+
+    it("shows only the chip inside a Live preview card, with no form-state callout", () => {
+      const dialog = openModal();
+
+      const card = dialog.querySelector(
+        ".rss-dashboard-tag-modal-preview-card",
+      )!;
+      expect(card.textContent).toContain("Live preview");
+      expect(
+        card.querySelector(".rss-dashboard-tag-modal-preview")?.textContent,
+      ).toBe("Tech");
+      expect(card.textContent).not.toContain("Updates as you choose");
+      expect(dialog.textContent).not.toContain("Current form state");
+    });
+
+    it("ends with a footer holding Cancel then Save changes", () => {
+      const dialog = openModal();
+
+      const footer = dialog.querySelector(".rss-dashboard-modal-buttons")!;
+      expect(
+        footer.parentElement?.classList.contains(
+          "rss-dashboard-tag-modal-form",
+        ),
+      ).toBe(true);
+      expect(footer.previousElementSibling?.className).toContain(
+        "rss-dashboard-tag-modal-preview-card",
+      );
+      expect(
+        Array.from(footer.querySelectorAll("button")).map(
+          (button) => button.textContent,
+        ),
+      ).toEqual(["Cancel", "Save changes"]);
+    });
+
+    it("shows the pointer cursor over the Cancel and Save buttons", () => {
+      const css = readFileSync(
+        path.resolve(
+          path.dirname(fileURLToPath(import.meta.url)),
+          "../../../src/styles/modals.css",
+        ),
+        "utf-8",
+      );
+      const rule = css.match(
+        /\.rss-dashboard-edit-tag-modal \.rss-dashboard-modal-buttons button\s*\{([^}]*)\}/,
+      )?.[1];
+
+      expect(rule).toMatch(/cursor:\s*pointer/);
+    });
+
+    it("keeps the Custom color picker a fixed-size circle", () => {
+      const css = readFileSync(
+        path.resolve(
+          path.dirname(fileURLToPath(import.meta.url)),
+          "../../../src/styles/modals.css",
+        ),
+        "utf-8",
+      );
+      const rule = css.match(
+        /body \.rss-dashboard-tag-modal-color-picker\s*\{([^}]*)\}/,
+      )?.[1];
+
+      expect(rule).toMatch(/width:\s*38px/);
+      expect(rule).toMatch(/height:\s*38px/);
+      expect(rule).toMatch(/border-radius:\s*50%/);
     });
   });
 });

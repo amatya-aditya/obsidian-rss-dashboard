@@ -157,14 +157,29 @@
   grid-column: 3;
 }
 
-.rss-dashboard-edit-tag-modal .setting-item-control {
-  flex-wrap: wrap;
-  align-items: end;
-  gap: 8px;
+.rss-dashboard-edit-tag-modal .rss-dashboard-tag-color-palette-control {
+  display: grid;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
 }
 
-.rss-dashboard-edit-tag-modal .rss-dashboard-tag-color-palette-control {
-  flex: 1 1 240px;
+.rss-dashboard-edit-tag-modal .rss-dashboard-tag-color-palette-control-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.rss-dashboard-edit-tag-modal
+  .rss-dashboard-tag-color-palette-control-color-field {
+  flex: initial;
+}
+
+.rss-dashboard-edit-tag-modal .rss-dashboard-tag-color-palette-control select,
+.rss-dashboard-edit-tag-modal
+  .rss-dashboard-tag-color-palette-control-color-trigger {
+  width: 100%;
 }
 
 .rss-dashboard-settings .rss-dashboard-tag-color-palette-control {
