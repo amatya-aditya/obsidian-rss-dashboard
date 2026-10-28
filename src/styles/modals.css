@@ -254,6 +254,12 @@ body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
   gap: 0.5rem;
   padding: 0.8rem;
 }
+
+/* Confirmation modals whose action row is centered, not end-aligned. */
+.rss-dashboard-modal .rss-max-items-apply-buttons,
+.rss-dashboard-modal .rss-retention-change-buttons {
+  justify-content: center;
+}
 .rss-dashboard-modal-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
