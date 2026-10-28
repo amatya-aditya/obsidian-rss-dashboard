@@ -126,31 +126,34 @@ describe("articleHtmlToMarkdown tables (#1193)", () => {
     expect(markdown).toBe("Before\n\n| a |\n| --- |\n\nAfter");
   });
 
-  describe("backslashes in a cell", () => {
+  describe("backslashes before a pipe in a cell", () => {
     const tableWithCell = (cell: string) =>
       articleHtmlToMarkdown(
         `<table><tbody><tr><td>${cell}</td><td>c</td></tr></tbody></table>`,
       );
-    // The converter escapes each source backslash (1 -> 2); the table step then
-    // doubles every backslash run that sits directly before a pipe.
     const backslashes = (count: number) => "\\".repeat(count);
+    const row = (cell: string) => `| ${cell} | c |\n| --- | --- |`;
+    // The converter escapes each backslash in text (1 -> 2), so an even run
+    // reaches the table step and the pipe still needs its own backslash.
 
-    it("keeps a backslash before a pipe from escaping the cell separator", () => {
-      expect(tableWithCell("a\\|b")).toBe(
-        `| a${backslashes(4)}\\|b | c |\n| --- | --- |`,
-      );
+    it("escapes the pipe after a text backslash without changing what renders", () => {
+      expect(tableWithCell("a\\|b")).toBe(row(`a${backslashes(3)}|b`));
     });
 
-    it("doubles a longer backslash run before a pipe", () => {
-      expect(tableWithCell("a\\\\|b")).toBe(
-        `| a${backslashes(8)}\\|b | c |\n| --- | --- |`,
+    it("escapes the pipe after a longer text backslash run", () => {
+      expect(tableWithCell("a\\\\|b")).toBe(row(`a${backslashes(5)}|b`));
+    });
+
+    // Code is not escaped by the converter, so the run is odd: the pipe is
+    // already escaped, and one more backslash would split the cell.
+    it("leaves a pipe that a code span already escapes alone", () => {
+      expect(tableWithCell("<code>a\\|b</code>")).toBe(
+        row("`a" + backslashes(1) + "|b`"),
       );
     });
 
     it("leaves backslashes that are not followed by a pipe alone", () => {
-      expect(tableWithCell("a*b\\c")).toBe(
-        `| a\\*b${backslashes(2)}c | c |\n| --- | --- |`,
-      );
+      expect(tableWithCell("a*b\\c")).toBe(row(`a\\*b${backslashes(2)}c`));
     });
   });
 });

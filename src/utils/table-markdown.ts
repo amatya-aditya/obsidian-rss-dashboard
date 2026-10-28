@@ -55,17 +55,30 @@ function separatorFor(cell: Element): string {
   return ALIGNMENT_SEPARATORS[align] ?? DEFAULT_SEPARATOR;
 }
 
+/**
+ * Escapes each pipe that would otherwise end the cell. A pipe that an odd run
+ * of backslashes already escapes is left alone, as in a code span's `a\|b`:
+ * adding another backslash there would leave an even run and split the cell.
+ */
+function escapeCellPipes(text: string): string {
+  let escaped = "";
+  let backslashes = 0;
+  for (const char of text) {
+    if (char === "|" && backslashes % 2 === 0) escaped += "\\";
+    escaped += char;
+    backslashes = char === "\\" ? backslashes + 1 : 0;
+  }
+  return escaped;
+}
+
 /** Flattens a cell's Markdown to one table-safe line. */
 function flattenCellMarkdown(markdown: string): string {
-  return (
+  return escapeCellPipes(
     markdown
       .split(/\r?\n/)
       .map((line) => line.trim())
       .filter((line) => line.length > 0)
-      .join("<br>")
-      // A backslash before a pipe would otherwise escape the escaping backslash.
-      .replace(/(\\+)(?=\|)/g, "$1$1")
-      .replace(/\|/g, "\\|")
+      .join("<br>"),
   );
 }
 
