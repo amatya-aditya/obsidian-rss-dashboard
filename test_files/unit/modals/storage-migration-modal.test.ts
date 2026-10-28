@@ -61,6 +61,13 @@ describe("StorageMigrationModal", () => {
     expect(modal.contentEl.textContent).toContain("3.0");
   });
 
+  it("scopes the modal so its button labels can wrap", () => {
+    const modal = openModal(createPlugin());
+    expect(
+      modal.modalEl.classList.contains("rss-dashboard-storage-migration-modal"),
+    ).toBe(true);
+  });
+
   it("closes without recording anything on 'Remind me later'", async () => {
     const plugin = createPlugin();
     const modal = openModal(plugin);
