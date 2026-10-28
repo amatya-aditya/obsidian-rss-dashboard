@@ -57,12 +57,16 @@ function separatorFor(cell: Element): string {
 
 /** Flattens a cell's Markdown to one table-safe line. */
 function flattenCellMarkdown(markdown: string): string {
-  return markdown
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .join("<br>")
-    .replace(/\|/g, "\\|");
+  return (
+    markdown
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .join("<br>")
+      // A backslash before a pipe would otherwise escape the escaping backslash.
+      .replace(/(\\+)(?=\|)/g, "$1$1")
+      .replace(/\|/g, "\\|")
+  );
 }
 
 function formatRow(cells: string[], columnCount: number): string {

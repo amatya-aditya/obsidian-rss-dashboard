@@ -2,6 +2,8 @@
 
 ### Fixes
 
+- A feed item title with an unclosed formatting tag followed by a long run of text, such as `<i ` and dozens of `!`, no longer freezes the dashboard while the title is cleaned up.
+- A saved table cell containing a backslash right before a pipe, such as `a\|b`, now keeps its column layout instead of splitting into an extra column.
 - The buttons in the "Storage mode is being retired" upgrade prompt now wrap their labels inside the buttons instead of spilling outside them.
 - The folder selector now sits directly above its button when there is no room below it, instead of opening downward over the button and off the bottom of the screen. [GH Issue #1687](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1687)
 - The Discover header now scrolls away with the page instead of staying pinned over the feed cards, and the folder selector now closes as soon as you tap **Add new folder**, so the create-folder dialog opens on its own instead of overlapping a dimmed list. Cancelling the dialog, with Cancel or Escape, leaves nothing open; tap **Add to…** again to restart. [GH Issue #1684](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1684)

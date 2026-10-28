@@ -125,4 +125,32 @@ describe("articleHtmlToMarkdown tables (#1193)", () => {
 
     expect(markdown).toBe("Before\n\n| a |\n| --- |\n\nAfter");
   });
+
+  describe("backslashes in a cell", () => {
+    const tableWithCell = (cell: string) =>
+      articleHtmlToMarkdown(
+        `<table><tbody><tr><td>${cell}</td><td>c</td></tr></tbody></table>`,
+      );
+    // The converter escapes each source backslash (1 -> 2); the table step then
+    // doubles every backslash run that sits directly before a pipe.
+    const backslashes = (count: number) => "\\".repeat(count);
+
+    it("keeps a backslash before a pipe from escaping the cell separator", () => {
+      expect(tableWithCell("a\\|b")).toBe(
+        `| a${backslashes(4)}\\|b | c |\n| --- | --- |`,
+      );
+    });
+
+    it("doubles a longer backslash run before a pipe", () => {
+      expect(tableWithCell("a\\\\|b")).toBe(
+        `| a${backslashes(8)}\\|b | c |\n| --- | --- |`,
+      );
+    });
+
+    it("leaves backslashes that are not followed by a pipe alone", () => {
+      expect(tableWithCell("a*b\\c")).toBe(
+        `| a\\*b${backslashes(2)}c | c |\n| --- | --- |`,
+      );
+    });
+  });
 });
