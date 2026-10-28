@@ -6,10 +6,12 @@ and shutdown orchestration, and thin compatibility delegation. Feature logic,
 persistence implementations, migrations, UI construction, and substantial
 state machines belong behind focused module interfaces under `src/`.
 
-These guardrails stop new drift while the monolithic files are broken up
+These guardrails stop new drift after the monolithic files were broken up
 ([#436](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/436)).
-They are not extraction mandates: existing debt is recorded and can only
-shrink.
+They are not extraction mandates. The function-length and complexity backlog
+is cleared
+([#1094](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1094)),
+so those two rules now hold with no recorded exceptions.
 
 ## Architecture Preflight
 
@@ -52,11 +54,15 @@ File-size ratchets have been removed. They blocked routine bug fixes based on ar
 
 ### ESLint suppressions
 
-Functions that already broke the length or complexity limit when the rules
-were introduced are recorded in `scripts/eslint-suppressions.json`, as a
-count per file and rule. `npm run lint` passes it with
-`--suppressions-location`. A new violation in any file fails lint; so does one
-more violation in a file that already has suppressions.
+`scripts/eslint-suppressions.json` is the ledger of functions allowed to break
+the length or complexity limit, as a count per file and rule. It is `{}`: the
+burn-down
+([#1094](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1094))
+cleared every entry, so `main.ts` and `src/` have no exceptions. `npm run lint`
+still passes the file with `--suppressions-location`, and so do the pre-commit
+hook and the commit-message check. Keep the file and the flag: with the file
+missing, ESLint exits 2 ("The suppressions file does not exist"). Any new
+violation fails lint, and a new entry is an exception (see below).
 
 The file stays out of the repo root on purpose. The Obsidian community
 directory scanner lints the default branch (`master`) without loading
@@ -65,14 +71,10 @@ directory scanner lints the default branch (`master`) without loading
 entirely unused to it, and the scanner rejects the release and delists the
 plugin.
 
-After a refactor removes a violation, prune the file in the same PR:
-
-```bash
-npm run lint:prune
-```
-
 Never add suppressions by hand or with `--suppress-all` or `--suppress-rule`
-to make a change pass. That is an exception (see below).
+to make a change pass. Split the function instead. Recording one is an
+exception (see below). `npm run lint:prune` stays available for the day an
+approved exception is later removed.
 
 ### Characterization tests
 
@@ -128,9 +130,9 @@ ticket names each over-limit function and its planned split up front.
 
 Both go in the wiring commit. Lower the file's entry in
 `scripts/architecture-baseline.json` to the count `npm run check:architecture`
-reports, which runs one more than `wc -l`. Then run
-`npm run lint:prune` and confirm it touched only the target
-file's entries.
+reports, which runs one more than `wc -l`. The suppression ledger is empty, so
+there is nothing to prune; if an approved exception ever lands there, run
+`npm run lint:prune` and confirm it touched only the target file's entries.
 
 ## Exceptions
 
