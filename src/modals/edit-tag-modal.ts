@@ -15,6 +15,8 @@ export interface EditTagModalOptions {
   tag: Readonly<Tag>;
   onSave?: (updatedTag: Tag) => Promise<void> | void;
   submitLabel?: string;
+  /** `tag` is a draft that is not in `settings.availableTags`; Save adds it. */
+  isNew?: boolean;
 }
 
 interface TagAppearanceInputConfig {
@@ -222,7 +224,8 @@ export class EditTagModal extends AccessibleModal {
   }
 
   onOpen() {
-    const { settings, tag, onSave, submitLabel = "Save changes" } = this.opts;
+    const { settings, tag, onSave, isNew = false } = this.opts;
+    const { submitLabel = isNew ? "Add tag" : "Save changes" } = this.opts;
     const { contentEl } = this;
     contentEl.empty();
 
@@ -317,14 +320,27 @@ export class EditTagModal extends AccessibleModal {
         } else if (controls[1]) {
           tagUpdate.textColor = controls[1].input.value;
         }
-        updateTagInSettings(settings, tag, tagUpdate);
-
-        if (onSave) {
-          await onSave({ ...tag, ...tagUpdate });
+        if (isNew) {
+          const newTag: Tag = {
+            name: newTagName,
+            ...(tagUpdate.color ? { color: tagUpdate.color } : {}),
+            ...(tagUpdate.textColor ? { textColor: tagUpdate.textColor } : {}),
+          };
+          settings.availableTags.push(newTag);
+          if (onSave) {
+            await onSave(newTag);
+          }
+        } else {
+          updateTagInSettings(settings, tag, tagUpdate);
+          if (onSave) {
+            await onSave({ ...tag, ...tagUpdate });
+          }
         }
         this.close();
 
-        new Notice(`Tag "${newTagName}" updated successfully!`);
+        new Notice(
+          `Tag "${newTagName}" ${isNew ? "added" : "updated"} successfully!`,
+        );
       })();
     });
 

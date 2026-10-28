@@ -357,6 +357,103 @@ describe("EditTagModal", () => {
     });
   });
 
+  describe("create mode", () => {
+    function openCreate(name = "Later") {
+      const settings = makeSettings();
+      const onSave = vi.fn();
+      new EditTagModal(new App(), {
+        settings,
+        tag: { name },
+        onSave,
+        isNew: true,
+      }).open();
+      return { settings, onSave };
+    }
+    const nameInput = () =>
+      document.querySelector<HTMLInputElement>(
+        ".rss-dashboard-tag-modal-name-input",
+      )!;
+    const submit = async () => {
+      document
+        .querySelector<HTMLButtonElement>(".rss-dashboard-primary-button")!
+        .click();
+      await flushPromises();
+    };
+
+    it("prefills the name, keeps both colors on Use default and labels the button Add tag", () => {
+      openCreate();
+
+      expect(nameInput().value).toBe("Later");
+      expect(
+        document.querySelector<HTMLInputElement>(
+          ".rss-dashboard-tag-modal-background-default",
+        )?.checked,
+      ).toBe(true);
+      expect(
+        document.querySelector<HTMLInputElement>(
+          ".rss-dashboard-tag-modal-text-default",
+        )?.checked,
+      ).toBe(true);
+      expect(
+        document.querySelector(".rss-dashboard-primary-button")?.textContent,
+      ).toBe("Add tag");
+    });
+
+    it("adds the tag without color keys and reports it through onSave", async () => {
+      const { settings, onSave } = openCreate();
+
+      await submit();
+
+      expect(settings.availableTags).toHaveLength(3);
+      expect(settings.availableTags[2]).toStrictEqual({ name: "Later" });
+      expect(onSave).toHaveBeenCalledTimes(1);
+      expect(onSave).toHaveBeenCalledWith({ name: "Later" });
+      expect(
+        document.querySelector(".rss-dashboard-edit-tag-modal"),
+      ).toBeNull();
+    });
+
+    it("stores a picked color and leaves the other on default", async () => {
+      const { settings } = openCreate();
+      const picker = document.querySelector<HTMLInputElement>(
+        ".rss-dashboard-tag-modal-text-input",
+      )!;
+      picker.value = "#abcdef";
+      picker.dispatchEvent(new Event("input", { bubbles: true }));
+
+      await submit();
+
+      expect(settings.availableTags[2]).toStrictEqual({
+        name: "Later",
+        textColor: "#abcdef",
+      });
+    });
+
+    it("trims the typed name", async () => {
+      const { settings } = openCreate();
+      nameInput().value = "  Spaced  ";
+
+      await submit();
+
+      expect(settings.availableTags[2].name).toBe("Spaced");
+    });
+
+    it.each([
+      ["an empty name", "  "],
+      ["a name that exists in another case", "tech"],
+    ])("refuses %s and stays open", async (_label, typed) => {
+      const { settings, onSave } = openCreate(typed);
+
+      await submit();
+
+      expect(settings.availableTags).toHaveLength(2);
+      expect(onSave).not.toHaveBeenCalled();
+      expect(
+        document.querySelector(".rss-dashboard-edit-tag-modal"),
+      ).not.toBeNull();
+    });
+  });
+
   describe("layout", () => {
     function openModal() {
       const settings = makeSettings();

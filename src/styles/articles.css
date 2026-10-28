@@ -590,38 +590,13 @@ body .rss-dashboard-star-toggle svg {
 /* Inline add-row inside the dropdown */
 .rss-dashboard-tag-inline-add-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 6px;
   padding: 6px 8px;
 }
 
-.rss-dashboard-tag-inline-color-field {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: 26px minmax(0, 1fr);
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.rss-dashboard-tag-inline-color-field .rss-dashboard-tag-color-palette-control {
-  grid-column: 2;
-  width: 100%;
-}
-
-.rss-dashboard-tag-inline-color {
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  background: transparent;
-}
-
 .rss-dashboard-tag-inline-input {
-  grid-column: 1 / -1;
   min-width: 0;
   padding: 4px 8px;
   border: 1px solid var(--background-modifier-border);
@@ -629,15 +604,6 @@ body .rss-dashboard-star-toggle svg {
   background: var(--background-secondary);
   color: var(--text-normal);
   font-size: 12px;
-}
-
-.rss-dashboard-tag-inline-add-row
-  .rss-dashboard-tag-inline-button:not(.rss-dashboard-tag-inline-settings) {
-  grid-column: 2;
-}
-
-.rss-dashboard-tag-inline-add-row .rss-dashboard-tag-inline-settings {
-  grid-column: 3;
 }
 
 .rss-dashboard-tag-inline-input:focus {

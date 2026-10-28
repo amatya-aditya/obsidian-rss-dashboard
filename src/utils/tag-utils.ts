@@ -126,15 +126,17 @@ export function showEditTagModal({
   settings,
   tag,
   onSave,
-  submitLabel = "Save changes",
+  submitLabel,
+  isNew,
 }: {
   app: App;
   settings: Readonly<RssDashboardSettings>;
   tag: Readonly<Tag>;
   onSave?: (updatedTag: Tag) => Promise<void> | void;
   submitLabel?: string;
+  isNew?: boolean;
 }): void {
-  new EditTagModal(app, { settings, tag, onSave, submitLabel }).open();
+  new EditTagModal(app, { settings, tag, onSave, submitLabel, isNew }).open();
 }
 
 /**

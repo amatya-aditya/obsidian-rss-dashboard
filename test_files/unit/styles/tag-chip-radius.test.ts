@@ -103,7 +103,6 @@ const EXCLUDED_SHAPES: Array<[string, string]> = [
   [".rss-dashboard-tag-color-dot", "50%"],
   [".rss-discover-tag-color-dot", "50%"],
   [".rss-dashboard-tag-multi-select-menu-swatch", "999px"],
-  [".rss-dashboard-tag-inline-color", "4px"],
   ["body .rss-dashboard-tag-color-picker", "50%"],
   [".rss-dashboard-tags-toggle", "12px"],
   [".rss-dashboard-tags-dropdown-content", "4px"],
