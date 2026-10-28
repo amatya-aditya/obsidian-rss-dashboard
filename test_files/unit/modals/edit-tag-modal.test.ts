@@ -202,8 +202,8 @@ describe("EditTagModal", () => {
     expect(useBackgroundDefault.checked).toBe(false);
     expect(useTextDefault.checked).toBe(false);
     useBackgroundDefault.click();
-    expect(backgroundInput.disabled).toBe(true);
-    // The picker stays visible, showing the inherited color.
+    // The picker stays visible and clickable, showing the inherited color.
+    expect(backgroundInput.disabled).toBe(false);
     expect(backgroundInput.type).toBe("color");
     expect(backgroundInput.value).toBe("#123456");
     expect(textInput.disabled).toBe(false);
@@ -211,7 +211,7 @@ describe("EditTagModal", () => {
     expect(preview.style.getPropertyValue("--tag-text-color")).toBe("#dddddd");
 
     useTextDefault.click();
-    expect(textInput.disabled).toBe(true);
+    expect(textInput.disabled).toBe(false);
     expect(textInput.type).toBe("color");
     expect(textInput.value).toBe("#abcdef");
     expect(preview.style.getPropertyValue("--tag-color")).toBe("#123456");
@@ -236,6 +236,94 @@ describe("EditTagModal", () => {
     useBackgroundDefault.click();
     expect(backgroundInput.disabled).toBe(false);
     expect(backgroundInput.value).toBe("#111111");
+  });
+
+  describe("Custom picker while Use default is on", () => {
+    function pickColor(input: HTMLInputElement, value: string) {
+      input.value = value;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    function openWithInheritedBackground(onSave = vi.fn()) {
+      const settings = makeSettings();
+      settings.defaultTagColor = "#123456";
+      const tag = { name: "Tech", textColor: "#dddddd" };
+      settings.availableTags[0] = tag;
+      new EditTagModal(new App(), { settings, tag, onSave }).open();
+      return {
+        settings,
+        onSave,
+        backgroundInput: document.querySelector<HTMLInputElement>(
+          ".rss-dashboard-tag-modal-background-input",
+        )!,
+        useBackgroundDefault: document.querySelector<HTMLInputElement>(
+          ".rss-dashboard-tag-modal-background-default",
+        )!,
+        useTextDefault: document.querySelector<HTMLInputElement>(
+          ".rss-dashboard-tag-modal-text-default",
+        )!,
+        preview: document.querySelector<HTMLElement>(
+          ".rss-dashboard-tag-modal-preview",
+        )!,
+      };
+    }
+
+    it("is clickable from the start and unchecks Use default when its color changes", () => {
+      const { backgroundInput, useBackgroundDefault, useTextDefault, preview } =
+        openWithInheritedBackground();
+
+      expect(useBackgroundDefault.checked).toBe(true);
+      expect(backgroundInput.disabled).toBe(false);
+      expect(backgroundInput.value).toBe("#123456");
+
+      pickColor(backgroundInput, "#00ff00");
+
+      expect(useBackgroundDefault.checked).toBe(false);
+      expect(backgroundInput.value).toBe("#00ff00");
+      expect(preview.style.getPropertyValue("--tag-color")).toBe("#00ff00");
+      // The other section is untouched.
+      expect(useTextDefault.checked).toBe(false);
+      expect(preview.style.getPropertyValue("--tag-text-color")).toBe(
+        "#dddddd",
+      );
+    });
+
+    it("saves the picked color instead of inheriting the default", async () => {
+      const { settings, onSave, backgroundInput } =
+        openWithInheritedBackground();
+
+      pickColor(backgroundInput, "#00ff00");
+      document
+        .querySelector<HTMLButtonElement>(
+          "button.rss-dashboard-primary-button",
+        )!
+        .click();
+      await flushPromises();
+
+      expect(settings.availableTags[0]).toMatchObject({
+        name: "Tech",
+        color: "#00ff00",
+        textColor: "#dddddd",
+      });
+      expect(onSave).toHaveBeenCalledWith(
+        expect.objectContaining({ color: "#00ff00" }),
+      );
+    });
+
+    it("shows the inherited color again on re-check and the picked color on uncheck", () => {
+      const { backgroundInput, useBackgroundDefault } =
+        openWithInheritedBackground();
+
+      pickColor(backgroundInput, "#00ff00");
+      useBackgroundDefault.click();
+      expect(useBackgroundDefault.checked).toBe(true);
+      expect(backgroundInput.value).toBe("#123456");
+      expect(backgroundInput.disabled).toBe(false);
+
+      useBackgroundDefault.click();
+      expect(useBackgroundDefault.checked).toBe(false);
+      expect(backgroundInput.value).toBe("#00ff00");
+    });
   });
 
   it("saves cleared overrides as inheritance and preserves the other override", async () => {

@@ -965,10 +965,6 @@ body .rss-dashboard-tag-modal-color-picker::-moz-color-swatch {
   height: 38px;
   border-radius: 50%;
 }
-.rss-dashboard-edit-tag-modal .rss-dashboard-tag-modal-color-picker:disabled {
-  cursor: default;
-  opacity: 0.5;
-}
 .rss-dashboard-tag-modal-default-label {
   display: inline-flex;
   align-items: center;

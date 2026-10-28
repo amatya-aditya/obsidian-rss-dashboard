@@ -84,12 +84,11 @@ function createAppearanceSection(
     cls: `rss-dashboard-tag-modal-color-picker ${config.inputClass}`,
   });
 
-  // While "Use default" is on, the picker stays a disabled color input showing
-  // the inherited color, so it never reads as missing.
+  // While "Use default" is on, the picker shows the inherited color and stays
+  // clickable; changing it switches the override on.
   useDefault.checked = tag[config.property] === undefined;
   let customValue = tag[config.property] ?? config.fallback;
   input.value = useDefault.checked ? config.fallback : customValue;
-  input.disabled = useDefault.checked;
 
   registerCleanup(
     addTagColorPaletteControl({
@@ -116,7 +115,6 @@ function createAppearanceSection(
   if (readout) customControl.appendChild(readout);
 
   useDefault.addEventListener("change", () => {
-    input.disabled = useDefault.checked;
     input.value = useDefault.checked ? config.fallback : customValue;
     // `change` refreshes the palette trigger without touching customValue.
     input.dispatchEvent(
@@ -126,6 +124,9 @@ function createAppearanceSection(
   });
   input.addEventListener("input", () => {
     customValue = input.value;
+    // Unchecked directly, not through a `change` event: that would run the
+    // restore branch above and overwrite the color just picked.
+    useDefault.checked = false;
     onPreviewChange();
   });
   return { config, input, useDefault };
