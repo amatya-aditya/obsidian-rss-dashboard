@@ -102,6 +102,81 @@ describe("tag color palette controls", () => {
     expect(trigger.lastElementChild).toBe(chevron);
   });
 
+  it("gives the Palette select the same decorative chevron, beside its native arrow reset", () => {
+    const field = createField("Background", "#123456");
+    const select = field.querySelector<HTMLSelectElement>("select")!;
+
+    const chevron = select.parentElement?.querySelector<HTMLElement>(
+      ".rss-dashboard-tag-color-palette-control-select-chevron",
+    );
+    expect(chevron?.getAttribute("aria-hidden")).toBe("true");
+    expect(chevron?.querySelector("svg")).not.toBeNull();
+    expect(select.getAttribute("aria-label")).toBe("Palette for Background");
+    expect(
+      field.querySelector(".rss-dashboard-tag-color-palette-control-select"),
+    ).toBe(select.parentElement);
+  });
+
+  it("shows the Palette and Color captions unless a row turns them off", () => {
+    const labelsOf = (host: HTMLElement) =>
+      Array.from(
+        host.querySelectorAll(".rss-dashboard-tag-color-palette-control-label"),
+      ).map((label) => label.textContent);
+
+    expect(labelsOf(createField("Background", "#123456"))).toEqual([
+      "Palette",
+      "Color",
+    ]);
+
+    const quiet = createDiv();
+    document.body.appendChild(quiet);
+    addTagColorPaletteControl({
+      container: quiet,
+      input: quiet.createEl("input", {
+        attr: { type: "color", value: "#123456" },
+      }),
+      fieldName: "Text",
+      showFieldLabels: false,
+    });
+    expect(labelsOf(quiet)).toEqual([]);
+    expect(quiet.querySelector("select")?.getAttribute("aria-label")).toBe(
+      "Palette for Text",
+    );
+    expect(
+      quiet
+        .querySelector(".rss-dashboard-tag-color-palette-control-color-trigger")
+        ?.getAttribute("aria-label"),
+    ).toContain("Color for Text");
+  });
+
+  it("keeps the hex readout by default and never attaches it when turned off", () => {
+    const readoutIn = (host: HTMLElement) =>
+      host.querySelector(
+        ".rss-dashboard-tag-color-palette-control-value-readout",
+      );
+
+    expect(readoutIn(createField("Background", "#123456"))?.textContent).toBe(
+      "#123456",
+    );
+
+    const quiet = createDiv();
+    document.body.appendChild(quiet);
+    addTagColorPaletteControl({
+      container: quiet,
+      input: quiet.createEl("input", {
+        attr: { type: "color", value: "#123456" },
+      }),
+      fieldName: "Text",
+      showValueReadout: false,
+    });
+    expect(readoutIn(quiet)).toBeNull();
+    expect(
+      quiet.querySelector(
+        ".rss-dashboard-tag-color-palette-control-selected-label",
+      )?.textContent,
+    ).toBe("Custom #123456");
+  });
+
   it("preserves custom values on palette switches and selects a named preset", () => {
     const field = createField("Background", "#123456");
     const input = field.querySelector<HTMLInputElement>("input[type=color]")!;

@@ -11,6 +11,17 @@ export interface TagColorPaletteControlOptions {
   fieldName: string;
   onBeforePresetSelect?: () => void;
   onValueChange?: () => void;
+  /**
+   * Show the small "Palette" and "Color" captions above each field. Rows that
+   * already sit under a heading or beside their own label turn them off; the
+   * select and trigger keep their `aria-label`s either way.
+   */
+  showFieldLabels?: boolean;
+  /**
+   * Show the hex value beside the native picker. Rows whose trigger already
+   * names the color turn it off; the readout is then never attached.
+   */
+  showValueReadout?: boolean;
 }
 
 const CLS_CONTROL = "rss-dashboard-tag-color-palette-control";
@@ -30,15 +41,26 @@ interface PaletteControlElements {
 function createPaletteControlElements(
   container: HTMLElement,
   fieldName: string,
+  showFieldLabels: boolean,
 ): PaletteControlElements {
   const control = container.createDiv({ cls: CLS_CONTROL });
   const paletteField = control.createDiv({
     cls: `${CLS_CONTROL}-field ${CLS_CONTROL}-palette-field`,
   });
-  paletteField.createSpan({ cls: `${CLS_CONTROL}-label`, text: "Palette" });
-  const paletteSelect = paletteField.createEl("select", {
+  if (showFieldLabels) {
+    paletteField.createSpan({ cls: `${CLS_CONTROL}-label`, text: "Palette" });
+  }
+  // The native select's own arrow is reset so every dropdown in the plugin
+  // shows the same up/down chevron as Obsidian's core dropdowns.
+  const selectWrap = paletteField.createDiv({ cls: `${CLS_CONTROL}-select` });
+  const paletteSelect = selectWrap.createEl("select", {
     attr: { "aria-label": `Palette for ${fieldName}` },
   });
+  const selectChevron = selectWrap.createSpan({
+    cls: `${CLS_CONTROL}-chevron ${CLS_CONTROL}-select-chevron`,
+    attr: { "aria-hidden": "true" },
+  });
+  setIcon(selectChevron, "chevrons-up-down");
   TAG_COLOR_PALETTES.forEach((palette) => {
     paletteSelect.createEl("option", {
       text: palette.name,
@@ -49,7 +71,9 @@ function createPaletteControlElements(
   const colorField = control.createDiv({
     cls: `${CLS_CONTROL}-field ${CLS_CONTROL}-color-field`,
   });
-  colorField.createSpan({ cls: `${CLS_CONTROL}-label`, text: "Color" });
+  if (showFieldLabels) {
+    colorField.createSpan({ cls: `${CLS_CONTROL}-label`, text: "Color" });
+  }
   const colorButton = colorField.createEl("button", {
     cls: `${CLS_CONTROL}-color-trigger`,
     attr: {
@@ -252,11 +276,22 @@ function attachControlEvents(options: {
 export function addTagColorPaletteControl(
   opts: TagColorPaletteControlOptions,
 ): () => void {
-  const { container, input, fieldName, onBeforePresetSelect, onValueChange } =
-    opts;
+  const {
+    container,
+    input,
+    fieldName,
+    onBeforePresetSelect,
+    onValueChange,
+    showFieldLabels = true,
+    showValueReadout = true,
+  } = opts;
   const ownerDocument = container.ownerDocument;
   const ownerWindow = ownerDocument.defaultView;
-  const elements = createPaletteControlElements(container, fieldName);
+  const elements = createPaletteControlElements(
+    container,
+    fieldName,
+    showFieldLabels,
+  );
   const {
     control,
     colorField,
@@ -266,7 +301,11 @@ export function addTagColorPaletteControl(
     selectedLabel,
     valueReadout,
   } = elements;
-  container.insertBefore(valueReadout, control);
+  if (showValueReadout) {
+    container.insertBefore(valueReadout, control);
+  } else {
+    valueReadout.remove();
+  }
 
   let menu: HTMLElement | null = null;
   let removeOutsideListener: (() => void) | null = null;

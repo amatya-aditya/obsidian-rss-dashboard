@@ -31,9 +31,20 @@
   font: inherit;
 }
 
+.rss-dashboard-tag-color-palette-control-select {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+
 .rss-dashboard-tag-color-palette-control select {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 1 1 auto;
+  width: 100%;
   max-width: 100%;
-  padding: 4px 24px 4px 8px;
+  padding: 4px 28px 4px 8px;
+  cursor: pointer;
 }
 
 .rss-dashboard-tag-color-palette-control-color-field {
@@ -72,6 +83,16 @@
 .rss-dashboard-tag-color-palette-control-chevron svg {
   width: var(--icon-s);
   height: var(--icon-s);
+}
+
+/* The select's chevron sits over its right edge and never takes the click. */
+.rss-dashboard-tag-color-palette-control-select-chevron {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  margin-left: 0;
+  transform: translateY(-50%);
+  pointer-events: none;
 }
 
 .rss-dashboard-tag-color-palette-control-selected-label {
@@ -201,32 +222,69 @@
   flex-wrap: wrap;
 }
 
-.rss-dashboard-tag-default-color-setting .setting-item-control {
+/*
+ * One aligned row for every Background / Text color setting: the row name, the
+ * native picker right after it, then Palette and Color pinned to the right.
+ * The row itself is the grid, and the control and palette wrappers step aside,
+ * so every piece joins it and the rows line up with each other.
+ */
+.rss-dashboard-tag-color-setting.setting-item {
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr);
+  grid-template-columns:
+    7rem 32px minmax(0, 1fr) minmax(7rem, 9.5rem)
+    minmax(9rem, 14rem);
   align-items: center;
-  gap: 8px;
+  column-gap: 8px;
 }
 
-.rss-dashboard-tag-default-color-setting
-  .rss-dashboard-tag-color-palette-control {
-  display: grid;
-  grid-template-columns: minmax(110px, 0.8fr) minmax(150px, 1fr);
-  align-items: end;
-  width: 100%;
+.rss-dashboard-tag-color-setting .setting-item-control,
+.rss-dashboard-tag-color-setting .rss-dashboard-tag-color-palette-control {
+  display: contents;
 }
 
-.rss-dashboard-tag-default-color-setting
+.rss-dashboard-tag-color-setting input[type="color"] {
+  grid-column: 2;
+}
+
+.rss-dashboard-tag-color-setting
+  .rss-dashboard-tag-color-palette-control-palette-field {
+  grid-column: 4;
+}
+
+.rss-dashboard-tag-color-setting
+  .rss-dashboard-tag-color-palette-control-color-field {
+  grid-column: 5;
+}
+
+.rss-dashboard-tag-color-setting
   .rss-dashboard-tag-color-palette-control-color-field {
   flex: initial;
 }
 
-.rss-dashboard-tag-default-color-setting
+.rss-dashboard-tag-color-setting
   .rss-dashboard-tag-color-palette-control
   select,
-.rss-dashboard-tag-default-color-setting
+.rss-dashboard-tag-color-setting
   .rss-dashboard-tag-color-palette-control-color-trigger {
   width: 100%;
+}
+
+/* Hover and keyboard focus show the same soft accent ring on every native
+ * color picker the plugin draws. */
+.rss-dashboard-tag-color-setting input[type="color"]:hover,
+.rss-dashboard-tag-color-setting input[type="color"]:focus-visible,
+body .rss-dashboard-tag-modal-color-picker:hover,
+body .rss-dashboard-tag-modal-color-picker:focus-visible,
+body .rss-dashboard-tag-color-picker:hover,
+body .rss-dashboard-tag-color-picker:focus-visible,
+.import-new-tags-native-color-picker:hover,
+.import-new-tags-native-color-picker:focus-within {
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--interactive-accent) 35%, transparent);
+}
+
+.import-new-tags-native-color-picker {
+  border-radius: 50%;
 }
 
 @media (max-width: 520px) {
@@ -247,13 +305,17 @@
     grid-column: 1 / -1;
   }
 
-  .rss-dashboard-tag-default-color-setting .setting-item-control {
+  .rss-dashboard-tag-color-setting.setting-item {
     display: flex;
     flex-wrap: wrap;
   }
 
-  .rss-dashboard-tag-default-color-setting
-    .rss-dashboard-tag-color-palette-control {
+  .rss-dashboard-tag-color-setting .setting-item-control {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .rss-dashboard-tag-color-setting .rss-dashboard-tag-color-palette-control {
     display: flex;
   }
 }

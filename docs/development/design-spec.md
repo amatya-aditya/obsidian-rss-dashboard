@@ -1,7 +1,7 @@
 ---
 status: active
 owner: maintainers
-last_reviewed: 2026-10-26
+last_reviewed: 2026-10-28
 obsidian_reference: "1.13.7 desktop"
 min_app_version: "1.8.7"
 related:
@@ -15,6 +15,7 @@ related:
 
 ## Update History
 
+- 2026-10-28: Add **Dropdown Controls**: every dropdown trigger and select shows Obsidian's up/down chevron (`chevrons-up-down`) at its right edge, and every native color picker shows the same hover and focus ring. Settings color rows put the picker right after the row name with no hex readout; Tag appearance defaults are a draft, previewed in their own card, until the user applies them; Tag shape previews are drawn in the applied default colors, and Add new tag shows a live preview chip
 - 2026-10-26: Define shared article action icon hover previews and semantic colors across Dashboard and Reader surfaces, with responsive borders on Dashboard controls only
 - 2026-10-20: Folder fields use Obsidian's `AbstractInputSuggest` list, styled only through `.rss-folder-suggest-container`, replacing the hand-built dropdown (#1377)
 - 2026-10-13: Add **Input Clear Buttons**: every free-text input gets Obsidian's own circle-x clear button through `addInputClearButton`, replacing the plain Lucide `x` buttons; record Obsidian's clear button as a core surface
@@ -136,6 +137,11 @@ Current governed surfaces:
   - Canonical selector / owner: `.clickable-icon` pattern with component scope in `src/styles/modals.css`, `src/styles/sidebar.css`, and component/view owners
   - Purpose: icon-only actions with keyboard parity
   - Visual hierarchy role: compact utility action
+- Dropdown controls and color pickers
+  - Canonical selector / owner: `.rss-dashboard-tag-color-palette-control` (Palette select and Color trigger) in `src/styles/tag-color-palette.css` and `src/components/tag-color-palette-control.ts`; `.rss-dashboard-tag-multi-select-trigger` in `src/styles/settings.css`
+  - Purpose: choose one value from a list, or pick a color, without leaving the row
+  - Visual hierarchy role: form control
+  - States: default, hover, focus-visible, open; see **Dropdown Controls**
 - Article action buttons
   - Canonical selector / owner: Dashboard `.rss-dashboard-save-toggle`, `.rss-dashboard-read-toggle`, `.rss-dashboard-star-toggle`, and `.rss-dashboard-tags-toggle` in `src/styles/articles.css`; Reader `.rss-reader-action-button` in `src/styles/reader.css`
   - Purpose: read, save, star, and manage tags for an article
@@ -583,6 +589,51 @@ Obsidian's own `SearchComponent` builds the same parts, verified in the
 it (`SearchComponent`, `Setting.addSearch`), and the stub drift check pins both
 class names. Our button is a native `<button>` rather than Obsidian's `div`,
 following **Implementation Structure** above.
+
+### Dropdown Controls
+
+Every control that opens a list of choices carries Obsidian's up/down chevron
+at its right edge, the way Obsidian's own dropdowns do (checked in 1.8.7 and
+1.14.4). This holds for native `<select>` elements and for plugin-built
+triggers such as the tag Color button or the tag multi-select button.
+
+- **Icon.** Use the Lucide `chevrons-up-down` icon through `setIcon`, in a
+  `<span aria-hidden="true">` inside the control. Do not use `chevron-down`,
+  `chevron-right`, or a caret glyph for a dropdown. Those mean expand or
+  collapse (a disclosure triangle), not "pick one".
+- **Placement.** Right edge, vertically centered, `--text-muted`, sized with
+  `--icon-s`. Reserve room for it with right padding on the control, and let
+  the label ellipsize before it ever overlaps the icon.
+- **Obsidian dropdowns need nothing.** `Setting.addDropdown` already draws the
+  chevron; do not add a second one.
+- **Native `<select>` styled by the plugin.** A plugin rule that sets the
+  `background` shorthand wipes Obsidian's arrow, which is how a styled select
+  ends up with none. Reset it explicitly (`appearance: none`), wrap it in a
+  positioned container, and draw the chevron over its right edge with
+  `pointer-events: none` so clicks still reach the select. The shared
+  Palette select in `tag-color-palette-control.ts` is the reference.
+- **Name and state.** The chevron is decoration. Give the control its
+  accessible name with `aria-label`, and keep `aria-haspopup` and
+  `aria-expanded` on button triggers.
+- **Captions.** A caption above a dropdown ("Palette", "Color") repeats what
+  the row's own label already says. Leave it off when the row has a label or
+  heading; the control still needs its `aria-label`. The shared palette control
+  takes `showFieldLabels: false` for this.
+
+Existing triggers that still show `chevron-down` (the dashboard's themed
+selectors in `src/components/themed-select-popup.ts`) predate this rule. Move
+them to `chevrons-up-down` when the surface is next touched; do not copy them.
+
+#### Native color pickers
+
+Every native `input[type="color"]` the plugin draws shows the same soft
+accent ring (`color-mix` of `--interactive-accent` at 35%, 3px) on hover and
+on keyboard `:focus-visible`. That covers the settings Background and Text
+rows, the Add/edit tag modal, the sidebar add-tag picker, and the Import
+Starred picker (whose input is transparent, so the ring sits on its wrapper).
+A new color picker joins the group in `src/styles/tag-color-palette.css`
+instead of inventing its own hover. The ring is a static `box-shadow` with no
+transition, so it needs nothing under `prefers-reduced-motion`.
 
 ### Android WebView SVG Rendering: Avoiding `!important`
 
