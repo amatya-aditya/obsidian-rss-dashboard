@@ -679,6 +679,7 @@ export class RetentionChangeConfirmModal extends AccessibleModal {
 
     const buttonsSetting = new Setting(contentEl);
     buttonsSetting.controlEl.addClass("rss-dashboard-modal-buttons");
+    buttonsSetting.controlEl.addClass("rss-retention-change-buttons");
     buttonsSetting
       .addButton((button) =>
         button.setButtonText("Cancel").onClick(() => {
