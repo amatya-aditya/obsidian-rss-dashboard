@@ -2896,8 +2896,8 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
-  public openFreshRssSyncPreview(): void {
-    new FreshRssSyncModal(this.app, this).open();
+  public openFreshRssSyncPreview(opener?: HTMLElement): void {
+    new FreshRssSyncModal(this.app, this).open(opener);
   }
 
   public getFreshRssStateSyncMode(): "two-way" | "receive-only" {
