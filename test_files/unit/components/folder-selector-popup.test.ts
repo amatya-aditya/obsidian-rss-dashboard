@@ -161,11 +161,52 @@ describe("FolderSelectorPopup", () => {
     ) as HTMLElement;
     // width=240, margin=16 => maxLeft = 300 - 240 - 16 = 44
     expect(popup.style.left).toBe("44px");
-    // flipped above => top = rect.top - 4
-    expect(popup.style.top).toBe("176px");
+    // Flipped above: the popup's bottom edge sits 4px above the anchor's top
+    // edge (viewport 220 - anchor top 180 + 4), whatever height the list ends
+    // up with. A `top` offset would make it grow downward over the anchor.
+    expect(popup.style.bottom).toBe("44px");
+    expect(popup.style.top).toBe("");
     expect(popup.classList.contains("rss-folder-selector-popup-above")).toBe(
       true,
     );
+  });
+
+  it("keeps the flipped popup above its anchor on mobile", () => {
+    setViewport(390, 844);
+    vi.spyOn(window, "matchMedia").mockImplementation((query: string) => ({
+      matches: query === "(max-width: 600px)",
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }));
+
+    const anchorEl = createDiv();
+    vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
+      left: 20,
+      top: 760,
+      bottom: 800,
+      right: 370,
+      width: 350,
+      height: 40,
+    } as DOMRect);
+
+    new FolderSelectorPopup(createPluginStub(), {
+      anchorEl,
+      onSelect: () => {},
+      listOnly: true,
+    });
+
+    const popup = document.body.querySelector(
+      ".rss-folder-selector-popup",
+    ) as HTMLElement;
+    // viewport 844 - anchor top 760 + 4 = 88px above the viewport bottom
+    expect(popup.style.bottom).toBe("88px");
+    expect(popup.style.top).toBe("");
+    expect(popup.style.left).toBe("");
   });
 
   it("prioritizes defaultFolder to the top when it exists (case-insensitive)", () => {
