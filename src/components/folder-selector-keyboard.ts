@@ -1,6 +1,5 @@
 export interface FolderSelectorKeyboardActions {
   isDestroyed: () => boolean;
-  isInert: () => boolean;
   listEl: HTMLElement;
   inputEl: () => HTMLInputElement | undefined;
   isListOnly: () => boolean;
@@ -16,7 +15,7 @@ export function createFolderSelectorKeydownHandler(
   actions: FolderSelectorKeyboardActions,
 ): (e: KeyboardEvent) => void {
   return (e: KeyboardEvent) => {
-    if (actions.isDestroyed() || actions.isInert()) return;
+    if (actions.isDestroyed()) return;
 
     const items = actions.listEl.querySelectorAll(".rss-folder-selector-item");
     const currentIndex = getCurrentSelectedIndex(items);

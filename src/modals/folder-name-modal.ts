@@ -8,10 +8,6 @@ export interface FolderNameModalOptions {
   defaultValue?: string;
   existingNames?: string[];
   onSubmit: (name: string) => void;
-  /** Called whenever the modal closes — submitted, cancelled, or dismissed. */
-  onClose?: () => void;
-  /** Called when the user clicks Cancel. */
-  onCancel?: () => void;
 }
 
 // FolderNameModal — Uses Obsidian's Modal class to prevent mobile focus bugs.
@@ -116,7 +112,6 @@ export class FolderNameModal extends AccessibleModal {
     cancelButton.createSpan({ text: "Cancel" });
     cancelButton.addEventListener("click", () => {
       this.close();
-      this.opts.onCancel?.();
     });
 
     // Single focus+select; Obsidian's Modal handles focus isolation.
@@ -131,6 +126,5 @@ export class FolderNameModal extends AccessibleModal {
 
   onClose() {
     this.contentEl.empty();
-    this.opts.onClose?.();
   }
 }
