@@ -65,6 +65,52 @@ function configureReadyPlugin(plugin: RssDashboardPlugin): void {
   vi.spyOn(plugin, "saveSettings").mockResolvedValue();
 }
 
+async function seedBoundFreshRssArticle(
+  plugin: RssDashboardPlugin,
+  app: obsidian.App,
+): Promise<void> {
+  plugin.settings.feeds = [
+    {
+      feedId: "local-feed",
+      title: "Local feed",
+      url: "https://feed.example.test/rss.xml",
+      folder: "RSS",
+      lastUpdated: 1,
+      items: [
+        {
+          title: "Bound article",
+          link: "https://article.example.test/42",
+          description: "",
+          pubDate: "2026-10-24T00:00:00.000Z",
+          guid: "article/42",
+          read: false,
+          feedTitle: "Local feed",
+          feedUrl: "https://feed.example.test/rss.xml",
+          coverImage: "",
+        },
+      ],
+    },
+  ];
+  const sidecarPath = ".rss-dashboard-data/freshrss-state.json";
+  const sidecar = JSON.parse(await app.vault.adapter.read(sidecarPath)) as {
+    feedBindings: unknown[];
+    articleBindings: unknown[];
+    checkpoints: unknown[];
+  };
+  sidecar.feedBindings = [
+    { feedId: "local-feed", remoteSubscriptionId: "feed/6" },
+  ];
+  sidecar.articleBindings = [
+    {
+      feedId: "local-feed",
+      guid: "article/42",
+      remoteArticleId: "article/42",
+    },
+  ];
+  sidecar.checkpoints = [{ remoteSubscriptionId: "feed/6", completedAtMs: 1 }];
+  await app.vault.adapter.write(sidecarPath, JSON.stringify(sidecar));
+}
+
 describe("FreshRSS connection activation", () => {
   beforeEach(() => vi.restoreAllMocks());
 
@@ -268,7 +314,10 @@ describe("FreshRSS connection activation", () => {
             ],
           }),
         ),
-      );
+      )
+      .mockResolvedValueOnce(response(JSON.stringify({ itemRefs: [] })))
+      .mockResolvedValueOnce(response(JSON.stringify({ itemRefs: [] })))
+      .mockResolvedValueOnce(response(JSON.stringify({ itemRefs: [] })));
     const app = obsidian.App.createMock();
     setSecretStorage(app, {
       getSecret: () => '{"username":"reader","apiPassword":"secret-value"}',
@@ -278,7 +327,7 @@ describe("FreshRSS connection activation", () => {
     configureReadyPlugin(plugin);
 
     await expect(plugin.testFreshRssConnection()).resolves.toBe("connected");
-    await plugin.syncFreshRssNow();
+    await expect(plugin.syncFreshRssNow()).resolves.toBe("completed");
 
     expect(plugin.settings.feeds).toHaveLength(1);
     expect(plugin.settings.feeds[0]).toMatchObject({
@@ -311,6 +360,99 @@ describe("FreshRSS connection activation", () => {
     expect(sidecar).toContain('"remoteArticleId": "article/42"');
     expect(sidecar).not.toContain("secret-value");
     expect(sidecar).not.toContain("sync-token");
+  });
+
+  it("reports an incomplete sync when bound article-state reconciliation fails", async () => {
+    vi.spyOn(obsidian, "requireApiVersion").mockReturnValue(true);
+    vi.spyOn(obsidian, "requestUrl")
+      .mockResolvedValueOnce(response("Auth=connection-token"))
+      .mockResolvedValueOnce(response('{"userId":"remote-user"}'))
+      .mockResolvedValueOnce(response("write-token"))
+      .mockResolvedValueOnce(response("Auth=sync-token"))
+      .mockResolvedValueOnce(response('{"userId":"remote-user"}'))
+      .mockResolvedValueOnce(response(JSON.stringify({ tags: [] })))
+      .mockResolvedValueOnce(
+        response(
+          JSON.stringify({
+            subscriptions: [
+              {
+                id: "feed/6",
+                title: "Remote feed",
+                url: "https://feed.example.test/rss.xml",
+              },
+            ],
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(response(JSON.stringify({ itemRefs: [] })))
+      .mockResolvedValueOnce({
+        ...response("temporary failure"),
+        status: 503,
+      })
+      .mockResolvedValueOnce(response(JSON.stringify({ itemRefs: [] })))
+      .mockResolvedValueOnce(response(JSON.stringify({ itemRefs: [] })));
+    const app = obsidian.App.createMock();
+    setSecretStorage(app, {
+      getSecret: () => '{"username":"reader","apiPassword":"secret-value"}',
+      listSecrets: () => ["freshrss-primary"],
+    });
+    const plugin = createPlugin(app);
+    configureReadyPlugin(plugin);
+
+    await expect(plugin.testFreshRssConnection()).resolves.toBe("connected");
+    await seedBoundFreshRssArticle(plugin, app);
+
+    await expect(plugin.syncFreshRssNow()).resolves.toBe("incomplete");
+    expect(plugin.settings.feeds[0]?.items[0]?.read).toBe(false);
+    expect(vi.mocked(obsidian.requestUrl)).toHaveBeenCalledTimes(11);
+  });
+
+  it("reports failure when reconciled state cannot be saved locally", async () => {
+    vi.spyOn(obsidian, "requireApiVersion").mockReturnValue(true);
+    const requestUrl = vi
+      .spyOn(obsidian, "requestUrl")
+      .mockResolvedValueOnce(response("Auth=connection-token"))
+      .mockResolvedValueOnce(response('{"userId":"remote-user"}'))
+      .mockResolvedValueOnce(response("write-token"))
+      .mockResolvedValueOnce(response("Auth=sync-token"))
+      .mockResolvedValueOnce(response('{"userId":"remote-user"}'))
+      .mockResolvedValueOnce(response(JSON.stringify({ tags: [] })))
+      .mockResolvedValueOnce(
+        response(
+          JSON.stringify({
+            subscriptions: [
+              {
+                id: "feed/6",
+                title: "Remote feed",
+                url: "https://feed.example.test/rss.xml",
+              },
+            ],
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(response(JSON.stringify({ itemRefs: [] })))
+      .mockResolvedValueOnce(
+        response(JSON.stringify({ itemRefs: [{ id: "article/42" }] })),
+      )
+      .mockResolvedValueOnce(response(JSON.stringify({ itemRefs: [] })))
+      .mockResolvedValueOnce(response(JSON.stringify({ itemRefs: [] })));
+    const app = obsidian.App.createMock();
+    setSecretStorage(app, {
+      getSecret: () => '{"username":"reader","apiPassword":"secret-value"}',
+      listSecrets: () => ["freshrss-primary"],
+    });
+    const plugin = createPlugin(app);
+    configureReadyPlugin(plugin);
+
+    await expect(plugin.testFreshRssConnection()).resolves.toBe("connected");
+    await seedBoundFreshRssArticle(plugin, app);
+    vi.mocked(plugin.saveSettings).mockRejectedValueOnce(
+      new Error("Core storage unavailable"),
+    );
+
+    await expect(plugin.syncFreshRssNow()).resolves.toBe("failed");
+    expect(plugin.settings.feeds[0]?.items[0]?.read).toBe(false);
+    expect(requestUrl).toHaveBeenCalledTimes(11);
   });
 
   it("requires a fresh connection test when credentials resolve to another account", async () => {

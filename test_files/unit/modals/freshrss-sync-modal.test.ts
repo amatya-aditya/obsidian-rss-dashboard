@@ -207,4 +207,29 @@ describe("FreshRSS sync preview modal", () => {
     });
     modal.onClose();
   });
+
+  it("announces an incomplete article-state reconciliation", async () => {
+    installObsidianDomPolyfills();
+    const api = host("two-way");
+    vi.mocked(api.syncFreshRssNow).mockResolvedValue("incomplete");
+    const modal = new FreshRssSyncModal({} as App, api);
+
+    modal.onOpen();
+    await vi.waitFor(() => {
+      expect(
+        modal.contentEl.querySelector('[role="status"]')?.textContent,
+      ).toBe("Preview ready.");
+    });
+    modal.contentEl
+      .querySelector<HTMLButtonElement>("button:last-child")
+      ?.click();
+    await vi.waitFor(() => {
+      expect(
+        modal.contentEl.querySelector('[role="status"]')?.textContent,
+      ).toBe(
+        "FreshRSS sync incomplete. Article-state reconciliation could not be confirmed.",
+      );
+    });
+    modal.onClose();
+  });
 });
