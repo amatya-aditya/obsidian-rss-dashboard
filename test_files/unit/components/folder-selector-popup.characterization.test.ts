@@ -109,9 +109,10 @@ describe("FolderSelectorPopup keyboard behavior before extraction", () => {
     popup.close();
   });
 
-  it("opens Add new folder from the list with Enter and ignores keys while inert", () => {
+  it("opens Add new folder from the list with Enter and closes the popup behind it", () => {
     const onSelect = vi.fn();
-    const popup = createPopup({ listOnly: true, onSelect });
+    const onClose = vi.fn();
+    const popup = createPopup({ listOnly: true, onSelect, onClose });
 
     keydown("ArrowDown");
     keydown("ArrowDown");
@@ -120,12 +121,10 @@ describe("FolderSelectorPopup keyboard behavior before extraction", () => {
     expect(
       document.querySelector(".rss-folder-name-modal-input"),
     ).not.toBeNull();
-    expect(
-      document
-        .querySelector(".rss-folder-selector-popup")
-        ?.classList.contains("rss-folder-selector-popup-inert"),
-    ).toBe(true);
+    expect(document.querySelector(".rss-folder-selector-popup")).toBeNull();
+    expect(onClose).toHaveBeenCalledTimes(1);
 
+    // The popup's key handler is gone, so Escape is left to the modal alone.
     const escape = keydown("Escape");
     expect(escape.defaultPrevented).toBe(false);
     expect(
@@ -135,11 +134,7 @@ describe("FolderSelectorPopup keyboard behavior before extraction", () => {
     document
       .querySelector<HTMLElement>(".rss-folder-name-modal-cancel")!
       .click();
-    expect(
-      document
-        .querySelector(".rss-folder-selector-popup")
-        ?.classList.contains("rss-folder-selector-popup-inert"),
-    ).toBe(false);
+    expect(document.querySelector(".rss-folder-selector-popup")).toBeNull();
     expect(onSelect).not.toHaveBeenCalled();
     popup.close();
   });

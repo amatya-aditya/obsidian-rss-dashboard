@@ -43,9 +43,6 @@ export class FolderSelectorPopup {
   private keydownHandler!: (e: KeyboardEvent) => void;
   private isDestroyed = false;
   private releasePluginCleanupReference?: () => void;
-  // True while a modal this popup opened (e.g. create-folder) is on top of
-  // it — see setInert().
-  private isInert = false;
   private listOnly: boolean = false;
 
   constructor(plugin: RssDashboardPlugin, options: FolderSelectorOptions) {
@@ -352,22 +349,6 @@ export class FolderSelectorPopup {
   private attachEventListeners(): void {
     const popupDocument = this.popupEl.ownerDocument;
 
-    // Swallow clicks on this popup's own contents while inert (a modal it
-    // opened, e.g. create-folder, is on top of it). Registered in the
-    // capture phase directly on popupEl so it runs before any individual
-    // item's own click listener — one guard instead of threading an
-    // isInert check through every item handler.
-    this.popupEl.addEventListener(
-      "click",
-      (e) => {
-        if (this.isInert) {
-          e.stopPropagation();
-          e.preventDefault();
-        }
-      },
-      true,
-    );
-
     // Input filtering with validation — skip in list-only mode
     if (!this.listOnly && this.inputEl) {
       this.inputEl.addEventListener("input", () => {
@@ -401,7 +382,6 @@ export class FolderSelectorPopup {
     // Keyboard navigation
     this.keydownHandler = createFolderSelectorKeydownHandler({
       isDestroyed: () => this.isDestroyed,
-      isInert: () => this.isInert,
       listEl: this.listEl,
       inputEl: () => this.inputEl,
       isListOnly: () => this.listOnly,
@@ -464,63 +444,26 @@ export class FolderSelectorPopup {
    * is responsible for actually creating the folder (via
    * plugin.ensureFolderExists) before adding the feed, exactly as it does
    * for any other folder picked from the list.
+   *
+   * The popup closes first. Its z-index sits above the modal layer, so
+   * leaving it open would draw it over the modal. Cancelling the modal
+   * leaves nothing open; the user taps the button again to restart.
    */
   private openCreateFolderModal(): void {
-    const modal = new FolderNameModal(this.plugin.app, {
+    const existingNames = this.folders;
+    const app = this.plugin.app;
+    const onSelect = this.onSelect;
+
+    this.close();
+
+    new FolderNameModal(app, {
       title: "Create new folder",
-      existingNames: this.folders,
+      existingNames,
       onSubmit: (folderName) => {
-        this.selectFolder(folderName);
+        const sanitized = this.sanitizeFolderName(folderName);
+        if (sanitized) onSelect(sanitized);
       },
-      onCancel: () => this.setInert(false),
-      onClose: () => {
-        const popupWindow = this.popupEl.ownerDocument.defaultView;
-        if (!popupWindow) {
-          this.setInert(false);
-          return;
-        }
-
-        // Obsidian closes a modal from its window-level Escape handler. Keep
-        // the popup inert until that same event has finished bubbling to the
-        // popup's document-level keyboard handler.
-        popupWindow.queueMicrotask(() => {
-          if (!this.isDestroyed) this.setInert(false);
-        });
-      },
-    });
-
-    // The modal renders outside popupEl's own DOM subtree, so any click
-    // inside it — typing, hitting OK, even Cancel — would otherwise bubble
-    // all the way up to document and trip this popup's outside-click
-    // handler, closing it out from under the modal. Stop that bubbling one
-    // step up from the click, on the modal's own container, in the BUBBLE
-    // phase — that runs *after* the target's own listener (okButton's
-    // submit, cancelButton's close), so the modal still behaves normally;
-    // it just never climbs any higher than its own container. (A
-    // capture-phase listener on document would run before the target's own
-    // handler and silently swallow every click in the modal instead —
-    // learned that one the hard way.)
-    modal.containerEl.addEventListener("click", (e) => {
-      e.stopPropagation();
-    });
-
-    // A real Obsidian Modal normally blocks the rest of the page via its own
-    // backdrop, but this popup's z-index is set high enough to float above
-    // feed cards and other page chrome — high enough, it turns out, to float
-    // above the modal's backdrop too. Make the popup itself inert for as
-    // long as the modal is open so its folder list can't be clicked through.
-    this.setInert(true);
-
-    modal.open();
-  }
-
-  /**
-   * Toggles whether this popup's own contents can be interacted with —
-   * used while a modal it opened (e.g. create-folder) is on top of it.
-   */
-  private setInert(inert: boolean): void {
-    this.isInert = inert;
-    this.popupEl.toggleClass("rss-folder-selector-popup-inert", inert);
+    }).open();
   }
 
   /**

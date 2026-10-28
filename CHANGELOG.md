@@ -2,6 +2,7 @@
 
 ### Fixes
 
+- The Discover header now scrolls away with the page instead of staying pinned over the feed cards, and the folder selector now closes as soon as you tap **Add new folder**, so the create-folder dialog opens on its own instead of overlapping a dimmed list. Cancelling the dialog, with Cancel or Escape, leaves nothing open; tap **Add to…** again to restart. [GH Issue #1684](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1684)
 - The buttons in the "Apply max item limit to all feeds?" and "Apply retention change?" confirmation modals are now centered instead of right-aligned. [GH Issue #1673](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1673)
 - The static version label in Obsidian's status bar no longer uses a live-status role; its accessible label and click behavior are unchanged. [GH Issue #1657](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1657)
 - Reader fetch status messages remain available to assistive technology without appearing beside the content toggle. [GH Issue #1655](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1655)
@@ -18,7 +19,6 @@
 - Dashboard and Reader article actions now share dim idle icons, semantic-color hover and keyboard-focus previews, and brighter selected-action hover states; inactive Stars preview as filled yellow stars. Dashboard Card, Feed, and List controls share the same responsive surfaces and tablet/mobile border, while Reader toolbar actions stay borderless. [GH Issue #1603](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1603)
 - The Edit tag dialog now gives the name field usable width on mobile, keeps Cancel and Save the same size and shape, and can scroll when the keyboard reduces the visible area. [GH Issue #1599](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1599)
 - Open folder selectors now close and remove their keyboard handlers when RSS Dashboard is disabled. [GH Issue #1588](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1588)
-- Pressing Escape to cancel the new-folder dialog now leaves the folder selector open and usable. [GH Issue #1587](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1587)
 - Reader format portals no longer register an outside-click listener if they close before deferred setup runs. [GH Issue #1578](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1578)
 - Podcast destination menus now fall back to the enclosure when an item's audio URL contains only whitespace. [GH Issue #1567](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1567)
 
