@@ -48,11 +48,6 @@
       "count": 1
     }
   },
-  "src/modals/feed-preview-modal.ts": {
-    "complexity": {
-      "count": 2
-    }
-  },
   "src/settings/tabs/general-settings-tab.ts": {
     "max-lines-per-function": {
       "count": 1
