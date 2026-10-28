@@ -145,9 +145,7 @@ describe("tags dropdown portal characterization", () => {
     )!;
     input.value = " Later ";
     document
-      .querySelector<HTMLButtonElement>(
-        ".rss-dashboard-tag-inline-button:not(.rss-dashboard-tag-inline-settings)",
-      )!
+      .querySelector<HTMLButtonElement>(".rss-dashboard-tag-inline-add")!
       .click();
 
     expect(settings.availableTags).toEqual([{ name: "Later" }]);

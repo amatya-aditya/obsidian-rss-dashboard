@@ -97,7 +97,7 @@ describe("createTagsDropdownPortal tag editing", () => {
     document.body.empty();
   });
 
-  it("starts the inline 'Add new tag' color at the default tag color", () => {
+  it("keeps color selectors out of the inline 'Add new tag' row", () => {
     const { anchor } = createModalWithAnchor();
     const close = createTagsDropdownPortal({
       app: new App(),
@@ -107,16 +107,34 @@ describe("createTagsDropdownPortal tag editing", () => {
       onTagAssignmentChange: vi.fn(),
     });
 
+    const row = document.querySelector<HTMLElement>(
+      ".rss-dashboard-tag-inline-add-row",
+    )!;
+    expect(row.querySelector("input[type='color']")).toBeNull();
     expect(
-      document.querySelector<HTMLInputElement>(
-        ".rss-dashboard-tag-inline-color",
-      )?.value,
-    ).toBe("#8a5cf5");
+      row.querySelector(".rss-dashboard-tag-color-palette-control"),
+    ).toBeNull();
+    close();
+  });
+
+  it("orders the inline row as name, Add, Edit, then tag settings", () => {
+    const { anchor } = createModalWithAnchor();
+    const close = createTagsDropdownPortal({
+      app: new App(),
+      anchor,
+      settings: JSON.parse(JSON.stringify(DEFAULT_SETTINGS)),
+      item: makeItem(),
+      onTagAssignmentChange: vi.fn(),
+    });
+
+    const row = document.querySelector<HTMLElement>(
+      ".rss-dashboard-tag-inline-add-row",
+    )!;
     expect(
-      document.querySelectorAll(
-        ".rss-dashboard-tag-inline-add-row .rss-dashboard-tag-color-palette-control",
+      Array.from(row.children).map(
+        (el) => el.getAttribute("aria-label") ?? el.tagName.toLowerCase(),
       ),
-    ).toHaveLength(2);
+    ).toEqual(["div", "Add tag", "Edit new tag", "Open tag settings"]);
     close();
   });
 
@@ -141,10 +159,8 @@ describe("createTagsDropdownPortal tag editing", () => {
     it.each([
       [".rss-dashboard-tag-edit-button", "Edit tag"],
       [".rss-dashboard-tag-delete-button", "Delete tag"],
-      [
-        ".rss-dashboard-tag-inline-button:not(.rss-dashboard-tag-inline-settings)",
-        "Add tag",
-      ],
+      [".rss-dashboard-tag-inline-add", "Add tag"],
+      [".rss-dashboard-tag-inline-edit", "Edit new tag"],
       [".rss-dashboard-tag-inline-settings", "Open tag settings"],
     ])("renders %s as a native, named button", (selector, name) => {
       const { close } = openPortal();
@@ -229,36 +245,147 @@ describe("createTagsDropdownPortal tag editing", () => {
         ".rss-dashboard-tag-inline-input",
       )!.value = "Later";
       document
-        .querySelector<HTMLElement>(
-          ".rss-dashboard-tag-inline-button:not(.rss-dashboard-tag-inline-settings)",
-        )!
+        .querySelector<HTMLElement>(".rss-dashboard-tag-inline-add")!
         .click();
 
-      expect(settings.availableTags.map((t) => t.name)).toEqual(["Later"]);
+      expect(settings.availableTags).toEqual([{ name: "Later" }]);
       close();
     });
 
-    it("stores only an appearance value explicitly changed in the inline form", () => {
-      const { settings, close } = openPortal([]);
-      document.querySelector<HTMLInputElement>(
-        ".rss-dashboard-tag-inline-input",
-      )!.value = "Later";
-      const textColor = document.querySelector<HTMLInputElement>(
-        ".rss-dashboard-tag-inline-text-color",
-      )!;
-      textColor.value = "#123456";
-      textColor.dispatchEvent(new Event("change", { bubbles: true }));
-      document
-        .querySelector<HTMLElement>(
-          ".rss-dashboard-tag-inline-button:not(.rss-dashboard-tag-inline-settings)",
-        )!
-        .click();
+    describe("Edit new tag button", () => {
+      const openCreateEditor = (
+        tags: { name: string; color: string }[] = [],
+        typed = "Later",
+      ) => {
+        const onTagAssignmentChange = vi.fn();
+        const onPersistSettings = vi.fn();
+        const onClosed = vi.fn();
+        const { anchor } = createModalWithAnchor();
+        const settings = JSON.parse(
+          JSON.stringify(DEFAULT_SETTINGS),
+        ) as typeof DEFAULT_SETTINGS;
+        settings.availableTags = tags;
+        const close = createTagsDropdownPortal({
+          app: new App(),
+          anchor,
+          settings,
+          item: makeItem(),
+          onTagAssignmentChange,
+          onPersistSettings,
+          onClosed,
+        });
+        document.querySelector<HTMLInputElement>(
+          ".rss-dashboard-tag-inline-input",
+        )!.value = typed;
+        document
+          .querySelector<HTMLElement>(".rss-dashboard-tag-inline-edit")!
+          .click();
+        return {
+          settings,
+          close,
+          onTagAssignmentChange,
+          onPersistSettings,
+          onClosed,
+        };
+      };
+      const modalName = () =>
+        document.querySelector<HTMLInputElement>(
+          ".rss-dashboard-edit-tag-modal .rss-dashboard-tag-modal-name-input",
+        )!;
+      const clickAdd = async () => {
+        document
+          .querySelector<HTMLButtonElement>(
+            ".rss-dashboard-edit-tag-modal .rss-dashboard-primary-button",
+          )!
+          .click();
+        await new Promise((r) => setTimeout(r, 0));
+      };
 
-      expect(settings.availableTags).toContainEqual({
-        name: "Later",
-        textColor: "#123456",
+      it("opens the Add/edit modal with the typed name and dismisses the popover", () => {
+        const { onClosed, close } = openCreateEditor();
+
+        expect(modalName().value).toBe("Later");
+        expect(
+          document.querySelector(
+            ".rss-dashboard-edit-tag-modal .rss-dashboard-primary-button",
+          )?.textContent,
+        ).toBe("Add tag");
+        expect(
+          document.querySelector(".rss-dashboard-tags-dropdown-content-portal"),
+        ).toBeNull();
+        expect(onClosed).toHaveBeenCalledTimes(1);
+        close();
       });
-      close();
+
+      it("adds the tag with default colors and assigns it to the article", async () => {
+        const { settings, onTagAssignmentChange, onPersistSettings, close } =
+          openCreateEditor();
+
+        await clickAdd();
+
+        expect(settings.availableTags).toStrictEqual([{ name: "Later" }]);
+        expect(onTagAssignmentChange).toHaveBeenCalledWith(
+          { name: "Later" },
+          true,
+        );
+        expect(onPersistSettings).toHaveBeenCalledTimes(1);
+        close();
+      });
+
+      it("stores the colors chosen in the modal", async () => {
+        const { settings, close } = openCreateEditor();
+        const picker = document.querySelector<HTMLInputElement>(
+          ".rss-dashboard-tag-modal-background-input",
+        )!;
+        picker.value = "#123456";
+        picker.dispatchEvent(new Event("input", { bubbles: true }));
+
+        await clickAdd();
+
+        expect(settings.availableTags).toStrictEqual([
+          { name: "Later", color: "#123456" },
+        ]);
+        close();
+      });
+
+      it("adds nothing when the editor is cancelled", () => {
+        const { settings, onTagAssignmentChange, close } = openCreateEditor();
+        document
+          .querySelector<HTMLButtonElement>(
+            ".rss-dashboard-edit-tag-modal .rss-dashboard-modal-buttons button",
+          )!
+          .click();
+
+        expect(settings.availableTags).toEqual([]);
+        expect(onTagAssignmentChange).not.toHaveBeenCalled();
+        close();
+      });
+
+      it("rejects a name that already exists", async () => {
+        const { settings, onTagAssignmentChange, close } = openCreateEditor(
+          [{ name: "News", color: "#ff0000" }],
+          "news",
+        );
+
+        await clickAdd();
+
+        expect(settings.availableTags).toHaveLength(1);
+        expect(onTagAssignmentChange).not.toHaveBeenCalled();
+        close();
+      });
+
+      it("rejects an empty name", async () => {
+        const { settings, onTagAssignmentChange, close } = openCreateEditor(
+          [],
+          "  ",
+        );
+
+        await clickAdd();
+
+        expect(settings.availableTags).toEqual([]);
+        expect(onTagAssignmentChange).not.toHaveBeenCalled();
+        close();
+      });
     });
 
     it("opens tag settings and closes the menu when the settings button is clicked", () => {
@@ -308,6 +435,49 @@ describe("createTagsDropdownPortal tag editing", () => {
       { name: "News", color: "#ff0000" },
       { name: "News", color: "#00ff00" },
     );
+    close();
+  });
+
+  it("dismisses the popover once the tag editor opens, and still reports a saved edit", async () => {
+    const { anchor } = createModalWithAnchor();
+    const settings = JSON.parse(
+      JSON.stringify(DEFAULT_SETTINGS),
+    ) as typeof DEFAULT_SETTINGS;
+    settings.availableTags = [{ name: "News", color: "#ff0000" }];
+    const onClosed = vi.fn();
+    const onTagEdited = vi.fn();
+    const close = createTagsDropdownPortal({
+      app: new App(),
+      anchor,
+      settings,
+      item: makeItem(),
+      onTagAssignmentChange: vi.fn(),
+      onTagEdited,
+      onClosed,
+    });
+
+    document
+      .querySelector<HTMLElement>(".rss-dashboard-tag-edit-button")!
+      .click();
+
+    expect(
+      document.querySelector(".rss-dashboard-tags-dropdown-content-portal"),
+    ).toBeNull();
+    expect(onClosed).toHaveBeenCalledTimes(1);
+    expect(
+      document.querySelector(".rss-dashboard-edit-tag-modal"),
+    ).not.toBeNull();
+
+    document.querySelector<HTMLInputElement>(
+      ".rss-dashboard-tag-modal-name-input",
+    )!.value = "Updates";
+    document
+      .querySelector<HTMLButtonElement>("button.rss-dashboard-primary-button")!
+      .click();
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(onTagEdited).toHaveBeenCalledTimes(1);
+    expect(onTagEdited.mock.calls[0][1]).toMatchObject({ name: "Updates" });
     close();
   });
 });

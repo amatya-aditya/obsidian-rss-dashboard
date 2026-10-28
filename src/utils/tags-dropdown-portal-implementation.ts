@@ -1,16 +1,10 @@
 import { type App, Notice, setIcon } from "obsidian";
 import type { Tag } from "../types/types";
-import {
-  applyTagAppearance,
-  createTagWithAppearanceChanges,
-  DEFAULT_TAG_COLOR,
-  DEFAULT_TAG_TEXT_COLOR,
-} from "./tag-colors";
+import { applyTagAppearance } from "./tag-colors";
 import { showEditTagModal } from "./tag-utils";
 import { createIconButton } from "./icon-button";
 import { isNarrowViewport, windowInstanceOf } from "./platform-utils";
 import { addInputClearButton } from "./input-clear-button";
-import { addTagColorPaletteControl } from "../components/tag-color-palette-control";
 import type { TagsDropdownPortalOptions } from "./tags-dropdown-portal";
 
 const TAB_STOP_SELECTOR = [
@@ -50,6 +44,7 @@ interface PortalContext {
 interface PortalContentContext extends PortalContext {
   tagsListContainer: HTMLElement;
   tagSeparator: HTMLElement;
+  closeDropdown: PortalLifecycle["closeDropdown"];
 }
 
 interface PortalLifecycle {
@@ -127,9 +122,11 @@ function createPortalContext(
 
 function createPortalContentContext(
   context: PortalContext,
+  closeDropdown: PortalLifecycle["closeDropdown"],
 ): PortalContentContext {
   return {
     ...context,
+    closeDropdown,
     tagsListContainer: context.portalDropdown.createDiv({
       cls: "rss-dashboard-tag-list",
     }),
@@ -302,9 +299,10 @@ function createTagItemButtons(
           persistSettings(context);
           notifySettingsTagsMutated(context);
           context.onTagEdited?.(previousTag, updatedTag);
-          rerenderTagItems(context);
         },
       });
+      // The editor takes over, so the popover (or mobile sheet) steps aside.
+      context.closeDropdown();
     },
   });
   const deleteButton = createIconButton({
@@ -322,14 +320,6 @@ function createTagItemButtons(
   tagItem.appendChild(deleteButton);
 }
 
-function rerenderTagItems(context: PortalContentContext): void {
-  context.tagsListContainer.empty();
-  for (const nextTag of context.settings.availableTags) {
-    appendTagItem(context, nextTag);
-  }
-  updateTagSeparatorVisibility(context);
-}
-
 function addInlineTagControls(
   context: PortalContentContext,
   closeDropdown: PortalLifecycle["closeDropdown"],
@@ -337,43 +327,6 @@ function addInlineTagControls(
   if (context.isMobile) return;
   const inlineAddRow = context.portalDropdown.createDiv({
     cls: "rss-dashboard-tag-inline-add-row",
-  });
-  const defaultTagColor = context.settings.defaultTagColor ?? DEFAULT_TAG_COLOR;
-  const defaultTagTextColor =
-    context.settings.defaultTagTextColor ?? DEFAULT_TAG_TEXT_COLOR;
-  const backgroundColorField = inlineAddRow.createDiv({
-    cls: "rss-dashboard-tag-inline-color-field",
-  });
-  const colorInput = backgroundColorField.createEl("input", {
-    attr: {
-      type: "color",
-      value: defaultTagColor,
-      "aria-label": "Tag background color",
-    },
-    cls: "rss-dashboard-tag-inline-color",
-  });
-  colorInput.dataset.rssDashboardDefaultColor = defaultTagColor;
-  addTagColorPaletteControl({
-    container: backgroundColorField,
-    input: colorInput,
-    fieldName: "Background",
-  });
-  const textColorField = inlineAddRow.createDiv({
-    cls: "rss-dashboard-tag-inline-color-field",
-  });
-  const textColorInput = textColorField.createEl("input", {
-    attr: {
-      type: "color",
-      value: defaultTagTextColor,
-      "aria-label": "Tag text color",
-    },
-    cls: "rss-dashboard-tag-inline-color rss-dashboard-tag-inline-text-color",
-  });
-  textColorInput.dataset.rssDashboardDefaultColor = defaultTagTextColor;
-  addTagColorPaletteControl({
-    container: textColorField,
-    input: textColorInput,
-    fieldName: "Text",
   });
   const nameInput = inlineAddRow.createEl("input", {
     attr: {
@@ -401,18 +354,7 @@ function addInlineTagControls(
       new Notice("A tag with this name already exists!");
       return;
     }
-    const newTag = createTagWithAppearanceChanges(
-      tagName,
-      { background: colorInput.value, text: textColorInput.value },
-      {
-        background:
-          colorInput.value !==
-          (context.settings.defaultTagColor ?? DEFAULT_TAG_COLOR),
-        text:
-          textColorInput.value !==
-          (context.settings.defaultTagTextColor ?? DEFAULT_TAG_TEXT_COLOR),
-      },
-    );
+    const newTag: Tag = { name: tagName };
     context.settings.availableTags.push(newTag);
     persistSettings(context);
     notifySettingsTagsMutated(context);
@@ -432,12 +374,35 @@ function addInlineTagControls(
   });
   createIconButton({
     parent: inlineAddRow,
-    cls: "rss-dashboard-tag-inline-button clickable-icon",
+    cls: "rss-dashboard-tag-inline-add rss-dashboard-tag-inline-button clickable-icon",
     label: "Add tag",
     icon: "plus",
     onClick: (e) => {
       e.stopPropagation();
       submitInlineTag();
+    },
+  });
+  createIconButton({
+    parent: inlineAddRow,
+    cls: "rss-dashboard-tag-inline-edit rss-dashboard-tag-inline-button clickable-icon",
+    label: "Edit new tag",
+    icon: "pencil",
+    onClick: (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      showEditTagModal({
+        app: context.app,
+        settings: context.settings,
+        tag: { name: nameInput.value.trim() },
+        isNew: true,
+        onSave: (newTag) => {
+          persistSettings(context);
+          notifySettingsTagsMutated(context);
+          context.onTagAssignmentChange(newTag, true);
+        },
+      });
+      // The editor takes over, so the popover (or mobile sheet) steps aside.
+      closeDropdown();
     },
   });
   createIconButton({
@@ -669,7 +634,7 @@ export function createTagsDropdownPortalImplementation(
   const closeDropdown = (restoreFocus?: boolean) =>
     lifecycle.closeDropdown(restoreFocus);
   addMobileSheetHeader(context, closeDropdown);
-  const contentContext = createPortalContentContext(context);
+  const contentContext = createPortalContentContext(context, closeDropdown);
   addPortalContent(contentContext, closeDropdown);
   context.mountEl.appendChild(context.portalDropdown);
   context.portalDropdown.addClass("rss-dashboard-tags-dropdown-content-portal");
@@ -694,34 +659,5 @@ export function refreshTagsDropdownPortalColors(
     )
     .forEach((label) => {
       applyTagAppearance(label, { name: label.textContent ?? "" }, settings);
-    });
-
-  doc
-    .querySelectorAll<HTMLInputElement>(
-      ".rss-dashboard-tags-dropdown-content-portal .rss-dashboard-tag-inline-color",
-    )
-    .forEach((input) => {
-      const nextDefault = input.classList.contains(
-        "rss-dashboard-tag-inline-text-color",
-      )
-        ? (settings.defaultTagTextColor ?? DEFAULT_TAG_TEXT_COLOR)
-        : (settings.defaultTagColor ?? DEFAULT_TAG_COLOR);
-      const previousDefault = input.dataset.rssDashboardDefaultColor;
-      if (
-        previousDefault !== undefined &&
-        input.value.toLowerCase() === previousDefault.toLowerCase()
-      ) {
-        input.value = nextDefault;
-        const ownerWindow = input.ownerDocument.defaultView;
-        if (ownerWindow) {
-          input.dispatchEvent(
-            new ownerWindow.Event("input", { bubbles: true }),
-          );
-          input.dispatchEvent(
-            new ownerWindow.Event("change", { bubbles: true }),
-          );
-        }
-      }
-      input.dataset.rssDashboardDefaultColor = nextDefault;
     });
 }

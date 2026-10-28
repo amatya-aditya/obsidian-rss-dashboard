@@ -46,7 +46,7 @@ export function addTagMultiSelectControl(
   });
   const triggerLabel = trigger.createSpan({ cls: CLS_TRIGGER_LABEL });
   const triggerIcon = trigger.createSpan();
-  setIcon(triggerIcon, "chevron-down");
+  setIcon(triggerIcon, "chevrons-up-down");
 
   const syncWrapperState = () => {
     const isEmpty = availableTags.length === 0;
