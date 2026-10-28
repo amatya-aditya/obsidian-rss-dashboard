@@ -94,6 +94,12 @@ vi.mock("../../../src/components/article-list", () => ({
     setEmptyStateContext(context: unknown): void {
       this.record.emptyStateContext = context;
     }
+    // The view asks its list whether an open tag menu holds focus before
+    // restoring focus on leaf activation (#1480). This double has no menu.
+    tagsMenuHoldsFocus(): boolean {
+      return false;
+    }
+    setSearchQuery(): void {}
     refilter(): void {}
     setSelectedArticle(): void {}
     updateHeaderTitle(): void {}
@@ -290,11 +296,13 @@ const SIDEBAR_CALLBACK_NAMES = [
 
 const ARTICLE_LIST_CALLBACK_NAMES = [
   "onArticleClick",
+  "onArticleControlActivate",
   "onArticleCustomSave",
   "onArticleSave",
   "onArticleUpdate",
   "onFetchCoverImage",
   "onFilterChange",
+  "onFocusedRowRemoval",
   "onGroupChange",
   "onMarkAllAsRead",
   "onMarkAllAsUnread",
@@ -892,7 +900,7 @@ describe("Dashboard renderFilterSubheader characterization", () => {
     return { text, color, enabled: true } as HighlightWord;
   }
 
-  it("shows only the refresh status row when no stats apply", () => {
+  it("shows the refresh status row without live-region semantics", () => {
     const { container } = strip(() => {});
 
     const rows = container.querySelectorAll(
@@ -905,8 +913,8 @@ describe("Dashboard renderFilterSubheader characterization", () => {
     expect(
       rows[0]
         .querySelector(".rss-dashboard-refresh-status-text")
-        ?.getAttribute("aria-live"),
-    ).toBe("polite");
+        ?.hasAttribute("aria-live"),
+    ).toBe(false);
   });
 
   it("adds no error button while nothing is failing", () => {
@@ -935,7 +943,7 @@ describe("Dashboard renderFilterSubheader characterization", () => {
     expect(button?.getAttribute("aria-label")).toBe(
       "Show details for 1 failing feed",
     );
-    // An interactive control inside `aria-live="polite"` re-announces badly.
+    // Keep the interactive error control outside the visible status text.
     expect(button?.closest('[aria-live="polite"]')).toBeNull();
   });
 
@@ -1128,7 +1136,7 @@ describe("Dashboard renderFilterSubheader characterization", () => {
     ).toBe("Viewing filters: Showing 5 | Filtered out 2 | Total 7");
   });
 
-  it("opens the viewing filters menu from its button by click, Enter or Space only", () => {
+  it("opens the viewing filters menu from a native button on click only", () => {
     const { container, h } = strip((view) => {
       view.dashboardMultiFilterCounts = { shown: 1, filteredOut: 0, total: 1 };
     });
@@ -1137,28 +1145,20 @@ describe("Dashboard renderFilterSubheader characterization", () => {
     const button = container.querySelector(
       ".rss-dashboard-viewing-filter-open-btn",
     ) as HTMLElement;
-    expect(button.getAttribute("role")).toBe("button");
-    expect(button.getAttribute("tabindex")).toBe("0");
+    expect(button.tagName).toBe("BUTTON");
+    expect(button.getAttribute("type")).toBe("button");
+    expect(button.hasAttribute("role")).toBe(false);
+    expect(button.hasAttribute("tabindex")).toBe(false);
     expect(button.getAttribute("aria-label")).toBe("Open viewing filters");
 
     button.click();
     expect(open).toHaveBeenCalledTimes(1);
 
-    const enter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true });
-    const prevent = vi.spyOn(enter, "preventDefault");
-    button.dispatchEvent(enter);
-    expect(prevent).toHaveBeenCalled();
-    expect(open).toHaveBeenCalledTimes(2);
-
+    // The browser maps Enter/Space to a click; the plugin adds no key handler.
     button.dispatchEvent(
-      new KeyboardEvent("keydown", { key: " ", bubbles: true }),
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
     );
-    expect(open).toHaveBeenCalledTimes(3);
-
-    button.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "a", bubbles: true }),
-    );
-    expect(open).toHaveBeenCalledTimes(3);
+    expect(open).toHaveBeenCalledTimes(1);
   });
 
   describe("viewing filters button popup state", () => {
@@ -1177,7 +1177,7 @@ describe("Dashboard renderFilterSubheader characterization", () => {
       expect(button.getAttribute("aria-expanded")).toBe("false");
     });
 
-    it("hands itself to the menu opener on click and on Enter", () => {
+    it("hands itself to the menu opener on click", () => {
       const { container, h } = strip((view) => {
         view.dashboardMultiFilterCounts = {
           shown: 1,
@@ -1192,12 +1192,9 @@ describe("Dashboard renderFilterSubheader characterization", () => {
       ) as HTMLElement;
 
       button.click();
-      button.dispatchEvent(
-        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
-      );
 
-      expect(open).toHaveBeenNthCalledWith(1, button);
-      expect(open).toHaveBeenNthCalledWith(2, button);
+      expect(open).toHaveBeenCalledTimes(1);
+      expect(open).toHaveBeenCalledWith(button);
     });
 
     it("keeps the menu state on the button and returns Esc focus to it", () => {

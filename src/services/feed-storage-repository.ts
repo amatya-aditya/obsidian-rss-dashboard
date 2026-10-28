@@ -2,6 +2,7 @@ import { App, TFolder } from "obsidian";
 import type {
   Feed,
   FeedBundle,
+  FeedItem,
   FeedItemsShard,
   PortableDataBundle,
   PersistedFeedConfig,
@@ -11,6 +12,8 @@ import type {
   UserStateFile,
   FeedShardHealth,
 } from "../types/types";
+import { OwnWriteRecord } from "./own-write-record";
+import { ShardBaselines } from "./shard-baselines";
 import { SHARD_VERSION, cloneJson, withSyncNonce } from "./storage-json";
 import {
   parseFeedBundle,
@@ -18,6 +21,7 @@ import {
   parseSettingsBundle,
 } from "./storage-bundle-parsers";
 import { UserStateStore } from "./user-state-store";
+import type { UserStateJournalChange } from "./user-state-journal";
 import { mergeImportedSettingsGroups } from "../utils/settings-group-merge";
 import {
   createComparableFeedShardJson,
@@ -28,12 +32,14 @@ import {
   normalizeFolderPath,
 } from "./feed-storage-shard";
 import {
+  createLoadedShardBaseline,
   hydrateFeedStorage,
   persistFeedStorage,
   type FeedStorageHydrationResult,
   type FeedStoragePersistResult,
   type FeedStorageRunnerHost,
   type FeedStorageRunnerState,
+  type LoadedShard,
   type PersistSettingsOptions,
 } from "./feed-storage-runner";
 
@@ -107,6 +113,20 @@ function storageError(
   _details?: unknown,
 ): void {}
 
+/**
+ * Copies a feed without reading its `items`, so persisting settings never
+ * clones an article that the persisted form drops anyway.
+ */
+function withoutItems(feed: Feed): Feed {
+  const config: Record<string, unknown> = {};
+  for (const key of Object.keys(feed)) {
+    if (key !== "items") {
+      config[key] = (feed as unknown as Record<string, unknown>)[key];
+    }
+  }
+  return config as unknown as Feed;
+}
+
 export class FeedStorageRepository {
   /**
    * Workflow state the hydrate/persist runner reads and writes through the
@@ -115,9 +135,12 @@ export class FeedStorageRepository {
    */
   private readonly state: FeedStorageRunnerState = {
     lastPersistedMetadataJson: null,
-    lastPersistedShardJsonByFeedId: new Map<string, string>(),
+    lastPersistedShardJsonByFeedId: new ShardBaselines(),
+    ownWrites: new OwnWriteRecord(),
+    removedFeedShardBaselines: new Map(),
     lastStorageFolderPath: null,
     feedShardHealthById: new Map<string, FeedShardHealth>(),
+    retainedMissingFeedIds: new Set<string>(),
     shardFolderHiddenFromSync: false,
     /**
      * Feed IDs whose shard was successfully read and structurally validated
@@ -133,13 +156,18 @@ export class FeedStorageRepository {
   constructor(
     app: App,
     options?: {
-      writeWrapper?: <T>(fn: () => Promise<T>) => Promise<T>;
+      writeWrapper?: <T>(
+        target: { path: string; content: string },
+        fn: () => Promise<T>,
+      ) => Promise<T>;
+      onFileRead?: (path: string, text: string) => void;
       onUserStateHealthChange?: () => void;
     },
   ) {
     this.app = app;
     this.userState = new UserStateStore(app, {
       writeWrapper: options?.writeWrapper,
+      onFileRead: options?.onFileRead,
       onUserStateHealthChange: options?.onUserStateHealthChange,
       hydratedShardGuidsByFeedId: this.state.hydratedShardGuidsByFeedId,
     });
@@ -148,7 +176,8 @@ export class FeedStorageRepository {
       userState: this.userState,
       state: this.state,
       ensureFeedIds: (settings) => this.ensureFeedIds(settings),
-      capturePersistedState: (settings) => this.capturePersistedState(settings),
+      capturePersistedState: (settings, loadedShards) =>
+        this.capturePersistedState(settings, loadedShards),
       hasNothingToRebuild: (feed) => this.hasNothingToRebuild(feed),
       removeShardFile: (shardPath) => this.removeShardFile(shardPath),
       removeFolderIfEmpty: (folderPath) => this.removeFolderIfEmpty(folderPath),
@@ -163,6 +192,30 @@ export class FeedStorageRepository {
     return this.userState.isUnreadable();
   }
 
+  /**
+   * Points the article-state store at the device-local journal folder and the
+   * settings store's one persistence gate. Called by the settings store, which
+   * owns the plugin folder and that gate.
+   */
+  public configureDeviceLocalJournal(options: {
+    pluginDir: string;
+    isPersistenceSuppressed: () => boolean;
+    getStorageMode: () => RssDashboardSettings["storageMode"];
+  }): void {
+    this.userState.configureDeviceLocalJournal(options);
+  }
+
+  /**
+   * Appends article-state changes to the device-local journal so they survive
+   * an abrupt close before the shared snapshot is rewritten. #1387 calls this
+   * from the coalesced article-state queue.
+   */
+  public async recordArticleStateChanges(
+    changes: readonly UserStateJournalChange[],
+  ): Promise<void> {
+    return this.userState.appendChanges(changes);
+  }
+
   public getFeedShardHealth(feed: Feed): FeedShardHealth | null {
     return feed.feedId
       ? (this.state.feedShardHealthById.get(feed.feedId) ?? null)
@@ -170,7 +223,18 @@ export class FeedStorageRepository {
   }
 
   public clearFeedShardHealth(feed: Feed): void {
-    if (feed.feedId) this.state.feedShardHealthById.delete(feed.feedId);
+    if (feed.feedId) {
+      this.state.feedShardHealthById.delete(feed.feedId);
+      this.state.retainedMissingFeedIds.delete(feed.feedId);
+    }
+  }
+
+  /**
+   * The Own write record of every watched file, shards included (#1422). The
+   * settings store reads and writes it for `data.json` and `user-state.json`.
+   */
+  public get ownWrites(): OwnWriteRecord {
+    return this.state.ownWrites;
   }
 
   /**
@@ -249,10 +313,37 @@ export class FeedStorageRepository {
     };
   }
 
+  /**
+   * `loadedItemsByFeedId` holds the articles already in memory when this is a
+   * reload; a feed whose shard is gone keeps them instead of loading empty.
+   */
   public async hydrateSettings(
     settings: RssDashboardSettings,
+    loadedItemsByFeedId?: ReadonlyMap<string, FeedItem[]>,
   ): Promise<FeedStorageHydrationResult> {
-    return hydrateFeedStorage(settings, this.runnerHost);
+    return hydrateFeedStorage(settings, this.runnerHost, loadedItemsByFeedId);
+  }
+
+  /**
+   * Re-applies the persisted article state to the loaded items in place,
+   * replaying the device-local journal over it. Unlike a full settings load it
+   * keeps the settings object, so a pending settings edit survives (#1418).
+   */
+  public async refreshArticleState(
+    settings: RssDashboardSettings,
+  ): Promise<void> {
+    await this.userState.applyToFeeds(settings);
+    await this.userState.completeLoad();
+  }
+
+  /**
+   * Finishes a settings load's article-state work once the write gate has
+   * reopened, dropping the journal records the snapshot read during that load
+   * already covers. Hydration cannot do it itself: the gate is closed for the
+   * whole load (#1520).
+   */
+  public async completeUserStateLoad(): Promise<void> {
+    await this.userState.completeLoad();
   }
 
   public async persistSettings(
@@ -812,7 +903,10 @@ export class FeedStorageRepository {
   private createPersistedSettings(
     settings: RssDashboardSettings,
   ): PersistedRssDashboardSettings {
-    const cloned = cloneJson(settings);
+    const cloned = cloneJson({
+      ...settings,
+      feeds: settings.feeds.map(withoutItems),
+    });
 
     return {
       ...cloned,
@@ -821,7 +915,10 @@ export class FeedStorageRepository {
     };
   }
 
-  private capturePersistedState(settings: RssDashboardSettings): void {
+  private capturePersistedState(
+    settings: RssDashboardSettings,
+    loadedShards: ReadonlyMap<string, LoadedShard> = new Map(),
+  ): void {
     if (
       settings.storageMode === "vault-shards" ||
       settings.storageMode === "vault-shards-v2"
@@ -832,16 +929,20 @@ export class FeedStorageRepository {
         2,
       );
       const isV2 = settings.storageMode === "vault-shards-v2";
-      this.state.lastPersistedShardJsonByFeedId = new Map(
-        settings.feeds
-          .filter((feed): feed is Feed & { feedId: string } =>
-            Boolean(feed.feedId),
-          )
-          .map((feed) => [
-            feed.feedId,
-            createComparableFeedShardJson(feed, isV2),
-          ]),
-      );
+      const baselines = new ShardBaselines();
+      for (const feed of settings.feeds) {
+        const feedId = feed.feedId;
+        if (!feedId) continue;
+        const loaded = loadedShards.get(feedId);
+        if (loaded) {
+          baselines.setDeferred(feedId, () =>
+            createLoadedShardBaseline(feedId, loaded, isV2),
+          );
+        } else {
+          baselines.set(feedId, createComparableFeedShardJson(feed, isV2));
+        }
+      }
+      this.state.lastPersistedShardJsonByFeedId = baselines;
       this.state.lastStorageFolderPath = normalizeFolderPath(
         settings.storageFolder,
       );
@@ -964,6 +1065,7 @@ export class FeedStorageRepository {
   }
 
   private async removeShardFile(shardPath: string): Promise<boolean> {
+    this.state.ownWrites.forget(shardPath);
     const indexed = this.app.vault.getAbstractFileByPath(shardPath);
     if (indexed) {
       await this.app.fileManager.trashFile(indexed);

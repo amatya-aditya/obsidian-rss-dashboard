@@ -95,13 +95,92 @@ describe("ShortcutHelpModal", () => {
     });
 
     it("builds the saved vault note from the same rows", () => {
-      const articleSection = SHORTCUT_SECTIONS.find(
-        (section) => section.section === "Article manipulation",
+      const dashboardSection = SHORTCUT_SECTIONS.find(
+        (section) => section.section === "Dashboard view",
       );
-      expect(articleSection?.items).toEqual(
+      expect(dashboardSection?.items).toEqual(
         expect.arrayContaining(expected.map(([key, desc]) => ({ key, desc }))),
       );
     });
+  });
+
+  describe("grouping by where the keys work (#1469)", () => {
+    const headings: Record<string, string> = {
+      "General navigation": "## General Navigation",
+      "Dashboard view": "## Dashboard View",
+      "Reader view": "## Reader View",
+      "Article manipulation": "## Article Manipulation",
+      "Sidebar navigation": "## Sidebar Navigation",
+    };
+
+    function guideRows(heading: string): Array<[string, string]> {
+      const guide = readFileSync("docs/user/keyboard-shortcuts.md", "utf8");
+      const body = guide.split(heading + "\n")[1]?.split("\n## ")[0] ?? "";
+      return body
+        .split("\n")
+        .filter((line) => line.startsWith("|"))
+        .slice(2)
+        .map((line) => {
+          const [key, desc] = line
+            .slice(1, -1)
+            .split(" | ")
+            .map((cell) => cell.replace(/\\_/g, "_").trim());
+          return [key, desc];
+        });
+    }
+
+    it("keeps General navigation to ? and Esc", () => {
+      const section = SHORTCUT_SECTIONS.find(
+        (candidate) => candidate.section === "General navigation",
+      );
+      expect(section?.items.map((item) => item.key)).toEqual(["?", "Esc"]);
+    });
+
+    it("lists r under Dashboard view", () => {
+      const section = SHORTCUT_SECTIONS.find(
+        (candidate) => candidate.section === "Dashboard view",
+      );
+      expect(section?.items).toContainEqual({
+        key: "r",
+        desc: "Refresh feed",
+      });
+    });
+
+    it("keeps the dashboard-only keys out of Article manipulation", () => {
+      const section = SHORTCUT_SECTIONS.find(
+        (candidate) => candidate.section === "Article manipulation",
+      );
+      const keys = section?.items.map((item) => item.key) ?? [];
+      expect(keys).toEqual([
+        "k",
+        "j",
+        "l",
+        "m",
+        ",",
+        "Shift + a",
+        "f",
+        "Shift + f",
+        "t",
+        "s",
+      ]);
+    });
+
+    it.each(Object.entries(headings))(
+      "gives the guide the same rows as the dialog in %s",
+      (name, heading) => {
+        const section = SHORTCUT_SECTIONS.find(
+          (candidate) => candidate.section === name,
+        );
+        const dialog = (section?.items ?? []).map(
+          (item) => [item.key, item.desc] as [string, string],
+        );
+        const guide = guideRows(heading).map(
+          ([key, desc]) => [key, desc] as [string, string],
+        );
+        expect(guide.map(([key]) => key)).toEqual(dialog.map(([key]) => key));
+        expect(guide).toEqual(dialog);
+      },
+    );
   });
 
   describe("Esc shortcut", () => {
@@ -151,15 +230,15 @@ describe("ShortcutHelpModal", () => {
       ],
     ];
 
-    function articleItems() {
+    function dashboardItems() {
       const section = SHORTCUT_SECTIONS.find(
-        (candidate) => candidate.section === "Article manipulation",
+        (candidate) => candidate.section === "Dashboard view",
       );
       return section?.items ?? [];
     }
 
     it("no longer calls the arrow keys card view navigation", () => {
-      expect(articleItems().map((item) => item.key)).not.toContain(
+      expect(dashboardItems().map((item) => item.key)).not.toContain(
         "Arrow keys",
       );
       const text = SHORTCUT_SECTIONS.flatMap((section) => section.items)
@@ -169,14 +248,14 @@ describe("ShortcutHelpModal", () => {
     });
 
     it.each(expected)("lists %s as %s", (key, desc) => {
-      expect(articleItems()).toContainEqual({ key, desc });
+      expect(dashboardItems()).toContainEqual({ key, desc });
     });
 
     it("matches the keyboard shortcuts guide", () => {
       const guide = readFileSync("docs/user/keyboard-shortcuts.md", "utf8");
       const articleTable = guide
-        .split("## Article Manipulation")[1]
-        ?.split("## Sidebar Navigation")[0];
+        .split("## Dashboard View")[1]
+        ?.split("## Reader View")[0];
       expect(articleTable).toBeDefined();
       for (const [key, desc] of expected) {
         const row = articleTable
@@ -188,8 +267,8 @@ describe("ShortcutHelpModal", () => {
     });
   });
 
-  describe("YouTube focus mode shortcut", () => {
-    it("lists Shift+F as toggling YouTube focus mode in the modal and the guide", () => {
+  describe("video focus mode shortcut", () => {
+    it("lists Shift+F as toggling video focus mode in the modal and the guide", () => {
       const modal = new ShortcutHelpModal(
         createMockApp(),
         structuredClone(DEFAULT_SETTINGS),
@@ -204,14 +283,41 @@ describe("ShortcutHelpModal", () => {
       });
       modal.onClose();
 
-      expect(rows.get("Shift + f")).toBe("Toggle YouTube focus mode");
+      expect(rows.get("Shift + f")).toBe("Toggle video focus mode");
 
       const guide = readFileSync("docs/user/keyboard-shortcuts.md", "utf8");
       const row = guide
         .split("\n")
         .find((line) => line.startsWith("| Shift + f "));
       expect(row).toBeDefined();
-      expect(row).toContain("Toggle YouTube focus mode");
+      expect(row).toContain("Toggle video focus mode");
+    });
+  });
+
+  describe("cover image shortcut (#1466)", () => {
+    it("lists Shift + C as fetching or restoring the cover in the modal and the guide", () => {
+      const modal = new ShortcutHelpModal(
+        createMockApp(),
+        structuredClone(DEFAULT_SETTINGS),
+      );
+      modal.onOpen();
+      const rows = new Map<string, string>();
+      modal.contentEl.querySelectorAll(".rss-shortcut-row").forEach((row) => {
+        rows.set(
+          row.querySelector("kbd")?.textContent ?? "",
+          row.querySelector(".rss-shortcut-desc")?.textContent ?? "",
+        );
+      });
+      modal.onClose();
+
+      expect(rows.get("Shift + C")).toBe("Fetch or restore cover image");
+
+      const guide = readFileSync("docs/user/keyboard-shortcuts.md", "utf8");
+      const row = guide
+        .split("\n")
+        .find((line) => line.startsWith("| Shift + C "));
+      expect(row).toBeDefined();
+      expect(row).toContain("Fetch or restore cover image");
     });
   });
 
@@ -243,7 +349,36 @@ describe("ShortcutHelpModal", () => {
     });
   });
 
-  it("has a compliant clickable-icon for the close button", () => {
+  describe("select first article shortcut (#1465)", () => {
+    it("lists backquote as selecting the first article in the dialog and the guide", () => {
+      const modal = new ShortcutHelpModal(
+        createMockApp(),
+        structuredClone(DEFAULT_SETTINGS),
+      );
+      modal.onOpen();
+      const rows = new Map<string, string>();
+      modal.contentEl.querySelectorAll(".rss-shortcut-row").forEach((row) => {
+        rows.set(
+          row.querySelector("kbd")?.textContent ?? "",
+          row.querySelector(".rss-shortcut-desc")?.textContent ?? "",
+        );
+      });
+      modal.onClose();
+
+      expect(rows.get("`")).toBe("Select first article");
+
+      const guide = readFileSync("docs/user/keyboard-shortcuts.md", "utf8");
+      // The key cell holds the bare backtick, as the guide's own row-for-row
+      // test compares cells literally.
+      const row = guide
+        .split("\n")
+        .find((line) => line.startsWith("| `                      |"));
+      expect(row, "guide row for backquote").toBeDefined();
+      expect(row).toContain("Select first article");
+    });
+  });
+
+  it("renders the close control as a native button", () => {
     const app = createMockApp();
     const modal = new ShortcutHelpModal(app, structuredClone(DEFAULT_SETTINGS));
 
@@ -254,8 +389,11 @@ describe("ShortcutHelpModal", () => {
     );
     expect(closeBtn).not.toBeNull();
     if (closeBtn) {
-      expect(closeBtn.getAttribute("role")).toBe("button");
-      expect(closeBtn.getAttribute("tabindex")).toBe("0");
+      expect(closeBtn.tagName).toBe("BUTTON");
+      expect(closeBtn.getAttribute("type")).toBe("button");
+      expect(closeBtn.getAttribute("aria-label")).toBe("Close");
+      expect(closeBtn.hasAttribute("role")).toBe(false);
+      expect(closeBtn.hasAttribute("tabindex")).toBe(false);
     }
 
     modal.onClose();
@@ -360,7 +498,30 @@ describe("ShortcutHelpModal", () => {
       modal.onClose();
     });
 
-    it("writes the YouTube focus mode row into the saved note", async () => {
+    it("writes every section's rows into the saved note in dialog order (#1469)", async () => {
+      const app = App.createMock();
+      const modal = new ShortcutHelpModal(app, createSettings(""));
+      modal.onOpen();
+
+      await clickSaveLink(modal);
+
+      const file = app.vault.getAbstractFileByPath("keyboard-shortcuts.md");
+      const content = await app.vault.read(file as never);
+      const expected = SHORTCUT_SECTIONS.flatMap((section) => [
+        `## ${section.section}`,
+        ...section.items.map((item) => `| ${item.key} | ${item.desc} |`),
+      ]);
+      const actual = content
+        .split("\n")
+        .filter(
+          (line) => line.startsWith("## ") || /^\| .* \| .* \|$/.test(line),
+        )
+        .filter((line) => line !== "| Shortcut | Action |");
+      expect(actual).toEqual(expected);
+      modal.onClose();
+    });
+
+    it("writes the video focus mode row into the saved note", async () => {
       const app = App.createMock();
       const modal = new ShortcutHelpModal(app, createSettings(""));
       modal.onOpen();
@@ -370,7 +531,7 @@ describe("ShortcutHelpModal", () => {
       const file = app.vault.getAbstractFileByPath("keyboard-shortcuts.md");
       expect(file).not.toBeNull();
       const content = await app.vault.read(file as never);
-      expect(content).toContain("| Shift + f | Toggle YouTube focus mode |");
+      expect(content).toContain("| Shift + f | Toggle video focus mode |");
       modal.onClose();
     });
   });

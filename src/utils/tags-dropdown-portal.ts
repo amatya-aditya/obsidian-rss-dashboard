@@ -1,10 +1,11 @@
-import { type App, Notice, setIcon } from "obsidian";
+import type { App } from "obsidian";
 import type { FeedItem, RssDashboardSettings, Tag } from "../types/types";
-import { DEFAULT_TAG_COLOR } from "./tag-colors";
-import { showEditTagModal } from "./tag-utils";
-import { onActivate } from "./keyboard-activation";
-import { isNarrowViewport, windowInstanceOf } from "./platform-utils";
-import { addInputClearButton } from "./input-clear-button";
+import {
+  createTagsDropdownPortalImplementation,
+  refreshTagsDropdownPortalColors,
+} from "./tags-dropdown-portal-implementation";
+
+export { refreshTagsDropdownPortalColors };
 
 export type TagsDropdownPortalOptions = {
   app: App;
@@ -22,531 +23,49 @@ export type TagsDropdownPortalOptions = {
   onTagEdited?: (previous: Tag, updated: Tag) => void;
   onOpenTagsSettings?: () => Promise<void> | void;
   appContainer?: HTMLElement | null;
+  /**
+   * Keep Tab and Shift+Tab cycling inside the menu. Opt-in, because the portal
+   * also mounts inside modals: there the host dialog claims Escape, so a
+   * trapped menu would leave closing the whole dialog as the only way out.
+   * The dashboard and Reader opt in; the Import Starred dialog keeps its
+   * normal Tab order (#1480).
+   */
+  containTab?: boolean;
+  /**
+   * Receives the mounted menu root. A view whose own focus-restore handler
+   * could pull focus out of the menu (the dashboard and Reader restore their
+   * container on leaf activation) keeps this reference and passes it to
+   * `tagsPortalHoldsFocus` before taking focus (#1480).
+   */
+  onOpen?: (portal: HTMLElement) => void;
   onClosed?: () => void;
 };
+
+/**
+ * True while `portal` is still mounted and keyboard focus belongs to the menu
+ * it opened: inside the menu, on its opener, or on the document body that a
+ * click on the menu's non-focusable text leaves. This is the same set of
+ * states the portal's Escape handler accepts, so the dashboard and Reader can
+ * skip their leaf-activation focus grab without making Escape unreachable
+ * (#1480).
+ */
+export function tagsPortalHoldsFocus(
+  portal: HTMLElement | null,
+  anchor?: HTMLElement | null,
+): boolean {
+  if (!portal?.isConnected) return false;
+  const doc = portal.ownerDocument;
+  const focused = doc.activeElement;
+  return (
+    !focused ||
+    focused === doc.body ||
+    portal.contains(focused) ||
+    (anchor?.contains(focused) ?? false)
+  );
+}
 
 export function createTagsDropdownPortal(
   options: TagsDropdownPortalOptions,
 ): () => void {
-  const {
-    app,
-    anchor,
-    settings,
-    item,
-    onTagAssignmentChange,
-    onPersistSettings,
-    onAfterSettingsTagsMutated,
-    onTagEdited,
-    onOpenTagsSettings,
-    appContainer,
-    onClosed,
-  } = options;
-
-  const targetDocument = anchor.ownerDocument;
-  const targetBody = targetDocument.body;
-  const targetWindow = targetDocument.defaultView || activeWindow;
-  const isMobile = isNarrowViewport(targetWindow);
-  // Inside a modal, mount within its container: Obsidian's modal focus trap
-  // pulls focus back into the modal whenever it lands outside that element.
-  const mountEl = anchor.closest<HTMLElement>(".modal-container") ?? targetBody;
-
-  targetDocument
-    .querySelectorAll(
-      ".rss-dashboard-tags-dropdown-content.rss-dashboard-tags-dropdown-content-portal, .rss-dashboard-tags-sheet-backdrop",
-    )
-    .forEach((el) => {
-      (el as HTMLElement).parentNode?.removeChild(el);
-    });
-
-  const sheetBackdrop = isMobile
-    ? mountEl.createDiv({
-        cls: "rss-dashboard-tags-sheet-backdrop",
-      })
-    : null;
-
-  const portalDropdown = mountEl.createDiv({
-    cls: "rss-dashboard-tags-dropdown-content rss-dashboard-tags-dropdown-content-portal",
-    attr: { role: "group", "aria-label": "Manage tags", tabindex: "-1" },
-  });
-  // Only a button reports the menu's state; the import modal anchors on a
-  // plain container.
-  const anchorIsButton = anchor.matches('button, [role="button"]');
-
-  const persistSettings = () => {
-    const result = onPersistSettings?.();
-    if (result instanceof Promise) {
-      void result;
-    }
-  };
-
-  const notifySettingsTagsMutated = () => {
-    onAfterSettingsTagsMutated?.();
-  };
-
-  const openTagsSettings = () => {
-    const result = onOpenTagsSettings?.();
-    if (result instanceof Promise) {
-      void result;
-    }
-  };
-
-  if (isMobile) {
-    portalDropdown.addClass("rss-dashboard-tags-mobile-sheet");
-    const sheetHeader = portalDropdown.createDiv({
-      cls: "rss-dashboard-tags-sheet-header",
-    });
-    sheetHeader.createDiv({
-      cls: "rss-dashboard-tags-sheet-title",
-      text: "Manage tags",
-    });
-    const sheetActions = sheetHeader.createDiv({
-      cls: "rss-dashboard-tags-sheet-actions",
-    });
-    const addTagBtn = sheetActions.createEl("button", {
-      cls: "rss-dashboard-tags-sheet-btn",
-      text: "Add tag",
-    });
-    setIcon(addTagBtn, "plus");
-    addTagBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      closeDropdown();
-      openTagsSettings();
-    });
-    const doneBtn = sheetActions.createEl("button", {
-      cls: "rss-dashboard-tags-sheet-btn rss-dashboard-tags-sheet-btn-done",
-      text: "Done",
-    });
-    doneBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      closeDropdown(true);
-    });
-  }
-
-  const tagsListContainer = portalDropdown.createDiv({
-    cls: "rss-dashboard-tag-list",
-  });
-  const tagSeparator = portalDropdown.createDiv({
-    cls: "rss-dashboard-tag-item-separator",
-  });
-
-  const updateTagSeparatorVisibility = () => {
-    const hasTags = settings.availableTags.length > 0;
-    tagSeparator.style.display = hasTags ? "" : "none";
-  };
-
-  const deleteTagFromProfile = (tag: Tag) => {
-    const tagIndex = settings.availableTags.findIndex(
-      (t) => t.name === tag.name,
-    );
-    if (tagIndex === -1) {
-      return;
-    }
-
-    settings.availableTags.splice(tagIndex, 1);
-    settings.feeds.forEach((feed) => {
-      feed.items.forEach((feedItem) => {
-        if (feedItem.tags) {
-          feedItem.tags = feedItem.tags.filter((t) => t.name !== tag.name);
-        }
-      });
-    });
-
-    if (item.tags?.some((t) => t.name === tag.name)) {
-      onTagAssignmentChange(tag, false);
-    }
-
-    persistSettings();
-    notifySettingsTagsMutated();
-    new Notice(`Tag "${tag.name}" deleted successfully!`);
-    updateTagSeparatorVisibility();
-  };
-
-  const appendTagItem = (tag: Tag, checkedOverride?: boolean) => {
-    const tagItem = tagsListContainer.createDiv({
-      cls: "rss-dashboard-tag-item",
-    });
-    const hasTag =
-      checkedOverride ?? (item.tags?.some((t) => t.name === tag.name) || false);
-
-    const tagCheckbox = tagItem.createEl("input", {
-      attr: { type: "checkbox" },
-      cls: "rss-dashboard-tag-checkbox",
-    });
-    tagCheckbox.checked = hasTag;
-
-    const tagLabel = tagItem.createDiv({
-      cls: "rss-dashboard-tag-label",
-      text: tag.name,
-    });
-    tagLabel.style.setProperty("--tag-color", tag.color);
-
-    const editButton = tagItem.createDiv({
-      cls: "rss-dashboard-tag-action-button rss-dashboard-tag-edit-button clickable-icon",
-      attr: {
-        "aria-label": "Edit tag",
-        role: "button",
-        tabindex: "0",
-      },
-    });
-    setIcon(editButton, "pencil");
-
-    const deleteButton = tagItem.createDiv({
-      cls: "rss-dashboard-tag-action-button rss-dashboard-tag-delete-button clickable-icon",
-      attr: {
-        "aria-label": "Delete tag",
-        role: "button",
-        tabindex: "0",
-      },
-    });
-    setIcon(deleteButton, "trash");
-
-    tagCheckbox.addEventListener("change", (e) => {
-      e.stopPropagation();
-      const isChecked = (e.target as HTMLInputElement).checked;
-
-      tagCheckbox.checked = isChecked;
-
-      tagItem.classList.add("rss-dashboard-tag-item-processing");
-
-      onTagAssignmentChange(tag, isChecked);
-
-      window.setTimeout(() => {
-        tagItem.classList.remove("rss-dashboard-tag-item-processing");
-      }, 200);
-    });
-
-    tagItem.addEventListener("click", (e) => {
-      if (
-        e.target === tagCheckbox ||
-        (windowInstanceOf(e.target, Element) &&
-          (e.target.closest(".rss-dashboard-tag-edit-button") ||
-            e.target.closest(".rss-dashboard-tag-delete-button")))
-      ) {
-        return;
-      }
-
-      const isChecked = !tagCheckbox.checked;
-      tagCheckbox.checked = isChecked;
-
-      tagItem.classList.add("rss-dashboard-tag-item-processing");
-
-      onTagAssignmentChange(tag, isChecked);
-
-      window.setTimeout(() => {
-        tagItem.classList.remove("rss-dashboard-tag-item-processing");
-      }, 200);
-    });
-
-    onActivate(editButton, (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const previousTag = { ...tag };
-      showEditTagModal({
-        app,
-        settings,
-        tag,
-        onSave: async (updatedTag) => {
-          persistSettings();
-          notifySettingsTagsMutated();
-          onTagEdited?.(previousTag, updatedTag);
-          rerenderTagItems();
-        },
-      });
-    });
-
-    onActivate(deleteButton, (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      deleteTagFromProfile(tag);
-      tagItem.remove();
-    });
-
-    tagItem.appendChild(tagCheckbox);
-    tagItem.appendChild(tagLabel);
-    tagItem.appendChild(editButton);
-    tagItem.appendChild(deleteButton);
-  };
-
-  const rerenderTagItems = () => {
-    tagsListContainer.empty();
-    for (const nextTag of settings.availableTags) {
-      appendTagItem(nextTag);
-    }
-    updateTagSeparatorVisibility();
-  };
-
-  for (const tag of settings.availableTags) {
-    appendTagItem(tag);
-  }
-  updateTagSeparatorVisibility();
-
-  if (!isMobile) {
-    const inlineAddRow = portalDropdown.createDiv({
-      cls: "rss-dashboard-tag-inline-add-row",
-    });
-
-    const colorInput = inlineAddRow.createEl("input", {
-      attr: {
-        type: "color",
-        value: DEFAULT_TAG_COLOR,
-      },
-      cls: "rss-dashboard-tag-inline-color",
-    });
-
-    const nameInput = inlineAddRow.createEl("input", {
-      attr: {
-        type: "text",
-        placeholder: "Add new tag...",
-        autocomplete: "off",
-      },
-      cls: "rss-dashboard-tag-inline-input",
-    });
-    nameInput.spellcheck = false;
-    addInputClearButton(nameInput, { fill: true });
-
-    const addButton = inlineAddRow.createDiv({
-      cls: "rss-dashboard-tag-inline-button clickable-icon",
-      attr: { "aria-label": "Add tag", role: "button", tabindex: "0" },
-    });
-    setIcon(addButton, "plus");
-
-    const settingsButton = inlineAddRow.createDiv({
-      cls: "rss-dashboard-tag-inline-settings rss-dashboard-tag-inline-button clickable-icon",
-      attr: {
-        "aria-label": "Open tag settings",
-        role: "button",
-        tabindex: "0",
-      },
-    });
-    setIcon(settingsButton, "settings");
-
-    const submitInlineTag = () => {
-      const tagName = nameInput.value.trim();
-      const tagColor = colorInput.value;
-
-      if (!tagName) {
-        new Notice("Please enter a tag name!");
-        return;
-      }
-
-      if (
-        settings.availableTags.some(
-          (existingTag) =>
-            existingTag.name.toLowerCase() === tagName.toLowerCase(),
-        )
-      ) {
-        new Notice("A tag with this name already exists!");
-        return;
-      }
-
-      const newTag: Tag = {
-        name: tagName,
-        color: tagColor,
-      };
-
-      settings.availableTags.push(newTag);
-      persistSettings();
-      notifySettingsTagsMutated();
-      onTagAssignmentChange(newTag, true);
-      appendTagItem(newTag, true);
-
-      nameInput.value = "";
-      window.requestAnimationFrame(() => nameInput.focus());
-      new Notice(`Tag "${tagName}" added`);
-    };
-
-    addButton.addEventListener("click", (e) => {
-      e.stopPropagation();
-      submitInlineTag();
-    });
-
-    addButton.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        submitInlineTag();
-      }
-    });
-
-    nameInput.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        e.preventDefault();
-        e.stopPropagation();
-        submitInlineTag();
-      }
-    });
-
-    const openTagsSettingsFromInlineRow = (e: Event) => {
-      e.stopPropagation();
-      closeDropdown();
-      openTagsSettings();
-    };
-
-    settingsButton.addEventListener("click", (e) => {
-      e.preventDefault();
-      openTagsSettingsFromInlineRow(e);
-    });
-
-    settingsButton.addEventListener("keydown", (e: KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        openTagsSettingsFromInlineRow(e);
-      }
-    });
-  }
-
-  mountEl.appendChild(portalDropdown);
-  portalDropdown.addClass("rss-dashboard-tags-dropdown-content-portal");
-
-  let removeDesktopListener: (() => void) | null = null;
-  let removeViewportListener: (() => void) | null = null;
-  let isClosed = false;
-
-  if (anchorIsButton) {
-    anchor.setAttribute("aria-expanded", "true");
-  }
-
-  function closeDropdown(restoreFocus = false): void {
-    if (isClosed) {
-      return;
-    }
-    isClosed = true;
-    portalDropdown.remove();
-    sheetBackdrop?.remove();
-    removeDesktopListener?.();
-    removeDesktopListener = null;
-    removeViewportListener?.();
-    removeViewportListener = null;
-    targetDocument.removeEventListener("keydown", handleEscape, true);
-    if (anchorIsButton) {
-      anchor.setAttribute("aria-expanded", "false");
-      if (restoreFocus) {
-        anchor.focus();
-      }
-    }
-    onClosed?.();
-  }
-
-  // Esc closes the menu and hands focus back to the button that opened it.
-  // It acts only while focus is in the menu, on its button, or nowhere (a
-  // click on a non-focusable part of the menu), so an Esc aimed elsewhere
-  // is left alone.
-  function handleEscape(ev: KeyboardEvent): void {
-    if (ev.key !== "Escape") {
-      return;
-    }
-    const focused = targetDocument.activeElement;
-    const focusIsInMenu =
-      !focused ||
-      focused === targetBody ||
-      portalDropdown.contains(focused) ||
-      anchor.contains(focused);
-    if (!focusIsInMenu) {
-      return;
-    }
-    ev.preventDefault();
-    ev.stopPropagation();
-    closeDropdown(true);
-  }
-  targetDocument.addEventListener("keydown", handleEscape, true);
-
-  // Move focus into the menu: the first tag's checkbox, else the menu itself.
-  const focusMenu = () => {
-    const firstCheckbox = portalDropdown.querySelector<HTMLElement>(
-      ".rss-dashboard-tag-checkbox",
-    );
-    (firstCheckbox ?? portalDropdown).focus({ preventScroll: true });
-  };
-
-  if (isMobile) {
-    // Clear any inline positions so CSS mobile-sheet rules win via cascade
-    portalDropdown.style.removeProperty("left");
-    portalDropdown.style.removeProperty("top");
-    portalDropdown.style.removeProperty("width");
-    portalDropdown.style.removeProperty("min-width");
-    portalDropdown.style.removeProperty("max-width");
-
-    const syncMobileViewportHeight = () => {
-      const vvp = targetWindow.visualViewport;
-      const viewportHeight = vvp?.height ?? targetWindow.innerHeight;
-      portalDropdown.style.setProperty(
-        "max-height",
-        `${viewportHeight - 16}px`,
-        "important",
-      );
-    };
-    syncMobileViewportHeight();
-
-    const visualViewport = targetWindow.visualViewport;
-    if (visualViewport) {
-      visualViewport.addEventListener("resize", syncMobileViewportHeight);
-      visualViewport.addEventListener("scroll", syncMobileViewportHeight);
-      removeViewportListener = () => {
-        visualViewport.removeEventListener("resize", syncMobileViewportHeight);
-        visualViewport.removeEventListener("scroll", syncMobileViewportHeight);
-      };
-    } else {
-      targetWindow.addEventListener("resize", syncMobileViewportHeight);
-      removeViewportListener = () => {
-        targetWindow.removeEventListener("resize", syncMobileViewportHeight);
-      };
-    }
-
-    if (sheetBackdrop) {
-      sheetBackdrop.addEventListener("click", () => {
-        closeDropdown();
-      });
-    }
-
-    focusMenu();
-    return () => closeDropdown();
-  }
-
-  const rect = anchor.getBoundingClientRect();
-  const dropdownRect = portalDropdown.getBoundingClientRect();
-  const containerForBounds = appContainer ?? anchor;
-  const boundsContainer =
-    containerForBounds.closest(".workspace-leaf-content") || targetBody;
-  const boundsRect = boundsContainer.getBoundingClientRect();
-
-  let left = rect.right;
-  let top = rect.top;
-
-  if (left + dropdownRect.width > boundsRect.right) {
-    left = rect.left - dropdownRect.width;
-  }
-
-  if (left < boundsRect.left) {
-    left = boundsRect.left;
-  }
-
-  if (top + dropdownRect.height > targetWindow.innerHeight) {
-    top = targetWindow.innerHeight - dropdownRect.height - 5;
-  }
-
-  portalDropdown.style.left = `${left}px`;
-  portalDropdown.style.top = `${top}px`;
-  focusMenu();
-
-  targetWindow.setTimeout(() => {
-    if (isClosed) {
-      return;
-    }
-    const handleClickOutside = (ev: MouseEvent) => {
-      if (
-        portalDropdown &&
-        !portalDropdown.contains(ev.target as Node) &&
-        !(anchor && anchor.contains(ev.target as Node))
-      ) {
-        closeDropdown();
-      }
-    };
-    targetDocument.addEventListener("mousedown", handleClickOutside);
-    removeDesktopListener = () => {
-      targetDocument.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, 0);
-
-  return () => closeDropdown();
+  return createTagsDropdownPortalImplementation(options);
 }

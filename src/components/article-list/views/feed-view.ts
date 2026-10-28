@@ -11,7 +11,10 @@ import {
 } from "../../../utils/article-preview-utils";
 import { renderSingleRowCardTagChips } from "../utils/tag-layout-utils";
 import { resolveCoverImageOffer } from "../utils/cover-image-action";
-import { renderCoverImageControl } from "../utils/cover-image-control";
+import {
+  attachArticleOpenHandler,
+  renderCoverImageControl,
+} from "../utils/cover-image-control";
 import { groupArticles } from "../utils/article-grouping";
 import type { BaseViewContext, ViewDeps } from "./view-types";
 import {
@@ -110,7 +113,11 @@ function renderFeedTagRow(
   const tagsContainer = tagsRegion.createDiv({
     cls: "rss-dashboard-tag-container",
   });
-  renderSingleRowCardTagChips(tagsContainer, article.tags ?? []);
+  renderSingleRowCardTagChips(
+    tagsContainer,
+    article.tags ?? [],
+    ctx.tagAppearanceSettings,
+  );
 
   if (coverImageAction) {
     renderCoverImageControl({
@@ -252,7 +259,7 @@ function renderArticleCard(
   dateEl.textContent = dateInfo.text;
   setTooltip(dateEl, dateInfo.title);
 
-  feedItem.addEventListener("click", () => {
+  attachArticleOpenHandler(feedItem, () => {
     ctx.callbacks.onArticleClick(article);
   });
 

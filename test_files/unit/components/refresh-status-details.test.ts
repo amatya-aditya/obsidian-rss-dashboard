@@ -17,11 +17,60 @@ function setAnyHoverSupport(
   });
 }
 
+async function expectPopupContentAfterStatusInsertion(
+  render: (popup: HTMLElement) => void,
+  expectedText: string,
+): Promise<void> {
+  vi.useFakeTimers();
+  const row = document.body.createDiv({ text: "Feed" });
+  const populate = vi.fn(render);
+  const cleanup = attachRefreshStatusDetails({
+    row,
+    description: () => "Refresh details",
+    render: populate,
+  });
+
+  row.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+  await vi.advanceTimersToNextTimerAsync();
+
+  const popup = document.querySelector<HTMLElement>(
+    ".rss-dashboard-refresh-details",
+  );
+  expect(popup?.getAttribute("role")).toBe("status");
+  expect(popup?.textContent).toBe("");
+  expect(populate).not.toHaveBeenCalled();
+
+  await vi.advanceTimersToNextTimerAsync();
+  expect(populate).toHaveBeenCalledTimes(1);
+  expect(popup?.textContent).toBe(expectedText);
+
+  cleanup();
+}
+
 beforeEach(() => {
   setAnyHoverSupport(window, true);
 });
 
 describe("refresh status details", () => {
+  it("inserts refresh detail content after the empty popup status is mounted", async () => {
+    await expectPopupContentAfterStatusInsertion((popup) => {
+      popup.createEl("strong", { text: "Refresh details" });
+      popup.createDiv({ text: "Last checked: Not yet" });
+    }, "Refresh detailsLast checked: Not yet");
+  });
+
+  it("inserts refresh action content after the empty popup status is mounted", async () => {
+    const actionText = "Refresh all feeds. Shift+click to retry failed feeds.";
+    await expectPopupContentAfterStatusInsertion(
+      (popup) =>
+        popup.createDiv({
+          cls: "rss-dashboard-refresh-details-line",
+          text: actionText,
+        }),
+      actionText,
+    );
+  });
+
   it("opens after hover delay, exposes a description without a native tooltip trigger, and closes with Escape", async () => {
     vi.useFakeTimers();
     const row = document.body.createDiv({ text: "Feed" });
@@ -33,6 +82,7 @@ describe("refresh status details", () => {
 
     row.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
     await vi.advanceTimersByTimeAsync(350);
+    await vi.advanceTimersByTimeAsync(1);
 
     const popup = document.querySelector<HTMLElement>(
       ".rss-dashboard-refresh-details",
@@ -183,6 +233,7 @@ describe("refresh status details", () => {
     const hoverAndReadPopup = async (row: HTMLElement) => {
       row.dispatchEvent(new MouseEvent("mouseenter"));
       await vi.advanceTimersByTimeAsync(350);
+      await vi.advanceTimersByTimeAsync(1);
       const popup = document.querySelector<HTMLElement>(
         ".rss-dashboard-refresh-details",
       );
@@ -267,10 +318,12 @@ describe("refresh status details - one popup at a time", () => {
 
     first.row.focus();
     await vi.advanceTimersByTimeAsync(350);
+    await vi.advanceTimersByTimeAsync(1);
     expect(openPopups()).toEqual(["Details for First feed"]);
 
     second.row.dispatchEvent(new MouseEvent("mouseenter"));
     await vi.advanceTimersByTimeAsync(350);
+    await vi.advanceTimersByTimeAsync(1);
 
     expect(openPopups()).toEqual(["Details for Second feed"]);
     first.cleanup();
@@ -327,6 +380,7 @@ describe("refresh status details after the sidebar moves to a popout window", ()
     popoutDocument.body.appendChild(row);
     row.dispatchEvent(new MouseEvent("mouseenter"));
     await vi.advanceTimersByTimeAsync(350);
+    await vi.advanceTimersByTimeAsync(1);
 
     expect(
       popoutDocument.querySelector(".rss-dashboard-refresh-details")

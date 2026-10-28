@@ -20,7 +20,7 @@ Let's assume your desktop PC is your **existing device** and your phone or table
 your **new device**.
 
 1. If you already have RSS Dashboard installed on your **new device** (phone/tablet), disable it there before beginning these steps: (Obsidian settings → Community Plugins → RSS Dashboard → Toggle 'Off').
-2. If you do not yet have the plugin installed on your **new device**, install it but **do not enable it yet**.
+2. If you do not yet have the plugin installed on your **new device**, you can install it, or let Obsidian Sync deliver it by turning on plugin sync in step 6, but **do not enable it yet**.
 
 > ⚠️ **Important:** Enabling the plugin before Obsidian Sync finishes its initial pull
 > will cause it to write empty defaults to disk. Sync will treat this empty file as the
@@ -32,12 +32,18 @@ your **new device**.
 4. On your **existing device** (PC): Confirm your storage folder names follow the requirements above (Settings → RSS Dashboard → Storage, **as well as** Storage → Metadata storage → Metadata data.json location).
 5. On your **existing device** (PC): Open Obsidian Settings → Core Plugins → Sync → Activity Log and wait until it shows today's date and time with the text "Fully synced".
 
-6. On your **new device** (phone/tablet): Open Obsidian and check the same Sync Activity Log. Wait until it shows today's date and time with the text "Fully synced". Close the sync window.
-7. On your **new device** (phone/tablet): Enable the RSS Dashboard plugin. Your data should now be synced.
+6. On your **new device** (phone/tablet): Open Obsidian Settings → Sync and turn on both of these. A vault created from your remote has them off:
+   1. **Installed community plugins**. Accept the plugin-sync consent that appears. Without it the plugin's code and its bootstrap `data.json` never arrive.
+   2. **Sync all other types**. Without it, `data.json`, `user-state.json` and the shard files never arrive.
+7. On your **new device** (phone/tablet): Check the same Sync Activity Log and wait until it shows today's date and time with the text "Fully synced". Close the sync window.
+
+> ⚠️ **Important:** "Fully synced" does not prove your data files have arrived. Obsidian Sync can report it while files are still in transit (delivery can take a few minutes), and it reports it even when the two settings in step 6 are off. Keep the plugin disabled until your storage folder, with its shard files, and your metadata folder, with `data.json` and `user-state.json`, are visible in the vault's file explorer.
+
+8. On your **new device** (phone/tablet): Enable the RSS Dashboard plugin. Your data should now be synced.
 
 > ⚠️ **Important:** If feeds do not appear after enabling, disable the plugin, wait two minutes, and re-enable it. If the issue persists, see [Troubleshooting](./troubleshooting.md) or open an issue.
 
-8. On your **new device** (phone/tablet): Verify that the storage folder paths match your **existing device**'s (PC) folder structure exactly. These settings sync automatically, but a mismatch here will cause future sync issues.
+9. On your **new device** (phone/tablet): Verify that the storage folder paths match your **existing device**'s (PC) folder structure exactly. These settings sync automatically, but a mismatch here will cause future sync issues.
 
 If you've already hit this issue, disable the plugin on the affected device, wait for
 "Fully synced", then re-enable it.
@@ -48,6 +54,10 @@ Obsidian Sync has no public API to signal when a sync is in progress. On a clean
 if the plugin loads before your data has arrived from the server, it falls back to empty
 defaults and immediately writes them to disk — giving Sync a newer timestamp to treat as
 authoritative.
+
+A new device can also load the plugin before the data exists at all. Obsidian Sync does not
+sync community plugins or non-note files on a new vault until you turn on **Installed community
+plugins** and **Sync all other types**, and its status still reads "Fully synced" without them.
 
 ## Ongoing Sync Reliability
 

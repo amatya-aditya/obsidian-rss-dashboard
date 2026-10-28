@@ -87,6 +87,22 @@ function flushPromises(): Promise<void> {
   });
 }
 
+/**
+ * Saved-note association is article state, so it persists through the coalesced
+ * queue into the article-state snapshot rather than a metadata save (#1385).
+ */
+async function waitForUserStateWrite(
+  write: ReturnType<typeof vi.spyOn>,
+): Promise<void> {
+  await vi.waitFor(() => {
+    expect(
+      write.mock.calls.some((call: unknown[]) =>
+        String(call[0]).endsWith("user-state.json.tmp"),
+      ),
+    ).toBe(true);
+  });
+}
+
 // Create mock App using stubs
 function createMockApp(): MockApp {
   return App.createMock();
@@ -568,12 +584,11 @@ describe("onload() initialization", () => {
       { name: "Research", color: "green" },
     ];
     vi.clearAllMocks();
+    const write = vi.spyOn(app.vault.adapter, "write");
 
     deleteHandler?.({ path: "Articles/Saved article.md" });
 
-    await vi.waitFor(() => {
-      expect(plugin.saveData).toHaveBeenCalledTimes(1);
-    });
+    await waitForUserStateWrite(write);
     expect(app.workspace.getLeavesOfType("rss-dashboard-view")).toHaveLength(0);
     expect(article.saved).toBe(false);
     expect(article.savedFilePath).toBeUndefined();
@@ -601,6 +616,7 @@ describe("onload() initialization", () => {
       { name: "Research", color: "green" },
     ];
     vi.clearAllMocks();
+    const write = vi.spyOn(app.vault.adapter, "write");
 
     for (const handler of renameHandlers) {
       handler(
@@ -609,9 +625,7 @@ describe("onload() initialization", () => {
       );
     }
 
-    await vi.waitFor(() => {
-      expect(plugin.saveData).toHaveBeenCalledTimes(1);
-    });
+    await waitForUserStateWrite(write);
     expect(article.saved).toBe(true);
     expect(article.savedFilePath).toBe("Archive/Renamed article.md");
     expect(article.tags).toEqual([
@@ -653,6 +667,7 @@ describe("onload() initialization", () => {
     article.saved = true;
     article.savedFilePath = "Articles/Saved article.md";
     article.tags = [{ name: "Saved", color: "blue" }];
+    const write = vi.spyOn(app.vault.adapter, "write");
 
     renameHandler?.(
       { path: "Archive/Renamed article.md" },
@@ -670,9 +685,7 @@ describe("onload() initialization", () => {
         article.feedUrl,
       );
     });
-    await vi.waitFor(() => {
-      expect(plugin.saveData).toHaveBeenCalledTimes(1);
-    });
+    await waitForUserStateWrite(write);
   });
 
   it("updates recorded saved-note paths when their folder is renamed", async () => {
@@ -694,11 +707,10 @@ describe("onload() initialization", () => {
 
     const movedFolder = new TFolder();
     movedFolder.path = "Archive/New";
+    const write = vi.spyOn(app.vault.adapter, "write");
     renameHandler?.(movedFolder, "Articles/Old");
 
-    await vi.waitFor(() => {
-      expect(plugin.saveData).toHaveBeenCalledTimes(1);
-    });
+    await waitForUserStateWrite(write);
     expect(article.saved).toBe(true);
     expect(article.savedFilePath).toBe("Archive/New/Saved article.md");
   });
@@ -905,7 +917,7 @@ describe("onload() initialization", () => {
     vi.useRealTimers();
   });
 
-  it("does not reload for shard file modify", async () => {
+  it("reloads settings and refreshes dashboard on watched shard file modify (#1412)", async () => {
     vi.useFakeTimers();
     const handlers: Record<string, (...args: unknown[]) => void> = {};
     plugin.app.vault.on = vi.fn(
@@ -927,8 +939,8 @@ describe("onload() initialization", () => {
     handlers.modify?.({ path: ".rss-dashboard-data/feeds/some-feed.json" });
     await vi.runAllTimersAsync();
 
-    expect(loadSpy).toHaveBeenCalledTimes(1);
-    expect(refreshSpy).toHaveBeenCalledTimes(0);
+    expect(loadSpy).toHaveBeenCalledTimes(2);
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
     vi.useRealTimers();
   });
 
@@ -1116,9 +1128,10 @@ describe("onload() initialization", () => {
     const adapter = plugin.app.vault.adapter as unknown as {
       write: (path: string, content: string) => Promise<void>;
     };
-    vi.spyOn(adapter, "write").mockImplementation((path) => {
+    const realWrite = adapter.write.bind(adapter);
+    vi.spyOn(adapter, "write").mockImplementation(async (path, content) => {
+      await realWrite(path, content);
       handlers.modify?.({ path });
-      return Promise.resolve();
     });
 
     await plugin.saveSettings();

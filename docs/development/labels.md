@@ -22,13 +22,13 @@ list. obsidian-tasks uses the same convention (`scope: …`, `status: …`,
 
 ## Type
 
-| Label           | Use for                                                                              |
-| --------------- | ------------------------------------------------------------------------------------ |
-| `bug`           | Something isn't working as intended                                                  |
-| `enhancement`   | A new feature, or a change to how an existing feature behaves                        |
-| `refactor`      | Behavior-preserving restructuring (see #436 and **Refactors (#436)** in `AGENTS.md`) |
-| `maintenance`   | Tooling, cleanup, compliance, and upkeep with no user-visible change                 |
-| `documentation` | Documentation additions, corrections, and reorganization                             |
+| Label           | Use for                                                                                               |
+| --------------- | ----------------------------------------------------------------------------------------------------- |
+| `bug`           | Something isn't working as intended                                                                   |
+| `enhancement`   | A new feature, or a change to how an existing feature behaves                                         |
+| `refactor`      | Behavior-preserving restructuring (see #436 and [`docs/agents/refactors.md`](../agents/refactors.md)) |
+| `maintenance`   | Tooling, cleanup, compliance, and upkeep with no user-visible change                                  |
+| `documentation` | Documentation additions, corrections, and reorganization                                              |
 
 Dependabot applies `dependencies`, `github_actions`, and `javascript` to its
 own pull requests. Leave them as they are.

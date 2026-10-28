@@ -90,7 +90,10 @@ async function readJson(app: App, path = USER_STATE_PATH) {
   return JSON.parse(await adapter(app).read(path)) as Record<string, unknown>;
 }
 
-type WriteWrapper = <T>(fn: () => Promise<T>) => Promise<T>;
+type WriteWrapper = <T>(
+  target: { path: string; content: string },
+  fn: () => Promise<T>,
+) => Promise<T>;
 
 const noopSaveData = () => Promise.resolve();
 
@@ -107,7 +110,7 @@ describe("Shard storage v2 article state (characterization, #465)", () => {
   });
 
   describe("the user-state.json it writes", () => {
-    it("is version 3 with a sync nonce and padding, and omits empty bookkeeping maps", async () => {
+    it("is version 4 with a sync nonce and padding, and omits empty bookkeeping maps", async () => {
       const repository = new FeedStorageRepository(app);
       const settings = settingsFor("vault-shards-v2", [
         makeFeed("feed-1", [makeItem({ read: true })]),
@@ -119,25 +122,27 @@ describe("Shard storage v2 article state (characterization, #465)", () => {
       expect(Object.keys(written).sort()).toEqual(
         ["_syncNonce", "_syncPad", "states", "version"].sort(),
       );
-      expect(written.version).toBe(3);
+      expect(written.version).toBe(5);
       expect(typeof written._syncNonce).toBe("string");
       expect(written._syncPad).toEqual(
         expect.stringContaining("sync-size-anchor"),
       );
     });
 
-    it("gets a new sync nonce on every save, even when the state is unchanged", async () => {
+    it("leaves the file byte-identical when a save changes no state, and stamps a new sync nonce when it does (#1411)", async () => {
       const repository = new FeedStorageRepository(app);
       const settings = settingsFor("vault-shards-v2", [
         makeFeed("feed-1", [makeItem({ read: true })]),
       ]);
 
       await repository.saveUserStateFromFeeds(settings);
-      const first = (await readJson(app))._syncNonce;
+      const first = await readJson(app);
       await repository.saveUserStateFromFeeds(settings);
-      const second = (await readJson(app))._syncNonce;
+      expect(await readJson(app)).toEqual(first);
 
-      expect(second).not.toBe(first);
+      settings.feeds[0].items[0].starred = true;
+      await repository.saveUserStateFromFeeds(settings);
+      expect((await readJson(app))._syncNonce).not.toBe(first._syncNonce);
     });
 
     it("records read, starred and saved on every entry, and tags, saved path and playback only when set", async () => {
@@ -223,7 +228,9 @@ describe("Shard storage v2 article state (characterization, #465)", () => {
     });
 
     it("routes exactly one write per save through the write wrapper", async () => {
-      const writeWrapper = vi.fn(<T>(fn: () => Promise<T>) => fn());
+      const writeWrapper = vi.fn(<T>(_target: unknown, fn: () => Promise<T>) =>
+        fn(),
+      );
       const repository = new FeedStorageRepository(app, {
         writeWrapper: writeWrapper as unknown as WriteWrapper,
       });
@@ -238,7 +245,9 @@ describe("Shard storage v2 article state (characterization, #465)", () => {
     });
 
     it("does not call the write wrapper or create the folder when there is nothing to record", async () => {
-      const writeWrapper = vi.fn(<T>(fn: () => Promise<T>) => fn());
+      const writeWrapper = vi.fn(<T>(_target: unknown, fn: () => Promise<T>) =>
+        fn(),
+      );
       const repository = new FeedStorageRepository(app, {
         writeWrapper: writeWrapper as unknown as WriteWrapper,
       });
@@ -254,7 +263,9 @@ describe("Shard storage v2 article state (characterization, #465)", () => {
     });
 
     it("shows the unreadable-file notice once per session and never writes over the file", async () => {
-      const writeWrapper = vi.fn(<T>(fn: () => Promise<T>) => fn());
+      const writeWrapper = vi.fn(<T>(_target: unknown, fn: () => Promise<T>) =>
+        fn(),
+      );
       const notices = vi.spyOn(console, "debug").mockImplementation(() => {});
       const repository = new FeedStorageRepository(app, {
         writeWrapper: writeWrapper as unknown as WriteWrapper,

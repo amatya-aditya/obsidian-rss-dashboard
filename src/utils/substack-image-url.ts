@@ -1,3 +1,5 @@
+import { recoverFailedSubstackImageElementImpl } from "./substack-image-recovery";
+
 function decodeSubstackImageFetchUrl(url: string): string | null {
   const trimmed = url.trim();
   if (!/^https:\/\/substackcdn\.com\/image\/fetch\//i.test(trimmed)) {
@@ -89,101 +91,21 @@ export function normalizeSubstackImageUrlsInElement(root: ParentNode): void {
   normalizeSubstackImageUrlsInRoot(root);
 }
 
+/**
+ * Recovers a failed Substack image by normalizing its URL or, when the chosen
+ * source cannot be decoded, by replacing the image with a clone pointed at the
+ * original. Returns the replacement element when one was created, so the caller
+ * can re-apply its event listeners; a clone does not inherit them. Returns null
+ * when the image was fixed in place (listeners survive) or left alone.
+ */
 export function recoverFailedSubstackImageElement(
   img: HTMLImageElement,
-): boolean {
-  if (img.dataset.rssSubstackRecoverAttempted === "true") {
-    return false;
-  }
-
-  const rawSrc = img.getAttribute("src");
-  const rawSrcset = img.getAttribute("srcset");
-  const currentSrc = img.currentSrc || "";
-  const normalizedRawSrc = normalizeSubstackImageUrl(rawSrc || "");
-  const picture = img.closest("picture");
-  const pictureSourceSrcsets = picture
-    ? Array.from(
-        picture.querySelectorAll<HTMLSourceElement>("source[srcset]"),
-      ).map((source) => source.getAttribute("srcset") || "")
-    : [];
-
-  const hasRecoverableUrl = [
-    rawSrc,
-    rawSrcset,
-    currentSrc,
-    ...pictureSourceSrcsets,
-  ].some((value) => hasRecoverableSubstackImageUrl(value));
-  if (!hasRecoverableUrl) {
-    if (!currentSrc || !normalizedRawSrc || normalizedRawSrc === currentSrc) {
-      return false;
-    }
-  }
-
-  if (
-    !hasRecoverableUrl &&
-    currentSrc &&
-    normalizedRawSrc &&
-    normalizedRawSrc !== currentSrc
-  ) {
-    // Continue into fallback recovery below using the already-normalized img src.
-  } else if (!hasRecoverableUrl) {
-    return false;
-  }
-
-  img.dataset.rssSubstackRecoverAttempted = "true";
-  let didRecover = false;
-  const normalizedCurrentSrc = normalizeSubstackImageUrl(currentSrc);
-
-  if (picture) {
-    for (const source of Array.from(
-      picture.querySelectorAll<HTMLSourceElement>("source[srcset]"),
-    )) {
-      const srcset = source.getAttribute("srcset") || "";
-      const normalizedSrcset = normalizeSubstackImageSrcset(srcset);
-      if (normalizedSrcset && normalizedSrcset !== srcset) {
-        source.setAttribute("srcset", normalizedSrcset);
-        didRecover = true;
-      }
-    }
-  }
-
-  if (rawSrcset) {
-    const normalizedSrcset = normalizeSubstackImageSrcset(rawSrcset);
-    if (normalizedSrcset && normalizedSrcset !== rawSrcset) {
-      img.setAttribute("srcset", normalizedSrcset);
-      didRecover = true;
-    }
-  }
-
-  const normalizedSrc = normalizeSubstackImageUrl(rawSrc || currentSrc);
-  if (normalizedSrc && normalizedSrc !== (rawSrc || "")) {
-    img.setAttribute("src", normalizedSrc);
-    didRecover = true;
-  }
-
-  if (
-    currentSrc.trim() !== "" &&
-    ((normalizedCurrentSrc && normalizedCurrentSrc !== currentSrc) ||
-      (normalizedRawSrc && normalizedRawSrc !== currentSrc))
-  ) {
-    if (picture) {
-      picture.querySelectorAll("source").forEach((source) => source.remove());
-    }
-
-    const replacement = img.cloneNode(true) as HTMLImageElement;
-    replacement.dataset.rssSubstackRecoverAttempted = "true";
-    replacement.removeAttribute("srcset");
-    replacement.removeAttribute("sizes");
-    const recoverySrc =
-      normalizedCurrentSrc && normalizedCurrentSrc !== currentSrc
-        ? normalizedCurrentSrc
-        : normalizedRawSrc;
-    replacement.setAttribute("src", recoverySrc);
-    img.replaceWith(replacement);
-    didRecover = true;
-  }
-
-  return didRecover;
+): HTMLImageElement | null {
+  return recoverFailedSubstackImageElementImpl(img, {
+    normalizeSubstackImageUrl,
+    normalizeSubstackImageSrcset,
+    hasRecoverableSubstackImageUrl,
+  });
 }
 
 function normalizeSubstackImageUrlsInRoot(root: ParentNode): void {

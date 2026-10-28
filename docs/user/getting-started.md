@@ -42,6 +42,7 @@ Once you've added feeds, the dashboard displays all articles from your subscript
    - Use the built-in video player or podcast player
    - YouTube embeds use Privacy Enhanced Mode via `youtube-nocookie.com`
    - Each video includes a visible **Watch on YouTube** link
+   - A podcast episode whose description lists timestamped chapters gets a clickable marker on the seek bar for each chapter. Hover or focus a marker to preview its start time, title, and length; activate it to jump there without changing play or pause. Control the markers with **Settings → Media → Podcast player → Show chapter markers on the seek bar** (on by default) or the **Toggle podcast chapter markers** command. Many shows list no chapter timestamps, so most episodes show no markers.
 4. Track your progress through articles:
    - Mark articles as read
    - Star articles for later

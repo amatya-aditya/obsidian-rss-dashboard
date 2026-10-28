@@ -1,10 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Tag } from "../../../src/types/types";
 import { addTagMultiSelectControl } from "../../../src/components/tag-multi-select-control";
+import { refreshTagMultiSelectMenuColors } from "../../../src/components/tag-multi-select-menu";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 function setup(opts: {
   availableTags: Tag[];
+  tagAppearanceSettings?: {
+    availableTags: ReadonlyArray<Tag>;
+    defaultTagColor?: string;
+    defaultTagTextColor?: string;
+  };
   selectedTagNames: string[];
   triggerEmptyLabel?: string;
 }) {
@@ -15,6 +21,7 @@ function setup(opts: {
   addTagMultiSelectControl({
     setting: { controlEl: container } as unknown as import("obsidian").Setting,
     availableTags: opts.availableTags,
+    tagAppearanceSettings: opts.tagAppearanceSettings,
     selectedTagNames: opts.selectedTagNames,
     triggerEmptyLabel: opts.triggerEmptyLabel,
     menuTitle: "Select tags",
@@ -64,6 +71,56 @@ beforeEach(() => {
 });
 
 describe("tag-multi-select", () => {
+  it("uses inherited global appearance for menu swatches", () => {
+    const availableTags = [{ name: "News" }];
+    const { trigger } = setup({
+      availableTags,
+      tagAppearanceSettings: {
+        availableTags,
+        defaultTagColor: "#345678",
+        defaultTagTextColor: "#fef3c7",
+      },
+      selectedTagNames: [],
+    });
+
+    trigger.click();
+
+    const swatch = getOption("News").querySelector<HTMLElement>(
+      ".rss-dashboard-tag-multi-select-menu-swatch",
+    );
+    expect(swatch?.style.getPropertyValue("--tag-color")).toBe("#345678");
+    expect(swatch?.style.getPropertyValue("--tag-text-color")).toBe("#fef3c7");
+  });
+
+  it("refreshes swatches in an already-open menu when global defaults change", () => {
+    const availableTags = [{ name: "News" }];
+    const { trigger } = setup({
+      availableTags,
+      tagAppearanceSettings: {
+        availableTags,
+        defaultTagColor: "#345678",
+        defaultTagTextColor: "#fef3c7",
+      },
+      selectedTagNames: [],
+    });
+
+    trigger.click();
+    const swatch = getOption("News").querySelector<HTMLElement>(
+      ".rss-dashboard-tag-multi-select-menu-swatch",
+    );
+    expect(swatch?.style.getPropertyValue("--tag-color")).toBe("#345678");
+
+    refreshTagMultiSelectMenuColors(document, {
+      availableTags,
+      defaultTagColor: "#654321",
+      defaultTagTextColor: "#123456",
+    });
+
+    expect(swatch?.style.getPropertyValue("--tag-color")).toBe("#654321");
+    expect(swatch?.style.getPropertyValue("--tag-text-color")).toBe("#123456");
+    expect(getMenu()).toBeTruthy();
+  });
+
   it("renders a compact trigger with the empty summary when no tags are selected", () => {
     const { trigger } = setup({
       availableTags: [{ name: "News", color: "#111122" }],

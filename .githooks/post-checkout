@@ -1,0 +1,11 @@
+#!/bin/sh
+# On a fresh worktree (previous HEAD is all zeros), junction node_modules to the main repo's copy.
+[ "$1" = "0000000000000000000000000000000000000000" ] || exit 0
+
+main=$(git rev-parse --path-format=absolute --git-common-dir)
+main=$(dirname "$main")
+[ -d "$main/node_modules" ] || exit 0
+[ "$main" = "$(pwd)" ] && exit 0
+[ -e node_modules ] && exit 0
+
+cmd //c mklink //J "$(cygpath -w "$PWD/node_modules")" "$(cygpath -w "$main/node_modules")" >/dev/null

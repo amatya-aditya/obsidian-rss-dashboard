@@ -224,23 +224,99 @@ describe("renderMediaSettingsTab()", () => {
     });
   });
 
-  it("persists Focus mode and applies it to open players", async () => {
+  it("offers chapter markers on by default and applies the toggle to open players", async () => {
     const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();
-    const applyYouTubeFocusMode = vi.fn(async () => {});
+    const applyPodcastChapterMarkers = vi.fn(async () => {});
     const plugin = {
       app: obsidian.App.createMock(),
       settings,
       saveSettings: vi.fn(async () => {}),
       clearPlaybackProgress: vi.fn(async () => 0),
-      applyYouTubeFocusMode,
+      applyVideoFocusMode: vi.fn(async () => {}),
+      applyPodcastChapterMarkers,
     } as unknown as RssDashboardPlugin;
 
     renderMediaSettingsTab(containerEl, plugin);
 
-    const toggle = getSettingByName(containerEl, "Focus mode").querySelector(
+    const setting = getSettingByName(
+      containerEl,
+      "Show chapter markers on the seek bar",
+    );
+    expect(
+      setting.querySelector(".setting-item-description")?.textContent,
+    ).toBe(
+      "Markers appear for episodes whose description lists timestamps in a recognized form. Many shows list none, so most episodes have no markers.",
+    );
+    const toggle = setting.querySelector(
       'input[type="checkbox"]',
     ) as HTMLInputElement;
+    expect(isToggleOn(toggle)).toBe(true);
+
+    setToggle(toggle, false);
+    await flushPromises();
+
+    expect(settings.media.showPodcastChapterMarkers).toBe(false);
+    expect(applyPodcastChapterMarkers).toHaveBeenCalledWith(false);
+    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers the sleep timer band on by default and applies the toggle to open players", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const settings = cloneSettings();
+    const applyPodcastSleepTimerBand = vi.fn(async () => {});
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 0),
+      applyVideoFocusMode: vi.fn(async () => {}),
+      applyPodcastChapterMarkers: vi.fn(async () => {}),
+      applyPodcastSleepTimerBand,
+    } as unknown as RssDashboardPlugin;
+
+    renderMediaSettingsTab(containerEl, plugin);
+
+    const setting = getSettingByName(
+      containerEl,
+      "Show the sleep timer band on the seek bar",
+    );
+    expect(
+      setting.querySelector(".setting-item-description")?.textContent,
+    ).toBe(
+      "While a sleep timer is running, the band previews the audio that will play before it stops. Turning this off leaves the timer itself unchanged.",
+    );
+    const toggle = setting.querySelector(
+      'input[type="checkbox"]',
+    ) as HTMLInputElement;
+    expect(isToggleOn(toggle)).toBe(true);
+
+    setToggle(toggle, false);
+    await flushPromises();
+
+    expect(settings.media.showPodcastSleepTimerBand).toBe(false);
+    expect(applyPodcastSleepTimerBand).toHaveBeenCalledWith(false);
+    expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
+  });
+
+  it("persists Video focus mode and applies it to open players", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const settings = cloneSettings();
+    const applyVideoFocusMode = vi.fn(async () => {});
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      clearPlaybackProgress: vi.fn(async () => 0),
+      applyVideoFocusMode,
+    } as unknown as RssDashboardPlugin;
+
+    renderMediaSettingsTab(containerEl, plugin);
+
+    const toggle = getSettingByName(
+      containerEl,
+      "Video focus mode",
+    ).querySelector('input[type="checkbox"]') as HTMLInputElement;
     expect(isToggleOn(toggle)).toBe(false);
 
     setToggle(toggle, true);
@@ -248,6 +324,6 @@ describe("renderMediaSettingsTab()", () => {
 
     expect(settings.media.youtubeFocusMode).toBe(true);
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(1);
-    expect(applyYouTubeFocusMode).toHaveBeenCalledWith(true);
+    expect(applyVideoFocusMode).toHaveBeenCalledWith(true);
   });
 });

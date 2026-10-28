@@ -1,4 +1,4 @@
-import { Setting } from "obsidian";
+import { Setting, setIcon } from "obsidian";
 import { addInputClearButton } from "../../utils/input-clear-button";
 import { isDomNode } from "../../utils/dom-node";
 
@@ -13,6 +13,14 @@ export function decorateFolderSelectorInput(
   const wrapper = setting.controlEl.createDiv({
     cls: "rss-dashboard-folder-combobox",
   });
+
+  // Decorative: the field's visible label and placeholder name it. It comes
+  // before the input so the clear button stays the input's later sibling.
+  const iconEl = wrapper.createSpan({
+    cls: "rss-dashboard-folder-combobox-icon",
+    attr: { "aria-hidden": "true" },
+  });
+  setIcon(iconEl, "folder");
 
   wrapper.appendChild(inputEl);
   // Only `input`, so the folder suggestions refresh; a `change` would run

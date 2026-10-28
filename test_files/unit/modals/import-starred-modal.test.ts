@@ -12,6 +12,7 @@ import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import { isToggleOn, setToggle } from "../test-toggle-helpers";
 import type { FullArticleFetchResult } from "../../../src/utils/fetch-helpers";
 import type { Tag } from "../../../src/types/types";
+import { DEFAULT_TAG_COLOR } from "../../../src/utils/tag-colors";
 
 const fetchFullArticleContentWithOutcomeMock = vi.hoisted(() => vi.fn());
 
@@ -64,6 +65,9 @@ interface TestModal {
   contentEl: HTMLElement;
   open: () => void;
   handleFileSelection: (file: File) => Promise<void>;
+  previewModel?: {
+    getCandidate: (guid: string) => { item: { tags?: Tag[] } } | undefined;
+  };
 }
 
 function readFixture(): string {
@@ -285,6 +289,34 @@ describe("ImportStarredModal", () => {
       );
 
       expect(instructionsHidden(content)).toBe(false);
+    });
+
+    it("renders each feed group's collapse toggle as a native button that collapses and expands the group", async () => {
+      const content = openModal();
+      await chooseFileViaPicker(
+        content,
+        new File([readFixture()], "starred.json"),
+      );
+      const toggle = content.querySelector<HTMLElement>(
+        '[aria-label="Collapse feed"]',
+      )!;
+
+      expect(toggle.tagName).toBe("BUTTON");
+      expect(toggle.getAttribute("type")).toBe("button");
+      expect(toggle.hasAttribute("role")).toBe(false);
+      expect(toggle.hasAttribute("tabindex")).toBe(false);
+
+      const rowsBefore = content.querySelectorAll(
+        ".import-preview-row--feed",
+      ).length;
+      toggle.click();
+      expect(
+        content.querySelectorAll(".import-preview-row--feed").length,
+      ).toBeLessThan(rowsBefore);
+      content.querySelector<HTMLElement>('[aria-label="Expand feed"]')!.click();
+      expect(content.querySelectorAll(".import-preview-row--feed").length).toBe(
+        rowsBefore,
+      );
     });
 
     it("expands every feed group again when a new file is chosen from the picker", async () => {
@@ -1296,6 +1328,9 @@ describe("ImportStarredModal", () => {
         settings,
         plugin,
         content: (modal as unknown as TestModal).contentEl,
+        candidateTags: (guid: string) =>
+          (modal as unknown as TestModal).previewModel?.getCandidate(guid)?.item
+            .tags,
       };
     }
 
@@ -1452,13 +1487,30 @@ describe("ImportStarredModal", () => {
       };
       const previous = call.item.tags!.find((t) => t.name === "Design")!;
       expect(newTagChip("Design")?.style.getPropertyValue("--tag-color")).toBe(
-        previous.color,
+        DEFAULT_TAG_COLOR,
       );
 
       call.onTagEdited?.({ ...previous }, { name: "Design", color: "#00ff00" });
 
       expect(newTagChip("Design")?.style.getPropertyValue("--tag-color")).toBe(
         "#00ff00",
+      );
+    });
+
+    it("renders inherited appearance in the starred-import tag chips", async () => {
+      const settings = cloneSettings();
+      settings.defaultTagColor = "#345678";
+      settings.defaultTagTextColor = "#fef3c7";
+      const { content } = await setUpModal(settings);
+
+      const designChip = Array.from(
+        getItemTagsControl(content, labeledGuid).querySelectorAll<HTMLElement>(
+          ".rss-dashboard-tag-badge",
+        ),
+      ).find((el) => el.textContent === "Design");
+      expect(designChip?.style.getPropertyValue("--tag-color")).toBe("#345678");
+      expect(designChip?.style.getPropertyValue("--tag-text-color")).toBe(
+        "#fef3c7",
       );
     });
 
@@ -1474,6 +1526,11 @@ describe("ImportStarredModal", () => {
         ).find((el) => el.textContent === name);
 
       newTagChip("Design")!.click();
+      document
+        .querySelector<HTMLInputElement>(
+          ".rss-dashboard-tag-modal-background-default",
+        )!
+        .click();
       document.querySelector<HTMLInputElement>(
         ".rss-dashboard-tag-modal-color-picker",
       )!.value = "#00ff00";
@@ -1496,6 +1553,38 @@ describe("ImportStarredModal", () => {
         ),
       ).find((el) => el.textContent === "Design");
       expect(rowChip?.style.getPropertyValue("--tag-color")).toBe("#00ff00");
+    });
+
+    it("renders each new-tag chip as a native, named button that opens the tag editor", async () => {
+      vi.spyOn(console, "debug").mockImplementation(() => {});
+      const { content } = await setUpModal();
+      const chip = getNewTagsSection(content)!.querySelector<HTMLElement>(
+        ".import-new-tags-chip",
+      )!;
+
+      expect(chip.tagName).toBe("BUTTON");
+      expect(chip.getAttribute("type")).toBe("button");
+      expect(chip.getAttribute("aria-label")).toBe(
+        `Edit "${chip.textContent}" tag`,
+      );
+      expect(chip.hasAttribute("role")).toBe(false);
+      expect(chip.hasAttribute("tabindex")).toBe(false);
+
+      chip.click();
+      expect(document.querySelector(".rss-dashboard-tag-modal-form")).not.toBe(
+        null,
+      );
+    });
+
+    it("renders each article row's Manage tags control as a native, named button", async () => {
+      const { content } = await setUpModal();
+      const control = getItemTagsControl(content, labeledGuid);
+
+      expect(control.tagName).toBe("BUTTON");
+      expect(control.getAttribute("type")).toBe("button");
+      expect(control.getAttribute("aria-label")).toBe("Manage tags");
+      expect(control.hasAttribute("role")).toBe(false);
+      expect(control.hasAttribute("tabindex")).toBe(false);
     });
 
     describe("'New tags (N)' color buttons", () => {
@@ -1540,6 +1629,37 @@ describe("ImportStarredModal", () => {
         ]);
       });
 
+      it("offers palette controls beside the bulk set-color picker", async () => {
+        const { content } = await setUpModal();
+        const setColor = button(content, ".import-new-tags-set-color");
+
+        expect(setColor.querySelector("input[type='color']")).not.toBeNull();
+        expect(
+          setColor.querySelector(
+            ".rss-dashboard-tag-color-palette-control select",
+          ),
+        ).not.toBeNull();
+        expect(
+          setColor.querySelector(
+            ".rss-dashboard-tag-color-palette-control-color-trigger",
+          ),
+        ).not.toBeNull();
+      });
+
+      it.each([
+        [".import-new-tags-randomize", "Randomize tag colors"],
+        [".import-new-tags-reset", "Reset tag colors"],
+      ])("renders %s as a native, named button", async (cls, name) => {
+        const { content } = await setUpModal();
+        const el = button(content, cls);
+
+        expect(el.tagName).toBe("BUTTON");
+        expect(el.getAttribute("type")).toBe("button");
+        expect(el.getAttribute("aria-label")).toBe(name);
+        expect(el.hasAttribute("role")).toBe(false);
+        expect(el.hasAttribute("tabindex")).toBe(false);
+      });
+
       it("gives each chip and button a single tooltip source (aria-label, never also title)", async () => {
         const { content } = await setUpModal();
         const section = getNewTagsSection(content)!;
@@ -1554,7 +1674,7 @@ describe("ImportStarredModal", () => {
       });
 
       it("reset sets every new tag back to the default color, on the chips and the article rows", async () => {
-        const { content } = await setUpModal();
+        const { content, candidateTags } = await setUpModal();
         button(content, ".import-new-tags-randomize").click();
         expect(Object.values(newTagChipColors(content))).not.toContain(
           "#8a5cf5",
@@ -1567,10 +1687,14 @@ describe("ImportStarredModal", () => {
           art: "#8a5cf5",
         });
         expect(rowChipColor(content, "Design")).toBe("#8a5cf5");
+        expect(candidateTags(labeledGuid)).toEqual([
+          { name: "Design" },
+          { name: "art" },
+        ]);
       });
 
       it("dice gives the new tags fresh, distinct colors, on the chips and the article rows", async () => {
-        const { content } = await setUpModal();
+        const { content, candidateTags } = await setUpModal();
         const before = newTagChipColors(content);
 
         button(content, ".import-new-tags-randomize").click();
@@ -1579,10 +1703,13 @@ describe("ImportStarredModal", () => {
         expect(after.Design).not.toBe(before.Design);
         expect(after.Design).not.toBe(after.art);
         expect(rowChipColor(content, "Design")).toBe(after.Design);
+        expect(
+          candidateTags(labeledGuid)?.find((tag) => tag.name === "Design"),
+        ).toEqual({ name: "Design", color: after.Design });
       });
 
       it("the palette picker applies one chosen color to every new tag when it closes", async () => {
-        const { content } = await setUpModal();
+        const { content, candidateTags } = await setUpModal();
         const picker = button(
           content,
           ".import-new-tags-set-color input[type='color']",
@@ -1599,6 +1726,35 @@ describe("ImportStarredModal", () => {
           art: "#123456",
         });
         expect(rowChipColor(content, "Design")).toBe("#123456");
+        expect(
+          candidateTags(labeledGuid)?.find((tag) => tag.name === "Design"),
+        ).toEqual({ name: "Design", color: "#123456" });
+      });
+
+      it("choosing a named preset recolors every new tag in the import preview", async () => {
+        const { content, candidateTags } = await setUpModal();
+        const setColor = button(content, ".import-new-tags-set-color");
+        const trigger = setColor.querySelector<HTMLButtonElement>(
+          ".rss-dashboard-tag-color-palette-control-color-trigger",
+        )!;
+
+        trigger.click();
+        Array.from(
+          setColor.querySelectorAll<HTMLButtonElement>("[role=option]"),
+        )
+          .find(
+            (option) => option.getAttribute("aria-label") === "Green #34C759",
+          )
+          ?.click();
+
+        expect(newTagChipColors(content)).toEqual({
+          Design: "#34c759",
+          art: "#34c759",
+        });
+        expect(rowChipColor(content, "Design")).toBe("#34c759");
+        expect(
+          candidateTags(labeledGuid)?.find((tag) => tag.name === "Design"),
+        ).toEqual({ name: "Design", color: "#34c759" });
       });
 
       it("the palette picker opens on the tags' shared color, or the default when they differ", async () => {
@@ -1616,6 +1772,18 @@ describe("ImportStarredModal", () => {
 
         button(content, ".import-new-tags-randomize").click();
         expect(pickerValue().value).toBe("#8a5cf5");
+      });
+
+      it("uses the inherited background as the new-tags color indicator", async () => {
+        const settings = cloneSettings();
+        settings.defaultTagColor = "#345678";
+        const { content } = await setUpModal(settings);
+        const picker = button(
+          content,
+          ".import-new-tags-set-color input[type='color']",
+        ) as HTMLInputElement;
+
+        expect(picker.value).toBe("#345678");
       });
     });
 

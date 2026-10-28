@@ -15,22 +15,6 @@
   position: relative;
 }
 
-.edit-feed-folder-option {
-  padding: 8px 16px;
-  cursor: pointer;
-  color: var(--text-normal, #222);
-  font-size: 1em;
-  transition:
-    background 0.15s,
-    color 0.15s;
-}
-
-.edit-feed-folder-option:hover,
-.edit-feed-folder-option:focus {
-  background: var(--background-modifier-hover, #f0f0f0);
-  color: var(--interactive-accent, #3498db);
-}
-
 .rss-dashboard-modal .rss-edit-feed-storage-address-row {
   display: flex;
   align-items: center;
@@ -66,6 +50,9 @@
   border-radius: 6px;
   color: var(--text-muted);
   background: var(--background-secondary);
+  padding: 0;
+  box-shadow: none;
+  font-family: inherit;
 }
 
 .rss-dashboard-modal .rss-edit-feed-storage-copy-button:hover {
@@ -86,7 +73,7 @@
 
 .rss-dashboard-tag-badge {
   background-color: var(--tag-color, #3498db);
-  color: var(--text-on-accent, #fff);
+  color: var(--tag-text-color, var(--text-on-accent, #fff));
   padding: 2px 8px;
   font-size: 0.85em;
   font-weight: 500;

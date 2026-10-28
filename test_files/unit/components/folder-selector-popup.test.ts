@@ -25,6 +25,7 @@ function createFolders(): Folder[] {
 
 type TestPluginWithMocks = TestPlugin & {
   ensureFolderExists: ReturnType<typeof vi.fn>;
+  registeredCleanups: Array<() => unknown>;
 };
 
 function createPluginStub(
@@ -32,9 +33,14 @@ function createPluginStub(
 ): TestPluginWithMocks {
   const settings = cloneSettings();
   settings.folders = folders;
+  const registeredCleanups: Array<() => unknown> = [];
   return {
     settings,
     app: {},
+    register: vi.fn((cleanup: () => unknown) => {
+      registeredCleanups.push(cleanup);
+    }),
+    registeredCleanups,
     // Mirrors the real FolderService.ensureFolderExists closely enough for
     // these tests: adds a missing top-level folder to settings.folders.
     ensureFolderExists: vi.fn(async (folderPath: string) => {
@@ -155,11 +161,52 @@ describe("FolderSelectorPopup", () => {
     ) as HTMLElement;
     // width=240, margin=16 => maxLeft = 300 - 240 - 16 = 44
     expect(popup.style.left).toBe("44px");
-    // flipped above => top = rect.top - 4
-    expect(popup.style.top).toBe("176px");
+    // Flipped above: the popup's bottom edge sits 4px above the anchor's top
+    // edge (viewport 220 - anchor top 180 + 4), whatever height the list ends
+    // up with. A `top` offset would make it grow downward over the anchor.
+    expect(popup.style.bottom).toBe("44px");
+    expect(popup.style.top).toBe("");
     expect(popup.classList.contains("rss-folder-selector-popup-above")).toBe(
       true,
     );
+  });
+
+  it("keeps the flipped popup above its anchor on mobile", () => {
+    setViewport(390, 844);
+    vi.spyOn(window, "matchMedia").mockImplementation((query: string) => ({
+      matches: query === "(max-width: 600px)",
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }));
+
+    const anchorEl = createDiv();
+    vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
+      left: 20,
+      top: 760,
+      bottom: 800,
+      right: 370,
+      width: 350,
+      height: 40,
+    } as DOMRect);
+
+    new FolderSelectorPopup(createPluginStub(), {
+      anchorEl,
+      onSelect: () => {},
+      listOnly: true,
+    });
+
+    const popup = document.body.querySelector(
+      ".rss-folder-selector-popup",
+    ) as HTMLElement;
+    // viewport 844 - anchor top 760 + 4 = 88px above the viewport bottom
+    expect(popup.style.bottom).toBe("88px");
+    expect(popup.style.top).toBe("");
+    expect(popup.style.left).toBe("");
   });
 
   it("prioritizes defaultFolder to the top when it exists (case-insensitive)", () => {
@@ -332,6 +379,43 @@ describe("FolderSelectorPopup", () => {
     // Enter selects current
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
     expect(onSelect).toHaveBeenCalledWith("Alpha");
+  });
+
+  it("closes and stops handling keys when the plugin unloads", () => {
+    vi.useFakeTimers();
+    const anchorEl = createDiv();
+    const onClose = vi.fn();
+    const plugin = createPluginStub();
+    const addEventListener = vi.spyOn(document, "addEventListener");
+
+    new FolderSelectorPopup(plugin, {
+      anchorEl,
+      onSelect: () => {},
+      onClose,
+      listOnly: true,
+    });
+
+    expect(
+      document.body.querySelector(".rss-folder-selector-popup"),
+    ).not.toBeNull();
+
+    plugin.registeredCleanups.forEach((cleanup) => cleanup());
+    vi.runAllTimers();
+
+    expect(
+      document.body.querySelector(".rss-folder-selector-popup"),
+    ).toBeNull();
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(
+      addEventListener.mock.calls.filter(([type]) => type === "click"),
+    ).toHaveLength(0);
+
+    const keydown = new KeyboardEvent("keydown", {
+      key: "ArrowDown",
+      cancelable: true,
+    });
+    document.dispatchEvent(keydown);
+    expect(keydown.defaultPrevented).toBe(false);
   });
 
   it("closes on Escape/Tab and on outside click", () => {
@@ -537,67 +621,11 @@ describe("FolderSelectorPopup", () => {
     expect(plugin.ensureFolderExists).not.toHaveBeenCalled();
   });
 
-  // GH: submitting or cancelling the create-folder modal via a real mouse
-  // click (as opposed to pressing Enter in the input) closed the folder
-  // popup underneath it — the modal's own click bubbles past its
-  // (now-removed) content all the way to document, tripping the popup's
-  // outside-click handler.
-  it("listOnly mode: cancelling Add new folder via a real Cancel-button click leaves the still-open popup usable", async () => {
-    vi.useFakeTimers();
-
-    const anchorEl = createDiv();
-    vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
-      left: 0,
-      top: 0,
-      bottom: 0,
-      right: 0,
-      width: 0,
-      height: 0,
-    } as DOMRect);
-
-    const onSelect = vi.fn();
-    const plugin = createPluginStub([]);
-    new FolderSelectorPopup(plugin, {
-      anchorEl,
-      onSelect,
-      listOnly: true,
-    });
-    vi.runAllTimers();
-
-    const addNewItem = document.body.querySelector(
-      ".rss-folder-selector-add-new",
-    ) as HTMLElement;
-    addNewItem.click();
-
-    const cancelButton = document.body.querySelector(
-      ".rss-folder-name-modal-cancel",
-    ) as HTMLElement;
-    expect(cancelButton).not.toBeNull();
-    cancelButton.click();
-
-    vi.useRealTimers();
-    await Promise.resolve();
-
-    expect(onSelect).not.toHaveBeenCalled();
-    const popup = document.body.querySelector(".rss-folder-selector-popup");
-    expect(popup).not.toBeNull();
-
-    // Not just present in the DOM — actually usable again: clicking Root
-    // must still work.
-    const rootItem = document.body.querySelector(
-      ".rss-folder-selector-root",
-    ) as HTMLElement;
-    rootItem.click();
-    expect(onSelect).toHaveBeenCalledWith("");
-  });
-
-  // New bug: while the create-folder modal is open, the folder list behind
-  // it (rendered by this same popup) was still fully clickable — z-index
-  // alone doesn't stop real Obsidian's modal backdrop from being defeated by
-  // this popup's own very high stacking order.
-  it("listOnly mode: the popup's own items are not interactable while the create-folder modal is open", async () => {
-    vi.useFakeTimers();
-
+  // GH #1684: the popup used to stay on screen, dimmed, over the create-folder
+  // modal. It now closes the moment Add new folder is tapped.
+  function openAddNewFolder(
+    options: { onClose?: () => void } = {},
+  ): ReturnType<typeof vi.fn> {
     const anchorEl = createDiv();
     vi.spyOn(anchorEl, "getBoundingClientRect").mockReturnValue({
       left: 0,
@@ -612,43 +640,75 @@ describe("FolderSelectorPopup", () => {
     new FolderSelectorPopup(createPluginStub(), {
       anchorEl,
       onSelect,
+      onClose: options.onClose,
       listOnly: true,
     });
     vi.runAllTimers();
 
-    const addNewItem = document.body.querySelector(
-      ".rss-folder-selector-add-new",
-    ) as HTMLElement;
-    addNewItem.click();
+    (
+      document.body.querySelector(".rss-folder-selector-add-new") as HTMLElement
+    ).click();
+    return onSelect;
+  }
 
-    // The modal is now open on top. The popup underneath must visibly and
-    // functionally be inert: clicking straight through to an existing
-    // folder item must not fire onSelect.
-    const popup = document.body.querySelector(
-      ".rss-folder-selector-popup",
-    ) as HTMLElement;
-    expect(popup.classList.contains("rss-folder-selector-popup-inert")).toBe(
-      true,
-    );
+  it("listOnly mode: tapping Add new folder closes the popup and leaves only the modal", () => {
+    vi.useFakeTimers();
+    const onClose = vi.fn();
 
-    const rootItem = document.body.querySelector(
-      ".rss-folder-selector-root",
-    ) as HTMLElement;
-    rootItem.click();
-    expect(onSelect).not.toHaveBeenCalled();
+    openAddNewFolder({ onClose });
 
-    // Cancelling restores interactivity.
+    expect(
+      document.body.querySelector(".rss-folder-name-modal"),
+    ).not.toBeNull();
+    expect(
+      document.body.querySelector(".rss-folder-selector-popup"),
+    ).toBeNull();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("listOnly mode: cancelling Add new folder with the Cancel button does not bring the popup back", async () => {
+    vi.useFakeTimers();
+    const onSelect = openAddNewFolder();
+
     const cancelButton = document.body.querySelector(
       ".rss-folder-name-modal-cancel",
     ) as HTMLElement;
+    expect(cancelButton).not.toBeNull();
     cancelButton.click();
+
     vi.useRealTimers();
     await Promise.resolve();
 
-    expect(popup.classList.contains("rss-folder-selector-popup-inert")).toBe(
-      false,
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(document.body.querySelector(".rss-folder-name-modal")).toBeNull();
+    expect(
+      document.body.querySelector(".rss-folder-selector-popup"),
+    ).toBeNull();
+  });
+
+  it("listOnly mode: pressing Escape to cancel Add new folder does not bring the popup back", async () => {
+    vi.useFakeTimers();
+    const onSelect = openAddNewFolder();
+
+    const modalCloseButton = document.body.querySelector(
+      ".modal-header-button",
+    ) as HTMLElement;
+    const closeModalOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") modalCloseButton.click();
+    };
+    window.addEventListener("keydown", closeModalOnEscape, true);
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
     );
-    rootItem.click();
-    expect(onSelect).toHaveBeenCalledWith("");
+    window.removeEventListener("keydown", closeModalOnEscape, true);
+
+    vi.useRealTimers();
+    await Promise.resolve();
+
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(document.body.querySelector(".rss-folder-name-modal")).toBeNull();
+    expect(
+      document.body.querySelector(".rss-folder-selector-popup"),
+    ).toBeNull();
   });
 });

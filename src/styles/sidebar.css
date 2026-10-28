@@ -2,7 +2,7 @@
  * Sidebar Styles (sidebar.css)
  *
  * Core sidebar navigation surface: container shell, header icon row,
- * controls toolbar, tag panel, feed/folder tree, search dock, drag-and-drop,
+ * tag panel, feed/folder tree, search dock, drag-and-drop,
  * scrollbar variants, media-type overlays, and the folder-name modal.
  * Media overlays (YouTube/podcast) are co-located here because they rely
  * on sidebar feed context selectors.
@@ -298,69 +298,6 @@
 }
 
 /* ============================================
- * 5. Controls Toolbar
- * Sidebar toolbar row with action icon buttons
- * ============================================ */
-.rss-dashboard-sidebar-toolbar {
-  order: 3;
-  z-index: 2;
-  background: var(--rss-sidebar-controls-bg, var(--background-secondary));
-  display: flex;
-  justify-content: space-around;
-  gap: 4px;
-  padding: 6px 4px;
-  flex-shrink: 0;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.rss-dashboard-sidebar-toolbar--inline {
-  order: 0;
-  z-index: auto;
-  background: transparent;
-  justify-content: flex-start;
-  gap: 2px;
-  padding: 0;
-  width: auto;
-  box-sizing: border-box;
-}
-
-.rss-dashboard-sidebar-toolbar--inline .rss-dashboard-toolbar-button {
-  width: 30px;
-  height: 30px;
-  border-radius: 6px;
-}
-
-.rss-dashboard-toolbar-button {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--text-muted);
-  border-radius: 4px;
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
-}
-
-.rss-dashboard-toolbar-button:hover {
-  background-color: var(--background-modifier-hover);
-  color: var(--text-normal);
-}
-
-.rss-dashboard-toolbar-button.is-active {
-  background-color: var(--interactive-accent);
-  color: var(--text-on-accent);
-}
-
-.rss-dashboard-toolbar-button:focus-visible {
-  outline: 2px solid var(--interactive-accent-hover);
-  outline-offset: 1px;
-}
-
-/* ============================================
  * 6. Tags Section
  * Tag list panel, filter mode toggle, add-tag controls
  * ============================================ */
@@ -430,6 +367,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
+  background-color: var(--tag-color, var(--interactive-accent));
   margin-right: 8px;
   flex-shrink: 0;
 }
@@ -469,10 +407,26 @@
 }
 
 .rss-dashboard-sidebar-add-tag-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 6px;
   padding: 4px 10px 8px;
+}
+
+.rss-dashboard-sidebar-add-tag-color-field {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.rss-dashboard-sidebar-add-tag-color-field
+  .rss-dashboard-tag-color-palette-control {
+  grid-column: 2;
+  width: 100%;
 }
 
 body .rss-dashboard-tag-color-picker {
@@ -503,7 +457,7 @@ body .rss-dashboard-tag-color-picker::-webkit-color-swatch {
 }
 
 .rss-dashboard-sidebar-add-tag-input {
-  flex-grow: 1;
+  grid-column: 1;
   height: 24px;
   font-size: 11px;
   padding: 0 6px;
@@ -511,6 +465,14 @@ body .rss-dashboard-tag-color-picker::-webkit-color-swatch {
   border: 1px solid var(--background-modifier-border);
   border-radius: 4px;
   color: var(--text-normal);
+}
+
+.rss-dashboard-sidebar-add-tag-btn {
+  grid-column: 2;
+}
+
+.rss-dashboard-sidebar-add-tag-cancel-btn {
+  grid-column: 3;
 }
 
 .rss-dashboard-sidebar-add-tag-btn {
@@ -655,7 +617,12 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
 }
 
 .rss-dashboard-feed-folder {
-  overflow: hidden;
+  /*
+   * The chevron's expanded hit area reaches 3px past the header's content
+   * inset. Child rows clip themselves, and names truncate, so this box does
+   * not need to clip; keeping it visible makes the full target clickable.
+   */
+  overflow: visible;
   flex: 0 0 auto;
 }
 
@@ -673,6 +640,12 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
   padding-left: var(--sidebar-item-padding-left);
   padding-right: var(--sidebar-item-padding-right);
   flex-shrink: 0;
+  /*
+   * Back to the pre-change compact row (~27px at the default spacing). The
+   * chevron's 32px target overlaps about 2.5px into the rows above and below;
+   * the toggle's stacking keeps that full target clickable.
+   */
+  min-height: 27px;
 }
 
 .rss-dashboard-feed-folder-header:hover {
@@ -747,9 +720,26 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  /*
+   * The 32px target is taller than the ~27px row. Stack the toggle above the
+   * neighbouring rows so the 2.5px overhang at each edge still hits it.
+   */
+  z-index: 1;
   margin-right: 8px;
   color: var(--text-muted);
   cursor: pointer;
+}
+
+/*
+ * The hit area, not the paint: 32x32 around the 16x16 chevron. The right 8px
+ * lands in the existing gap before the folder name, so the larger target never
+ * takes a click meant for the name.
+ */
+.rss-dashboard-feed-folder-toggle::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
 }
 
 .rss-dashboard-folder-pin-icon {
@@ -764,7 +754,8 @@ body .rss-dashboard-sidebar .rss-dashboard-feed-folders-section {
 }
 
 .rss-dashboard-folder-feeds {
-  overflow: hidden;
+  /* Like the folder box above, this must not clip a nested chevron's target. */
+  overflow: visible;
   background-color: var(--background-primary);
   padding-left: var(--sidebar-row-indentation);
   flex: 0 0 auto;
@@ -1436,6 +1427,11 @@ body .rss-folder-name-modal {
   .rss-dashboard-feed,
   .rss-dashboard-all-feeds-button {
     min-height: 44px;
+  }
+
+  /* 40px tall inside the row's 44px height; the right edge still stops at the name. */
+  .rss-dashboard-feed-folder-toggle::after {
+    inset: -12px -8px;
   }
 
   /* Ensure icon containers don't stretch with increased row height */

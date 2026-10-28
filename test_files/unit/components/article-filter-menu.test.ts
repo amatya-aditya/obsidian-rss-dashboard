@@ -68,6 +68,35 @@ describe("ArticleFilterMenu Component", () => {
     expect(portal?.textContent).toContain("Read");
   });
 
+  it("uses and refreshes inherited appearance in the tag filter submenu", () => {
+    settings.availableTags = [{ name: "Inherited" }];
+    settings.defaultTagColor = "#345678";
+    settings.defaultTagTextColor = "#fef3c7";
+    const filterMenu = new ArticleFilterMenu(
+      settings,
+      new Set(),
+      new Set(),
+      "AND",
+      mockCallbacks,
+    );
+    filterMenu.show(toggleBtn);
+
+    const taggedItem = Array.from(
+      document.querySelectorAll<HTMLElement>(".rss-dashboard-filter-menu-item"),
+    ).find((item) => item.textContent?.includes("Tagged"));
+    taggedItem?.dispatchEvent(new MouseEvent("mouseenter"));
+
+    const dot = document.querySelector<HTMLElement>(
+      ".rss-dashboard-tag-submenu .rss-dashboard-tag-color-dot",
+    );
+    expect(dot?.style.getPropertyValue("--tag-color")).toBe("#345678");
+    expect(dot?.style.getPropertyValue("--tag-text-color")).toBe("#fef3c7");
+
+    settings.defaultTagColor = "#789abc";
+    filterMenu.refreshTagColors();
+    expect(dot?.style.getPropertyValue("--tag-color")).toBe("#789abc");
+  });
+
   it("should trigger callback when a filter is applied", () => {
     const filterMenu = new ArticleFilterMenu(
       settings,

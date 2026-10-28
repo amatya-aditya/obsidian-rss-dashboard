@@ -28,11 +28,623 @@ const api = window.__obsidianApi;
 typeof api
 
 @eval
+// Surface (#1376). The popover renders into the ACTIVE window's body, so close
+// the Settings popout that version-and-platform.repl leaves open first.
+app.setting.close();
+await new Promise((r) => window.setTimeout(r, 300));
+const api = window.__obsidianApi;
 const proto = Object.getOwnPropertyNames(api.AbstractInputSuggest.prototype);
+// Clear anything an interrupted earlier run left behind.
+document
+  .querySelectorAll(
+    ".ais-probe, .ais-probe-select, .ais-probe-async, .suggestion-container",
+  )
+  .forEach((e) => e.remove());
+await (async () => {
+  const host = document.body.createDiv({ cls: "ais-probe" });
+  const input = host.createEl("input", { type: "text" });
+  class AisSurface extends api.AbstractInputSuggest {
+    getSuggestions() {
+      return [];
+    }
+    renderSuggestion() {}
+  }
+  const attrsBefore = input.getAttributeNames();
+  const s = new AisSurface(app, input);
+  const result = JSON.stringify({
+    mainWindowActive: activeWindow === window && activeDocument === document,
+    proto,
+    baseIsPopoverSuggest: api.PopoverSuggest.prototype.isPrototypeOf(
+      api.AbstractInputSuggest.prototype,
+    ),
+    popoverProto: Object.getOwnPropertyNames(api.PopoverSuggest.prototype),
+    ownStatic: Object.getOwnPropertyNames(api.AbstractInputSuggest),
+    abstractOnPrototype: {
+      getSuggestions: "getSuggestions" in api.AbstractInputSuggest.prototype,
+      renderSuggestion: "renderSuggestion" in api.AbstractInputSuggest.prototype,
+    },
+    ctorLength: api.AbstractInputSuggest.length,
+    ownKeys: Object.keys(s),
+    limit: s.limit,
+    isOpen: s.isOpen,
+    appIsApp: s.app === app,
+    textInputEl: s.textInputEl === input,
+    inputEl: typeof s.inputEl,
+    scopeParentIsAppScope: s.scope.parent === app.scope,
+    scopeKeys: s.scope.keys.map((k) => [k.modifiers, k.key]),
+    suggestElClass: s.suggestEl.className,
+    suggestInnerElClass: s.suggestInnerEl.className,
+    suggestElConnected: s.suggestEl.isConnected,
+    inputAttrsUnchanged:
+      JSON.stringify(attrsBefore) === JSON.stringify(input.getAttributeNames()),
+  });
+  host.remove();
+  return result;
+})()
+
+@eval
+// Wiring: setValue/getValue, focus/input/blur, the popover DOM. Keeps the
+// suggest on window.__ais for the keyboard steps below.
+const api = window.__obsidianApi;
+const wait = (ms) => new Promise((r) => window.setTimeout(r, ms));
+document.querySelectorAll(".ais-probe").forEach((e) => e.remove());
+await (async () => {
+  const host = document.body.createDiv({ cls: "ais-probe" });
+  const input = host.createEl("input", { type: "text" });
+  const log = [];
+  class AisWiring extends api.AbstractInputSuggest {
+    getSuggestions(q) {
+      log.push(["getSuggestions", q]);
+      return ["alpha", "beta", "gamma"].filter((v) => v.includes(q));
+    }
+    renderSuggestion(v, el) {
+      log.push(["renderSuggestion", v, el.className]);
+      el.setText(v);
+    }
+    open() {
+      log.push("open");
+      return super.open();
+    }
+    close() {
+      log.push("close");
+      return super.close();
+    }
+  }
+  const s = new AisWiring(app, input);
+  window.__ais = { s, input, log, host };
+  window.__aisSel = () =>
+    [...s.suggestEl.querySelectorAll(".suggestion-item")]
+      .map((e) => e.textContent + (e.classList.contains("is-selected") ? "*" : ""))
+      .join(",");
+  window.__aisSnap = () => ({
+    log: JSON.parse(JSON.stringify(log.splice(0))),
+    isOpen: s.isOpen,
+    containers: document.querySelectorAll(".suggestion-container").length,
+    active: document.activeElement === input,
+    input: input.value,
+  });
+  const out = {};
+  let inputEvents = 0;
+  let changeEvents = 0;
+  input.addEventListener("input", () => inputEvents++);
+  input.addEventListener("change", () => changeEvents++);
+  const ret = s.setValue("be");
+  out.setValue = {
+    ret: String(ret),
+    getValue: s.getValue(),
+    inputValue: input.value,
+    inputEvents,
+    changeEvents,
+    ...window.__aisSnap(),
+  };
+  input.value = "gam";
+  out.getValueAfterDirectWrite = s.getValue();
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  out.inputEventWhileBlurred = window.__aisSnap();
+  input.focus();
+  out.focus = window.__aisSnap();
+  out.container = {
+    isSuggestEl: s.suggestEl === document.querySelector(".suggestion-container"),
+    parentIsBody: s.suggestEl.parentElement === document.body,
+    innerIsSuggestInnerEl: s.suggestEl.firstElementChild === s.suggestInnerEl,
+    html: s.suggestEl.outerHTML,
+  };
+  input.value = "bet";
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  out.syncRenderOnInput = { sel: window.__aisSel(), ...window.__aisSnap() };
+  input.blur();
+  out.blur = window.__aisSnap();
+  await wait(300);
+  out.blurAfter300ms = window.__aisSnap();
+  input.focus();
+  window.__aisSnap();
+  s.close();
+  window.__aisSnap();
+  input.click();
+  out.clickWhileFocusedAfterClose = window.__aisSnap();
+  input.blur();
+  window.__aisSnap();
+  return JSON.stringify(out);
+})()
+
+@eval
+// Keyboard (real keys through @key). Empty input, so all three rows show.
+const { s, input, log } = window.__ais;
+input.value = "";
+input.focus();
+JSON.stringify({ focus: window.__aisSnap(), sel: window.__aisSel() })
+
+@key ArrowDown
+@eval
+JSON.stringify({ afterArrowDown: window.__aisSel(), ...window.__aisSnap() })
+
+@key ArrowDown 2
+@eval
+JSON.stringify({ afterTwoMoreArrowDown_wraps: window.__aisSel() })
+
+@key ArrowUp
+@eval
+JSON.stringify({ afterArrowUp_wraps: window.__aisSel() })
+
+@key Home
+@eval
+JSON.stringify({ afterHome: window.__aisSel() })
+
+@key End
+@eval
+JSON.stringify({ afterEnd: window.__aisSel() })
+
+@key Home
+@key Ctrl+n
+@eval
+JSON.stringify({ afterCtrlN: window.__aisSel() })
+
+@key Ctrl+p
+@eval
+JSON.stringify({ afterCtrlP: window.__aisSel() })
+
+@key PageDown
+@eval
+JSON.stringify({ afterPageDown: window.__aisSel() })
+
+@eval
+// Enter with the default selectSuggestion: onSelect fires, nothing closes.
+const { s, input, log } = window.__ais;
+s.onSelect((v, evt) => log.push(["onSelect", v, evt.constructor.name, evt.type]));
+window.__aisSnap();
+"onSelect registered"
+
+@key Home
+@key ArrowDown
+@key Enter
+@wait 150
+@eval
+JSON.stringify({ afterEnter: window.__aisSnap(), sel: window.__aisSel() })
+
+@key Escape
+@wait 100
+@eval
+JSON.stringify({ afterEscape: window.__aisSnap() })
+
+@key ArrowDown
+@eval
+JSON.stringify({ arrowDownAfterEscape: window.__aisSnap() })
+
+@key a
+@wait 150
+@eval
+JSON.stringify({ typedA: window.__aisSnap(), sel: window.__aisSel() })
+
+@eval
+// Mouse and direct calls on the same suggest (synthetic events: CDP has no
+// mouse step). window.__ais still holds the popover open with query "a".
+const { s, input, log } = window.__ais;
+await (async () => {
+  const out = {};
+  const items = () => [...s.suggestEl.querySelectorAll(".suggestion-item")];
+  input.blur();
+  input.value = "";
+  window.__aisSnap();
+  input.focus();
+  window.__aisSnap();
+  out.fresh = window.__aisSel();
+  items()[2].dispatchEvent(new MouseEvent("mousemove", { bubbles: true }));
+  out.afterMousemoveOnGamma = window.__aisSel();
+  items()[1].dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+  items()[1].dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+  out.afterMouseoverAndEnterOnBeta = window.__aisSel();
+  const down = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
+  items()[1].dispatchEvent(down);
+  out.mousedown = {
+    defaultPrevented: down.defaultPrevented,
+    focusKept: document.activeElement === input,
+    ...window.__aisSnap(),
+  };
+  items()[1].dispatchEvent(
+    new MouseEvent("click", { bubbles: true, cancelable: true }),
+  );
+  out.click = { sel: window.__aisSel(), ...window.__aisSnap() };
+  // Direct calls.
+  input.value = "a";
+  out.directOnInputChange = {
+    ret: String(s.onInputChange()),
+    ...window.__aisSnap(),
+  };
+  s.close();
+  window.__aisSnap();
+  out.directOnInputFocus = {
+    ret: String(s.onInputFocus()),
+    ...window.__aisSnap(),
+  };
+  s.close();
+  window.__aisSnap();
+  out.directShowSuggestions = {
+    ret: String(s.showSuggestions(["x1", "x2"])),
+    sel: window.__aisSel(),
+    ...window.__aisSnap(),
+  };
+  s.showSuggestions([]);
+  out.showSuggestionsEmpty = {
+    ...window.__aisSnap(),
+    html: s.suggestEl.outerHTML,
+  };
+  s.showSuggestions(["only"]);
+  window.__aisSnap();
+  s.open();
+  out.openWhileOpen = window.__aisSnap();
+  out.closeRet = String(s.close());
+  out.afterClose = {
+    ...window.__aisSnap(),
+    suggestEl: s.suggestEl.outerHTML,
+    connected: s.suggestEl.isConnected,
+  };
+  s.close();
+  out.closeWhileClosed = window.__aisSnap();
+  s.open();
+  out.openWhileClosed = {
+    ...window.__aisSnap(),
+    connected: s.suggestEl.isConnected,
+  };
+  s.close();
+  window.__aisSnap();
+  input.blur();
+  return JSON.stringify(out);
+})()
+
+@eval
+// selectSuggestion and onSelect (#1376): who calls the callback.
+const api = window.__obsidianApi;
+document.querySelectorAll(".ais-probe-select").forEach((e) => e.remove());
+await (async () => {
+  const out = {};
+  const host = document.body.createDiv({ cls: "ais-probe-select" });
+  const log = [];
+  const makeInput = () => host.createEl("input", { type: "text" });
+  const click = (suggest, index) =>
+    [...suggest.suggestEl.querySelectorAll(".suggestion-item")][index].dispatchEvent(
+      new MouseEvent("click", { bubbles: true, cancelable: true }),
+    );
+  // 1. The default selectSuggestion, called directly with the popover closed.
+  class AisDefault extends api.AbstractInputSuggest {
+    getSuggestions() {
+      return ["one", "two"];
+    }
+    renderSuggestion(v, el) {
+      el.setText(v);
+    }
+  }
+  const d = new AisDefault(app, makeInput());
+  d.onSelect((v, evt) => log.push(["onSelect", v, evt.type]));
+  const evt = new MouseEvent("click");
+  out.directDefault = {
+    ret: String(d.selectSuggestion("two", evt)),
+    log: log.splice(0),
+    inputValue: d.textInputEl.value,
+    isOpen: d.isOpen,
+  };
+  out.onSelectReturnsThis = d.onSelect(() => log.push("second")) === d;
+  d.selectSuggestion("two", evt);
+  out.secondOnSelectReplacesFirst = log.splice(0);
+  // 2. An override that does not call super: a click runs the override only.
+  class AisOverride extends AisDefault {
+    selectSuggestion(v, evt) {
+      log.push(["override", v, evt.type]);
+    }
+  }
+  const o = new AisOverride(app, makeInput());
+  o.onSelect((v) => log.push(["onSelect", v]));
+  o.textInputEl.focus();
+  click(o, 1);
+  out.overrideWithoutSuper = { log: log.splice(0), isOpen: o.isOpen };
+  o.textInputEl.blur();
+  // 3. An override that calls super, then sets the value and closes.
+  class AisOverrideSuper extends AisDefault {
+    selectSuggestion(v, evt) {
+      log.push(["override", v]);
+      super.selectSuggestion(v, evt);
+      log.push("after super");
+      this.setValue(v);
+      this.close();
+    }
+  }
+  const sp = new AisOverrideSuper(app, makeInput());
+  sp.onSelect((v, evt) => log.push(["onSelect", v, evt.type]));
+  sp.textInputEl.focus();
+  click(sp, 1);
+  out.overrideWithSuperSetValueClose = {
+    log: log.splice(0),
+    isOpen: sp.isOpen,
+    inputValue: sp.textInputEl.value,
+    getValue: sp.getValue(),
+  };
+  sp.textInputEl.blur();
+  // 4. A subclass that omits the abstract members throws when first used.
+  class AisAbstractMissing extends api.AbstractInputSuggest {}
+  const m = new AisAbstractMissing(app, makeInput());
+  m.textInputEl.focus();
+  const inputEl = m.textInputEl;
+  try {
+    inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+    out.missingGetSuggestions = "no throw (reported async)";
+  } catch (e) {
+    out.missingGetSuggestions = e.constructor.name;
+  }
+  try {
+    m.onInputChange();
+    out.missingGetSuggestionsDirect = "no throw";
+  } catch (e) {
+    out.missingGetSuggestionsDirect = e.constructor.name + ": " + e.message;
+  }
+  try {
+    m.showSuggestions(["x"]);
+    out.missingRenderSuggestion = "no throw";
+  } catch (e) {
+    out.missingRenderSuggestion = e.constructor.name + ": " + e.message;
+  }
+  m.close();
+  inputEl.blur();
+  host.remove();
+  return JSON.stringify(out);
+})()
+
+@eval
+// Async getSuggestions, superseded queries, ignored results, and the limit.
+// Promises are resolved by hand and flushed through the microtask queue, so the
+// step needs no timers (a backgrounded window clamps them).
+const api = window.__obsidianApi;
+document.querySelectorAll(".ais-probe-async").forEach((e) => e.remove());
+await (async () => {
+  const out = {};
+  const host = document.body.createDiv({ cls: "ais-probe-async" });
+  const input = host.createEl("input", { type: "text" });
+  const log = [];
+  const pending = [];
+  let mode = "sync";
+  class AisModes extends api.AbstractInputSuggest {
+    getSuggestions(q) {
+      log.push(["get", q]);
+      if (mode === "sync") return ["s1", "s2"];
+      if (mode === "async") {
+        return new Promise((resolve) => {
+          pending.push(() => {
+            log.push(["resolved", q]);
+            resolve(["a:" + q]);
+          });
+        });
+      }
+      if (mode === "undefined") return undefined;
+      if (mode === "null") return null;
+      if (mode === "empty") return [];
+      return Array.from({ length: 150 }, (_, i) => "n" + i);
+    }
+    renderSuggestion(v, el) {
+      log.push(["render", v]);
+      el.setText(v);
+    }
+    close() {
+      log.push("close");
+      return super.close();
+    }
+  }
+  const s = new AisModes(app, input);
+  const items = () =>
+    [...s.suggestEl.querySelectorAll(".suggestion-item")].map((e) => e.textContent);
+  const type = (value) => {
+    input.value = value;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  };
+  const flush = async () => {
+    for (let i = 0; i < 5; i++) await Promise.resolve();
+  };
+  const reset = () => {
+    input.blur();
+    s.close();
+    log.length = 0;
+  };
+  input.focus();
+  log.length = 0;
+  type("x");
+  out.syncRenderWithinDispatch = { items: items(), isOpen: s.isOpen };
+  reset();
+  mode = "async";
+  input.focus();
+  pending.shift()();
+  await flush();
+  out.asyncFirstResolved = { items: items(), isOpen: s.isOpen };
+  log.length = 0;
+  type("1");
+  out.asyncAtDispatch = {
+    items: items(),
+    isOpen: s.isOpen,
+    log: JSON.parse(JSON.stringify(log)),
+  };
+  pending.shift()();
+  await flush();
+  out.asyncSettled = { items: items(), log: JSON.parse(JSON.stringify(log)) };
+  log.length = 0;
+  type("1");
+  type("2");
+  const [slow, fast] = pending.splice(0);
+  fast();
+  await flush();
+  slow();
+  await flush();
+  out.supersededQueryDropped = {
+    items: items(),
+    log: JSON.parse(JSON.stringify(log)),
+  };
+  reset();
+  for (const m of ["undefined", "null", "empty"]) {
+    mode = "sync";
+    input.focus();
+    s.showSuggestions(["keep"]);
+    log.length = 0;
+    mode = m;
+    type("z" + m);
+    out["return_" + m] = {
+      items: items(),
+      isOpen: s.isOpen,
+      log: JSON.parse(JSON.stringify(log)),
+    };
+    reset();
+  }
+  mode = "many";
+  input.focus();
+  out.limit = { default: s.limit, renderedByDefault: items().length };
+  s.limit = 3;
+  type("q");
+  out.limit3 = items().length;
+  s.limit = 0;
+  type("r");
+  out.limit0 = items().length;
+  s.limit = 100;
+  reset();
+  host.remove();
+  return JSON.stringify(out);
+})()
+
+@eval
+// A hidden input, an input removed while open, and a contenteditable div. Its
+// own step, because a backgrounded window clamps timers and each step must
+// finish inside the harness timeout.
+const api = window.__obsidianApi;
+const wait = (ms) => new Promise((r) => window.setTimeout(r, ms));
+document.querySelectorAll(".ais-probe-async").forEach((e) => e.remove());
+await (async () => {
+  const out = {};
+  const host = document.body.createDiv({ cls: "ais-probe-async" });
+  const input = host.createEl("input", { type: "text" });
+  const log = [];
+  class AisHidden extends api.AbstractInputSuggest {
+    getSuggestions() {
+      return ["s1", "s2"];
+    }
+    renderSuggestion(v, el) {
+      el.setText(v);
+    }
+  }
+  const s = new AisHidden(app, input);
+  input.setCssProps({ display: "none" });
+  s.showSuggestions(["h1"]);
+  out.hiddenInput = {
+    isOpen: s.isOpen,
+    containers: document.querySelectorAll(".suggestion-container").length,
+  };
+  input.setCssProps({ display: "" });
+  input.focus();
+  out.beforeInputRemoved = { isOpen: s.isOpen };
+  host.remove();
+  await wait(1200);
+  out.afterInputRemoved1200ms = {
+    isOpen: s.isOpen,
+    containers: document.querySelectorAll(".suggestion-container").length,
+  };
+  // A contenteditable div instead of an input.
+  const host2 = document.body.createDiv({ cls: "ais-probe-async" });
+  const div = host2.createDiv();
+  div.setAttr("contenteditable", "true");
+  class AisDiv extends api.AbstractInputSuggest {
+    getSuggestions(q) {
+      log.push(["divGet", q]);
+      return ["d1"];
+    }
+    renderSuggestion(v, el) {
+      el.setText(v);
+    }
+  }
+  const sd = new AisDiv(app, div);
+  log.length = 0;
+  sd.setValue("hello");
+  out.div = {
+    innerText: div.innerText,
+    getValue: sd.getValue(),
+    hasValueProp: "value" in div,
+  };
+  div.focus();
+  out.div.afterFocus = { isOpen: sd.isOpen, log: JSON.parse(JSON.stringify(log)) };
+  div.blur();
+  out.div.afterBlurIsOpen = sd.isOpen;
+  sd.close();
+  host2.remove();
+  return JSON.stringify(out);
+})()
+
+@eval
+// What each scope handler returns when called directly. PageUp and PageDown
+// read the selected row's layout and throw with none laid out, so skip them.
+const api = window.__obsidianApi;
+await (async () => {
+  const input = document.body.createEl("input", { type: "text" });
+  class AisReturns extends api.AbstractInputSuggest {
+    getSuggestions() {
+      return ["a", "b"];
+    }
+    renderSuggestion(v, el) {
+      el.setText(v);
+    }
+  }
+  const s = new AisReturns(app, input);
+  input.focus();
+  const returns = {};
+  for (const k of s.scope.keys) {
+    if (k.key.startsWith("Page")) continue;
+    returns[`${k.modifiers}+${k.key}`] = String(
+      k.func(new KeyboardEvent("keydown", { key: k.key }), {}),
+    );
+  }
+  input.blur();
+  input.remove();
+  return JSON.stringify(returns);
+})()
+
+@eval
+// Reading the running implementation, as the vault cache model was settled
+// (obsidian-console-probes.md, "Reading a missing file").
+const api = window.__obsidianApi;
+const P = api.AbstractInputSuggest.prototype;
+const PP = api.PopoverSuggest.prototype;
 JSON.stringify({
-  proto,
-  baseIsPopoverSuggest: api.PopoverSuggest.prototype.isPrototypeOf(
-    api.AbstractInputSuggest.prototype,
-  ),
-  ownStatic: Object.getOwnPropertyNames(api.AbstractInputSuggest),
+  ctor: api.AbstractInputSuggest.toString(),
+  setValue: P.setValue.toString(),
+  getValue: P.getValue.toString(),
+  onInputChange: P.onInputChange.toString(),
+  onInputFocus: P.onInputFocus.toString(),
+  showSuggestions: P.showSuggestions.toString(),
+  selectSuggestion: P.selectSuggestion.toString(),
+  onSelect: P.onSelect.toString(),
+  popoverOpen: PP.open.toString(),
+  popoverClose: PP.close.toString(),
+  popoverOnEscapeKey: PP.onEscapeKey.toString(),
 })
+
+@eval
+// Clean up: remove the probe elements and any popover still open.
+document
+  .querySelectorAll(
+    ".ais-probe, .ais-probe-select, .ais-probe-async, .suggestion-container",
+  )
+  .forEach((e) => e.remove());
+delete window.__ais;
+delete window.__aisSel;
+delete window.__aisSnap;
+document.querySelectorAll(".suggestion-container").length

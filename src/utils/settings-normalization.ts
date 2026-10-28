@@ -13,11 +13,11 @@ import {
 import {
   migrateDisplaySettings,
   migrateDefaultFilterToDashboardMultiFilters,
-  migrateKeywordRulesSettings,
   migrateMediaVideoTagSettings,
   migrateMediaDefaultTagArrays,
   removeObsoleteSettingsKeys,
 } from "./settings-migration";
+import { migrateKeywordRulesSettings } from "./keyword-rules-migration";
 import { migrateSaveVersionSetting } from "./save-version";
 import { normalizeTagChipRadius, repairTagChipRadius } from "./tag-chip-radius";
 import { canonicalizeItemIdentityUrl } from "./url-utils";
@@ -184,6 +184,14 @@ function normalizeSettingGroups(settings: RssDashboardSettings): void {
     DEFAULT_SETTINGS.media,
     withLegacyYouTubeFocusMode(settings.media),
   );
+  if (typeof settings.media.showPodcastChapterMarkers !== "boolean") {
+    settings.media.showPodcastChapterMarkers =
+      DEFAULT_SETTINGS.media.showPodcastChapterMarkers;
+  }
+  if (typeof settings.media.showPodcastSleepTimerBand !== "boolean") {
+    settings.media.showPodcastSleepTimerBand =
+      DEFAULT_SETTINGS.media.showPodcastSleepTimerBand;
+  }
   settings.availableTags = Array.isArray(settings.availableTags)
     ? settings.availableTags
     : [...DEFAULT_SETTINGS.availableTags];

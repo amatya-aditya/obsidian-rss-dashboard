@@ -1,5 +1,6 @@
 import { Notice, setIcon, setTooltip } from "obsidian";
-import { onActivate } from "../../../utils/keyboard-activation";
+import { withBindingHint } from "../../../hotkeys/keymap";
+import { createIconButton } from "../../../utils/icon-button";
 import {
   resolveSaveVersion,
   SAVED_ARTICLE_TOOLTIP,
@@ -55,16 +56,16 @@ export type CreateActionButtonArgs = {
 
 export function createReadToggle(
   arg: Pick<CreateActionButtonArgs, "article" | "actionToolbar" | "callbacks">,
-): HTMLElement {
-  const readToggle = arg.actionToolbar.createDiv({
+): HTMLButtonElement {
+  const readToggle = createIconButton({
+    parent: arg.actionToolbar,
     cls: `rss-dashboard-read-toggle clickable-icon ${arg.article.read ? "read" : "unread"}`,
-    attr: {
-      role: "button",
-      tabindex: "0",
-      "aria-label": arg.article.read ? "Mark as unread" : "Mark as read",
-    },
+    label: withBindingHint(
+      arg.article.read ? "Mark as unread" : "Mark as read",
+      "toggle-read",
+    ),
+    icon: arg.article.read ? "check-circle" : "circle",
   });
-  setIcon(readToggle, arg.article.read ? "check-circle" : "circle");
 
   const toggleRead = (e: Event) => {
     e.stopPropagation();
@@ -76,7 +77,7 @@ export function createReadToggle(
     setIcon(readToggle, newReadState ? "check-circle" : "circle");
   };
 
-  onActivate(readToggle, toggleRead);
+  readToggle.addEventListener("click", toggleRead);
   return readToggle;
 }
 
@@ -85,13 +86,12 @@ export function createSaveButton(
     CreateActionButtonArgs,
     "article" | "actionToolbar" | "savedTemplate" | "settings" | "callbacks"
   >,
-): HTMLElement {
-  const saveButton = arg.actionToolbar.createDiv({
+): HTMLButtonElement {
+  const saveButton = createIconButton({
+    parent: arg.actionToolbar,
     cls: `rss-dashboard-save-toggle clickable-icon ${arg.article.saved ? "saved" : ""}`,
-    attr: {
-      role: "button",
-      tabindex: "0",
-      "aria-label": arg.article.saved
+    label: withBindingHint(
+      arg.article.saved
         ? SAVED_ARTICLE_TOOLTIP
         : saveVersionTooltip(
             resolveSaveVersion(
@@ -99,9 +99,10 @@ export function createSaveButton(
               arg.savedTemplate,
             ),
           ),
-    },
+      "save-article",
+    ),
+    icon: "save",
   });
-  setIcon(saveButton, "save");
   if (!saveButton.querySelector("svg")) {
     saveButton.textContent = "S";
   }
@@ -109,7 +110,10 @@ export function createSaveButton(
   const setSaving = (saving: boolean) => {
     if (saving) {
       saveButton.classList.add("saving");
-      setTooltip(saveButton, "Saving article...");
+      setTooltip(
+        saveButton,
+        withBindingHint("Saving article...", "save-article"),
+      );
     } else {
       saveButton.classList.remove("saving");
     }
@@ -122,7 +126,10 @@ export function createSaveButton(
     if (!saveButton.querySelector("svg")) {
       saveButton.textContent = "S";
     }
-    setTooltip(saveButton, SAVED_ARTICLE_TOOLTIP);
+    setTooltip(
+      saveButton,
+      withBindingHint(SAVED_ARTICLE_TOOLTIP, "save-article"),
+    );
   };
 
   const defaultSave = async () => {
@@ -188,36 +195,36 @@ export function createSaveButton(
   saveButton.addEventListener("click", (e) => {
     void toggleSave(e);
   });
-  saveButton.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      void toggleSave(e);
-    }
-  });
   return saveButton;
 }
 
 export function createStarToggle(
   arg: Pick<CreateActionButtonArgs, "article" | "actionToolbar" | "callbacks">,
-): HTMLElement {
-  const starToggle = arg.actionToolbar.createDiv({
+): HTMLButtonElement {
+  const starToggle = createIconButton({
+    parent: arg.actionToolbar,
     cls: `rss-dashboard-star-toggle clickable-icon ${arg.article.starred ? "starred" : "unstarred"}`,
-    attr: {
-      role: "button",
-      tabindex: "0",
-      "aria-label": arg.article.starred
+    label: withBindingHint(
+      arg.article.starred
         ? "Remove from starred items"
         : "Add to starred items",
-    },
+      "toggle-star",
+    ),
+    icon: arg.article.starred ? "star" : "star-off",
   });
+  // The icon lives in its own span so the list's in-place sync can swap it.
+  starToggle.empty();
   const starIcon = starToggle.createSpan({
     cls: "rss-dashboard-star-icon",
   });
-  starToggle.appendChild(starIcon);
   setIcon(starIcon, arg.article.starred ? "star" : "star-off");
   if (!starIcon.querySelector("svg")) {
     starIcon.textContent = arg.article.starred ? "*" : "o";
   }
+  const starPreviewIcon = starToggle.createSpan({
+    cls: "rss-dashboard-star-preview-icon",
+  });
+  setIcon(starPreviewIcon, "star");
 
   const toggleStar = (e: Event) => {
     e.stopPropagation();
@@ -239,32 +246,29 @@ export function createStarToggle(
     }
   };
 
-  onActivate(starToggle, toggleStar);
+  starToggle.addEventListener("click", toggleStar);
   return starToggle;
 }
 
 export function createTagsToggle(
   arg: Pick<CreateActionButtonArgs, "article" | "actionToolbar" | "deps">,
-): HTMLElement {
+): HTMLButtonElement {
   const tagsDropdown = arg.actionToolbar.createDiv({
     cls: "rss-dashboard-tags-dropdown",
   });
-  const tagsToggle = tagsDropdown.createDiv({
+  const tagsToggle = createIconButton({
+    parent: tagsDropdown,
     cls: "rss-dashboard-tags-toggle clickable-icon",
-    attr: {
-      role: "button",
-      tabindex: "0",
-      "aria-label": "Manage tags",
-      "aria-haspopup": "true",
-      "aria-expanded": "false",
-    },
+    label: withBindingHint("Manage tags", "toggle-tags"),
+    icon: "tag",
+    hasPopup: true,
+    expanded: false,
   });
-  setIcon(tagsToggle, "tag");
   const handleOpen = (e: Event) => {
     e.stopPropagation();
     arg.deps.showTagsDropdown(tagsToggle, arg.article);
   };
-  onActivate(tagsToggle, handleOpen);
+  tagsToggle.addEventListener("click", handleOpen);
   return tagsToggle;
 }
 

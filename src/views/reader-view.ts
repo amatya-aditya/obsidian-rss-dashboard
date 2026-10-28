@@ -3,6 +3,7 @@ import type {
   ReaderContentVersions,
 } from "../components/reader-content-versions";
 import {
+  resolveFeedFetchPlan,
   runFeedFirstDisplay,
   visitReaderContent,
 } from "../components/reader-feed-first";
@@ -18,6 +19,7 @@ import {
   setTooltip,
 } from "obsidian";
 import { refreshReaderHeaderTags } from "../utils/reader-tag-chips";
+import { refreshTagMultiSelectMenuColors } from "../components/tag-multi-select-menu";
 import { setIcon, Scope } from "obsidian";
 import {
   addMathTurndownRule,
@@ -30,8 +32,10 @@ import {
 } from "../utils/math-copy";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { enhanceYouTubeEmbeds } from "../utils/youtube-inline-embed";
+import { resolveVideoSource } from "../utils/video-source";
 import { type FullArticleFetchResult } from "../utils/fetch-helpers";
 import {
+  isStarredImportCachedPreview,
   persistFetchedCoverImage,
   persistFetchedMetadata,
   persistFetchedPageImage,
@@ -39,6 +43,10 @@ import {
   renderVideoSourceBanner,
   shouldRenderVideoSourceBanner,
 } from "../utils/reader-article-fetch";
+import {
+  clearSourceFooter,
+  renderSourceFooter,
+} from "../utils/reader-source-footer";
 import {
   RssDashboardSettings,
   FeedItem,
@@ -52,7 +60,9 @@ import {
 import { HighlightService } from "../services/highlight-service";
 import { resolveDisplayDate } from "../services/feed-parser/feed-retention";
 import { ArticleSaver } from "../services/article-saver";
+import { noteLeadsWithHero } from "../services/article-template/note-template";
 import { setCssProps } from "../utils/platform-utils";
+import { applyTagAppearance } from "../utils/tag-colors";
 import { createIconButton } from "../utils/icon-button";
 import { attachRovingToolbar } from "../utils/roving-toolbar";
 import { fetchFullArticleContentWithOutcome } from "../utils/full-article-fetch";
@@ -90,7 +100,11 @@ import { stripAdContainersFromHtml } from "../utils/ad-containers";
 import TurndownService from "turndown";
 import { WebViewerIntegration } from "../services/web-viewer-integration";
 import { MediaService } from "../services/media-service";
-import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
+import {
+  createTagsDropdownPortal,
+  refreshTagsDropdownPortalColors,
+  tagsPortalHoldsFocus,
+} from "../utils/tags-dropdown-portal";
 import { resolveItemExternalUrl } from "../utils/item-url-utils";
 import { resolveSavedTemplateForArticle } from "../utils/saved-template-utils";
 import {
@@ -153,6 +167,8 @@ export class ReaderView extends ItemView {
   private settingsProvider: () => RssDashboardSettings;
   private onArticleSave: (item: FeedItem) => void;
   private persistSettings: () => Promise<void>;
+  /** Settles queued article state before the Reader closes (#1380). */
+  private flushPendingWrites?: () => Promise<void>;
   private readonly onPodcastPlaySpeedChange = (speed: number): void => {
     // Remember the speed the user picked in the player so later players, and
     // the Settings → Media control, start from it (#1269).
@@ -194,6 +210,7 @@ export class ReaderView extends ItemView {
   private saveButton: HTMLElement | null = null;
   private returnLeaf: WorkspaceLeaf | null = null;
   private tagsDropdownCleanup: (() => void) | null = null;
+  private tagsDropdownPortal: HTMLElement | null = null;
 
   private readerFormatPortal: { close: (flushSave: boolean) => void } | null =
     null;
@@ -275,6 +292,8 @@ export class ReaderView extends ItemView {
     ) => void | boolean | Promise<void | boolean>,
     options?: {
       saveSettings?: () => Promise<void>;
+      /** Writes queued article state before the view closes (#1380). */
+      flushPendingWrites?: () => Promise<void>;
       onPlaybackProgress?: (
         item: FeedItem,
         position: number,
@@ -290,6 +309,7 @@ export class ReaderView extends ItemView {
       typeof articleSaver === "function" ? articleSaver : () => articleSaver;
     this.onArticleSave = onArticleSave;
     this.persistSettings = options?.saveSettings ?? (() => Promise.resolve());
+    this.flushPendingWrites = options?.flushPendingWrites;
     this.onArticleUpdate = onArticleUpdate;
     this.onPlaybackProgress = options?.onPlaybackProgress;
     addMathTurndownRule(this.turndownService);
@@ -633,6 +653,18 @@ export class ReaderView extends ItemView {
    * @internal
    */
   public actionMarkReadAndNext(): void {
+    // When the dashboard has this article selected, its own path marks it read
+    // and opens the neighbour once: the Reader's update reaches the dashboard
+    // after this call returns, so advancing here would start from an article
+    // the filter has already dropped (#1468).
+    const dashboardView = this.getDashboardView();
+    if (
+      this.currentItem &&
+      dashboardView?.isSelectedArticle(this.currentItem)
+    ) {
+      void dashboardView.actionMarkReadAndNext();
+      return;
+    }
     if (this.currentItem && !this.currentItem.read) {
       this.toggleReadStatus();
     }
@@ -775,7 +807,11 @@ export class ReaderView extends ItemView {
     }
   }
 
-  private buildReaderSaveMarkdown(item: FeedItem): string {
+  /**
+   * The Markdown a Reader save hands the saver. `leadWithHero` is false when
+   * the note template places `{{image}}` itself, so the body takes no hero.
+   */
+  private buildReaderSaveMarkdown(item: FeedItem, leadWithHero = true): string {
     const htmlToSave =
       this.currentFullContent && this.currentContentIsFullArticle
         ? cleanFetchedArticleHtml(this.currentFullContent, {
@@ -789,10 +825,10 @@ export class ReaderView extends ItemView {
           })
         : this.currentFullContent || item.description || "";
     // Same ad stripping the saver applies on its own paths (#1195).
-    const htmlWithHero = this.prependFallbackHeroForSavedMarkdown(
-      item,
-      stripAdContainersFromHtml(htmlToSave),
-    );
+    const strippedHtml = stripAdContainersFromHtml(htmlToSave);
+    const htmlWithHero = leadWithHero
+      ? this.prependFallbackHeroForSavedMarkdown(item, strippedHtml)
+      : strippedHtml;
     const normalizedSaveHtml =
       this.normalizeBlockLinksForSavedMarkdown(htmlWithHero);
     return this.turndownService.turndown(
@@ -828,7 +864,15 @@ export class ReaderView extends ItemView {
       ? {
           fetchAttempted: true,
           markdown: this.currentContentIsFullArticle
-            ? this.buildReaderSaveMarkdown(item)
+            ? this.buildReaderSaveMarkdown(
+                item,
+                noteLeadsWithHero(
+                  this.settings.articleSaving,
+                  template,
+                  savedTemplate,
+                  item,
+                ),
+              )
             : undefined,
           fetchedHtml: this.currentFetchedArticleContent,
         }
@@ -975,11 +1019,11 @@ export class ReaderView extends ItemView {
   }
 
   /**
-   * Action: Toggle YouTube Focus mode from the `Shift+F` keymap binding.
+   * Action: Toggle Video Focus mode from the `Shift+F` keymap binding.
    * @internal
    */
-  public actionToggleYouTubeFocusMode(): void {
-    void this.getRssDashboardPlugin()?.toggleYouTubeFocusMode?.();
+  public actionToggleVideoFocusMode(): void {
+    void this.getRssDashboardPlugin()?.toggleVideoFocusMode?.();
   }
 
   getViewType(): string {
@@ -1050,7 +1094,16 @@ export class ReaderView extends ItemView {
     if (typeof this.app.workspace.on === "function") {
       this.registerEvent(
         this.app.workspace.on("active-leaf-change", (leaf) => {
-          if (leaf === this.leaf) {
+          if (
+            leaf === this.leaf &&
+            !tagsPortalHoldsFocus(
+              this.tagsDropdownPortal,
+              this.tagsToggleButton,
+            ) &&
+            !this.containerEl.contains(
+              this.containerEl.ownerDocument.activeElement,
+            )
+          ) {
             this.containerEl.focus({ preventScroll: true });
           }
         }),
@@ -1117,7 +1170,7 @@ export class ReaderView extends ItemView {
 
     this.saveButton = createIconButton({
       parent: actions,
-      cls: "rss-reader-action-button",
+      cls: "rss-reader-action-button rss-reader-save-toggle",
       label: "Save article",
       icon: "save",
       action: "save",
@@ -1161,6 +1214,15 @@ export class ReaderView extends ItemView {
         }
       },
     });
+    this.starToggleButton.empty();
+    const starIcon = this.starToggleButton.createSpan({
+      cls: "rss-reader-star-icon",
+    });
+    setIcon(starIcon, "star-off");
+    const starPreviewIcon = this.starToggleButton.createSpan({
+      cls: "rss-reader-star-preview-icon",
+    });
+    setIcon(starPreviewIcon, "star");
 
     // Tags button (same portal menu as dashboard cards)
     const tagsButton = (this.tagsToggleButton = createIconButton({
@@ -1258,6 +1320,11 @@ export class ReaderView extends ItemView {
       this.videoPlayer.destroy();
       this.videoPlayer = null;
     }
+
+    // The Reader's own changes are awaited, but playback captured on close is
+    // queued; settle every pending article-state write before the view is gone
+    // (#1380).
+    await this.flushPendingWrites?.();
 
     return Promise.resolve();
   }
@@ -1376,7 +1443,7 @@ export class ReaderView extends ItemView {
     this.updateToggleButtons();
 
     const route = resolveReaderMediaRoute(item);
-    this.syncYouTubeFocusChrome(this.settings.media.youtubeFocusMode);
+    this.syncVideoFocusChrome(this.settings.media.youtubeFocusMode);
     if (route === "video") {
       await this.displayVideo(item);
     } else if (route === "video-podcast") {
@@ -1402,7 +1469,17 @@ export class ReaderView extends ItemView {
   ): Promise<void> {
     const feedContent = item.content || item.description || "";
     this.currentFullContent = feedContent;
-    if (this.shouldSkipFullArticleFetch(item) || !item.link) {
+    // A rich Substack feed ships the full body, so the automatic fetch is
+    // skipped. Still offer the fetched version, fetched on first request.
+    const prefersFeedContent = this.prefersFeedContent(item);
+    const plan = resolveFeedFetchPlan(
+      Boolean(item.link),
+      prefersFeedContent,
+      isStarredImportCachedPreview(item) ||
+        hasActiveFetchFailure(item) ||
+        this.isVideoMediaItem(item),
+    );
+    if (plan === "display") {
       await this.displayArticle(item, feedContent);
       return;
     }
@@ -1416,6 +1493,7 @@ export class ReaderView extends ItemView {
       container: this.readingContainer,
       item,
       feedContent,
+      onDemand: plan === "onDemand",
       renderVersion: (parent, version, content) =>
         this.renderArticle(item, content, parent, version),
       onSelectVersion: (version, fetched) => {
@@ -1485,6 +1563,7 @@ export class ReaderView extends ItemView {
     });
     if (!versions) return;
     if (
+      plan !== "onDemand" &&
       this.settings.useWebViewer &&
       this.webViewerIntegration &&
       identity === this.displayIdentity &&
@@ -1516,7 +1595,7 @@ export class ReaderView extends ItemView {
     const container = this.readingContainer.createDiv({
       cls: "rss-reader-video-container enhanced",
     });
-    if (item.videoId) {
+    if (resolveVideoSource(item)) {
       this.videoPlayer = new VideoPlayer(
         container,
         (selectedVideo) => {
@@ -1530,6 +1609,9 @@ export class ReaderView extends ItemView {
       this.videoPlayer.loadVideo(item);
       if (this.relatedItems.length > 0) {
         this.videoPlayer.setRelatedVideos(this.relatedItems);
+      }
+      if (!this.settings.media.youtubeFocusMode) {
+        renderSourceFooter(this.readingContainer, item);
       }
     } else {
       const errorContainer = container.createDiv({
@@ -1579,6 +1661,7 @@ export class ReaderView extends ItemView {
       this.syncReaderTitle();
       this.updateToggleButtons();
       this.closeTagsDropdown();
+      renderSourceFooter(this.readingContainer, selectedEpisode);
       void this.syncDashboardSelectionFromPlayer(selectedEpisode);
     };
 
@@ -1594,8 +1677,12 @@ export class ReaderView extends ItemView {
         this.settings.media.defaultPlaySpeed ?? 1,
         this.settings.useFirstSeenDateFallback,
         this.onPodcastPlaySpeedChange,
+        this.settings.media.showPodcastChapterMarkers ?? true,
+        this.settings.media.showPodcastSleepTimerBand ?? true,
       );
+      this.podcastPlayer.setTagAppearanceSettings(this.settings);
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
+      renderSourceFooter(this.readingContainer, item);
     } else {
       const audioUrl = MediaService.extractPodcastAudio(item.description);
       if (audioUrl) {
@@ -1614,8 +1701,12 @@ export class ReaderView extends ItemView {
           this.settings.media.defaultPlaySpeed ?? 1,
           this.settings.useFirstSeenDateFallback,
           this.onPodcastPlaySpeedChange,
+          this.settings.media.showPodcastChapterMarkers ?? true,
+          this.settings.media.showPodcastSleepTimerBand ?? true,
         );
+        this.podcastPlayer.setTagAppearanceSettings(this.settings);
         this.podcastPlayer.loadEpisode(podcastItem, fullFeedEpisodes);
+        renderSourceFooter(this.readingContainer, item);
       } else {
         container.createDiv({
           cls: "rss-reader-error",
@@ -1626,26 +1717,51 @@ export class ReaderView extends ItemView {
     }
   }
 
-  setYouTubeFocusMode(hide: boolean): void {
-    this.videoPlayer?.setFocusMode(hide);
-    this.syncYouTubeFocusChrome(hide);
-  }
-
-  /**
-   * In Focus mode a YouTube video drops the toolbar and title from the header
-   * and keeps only the back button; articles and podcasts keep the full one.
-   */
-  private syncYouTubeFocusChrome(focusMode: boolean): void {
+  setVideoFocusMode(hide: boolean): void {
     const isVideo =
       this.currentItem !== null &&
       resolveReaderMediaRoute(this.currentItem) === "video";
-    this.headerEl?.toggleClass("rss-youtube-focus", focusMode && isVideo);
+    const backButton =
+      this.headerEl?.querySelector<HTMLElement>(".rss-reader-back-button") ??
+      null;
+    this.videoPlayer?.setFocusMode(hide, backButton);
+    this.syncVideoFocusChrome(hide);
+    if (isVideo && this.readingContainer) {
+      if (hide) {
+        clearSourceFooter(this.readingContainer, backButton);
+      } else {
+        if (this.currentItem) {
+          renderSourceFooter(this.readingContainer, this.currentItem);
+        }
+      }
+    }
+  }
+
+  /**
+   * In Focus mode a video drops the toolbar and title from the header
+   * and keeps only the back button; articles and podcasts keep the full one.
+   */
+  private syncVideoFocusChrome(focusMode: boolean): void {
+    const isVideo =
+      this.currentItem !== null &&
+      resolveReaderMediaRoute(this.currentItem) === "video";
+    this.headerEl?.toggleClass("rss-video-focus", focusMode && isVideo);
   }
 
   updatePodcastTheme(theme: string): void {
     if (this.podcastPlayer) {
       this.podcastPlayer.updateTheme(theme);
     }
+  }
+
+  /** Apply the chapter-marker setting to the open player without reloading it. */
+  setPodcastChapterMarkers(enabled: boolean): void {
+    this.podcastPlayer?.setChapterMarkersEnabled(enabled);
+  }
+
+  /** Apply the sleep timer band setting to the open player without reloading it. */
+  setPodcastSleepTimerBand(enabled: boolean): void {
+    this.podcastPlayer?.setSleepTimerBandEnabled(enabled);
   }
 
   private async syncDashboardSelectionFromPlayer(
@@ -1725,39 +1841,6 @@ export class ReaderView extends ItemView {
     }
 
     return this.prefersFeedContent(item, feedHtml);
-  }
-
-  private shouldSkipFullArticleFetch(item: FeedItem): boolean {
-    if (this.isStarredImportCachedPreview(item)) {
-      return true;
-    }
-
-    // A fetch that failed earlier waits for an explicit "Try again" (#1110).
-    if (hasActiveFetchFailure(item)) {
-      return true;
-    }
-
-    if (this.isVideoMediaItem(item)) {
-      return true;
-    }
-
-    return this.prefersFeedContent(item);
-  }
-
-  /**
-   * True for a starred.json-imported article (234-09) that has never had a
-   * full-content fetch attempted, or whose last attempt failed. The reader's
-   * automatic fetch-on-open is skipped in both cases — a fetch only happens
-   * when the user clicks "Fetch now" on the cached-preview banner. Articles
-   * that never came from a starred import (no `starredImportContentState`
-   * at all) always return false here, so their automatic fetch-on-open is
-   * completely unaffected.
-   */
-  private isStarredImportCachedPreview(item: FeedItem): boolean {
-    return (
-      item.starredImportContentState === "unfetched" ||
-      item.starredImportContentState === "failed"
-    );
   }
 
   private isVideoMediaItem(item: FeedItem): boolean {
@@ -1843,7 +1926,7 @@ export class ReaderView extends ItemView {
           cls: "rss-reader-tag",
         });
         tagElement.textContent = tag.name;
-        tagElement.style.setProperty("--tag-color", tag.color);
+        applyTagAppearance(tagElement, tag, this.settings);
       }
     }
 
@@ -1903,11 +1986,13 @@ export class ReaderView extends ItemView {
       );
     }
 
+    renderSourceFooter(container, item);
+
     if (item.restrictedReason) {
       renderRestrictedBanner(container, item);
     } else if (shouldRenderVideoSourceBanner(item)) {
       renderVideoSourceBanner(container, item);
-    } else if (this.isStarredImportCachedPreview(item)) {
+    } else if (isStarredImportCachedPreview(item)) {
       this.renderStarredImportBanner(item, container);
     }
     // Independent of the banners above: the fetch is skipped while a failure
@@ -2176,20 +2261,45 @@ export class ReaderView extends ItemView {
 
     // Add classes to images for styling
     container.querySelectorAll("img").forEach((img) => {
-      img.addClass("rss-reader-responsive-img");
-      // Before the error listener below, so a failed image is revealed before
-      // Substack recovery clones it.
-      applyReaderImageLoading(img);
-      this.setupReaderImageTooltip(img, title);
-      this.setupLightboxForImage(img);
-      img.addEventListener("error", () => {
-        recoverFailedSubstackImageElement(img);
-      });
+      this.decorateReaderImage(img, title);
     });
 
     void scheduleProcessMathElements(container, {
       app: this.app,
       component: this,
+    });
+  }
+
+  /**
+   * Applies the reader's image affordances — responsive class, lazy loading,
+   * tooltip and lightbox — and keeps the Substack error recovery attached. The
+   * recovery path replaces a failed `<img>` with a clone, which does not inherit
+   * event listeners, so a replacement is reset and decorated again rather than
+   * losing its click and keyboard handlers.
+   */
+  private decorateReaderImage(
+    img: HTMLImageElement,
+    title: string | undefined,
+    recovered = false,
+  ): void {
+    if (recovered) {
+      // cloneNode copies these classes but none of the loading state behind
+      // them, so clear them for a fresh pass.
+      img.removeClass("rss-reader-responsive-img");
+      img.removeClass("rss-reader-lazy-img");
+      img.removeClass("rss-reader-zoomable-img");
+      img.removeClass("is-loading");
+      img.removeClass("is-revealed");
+    }
+    img.addClass("rss-reader-responsive-img");
+    // Before the error listener below, so a failed image is revealed before
+    // Substack recovery clones it.
+    applyReaderImageLoading(img);
+    this.setupReaderImageTooltip(img, title);
+    this.setupLightboxForImage(img);
+    img.addEventListener("error", () => {
+      const replacement = recoverFailedSubstackImageElement(img);
+      if (replacement) this.decorateReaderImage(replacement, title, true);
     });
   }
 
@@ -2231,7 +2341,9 @@ export class ReaderView extends ItemView {
 
     if (tooltipText) {
       setTooltip(img, tooltipText);
-      if (opensLightbox) {
+      // A recovered replacement lands inside the tooltip host already built for
+      // the image it replaced, so only wrap the picture the first time.
+      if (opensLightbox && !img.closest(".rss-reader-image-tooltip-host")) {
         const tooltipTarget = img.closest("picture") ?? img;
         const parent = tooltipTarget.parentElement;
         if (parent) {
@@ -2338,13 +2450,18 @@ export class ReaderView extends ItemView {
   }
 
   public refreshTagColors(): void {
+    refreshTagMultiSelectMenuColors(
+      this.containerEl.ownerDocument,
+      this.settings,
+    );
+    refreshTagsDropdownPortalColors(
+      this.containerEl.ownerDocument,
+      this.settings,
+    );
     if (!this.currentItem) {
       return;
     }
 
-    this.currentItem.tags = this.syncTagColorsWithSettings(
-      this.currentItem.tags,
-    );
     this.refreshReaderHeaderTags();
 
     if (this.podcastPlayer && this.currentItem.mediaType === "podcast") {
@@ -2474,9 +2591,14 @@ export class ReaderView extends ItemView {
         this.openTagsSettings();
       },
       appContainer: this.contentEl,
+      containTab: true,
+      onOpen: (portal) => {
+        this.tagsDropdownPortal = portal;
+      },
       onClosed: () => {
         if (this.tagsDropdownCleanup === cleanup) {
           this.tagsDropdownCleanup = null;
+          this.tagsDropdownPortal = null;
         }
       },
     });
@@ -2531,32 +2653,20 @@ export class ReaderView extends ItemView {
       this.videoPlayer &&
       resolveReaderMediaRoute(this.currentItem) === "video"
     ) {
-      this.videoPlayer.setTags(this.currentItem.tags);
+      this.videoPlayer.setTags(this.currentItem.tags, this.settings);
       return;
     }
 
     visitReaderContent(
       this.contentVersions,
       this.readingContainer,
-      (container) => refreshReaderHeaderTags(container, this.currentItem?.tags),
+      (container) =>
+        refreshReaderHeaderTags(
+          container,
+          this.currentItem?.tags,
+          this.settings,
+        ),
     );
-  }
-
-  private syncTagColorsWithSettings(tags: FeedItem["tags"]): Tag[] {
-    return (tags ?? []).map((tag) => {
-      const matchingTag = this.settings.availableTags.find(
-        (availableTag) => availableTag.name === tag.name,
-      );
-
-      if (!matchingTag || matchingTag.color === tag.color) {
-        return tag;
-      }
-
-      return {
-        ...tag,
-        color: matchingTag.color,
-      };
-    });
   }
 
   private resolveReaderFontFamily(
@@ -2699,7 +2809,7 @@ export class ReaderView extends ItemView {
   private getRssDashboardPlugin(): {
     saveSettings: () => Promise<void>;
     refreshOpenTagColorViews?: () => Promise<void>;
-    toggleYouTubeFocusMode?: () => void;
+    toggleVideoFocusMode?: () => void;
   } | null {
     try {
       const appWithPlugins = this.app as unknown as {
@@ -2724,14 +2834,14 @@ export class ReaderView extends ItemView {
         | {
             saveSettings?: unknown;
             refreshOpenTagColorViews?: unknown;
-            toggleYouTubeFocusMode?: unknown;
+            toggleVideoFocusMode?: unknown;
           }
         | undefined;
       if (plugin && typeof plugin.saveSettings === "function") {
         return plugin as {
           saveSettings: () => Promise<void>;
           refreshOpenTagColorViews?: () => Promise<void>;
-          toggleYouTubeFocusMode?: () => void;
+          toggleVideoFocusMode?: () => void;
         };
       }
     } catch {
@@ -2849,10 +2959,15 @@ export class ReaderView extends ItemView {
 
     // Update star toggle
     if (this.starToggleButton) {
-      setIcon(
-        this.starToggleButton,
-        this.currentItem.starred ? "star" : "star-off",
+      const starIcon = this.starToggleButton.querySelector(
+        ".rss-reader-star-icon",
       );
+      if (starIcon) {
+        setIcon(
+          starIcon as HTMLElement,
+          this.currentItem.starred ? "star" : "star-off",
+        );
+      }
       this.starToggleButton.classList.toggle(
         "starred",
         this.currentItem.starred,
@@ -3041,5 +3156,6 @@ export class ReaderView extends ItemView {
         text: "No related videos found",
       });
     }
+    renderSourceFooter(this.readingContainer, item);
   }
 }

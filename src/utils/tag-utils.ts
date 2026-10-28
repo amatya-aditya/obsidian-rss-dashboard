@@ -8,7 +8,7 @@ import type {
 } from "../types/types";
 
 const AUTO_TAG_DEFINITIONS = {
-  saved: { name: "Saved", fallbackColor: "#3498db" },
+  saved: { name: "Saved" },
 } as const;
 
 function cloneTags(tags: readonly Tag[] | undefined): Tag[] {
@@ -17,18 +17,13 @@ function cloneTags(tags: readonly Tag[] | undefined): Tag[] {
 
 function ensureCanonicalTag(
   tags: readonly Tag[] | undefined,
-  availableTags: readonly Tag[],
   tagKey: keyof typeof AUTO_TAG_DEFINITIONS,
 ): { changed: boolean; tags: Tag[] } {
   const definition = AUTO_TAG_DEFINITIONS[tagKey];
   const nextTags = cloneTags(tags);
-  const matchingTag = availableTags.find(
-    (tag) => tag.name.toLowerCase() === definition.name.toLowerCase(),
-  );
   const existingIndex = nextTags.findIndex(
     (tag) => tag.name.toLowerCase() === definition.name.toLowerCase(),
   );
-  const resolvedColor = matchingTag?.color || definition.fallbackColor;
 
   if (existingIndex >= 0) {
     const existingTag = nextTags[existingIndex];
@@ -38,20 +33,15 @@ function ensureCanonicalTag(
     const nextTag: Tag = {
       ...existingTag,
       name: definition.name,
-      color: existingTag.color || resolvedColor,
     };
-    const changed =
-      nextTag.name !== existingTag.name || nextTag.color !== existingTag.color;
+    const changed = nextTag.name !== existingTag.name;
     if (changed) {
       nextTags[existingIndex] = nextTag;
     }
     return { changed, tags: nextTags };
   }
 
-  nextTags.push({
-    name: definition.name,
-    color: resolvedColor,
-  });
+  nextTags.push({ name: definition.name });
   return { changed: true, tags: nextTags };
 }
 
@@ -76,11 +66,7 @@ export function applyAutomaticArticleTags(
   let tagsChanged = updates.tags !== undefined;
 
   if (updates.saved === true && settings.articleSaving.addSavedTag) {
-    const result = ensureCanonicalTag(
-      nextTags,
-      settings.availableTags,
-      "saved",
-    );
+    const result = ensureCanonicalTag(nextTags, "saved");
     nextTags = result.tags;
     tagsChanged = tagsChanged || result.changed;
 
@@ -93,14 +79,15 @@ export function applyAutomaticArticleTags(
       (t) => t.name.toLowerCase() === definition.name.toLowerCase(),
     );
     if (!alreadyRegistered) {
-      // Use the resolved color from the article's tag so the registry entry
-      // matches what was written to the article.
       const articleTag = nextTags.find(
         (t) => t.name.toLowerCase() === definition.name.toLowerCase(),
       );
       settings.availableTags.push({
         name: definition.name,
-        color: articleTag?.color ?? definition.fallbackColor,
+        ...(articleTag?.color === undefined ? {} : { color: articleTag.color }),
+        ...(articleTag?.textColor === undefined
+          ? {}
+          : { textColor: articleTag.textColor }),
       });
     }
   }
@@ -139,15 +126,17 @@ export function showEditTagModal({
   settings,
   tag,
   onSave,
-  submitLabel = "Save changes",
+  submitLabel,
+  isNew,
 }: {
   app: App;
   settings: Readonly<RssDashboardSettings>;
   tag: Readonly<Tag>;
   onSave?: (updatedTag: Tag) => Promise<void> | void;
   submitLabel?: string;
+  isNew?: boolean;
 }): void {
-  new EditTagModal(app, { settings, tag, onSave, submitLabel }).open();
+  new EditTagModal(app, { settings, tag, onSave, submitLabel, isNew }).open();
 }
 
 /**

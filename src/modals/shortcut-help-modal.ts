@@ -1,4 +1,5 @@
-import { App, setIcon, Notice } from "obsidian";
+import { App, Notice } from "obsidian";
+import { createIconButton } from "../utils/icon-button";
 import { AccessibleModal } from "../utils/accessible-modal";
 import type { RssDashboardSettings } from "../types/types";
 import { ensureVaultFolder } from "../utils/vault-files";
@@ -16,7 +17,8 @@ export interface ShortcutSection {
 
 /**
  * The shortcut list shown in the help dialog and written to the vault note.
- * Keep it in step with `src/hotkeys/dashboard-hotkeys.ts`,
+ * Tests check the rows against the keymap's help assignments. Keep it in
+ * step with `src/hotkeys/dashboard-hotkeys.ts`,
  * `src/hotkeys/reader-hotkeys.ts`, and `docs/user/keyboard-shortcuts.md`.
  */
 export const SHORTCUT_SECTIONS: ShortcutSection[] = [
@@ -25,7 +27,6 @@ export const SHORTCUT_SECTIONS: ShortcutSection[] = [
     items: [
       { key: "?", desc: "Open help dialog" },
       { key: "Esc", desc: "Close dialog" },
-      { key: "r", desc: "Refresh feed" },
     ],
   },
   {
@@ -36,9 +37,32 @@ export const SHORTCUT_SECTIONS: ShortcutSection[] = [
       { key: "Shift + 1", desc: "All articles filter" },
       { key: "Shift + 2", desc: "Unread articles filter" },
       { key: "Shift + 3", desc: "Read articles filter" },
+      { key: "Shift + C", desc: "Fetch or restore cover image" },
       { key: "1", desc: "List view" },
       { key: "2", desc: "Card view" },
       { key: "3", desc: "Feed view" },
+      { key: "r", desc: "Refresh feed" },
+      { key: "ArrowUp / ArrowDown", desc: "Move article selection up / down" },
+      {
+        key: "ArrowLeft / ArrowRight",
+        desc: "Move article selection left / right (card view only)",
+      },
+      { key: "o / Enter", desc: "Open article in reader pane" },
+      {
+        key: "Space / Shift + Space",
+        desc: "Select next / previous article without opening",
+      },
+      { key: "`", desc: "Select first article" },
+      { key: "k", desc: "Close reader pane" },
+      { key: "j", desc: "Open previous article" },
+      { key: "l", desc: "Open next article" },
+      { key: "m", desc: "Mark article read/unread toggle" },
+      { key: ",", desc: "Mark article read and open next" },
+      { key: "Shift + a", desc: "Mark all as read" },
+      { key: "f", desc: "Star/Unstar article" },
+      { key: "Shift + f", desc: "Toggle video focus mode" },
+      { key: "t", desc: "Add tags to article" },
+      { key: "s", desc: "Save to notes" },
     ],
   },
   {
@@ -59,24 +83,14 @@ export const SHORTCUT_SECTIONS: ShortcutSection[] = [
   {
     section: "Article manipulation",
     items: [
-      { key: "ArrowUp / ArrowDown", desc: "Move article selection up / down" },
-      {
-        key: "ArrowLeft / ArrowRight",
-        desc: "Move article selection left / right (card view only)",
-      },
-      { key: "o / Enter", desc: "Open article in reader pane" },
       { key: "k", desc: "Close reader pane" },
       { key: "j", desc: "Open previous article" },
       { key: "l", desc: "Open next article" },
-      {
-        key: "Space / Shift + Space",
-        desc: "Select next / previous article without opening",
-      },
       { key: "m", desc: "Mark article read/unread toggle" },
       { key: ",", desc: "Mark article read and open next" },
       { key: "Shift + a", desc: "Mark all as read" },
       { key: "f", desc: "Star/Unstar article" },
-      { key: "Shift + f", desc: "Toggle YouTube focus mode" },
+      { key: "Shift + f", desc: "Toggle video focus mode" },
       { key: "t", desc: "Add tags to article" },
       { key: "s", desc: "Save to notes" },
     ],
@@ -134,24 +148,15 @@ export class ShortcutHelpModal extends AccessibleModal {
       void this.saveShortcutsToVault();
     });
 
-    const closeBtn = header.createDiv({
+    createIconButton({
+      parent: header,
       cls: "rss-dashboard-header-close-button clickable-icon",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Close",
+      label: "Close",
+      icon: "x",
+      onClick: (e) => {
+        e.preventDefault();
+        this.close();
       },
-    });
-    setIcon(closeBtn, "x");
-    const handleClose = (e: Event) => {
-      e.preventDefault();
-      this.close();
-    };
-    closeBtn.addEventListener("click", handleClose);
-    closeBtn.addEventListener("keydown", (e: KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " ") {
-        handleClose(e);
-      }
     });
 
     const body = contentEl.createDiv({ cls: "rss-dashboard-modal-content" });

@@ -286,7 +286,8 @@ export interface FeedIngestionResult {
 
 export interface Tag {
   name: string;
-  color: string;
+  color?: string;
+  textColor?: string;
 }
 
 export interface Folder {
@@ -335,6 +336,10 @@ export interface MediaSettings {
   podcastTheme: PodcastTheme;
   enableApplePodcastsOpen?: boolean;
   defaultPlaySpeed: number;
+  /** Show chapter markers parsed from an episode's notes on the seek bar. */
+  showPodcastChapterMarkers?: boolean;
+  /** Show the sleep timer's projected stop as a band on the seek bar. */
+  showPodcastSleepTimerBand?: boolean;
 }
 
 export interface SavedTemplate {
@@ -375,6 +380,12 @@ export interface ArticleSavingSettings {
 export const IMAGE_CACHE_LIMIT_MIN_MIB = 1;
 export const IMAGE_CACHE_LIMIT_MAX_MIB = 1_024;
 
+/** Article title size, as a percentage of each view's normal title size. */
+export const ARTICLE_TITLE_SCALE_MIN = 50;
+export const ARTICLE_TITLE_SCALE_MAX = 200;
+export const ARTICLE_TITLE_SCALE_STEP = 5;
+export const ARTICLE_TITLE_SCALE_DEFAULT = 100;
+
 export interface DisplaySettings {
   showCoverImage: boolean;
   allowImageCaching: boolean;
@@ -413,6 +424,7 @@ export interface DisplaySettings {
   sidebarItemPaddingRight: number;
   cardColumnsPerRow: number;
   cardSpacing: number;
+  articleTitleScale: number;
   hideEmptyFeeds: boolean;
   hideFeedFetchErrorBadges: boolean;
 
@@ -526,6 +538,22 @@ export interface UserStateFile {
   version: number;
   states: Record<string, ArticleUserState>;
   /**
+   * Highest device-local journal sequence already folded into this snapshot,
+   * written as the max across devices for readers that only understand the
+   * legacy single counter (#1386). Prefer {@link checkpointByDevice}: replay
+   * skips a record only when its own device's checkpoint covers it. Absent on
+   * older snapshots and treated as 0.
+   */
+  checkpointSequence?: number;
+  /**
+   * Per-device folded sequence floor (#1380). A journal record is skipped on
+   * replay only when `record.seq <= checkpointByDevice[record.deviceId]`, so
+   * one device's checkpoint never suppresses another device's pending records.
+   * Absent on v3/v4 snapshots, which are read best-effort by treating
+   * `checkpointSequence` as this device's own checkpoint.
+   */
+  checkpointByDevice?: Record<string, number>;
+  /**
    * Bare-GUID state from a pre-#278 `user-state.json` that has not yet been
    * attributed to a `feedId:guid` key in `states` because its owning feed
    * had not hydrated when the migration ran. Re-attempted on every hydrate
@@ -616,6 +644,9 @@ export interface RssDashboardSettings {
   savedArticlesPageSize: number;
   starredArticlesPageSize: number;
   availableTags: Tag[];
+  /** Global appearance values used when a tag has no stored override. */
+  defaultTagColor?: string;
+  defaultTagTextColor?: string;
   folderSortOrder?: {
     by: "name" | "created" | "modified" | "custom";
     ascending: boolean;
@@ -812,6 +843,8 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     { name: "Video", color: "#d04747" },
     { name: "Podcast", color: "#8e44ad" },
   ],
+  defaultTagColor: "#8a5cf5",
+  defaultTagTextColor: "#ffffff",
   folderSortOrder: { by: "name", ascending: true },
   feedSortOrder: { by: "name", ascending: true },
   folderFeedSortOrders: {},
@@ -851,6 +884,8 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     podcastTheme: "obsidian",
     enableApplePodcastsOpen: false,
     defaultPlaySpeed: 1,
+    showPodcastChapterMarkers: true,
+    showPodcastSleepTimerBand: true,
   },
   articleSaving: {
     addSavedTag: true,
@@ -925,6 +960,7 @@ guid: "{{guid}}"
     sidebarItemPaddingRight: 2,
     cardColumnsPerRow: 0,
     cardSpacing: 15,
+    articleTitleScale: ARTICLE_TITLE_SCALE_DEFAULT,
     hideEmptyFeeds: false,
     hideFeedFetchErrorBadges: false,
     hideIconDashboard: false,

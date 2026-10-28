@@ -435,26 +435,31 @@ describe("CustomSaveModal", () => {
     const select = root.querySelector<HTMLSelectElement>(
       "#rss-dashboard-saved-template",
     );
+    const preview = root.querySelector<HTMLElement>(
+      ".rss-dashboard-filename-preview",
+    );
     if (!patternInput || !select)
       throw new Error("Filename override controls were not rendered");
+    if (!preview?.id) throw new Error("Filename preview was not rendered");
 
+    expect(preview.hasAttribute("aria-live")).toBe(false);
     expect(
-      root.querySelector<HTMLElement>(".rss-dashboard-filename-preview")
-        ?.textContent,
-    ).toContain("{{source}}-{{title}}.md");
+      patternInput.getAttribute("aria-describedby")?.split(/\s+/),
+    ).toContain(preview.id);
+
+    expect(preview.textContent).toContain("{{source}}-{{title}}.md");
+    const initialPreview = preview.textContent;
 
     patternInput.value = "{{title}}-manual";
     patternInput.dispatchEvent(new Event("input", { bubbles: true }));
+    expect(preview.textContent).not.toBe(initialPreview);
     select.value = "two";
     select.dispatchEvent(new Event("change", { bubbles: true }));
     expect(patternInput.value).toBe("{{title}}-manual");
 
     patternInput.value = "";
     patternInput.dispatchEvent(new Event("input", { bubbles: true }));
-    expect(
-      root.querySelector<HTMLElement>(".rss-dashboard-filename-preview")
-        ?.textContent,
-    ).toContain("{{dateShort}}-{{title}}.md");
+    expect(preview.textContent).toContain("{{dateShort}}-{{title}}.md");
     expect(root.querySelector("[class*=template-filename-pattern]")).toBeNull();
     expect(root.textContent).not.toContain("Use template pattern");
     root

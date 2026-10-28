@@ -6,6 +6,7 @@ import {
   CategoryPath,
 } from "../types/discover-types";
 import { addInputClearButton } from "../utils/input-clear-button";
+import { createIconButton } from "../utils/icon-button";
 
 interface DiscoverSidebarCallbacks {
   onFilterChange: () => void;
@@ -166,27 +167,17 @@ export class DiscoverSidebar {
     icon: string,
     onClick: () => void,
   ): HTMLElement {
-    const button = container.createDiv({
+    const button = createIconButton({
+      parent: container,
       cls: `rss-dashboard-nav-button clickable-icon rss-discover-header-nav-button ${variantClass}`,
-      attr: {
-        "aria-label": label,
-        role: "button",
-        tabindex: "0",
-      },
+      label,
+      icon,
+      onClick: () => onClick(),
     });
-    setIcon(button, icon);
     button.createSpan({
       cls: "rss-discover-header-nav-button-text",
       text,
     });
-
-    button.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        button.click();
-      }
-    });
-    button.addEventListener("click", onClick);
 
     return button;
   }

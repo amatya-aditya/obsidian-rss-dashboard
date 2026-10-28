@@ -92,6 +92,44 @@ describe("settings-loader", () => {
       expect(explicitlyDisabled.display.showVersionInStatusBar).toBe(false);
     });
 
+    it("defaults chapter markers on and repairs a non-boolean saved value", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      expect(
+        loadAndNormalizeSettings({ media: {} }).media.showPodcastChapterMarkers,
+      ).toBe(true);
+      expect(
+        loadAndNormalizeSettings({
+          media: { showPodcastChapterMarkers: false },
+        }).media.showPodcastChapterMarkers,
+      ).toBe(false);
+      expect(
+        loadAndNormalizeSettings({
+          media: { showPodcastChapterMarkers: "false" as unknown as boolean },
+        }).media.showPodcastChapterMarkers,
+      ).toBe(true);
+    });
+
+    it("defaults the sleep timer band on and repairs a non-boolean saved value", async () => {
+      const { loadAndNormalizeSettings } =
+        await import("../../../src/utils/settings-loader");
+
+      expect(
+        loadAndNormalizeSettings({ media: {} }).media.showPodcastSleepTimerBand,
+      ).toBe(true);
+      expect(
+        loadAndNormalizeSettings({
+          media: { showPodcastSleepTimerBand: false },
+        }).media.showPodcastSleepTimerBand,
+      ).toBe(false);
+      expect(
+        loadAndNormalizeSettings({
+          media: { showPodcastSleepTimerBand: "false" as unknown as boolean },
+        }).media.showPodcastSleepTimerBand,
+      ).toBe(true);
+    });
+
     it("defaults invalid image cache limits while retaining a valid unlimited preference", async () => {
       const { loadAndNormalizeSettings } =
         await import("../../../src/utils/settings-loader");

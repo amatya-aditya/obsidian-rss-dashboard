@@ -54,7 +54,8 @@ describe("substack-image-url", () => {
 
     const recovered = recoverFailedSubstackImageElement(img);
 
-    expect(recovered).toBe(true);
+    // Fixed in place: no replacement, so the original keeps its listeners.
+    expect(recovered).toBeNull();
     expect(img.getAttribute("src")).toBe(
       "https://substack-post-media.s3.amazonaws.com/public/images/2ffc7282-03c5-4312-ae24-6fddb3050102_970x722.png",
     );
@@ -93,7 +94,10 @@ describe("substack-image-url", () => {
     const recovered = recoverFailedSubstackImageElement(img);
     const replacementImg = picture.querySelector("img");
 
-    expect(recovered).toBe(true);
+    // A clone replaces the image, so the caller gets it back to re-wire.
+    expect(recovered).toBe(replacementImg);
+    // The attempt guard keeps a later error from replacing it again.
+    expect(recoverFailedSubstackImageElement(img)).toBeNull();
     expect(picture.querySelector("source")).toBeNull();
     expect(replacementImg?.getAttribute("src")).toBe(
       "https://substack-post-media.s3.amazonaws.com/public/images/09233796-bc94-4a3b-ac97-921397cef69c_850x496.png",
@@ -127,7 +131,7 @@ describe("substack-image-url", () => {
     const recovered = recoverFailedSubstackImageElement(img);
     const replacementImg = picture.querySelector("img");
 
-    expect(recovered).toBe(true);
+    expect(recovered).toBe(replacementImg);
     expect(picture.querySelector("source")).toBeNull();
     expect(replacementImg?.getAttribute("src")).toBe(
       "https://substack-post-media.s3.amazonaws.com/public/images/78bc0b7f-5818-4597-b47e-9178ac5df0f2_513x478.png",

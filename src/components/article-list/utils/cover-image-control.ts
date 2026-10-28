@@ -1,23 +1,57 @@
 import type { FeedItem } from "../../../types/types";
+import { withBindingHint } from "../../../hotkeys/keymap";
 import { createIconButton } from "../../../utils/icon-button";
 import {
   COVER_IMAGE_FETCH_BUTTON_CLASS,
   type CoverImageAction,
 } from "./cover-image-action";
-import { withCoverImageBusyState } from "./cover-image-busy";
+import {
+  runCoverImageAction,
+  type CoverImageActionDeps,
+} from "./cover-image-run";
 
 /**
- * The dashboard hooks the cover-image control needs (#1314): whichever role the
- * article is in runs one of the two callbacks. A structural subset of
- * `ViewDeps`, so a view can pass its deps straight through.
+ * The article elements whose current press began on the cover-image control
+ * (#1529). A tap can start on the control and drift before release; the browser
+ * then dispatches its click at the nearest common ancestor — the card or feed
+ * item — where the control's own click handler never sees it, so the article's
+ * open handler reads this to know where the press started.
  */
-export interface CoverImageActionDeps {
-  /** Fetches the page's cover image; resolves true when one was stored. */
-  fetchCoverImage?(article: FeedItem): Promise<boolean>;
-  /** Puts the feed's own cover back; resolves true when the item changed. */
-  restoreCoverImage?(article: FeedItem): Promise<boolean>;
-  /** Rebuilds one article's rendered element in place, after its data changed. */
-  replaceArticle?(article: FeedItem): void;
+const controlPresses = new WeakSet<HTMLElement>();
+
+function isInsideCoverImageControl(target: EventTarget | null): boolean {
+  const element = target as Element | null;
+  return !!element?.closest?.(`.${COVER_IMAGE_FETCH_BUTTON_CLASS}`);
+}
+
+/**
+ * Opens the article on a click that did not begin on its cover-image control
+ * (#1529). Shared by the card and the feed item, like the control itself, so
+ * the two cannot drift apart. The guard clears on every click, so one stray
+ * press cannot swallow the next open; a press that starts anywhere else also
+ * clears it.
+ */
+export function attachArticleOpenHandler(
+  articleEl: HTMLElement,
+  openArticle: () => void,
+): void {
+  articleEl.addEventListener("pointerdown", (event: PointerEvent) => {
+    if (isInsideCoverImageControl(event.target)) {
+      controlPresses.add(articleEl);
+      return;
+    }
+    controlPresses.delete(articleEl);
+  });
+  articleEl.addEventListener("pointercancel", () => {
+    controlPresses.delete(articleEl);
+  });
+  articleEl.addEventListener("click", (event: MouseEvent) => {
+    const beganInControl =
+      controlPresses.has(articleEl) || isInsideCoverImageControl(event.target);
+    controlPresses.delete(articleEl);
+    if (beganInControl) return;
+    openArticle();
+  });
 }
 
 export interface CoverImageControlOptions {
@@ -45,7 +79,8 @@ export interface CoverImageControlOptions {
  *
  * The role follows the article's state: a fetch reads the article page and dims
  * the article while it runs, a restore recomputes the feed's cover from stored
- * data and has nothing to wait for.
+ * data and has nothing to wait for. Both run through the one shared path the
+ * keyboard shortcut uses (#1466).
  *
  * `parent` is the tag region, not the tag container: the layout pass empties and
  * re-measures that container, so a child of it would be wiped by the next pass
@@ -59,21 +94,11 @@ export function renderCoverImageControl({
   action,
   region,
 }: CoverImageControlOptions): void {
-  const runFetch = async (): Promise<void> => {
-    const fetched = await withCoverImageBusyState(
-      articleEl,
-      () => deps.fetchCoverImage?.(article) ?? Promise.resolve(false),
-    );
-    if (fetched) deps.replaceArticle?.(article);
-  };
-
-  const runRestore = async (): Promise<void> => {
-    const restored = (await deps.restoreCoverImage?.(article)) ?? false;
-    if (restored) deps.replaceArticle?.(article);
-  };
-
   const button = createIconButton({
-    label: action.label,
+    // The tooltip names the key that runs the same action (#1467). Both roles
+    // carry it, and it is added here rather than at the card and feed call
+    // sites so the two cannot drift apart.
+    label: withBindingHint(action.label, "cover-image-action"),
     icon: action.icon,
     parent,
     cls: COVER_IMAGE_FETCH_BUTTON_CLASS,
@@ -88,8 +113,11 @@ export function renderCoverImageControl({
     }
   });
   button.addEventListener("click", (event: MouseEvent) => {
+    // The control handled this press, so it must not also count as one that
+    // began outside it when the article's open handler runs next.
+    controlPresses.delete(articleEl);
     // The article element itself opens the article on click.
     event.stopPropagation();
-    void (action.role === "restore" ? runRestore() : runFetch());
+    void runCoverImageAction({ article, articleEl, deps }, action.role);
   });
 }

@@ -943,6 +943,13 @@ the content follows the rename, the old path is unindexed, the double-slash
 rename normalizes to `probe-rename/r3.md`, and both `renameFile` and
 `vault.rename` throw `Destination file already exists!` onto an existing path.
 
+`adapter.rename`, which the article-state snapshot and journal atomic writes
+use, was probed separately on 1.14.4 desktop (Windows): renaming a temporary
+file onto an existing `user-state.json` also throws `Destination file already
+exists!`; it does not replace the destination as Node's `fs.rename` does.
+Renaming onto a path that does not exist succeeds. The repository stub models
+this, and `replaceFileWithTemp` removes the destination first (#1380).
+
 ## Step 3: version and Platform
 
 **Probe:** `test_files/stubs/probes/version-and-platform.repl`.
@@ -1189,13 +1196,163 @@ modeled (#431).
 ## Step 3: AbstractInputSuggest
 
 **Probe:** `test_files/stubs/probes/abstract-input-suggest.repl`.
-**Observed on 1.14.4 (Windows):** `AbstractInputSuggest` extends
-`PopoverSuggest`. Its prototype has `showSuggestions`, `setValue`, `getValue`,
-`onInputFocus`, `onInputChange`, `selectSuggestion`, `onSelect`, `close`,
-`reposition`, `open`, `autoReposition`; `getSuggestions` and `renderSuggestion`
-are abstract. The stub stays thin by design and the contract test pins that
-surface; there is no production consumer, so model it faithfully when one
-appears (#431).
+**Observed on Obsidian 1.14.4 desktop (Windows 11; Settings → About: Version
+1.14.4, Installer version 1.14.4; `apiVersion` `"1.14.4"`) on 2026-10-19**, in
+the repo's fixture vault (#1376). The first record, the prototype, dates from
+the original probe (#431) and reproduced unchanged.
+
+The popover renders into the **active** window's `<body>`, so close the
+Settings popout that `version-and-platform.repl` leaves open before probing
+(`app.setting.close()`; the driver's second step does it and reports
+`mainWindowActive`). Real keys go through `@key`; the CDP harness has no mouse
+step, so clicks, `mousedown` and `mousemove` are synthetic events dispatched on
+the rows. A class declaration in a `repl` step collides with a `const` of the
+same name in another step, so the driver gives every subclass its own name and
+wraps each step in an awaited async function. A backgrounded window clamps
+timers (a 100 ms wait took about 570 ms here), so the driver resolves its
+promises by hand and avoids timers except two deliberate waits (300 ms after a
+blur, 1.2 s for the removed input); a full run takes about six seconds.
+
+**Surface.** `AbstractInputSuggest` extends `PopoverSuggest`. The prototype
+has `showSuggestions`, `setValue`, `getValue`, `onInputFocus`, `onInputChange`,
+`selectSuggestion`, `onSelect`, `close`, `reposition`, `open`, and
+`autoReposition` (bound per instance, so also an own key). `PopoverSuggest`
+adds `onEscapeKey`, `onHistoryBack`, `attachDom`, `detachDom`, `open`,
+`close`, `reposition`, `setAutoDestroy`. **`getSuggestions` and
+`renderSuggestion` are on neither prototype** (abstract): a subclass that omits
+`getSuggestions` throws `TypeError` ("this.getSuggestions is not a function")
+from `onInputChange`, and one that omits `renderSuggestion` throws `TypeError`
+from `showSuggestions`. The constructor takes `(app, textInputEl)`
+(`length` 2). An instance's own keys are `isOpen`, `win`, `app`, `scope`,
+`suggestEl`, `suggestInnerEl`, `suggestions`, `runnable`, `limit`,
+`textInputEl`, `autoReposition`: the input is **`textInputEl`; there is no
+`inputEl`**. `limit` is `100`, `isOpen` starts `false`, `scope.parent` is
+`app.scope`, and construction leaves the input's attributes alone and calls
+nothing. `suggestEl` is `div.suggestion-container` holding
+`div.suggestion` (`suggestInnerEl`), not yet in the document.
+
+**setValue / getValue.** `setValue("be")` returns `undefined`, writes the
+input's `value`, and fires **no** `input` or `change` event, queries nothing and
+does not open the popover. `getValue()` reads the input's live `value`. On a
+`contenteditable` div the real class uses `innerText` (the probe set `"hello"`
+and read it back; the div has no `value` property).
+
+**Input wiring.** The constructor listens for `input` (`onInputChange`),
+`focus` (`onInputFocus`) and `blur` (`close`), each bound through the instance,
+so a subclass override of `close` runs on blur.
+
+- `onInputChange` returns at once unless the input is the active element: an
+  `input` event on a blurred input queried nothing.
+- On focus, with the input holding `"gam"`, the order is `getSuggestions("gam")`,
+  `renderSuggestion` for each row, then `open()`. Typing (a real `a` key, and a
+  dispatched `input` event) repeats it, and calls `open()` again while open. An
+  empty input queries `""` and shows every row.
+- Rendering is synchronous for a sync `getSuggestions`: the rows exist when
+  `dispatchEvent` returns.
+- A **click on an already-focused input does not reopen** a closed popover (no
+  click listener); typing does.
+- **Blur closes the popover at once**, through `close()`, with no delay (still
+  closed 300 ms later); the container leaves the document.
+- `onInputFocus` calls `onInputChange` on a desktop with a physical keyboard; a
+  touch device without one defers it. Not probed: read from the running
+  implementation.
+
+**showSuggestions(values).** Returns `undefined`. An **empty list calls
+`close()`**. For a non-empty list it renders the rows (`renderSuggestion` per
+row, no `getSuggestions` call), then `open()`; it first slices to `limit` (100;
+`limit = 3` rendered 3, `limit = 0` rendered all 150). It does nothing when the
+input is not shown (`display: none` on the input: not open).
+
+**getSuggestions results.** An array is shown at once. A promise is awaited: the
+old rows stay until it resolves, then the new ones replace them; when a newer
+`onInputChange` ran meanwhile, the **superseded** promise's result is dropped
+(query `"1"` slow, `"2"` fast: only `a:2` rendered). A **falsy non-array**
+(`undefined` or `null`) is ignored: the old rows and the open popover stay. An
+empty array closes the popover.
+
+**open / close.** `open()` appends `suggestEl` to the active window's `<body>`
+and registers `scope` on the keymap; it is a no-op while open. `close()`
+empties the rows (`.suggestion` has no children), detaches `suggestEl` and
+unregisters the scope; it returns `undefined` and is a no-op while closed. The
+popover also closes itself within about a second (a 500 ms poll) once the
+input is removed from the document (probe: closed after 1200 ms).
+
+**Container DOM.** While open, `div.suggestion-container` is a direct child of
+`<body>` and holds `div.suggestion`, which holds one `div.suggestion-item` per
+row, rendered by `renderSuggestion(value, el)` into that row. The first row has
+class `is-selected`, and exactly one row has it. Positioning is by inline
+style (`left: 10px; bottom: 15px`, plus a transient `opacity: 0` while it
+animates in), which is not modeled.
+
+**Keys (real `@key`).** With rows `alpha`, `beta`, `gamma` and the first
+selected: `ArrowDown` moves to `beta`, again to `gamma`, again wraps to
+`alpha`; `ArrowUp` from `alpha` wraps to `gamma`; `Home` goes to the first row,
+`End` to the last; `Ctrl+N` and `Ctrl+P` move down and up. `PageDown` from the
+first row of three went to `beta` (not modeled). `Escape` closes the popover and
+leaves the input focused; a later `ArrowDown` does nothing, and typing reopens
+it. `Enter` runs the selected row's `selectSuggestion` with the `keydown`
+event. `scope.keys` is `ArrowUp`, `ArrowDown`, `PageUp`, `PageDown`, `Home`,
+`End`, `Ctrl+P`, `Ctrl+N`, `Enter`, `Escape`; `modifiers` is the string `""`
+or `"Ctrl"`. Calling each handler's `func` directly returned `false` for every
+key except `PageUp` and `PageDown`, which read the selected row's layout and
+throw on a handler called with no rows laid out. `Enter` ignores a composing
+event.
+
+**Mouse (synthetic events).** `mousemove` on a row selects it; `mouseover` and
+`mouseenter` do not. A `mousedown` on a row is `preventDefault`ed, so the input
+keeps focus. A `click` on a row selects it and calls
+`this.selectSuggestion(value, event)` (the subclass override, with the `click`
+event).
+
+**selectSuggestion and onSelect.** The base `selectSuggestion(value, evt)` does
+exactly one thing: it calls the callback given to `onSelect`, if any. It does
+**not** set the input's value and does **not** close the popover (called
+directly with the popover closed: the callback ran, `input.value` stayed `""`;
+`Enter` on an open popover: the callback ran and the popover stayed open).
+`onSelect(cb)` returns the suggest and **replaces** any earlier callback (a
+second registration ran alone). A subclass `selectSuggestion` that does not call
+`super` runs on a click and the `onSelect` callback is **never** called; one
+that calls `super.selectSuggestion`, then `setValue(value)` and `close()`, ran
+in that order, set the input and closed.
+
+```js
+class AisProbe extends api.AbstractInputSuggest {
+  getSuggestions(q) {
+    return ["alpha", "beta", "gamma"].filter((v) => v.includes(q));
+  }
+  renderSuggestion(v, el) {
+    el.setText(v);
+  }
+}
+const s = new AisProbe(app, input);
+s.onSelect((v, evt) => console.log("onSelect", v, evt.type));
+input.focus(); // getSuggestions, renderSuggestion x3, open
+s.selectSuggestion("beta", new MouseEvent("click")); // onSelect beta click
+```
+
+**Modeled (#1376):** `AbstractInputSuggestStub` in `obsidian.ts` models every
+record above: `textInputEl` (no `inputEl`), `limit`, `isOpen`, `suggestEl`,
+`suggestInnerEl`, `scope` with the same keys, `setValue`/`getValue`, the
+focus/input/blur wiring gated on the active element, `showSuggestions`,
+`open`/`close`, the base `selectSuggestion`/`onSelect`, hover and click
+selection, the promise and superseded-query handling, and abstract
+`getSuggestions`/`renderSuggestion` (absent from the prototype). The contract
+test pins each one.
+
+**Divergences, not modeled:**
+
+- Reposition geometry: `reposition` and `autoReposition` do nothing, so the
+  container has no `left`/`top` style and no `opacity: 0` animation.
+- `PageUp`/`PageDown` are not registered; the scope's `modifiers` stay an array
+  (the real scope stores a comma-joined string), and the scope has no parent.
+- jsdom has no `innerText`, so a `contenteditable` div uses `textContent`.
+- jsdom has no layout, so "shown" is connected with no `display: none` ancestor.
+- The deferral of `onInputFocus` on a touch device without a keyboard, the app
+  keymap's scope stack, and the 500 ms poll that closes the popover when the
+  input leaves the document.
+- The `TypeError` messages differ (the stub's name the missing member, the real
+  ones name `this.getSuggestions` and `this.chooser.renderSuggestion`); the
+  contract test asserts the error type only.
 
 ## Step 3: MarkdownRenderer (the 1.14 math DOM)
 
@@ -1238,3 +1395,358 @@ pins that subset and records the divergence (#431).
 - `format("")`, which moment treats as its default `YYYY-MM-DDTHH:mm:ssZ` format (unreachable through `render-template.ts`'s `/{{date:(.+?)}}/g`, which needs a non-empty format);
 - an invalid moment's `"Invalid date"` (production always passes a real `Date`);
 - the non-`format` members `locale()`, `isMoment`, `isValid`, `duration().humanize()`, `fromNow`, `calendar`, `utcOffset()` and `zone()` — observed here, not modeled because no production path needs them.
+
+## External writes and vault events
+
+**Probe:** `test_files/stubs/probes/external-writes.repl` (#1403, DEC-004 of
+#1401). **Observed on Obsidian 1.14.4 desktop (Windows 11, 10.0.26200,
+Electron 43.7.7) on 2026-10-20, and re-observed on the #1400 branch in the
+same environment.** An Obsidian Sync delivery reaches the plugin
+as a file that changed behind the vault adapter, so the driver writes through
+Node `fs` from inside Obsidian and records what Obsidian reports. It rewrites
+the fixture's storage files and restores them, so run it only on a fresh
+`npm run fixture:vault` copy, in an Obsidian on its own debug port and profile:
+
+```sh
+node scripts/obsidian-cdp.mjs --port 9333 --expect-vault <fixture-vault> repl test_files/stubs/probes/external-writes.repl
+```
+
+`npm run stub:probes` also runs it, like every driver under `probes/`, so the
+driver refuses a vault that lacks the marker file `npm run fixture:vault`
+writes. Unlike the other drivers it writes to the vault, so it belongs in the
+fixture vault and not in the scratch vault the rest of the library uses.
+
+Vault arrangement: the default v2 fixture (`vault-location` metadata folder
+`rss-dashboard-data/`, visible, Shard storage v2). The pre-#1400 run and the
+branch rerun behave the same per case except for the c1 and c2 rows, which the
+fix changes; the millisecond delays, the number of `raw` events, and a reload
+left over from a previous step's timer vary. Each
+step waits 2.5 s, and an operation does not start until 3.3 s after the
+plugin's last storage write, so the plugin's own-write suppression never hides
+a reload.
+
+| Case                                             | Operation                                     | `vault.on` events (path)                                                          | `onExternalSettingsChange` | Plugin reload                      | `adapter.stat`                 |
+| ------------------------------------------------ | --------------------------------------------- | --------------------------------------------------------------------------------- | -------------------------- | ---------------------------------- | ------------------------------ |
+| a1 `data.json`                                   | modify, +1 byte                               | `modify` at about 5 ms                                                            | no                         | yes, `loadSettings` at about 1.5 s | mtime changes, size +1         |
+| a1                                               | restore                                       | `modify`                                                                          | no                         | yes                                | size −1                        |
+| a2 `user-state.json`                             | modify, +1 byte                               | `modify`                                                                          | no                         | yes, at about 1.5 s                | mtime changes, size +1         |
+| a2                                               | restore                                       | `modify`                                                                          | no                         | yes                                | size −1                        |
+| a3 `feeds/fx-single.json`                        | modify, +1 byte                               | `modify`                                                                          | no                         | yes, at about 1.5 s (since #1412)  | mtime changes, size +1         |
+| a4 `feeds/__sync-probe.json`                     | create                                        | `create`                                                                          | no                         | yes, at about 1.5 s                | absent, then 14 bytes          |
+| a4                                               | modify                                        | `modify`                                                                          | no                         | yes                                | mtime and size change          |
+| a4                                               | rename to `__sync-probe-2.json`               | `create` (new path), then `delete` (old path) about 100 ms later; **no `rename`** | no                         | yes, once                          | old path gone                  |
+| a4                                               | delete                                        | `delete`, about 100 ms later                                                      | no                         | no                                 | gone                           |
+| a4                                               | delete then create, same path, back to back   | one `modify`; no `delete`, no `create`                                            | no                         | yes                                | new size                       |
+| a5 `data.json`                                   | write identical bytes                         | `modify` still fires                                                              | no                         | yes                                | mtime changes, size same       |
+| b1 `.sync-probe/`                                | create folder, create, modify, rename, delete | **none**                                                                          | no                         | no                                 | `adapter.stat` sees every step |
+| c1 `<configDir>/plugins/rss-dashboard/data.json` | modify, byte only (+newline)                  | **none**                                                                          | **yes, once, about 60 ms** | no (same parsed content)           | mtime changes, size +1         |
+| c1                                               | modify, different content                     | **none**                                                                          | **yes, once, about 60 ms** | **yes, once, at about 1.6 s**      | mtime and size change          |
+| c1                                               | restore                                       | none                                                                              | yes, once                  | yes, once                          | size −1                        |
+| c2 `<configDir>/plugins/rss-dashboard/data.json` | plugin save (`forceMetadata`)                 | `raw` only; **no `modify`** in the config folder                                  | no                         | no                                 | pointer rewritten, size −1     |
+
+What the table means:
+
+- **`raw` fires for every case**, including the dot-folder and the bootstrap
+  pointer, with the changed path as its only argument (several per operation,
+  and the parent folder too). It is the only vault event for a hidden path.
+  Nothing in the plugin listens to it today.
+- **A rename from outside arrives as `create` plus `delete`**, never `rename`.
+  The plugin's `rename` listener and its folder-rename handling therefore do not
+  run for a synced rename.
+- **A delete-then-create inside one watcher tick collapses to a single `modify`.**
+- **The plugin reloads for `data.json`, `user-state.json` and the shards under
+  its feeds folder**, 1.5 s after the last event, even when the bytes are
+  identical (a5). The first run (#1403) saw no reload for a shard edit (a3);
+  since #1412 a synced shard create, modify or rename reloads too. Re-observed
+  on the #1424 branch (2026-10-20, same environment): a3 and the a4 create,
+  modify, rename and delete-then-create rows each reload once, while a lone
+  a4 delete did not reload in that run. The dot-folder (b1) still never does.
+- **A reload no longer rewrites `user-state.json` when nothing changed**
+  (#1411). The pre-#1400 run saw the reload's temp-file create, delete and
+  rename about 50 ms later; the branch rerun left the file byte-identical. The
+  plugin still ignores watcher events for 3 s after its own writes, so a
+  second external change inside that window is dropped (#1413).
+- **`onExternalSettingsChange` is the only signal for the bootstrap pointer**
+  (c1): no `vault.on` `modify`/`create` event fires for the config folder,
+  only `raw` events. Since #1400 the plugin compares the file with the content
+  it last loaded or wrote: different content reloads once through the shared
+  1.5 s debounce, and a byte-only change (the +newline row) does not.
+- **Obsidian does not call `onExternalSettingsChange` for the plugin's own
+  save** (c2): a `forceMetadata` save rewrites the pointer through
+  `saveData`, and the callback count stays at zero. The content comparison
+  would filter that write anyway, but on 1.14.4 it never arrives.
+- The dot-folder never fires a reload on its own; the bootstrap pointer does,
+  through the callback. Delays quoted here are for a
+  foreground window; a throttled window saw the same events 1 to 2 s later.
+
+**Restore and byte identity.** Every file the probe touched was restored to the
+exact bytes it started with, and `rss-dashboard-data/data.json`, all twelve
+shards, `user-state.json` and the bootstrap pointer hash identically before and
+after. The #1400 branch rerun reported `byteIdentical: true` with no differing
+files; #1411 is why `user-state.json` now survives a reload that changed no
+article state. A run still leaves the plugin disabled, and the next run enables
+it again. Hashes the run prints: `data.json` `958e0b08…`, bootstrap pointer
+`530e1b62…`.
+
+**Modeled (#1424):** `MockDataVault` has Obsidian `Events` semantics (`on` returns an `EventRef`, `offref`, `trigger`) and `adapter.stat`. The test-only helpers `externalWrite`, `externalDelete`, `externalRename` and `externalTick` change the adapter's files and fire the rows above: modify, create and delete; a rename as `create` then `delete`; a delete then create inside one `externalTick` as one `modify`; `raw` with the path alone for every change; nothing but `raw` under a dot folder; and, for a plugin stub built with a `manifest.dir`, one `onExternalSettingsChange` for its `data.json` and no `vault.on` event. `obsidian.contract.test.ts` pins each row. The stub's own `modify`/`create`/`delete`/`rename` still fire nothing.
+
+**Unmodeled (documented boundary):** the delays (a rename's `delete` is synchronous, about 100 ms later in Obsidian), the several `raw` events per operation and the parent folder's `raw`, the plugin reload, and folder times in `adapter.stat`.
+
+## Real Sync pass, run 1: delivery between two desktop vaults
+
+**Manual record, not a probe driver.** There is no `.repl` file behind this
+section and no `npm run stub:probes` step: it records one attended session
+against real Obsidian Sync, and some rows describe plugin behavior and not only
+Obsidian API behavior. Spec #1401's Real Sync pass (#1430) is the source of
+the request, and `docs/development/real-sync-runbook.md` is the procedure.
+
+**Run:** run 1 of 2 of the first Real Sync pass. **Observed on Obsidian 1.14.4
+desktop (Windows 11, 10.0.26200, Electron 43.7.7) on 2026-10-21**, with the
+real vault ("Device A") and a second local vault ("Device B") on the same PC,
+both connected to the same Sync remote vault. The plugin was 2.7.1 in both, in
+the supported sync setup (Shard storage v2 with visible storage folders, the
+setup `docs/user/syncing.md` describes), with 13 feeds. Sync stayed running.
+
+**Approval and backup.** The maintainer approved run 1 in chat as: S1 to S4 on
+both devices, Sync running, no backup, the test feed deleted at the end. A table
+of the vaults by role, the folders and the files to be written was printed
+before the first write. The maintainer waived the backup, so **no verified
+backup was taken and the restore drill the runbook requires was not run**. That
+is a deviation from the runbook, not a pass of its backup rule.
+
+**Method.** Both windows were read over one debug port (the page list at
+`/json/list` showed one page per vault, so assumption A1 holds for one PC and
+two desktop vaults; `--expect-vault` was set on every call). Edits came from the
+plugin's own methods (`updateArticle`, `addFeed`, `editFeed`, `saveSettings`) on
+one side. An in-memory logger on each side recorded `vault.on`, `raw`,
+`onExternalSettingsChange`, `loadSettings` and adapter writes. The logger wrote
+nothing to disk and was removed afterwards. "Delay" below runs from the sender's
+write to the receiver's first `adapter.writeBinary` for that wave.
+
+| Scenario                                         | Sender's writes                                  | Receiver's events                                                                                  | Delay  | `onExternalSettingsChange` | Reload                          |
+| ------------------------------------------------ | ------------------------------------------------ | -------------------------------------------------------------------------------------------------- | ------ | -------------------------- | ------------------------------- |
+| S1 mark read and starred, A to B                 | `user-state.json`                                | `modify`                                                                                           | ~15 s  | no                         | one `loadSettings`, +1.8 s      |
+| S2a add feed, A to B                             | one shard created, `data.json`                   | `create` shard, then `modify` `data.json` 0.1 s later                                              | ~95 s  | no                         | one, +1.8 s after the last      |
+| S2b rename feed, A to B                          | its shard, `data.json`                           | `modify` shard, then `modify` `data.json` 0.1 s later                                              | ~82 s  | no                         | one, +1.7 s                     |
+| S3a mark read and starred, B to A                | `user-state.json`                                | `modify`                                                                                           | ~30 s  | no                         | one, +1.8 s                     |
+| S3b add and rename on B (4.6 s apart), B to A    | a shard, `data.json`, another shard, `data.json` | `create` shard, `modify` `data.json`, `modify` second shard inside 0.6 s; one `data.json` delivery | ~82 s  | no                         | one, +2.3 s after the last      |
+| S4 bootstrap pointer, A to B (one byte appended) | `<configDir>/plugins/rss-dashboard/data.json`    | `raw` only (four events), **no `create` or `modify`**                                              | ~171 s | **yes, once, 0.7 s later** | no (the content did not change) |
+| Cleanup wave, A to B (all of the above undone)   | shards removed, bootstrap, `data.json`, state    | `delete` x2, `modify` shard, `modify` `data.json`, `modify` `user-state.json`, `modify` shard      | ~1 s   | yes (the bootstrap bytes)  | one, +2.1 s after the last      |
+
+What the run shows, for the stub, the simulator and the presets:
+
+- **Sync delivers through the vault adapter, inside Obsidian.** Every delivered
+  file shows up as an `adapter.writeBinary` call on the receiver, followed by
+  the vault event (`create`, `modify` or `delete`) and `raw`. A rename on the
+  sender arrives as paths created and removed, never as a `rename`. The sender's
+  own temp-file writes (`user-state.json.tmp`, create, delete, rename) never
+  reach the receiver.
+- **Sync preserves the sender's mtime and size** on delivered files. A file that
+  Sync did not change (the bootstrap pointer rewritten with the same bytes, on
+  an unrelated save) was not delivered, so the receiver's mtime stayed older
+  than the sender's.
+- **Delivery delay varied from about 1 s to about 171 s** for the same kind of
+  change, and the status bar said "Fully synced" on both sides while a delivery
+  was still pending. "Fully synced" did not mean "delivered". The 1 s of the
+  cleanup wave is unexplained.
+- **Several writes collapsed into one delivery wave.** Two `data.json` writes by
+  S3b arrived as one `modify`. Files within a wave landed 0.1 to 0.6 s apart. In
+  the three waves that carried a shard and `data.json` (S2a, S2b, S3b) the shard
+  came first. The cleanup wave interleaved shard deletes, the bootstrap pointer,
+  a shard, `data.json`, `user-state.json` and another shard. Four multi-file
+  waves are too few to claim an order rule, but the `data-first` preset's order
+  was not what arrived in any of them.
+- **The plugin reloaded once per wave, 1.7 to 2.3 s after the last file**, not
+  once per file. `onExternalSettingsChange` never fired for a visible-folder
+  file, and only fired for the bootstrap pointer, on the sender (an external
+  `fs` write, 0.1 s later) and on the receiver (0.7 s after delivery).
+- **Not in this run:** conflicts, and the late-shard, `user-state-late` and
+  `empty-newer-wins` scenarios. Those are in run 2.
+
+**New device default (setup finding, #1453).** A vault created from the remote
+has "Sync all other types" off. Device B reached "Fully synced" with an empty
+`feeds/` folder and no `data.json`, `user-state.json` or shards until that
+switch was turned on, and plugin files and the bootstrap pointer arrived only
+after "Installed community plugins" was turned on and the plugin-sync consent
+was accepted. `docs/user/syncing.md`'s new-device order does not say so.
+
+**Restore.** The cleanup restored article read and starred counts (51 and 5), the
+two feed titles, 13 feeds and the bootstrap pointer, whose SHA-256 is again
+`0ef5611b…`. Device A and Device B then matched byte for byte: 289 data files,
+`main.js`, `manifest.json`, `styles.css` and the bootstrap pointer. Not
+restored byte for byte: A's `data.json` is 19766 bytes where it was 19748 before
+the run. No test feed or renamed title is left in it. The 18 bytes are Sync
+nonces, which are expected and intentional (#1455, closed as wontfix on that
+triage); this run did not check them itself.
+
+## Real Sync pass, run 2: conflicts, and plugin behavior on late and empty deliveries
+
+**Run:** run 2 of 2 of the first Real Sync pass, the same two vaults and
+environment as run 1, on 2026-10-21.
+
+**Approval and backup.** The maintainer approved run 2 in chat as: three conflict
+cases, then late shard, `user-state.json` late and an empty newer `data.json`
+last, on both devices, Sync paused as described, no backup. The files were
+named in the proposal, but **no separate dry-run printout preceded the writes**.
+The maintainer again waived the backup. The destructive scenarios were narrowed
+afterwards to Device B only, a subset of what was approved, so they could not
+reach Device A or the other synced devices. "Create conflict file" was turned
+on in Device B **by the agent, on the maintainer's explicit instruction in
+chat**; the runbook otherwise reserves that setting for the maintainer. Device A
+stayed on "Automatically merge". Sync was paused and resumed in the Sync pane
+and no other Sync setting was changed on Device A.
+
+**Method.** Sync was paused on both vaults, each side edited, Device A was
+resumed and left to upload, then Device B was resumed. Device A's upload was
+confirmed by the Sync instance reporting no pending changes and "Fully synced".
+
+| Case                                                              | Edits while paused                                                    | Result after both resumed                                                                                                                                                                                                         |
+| ----------------------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C1 two different feeds renamed, A then B uploads                  | A renamed feed X (`data.json` and X's shard), B renamed feed Y (same) | **B's `data.json` replaced A's whole file**: A kept Y's new name and lost X's. Each shard arrived by its own path. No key merge, no conflict file in either vault.                                                                |
+| C2 the same feed renamed differently; B edited first, A 3 s later | B older by mtime, A newer; A resumed and uploaded first, B second     | **B's version won on both sides, though its mtime was older**, judged by the feed's title in memory on both sides. The shard's final content was not compared. No conflict file in either vault, with the setting on in Device B. |
+
+What this shows:
+
+- **For `data.json` in a visible folder, Sync did not merge keys and made no
+  conflict file in two runs.** In both, the device that uploaded last won
+  (B), and in C2 that was the device with the older mtime. B was also the only
+  device with "Create conflict file" on, so these two runs cannot separate
+  "last uploader wins" from other causes, and no run with the order reversed
+  was done. That contradicts a "last-modified-wins by mtime" policy in the
+  simulator for this file. It leaves Obsidian's documented JSON key merge
+  (local keys over remote) unobserved for a visible-folder `data.json`, and it
+  was not tested at all for the plugin's bootstrap `data.json` in the config
+  folder, which is the file that documentation is about.
+- **Conflict-file naming for `.json` is not recorded.** Device B resumed with a
+  local edit against a newer server copy in both cases and no conflict file
+  appeared, so the setting did not do anything visible for these `.json` files.
+  The search was a scan of both vault folders for any file with "conflict" in
+  its name after each run. Where Sync would put such a file for a `.json` is not
+  known, and no conflict preset should be built from this run.
+- **The plugin could not recover the losing edit** (plugin 2.7.1, before any
+  fix for #1452). In C1 and C2 the loser had
+  already saved. When the winner's file replaced it, the plugin adopted the
+  incoming `data.json` as the only copy, so the per-entry merge of #1439 had
+  nothing to merge against. A rename made on one device while another saves is
+  lost without a message. This is a data-loss path for edits made on two
+  devices while apart, filed as #1452.
+- **Sync status text moves through `Resumed`, `Indexing...`, `Uploading <path>`
+  and `Fully synced`.** Device A took about 8 s from resume to "Fully synced".
+  Device B spent about 60 s indexing and about 2 minutes uploading one shard and
+  `data.json`.
+
+**Plugin behavior on late and empty deliveries.** These ran on Device B only,
+with Sync paused there, so nothing reached Device A or the other devices. The
+files were written from inside Obsidian through Node `fs`, with a size and mtime
+change each, in the order the `simulate-sync` presets use, on real data (13
+feeds, 287 shards). These are plugin behavior under a simulated delivery on
+real data, not a delivery by Sync itself. Device B was restored from Device A's
+copy of the folder afterwards and matched it byte for byte.
+
+| Scenario                                                         | Observed                                                                                                                                                                            |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| late shard: `data.json` and `user-state.json`, shard 4.8 s later | After the first two: the new feed appears with 0 articles, one reload. After the shard: a second reload, 1 article, with its read and starred state from `user-state.json` applied. |
+| `user-state.json` late: `data.json` and shard, then state        | After the first two: the new feed with 1 unread article, one reload. After the state file: a second reload and the article is read and starred.                                     |
+| `empty-newer-wins`: a newer `data.json` with no feeds or folders | One reload, 0 feeds and 0 folders in memory and on disk. **No shard was deleted** (287 stayed), `user-state.json` was untouched and the plugin wrote nothing in the following 11 s. |
+
+These match what the simulator and presets assume for `late-shard` and
+`user-state-late`. `empty-newer-wins` shows the plugin adopting an empty
+`data.json` as the new truth and leaving the shards behind as orphans, which a
+later delivery of the full `data.json` restores.
+
+**Restore.** After C1 and C2, feed titles were set back on Device A with
+Sync running and Device B converged. Device B was then restored from Device A's
+copy after each destructive scenario, by copying Device A's files over it, and
+resumed. After the last restore, Device A and Device B matched on all 289 data
+files and the bootstrap pointer, and a search found no conflict file in either
+vault. After Device B resumed, the Sync instance's server version did not
+change, which is one observation that Sync compared content and not mtime. A's
+`data.json` is 19783 bytes at the end of the pass, 35 more than before it, which
+is the same Sync nonce growth (#1455).
+
+**Not observed.** A conflict on the plugin's bootstrap `data.json` in the config
+folder. The shard's final content after C2. Notes (Markdown) conflicts and their
+merge, and the documented conflict-file naming for notes. A second vault's use
+of a remote-vault slot (A2): the maintainer did not check. A second device on
+another machine, the mobile app, and the Sync conflict UI.
+
+**Follow-ups filed from this pass:** #1452 (the lost edit), #1453 (the
+new-device steps in `syncing.md`), #1454 (feeding these results back into the
+simulator and presets, including that `data-first` order was not observed) and
+#1455 (the `data.json` size drift, closed as wontfix: Sync nonces).
+
+## Real Sync pass, run 3: the #1452 build, the bootstrap pointer and a restart
+
+**Run:** run 3 of the Real Sync pass, the same two vaults on the same PC as runs
+1 and 2, on 2026-10-21. Device A was the maintainer's vault and Device B the
+second desktop vault, both signed in to the same Sync remote, and the iPhone
+vault was force-quit by the maintainer for the whole run so it could not write.
+
+**Build.** `origin/dev` at `60af9876`, which includes the #1452 fix (PR #1463):
+plugin 2.7.1, `main.js` SHA-256 `bf679f34…`. The maintainer copied it into both
+vaults' plugin folders by hand and restarted Obsidian, because plugin sync would
+have pushed it to the iPhone. Both vaults then showed the plugin loaded and a
+device-local ancestor present. Device A's earlier `main.js` was saved and is to
+be restored after the pass.
+
+**Approval and backup.** The maintainer approved the run in chat after the cases
+below were listed, and the backup was waived as in runs 1 and 2. Sync was paused
+and resumed through the Sync instance (`setPause`), which is the pause button
+the Sync pane offers. No other Sync setting was changed.
+
+**Method.** As in run 2: Sync paused on both vaults, each side edited, Device A
+resumed and left to upload, then Device B resumed. The Sync instance's `syncLog`
+was the delivery signal (`Uploading file`, `Upload complete`, `Accepted`,
+`Rejected server change`), because `syncing` stayed `true` for minutes after
+uploads had finished and "Fully synced" appeared during transfers.
+
+| Case                                                                  | Edits while paused                                                                                                              | Result                                                                                                                                                                                                                                                    |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C1 two different feeds renamed (as run 2)                             | A renamed AI Weekly, B renamed the arXiv feed                                                                                   | **Both renames survived on both sides.** B's `data.json` still replaced A's at the Sync level; A merged it against its ancestor and uploaded the merged file, which B accepted. Hashes of `data.json` matched. No Notice for the merge, no conflict file. |
+| C2 the same feed renamed differently; B first, A 3 s later (as run 2) | B edited first, A about 12 s later (the script start-up, not 3 s)                                                               | The delivered value won, as before: both sides ended on B's title. **A showed one Notice, "A change synced from another device replaced an edit made on this device."** B showed none. No conflict file.                                                  |
+| Edit vs delete of one test feed                                       | A renamed the feed, B deleted it                                                                                                | **The edit won.** After B's `data.json` reached A, A kept the renamed feed and re-uploaded it; B received it back with A's name and showed the same Notice as in C2. A showed none. 14 feeds on both.                                                     |
+| Bootstrap pointer conflict                                            | A added one extra key to `<configDir>/plugins/rss-dashboard/data.json`, B added a different one                                 | **Sync merged the file by key** ("Merging conflicted file", then "Merge successful") on B. Both extra keys survived on both sides, no conflict file, and the plugin kept running with its 14 feeds.                                                       |
+| Winner arrives while the loser is closed                              | B renamed the arXiv feed with Sync paused, then its window was closed; A renamed AI Weekly and uploaded; B reopened and resumed | **Both renames survived on both sides.** B's reopened window kept its paused state and its ancestor. No Notice, no conflict file.                                                                                                                         |
+
+What this shows:
+
+- **The #1452 fix did what its design says in these runs.** Different-entry
+  edits survive on both devices (C1 and the closed case), the same entry takes
+  the delivered value with one Notice on the side that lost it (C2), and an edit
+  beats a delete (edit vs delete). The Notice on B in the edit vs delete case
+  describes a delete as "an edit", which reads slightly off but is true to the
+  design.
+- **Sync treats the config-folder pointer differently from the visible-folder
+  `data.json`.** The pointer is key-merged by Sync; the visible-folder
+  `data.json` is not. The plugin is unaffected either way in this run, but a
+  conflicting pointer carrying a real change (for example the storage folder)
+  was not tried. Only harmless extra keys were used.
+- **The ancestor survived a restart.** Its storage is Obsidian's device-local
+  storage, which was the design's assumption; the closed case shows it was still
+  there on reopen.
+- **Sync's own connection dropped three times** in this run: "Disconnected" on
+  A's upload of a new feed and on B's pointer upload, and "Cannot read
+  properties of null (reading 'send')" on B's C2 upload. Each left that device's
+  uploads stuck until Sync was paused and resumed. This is a Sync client
+  behavior and not plugin behavior, but a pass that only watches "Fully synced"
+  would have missed it. The simulator has no equivalent.
+- **Delivery to the second device is slow and arrives in minute-spaced waves.**
+  Uploads from the device that had been idle left within a second of resume, but
+  the other device took one to two minutes to download and the merged result
+  another one to two minutes to come back.
+
+**Cleanup.** The test feed was deleted and both titles restored on Device A
+with Sync running. Device B converged, and Device A and Device B matched on all
+289 data files and on the bootstrap pointer, whose probe keys were removed first.
+The local feed-fixture server was stopped.
+
+**Not observed.** The plugin's reaction to a pointer conflict that changes a
+storage setting. The order-reversed variant of C1 and C2 (B uploading first),
+and the case where both uploads are in flight at once. What the iPhone does with
+the fixed build. A2 (a second vault's use of a remote-vault slot): the
+maintainer did not check the plan page. Conflict-file naming for `.json`, which
+no run produced. A second device on another machine.
+
+**Follow-ups.** None filed from this run. The simulator preset work stays with
+#1454, which should now also cover the config-folder key merge and the Notice
+after an edit loses.

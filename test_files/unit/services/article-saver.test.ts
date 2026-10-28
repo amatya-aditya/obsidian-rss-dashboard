@@ -6,6 +6,7 @@ import {
   vi,
   type MockInstance,
 } from "vitest";
+import { Buffer } from "node:buffer";
 import { App, TFile } from "obsidian";
 import type {
   ArticleSavingSettings,
@@ -14,9 +15,11 @@ import type {
 } from "../../../src/types/types";
 import {
   ArticleSaver,
+  buildArticleFilename,
   sanitizeFilename,
 } from "../../../src/services/article-saver";
 import * as fetchHelpers from "../../../src/utils/fetch-helpers";
+import { extractGitHubIssueContent } from "../../../src/utils/github-issue-page";
 import { RESTRICTED_ARTICLE_REASON } from "../../../src/utils/full-article-fetch";
 import { fetchedSaveReport } from "../../../src/utils/save-version";
 
@@ -60,11 +63,20 @@ beforeEach(() => {
 });
 
 describe("sanitizeFilename", () => {
-  it("removes invalid characters and caps long titles at 100 characters", () => {
-    const title = `  ${"a".repeat(98)} /  zzz`;
+  it("removes invalid characters and caps long titles at 245 characters", () => {
+    const title = `  ${"a".repeat(243)} /  zzz`;
 
-    expect(sanitizeFilename(title)).toBe(`${"a".repeat(98)} z`);
+    expect(sanitizeFilename(title)).toBe(`${"a".repeat(243)} z`);
   });
+
+  it.each([244, 245, 246, 300])(
+    "keeps a %i-character title within the 245-character cap",
+    (length) => {
+      const stem = sanitizeFilename("a".repeat(length));
+
+      expect(stem).toBe("a".repeat(Math.min(length, 245)));
+    },
+  );
 
   it("falls back to a safe filename when sanitization removes everything", () => {
     expect(sanitizeFilename(' / \\\\ : * ? " < > | ')).toBe("Untitled Article");
@@ -76,9 +88,99 @@ describe("sanitizeFilename", () => {
     expect(sanitizeFilename("com1")).toBe("Untitled Article");
     expect(sanitizeFilename("LPT³")).toBe("Untitled Article");
   });
+
+  it.each([100, 300])(
+    "limits a %i-character CJK title to 255 UTF-8 bytes including .md",
+    (length) => {
+      const title = "漢".repeat(length);
+      const stem = sanitizeFilename(title);
+
+      expect(stem).toBe("漢".repeat(84));
+      expect(Buffer.byteLength(`${stem}.md`, "utf8")).toBeLessThanOrEqual(255);
+      expect(
+        buildArticleFilename(createItem({ title }), undefined, false),
+      ).toBe(stem);
+    },
+  );
+
+  it("does not split an emoji when shortening a title to the byte limit", () => {
+    const stem = sanitizeFilename(`a${"😀".repeat(200)}`);
+
+    expect(stem).toBe(`a${"😀".repeat(62)}`);
+    expect(Buffer.byteLength(`${stem}.md`, "utf8")).toBeLessThanOrEqual(255);
+  });
+
+  it("removes clipper filename characters and trailing dots or spaces", () => {
+    expect(sanitizeFilename("Title...")).toBe("Title");
+    expect(sanitizeFilename("Title. .")).toBe("Title");
+    expect(sanitizeFilename("A #1 [draft] ^x")).toBe("A 1 draft x");
+    expect(sanitizeFilename("#^[] . ")).toBe("Untitled Article");
+  });
 });
 
 describe("ArticleSaver.saveArticle", () => {
+  it("saves a long CJK title with a filename under the UTF-8 byte limit", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(app, createSettings());
+    const filename = `${"漢".repeat(84)}.md`;
+
+    await saver.saveArticle(createItem({ title: "漢".repeat(100) }));
+
+    expect(app.vault.getAbstractFileByPath(filename)).toBeInstanceOf(TFile);
+    expect(Buffer.byteLength(filename, "utf8")).toBeLessThanOrEqual(255);
+  });
+
+  it("keeps a collision suffix inside the UTF-8 filename byte limit", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(app, createSettings());
+    await app.vault.create(`${"漢".repeat(84)}.md`, "existing");
+
+    await saver.saveArticle(createItem({ title: "漢".repeat(100) }));
+
+    const filename = `${"漢".repeat(83)} 2.md`;
+    expect(app.vault.getAbstractFileByPath(filename)).toBeInstanceOf(TFile);
+    expect(Buffer.byteLength(filename, "utf8")).toBeLessThanOrEqual(255);
+  });
+
+  it("keeps the 245-character cap when two saves use the same long title", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(app, createSettings());
+    const title = "a".repeat(300);
+
+    await saver.saveArticle(createItem({ title, guid: "long-title-one" }));
+    await saver.saveArticle(createItem({ title, guid: "long-title-two" }));
+
+    expect(
+      app.vault.getAbstractFileByPath(`${"a".repeat(245)}.md`),
+    ).toBeInstanceOf(TFile);
+    expect(
+      app.vault.getAbstractFileByPath(`${"a".repeat(243)} 2.md`),
+    ).toBeInstanceOf(TFile);
+  });
+
+  it("caps a long title rendered by a filename pattern", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(app, createSettings());
+    const title = "a".repeat(300);
+
+    await saver.saveArticle(
+      createItem({ title }),
+      undefined,
+      undefined,
+      undefined,
+      {
+        id: "title-pattern",
+        name: "Title pattern",
+        template: "{{title}}",
+        filenamePattern: "{{title}}",
+      },
+    );
+
+    expect(
+      app.vault.getAbstractFileByPath(`${"a".repeat(245)}.md`),
+    ).toBeInstanceOf(TFile);
+  });
+
   it("previews the first available filename that a save will use", async () => {
     const app = App.createMock();
     const saver = new ArticleSaver(app, createSettings());
@@ -1003,7 +1105,7 @@ title: "{{title}}"
       id: "long",
       name: "Long",
       template: "{{title}}",
-      filenamePattern: "x".repeat(100),
+      filenamePattern: "x".repeat(245),
     };
     const longFirst = await saver.saveArticle(
       createItem({ guid: "long-one" }),
@@ -1021,8 +1123,8 @@ title: "{{title}}"
     );
 
     expect(unusable?.path).toBe("Title fallback.md");
-    expect(longFirst?.basename.length).toBe(100);
-    expect(longSecond?.basename.length).toBe(100);
+    expect(longFirst?.basename.length).toBe(245);
+    expect(longSecond?.basename.length).toBe(245);
     expect(longSecond?.basename.endsWith(" 2")).toBe(true);
   });
 
@@ -1742,7 +1844,8 @@ describe("ArticleSaver.saveArticleWithFullContent", () => {
   it("keeps the feed's own image as the RSS save's hero after a page cover fetch (#1354)", async () => {
     const app = App.createMock();
     const settings = createSettings({
-      defaultTemplate: "image: {{image}}\n\n{{content}}",
+      // {{image}} sits in the frontmatter only, so the body keeps its hero.
+      defaultTemplate: "---\nimage: {{image}}\n---\n\n{{content}}",
       includeFrontmatter: false,
       saveVersion: "rss",
     });
@@ -2557,6 +2660,240 @@ describe("ArticleSaver - YouTube embeds in saved notes (#1168)", () => {
   );
 });
 
+describe("ArticleSaver - video items save a playable embed (#1237)", () => {
+  const videoId = "z9TFdTqkbPk";
+  const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  const embedLine = `![](${watchUrl})`;
+  const watchLink = `[Watch on YouTube](${watchUrl})`;
+  const HERO = "https://img.example/hero.png";
+
+  async function readSaved(
+    app: App,
+    file: TFile | null | undefined,
+  ): Promise<string> {
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected TFile");
+    return app.vault.read(file);
+  }
+
+  function createSaver(
+    app: App,
+    overrides: Partial<ArticleSavingSettings> = {},
+  ): ArticleSaver {
+    return new ArticleSaver(
+      app,
+      createSettings({
+        defaultTemplate: "{{content}}",
+        includeFrontmatter: false,
+        saveVersion: "rss",
+        ...overrides,
+      }),
+    );
+  }
+
+  it("leads the saved body with the embed instead of the hero thumbnail", async () => {
+    const app = App.createMock();
+    const item = createItem({
+      mediaType: "video",
+      videoId,
+      coverImage: HERO,
+      content: "<p>The video description.</p>",
+    });
+
+    const written = await readSaved(
+      app,
+      await createSaver(app).saveArticle(item),
+    );
+
+    expect(written).toBe(
+      `${embedLine}\n\n${watchLink}\n\nThe video description.`,
+    );
+    expect(written).not.toContain(`![Hero image](${HERO})`);
+  });
+
+  it("saves the same body when the Fetched content version is selected", async () => {
+    const app = App.createMock();
+    const item = createItem({
+      mediaType: "video",
+      videoId,
+      coverImage: HERO,
+      content: "<p>The video description.</p>",
+    });
+
+    const written = await readSaved(
+      app,
+      await createSaver(app, {
+        saveVersion: "fetched",
+      }).saveArticleWithContentPolicy(item),
+    );
+
+    expect(written).toBe(
+      `${embedLine}\n\n${watchLink}\n\nThe video description.`,
+    );
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["empty", ""],
+    ["too short", "z9TFdTqkbP"],
+    ["too long", `${videoId}X`],
+    ["unsafe", "../../evil"],
+  ])(
+    "writes no embed when the videoId is %s, keeping the hero body",
+    async (_name, videoIdValue) => {
+      const app = App.createMock();
+      const item = createItem({
+        mediaType: "video",
+        videoId: videoIdValue,
+        coverImage: HERO,
+        content: "<p>Description only.</p>",
+      });
+
+      const written = await readSaved(
+        app,
+        await createSaver(app).saveArticle(item),
+      );
+
+      expect(written).toBe(`![Hero image](${HERO})\n\nDescription only.`);
+      expect(written).not.toContain("youtube.com");
+    },
+  );
+
+  it("leads the HTML-note fallback with the embed", async () => {
+    const app = App.createMock();
+    const item = createItem({
+      mediaType: "video",
+      videoId,
+      coverImage: HERO,
+      content: '<video src="https://example.com/clip.mp4"></video>',
+    });
+
+    const written = await readSaved(
+      app,
+      await createSaver(app).saveArticle(item),
+    );
+
+    expect(written).toBe(
+      `${embedLine}\n\n${watchLink}\n\n<video src="https://example.com/clip.mp4"></video>`,
+    );
+    expect(written).not.toContain(`![Hero image](${HERO})`);
+  });
+
+  it("holds exactly one embed when the content repeats the same video", async () => {
+    const app = App.createMock();
+    const item = createItem({
+      mediaType: "video",
+      videoId,
+      content: `<p>Before.</p><iframe src="https://www.youtube.com/embed/${videoId}"></iframe><p>After.</p>`,
+    });
+
+    const written = await readSaved(
+      app,
+      await createSaver(app).saveArticle(item),
+    );
+
+    expect(written.split(embedLine)).toHaveLength(2);
+    expect(written.split(watchLink)).toHaveLength(2);
+    expect(written.startsWith(`${embedLine}\n\n${watchLink}\n\n`)).toBe(true);
+    expect(written).toContain("Before.");
+    expect(written).toContain("After.");
+  });
+
+  it("keeps a content embed for a different video", async () => {
+    const app = App.createMock();
+    const otherId = "AAAAAAAAAAA";
+    const otherUrl = `https://www.youtube.com/watch?v=${otherId}`;
+    const item = createItem({
+      mediaType: "video",
+      videoId,
+      content: `<p>Before.</p><iframe src="https://www.youtube.com/embed/${otherId}"></iframe>`,
+    });
+
+    const written = await readSaved(
+      app,
+      await createSaver(app).saveArticle(item),
+    );
+
+    expect(written).toContain(embedLine);
+    expect(written).toContain(`![](${otherUrl})`);
+    expect(written).toContain(`[Watch on YouTube](${otherUrl})`);
+  });
+
+  it("writes the embed even when the item has no description", async () => {
+    const app = App.createMock();
+    const item = createItem({
+      mediaType: "video",
+      videoId,
+      content: "",
+      description: "",
+    });
+
+    const written = await readSaved(
+      app,
+      await createSaver(app).saveArticle(item),
+    );
+
+    expect(written).toBe(`${embedLine}\n\n${watchLink}`);
+  });
+
+  it("writes no embed for a non-video item that carries a videoId", async () => {
+    const app = App.createMock();
+    const item = createItem({
+      mediaType: "article",
+      videoId,
+      coverImage: HERO,
+      content: "<p>Article body.</p>",
+    });
+
+    const written = await readSaved(
+      app,
+      await createSaver(app).saveArticle(item),
+    );
+
+    expect(written).toBe(`![Hero image](${HERO})\n\nArticle body.`);
+    expect(written).not.toContain("youtube.com");
+  });
+
+  it("leaves the mediaType and videoId frontmatter unchanged", async () => {
+    const app = App.createMock();
+    const item = createItem({
+      mediaType: "video",
+      videoId,
+      content: "<p>Description.</p>",
+    });
+
+    const written = await readSaved(
+      app,
+      await createSaver(app, {
+        includeFrontmatter: true,
+        defaultTemplate: "# {{title}}\n\n{{content}}",
+      }).saveArticle(item),
+    );
+
+    expect(written).toContain(`mediaType: video\nvideoId: "${videoId}"`);
+    expect(written).toContain(`${embedLine}\n\n${watchLink}`);
+  });
+
+  it("omits the embed when the template drops {{content}}", async () => {
+    const app = App.createMock();
+    const item = createItem({
+      mediaType: "video",
+      videoId,
+      content: "<p>Description.</p>",
+    });
+
+    const written = await readSaved(
+      app,
+      await createSaver(app, { defaultTemplate: "# {{title}}" }).saveArticle(
+        item,
+      ),
+    );
+
+    expect(written).toBe("# Test Article");
+    expect(written).not.toContain("youtube.com");
+  });
+});
+
 describe("ArticleSaver - static YouTube iframe in the fetched page (#1168)", () => {
   const videoId = "z9TFdTqkbPk";
   const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
@@ -2720,6 +3057,79 @@ describe("ArticleSaver - the note body follows the reader's fetched cleanup (#13
     expect(written).toContain(OTHER_CREDIT);
     expect(written).toContain(BODY);
     expect(written.match(/Photo credit: Jane Doe/g)).toHaveLength(1);
+  });
+});
+
+describe("ArticleSaver - a GitHub issue saved as Fetched content (#1500)", () => {
+  const ISSUE_URL = "https://github.com/golang/go/issues/82345";
+
+  function issuePage(): string {
+    const comment = (login: string, text: string) => ({
+      node: {
+        __typename: "IssueComment",
+        createdAt: "2026-10-20T10:00:00Z",
+        isHidden: false,
+        isMinimized: false,
+        author: { login },
+        bodyHTML: `<p>${text}</p>`,
+      },
+    });
+    const issue = {
+      state: "OPEN",
+      createdAt: "2026-10-19T21:38:02Z",
+      author: { login: "thatnealpatel" },
+      labels: { edges: [{ node: { name: "Security" } }] },
+      bodyHTML: "<p>The issue body.</p>",
+      totalCommentsCount: 2,
+      timelineItems: {
+        edges: [
+          comment("rsc", "First comment."),
+          comment("ianlancetaylor", "Second comment."),
+        ],
+      },
+    };
+    const data = {
+      payload: { issueViewerRoute: { data: { repository: { issue } } } },
+    };
+    return `<html><body><script type="application/json" data-target="react-app.embeddedData">${JSON.stringify(data)}</script></body></html>`;
+  }
+
+  it("writes the meta line, the body, then the comments in order", async () => {
+    const app = App.createMock();
+    const content = extractGitHubIssueContent(issuePage(), ISSUE_URL) ?? "";
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({ content, failureType: "none" });
+    const saver = new ArticleSaver(
+      app,
+      createSettings({
+        defaultTemplate: "{{content}}",
+        includeFrontmatter: false,
+        saveVersion: "fetched",
+      }),
+      "https://proxy/?url=",
+    );
+
+    const file = await saver.saveArticleWithFullContent(
+      createItem({ link: ISSUE_URL, description: "", content: "" }),
+    );
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected a saved TFile");
+    const note = await app.vault.read(file);
+    const positions = [
+      "opened by @thatnealpatel",
+      "The issue body.",
+      "Comments",
+      "@rsc - ",
+      "First comment.",
+      "@ianlancetaylor - ",
+      "Second comment.",
+    ].map((text) => note.indexOf(text));
+    expect(positions.every((index) => index >= 0)).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+    expect(note).not.toContain("data-rss-keep-lead");
   });
 });
 

@@ -1,7 +1,7 @@
 ---
 status: active
 owner: maintainers
-last_reviewed: 2026-10-10
+last_reviewed: 2026-10-28
 obsidian_reference: "1.13.7 desktop"
 min_app_version: "1.8.7"
 related:
@@ -15,6 +15,9 @@ related:
 
 ## Update History
 
+- 2026-10-28: Add **Dropdown Controls**: every dropdown trigger and select shows Obsidian's up/down chevron (`chevrons-up-down`) at its right edge, and every native color picker shows the same hover and focus ring. Settings color rows put the picker right after the row name with no hex readout; Tag appearance defaults are a draft, previewed in their own card, until the user applies them; Tag shape previews are drawn in the applied default colors, and Add new tag shows a live preview chip; native color pickers get a Randomize dice button that rolls any color
+- 2026-10-26: Define shared article action icon hover previews and semantic colors across Dashboard and Reader surfaces, with responsive borders on Dashboard controls only
+- 2026-10-20: Folder fields use Obsidian's `AbstractInputSuggest` list, styled only through `.rss-folder-suggest-container`, replacing the hand-built dropdown (#1377)
 - 2026-10-13: Add **Input Clear Buttons**: every free-text input gets Obsidian's own circle-x clear button through `addInputClearButton`, replacing the plain Lucide `x` buttons; record Obsidian's clear button as a core surface
 - 2026-10-12: Pin the keyboard shortcut help rows to the text baseline with the key flush right, remove the native close button so only the header one shows, and stack the help header on mobile (#1013)
 - 2026-10-10: Record the native Reader icon-button pattern verified on desktop and Android (#801), with the scoped Reader button reset and the Android Shift+Tab unknown
@@ -108,6 +111,11 @@ Current governed surfaces:
   - Canonical selector / owner: `.modal.rss-mobile-navigation-modal .rss-dashboard-header`, `.modal.rss-mobile-discover-filters-modal .rss-discover-header`, `.rss-dashboard-header-close-button` in `src/styles/modals.css`
   - Purpose: mobile-specific top bar layout, safe-area ownership, dismiss action
   - Visual hierarchy role: structural shell controls
+- Folder suggestion list
+  - Canonical selector / owner: `.rss-folder-suggest-container` in `src/styles/modals.css`, added to the container of `FolderSuggest` and `VaultFolderSuggest` in `src/components/folder-suggest.ts`
+  - Purpose: type-ahead folder choices under a Folder field (Add Feed, Edit Feed, Import Starred, Custom Save, storage and article-saving settings)
+  - Visual hierarchy role: transient overlay owned by Obsidian
+  - Breakpoint notes: Obsidian mounts the list under `<body>`, opens it below the input, and flips it above when there is no room, on desktop and phone. The plugin adds only left-aligned (`text-align: start`) rows and the tint on the `Add "<name>"` row; it adds no global `.suggestion-container` rule and no keyboard shim
 - Keyboard shortcut help rows
   - Canonical selector / owner: `.rss-shortcut-row`, `.rss-shortcut-key-container` and the `.rss-shortcut-help-modal .rss-dashboard-header` override in `src/styles/modals.css`
   - Purpose: a shortcut description with its key pinned to the row's right edge, staying flush when the description wraps
@@ -129,6 +137,17 @@ Current governed surfaces:
   - Canonical selector / owner: `.clickable-icon` pattern with component scope in `src/styles/modals.css`, `src/styles/sidebar.css`, and component/view owners
   - Purpose: icon-only actions with keyboard parity
   - Visual hierarchy role: compact utility action
+- Dropdown controls and color pickers
+  - Canonical selector / owner: `.rss-dashboard-tag-color-palette-control` (Palette select and Color trigger) in `src/styles/tag-color-palette.css` and `src/components/tag-color-palette-control.ts`; `.rss-dashboard-tag-multi-select-trigger` in `src/styles/settings.css`
+  - Purpose: choose one value from a list, or pick a color, without leaving the row
+  - Visual hierarchy role: form control
+  - States: default, hover, focus-visible, open; see **Dropdown Controls**
+- Article action buttons
+  - Canonical selector / owner: Dashboard `.rss-dashboard-save-toggle`, `.rss-dashboard-read-toggle`, `.rss-dashboard-star-toggle`, and `.rss-dashboard-tags-toggle` in `src/styles/articles.css`; Reader `.rss-reader-action-button` in `src/styles/reader.css`
+  - Purpose: read, save, star, and manage tags for an article
+  - Visual hierarchy role: compact article utility actions
+  - States: shared inactive, hover, focus-visible, and action-specific selected-state treatment across Dashboard card, feed, list, and Reader presentations; see **Article Action Button States**
+  - Breakpoint notes: Dashboard Card, Feed, and List actions share a subtle border at tablet and mobile tiers; Reader toolbar actions stay borderless
 - Discover cards
   - Canonical selector / owner: `.rss-discover-card` family in `src/styles/discover.css`
   - Purpose: feed and Smallweb result presentation with metadata and actions
@@ -269,6 +288,8 @@ Preferred tokens:
 - `--color-accent`
 - `--interactive-accent`
 - `--interactive-accent-hover`
+- `--color-green`
+- `--color-yellow`
 - `--text-normal`
 - `--text-muted`
 - `--text-on-accent`
@@ -303,6 +324,8 @@ Accent button pairing rule:
 | Token                          | Intended purpose                                             | Common usage examples                                                      | Avoid / non-goals                                                                   |
 | ------------------------------ | ------------------------------------------------------------ | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | `--interactive-accent`         | Default interactive accent fill and emphasis color           | Primary CTA states, pills, active controls, focus-adjacent emphasis        | Do not use as a neutral hover replacement for every control                         |
+| `--color-green`                | Semantic green state color                                   | Read article action state                                                  | Do not substitute a hard-coded green or vary it by presentation                     |
+| `--color-yellow`               | Semantic yellow state color                                  | Starred article action state                                               | Do not substitute a different favorite color in Reader or Dashboard                 |
 | `--color-accent`               | Theme accent for high-emphasis nav or legacy accent surfaces | Primary nav active fills, accent-forward tabs, established legacy surfaces | Do not introduce for new generic buttons when `--interactive-accent` fits           |
 | `--text-on-accent`             | Contrast-safe text/icon color on accent surfaces             | Text and icons on `--interactive-accent` or `--color-accent` backgrounds   | Do not use on neutral or transparent surfaces                                       |
 | `--text-normal`                | Primary readable text color                                  | Headers, labels, body copy, neutral button text                            | Do not use to imply inactive or disabled states                                     |
@@ -322,6 +345,9 @@ Accent button pairing rule:
 4. Prefer `--text-accent` for text-only emphasis and link-like affordances.
 5. Prefer neutral background and border tokens before introducing custom fills.
 
+For article action buttons, the action-specific state mapping below takes
+precedence over the generic active-control color rule.
+
 Rules:
 
 1. Use tokens before introducing hardcoded colors.
@@ -330,14 +356,44 @@ Rules:
 
 ## Interaction State Matrix
 
-| Control type            | Default                                           | Hover                                                               | Active / selected                                                              | Focus-visible                                                  | Disabled                                             | Loading                                                                    |
-| ----------------------- | ------------------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------- |
-| Primary nav buttons     | Neutral or subdued fill with semibold label       | May increase fill or border emphasis without outranking active peer | Filled accent surface with `--text-on-accent`                                  | Visible outline using accent-compatible token                  | Reduced emphasis, no fake active fill                | Preserve width; spinner/icon swaps must not shift layout noticeably        |
-| Secondary tabs          | Transparent, text-first tab styling               | Text emphasis only, no full fill                                    | Accent text plus underline indicator                                           | Visible outline that does not erase underline semantics        | Reduced contrast but still readable                  | Rare; avoid unless content mode switch truly waits on async state          |
-| Neutral buttons         | Neutral fill, border, `--text-normal`             | `--background-modifier-hover` and optional accent border            | May use subtle pressed or selected styling, but should not mimic CTA fill      | Visible outline                                                | Opacity and cursor changes without disappearing text | Preserve button label and width while showing progress if async            |
-| Accent buttons          | Accent fill plus `--text-on-accent`               | Hover brightness or accent-hover refinement                         | Same family as hover; active state may darken slightly                         | Accent-compatible outline with clear separation from fill edge | Lower emphasis but keep contrast legible             | Spinner allowed; keep text readable or reserve width                       |
-| Destructive buttons     | Distinct destructive treatment with readable text | Stronger destructive hover, no ambiguity with neutral controls      | Persistent destructive emphasis only when the state is truly destructive/armed | Visible outline maintained on destructive fills                | Lower emphasis, no misleading active danger state    | Preserve destructive intent while preventing duplicate actions             |
-| Clickable-icon controls | Compact hit area with scoped icon rendering       | Background or icon-color emphasis only                              | Optional selected state if the icon represents a toggle                        | Required keyboard-visible outline                              | Reduced opacity and no pointer affordance            | Avoid swapping icon size; loading may use spin only if motion is necessary |
+| Control type            | Default                                           | Hover                                                                           | Active / selected                                                                                          | Focus-visible                                                  | Disabled                                             | Loading                                                                    |
+| ----------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------- |
+| Primary nav buttons     | Neutral or subdued fill with semibold label       | May increase fill or border emphasis without outranking active peer             | Filled accent surface with `--text-on-accent`                                                              | Visible outline using accent-compatible token                  | Reduced emphasis, no fake active fill                | Preserve width; spinner/icon swaps must not shift layout noticeably        |
+| Secondary tabs          | Transparent, text-first tab styling               | Text emphasis only, no full fill                                                | Accent text plus underline indicator                                                                       | Visible outline that does not erase underline semantics        | Reduced contrast but still readable                  | Rare; avoid unless content mode switch truly waits on async state          |
+| Neutral buttons         | Neutral fill, border, `--text-normal`             | `--background-modifier-hover` and optional accent border                        | May use subtle pressed or selected styling, but should not mimic CTA fill                                  | Visible outline                                                | Opacity and cursor changes without disappearing text | Preserve button label and width while showing progress if async            |
+| Accent buttons          | Accent fill plus `--text-on-accent`               | Hover brightness or accent-hover refinement                                     | Same family as hover; active state may darken slightly                                                     | Accent-compatible outline with clear separation from fill edge | Lower emphasis but keep contrast legible             | Spinner allowed; keep text readable or reserve width                       |
+| Destructive buttons     | Distinct destructive treatment with readable text | Stronger destructive hover, no ambiguity with neutral controls                  | Persistent destructive emphasis only when the state is truly destructive/armed                             | Visible outline maintained on destructive fills                | Lower emphasis, no misleading active danger state    | Preserve destructive intent while preventing duplicate actions             |
+| Clickable-icon controls | Compact hit area with scoped icon rendering       | Background or icon-color emphasis only                                          | Optional selected state if the icon represents a toggle                                                    | Required keyboard-visible outline                              | Reduced opacity and no pointer affordance            | Avoid swapping icon size; loading may use spin only if motion is necessary |
+| Article action buttons  | Inactive: `--text-muted`, no extra opacity        | Inactive previews the action color; selected keeps semantic color and brightens | Save: `--interactive-accent`; Read: `--color-green`; Star: `--color-yellow`; Tags: neutral unless selected | Action-color preview; selected brightens; visible outline      | Honor disabled state without disguising selection    | Keep labels and selected-state colors stable during progress               |
+
+### Article Action Button States
+
+Use the same state and color contract for article action buttons wherever they
+appear in Dashboard card, feed, and list presentations or in Reader views:
+
+- **Inactive:** use `--text-muted` for the icon. Do not combine it with a
+  reduced `opacity`, which would further lower contrast.
+- **Hover and focus:** inactive Save previews `--interactive-accent`, Read
+  previews `--color-green`, and Star previews `--color-yellow`; an inactive
+  Star shows a filled star instead of its crossed-out idle icon. Tags stays
+  neutral and uses `--text-normal`. Apply the same previews on hover-capable
+  pointers and keyboard `:focus-visible`, with a smooth transition that
+  honors `prefers-reduced-motion`. Selected actions keep their semantic color
+  and brighten on hover and focus. Preserve the visible `:focus-visible`
+  outline.
+- **Selected state:** use the same action-specific token on every surface:
+  Save uses `--interactive-accent`, Read uses `--color-green`, and Star uses
+  `--color-yellow` with its filled-star indicator. The Reader and Dashboard
+  must not define different colors for the same action. Tags remains neutral
+  unless it represents a persistent selected state.
+- **Responsive border:** Dashboard Card, Feed, and List action buttons use a
+  `1px solid var(--background-modifier-border)` border at tablet and mobile
+  widths (`<= 1200px`) and remain borderless on desktop. Keep all four
+  Dashboard action surfaces consistent, including on coarse-pointer devices.
+  Reader toolbar actions remain borderless at every viewport width.
+- **Layout ownership:** button size, spacing, placement, and touch-target
+  dimensions may vary with the containing view. Keep those differences local
+  to the view; do not let them change the shared color and interaction states.
 
 ## Typography and Density
 
@@ -533,6 +589,66 @@ Obsidian's own `SearchComponent` builds the same parts, verified in the
 it (`SearchComponent`, `Setting.addSearch`), and the stub drift check pins both
 class names. Our button is a native `<button>` rather than Obsidian's `div`,
 following **Implementation Structure** above.
+
+### Dropdown Controls
+
+Every control that opens a list of choices carries Obsidian's up/down chevron
+at its right edge, the way Obsidian's own dropdowns do (checked in 1.8.7 and
+1.14.4). This holds for native `<select>` elements and for plugin-built
+triggers such as the tag Color button or the tag multi-select button.
+
+- **Icon.** Use the Lucide `chevrons-up-down` icon through `setIcon`, in a
+  `<span aria-hidden="true">` inside the control. Do not use `chevron-down`,
+  `chevron-right`, or a caret glyph for a dropdown. Those mean expand or
+  collapse (a disclosure triangle), not "pick one".
+- **Placement.** Right edge, vertically centered, `--text-muted`, sized with
+  `--icon-s`. Reserve room for it with right padding on the control, and let
+  the label ellipsize before it ever overlaps the icon.
+- **Obsidian dropdowns need nothing.** `Setting.addDropdown` already draws the
+  chevron; do not add a second one.
+- **Native `<select>` styled by the plugin.** A plugin rule that sets the
+  `background` shorthand wipes Obsidian's arrow, which is how a styled select
+  ends up with none. Reset it explicitly (`appearance: none`), wrap it in a
+  positioned container, and draw the chevron over its right edge with
+  `pointer-events: none` so clicks still reach the select. The shared
+  Palette select in `tag-color-palette-control.ts` is the reference.
+- **Name and state.** The chevron is decoration. Give the control its
+  accessible name with `aria-label`, and keep `aria-haspopup` and
+  `aria-expanded` on button triggers.
+- **Captions.** A caption above a dropdown ("Palette", "Color") repeats what
+  the row's own label already says. Leave it off when the row has a label or
+  heading; the control still needs its `aria-label`. The shared palette control
+  takes `showFieldLabels: false` for this.
+
+Existing triggers that still show `chevron-down` (the dashboard's themed
+selectors in `src/components/themed-select-popup.ts`) predate this rule. Move
+them to `chevrons-up-down` when the surface is next touched; do not copy them.
+
+#### Native color pickers
+
+Every native `input[type="color"]` the plugin draws shows the same soft
+accent ring (`color-mix` of `--interactive-accent` at 35%, 3px) on hover and
+on keyboard `:focus-visible`. That covers the settings Background and Text
+rows, the Add/edit tag modal, the sidebar add-tag picker, and the Import
+Starred picker (whose input is transparent, so the ring sits on its wrapper).
+A new color picker joins the group in `src/styles/tag-color-palette.css`
+instead of inventing its own hover. The ring is a static `box-shadow` with no
+transition, so it needs nothing under `prefers-reduced-motion`.
+
+#### Randomize buttons
+
+A native color picker for a tag background or text color has a dice icon button
+beside it (`dices`, label and hover text "Randomize", `addRandomizeColorButton`
+in `src/components/tag-color-randomize-button.ts`). In settings rows it sits
+right after the picker; in the Add/edit tag modal it sits before "Use default".
+
+- **Any color.** A roll is a uniformly random color, with no readability
+  guard, so it can be hard to read against the paired color. (Import Starred's
+  randomizer is separate and keeps its own lightness band.)
+- **Same as picking.** The button sets the picker and fires `input` then
+  `change`, so everything listening reacts as it would to a hand-picked color:
+  the settings draft and Preview update (nothing saves until Apply), and in the
+  modal it switches Use default off.
 
 ### Android WebView SVG Rendering: Avoiding `!important`
 

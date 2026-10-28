@@ -1,10 +1,19 @@
 import { setTooltip } from "obsidian";
 import type { FeedItem, Tag } from "../../../types/types";
 import { windowInstanceOf } from "../../../utils/platform-utils";
+import {
+  applyTagAppearance,
+  DEFAULT_TAG_APPEARANCE_SETTINGS,
+  type TagAppearanceSettings,
+} from "../../../utils/tag-colors";
 
 export const MAX_VISIBLE_TAGS = 6;
 
-export function renderTagChips(container: HTMLElement, tags: Tag[]): void {
+export function renderTagChips(
+  container: HTMLElement,
+  tags: Tag[],
+  settings: TagAppearanceSettings = DEFAULT_TAG_APPEARANCE_SETTINGS,
+): void {
   container.empty();
 
   const tagsToShow = tags.slice(0, MAX_VISIBLE_TAGS);
@@ -13,47 +22,41 @@ export function renderTagChips(container: HTMLElement, tags: Tag[]): void {
       cls: "rss-dashboard-tag-badge",
       text: tag.name,
     });
-    tagEl.style.setProperty(
-      "--tag-color",
-      tag.color || "var(--interactive-accent)",
-    );
+    applyTagAppearance(tagEl, tag, settings);
   });
 
   if (tags.length > MAX_VISIBLE_TAGS) {
-    const overflow = container.createDiv({
-      cls: "rss-dashboard-tag-overflow",
-      text: `+${tags.length - MAX_VISIBLE_TAGS}`,
-    });
-    setTooltip(
-      overflow,
-      tags
-        .slice(MAX_VISIBLE_TAGS)
-        .map((t) => t.name)
-        .join(", "),
-    );
+    createTagOverflowChip(container, tags.slice(MAX_VISIBLE_TAGS), settings);
   }
 }
 
-export function createTagChip(container: HTMLElement, tag: Tag): HTMLElement {
-  const tagEl = container.createDiv({
+export function createTagChip(
+  container: HTMLElement,
+  tag: Tag,
+  element: "div" | "button" = "div",
+  settings: TagAppearanceSettings = DEFAULT_TAG_APPEARANCE_SETTINGS,
+): HTMLElement {
+  const tagEl = container.createEl(element, {
     cls: "rss-dashboard-tag-badge",
     text: tag.name,
   });
-  tagEl.style.setProperty(
-    "--tag-color",
-    tag.color || "var(--interactive-accent)",
-  );
+  applyTagAppearance(tagEl, tag, settings);
   return tagEl;
 }
 
 export function createTagOverflowChip(
   container: HTMLElement,
   hiddenTags: Tag[],
+  settings: TagAppearanceSettings = DEFAULT_TAG_APPEARANCE_SETTINGS,
 ): HTMLElement {
   const overflow = container.createDiv({
     cls: "rss-dashboard-tag-overflow",
     text: `+${hiddenTags.length}`,
   });
+  const representativeTag = hiddenTags[0];
+  if (representativeTag) {
+    applyTagAppearance(overflow, representativeTag, settings);
+  }
   setTooltip(overflow, hiddenTags.map((tag) => tag.name).join(", "));
   return overflow;
 }
@@ -61,6 +64,7 @@ export function createTagOverflowChip(
 export function renderSingleRowCardTagChips(
   container: HTMLElement,
   tags: Tag[],
+  settings: TagAppearanceSettings = DEFAULT_TAG_APPEARANCE_SETTINGS,
 ): void {
   container.empty();
 
@@ -69,7 +73,7 @@ export function renderSingleRowCardTagChips(
   }
 
   if (container.clientWidth <= 0) {
-    renderTagChips(container, tags);
+    renderTagChips(container, tags, settings);
     return;
   }
 
@@ -78,13 +82,13 @@ export function renderSingleRowCardTagChips(
   for (let i = 0; i < tags.length; i += 1) {
     const tag = tags[i];
     if (!tag) continue;
-    createTagChip(container, tag);
+    createTagChip(container, tag, "div", settings);
     visibleCount = i + 1;
 
     const remainingTags = tags.slice(visibleCount);
     let probeOverflow: HTMLElement | null = null;
     if (remainingTags.length > 0) {
-      probeOverflow = createTagOverflowChip(container, remainingTags);
+      probeOverflow = createTagOverflowChip(container, remainingTags, settings);
     }
 
     const exceedsWidth = container.scrollWidth > container.clientWidth;
@@ -99,13 +103,14 @@ export function renderSingleRowCardTagChips(
 
   if (visibleCount < tags.length) {
     const hiddenTags = tags.slice(visibleCount);
-    createTagOverflowChip(container, hiddenTags);
+    createTagOverflowChip(container, hiddenTags, settings);
   }
 }
 
 export function layoutCardTagRows(
   root: ParentNode,
   articles: FeedItem[],
+  settings: TagAppearanceSettings = DEFAULT_TAG_APPEARANCE_SETTINGS,
 ): void {
   const cards: HTMLElement[] = [];
 
@@ -121,11 +126,15 @@ export function layoutCardTagRows(
     .forEach((card) => cards.push(card));
 
   cards.forEach((card) => {
-    layoutSingleCardTagRow(card, articles);
+    layoutSingleCardTagRow(card, articles, settings);
   });
 }
 
-function layoutSingleCardTagRow(card: HTMLElement, articles: FeedItem[]): void {
+function layoutSingleCardTagRow(
+  card: HTMLElement,
+  articles: FeedItem[],
+  settings: TagAppearanceSettings,
+): void {
   const tagsContainer = card.querySelector<HTMLElement>(
     ".rss-dashboard-card-tags-region .rss-dashboard-tag-container",
   );
@@ -140,5 +149,5 @@ function layoutSingleCardTagRow(card: HTMLElement, articles: FeedItem[]): void {
     return;
   }
 
-  renderSingleRowCardTagChips(tagsContainer, article.tags);
+  renderSingleRowCardTagChips(tagsContainer, article.tags, settings);
 }

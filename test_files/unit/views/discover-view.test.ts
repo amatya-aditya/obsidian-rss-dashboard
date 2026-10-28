@@ -885,4 +885,96 @@ describe("DiscoverView (P1-3)", () => {
       (view as unknown as { isAddingAllFeeds: boolean }).isAddingAllFeeds,
     ).toBe(false);
   });
+  describe("native icon buttons (#1478)", () => {
+    // A control is native when the browser, not plugin code, supplies the
+    // button role, focus and Enter/Space activation.
+    function expectNativeButton(el: Element | null, name: string): void {
+      expect(el).not.toBeNull();
+      if (!el) return;
+      expect(el.tagName).toBe("BUTTON");
+      expect(el.getAttribute("type")).toBe("button");
+      expect(el.getAttribute("aria-label")).toBe(name);
+      expect(el.hasAttribute("role")).toBe(false);
+      expect(el.hasAttribute("tabindex")).toBe(false);
+    }
+
+    it("renders each selected-filter remove control as a named native button that clears its filter", async () => {
+      const { view } = await createView({
+        savedFilters: { query: "alpha", selectedTags: ["ai"] },
+      });
+      view.loadData();
+      view.render();
+
+      const search = view.containerEl.querySelector(
+        '[aria-label="Remove search filter"]',
+      );
+      expectNativeButton(search, "Remove search filter");
+      const tag = view.containerEl.querySelector(
+        '[aria-label="Remove tag filter: ai"]',
+      );
+      expectNativeButton(tag, "Remove tag filter: ai");
+
+      (tag as HTMLElement).click();
+      expect(view.filters.selectedTags).toEqual([]);
+      expect(
+        view.containerEl.querySelector('[aria-label="Remove tag filter: ai"]'),
+      ).toBeNull();
+    });
+
+    it("removes the type and category filters from their native remove buttons", async () => {
+      const { view } = await createView({
+        savedFilters: {
+          selectedTypes: ["Blog"],
+          selectedPaths: [{ domain: "Technology", subdomain: "AI" }],
+        },
+      });
+      view.loadData();
+      view.render();
+
+      const type = view.containerEl.querySelector(
+        '[aria-label="Remove type filter: Blog"]',
+      );
+      expectNativeButton(type, "Remove type filter: Blog");
+      const path = view.containerEl.querySelector(
+        '[aria-label="Remove category filter: Technology > AI"]',
+      );
+      expectNativeButton(path, "Remove category filter: Technology > AI");
+
+      (type as HTMLElement).click();
+      expect(view.filters.selectedTypes).toEqual([]);
+      (
+        view.containerEl.querySelector(
+          '[aria-label="Remove category filter: Technology > AI"]',
+        ) as HTMLElement
+      ).click();
+      expect(view.filters.selectedPaths).toEqual([]);
+    });
+
+    it("toggles the mobile filters menu when the opener is clicked", async () => {
+      const { view } = await createView();
+      view.loadData();
+      view.render();
+
+      const menu = view.containerEl.querySelector(
+        ".rss-discover-mobile-filters-menu",
+      ) as HTMLElement;
+      const opener = menu.querySelector("button") as HTMLElement;
+
+      opener.click();
+      expect(menu.classList.contains("active")).toBe(true);
+      opener.click();
+      expect(menu.classList.contains("active")).toBe(false);
+    });
+
+    it("renders the mobile filters opener as a named native button", async () => {
+      const { view } = await createView();
+      view.loadData();
+      view.render();
+
+      expectNativeButton(
+        view.containerEl.querySelector(".rss-discover-mobile-filters-button"),
+        "Toggle discover filters menu",
+      );
+    });
+  });
 });

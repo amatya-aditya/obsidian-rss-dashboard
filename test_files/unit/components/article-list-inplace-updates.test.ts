@@ -47,9 +47,11 @@ describe("Phase 7 - ArticleList in-place updates", () => {
       ".rss-dashboard-star-toggle",
     );
 
-    expect(readToggle?.getAttribute("aria-label")).toBe("Mark as read");
+    expect(readToggle?.getAttribute("aria-label")).toBe("Mark as read (m)");
     expect(saveToggle?.getAttribute("aria-label")).toContain("Save");
-    expect(starToggle?.getAttribute("aria-label")).toBe("Add to starred items");
+    expect(starToggle?.getAttribute("aria-label")).toBe(
+      "Add to starred items (f)",
+    );
 
     h.list.updateArticleInPlace({
       ...h.articles[0],
@@ -64,12 +66,12 @@ describe("Phase 7 - ArticleList in-place updates", () => {
     expect(articleEl?.classList.contains("starred")).toBe(true);
     expect(articleEl?.classList.contains("unstarred")).toBe(false);
 
-    expect(readToggle?.getAttribute("aria-label")).toBe("Mark as unread");
+    expect(readToggle?.getAttribute("aria-label")).toBe("Mark as unread (m)");
     expect(saveToggle?.getAttribute("aria-label")).toBe(
-      "Click to open saved article",
+      "Click to open saved article (s)",
     );
     expect(starToggle?.getAttribute("aria-label")).toBe(
-      "Remove from starred items",
+      "Remove from starred items (f)",
     );
 
     h.cleanup();
@@ -429,6 +431,128 @@ describe("Phase 7 - ArticleList in-place updates", () => {
   );
 });
 
+// Keyboard users keep their place when the row they were on leaves the list
+// (#1385). The list tells the dashboard before the row goes and the dashboard
+// takes focus back afterwards (#1468). This replaced "focus the next row's read
+// control": a read control is a role="button", which the dashboard keymap
+// ignores, so the user's shortcuts went dead until they clicked back in.
+describe("ArticleList in-place removal hands focus back to the dashboard (#1468)", () => {
+  afterEach(() => {
+    document.body.empty();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  function listFixture(guidCount: number) {
+    // The harness container is detached; jsdom only moves focus for a
+    // connected subtree, so attach one for these tests.
+    const container = createDiv();
+    document.body.appendChild(container);
+    const dashboard = createDiv({ attr: { tabindex: "-1" } });
+    document.body.appendChild(dashboard);
+    const events: string[] = [];
+    const h = createArticleListHarness({
+      container,
+      settings: {
+        viewStyle: "list",
+        articleGroupBy: "none",
+        articleSort: "newest",
+      },
+      articles: Array.from({ length: guidCount }, (_, index) =>
+        buildArticle({ guid: String(index + 1), title: `One ${index + 1}` }),
+      ),
+    });
+    Object.assign(h.callbacks, {
+      onFocusedRowRemoval: () => {
+        events.push("before");
+        return () => {
+          events.push("after");
+          dashboard.focus();
+        };
+      },
+    });
+    h.list.render();
+    return { ...h, dashboard, events };
+  }
+
+  const readControl = (h: ReturnType<typeof listFixture>, guid: string) =>
+    h
+      .getArticleEl(guid)
+      ?.querySelector<HTMLElement>(".rss-dashboard-read-toggle") ?? null;
+
+  it("tells the dashboard before the row leaves and returns focus to it afterwards", () => {
+    vi.useFakeTimers();
+    const h = listFixture(3);
+    readControl(h, "2")?.focus();
+
+    h.list.removeArticleInPlace("2");
+    expect(h.events).toEqual(["before"]);
+    vi.advanceTimersByTime(320);
+
+    expect(h.events).toEqual(["before", "after"]);
+    expect(document.activeElement).toBe(h.dashboard);
+    h.cleanup();
+  });
+
+  it("does not land focus on another card's read control", () => {
+    vi.useFakeTimers();
+    const h = listFixture(3);
+    readControl(h, "3")?.focus();
+
+    h.list.removeArticleInPlace("3");
+    vi.advanceTimersByTime(320);
+
+    expect(document.activeElement).not.toBe(readControl(h, "2"));
+    expect(document.activeElement).toBe(h.dashboard);
+    h.cleanup();
+  });
+
+  it("falls back to the article list when nothing hands focus back", () => {
+    vi.useFakeTimers();
+    const h = listFixture(1);
+    Object.assign(h.callbacks, { onFocusedRowRemoval: undefined });
+    readControl(h, "1")?.focus();
+
+    h.list.removeArticleInPlace("1");
+    vi.advanceTimersByTime(320);
+
+    expect(document.activeElement).toBe(h.getArticlesListEl());
+    h.cleanup();
+  });
+
+  it("leaves focus alone when the removed row did not hold it", () => {
+    vi.useFakeTimers();
+    const h = listFixture(2);
+    const other = createEl("button");
+    document.body.appendChild(other);
+    other.focus();
+
+    h.list.removeArticleInPlace("1");
+    vi.advanceTimersByTime(320);
+
+    expect(h.events).toEqual([]);
+    expect(document.activeElement).toBe(other);
+    h.cleanup();
+  });
+
+  it("moves focus at once when reduced motion skips the collapse", () => {
+    vi.useFakeTimers();
+    vi.spyOn(window, "matchMedia").mockImplementation(
+      (query: string) =>
+        ({
+          matches: query === "(prefers-reduced-motion: reduce)",
+        }) as MediaQueryList,
+    );
+    const h = listFixture(2);
+    readControl(h, "1")?.focus();
+
+    h.list.removeArticleInPlace("1");
+
+    expect(document.activeElement).toBe(h.dashboard);
+    h.cleanup();
+  });
+});
+
 // #867: the row collapse and expand are driven by inline styles, which the
 // reduced-motion stylesheet cannot override, so the list asks for the
 // preference itself.
@@ -621,6 +745,94 @@ describe("ArticleList in-place updates honor reduced motion (#867)", () => {
       h.list.replaceArticleInPlace(buildArticle({ guid: "missing" })),
     ).toBe(false);
 
+    h.cleanup();
+  });
+});
+
+// The next selection comes from the rows the user can see (#1468).
+describe("ArticleList neighbour while a removal is still collapsing (#1468)", () => {
+  afterEach(() => {
+    document.body.empty();
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
+
+  it("skips a row that is already collapsing when choosing the previous card", () => {
+    vi.useFakeTimers();
+    const container = createDiv();
+    document.body.appendChild(container);
+    const h = createArticleListHarness({
+      container,
+      settings: {
+        viewStyle: "list",
+        articleGroupBy: "none",
+        articleSort: "newest",
+      },
+      articles: ["1", "2", "3"].map((guid) =>
+        buildArticle({ guid, title: `One ${guid}` }),
+      ),
+    });
+    h.list.render();
+    const order = Array.from(
+      h.container.querySelectorAll<HTMLElement>(".rss-dashboard-article-item"),
+    ).map((row) => row.id.replace(/^article-/, ""));
+    const [first, middle, last] = order as [string, string, string];
+
+    // The middle row is mid-collapse when the last row goes too.
+    h.list.removeArticleInPlace(middle);
+
+    expect(h.list.getRenderedNeighbour(last)?.guid).toBe(first);
+    h.cleanup();
+  });
+});
+
+describe("ArticleList control activation in a popout window (#1468)", () => {
+  afterEach(() => {
+    document.body.empty();
+    vi.restoreAllMocks();
+  });
+
+  it("selects the card when its cover control belongs to another window", () => {
+    const onArticleControlActivate = vi.fn();
+    const h = createArticleListHarness({
+      settings: {
+        viewStyle: "list",
+        articleGroupBy: "none",
+        articleSort: "newest",
+      },
+      articles: [buildArticle({ guid: "1", title: "One" })],
+      callbacks: { onArticleControlActivate },
+    });
+    h.list.render();
+
+    // A popout's elements fail `instanceof HTMLElement` in this window.
+    const frame = createEl("iframe");
+    document.body.appendChild(frame);
+    const popoutWindow = frame.contentWindow as Window & {
+      Node: typeof Node;
+      Element: typeof Element;
+    };
+    // Obsidian adds `instanceOf` to every window's Node; mirror that here.
+    popoutWindow.Node.prototype.instanceOf = Node.prototype.instanceOf;
+    // Obsidian's DOM helpers exist on every window's Element too.
+    popoutWindow.Element.prototype.createDiv = Element.prototype.createDiv;
+    const row = popoutWindow.document.body.createDiv({
+      cls: "rss-dashboard-article-item",
+      attr: { id: "article-1" },
+    });
+    const control = row.createDiv({
+      cls: "rss-dashboard-fetch-cover-button",
+    });
+    expect(control instanceof HTMLElement).toBe(false);
+
+    const event = new MouseEvent("click", { bubbles: true, detail: 1 });
+    Object.defineProperty(event, "target", { get: () => control });
+    h.getArticlesListEl()?.dispatchEvent(event);
+
+    expect(onArticleControlActivate).toHaveBeenCalledWith(
+      expect.objectContaining({ guid: "1" }),
+      true,
+    );
     h.cleanup();
   });
 });

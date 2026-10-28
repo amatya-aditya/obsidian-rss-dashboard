@@ -75,6 +75,11 @@ describe("article-actions utils", () => {
       const toggle = actionToolbar.querySelector(".rss-dashboard-star-toggle");
       expect(toggle).toBeTruthy();
       expect(toggle?.classList.contains("unstarred")).toBe(true);
+      expect(
+        toggle?.querySelector(
+          ".rss-dashboard-star-preview-icon svg.lucide-star",
+        ),
+      ).toBeTruthy();
     });
 
     it("renders as starred when article is starred", () => {
@@ -104,20 +109,6 @@ describe("article-actions utils", () => {
       toggle.click();
 
       expect(showTagsDropdown).toHaveBeenCalledWith(toggle, article);
-    });
-
-    it("delegates to showTagsDropdown on keyboard space", () => {
-      const showTagsDropdown = vi.fn();
-      createTagsToggle(baseArgs({ deps: { showTagsDropdown } }));
-
-      const toggle = actionToolbar.querySelector(
-        ".rss-dashboard-tags-toggle",
-      ) as HTMLElement;
-      toggle.dispatchEvent(
-        new KeyboardEvent("keydown", { key: " ", bubbles: true }),
-      );
-
-      expect(showTagsDropdown).toHaveBeenCalled();
     });
   });
 
@@ -234,21 +225,6 @@ describe("article-actions utils", () => {
       expect(button.classList.contains("saving")).toBe(false);
     });
 
-    it("opens the same menu from the keyboard", () => {
-      createSaveButton(
-        baseArgs({
-          callbacks: { onArticleSave: vi.fn(), onArticleCustomSave: vi.fn() },
-        }),
-      );
-      actionToolbar
-        .querySelector<HTMLElement>(".rss-dashboard-save-toggle")
-        ?.dispatchEvent(
-          new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
-        );
-
-      expect(Menu.lastItems).toHaveLength(2);
-    });
-
     it("opens the saved article instead of offering a menu", () => {
       const onOpenSavedArticle = vi.fn();
       article.saved = true;
@@ -276,6 +252,87 @@ describe("article-actions utils", () => {
       await vi.waitFor(() =>
         expect(onArticleSave).toHaveBeenCalledWith(article),
       );
+    });
+  });
+
+  describe("native buttons (#1478)", () => {
+    const controls = (): Record<string, HTMLElement> => {
+      createActionButtons(baseArgs());
+      const find = (cls: string) =>
+        actionToolbar.querySelector<HTMLElement>(`.${cls}`) as HTMLElement;
+      return {
+        read: find("rss-dashboard-read-toggle"),
+        save: find("rss-dashboard-save-toggle"),
+        star: find("rss-dashboard-star-toggle"),
+        tags: find("rss-dashboard-tags-toggle"),
+      };
+    };
+
+    it("renders each control as a native button with no role or tabindex", () => {
+      for (const control of Object.values(controls())) {
+        expect(control.tagName).toBe("BUTTON");
+        expect(control.getAttribute("type")).toBe("button");
+        expect(control.hasAttribute("role")).toBe(false);
+        expect(control.hasAttribute("tabindex")).toBe(false);
+      }
+    });
+
+    it("keeps each control's accessible name", () => {
+      const { read, save, star, tags } = controls();
+      expect(read.getAttribute("aria-label")).toContain("Mark as read");
+      expect(save.getAttribute("aria-label")).toBeTruthy();
+      expect(star.getAttribute("aria-label")).toContain("Add to starred items");
+      expect(tags.getAttribute("aria-label")).toContain("Manage tags");
+    });
+
+    it("keeps the tags control's popup state", () => {
+      const { tags } = controls();
+      expect(tags.getAttribute("aria-haspopup")).toBe("true");
+      expect(tags.getAttribute("aria-expanded")).toBe("false");
+    });
+
+    it("toggles read from a click and keeps the state classes", () => {
+      const onArticleUpdate = vi.fn();
+      createReadToggle(baseArgs({ callbacks: { onArticleUpdate } }));
+      const toggle = actionToolbar.querySelector<HTMLElement>(
+        ".rss-dashboard-read-toggle",
+      ) as HTMLElement;
+      toggle.click();
+
+      expect(onArticleUpdate).toHaveBeenCalledWith(
+        article,
+        { read: true },
+        false,
+      );
+      expect(toggle.classList.contains("read")).toBe(true);
+      expect(toggle.classList.contains("unread")).toBe(false);
+    });
+
+    it("toggles star from a click and keeps the state classes", () => {
+      const onArticleUpdate = vi.fn();
+      createStarToggle(baseArgs({ callbacks: { onArticleUpdate } }));
+      const toggle = actionToolbar.querySelector<HTMLElement>(
+        ".rss-dashboard-star-toggle",
+      ) as HTMLElement;
+      toggle.click();
+
+      expect(onArticleUpdate).toHaveBeenCalledWith(
+        article,
+        { starred: true },
+        false,
+      );
+      expect(toggle.classList.contains("starred")).toBe(true);
+      expect(toggle.classList.contains("unstarred")).toBe(false);
+    });
+
+    it("stops a click from reaching the card", () => {
+      const onCardClick = vi.fn();
+      actionToolbar.addEventListener("click", onCardClick);
+      for (const control of Object.values(controls())) {
+        control.click();
+      }
+      // Read, star and tags stop propagation; save stops it before it opens a menu.
+      expect(onCardClick).not.toHaveBeenCalled();
     });
   });
 

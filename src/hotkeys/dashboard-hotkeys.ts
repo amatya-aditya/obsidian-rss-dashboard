@@ -68,6 +68,7 @@ export const DASHBOARD_ACTIONS: Readonly<Record<string, DashboardAction>> = {
   "select-previous": (view) => {
     view.actionNavigatePrevious();
   },
+  "select-first": (view) => view.actionSelectFirst(),
   "close-reader": (view) => {
     view.actionCloseReader();
   },
@@ -89,9 +90,10 @@ export const DASHBOARD_ACTIONS: Readonly<Record<string, DashboardAction>> = {
   "toggle-star": (view) => {
     void view.actionToggleStarStatus();
   },
-  "toggle-youtube-focus-mode": (view) => {
-    view.actionToggleYouTubeFocusMode();
+  "toggle-video-focus-mode": (view) => {
+    view.actionToggleVideoFocusMode();
   },
+  "cover-image-action": (view) => view.actionRunCoverImageAction(),
   "toggle-tags": (view) => {
     view.actionToggleTagsMenu();
   },

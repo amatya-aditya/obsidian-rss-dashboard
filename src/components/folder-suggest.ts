@@ -1,118 +1,62 @@
-import { App, TFolder, setIcon } from "obsidian";
+import { AbstractInputSuggest, App, TFolder, setIcon } from "obsidian";
 import type { Folder } from "../types/types";
 import { collectFolderPaths } from "../utils/folder-paths";
-import { setCssProps } from "../utils/platform-utils";
+
+/** Class on Obsidian's suggest container, so the plugin styles only its own. */
+export const FOLDER_SUGGEST_CONTAINER_CLASS = "rss-folder-suggest-container";
 
 /**
- * Input suggester based only on browser APIs that exist in Obsidian 1.1.
- * AbstractInputSuggest was introduced in Obsidian 1.4.10.
+ * `AbstractInputSuggest` names its popover container `suggestEl`, but
+ * Obsidian's typings leave it out. It is a stable `div.suggestion-container`
+ * (observed on 1.14.4; see test_files/stubs/obsidian-console-probes.md), so one
+ * narrow cast reaches it.
  */
-abstract class LegacyInputSuggest<T> {
-  protected readonly app: App;
+interface SuggestContainerAccess {
+  suggestEl: HTMLElement;
+}
+
+/**
+ * Shared behavior of the folder type-ahead fields. Obsidian draws the list: it
+ * opens below the input, flips above it when there is no room, and stays
+ * reachable on a phone. This class supplies the rows and what happens when one
+ * is chosen.
+ */
+abstract class FolderInputSuggest<T> extends AbstractInputSuggest<T> {
   protected readonly inputEl: HTMLInputElement;
-  protected readonly suggestEl: HTMLDivElement;
-  private suggestions: T[] = [];
-  private selectedIndex = -1;
-  private closeTimeout: number | null = null;
 
   constructor(app: App, inputEl: HTMLInputElement) {
-    this.app = app;
+    super(app, inputEl);
     this.inputEl = inputEl;
-    this.suggestEl = inputEl.ownerDocument.win.createDiv();
-    this.suggestEl.classList.add("rss-dashboard-folder-suggestion-container");
-    this.suggestEl.setAttribute("role", "listbox");
-    setCssProps(this.suggestEl, { display: "none" });
-    const inputContainer = inputEl.parentElement ?? inputEl.ownerDocument.body;
-    setCssProps(inputContainer, { position: "relative" });
-    inputContainer.appendChild(this.suggestEl);
-
-    this.inputEl.addEventListener("input", () => this.refreshSuggestions());
-    this.inputEl.addEventListener("keydown", (event) =>
-      this.handleKeydown(event),
+    (this as unknown as SuggestContainerAccess).suggestEl.addClass(
+      FOLDER_SUGGEST_CONTAINER_CLASS,
     );
-    this.inputEl.addEventListener("blur", () => {
-      this.closeTimeout = window.setTimeout(() => this.close(), 150);
-    });
-    this.inputEl.addEventListener("focus", () => {
-      if (this.closeTimeout !== null) {
-        window.clearTimeout(this.closeTimeout);
-        this.closeTimeout = null;
+
+    // Obsidian opens the list when the field gains focus or its text changes.
+    // A click on an empty field that already has focus (after Escape, or after
+    // a choice) does neither, so ask for the full list again.
+    this.inputEl.addEventListener("click", () => {
+      if (this.inputEl.value === "") {
+        this.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
       }
     });
   }
 
-  protected abstract getSuggestions(query: string): T[];
-  public abstract renderSuggestion(value: T, el: HTMLElement): void;
-  public abstract selectSuggestion(
-    value: T,
-    event: MouseEvent | KeyboardEvent,
-  ): void;
-
-  public close(): void {
-    setCssProps(this.suggestEl, { display: "none" });
-    this.selectedIndex = -1;
-  }
-
-  private refreshSuggestions(): void {
-    this.suggestions = this.getSuggestions(this.inputEl.value);
-    this.selectedIndex = -1;
-    this.suggestEl.empty();
-
-    if (this.suggestions.length === 0) {
-      this.close();
-      return;
-    }
-
-    this.suggestions.forEach((suggestion, index) => {
-      const option = this.suggestEl.createDiv({
-        cls: "edit-feed-folder-option",
-      });
-      option.setAttribute("role", "option");
-      option.dataset.suggestionIndex = String(index);
-      option.addEventListener("mousedown", (event) => {
-        event.preventDefault();
-        this.selectSuggestion(suggestion, event);
-      });
-      this.renderSuggestion(suggestion, option);
-    });
-
-    setCssProps(this.suggestEl, { display: "block" });
-  }
-
-  private handleKeydown(event: KeyboardEvent): void {
-    if (this.suggestions.length === 0) return;
-
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      event.preventDefault();
-      const direction = event.key === "ArrowDown" ? 1 : -1;
-      this.selectedIndex =
-        (this.selectedIndex + direction + this.suggestions.length) %
-        this.suggestions.length;
-      this.suggestEl
-        .querySelectorAll<HTMLElement>("[role=option]")
-        .forEach((option, index) => {
-          option.classList.toggle("is-selected", index === this.selectedIndex);
-          option.setAttribute(
-            "aria-selected",
-            index === this.selectedIndex ? "true" : "false",
-          );
-        });
-      return;
-    }
-
-    if (event.key === "Enter" && this.selectedIndex >= 0) {
-      event.preventDefault();
-      const suggestion = this.suggestions[this.selectedIndex];
-      if (suggestion) this.selectSuggestion(suggestion, event);
-      return;
-    }
-
-    if (event.key === "Escape") this.close();
+  /**
+   * The base class neither sets the field's value nor closes the list when a
+   * row is chosen, so do both, and tell the form the value changed. The list
+   * closes last: the `input` event would otherwise reopen it.
+   */
+  protected commitValue(value: string, options?: { refocus?: boolean }): void {
+    this.setValue(value);
+    this.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
+    this.inputEl.dispatchEvent(new Event("change", { bubbles: true }));
+    if (options?.refocus) this.inputEl.focus();
+    this.close();
   }
 }
 
 /** Provides type-ahead folder suggestions from the vault. */
-export class VaultFolderSuggest extends LegacyInputSuggest<TFolder> {
+export class VaultFolderSuggest extends FolderInputSuggest<TFolder> {
   protected getSuggestions(query: string): TFolder[] {
     const folders: TFolder[] = [];
     this.collectFolders(this.app.vault.getRoot(), folders);
@@ -139,10 +83,7 @@ export class VaultFolderSuggest extends LegacyInputSuggest<TFolder> {
     folder: TFolder,
     _event: MouseEvent | KeyboardEvent,
   ): void {
-    this.inputEl.value = folder.path;
-    this.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
-    this.inputEl.dispatchEvent(new Event("change", { bubbles: true }));
-    this.close();
+    this.commitValue(folder.path);
   }
 }
 
@@ -157,7 +98,7 @@ type FolderSuggestOption =
   { kind: "folder"; path: string } | { kind: "add-new"; name: string };
 
 /** Provides type-ahead folder suggestions for RSS sidebar folders. */
-export class FolderSuggest extends LegacyInputSuggest<FolderSuggestOption> {
+export class FolderSuggest extends FolderInputSuggest<FolderSuggestOption> {
   private folders: string[];
   private showAddNewOption: boolean;
 
@@ -170,16 +111,14 @@ export class FolderSuggest extends LegacyInputSuggest<FolderSuggestOption> {
     super(app, inputEl);
     this.folders = collectFolderPaths(folders, { sort: true });
     this.showAddNewOption = options?.showAddNewOption ?? true;
+    // The RSS folder tree is small and hand-made, and an empty field lists all
+    // of it; Obsidian's default cap of 100 rows would hide the rest.
+    this.limit = 0;
 
     this.inputEl.addEventListener("input", () => {
       const forbidden = /[\\:*?"<>|]/g;
       if (forbidden.test(this.inputEl.value)) {
         this.inputEl.value = this.inputEl.value.replace(forbidden, "");
-      }
-    });
-    this.inputEl.addEventListener("click", () => {
-      if (this.inputEl.value === "") {
-        this.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
       }
     });
   }
@@ -195,12 +134,11 @@ export class FolderSuggest extends LegacyInputSuggest<FolderSuggestOption> {
       (folder) => folder.toLowerCase() === lowerQuery,
     );
 
-    // An exact match (the user finished typing a valid existing folder name)
-    // shows the full folder list again, same as an empty query — there's
-    // nothing left to narrow down, and browsing the rest is more useful
-    // than a substring-filtered list containing just that one folder.
+    // Only an empty query lists every folder. A non-empty query narrows the
+    // list, including when it equals an existing folder exactly; the exact
+    // match only suppresses the add-new row below.
     const matches =
-      lowerQuery === "" || exactMatch
+      lowerQuery === ""
         ? this.folders
         : this.folders.filter((folder) =>
             folder.toLowerCase().includes(lowerQuery),
@@ -234,10 +172,8 @@ export class FolderSuggest extends LegacyInputSuggest<FolderSuggestOption> {
     option: FolderSuggestOption,
     _event: MouseEvent | KeyboardEvent,
   ): void {
-    this.inputEl.value = option.kind === "add-new" ? option.name : option.path;
-    this.inputEl.dispatchEvent(new Event("input", { bubbles: true }));
-    this.inputEl.dispatchEvent(new Event("change", { bubbles: true }));
-    this.inputEl.focus();
-    this.close();
+    this.commitValue(option.kind === "add-new" ? option.name : option.path, {
+      refocus: true,
+    });
   }
 }

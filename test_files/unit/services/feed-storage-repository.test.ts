@@ -1753,7 +1753,7 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
     });
   });
 
-  it("migrates version-2 state values to version 3 without changing them", async () => {
+  it("migrates version-2 state values to version 4 without changing them", async () => {
     const settings = v2Settings();
     settings.storageFolder = ".rss-dashboard-data/feeds";
     settings.feeds = [makeFeed({ feedId: "feed-1", items: [] })];
@@ -1774,7 +1774,7 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
     await repository.saveUserStateFromFeeds(settings);
 
     const written = await readUserState();
-    expect(written.version).toBe(3);
+    expect(written.version).toBe(5);
     expect(written.states["feed-1:guid-1"]).toEqual(state);
   });
 
@@ -2570,7 +2570,7 @@ describe("shard storage v2 user-state.json persistence (issue #278)", () => {
     await repository.saveUserStateFromFeeds(settings);
     const written = await readUserState();
 
-    expect(written.version).toBe(3);
+    expect(written.version).toBe(5);
     expect(written.states["guid-legacy"]).toBeUndefined();
     expect(written.states["feed-1:guid-legacy"]).toMatchObject({
       starred: true,

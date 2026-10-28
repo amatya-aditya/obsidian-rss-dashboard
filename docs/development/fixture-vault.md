@@ -108,6 +108,14 @@ takes the card's error path and hides it. Run the server to check that the
 defect still reproduces on a build without the fix. With the fix, no counter is
 requested, so the expected view is the same either way.
 
+The **double-encoded-description page** (`double-encoded-description.html`)
+backs the #1505 scenario: its `<meta name="description">` and `og:description`
+repeat the body's opening, and its `twitter:description` is encoded twice
+(`We&amp;#39;re`). The seeded article **Article with a double-encoded page
+description** links to it. Open it in the Reader and choose **Show fetched
+content**: the **Description** box reads `We're moving the fixture harbor feed…`,
+and a build without the fix shows `We&#39;re`.
+
 The **duplicate-lead-photo-credit page** (`credit-caption-page.html`) backs the
 #1305 scenario: a caption-only `<figure>` whose credit is repeated as a
 paragraph above the body, a differing credit paragraph, a body paragraph, and a
@@ -178,7 +186,11 @@ The developer console needs a human at the keyboard. For agent or headless
 verification, drive the same running app over the Chrome DevTools Protocol with
 `scripts/obsidian-cdp.mjs`, a dependency-free Node helper (Node 22 or newer).
 
-Start Obsidian with a debug port, in its own disposable profile. Close the app
+Start Obsidian with a debug port, in its own disposable profile. The one
+documented exception is a Real Sync pass, which attaches to the maintainer's real,
+signed-in profile under the limits in the
+[Real Sync runbook](./real-sync-runbook.md) and
+[ADR 0035](../adr/0035-test-real-obsidian-sync-in-the-real-vault.md). Close the app
 first — an instance that is already running without the flag cannot be attached
 to. Several sessions can share a machine, and each opens its own app, so give
 every session its own port and profile — otherwise a session can attach to
@@ -497,6 +509,61 @@ native dialog, or pixel-level layout. Reading the DOM, clicking, and
 screenshotting are cheaper and repeatable over CDP, which is why this is the
 default for automated checks.
 
+## Simulating Sync
+
+`scripts/simulate-sync.mjs` replays an [Arrival order](../../CONTEXT.md) of
+Shard storage v2 files into a running fixture vault from outside Obsidian, so
+you can see what the dashboard and the files on disk do without a second
+device. It writes the files the way a Sync delivery would reach the plugin:
+behind the vault adapter. It does not model Sync's merge or its conflict
+files, so there is no conflict-copy preset.
+
+```sh
+npm run fixture:sync -- <preset> --dry-run   # name the vault and files, write nothing
+npm run fixture:sync -- <preset>             # write them
+```
+
+The script writes into `.fixture-vault/` unless you pass `--vault <folder>`.
+Attach over CDP first (see [Driving the vault over CDP](#driving-the-vault-over-cdp))
+and read the result with `--expect-vault`. Reset the vault with
+`npm run fixture:vault` between presets, with the vault closed.
+
+| Preset             | Writes, in order                                                                  |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `late-shard`       | `data.json` (adds a feed), `user-state.json`, then the new feed's shard, late.    |
+| `user-state-late`  | `data.json`, the new feed's shard, then `user-state.json`, late.                  |
+| `data-first`       | `data.json`, the shard, `user-state.json`.                                        |
+| `reverse`          | `user-state.json`, the shard, `data.json`.                                        |
+| `empty-newer-wins` | A newer `data.json` with no feeds or folders, as a clean device would write.      |
+| `dot-folder-skip`  | The `data-first` files under `.sync-sim/`, a dot-folder the plugin should ignore. |
+
+The orders are samples of an unconstrained real order, not predictions of it:
+the first Real Sync pass saw the files of one change land within about 0.6 s of
+each other in no fixed order, `data-first` being one possible order. The
+plugin reloaded once, 1.7 to 2.3 s after the last file, and the delay from
+write to delivery ranged from about 1 s to about 171 s for the same kind of
+change. The presets do not model that delay; the unit-test `SyncSimulator`
+delivers a whole wave in one watcher tick with `deliverWave`.
+
+"Late" files wait `--late <ms>` (default 4000) before they are written, which
+is longer than the plugin's 1500 ms reload debounce, so the earlier files have
+already been reloaded. `--gap <ms>` (default 300) separates the other writes.
+Every write changes the file's mtime and size, because the plugin reacts to a
+change Obsidian reports.
+
+Two guards keep it off real data:
+
+- **Marker.** The script refuses, with a non-zero exit, any folder that lacks
+  the `.rss-dashboard-fixture-vault.json` marker `npm run fixture:vault` writes,
+  and any fixture vault that is not in Shard storage v2. It can never write into
+  your real vault.
+- **Dry run.** `--dry-run` prints the vault and every file it would write, in
+  order, and writes nothing. Run it first.
+
+Only the supported setup is simulated: Shard storage v2 with visible storage and
+metadata folders, which is what the default fixture vault uses. Legacy JSON,
+Shard storage v1 and the fresh-install dot-folder layout are out of scope.
+
 ## Headless Obsidian in a Linux container
 
 A Linux cloud container has no desktop, but Obsidian runs there headless under
@@ -567,7 +634,7 @@ result must come from a known build and a clean vault.
 
 ## Seeded scenarios
 
-12 feeds, 167 articles: 48 read, 9 starred, 9 tagged, 1 saved, 2 with playback
+12 feeds, 168 articles: 48 read, 9 starred, 9 tagged, 1 saved, 2 with playback
 progress. The automated test in
 `test_files/unit/main/fixture-vault-loading.test.ts` checks these counts.
 

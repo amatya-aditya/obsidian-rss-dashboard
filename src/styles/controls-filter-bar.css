@@ -211,6 +211,7 @@
   min-height: 15px;
   padding: 0;
   border: none;
+  box-shadow: none;
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;

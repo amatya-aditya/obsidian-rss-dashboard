@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fixture article with a double-encoded description</title>
+    <meta
+      name="description"
+      content="We&#39;re moving the fixture harbor feed to a new address and the old one stops answering soon"
+    />
+    <meta
+      property="og:description"
+      content="We&#39;re moving the fixture harbor feed to a new address and the old one stops answering soon"
+    />
+    <meta
+      name="twitter:description"
+      content="We&amp;#39;re moving the fixture harbor feed to a new address, so update your reader this month"
+    />
+    <meta name="author" content="Fixture Author" />
+  </head>
+  <body>
+    <main>
+      <article>
+        <h1>Fixture article with a double-encoded description</h1>
+        <p>
+          We're moving the fixture harbor feed to a new address and the old one
+          stops answering soon. This opening paragraph repeats the page's meta
+          and og descriptions, so the Reader rejects both as a duplicate intro
+          of the body.
+        </p>
+        <p>
+          The twitter description is encoded twice, so its apostrophe reaches
+          the Reader as the text &amp;#39; unless the description is decoded a
+          second time (#1505). It is worded differently from the opening, so the
+          duplicate-intro guard accepts it and it fills the Description box.
+        </p>
+      </article>
+    </main>
+  </body>
+</html>

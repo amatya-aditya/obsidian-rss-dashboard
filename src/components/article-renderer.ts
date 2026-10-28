@@ -2,7 +2,7 @@ import type {
   ReaderContentVersion,
   ReaderContentVersions,
 } from "./reader-content-versions";
-import { runFeedFirstDisplay } from "./reader-feed-first";
+import { resolveFeedFetchPlan, runFeedFirstDisplay } from "./reader-feed-first";
 import { App, type Component, TFile } from "obsidian";
 import {
   refreshReaderHeaderTags,
@@ -10,6 +10,7 @@ import {
 } from "../utils/reader-tag-chips";
 import { sanitizeAndAppendHtml } from "../utils/safe-html";
 import { enhanceYouTubeEmbeds } from "../utils/youtube-inline-embed";
+import { resolveVideoSource } from "../utils/video-source";
 import { scheduleProcessMathElements } from "../utils/math-rendering";
 import { FeedItem, RssDashboardSettings, Tag } from "../types/types";
 import { HighlightService } from "../services/highlight-service";
@@ -20,6 +21,7 @@ import {
 import { MediaService } from "../services/media-service";
 import { type FullArticleFetchResult } from "../utils/fetch-helpers";
 import {
+  isStarredImportCachedPreview,
   persistFetchedCoverImage,
   persistFetchedMetadata,
   persistFetchedPageImage,
@@ -27,6 +29,10 @@ import {
   renderVideoSourceBanner,
   shouldRenderVideoSourceBanner,
 } from "../utils/reader-article-fetch";
+import {
+  clearSourceFooter,
+  renderSourceFooter,
+} from "../utils/reader-source-footer";
 import { fetchFullArticleContentWithOutcome } from "../utils/full-article-fetch";
 import {
   applyFetchOutcome,
@@ -36,30 +42,21 @@ import {
   renderFetchFailureBanner,
 } from "../utils/full-article-fetch-failure";
 import { isLikelyVideoItem } from "../utils/video-detection";
-import {
-  normalizeSubstackImageUrl,
-  normalizeSubstackImageUrlsInDocument,
-  recoverFailedSubstackImageElement,
-} from "../utils/substack-image-url";
+import { recoverFailedSubstackImageElement } from "../utils/substack-image-url";
 import { isDuplicateIntro } from "../utils/duplicate-intro-detection";
 import {
   descriptionToStripFromBody,
   hasMeaningfulFeedDescription,
   resolveFeedHeroUrl,
   resolveFetchedHeroUrl,
+  resolveReaderMediaRoute,
   selectCalloutDescription,
 } from "../utils/reader-article-render";
 import {
-  cleanFetchedArticleDocument,
   extractDisplayTitleFromHtml,
   hasMeaningfulArticleContent,
-  isLikelySameImageSource,
-  removeLeadImageElement,
 } from "../utils/reader-html-cleanup";
-import {
-  findFirstNonFormulaImage,
-  promoteLazyImageSources,
-} from "../utils/image-url-utils";
+import { prepareArticleHtml } from "../utils/reader-article-html-prepare";
 import { getOpenableHttpHref } from "../utils/url-utils";
 import { applyReaderImageLoading } from "../utils/reader-image-loading";
 import { PodcastPlayer } from "../views/podcast-player";
@@ -118,6 +115,7 @@ export class ArticleRenderer {
 
   private podcastPlayer: PodcastPlayer | null = null;
   private videoPlayer: VideoPlayer | null = null;
+  private videoHostContainer: HTMLElement | null = null;
   private currentItem: FeedItem | null = null;
   private relatedItems: FeedItem[] = [];
   private currentFullContent?: string;
@@ -165,7 +163,7 @@ export class ArticleRenderer {
       if (vid) item.videoId = vid;
     }
 
-    if (item.mediaType === "video" && item.videoId) {
+    if (item.mediaType === "video" && resolveVideoSource(item)) {
       await this.displayVideo(container, item);
     } else if (item.mediaType === "video" && item.videoUrl) {
       await this.displayVideoPodcast(container, item);
@@ -181,7 +179,15 @@ export class ArticleRenderer {
     } else {
       const feedContent = item.content || item.description || "";
       this.currentFullContent = feedContent;
-      if (this.shouldSkipFullArticleFetch(item) || !item.link) {
+      // A rich Substack feed ships the full body, so the automatic fetch is
+      // skipped. Still offer the fetched version, fetched on first request.
+      const prefersFeedContent = this.prefersFeedContent(item);
+      const plan = resolveFeedFetchPlan(
+        Boolean(item.link),
+        prefersFeedContent,
+        this.shouldSkipFeedFirstFetch(item, prefersFeedContent),
+      );
+      if (plan === "display") {
         await this.displayArticle(container, item, feedContent);
         return;
       }
@@ -190,6 +196,7 @@ export class ArticleRenderer {
         container,
         item,
         feedContent,
+        onDemand: plan === "onDemand",
         renderVersion: (parent, version, content) =>
           this.renderArticle(parent, item, content, version),
         onSelectVersion: (version, fetchedContent) => {
@@ -254,6 +261,7 @@ export class ArticleRenderer {
       this.videoPlayer.destroy();
       this.videoPlayer = null;
     }
+    this.videoHostContainer = null;
   }
 
   private async displayVideo(
@@ -264,7 +272,8 @@ export class ArticleRenderer {
     const videoContainer = container.createDiv({
       cls: "rss-reader-video-container enhanced",
     });
-    if (item.videoId) {
+    if (resolveVideoSource(item)) {
+      this.videoHostContainer = container;
       this.videoPlayer = new VideoPlayer(
         videoContainer,
         (selectedVideo) => {
@@ -278,6 +287,9 @@ export class ArticleRenderer {
       this.videoPlayer.loadVideo(item);
       if (this.relatedItems.length > 0) {
         this.videoPlayer.setRelatedVideos(this.relatedItems);
+      }
+      if (!this.settings.media.youtubeFocusMode) {
+        renderSourceFooter(container, item);
       }
     } else {
       const errorContainer = videoContainer.createDiv({
@@ -327,6 +339,7 @@ export class ArticleRenderer {
       this.currentItem = selectedEpisode;
       this.currentDisplayTitle = undefined;
       this.currentReaderTitle = undefined;
+      renderSourceFooter(container, selectedEpisode);
       // We might need to bubble this up if the dashboard selection needs to sync
       this.onArticleUpdate(selectedEpisode, { read: true }, false);
     };
@@ -343,8 +356,11 @@ export class ArticleRenderer {
         this.settings.media.defaultPlaySpeed ?? 1,
         this.settings.useFirstSeenDateFallback,
         this.onPodcastPlaySpeedChange,
+        this.settings.media.showPodcastChapterMarkers ?? true,
+        this.settings.media.showPodcastSleepTimerBand ?? true,
       );
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
+      renderSourceFooter(container, item);
     } else {
       await this.displayArticle(container, item);
     }
@@ -402,7 +418,7 @@ export class ArticleRenderer {
         : "Unknown date",
     });
 
-    renderReaderTagChips(headerContainer, item.tags);
+    renderReaderTagChips(headerContainer, item.tags, this.settings);
     const heroSlot = container.createDiv({
       cls: "rss-reader-hero-slot",
     });
@@ -465,6 +481,7 @@ export class ArticleRenderer {
       );
     }
 
+    renderSourceFooter(container, item);
     this.renderArticleBanners(container, item);
   }
 
@@ -519,91 +536,14 @@ export class ArticleRenderer {
   ): void {
     if (!rawHtml) return;
 
-    let html = rawHtml;
-
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, "text/html");
-
-      promoteLazyImageSources(doc);
-
-      if (baseUrl) {
-        const base = new URL(baseUrl);
-        doc.querySelectorAll("a").forEach((el) => {
-          const href = el.getAttribute("href");
-          if (!href) return;
-          try {
-            el.setAttribute("href", new URL(href, base).toString());
-          } catch {
-            /* intentionally empty */
-          }
-        });
-        doc.querySelectorAll("img").forEach((el) => {
-          const src = el.getAttribute("src");
-          if (!src) return;
-          try {
-            el.setAttribute("src", new URL(src, base).toString());
-          } catch {
-            /* intentionally empty */
-          }
-        });
-      }
-
-      normalizeSubstackImageUrlsInDocument(doc);
-
-      doc.body
-        .querySelectorAll(
-          ".image-link-expand, button.restack-image, button.view-image",
-        )
-        .forEach((el) => el.remove());
-
-      if (stripTopHeadline) {
-        // The same cleanup the dedicated Reader and the save path run (#1362).
-        cleanFetchedArticleDocument(doc, {
-          feedDescriptionHtml,
-          fallbackHeroUrl,
-        });
-      }
-
-      if (heroSlot) {
-        const firstImg = findFirstNonFormulaImage(doc.body);
-        if (heroSlot.childElementCount === 0) {
-          let heroUrl = normalizeSubstackImageUrl(fallbackHeroUrl);
-          const firstImgSrc = normalizeSubstackImageUrl(
-            firstImg?.getAttribute("src")?.trim() || "",
-          );
-          if (!heroUrl && firstImgSrc) heroUrl = firstImgSrc;
-          if (heroUrl) {
-            heroSlot.createEl("img", {
-              cls: "rss-reader-fallback-hero",
-              attr: { src: heroUrl, alt: title || "Hero image" },
-            });
-            if (
-              firstImg &&
-              firstImgSrc &&
-              isLikelySameImageSource(firstImgSrc, heroUrl)
-            ) {
-              removeLeadImageElement(firstImg);
-            }
-          }
-        }
-      }
-
-      doc.body
-        .querySelectorAll<HTMLElement>(
-          "[aria-label], [data-tooltip], [data-tooltip-position], [data-tooltip-delay]",
-        )
-        .forEach((el) => {
-          el.removeAttribute("aria-label");
-          el.removeAttribute("data-tooltip");
-          el.removeAttribute("data-tooltip-position");
-          el.removeAttribute("data-tooltip-delay");
-        });
-
-      html = doc.body.innerHTML;
-    } catch {
-      /* intentionally empty */
-    }
+    const html = prepareArticleHtml(rawHtml, {
+      baseUrl,
+      fallbackHeroUrl,
+      title,
+      heroSlot,
+      stripTopHeadline,
+      feedDescriptionHtml,
+    });
 
     if (
       this.settings.highlights?.enabled &&
@@ -635,15 +575,38 @@ export class ArticleRenderer {
     });
   }
 
-  public setYouTubeFocusMode(hide: boolean): void {
-    this.videoPlayer?.setFocusMode(hide);
+  public setVideoFocusMode(
+    hide: boolean,
+    focusFallback?: HTMLElement | null,
+  ): void {
+    const isVideo =
+      this.currentItem !== null &&
+      resolveReaderMediaRoute(this.currentItem) === "video";
+    this.videoPlayer?.setFocusMode(hide, focusFallback);
+    if (isVideo && this.videoHostContainer) {
+      if (hide) {
+        clearSourceFooter(this.videoHostContainer, focusFallback);
+      } else {
+        if (this.currentItem) {
+          renderSourceFooter(this.videoHostContainer, this.currentItem);
+        }
+      }
+    }
+  }
+
+  public setPodcastChapterMarkers(enabled: boolean): void {
+    this.podcastPlayer?.setChapterMarkersEnabled(enabled);
+  }
+
+  public setPodcastSleepTimerBand(enabled: boolean): void {
+    this.podcastPlayer?.setSleepTimerBandEnabled(enabled);
   }
 
   public setVideoTags(tags: Tag[] | undefined): void {
     this.contentVersions?.visitVersions((container) =>
-      refreshReaderHeaderTags(container, tags),
+      refreshReaderHeaderTags(container, tags, this.settings),
     );
-    this.videoPlayer?.setTags(tags);
+    this.videoPlayer?.setTags(tags, this.settings);
   }
 
   public cleanupPlayers(): void {
@@ -655,6 +618,7 @@ export class ArticleRenderer {
       this.videoPlayer.destroy();
       this.videoPlayer = null;
     }
+    this.videoHostContainer = null;
   }
 
   // --- Helper methods (extracted from ReaderView) ---
@@ -685,15 +649,26 @@ export class ArticleRenderer {
     }
   }
 
-  private shouldSkipFullArticleFetch(item: FeedItem): boolean {
-    // A fetch that failed earlier waits for an explicit "Try again" (#1110).
-    if (hasActiveFetchFailure(item)) return true;
-    if (this.isVideoMediaItem(item)) return true;
-    return this.prefersFeedContent(item);
-  }
-
   private isVideoMediaItem(item: FeedItem): boolean {
     return isLikelyVideoItem(item);
+  }
+
+  /**
+   * Reasons the feed-first article stays on a single, display-only version: a
+   * remembered fetch failure waits for Try again, video items have their own
+   * routes, and a rich starred-import cached preview was display-only here
+   * before the on-demand toggle existed. A plain starred-import preview keeps
+   * its eager fetch.
+   */
+  private shouldSkipFeedFirstFetch(
+    item: FeedItem,
+    prefersFeedContent: boolean,
+  ): boolean {
+    return (
+      hasActiveFetchFailure(item) ||
+      this.isVideoMediaItem(item) ||
+      (prefersFeedContent && isStarredImportCachedPreview(item))
+    );
   }
 
   /**

@@ -34,6 +34,7 @@ function viewport(matches: boolean) {
     innerHeight: 800,
     getComputedStyle: window.getComputedStyle.bind(window),
     setTimeout: window.setTimeout.bind(window),
+    createEl: window.createEl.bind(window),
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
   } as unknown as typeof window;
@@ -47,9 +48,10 @@ describe("mobile-layout call sites before centralization", () => {
       const { win, matchMedia } = viewport(matches);
       vi.stubGlobal("activeWindow", win);
       const popup = new FolderSelectorPopup(
-        { settings: DEFAULT_SETTINGS } as ConstructorParameters<
-          typeof FolderSelectorPopup
-        >[0],
+        {
+          settings: DEFAULT_SETTINGS,
+          register: () => {},
+        } as unknown as ConstructorParameters<typeof FolderSelectorPopup>[0],
         {
           anchorEl: document.body.createDiv(),
           onSelect: vi.fn(),

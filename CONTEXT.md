@@ -14,6 +14,10 @@ _Avoid_: Obsidian accessibility (unqualified), all content
 The row at the bottom of an article in card view and feed view that holds the article's action buttons (read, save, star, tags) and its date. In the standard layout the buttons come first at the left, with Mark read leftmost, and the date sits at the right. List view has its own footer arrangements and is not covered by this term.
 _Avoid_: Card footer (when feed view is also meant), toolbar (the buttons alone)
 
+**Article action button**:
+One of the per-article controls for reading, saving, starring, or managing tags, available in Dashboard card, feed, and list presentations and in Reader views. Its action and selected-state meaning stay consistent across presentations, while its size and placement follow the containing view.
+_Avoid_: Article footer (the row), favorite button (use star button)
+
 **Mirrored footer**:
 The [[Article footer]] with its order reversed: Mark read at the far right, the other buttons extending leftward from it, and the date at the left. Offered as the "Left-handed layout" setting, kept per device. Mark read stays the first footer Tab stop, so keyboard focus starts at the primary action and moves leftward through the other buttons.
 _Avoid_: Left-handed mode, RTL layout, flipped footer
@@ -27,6 +31,26 @@ _Avoid_: Current article, selected row
 **Episode list**:
 A bounded, ordered set of episode rows from one feed. It is read-only and does not imply a saved or customizable playlist.
 _Avoid_: Playlist, queue
+
+**Chapter list**:
+The ordered, titled start times of the [[Active episode]], read from the timestamps in the episode's notes text. A list needs at least three ascending timestamps inside the episode's duration; anything shorter is treated as no chapters.
+_Avoid_: Timestamps (the raw text), table of contents
+
+**Chapter marker**:
+A read-only tick on the player's seek bar at one chapter's start, built from the [[Chapter list]]. Activating it seeks to that start and leaves play or pause as it was; its preview shows the start time, title, and chapter length as plain text. Distinct from a [[Note marker]].
+_Avoid_: Bookmark, tick (unqualified), chapter button
+
+**Note marker**:
+A tick on the seek bar that comes from a timestamp in the user's own saved note rather than from the publisher. Defined by the media-notes ticket (#1357); this term reserves the name so it is never confused with a [[Chapter marker]].
+_Avoid_: Chapter marker (the publisher-supplied kind), bookmark
+
+**Sleep timer**:
+A player setting that stops playback either after a set time (timed) or at the end of the [[Active episode]]. A timed sleep timer counts wall-clock time, keeps running while playback is paused, and is unaffected by playback speed.
+_Avoid_: Auto-stop, countdown
+
+**Sleep timer band**:
+The part of the seek bar from the playhead to the point where an active [[Sleep timer]] is projected to stop playback, drawn in the sleep timer's colour beside the played fill. It is a projection, clamped to the [[Active episode]], and is recalculated on play, seek and speed change.
+_Avoid_: Sleep timer overlay, expiry marker, timer bar
 
 **Episode order**:
 The current sequence of episodes after the player's selected sort or shuffle behavior has been applied. It determines an episode's before and after neighbors.
@@ -151,7 +175,7 @@ The click-to-play block the Reader shows in place of a recognized YouTube embed 
 _Avoid_: Video thumbnail, preview card, embedded player
 
 **Video embed**:
-A recognized YouTube video played inline in article content, built only from the validated 11-character video ID through Obsidian's embed host; the feed's own iframe markup is never copied. Shown in the Reader's [[RSS content]] and in [[Reader view (inline)]]. The "Watch on YouTube" link sits beneath the player as the always-working fallback. Unchanged in [[Fetched content]]. A [[Saved note]] does not hold this unit: the save writes a native Markdown video embed that Obsidian renders itself, with the watch link beside it.
+A recognized YouTube video played inline in article content, built only from the validated 11-character video ID through Obsidian's embed host; the feed's own iframe markup is never copied. Shown in the Reader's [[RSS content]] and in [[Reader view (inline)]]. The "Watch on YouTube" link sits beneath the player as the always-working fallback. Unchanged in [[Fetched content]]. A [[Saved note]] does not hold this unit: the save writes a native Markdown video embed that Obsidian renders itself, with the watch link beside it. A video item saves that same native embed, led by the item's own validated video ID rather than by feed markup.
 _Avoid_: iframe passthrough, inline iframe
 
 **Full-view video player**:
@@ -360,11 +384,11 @@ The page's own declared image (`og:image`, else `twitter:image`, else a JSON-LD 
 _Avoid_: Page cover image (the manual fetch's value, stored in `coverImage`), cover image (the feed's), hero image (the displayed slot, not the source)
 
 **Cover image fetch**:
-The manual dashboard action that reads an article page's [[Page cover image]] and stores it as the item's [[Cover image]], offered in an article's context menu and as a control in a card's tag row, in Card and Feed views while cover-image display is on. One request per activation, sharing a request already in flight for the same link; it stores no page content and changes no other article field. It changes the card, the feed-view hero and `{{image}}`, not the Reader's [[Feed hero]]: the [[RSS content]] version keeps the feed's own picture. Distinct from the Reader's fetch that produces [[Fetched content]]. See [ADR 0031](docs/adr/0031-store-a-manually-fetched-page-cover-image-in-coverimage.md).
+The manual dashboard action that reads an article page's [[Page cover image]] and stores it as the item's [[Cover image]], offered in an article's context menu, as a control in a card's tag row, and from the dashboard's `Shift+C` shortcut on the selected article, in Card and Feed views while cover-image display is on. One request per activation, sharing a request already in flight for the same link; it stores no page content and changes no other article field. It changes the card, the feed-view hero and `{{image}}`, not the Reader's [[Feed hero]]: the [[RSS content]] version keeps the feed's own picture. Distinct from the Reader's fetch that produces [[Fetched content]]. See [ADR 0031](docs/adr/0031-store-a-manually-fetched-page-cover-image-in-coverimage.md).
 _Avoid_: Fetch card image, image fetch, full fetch, article fetch (the Reader's fetch)
 
 **Cover image restore**:
-The dashboard action that puts the article's [[Feed cover image]] back after a [[Cover image fetch]] replaced it, recomputed from the fields the item already stores. Local and offline: it makes no request, warms no cache, and touches no other field. When the feed supplies no image it clears the [[Cover image]] instead, which the control labels **Remove fetched cover image**. It drops the [[Cover image provenance]] marker, so the control returns to the fetch labels. Reachable from the same control and context menu as the fetch, and never from List view, which shows no cover. See [ADR 0032](docs/adr/0032-record-fetched-cover-image-provenance-and-restore-it.md).
+The dashboard action that puts the article's [[Feed cover image]] back after a [[Cover image fetch]] replaced it, recomputed from the fields the item already stores. Local and offline: it makes no request, warms no cache, and touches no other field. When the feed supplies no image it clears the [[Cover image]] instead, which the control labels **Remove fetched cover image**. It drops the [[Cover image provenance]] marker, so the control returns to the fetch labels. Reachable from the same control and context menu as the fetch, and from the dashboard's `Shift+C` shortcut on the selected article, and never from List view, which shows no cover. See [ADR 0032](docs/adr/0032-record-fetched-cover-image-provenance-and-restore-it.md).
 _Avoid_: Unfetch cover, reset image, revert cover image, remove cover image (the feed still wins on the next refresh)
 _Avoid_: Fetch card image, image fetch, full fetch, article fetch (the Reader's fetch)
 
@@ -398,14 +422,15 @@ _Avoid_: Restated intro, redundant description, duplicate lead
 A low-write recovery copy of the current legacy backup artifacts. Until the
 [[Portable data bundle]] backup supersedes them, it exists to preserve a
 recoverable snapshot without mirroring every persistence write. A plugin
-session writes one snapshot after its first meaningful change and a second,
-final snapshot on unload only when a later meaningful change made the first
-snapshot stale. Every successful settings persistence is a meaningful change
-for this transitional mechanism. A storage migration forces a pre-migration
+session writes one snapshot once its settings have loaded, so the snapshot
+holds the state as loaded, and a second, final snapshot on unload only when a
+later meaningful change made the first snapshot stale. Every successful
+settings persistence after the load is a meaningful change for this
+transitional mechanism. A storage migration forces a pre-migration
 snapshot and makes that snapshot current for the session. A snapshot is current
 only after every enabled artifact writes successfully; a failure stays stale and
 retries on a later save or unload. Snapshot writes are serialized.
-Unload requests a final stale snapshot on a best-effort basis; the first-change
+Unload requests a final stale snapshot on a best-effort basis; the loaded-state
 snapshot is the reliable recovery baseline.
 _Avoid_: Continuous persistence, write-through backup
 
@@ -414,8 +439,40 @@ Where and how feed content (articles and episodes) is persisted, independent of 
 _Avoid_: Storage (unqualified), article storage
 
 **Metadata storage**:
-Where the plugin's `data.json` (settings, feed definitions, folder organization, cleanup rules) is persisted: either the plugin's own directory or a user-chosen vault folder. Configured independently of feed storage, though Shard storage v2 forces it to a vault folder.
+Where the plugin's `data.json` (settings, feed definitions, folder organization, cleanup rules) is persisted: either the plugin's own directory or a user-chosen vault folder. Configured independently of feed storage. Shard storage v2 uses the plugin folder by default, and a vault folder is the supported setup for sync.
 _Avoid_: Storage (unqualified), config storage
+
+**Own write**:
+A change to a watched file (`data.json` or `user-state.json` in [[Metadata storage]], or a feed shard in [[Shard storage]] v2) whose comparable content matches what this device last wrote or loaded there. Comparable content ignores key order, `_syncNonce` and `_syncPad`. The plugin skips reloading an own write and reloads every other change. It is recognized by content, never by timing. One record, keyed by normalized path, holds them all; the plugin's own `saveData`/`loadData` baseline stays separate.
+_Avoid_: Suppression window, echo
+
+**Ancestor**:
+The `data.json` state this device last knew to be shared with the others: what the last [[Sync delivery]] it loaded held, never what it last saved. A delivery is merged against it per entry, so an edit made here survives a delivery that never saw it. It is device-local and never synced. Without one, the delivery wins whole (#1452).
+_Avoid_: Common base, last synced copy
+
+**Sync delivery**:
+A file that Sync writes to disk from outside Obsidian, so the plugin sees it as a change behind the vault adapter. A delivery of [[Shard storage]] v2 can be `data.json`, `user-state.json`, feed shards, or any mix of them.
+_Avoid_: Sync event, synced write
+
+**Arrival order**:
+The sequence in which the v2 files of a [[Sync delivery]] land on disk, for example a shard after `data.json`, or `user-state.json` last. Sync gives no completion signal, so the plugin cannot assume any order.
+_Avoid_: Sync order, write order
+
+**Local wins on shard delete**:
+When another device's delete of a feed shard reaches this device and the feed is still in its feed list, the plugin keeps the feed and its articles, and the next save rewrites the shard from memory. A shard's absence never removes a feed or its articles; only the feed list in `data.json` does, as a [[Feed removal]] (ADR 0010: "absence alone never authorizes removal"). The plugin deliberately has no `delete` listener: a reload would empty the feed, and a prompt rewrite could bring back the shard of a feed whose removal has not yet reached `data.json` (#1440).
+_Avoid_: Shard delete sync, shard tombstone
+
+**Real Sync pass**:
+An approved, attended run of [[Sync delivery]] scenarios against real Obsidian Sync, in the maintainer's real vault with [[Device B]] on the same remote, after a verified backup. It observes what no mock can show: Sync's real merge, timing, conflict files, and event delivery. The agent attaches over CDP to the real profile within bounded actions. See [ADR 0035](docs/adr/0035-test-real-obsidian-sync-in-the-real-vault.md) and the [Real Sync runbook](docs/development/real-sync-runbook.md).
+_Avoid_: Sync test, live sync run
+
+**Device B**:
+The second local vault on the same PC, connected to the same Sync remote as the real vault, so a [[Real Sync pass]] can read both sides over CDP. The maintainer signs it in, and the plugin stays disabled there until the Sync activity log shows "Fully synced". That text means Sync is idle on that side, not that every file has been delivered, so a [[Real Sync pass]] confirms a delivery by reading the expected file on disk.
+_Avoid_: Test vault, fixture vault
+
+**Bootstrap pointer**:
+The plugin's own `data.json` when Metadata storage is a vault folder. It holds only the metadata mode and folder, so the plugin can find the full `data.json` at startup.
+_Avoid_: Pointer file, stub data.json
 
 **Shard storage**:
 A feed storage mode that persists one file per feed in a vault folder instead of one monolithic `data.json`, improving sync behavior over Legacy JSON. Comes in two versions: v1 keeps each article's state inside its feed's shard file; v2 moves article state into a separate file, leaving only feed content in the shard. v2 is the supported version; v1 is a [[deprecated storage mode]].
@@ -433,9 +490,17 @@ _Avoid_: Cutoff date, sunset, deprecation release
 A vault whose feed storage is a [[deprecated storage mode]] on a release carrying the [[storage cutoff]]. It displays its articles, marks read state in memory for the session, exports a [[portable data bundle]], and can migrate to Shard storage v2. It writes nothing else; preference changes made while read-only are lost on quit, exactly like read marks. The state is enforced at the persistence choke point and is distinct from a failed settings load. See [ADR 0024](docs/adr/0024-enforce-the-read-only-cutoff-at-the-persistence-choke-point.md).
 _Avoid_: Read-only mode (that names a [[deprecated storage mode]], not a vault), frozen vault, locked vault
 
+**Orphan shard**:
+A shard file on disk for a feed that the device's feed list no longer contains. When this device last wrote or read that exact file, the next save after the removing feed list arrives deletes it (**removal-arrival cleanup**). Any other orphan shard, for example one changed by another device or left over from before a restart, is kept and is the subject of the storage health check (#318). Distinct from a missing shard, which is a feed in the list whose file is gone.
+_Avoid_: stray shard, leftover shard
+
 **Feed content**:
 The article or episode data (title, body, media, publish date) written into a feed's shard file under Shard storage v2. Distinct from that feed's article state, which v2 stores separately.
 _Avoid_: Shard content, feed data
+
+**Hydration**:
+Reading each feed's [[Feed content]] from its shard file into memory when settings load, then overlaying [[Article state]]. A feed is **hydrated** once a valid read of its shard succeeds; a missing or unreadable shard leaves it unhydrated, and absence never authorizes removal. Hydration is complete when every feed in the list has been read. See [ADR 0010](docs/adr/0010-hydration-gated-user-state-garbage-collection.md).
+_Avoid_: Loading articles, shard load, warm-up
 
 **Article state**:
 The per-article interaction data — read, starred, tags, saved-to-vault, playback progress — that Shard storage v2 stores in a separate `user-state.json` rather than inside the feed's shard file. The same states referenced by [[retention protection]].
@@ -505,7 +570,11 @@ _Avoid_: Backup cleanup, orphan file
 
 **Proxy check**:
 The on-demand diagnostic in **Settings → RSS Dashboard → General → Proxy** that asks each proxy to fetch one fixed neutral page (`https://example.com/`) and reports that proxy's response time. It answers "which proxy is slow, and does this one still work at all?" for the full-article fetch; feed refresh keeps its own hardcoded proxy list, so a green board says nothing about it. A result is **fast** under 2 s, **slow** up to the shared 5 s deadline, **timed out** past it, or **failed** with the reason, and the fastest is marked. Results last for the session only — the next run replaces them and a reload drops them — and nothing is scored, reordered, or persisted. No request is sent until a button is pressed.
-_Avoid_: Ping (the check times a complete response body, not time to first byte), proxy health, proxy benchmark
+_Avoid_: Ping (the check times a complete response body, not time to first byte), proxy benchmark
+
+**Proxy health**:
+What the full-article fetch has learned, in memory for the session, about how each `auto` proxy is doing, taken only from the fetches the user already makes. Proxies that have been working are tried first. A proxy that fails at the network level three times in a row is **benched**: skipped for 5 minutes, doubling up to an hour, then given one trial request. A site's own refusal (403, bot challenge, paywall) never counts against a proxy, and when every proxy is benched they are all tried anyway. It is separate from the **Proxy check**, which is the on-demand diagnostic; neither sends requests the fetch would not have made, and neither is persisted. See ADR 0038.
+_Avoid_: Proxy score, proxy ping
 
 ## Version support
 

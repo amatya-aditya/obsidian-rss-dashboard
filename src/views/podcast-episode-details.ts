@@ -18,7 +18,7 @@ function stripWhitespace(input: string): string {
   return (input || "").replace(/\s+/g, "");
 }
 
-function selectEpisodeNotesHtml(item: FeedItem): string {
+export function selectEpisodeNotesHtml(item: FeedItem): string {
   const content = (item.content || "").trim();
   const description = (item.description || "").trim();
   const itunesSummary = (item.itunes?.summary || "").trim();

@@ -225,6 +225,9 @@ export function normalizeComparableText(html: string): string {
  * `findFirstSubstantialParagraph` with nothing to find, so the position-guarded
  * scans after it would treat the whole body as "before the boundary".
  */
+/** Set by an extractor on a short block the lead cleanup must not treat as a teaser. */
+export const KEEP_LEAD_ATTRIBUTE = "data-rss-keep-lead";
+
 const WRAPPER_TAGS = new Set(["div", "section", "main", "article"]);
 
 /**
@@ -338,6 +341,9 @@ export function getNormalizedBlockText(block: HTMLElement): string {
 }
 
 export function isShortLeadInBlock(block: HTMLElement): boolean {
+  // An extractor marks a short block that is content, not a teaser (the GitHub
+  // issue meta line, #1500).
+  if (block.hasAttribute(KEEP_LEAD_ATTRIBUTE)) return false;
   if (containsLatexFormulaImage(block)) return false;
   if (isLeadMediaBlock(block)) return false;
   const text = getNormalizedBlockText(block);

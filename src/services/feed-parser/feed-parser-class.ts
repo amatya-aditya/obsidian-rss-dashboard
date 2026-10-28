@@ -100,6 +100,8 @@ export class FeedParser {
       podcastTheme: "obsidian",
       enableApplePodcastsOpen: false,
       defaultPlaySpeed: 1,
+      showPodcastChapterMarkers: true,
+      showPodcastSleepTimerBand: true,
     };
   }
 

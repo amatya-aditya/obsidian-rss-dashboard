@@ -21,6 +21,7 @@ describe("Dashboard selection through the navigation drawer", () => {
   let internals: {
     mobileSidebarModal: MobileNavigationModal | null;
     currentFeed: Feed | null;
+    selectedTags: string[];
   };
 
   beforeEach(() => {
@@ -32,6 +33,7 @@ describe("Dashboard selection through the navigation drawer", () => {
       { name: "News", subfolders: [] },
       { name: "Tech", subfolders: [] },
     ];
+    settings.availableTags = [{ name: "news", color: "#ff0000" }];
     const plugin = {
       settings,
       saveSettings: vi.fn().mockResolvedValue(undefined),
@@ -145,5 +147,32 @@ describe("Dashboard selection through the navigation drawer", () => {
       "https://example.com/Last",
     ]);
     expect(internals.currentFeed).toBeNull();
+  });
+
+  describe("tag selection (#1397)", () => {
+    const tagRow = '.rss-dashboard-sidebar-tag-row[data-tag-name="news"]';
+
+    function openDrawerWithTags(): HTMLElement {
+      const drawer = openDrawer();
+      clickRow(drawer, 'button[aria-label="Tags"]');
+      return drawer;
+    }
+
+    it("filters the dashboard when a tag is tapped, and unfilters when it is tapped again", () => {
+      const drawer = openDrawerWithTags();
+      const render = vi.mocked(view.render);
+      render.mockClear();
+
+      clickRow(drawer, tagRow);
+      expect(internals.selectedTags).toEqual(["news"]);
+      expect(render).toHaveBeenCalledTimes(1);
+      expect(drawer.querySelector(tagRow)?.hasClass("is-selected")).toBe(true);
+      expect(internals.mobileSidebarModal).not.toBeNull();
+
+      clickRow(drawer, tagRow);
+      expect(internals.selectedTags).toEqual([]);
+      expect(render).toHaveBeenCalledTimes(2);
+      expect(drawer.querySelector(tagRow)?.hasClass("is-selected")).toBe(false);
+    });
   });
 });

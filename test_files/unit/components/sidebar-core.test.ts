@@ -17,6 +17,7 @@ import * as ObsidianStubs from "../../stubs/obsidian";
 import type { App } from "../../stubs/obsidian";
 import { lucideIconId } from "../test-icon-helpers";
 import {
+  DEFAULT_SETTINGS,
   RssDashboardSettings,
   Folder,
   type Feed,
@@ -103,7 +104,15 @@ describe("Sidebar Core", () => {
         sidebarItemPaddingRight: 2,
       },
       media: {
+        ...(JSON.parse(
+          JSON.stringify(DEFAULT_SETTINGS.media),
+        ) as RssDashboardSettings["media"]),
         useDomainIconsRss: false,
+      },
+      dashboardMultiFilters: {
+        statusFilters: [],
+        tagFilters: [],
+        logic: "AND",
       },
     } as unknown as RssDashboardSettings;
 
@@ -217,9 +226,27 @@ describe("Sidebar Core", () => {
       expect(
         ObsidianStubs.Menu.lastItems.map((menuItem) => menuItem.title),
       ).toEqual(["Edit tag", "Delete tag"]);
+      expect(
+        ObsidianStubs.Menu.lastItems.find(
+          (menuItem) => menuItem.title === "Delete tag",
+        )?.isWarning,
+      ).toBe(true);
+      expect(
+        ObsidianStubs.Menu.lastItems.find(
+          (menuItem) => menuItem.title === "Edit tag",
+        )?.isWarning,
+      ).toBe(false);
     });
 
     it("opens the edit modal from the tag menu and saves the selected tag", async () => {
+      settings.folders = [
+        {
+          name: "Tech",
+          subfolders: [],
+          autoTags: [{ name: "Research", color: "#3498db" }],
+        } as Folder,
+      ];
+      settings.media.defaultVideoTags = ["Research"];
       const row = container.querySelector<HTMLElement>(
         ".rss-dashboard-sidebar-tag-row",
       );
@@ -247,6 +274,8 @@ describe("Sidebar Core", () => {
       await vi.waitFor(() => {
         expect(settings.availableTags[0]?.name).toBe("Reading");
       });
+      expect(settings.folders[0]?.autoTags?.[0]?.name).toBe("Reading");
+      expect(settings.media.defaultVideoTags).toEqual(["Reading"]);
       expect(plugin.saveSettings).toHaveBeenCalledOnce();
       expect(plugin.refreshOpenTagColorViews).toHaveBeenCalledOnce();
       expect(callbacks.onTagToggle).not.toHaveBeenCalled();
@@ -288,6 +317,7 @@ describe("Sidebar Core", () => {
 
       input.value = "  New topic  ";
       color.value = "#123456";
+      color.dispatchEvent(new Event("change", { bubbles: true }));
       input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
 
       expect(settings.availableTags).toContainEqual({
@@ -295,6 +325,42 @@ describe("Sidebar Core", () => {
         color: "#123456",
       });
       expect(plugin.saveSettings).toHaveBeenCalledOnce();
+    });
+
+    it("creates an inheriting tag when neither color picker is changed", () => {
+      (sidebar as unknown as TestSidebar).isAddTagExpanded = true;
+      sidebar.render();
+      const input = container.querySelector<HTMLInputElement>(
+        ".rss-dashboard-sidebar-add-tag-input",
+      );
+      if (!input) throw new Error("Expected the inline add input");
+
+      input.value = "  New topic  ";
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+
+      expect(settings.availableTags).toContainEqual({ name: "New topic" });
+    });
+
+    it("offers palette controls beside both inline tag color pickers", () => {
+      (sidebar as unknown as TestSidebar).isAddTagExpanded = true;
+      sidebar.render();
+
+      const controls = container.querySelectorAll(
+        ".rss-dashboard-tag-color-palette-control",
+      );
+      expect(controls).toHaveLength(2);
+      expect(
+        Array.from(controls).map((control) =>
+          control
+            .querySelector(
+              ".rss-dashboard-tag-color-palette-control-color-trigger",
+            )
+            ?.getAttribute("aria-label"),
+        ),
+      ).toEqual([
+        "Color for Background: Purple #8A5CF5",
+        "Color for Text: Custom #FFFFFF",
+      ]);
     });
 
     it("keeps empty and duplicate names rejected and Cancel closes the inline form", () => {
@@ -464,6 +530,24 @@ describe("Sidebar Core", () => {
         "Edit feed",
         "Refresh details",
       ]);
+    });
+
+    it("marks Delete feed as a warning so its title and icon turn red", () => {
+      renderSidebar([createFeed()]);
+
+      container
+        .querySelector(".rss-dashboard-feed")
+        ?.dispatchEvent(
+          new MouseEvent("contextmenu", { bubbles: true, cancelable: true }),
+        );
+
+      const items = ObsidianStubs.Menu.lastItems;
+      expect(
+        items.find((menuItem) => menuItem.title === "Delete feed")?.isWarning,
+      ).toBe(true);
+      expect(
+        items.find((menuItem) => menuItem.title === "Edit feed")?.isWarning,
+      ).toBe(false);
     });
 
     it("offers Retry import for a feed whose background import failed", () => {
@@ -1003,6 +1087,55 @@ describe("Sidebar Core", () => {
       expect(warnings[0]?.hasAttribute("title")).toBe(false);
       expect(document.body.textContent).toContain(
         "Feed shard file was missing or corrupted and was rebuilt. Restore the shard from the last known backup if one exists, or refresh the feed to fetch newest articles.",
+      );
+    });
+
+    it("tells the user a missing shard's articles are still loaded, and keeps the plain wording for an empty feed", () => {
+      const keptFeed = createFeed({
+        title: "Kept articles",
+        feedId: "feed-kept",
+        items: [
+          {
+            title: "Kept",
+            link: "https://example.com/kept",
+            description: "",
+            pubDate: "2026-01-01T00:00:00Z",
+            guid: "kept",
+            read: false,
+            starred: false,
+            tags: [],
+            feedTitle: "Kept articles",
+            feedUrl: "https://example.com/feed.xml",
+            coverImage: "",
+          },
+        ],
+      });
+      const emptyFeed = createFeed({
+        title: "Empty feed",
+        feedId: "feed-empty",
+      });
+      settings.feeds = [keptFeed, emptyFeed];
+      plugin.getFeedShardHealth = vi.fn().mockReturnValue("missing");
+
+      const sidebar = new Sidebar(
+        app,
+        container,
+        plugin as unknown as RssDashboardPlugin,
+        settings,
+        options,
+        callbacks,
+      );
+      sidebar.render();
+
+      // The tooltip text is drawn into the body.
+      const text = document.body.textContent ?? "";
+      // The next test asserts on the whole body, so leave it empty.
+      document.body.empty();
+      expect(text).toContain(
+        "Feed shard file is missing. Your articles are still loaded. Run Settings > Storage > Repair/rebuild storage to recreate it.",
+      );
+      expect(text).toContain(
+        "Feed shard file is missing. Please run Settings > Storage > Repair/rebuild storage and refetch the feed.",
       );
     });
 

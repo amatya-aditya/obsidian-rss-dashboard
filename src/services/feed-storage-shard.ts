@@ -1,7 +1,19 @@
 import { normalizePath } from "obsidian";
-import type { Feed, FeedItem, FeedItemsShard } from "../types/types";
+import type {
+  Feed,
+  FeedItem,
+  FeedItemsShard,
+  RssDashboardSettings,
+} from "../types/types";
 import { SHARD_VERSION, cloneJson } from "./storage-json";
 import { trimSurroundingSlashes } from "../utils/folder-paths";
+
+/** Whether a storage mode keeps feed content in per-feed shard files. */
+export function isShardBackedMode(
+  mode: RssDashboardSettings["storageMode"],
+): boolean {
+  return mode === "vault-shards" || mode === "vault-shards-v2";
+}
 
 /** Keeps only entries usable as items: plain objects with a string guid. */
 export function dropInvalidShardItems(items: unknown[]): FeedItem[] {

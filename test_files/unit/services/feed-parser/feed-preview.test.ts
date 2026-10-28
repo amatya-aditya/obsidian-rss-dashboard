@@ -113,6 +113,40 @@ describe("feed preview parsing", () => {
     ).toBeNull();
   });
 
+  it("cleans formatting tags from a previewed feed title", () => {
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Feed &lt;em&gt;Title&lt;/em&gt;</title>
+    <description>Posts</description>
+    <link>https://example.com</link>
+    <item>
+      <title>First</title>
+      <link>https://example.com/first</link>
+      <guid>https://example.com/first</guid>
+      <description>Hello</description>
+    </item>
+  </channel>
+</rss>`;
+
+    const parsed = parseFeedPreviewFromXmlText(
+      xml,
+      "https://example.com/rss.xml",
+    );
+
+    expect(parsed?.title).toBe("Feed Title");
+  });
+
+  it("cleans formatting tags from an RSS2JSON preview title", async () => {
+    vi.spyOn(obsidian, "requestUrl")
+      .mockRejectedValueOnce(new Error("blocked"))
+      .mockResolvedValueOnce(mockRss2JsonResponse("Via <em>RSS2JSON</em>"));
+
+    const preview = await loadFeedForPreview("https://example.com/feed.xml");
+
+    expect(preview.title).toBe("Via RSS2JSON");
+  });
+
   it("loads title and latest entry from a JSON Feed", async () => {
     const requestUrlSpy = vi
       .spyOn(obsidian, "requestUrl")

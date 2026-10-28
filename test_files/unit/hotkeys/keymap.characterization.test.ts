@@ -214,7 +214,13 @@ const DASHBOARD_CASES: DashboardCase[] = [
     label: "Shift+F",
     key: "F",
     shift: true,
-    call: ["actionToggleYouTubeFocusMode", []],
+    call: ["actionToggleVideoFocusMode", []],
+  },
+  {
+    label: "Shift+C",
+    key: "C",
+    shift: true,
+    call: ["actionRunCoverImageAction", []],
   },
   { label: "t", key: "t", shift: false, call: ["actionToggleTagsMenu", []] },
   {
@@ -564,7 +570,7 @@ const READER_BINDINGS: Array<[Modifier[], string, keyof ReaderView]> = [
   [[], "m", "actionToggleReadStatus"],
   [["Shift"], "a", "actionMarkAllAsRead"],
   [[], "f", "actionToggleStarStatus"],
-  [["Shift"], "f", "actionToggleYouTubeFocusMode"],
+  [["Shift"], "f", "actionToggleVideoFocusMode"],
   [[], "t", "actionToggleTagsMenu"],
   [[], "s", "actionSaveCurrentArticle"],
   [[], ",", "actionMarkReadAndNext"],

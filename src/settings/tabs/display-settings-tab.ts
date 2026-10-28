@@ -9,6 +9,7 @@ import { Setting } from "obsidian";
 import RssDashboardPlugin from "../../../main";
 import { renderStartupFiltersSetting } from "./display-startup-filters-menu";
 import {
+  renderArticleTitleSizeSetting,
   renderCardSpacingSetting,
   renderCardsPerRowSetting,
   renderClearImageCacheSetting,
@@ -84,6 +85,7 @@ export function renderDisplaySettingsTab(
   renderShowSummarySetting(containerEl, plugin, rerenderActiveDashboardView);
   renderCardsPerRowSetting(containerEl, plugin);
   renderCardSpacingSetting(containerEl, plugin);
+  renderArticleTitleSizeSetting(containerEl, plugin);
   renderDashboardBehaviorSettings(
     containerEl,
     plugin,

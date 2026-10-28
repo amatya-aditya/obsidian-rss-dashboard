@@ -402,6 +402,57 @@
   }
 }
 
+/* ================ Tag list ================ */
+
+.rss-dashboard-settings-tag-chip {
+  display: inline-block;
+  vertical-align: middle;
+  font-weight: 500;
+}
+
+/* Before / after list inside the confirm dialogs (Reset all tags to defaults). */
+.rss-dashboard-confirm-preview {
+  display: grid;
+  gap: 8px;
+  max-height: 240px;
+  margin: 0 0 16px;
+  padding: 12px;
+  overflow-y: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-primary);
+}
+
+.rss-dashboard-confirm-preview-heading,
+.rss-dashboard-confirm-preview-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 20px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+}
+
+.rss-dashboard-confirm-preview-heading {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.rss-dashboard-confirm-preview-row .rss-dashboard-tag-badge {
+  justify-self: start;
+}
+
+.rss-dashboard-confirm-preview-arrow {
+  display: inline-flex;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.rss-dashboard-confirm-preview-empty,
+.rss-dashboard-confirm-preview-more {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+
 /* ================ Tag multi-select dropdown control ================ */
 
 .rss-dashboard-tag-multi-select {
@@ -582,7 +633,7 @@
 /* ============================================
  * Tag shape control (Tags tab, #663)
  *
- * Each preview and the sample read the chip radius from
+ * Each preview reads the chip radius from
  * --rss-dashboard-tag-chip-radius, set on the element itself, so the
  * preview shows the shape without touching the real chips.
  * ============================================ */
@@ -647,42 +698,11 @@
   visibility: visible;
 }
 
-.rss-dashboard-tag-shape .rss-dashboard-tag-shape-custom {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 12px;
-}
-
-.rss-dashboard-tag-shape .rss-dashboard-tag-shape-input {
-  min-width: 0;
-  flex: 1 1 180px;
-  max-width: 280px;
-}
-
-.rss-dashboard-tag-shape
-  .rss-dashboard-tag-shape-custom.is-invalid
-  .rss-dashboard-tag-shape-input {
-  border-color: var(--text-error);
-}
-
-.rss-dashboard-tag-shape .rss-dashboard-tag-shape-error {
-  min-height: 0;
-  color: var(--text-error);
-  font-size: var(--font-ui-smaller);
-}
-
-.rss-dashboard-tag-shape .rss-dashboard-tag-shape-error:empty {
-  display: none;
-}
-
-.rss-dashboard-tag-shape .rss-dashboard-tag-shape-reset {
-  align-self: flex-start;
-}
-
-/* The custom radius input sits in a clear-button wrapper (input-clear-button.css). */
-.rss-dashboard-tag-shape .rss-dashboard-tag-shape-custom > .rss-input-clear {
-  min-width: 0;
-  flex: 1 1 180px;
-  max-width: 280px;
+/* Live preview of the tag being created, between the name field and Add tag. */
+.rss-dashboard-tag-new-preview {
+  flex: 0 0 auto;
+  max-width: 10rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

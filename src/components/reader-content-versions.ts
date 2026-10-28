@@ -3,6 +3,9 @@ import type { FullArticleFetchResult } from "../utils/fetch-helpers";
 
 export type ReaderContentVersion = "rss" | "full";
 
+const SHOW_FETCHED = "Show fetched content";
+const SHOW_RSS = "Show RSS content";
+
 /** One display's cached DOM and scroll positions. Fetch completion never swaps text. */
 export class ReaderContentVersions {
   private readonly controls: HTMLElement;
@@ -15,6 +18,9 @@ export class ReaderContentVersions {
   private readonly positions = { rss: 0, full: 0 };
   private readonly parent: HTMLElement | null;
   private active = true;
+  private onRequestFetchedContent?: () => void;
+  private fetching = false;
+  private pendingStatusTimer?: number;
 
   constructor(
     private readonly container: HTMLElement,
@@ -24,11 +30,21 @@ export class ReaderContentVersions {
     ) => void,
     private readonly selectVersion: (version: ReaderContentVersion) => void,
     shortFeed: boolean,
+    /**
+     * On-demand mode: no fetch is running yet. The caller offers the fetched
+     * version through `offerFetchedContent` and runs the fetch on first request.
+     */
+    private readonly onDemand = false,
   ) {
     this.parent = container.parentElement;
     this.controls = container.createDiv({ cls: "rss-reader-content-progress" });
     this.status = createLiveRegion(this.controls, "rss-reader-fetch-status");
-    this.status.announce("Fetching article content…");
+    if (!onDemand) {
+      this.pendingStatusTimer = window.setTimeout(() => {
+        this.pendingStatusTimer = undefined;
+        if (this.isActive()) this.status.announce("Fetching article content…");
+      }, 0);
+    }
     this.rss = container.createDiv({ cls: "rss-reader-content-version" });
     renderVersion(this.rss, "rss");
     if (shortFeed) {
@@ -46,6 +62,7 @@ export class ReaderContentVersions {
 
   dispose(): void {
     this.active = false;
+    this.clearPendingStatusTimer();
   }
 
   visitVersions(visitor: (container: HTMLElement) => void): void {
@@ -53,24 +70,46 @@ export class ReaderContentVersions {
     if (this.full) visitor(this.full);
   }
 
+  /** Eager fetch succeeded: offer the fetched version. */
   ready(): void {
     if (!this.isActive()) return;
+    this.clearPendingStatusTimer();
     this.placeholder?.remove();
-    this.container
-      .querySelectorAll(".rss-reader-paywall-banner")
-      .forEach((banner) => banner.remove());
+    this.removeFetchBanners();
     this.status.announce("Fetched content ready. RSS content is still shown.");
-    this.button = this.controls.createEl("button", {
-      cls: "rss-reader-content-toggle",
-      text: "Show fetched content",
-      attr: { type: "button" },
-    });
-    this.button.addEventListener("click", () => this.toggle());
+    if (!this.button) this.button = this.createToggle();
+  }
+
+  /**
+   * On-demand mode: offer the fetched version before any fetch, and run
+   * `onRequest` the first time the reader picks it. A failed request clears the
+   * busy state, so the reader can try again.
+   */
+  offerFetchedContent(onRequest: () => void): void {
+    if (!this.isActive() || this.button) return;
+    this.onRequestFetchedContent = onRequest;
+    this.button = this.createToggle();
+  }
+
+  /** On-demand request succeeded: render the fetched version and show it. */
+  showFetchedContent(): void {
+    if (!this.isActive()) return;
+    this.fetching = false;
+    this.placeholder?.remove();
+    this.removeFetchBanners();
+    this.showFull();
   }
 
   failed(result: FullArticleFetchResult): void {
     if (!this.isActive()) return;
+    this.clearPendingStatusTimer();
     this.placeholder?.remove();
+    this.fetching = false;
+    if (this.button) {
+      this.button.removeAttribute("aria-busy");
+      this.button.removeAttribute("aria-disabled");
+      this.button.setText(SHOW_FETCHED);
+    }
     const message =
       result.failureType === "restricted"
         ? "Fetched content is restricted. Showing available RSS content."
@@ -82,27 +121,84 @@ export class ReaderContentVersions {
     this.status.announce(message);
   }
 
+  private createToggle(): HTMLButtonElement {
+    const button = this.controls.createEl("button", {
+      cls: "rss-reader-content-toggle",
+      text: SHOW_FETCHED,
+      attr: { type: "button" },
+    });
+    button.addEventListener("click", () => this.toggle());
+    return button;
+  }
+
+  private clearPendingStatusTimer(): void {
+    if (this.pendingStatusTimer === undefined) return;
+    window.clearTimeout(this.pendingStatusTimer);
+    this.pendingStatusTimer = undefined;
+  }
+
+  private removeFetchBanners(): void {
+    this.container
+      .querySelectorAll(
+        ".rss-reader-paywall-banner, .rss-reader-fetch-failure-banner",
+      )
+      .forEach((banner) => banner.remove());
+  }
+
   private toggle(): void {
+    if (!this.isActive() || !this.button || this.fetching) return;
+    if (this.selected === "full") {
+      this.showRss();
+      return;
+    }
+    if (!this.full && this.onRequestFetchedContent) {
+      this.requestFetchedContent();
+      return;
+    }
+    this.showFull();
+  }
+
+  private requestFetchedContent(): void {
+    if (!this.onRequestFetchedContent || this.fetching) return;
+    this.fetching = true;
+    // Keep the purpose name and focus; expose the in-flight state instead.
+    this.button?.setAttribute("aria-busy", "true");
+    this.button?.setAttribute("aria-disabled", "true");
+    this.status.announce("Fetching article content…");
+    this.onRequestFetchedContent();
+  }
+
+  private showFull(): void {
     if (!this.isActive() || !this.button) return;
     this.positions[this.selected] = this.container.scrollTop;
-    const next = this.selected === "rss" ? "full" : "rss";
-    this.selectVersion(next);
-    if (next === "full" && !this.full) {
+    this.selectVersion("full");
+    if (!this.full) {
       this.full = this.container.createDiv({
         cls: "rss-reader-content-version",
       });
       this.renderVersion(this.full, "full");
     }
-    (this.selected === "rss" ? this.rss : this.full)?.remove();
-    const content = next === "rss" ? this.rss : this.full;
-    if (content) this.container.append(content);
-    this.selected = next;
-    this.button.setText(
-      next === "rss" ? "Show fetched content" : "Show RSS content",
-    );
-    this.status.announce(
-      next === "rss" ? "Showing RSS content." : "Showing fetched content.",
-    );
-    this.container.scrollTop = this.positions[next];
+    this.rss.remove();
+    this.container.append(this.full);
+    this.selected = "full";
+    this.button.removeAttribute("aria-busy");
+    this.button.removeAttribute("aria-disabled");
+    this.button.setText(SHOW_RSS);
+    this.status.announce("Showing fetched content.");
+    this.container.scrollTop = this.positions.full;
+  }
+
+  private showRss(): void {
+    if (!this.isActive() || !this.button) return;
+    this.positions[this.selected] = this.container.scrollTop;
+    this.selectVersion("rss");
+    this.full?.remove();
+    this.container.append(this.rss);
+    this.selected = "rss";
+    this.button.removeAttribute("aria-busy");
+    this.button.removeAttribute("aria-disabled");
+    this.button.setText(SHOW_FETCHED);
+    this.status.announce("Showing RSS content.");
+    this.container.scrollTop = this.positions.rss;
   }
 }

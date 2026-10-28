@@ -82,7 +82,7 @@ describe("Focus mode after an import", () => {
     plugin.saveData = vi.fn().mockResolvedValue(undefined);
     await plugin.loadSettings();
     applySpy = vi
-      .spyOn(plugin, "applyYouTubeFocusMode")
+      .spyOn(plugin, "applyVideoFocusMode")
       .mockResolvedValue(undefined);
   });
 

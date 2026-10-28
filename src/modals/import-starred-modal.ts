@@ -20,9 +20,12 @@ import {
 } from "../components/article-list/utils/tag-layout-utils";
 import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
 import { DEFAULT_TAG_COLOR, randomTagColors } from "../utils/tag-colors";
+import { mergeTagUpdate } from "../utils/tag-settings";
+import { createIconButton } from "../utils/icon-button";
 import { showEditTagModal, updateTagInSettings } from "../utils/tag-utils";
 import { FolderSuggest } from "../components/folder-suggest";
 import { decorateFolderSelectorInput } from "./feed-manager/folder-selector-field";
+import { addTagColorPaletteControl } from "../components/tag-color-palette-control";
 
 /**
  * Default target folder for every feed created by a starred-article import.
@@ -639,21 +642,14 @@ export class ImportStarredModal extends AccessibleModal {
 
     const list = section.createDiv({ cls: "import-new-tags-list" });
     for (const tag of newTags) {
-      const chip = createTagChip(list, tag);
+      const chip = createTagChip(list, tag, "button", this.plugin.settings);
       chip.addClass("import-new-tags-chip");
-      chip.setAttr("role", "button");
-      chip.setAttr("tabindex", "0");
+      chip.setAttr("type", "button");
       chip.setAttr("aria-label", `Edit "${tag.name}" tag`);
-      const openEditor = (e: Event) => {
+      chip.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
         this.showNewTagEditor(tag, newTags);
-      };
-      chip.addEventListener("click", openEditor);
-      chip.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          openEditor(e);
-        }
       });
     }
   }
@@ -680,16 +676,22 @@ export class ImportStarredModal extends AccessibleModal {
     const setColor = actions.createDiv({
       cls: "import-new-tags-action clickable-icon import-new-tags-set-color",
     });
-    setIcon(setColor, "palette");
+    const nativePicker = setColor.createDiv({
+      cls: "import-new-tags-native-color-picker",
+    });
+    setIcon(nativePicker, "palette");
     const firstColor = newTags[0]?.color;
     const sharedColor = newTags.every((tag) => tag.color === firstColor)
       ? firstColor
       : undefined;
-    const colorInput = setColor.createEl("input", {
+    const colorInput = nativePicker.createEl("input", {
       cls: "import-new-tags-color-input",
       attr: {
         type: "color",
-        value: sharedColor ?? DEFAULT_TAG_COLOR,
+        value:
+          sharedColor ??
+          this.plugin.settings.defaultTagColor ??
+          DEFAULT_TAG_COLOR,
         "aria-label": "Set one color for all new tags",
       },
     });
@@ -699,57 +701,32 @@ export class ImportStarredModal extends AccessibleModal {
         newTags.map(() => colorInput.value),
       );
     });
-
-    const randomize = this.createNewTagsActionButton(
-      actions,
-      "import-new-tags-randomize",
-      "dices",
-      "Randomize tag colors",
-    );
-    this.onActivate(randomize, () =>
-      this.recolorNewTags(newTags, randomTagColors(newTags.length)),
-    );
-
-    const reset = this.createNewTagsActionButton(
-      actions,
-      "import-new-tags-reset",
-      "rotate-ccw",
-      "Reset tag colors",
-    );
-    this.onActivate(reset, () =>
-      this.recolorNewTags(
-        newTags,
-        newTags.map(() => DEFAULT_TAG_COLOR),
-      ),
-    );
-  }
-
-  private createNewTagsActionButton(
-    parent: HTMLElement,
-    cls: string,
-    icon: string,
-    label: string,
-  ): HTMLElement {
-    const button = parent.createDiv({
-      cls: `import-new-tags-action clickable-icon ${cls}`,
+    addTagColorPaletteControl({
+      container: setColor,
+      input: colorInput,
+      fieldName: "Background",
     });
-    button.setAttr("role", "button");
-    button.setAttr("tabindex", "0");
-    button.setAttr("aria-label", label);
-    setIcon(button, icon);
-    return button;
-  }
 
-  private onActivate(el: HTMLElement, action: () => void): void {
-    el.addEventListener("click", (e) => {
-      e.preventDefault();
-      action();
-    });
-    el.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
+    createIconButton({
+      parent: actions,
+      cls: "import-new-tags-action clickable-icon import-new-tags-randomize",
+      label: "Randomize tag colors",
+      icon: "dices",
+      onClick: (e) => {
         e.preventDefault();
-        action();
-      }
+        this.recolorNewTags(newTags, randomTagColors(newTags.length));
+      },
+    });
+
+    createIconButton({
+      parent: actions,
+      cls: "import-new-tags-action clickable-icon import-new-tags-reset",
+      label: "Reset tag colors",
+      icon: "rotate-ccw",
+      onClick: (e) => {
+        e.preventDefault();
+        this.resetNewTagsAppearance(newTags);
+      },
     });
   }
 
@@ -761,6 +738,17 @@ export class ImportStarredModal extends AccessibleModal {
       const color = colors[index];
       if (color) this.applyTagEditToCandidates(tag, { ...tag, color });
     });
+    this.redrawCandidateTags();
+  }
+
+  private resetNewTagsAppearance(tags: readonly Tag[]): void {
+    for (const tag of tags) {
+      this.applyTagEditToCandidates(tag, {
+        name: tag.name,
+        color: undefined,
+        textColor: undefined,
+      });
+    }
     this.redrawCandidateTags();
   }
 
@@ -846,16 +834,6 @@ export class ImportStarredModal extends AccessibleModal {
     meta.textContent = `${selectedCount}/${group.items.length}`;
 
     const collapsed = this.collapsedFeedUrls.has(group.feedUrl);
-    const toggle = groupRow.createDiv({
-      cls: "clickable-icon import-preview-toggle",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": collapsed ? "Expand feed" : "Collapse feed",
-      },
-    });
-    setIcon(toggle, collapsed ? "chevron-right" : "chevron-down");
-
     const toggleCollapse = () => {
       if (this.collapsedFeedUrls.has(group.feedUrl)) {
         this.collapsedFeedUrls.delete(group.feedUrl);
@@ -865,15 +843,15 @@ export class ImportStarredModal extends AccessibleModal {
       this.renderPreview();
     };
 
-    toggle.addEventListener("click", (e) => {
-      e.preventDefault();
-      toggleCollapse();
-    });
-    toggle.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
+    createIconButton({
+      parent: groupRow,
+      cls: "clickable-icon import-preview-toggle",
+      label: collapsed ? "Expand feed" : "Collapse feed",
+      icon: collapsed ? "chevron-right" : "chevron-down",
+      onClick: (e) => {
         e.preventDefault();
         toggleCollapse();
-      }
+      },
     });
 
     if (collapsed) return;
@@ -940,27 +918,20 @@ export class ImportStarredModal extends AccessibleModal {
     row: HTMLElement,
     candidate: StarredImportCandidate,
   ): void {
-    const control = row.createDiv({
+    const control = row.createEl("button", {
       cls: "import-preview-meta import-preview-tags-control rss-dashboard-tag-container",
       attr: {
-        role: "button",
-        tabindex: "0",
+        type: "button",
         "aria-label": "Manage tags",
       },
     });
 
     this.renderItemTagsChips(control, candidate);
 
-    const openPortal = (e: Event) => {
+    control.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
       this.showItemTagsDropdown(control, candidate);
-    };
-    control.addEventListener("click", openPortal);
-    control.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        openPortal(e);
-      }
     });
   }
 
@@ -985,7 +956,7 @@ export class ImportStarredModal extends AccessibleModal {
       setIcon(placeholder, "tag");
       return;
     }
-    renderSingleRowCardTagChips(control, tags);
+    renderSingleRowCardTagChips(control, tags, this.plugin.settings);
   }
 
   /**
@@ -1095,7 +1066,7 @@ export class ImportStarredModal extends AccessibleModal {
         const candidate = model.getCandidate(guid);
         if (!candidate?.item.tags) continue;
         candidate.item.tags = candidate.item.tags.map((tag) =>
-          tag.name === previous.name ? { ...tag, ...updated } : tag,
+          tag.name === previous.name ? mergeTagUpdate(tag, updated) : tag,
         );
         candidate.labelDerivedTagNames = candidate.labelDerivedTagNames?.map(
           (name) =>
@@ -1163,7 +1134,11 @@ export class ImportStarredModal extends AccessibleModal {
         const lowerName = tag.name.toLowerCase();
         if (existingByLowerName.has(lowerName)) continue;
 
-        const newTag: Tag = { name: tag.name, color: tag.color };
+        const newTag: Tag = {
+          name: tag.name,
+          ...(tag.color === undefined ? {} : { color: tag.color }),
+          ...(tag.textColor === undefined ? {} : { textColor: tag.textColor }),
+        };
         availableTags.push(newTag);
         existingByLowerName.set(lowerName, newTag);
       }

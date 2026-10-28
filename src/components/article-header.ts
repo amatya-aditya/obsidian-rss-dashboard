@@ -91,6 +91,10 @@ export class ArticleHeader {
     this.filterLogic = filterLogic;
   }
 
+  public refreshTagColors(): void {
+    this.filterMenu?.refreshTagColors();
+  }
+
   public updateTitle(title: string, tooltip: string | null): void {
     this.title = title;
     this.titleTooltip = tooltip;
@@ -207,7 +211,7 @@ export class ArticleHeader {
       this.articleSearchQuery,
       {
         onSearch: (query) => {
-          this.syncSearch(query);
+          this.setSearchQuery(query);
           this.callbacks.onSearch(query);
         },
         onSortChange: (value) => this.callbacks.onSortChange(value),
@@ -232,14 +236,14 @@ export class ArticleHeader {
     return this.headerMenu?.focusSearch() ?? Promise.resolve(false);
   }
 
-  private syncSearch(val: string) {
-    this.articleSearchQuery = val;
-    const headerMenu: ArticleHeaderMenuController | null = this.headerMenu;
-    if (headerMenu) {
-      (
-        headerMenu as { setSearchQuery: (query: string) => void }
-      ).setSearchQuery(val);
-    }
+  /**
+   * Sets the search this list is showing and pushes it into the search box.
+   * The dashboard rebuilds the list on every render, so it restores the query
+   * a previous list held through this method (#1465).
+   */
+  public setSearchQuery(query: string): void {
+    this.articleSearchQuery = query;
+    this.headerMenu?.setSearchQuery(query);
   }
 
   public updateFilterBadge(btn?: HTMLElement): void {

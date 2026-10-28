@@ -37,6 +37,7 @@ vi.mock("../../../src/components/article-list", () => ({
     setEmptyStateContext = vi.fn((context: FilterContext) => {
       emptyStateContext = context;
     });
+    setSearchQuery = vi.fn();
   },
 }));
 

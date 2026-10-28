@@ -110,11 +110,10 @@ export class ArticleEmptyState {
     onAction?: (button: HTMLElement) => void,
     hasPopup?: "dialog",
   ): void {
-    const button = emptyState.createDiv({
+    const button = emptyState.createEl("button", {
       cls: "rss-dashboard-empty-state-button",
       attr: {
-        role: "button",
-        tabindex: "0",
+        type: "button",
         "aria-label": label,
       },
     });
@@ -127,13 +126,6 @@ export class ArticleEmptyState {
     if (!onAction) {
       return;
     }
-
-    button.addEventListener("keydown", (e: KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        onAction(button);
-      }
-    });
 
     button.addEventListener("click", () => {
       onAction(button);

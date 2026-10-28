@@ -9,6 +9,10 @@ import { Notice, Setting } from "obsidian";
 import type { App } from "obsidian";
 import { AccessibleModal } from "../../utils/accessible-modal";
 import {
+  ARTICLE_TITLE_SCALE_DEFAULT,
+  ARTICLE_TITLE_SCALE_MAX,
+  ARTICLE_TITLE_SCALE_MIN,
+  ARTICLE_TITLE_SCALE_STEP,
   DEFAULT_SETTINGS,
   IMAGE_CACHE_LIMIT_MAX_MIB,
   IMAGE_CACHE_LIMIT_MIN_MIB,
@@ -410,6 +414,62 @@ export function renderCardSpacingSetting(
       text.inputEl.addClass("rss-dashboard-settings-number-input");
     });
   cardSpacingSetting.settingEl.addClass("rss-dashboard-settings-two-row");
+}
+
+export function renderArticleTitleSizeSetting(
+  containerEl: HTMLElement,
+  plugin: DisplaySectionsPlugin,
+): void {
+  let isResetting = false;
+  let titleSizeSlider: { setValue: (value: number) => void } | null = null;
+
+  const applyArticleTitleScale = async (value: number): Promise<void> => {
+    plugin.settings.display.articleTitleScale = value;
+    await plugin.saveSettings();
+    const view = await plugin.getActiveDashboardView();
+    if (view) {
+      await plugin.app.workspace.revealLeaf(view.leaf);
+      view.render();
+    }
+  };
+
+  new Setting(containerEl)
+    .setName("Article title size")
+    .setDesc(
+      "Scale the title text in the dashboard article list (card, list, and feed views)",
+    )
+    .addSlider((slider) => {
+      titleSizeSlider = slider;
+      slider
+        .setLimits(
+          ARTICLE_TITLE_SCALE_MIN,
+          ARTICLE_TITLE_SCALE_MAX,
+          ARTICLE_TITLE_SCALE_STEP,
+        )
+        .setValue(
+          plugin.settings.display.articleTitleScale ??
+            ARTICLE_TITLE_SCALE_DEFAULT,
+        )
+        .onChange(async (value) => {
+          if (isResetting) return;
+          await applyArticleTitleScale(value);
+        });
+      settingsUiCompatibility.presentSliderValue(
+        slider,
+        (value) => `${value}%`,
+      );
+    })
+    .addExtraButton((button) =>
+      button
+        .setIcon("rotate-ccw")
+        .setTooltip("Restore default")
+        .onClick(async () => {
+          isResetting = true;
+          titleSizeSlider?.setValue(ARTICLE_TITLE_SCALE_DEFAULT);
+          isResetting = false;
+          await applyArticleTitleScale(ARTICLE_TITLE_SCALE_DEFAULT);
+        }),
+    );
 }
 
 export function renderDashboardBehaviorSettings(

@@ -30,6 +30,8 @@ Want to help shape the next release? [Join Discord](https://discord.gg/9bu7V9BBb
 
 Full article content fetched and rendered right in Obsidian. No ads, no distracting sidebars—just the text you came to read. Track your progress through articles, videos, and podcasts. Resume where you left off, distraction-free.
 
+Podcast episodes whose description lists timestamped chapters get clickable markers on the player's seek bar. Hover or focus one to preview the start time, title, and chapter length, and click or press Enter to jump there. Turn the markers off under **Settings → Media → Podcast player → Show chapter markers on the seek bar**, or run **Toggle podcast chapter markers** from the command palette. Many shows list no timestamps, so most episodes show no markers.
+
 ## Build Your Reading System
 
 Your feeds, organized your way. Create folders and subfolders, add custom tags, filter by read status or feed, sort by date or category. Automatic refresh keeps your subscriptions current. Discover new feeds from our curated Discover page or browse smaller independent blogs through Kagi Smallweb.

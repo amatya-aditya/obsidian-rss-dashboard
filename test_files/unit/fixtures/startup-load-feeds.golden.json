@@ -1,0 +1,142 @@
+[
+  {
+    "title": "feed-a",
+    "url": "https://example.com/feed-a.xml",
+    "folder": "",
+    "lastUpdated": 0,
+    "keywordRules": {
+      "overrideGlobalRules": false,
+      "includeLogic": "AND",
+      "rules": []
+    },
+    "autoDeleteDuration": 30,
+    "maxItemsLimit": 50,
+    "feedId": "feed-a",
+    "items": [
+      {
+        "title": "a1",
+        "link": "https://example.com/feed-a/a1",
+        "description": "",
+        "pubDate": "2026-01-01T00:00:00Z",
+        "guid": "a1",
+        "feedTitle": "feed-a",
+        "feedUrl": "https://example.com/feed-a.xml",
+        "coverImage": "",
+        "read": false,
+        "starred": true,
+        "tags": [],
+        "saved": false
+      },
+      {
+        "title": "a2",
+        "link": "https://example.com/feed-a/a2",
+        "description": "",
+        "pubDate": "2026-01-01T00:00:00Z",
+        "guid": "a2",
+        "feedTitle": "feed-a",
+        "feedUrl": "https://example.com/feed-a.xml",
+        "coverImage": "",
+        "read": true,
+        "starred": false,
+        "tags": [],
+        "saved": false
+      }
+    ],
+    "lastRefreshAttemptCompletedAt": 0
+  },
+  {
+    "title": "feed-b",
+    "url": "https://example.com/feed-b.xml",
+    "folder": "",
+    "lastUpdated": 0,
+    "keywordRules": {
+      "overrideGlobalRules": false,
+      "includeLogic": "AND",
+      "rules": []
+    },
+    "autoDeleteDuration": 30,
+    "maxItemsLimit": 50,
+    "feedId": "feed-b",
+    "items": [
+      {
+        "title": "b1",
+        "link": "https://example.com/feed-b/b1",
+        "description": "",
+        "pubDate": "2026-01-01T00:00:00Z",
+        "guid": "b1",
+        "feedTitle": "feed-b",
+        "feedUrl": "https://example.com/feed-b.xml",
+        "coverImage": "",
+        "read": false,
+        "starred": false,
+        "tags": [
+          {
+            "name": "keep",
+            "color": "#ff0000"
+          }
+        ],
+        "saved": false
+      }
+    ],
+    "lastRefreshAttemptCompletedAt": 0
+  },
+  {
+    "title": "feed-c",
+    "url": "https://example.com/feed-c.xml",
+    "folder": "",
+    "lastUpdated": 0,
+    "keywordRules": {
+      "overrideGlobalRules": false,
+      "includeLogic": "AND",
+      "rules": []
+    },
+    "autoDeleteDuration": 30,
+    "maxItemsLimit": 50,
+    "feedId": "feed-c",
+    "items": [
+      {
+        "title": "c1",
+        "link": "https://example.com/feed-c/c1",
+        "description": "",
+        "pubDate": "2026-01-01T00:00:00Z",
+        "guid": "c1",
+        "feedTitle": "feed-c",
+        "feedUrl": "https://example.com/feed-c.xml",
+        "coverImage": "",
+        "read": false,
+        "starred": false,
+        "tags": [],
+        "saved": false
+      },
+      {
+        "title": "c2",
+        "link": "https://example.com/feed-c/c2",
+        "description": "",
+        "pubDate": "2026-01-01T00:00:00Z",
+        "guid": "c2",
+        "feedTitle": "feed-c",
+        "feedUrl": "https://example.com/feed-c.xml",
+        "coverImage": "",
+        "read": false,
+        "starred": true,
+        "tags": [],
+        "saved": false
+      },
+      {
+        "title": "c3",
+        "link": "https://example.com/feed-c/c3",
+        "description": "",
+        "pubDate": "2026-01-01T00:00:00Z",
+        "guid": "c3",
+        "feedTitle": "feed-c",
+        "feedUrl": "https://example.com/feed-c.xml",
+        "coverImage": "",
+        "read": false,
+        "starred": false,
+        "tags": [],
+        "saved": false
+      }
+    ],
+    "lastRefreshAttemptCompletedAt": 0
+  }
+]

@@ -1597,51 +1597,639 @@ describe("Obsidian stub contract", () => {
   });
 
   describe("AbstractInputSuggest", () => {
-    // Observed on Obsidian 1.14.4 desktop (Windows): the real class extends
-    // PopoverSuggest and its prototype has `showSuggestions`, `setValue`,
-    // `getValue`, `onInputFocus`, `onInputChange`, `selectSuggestion`,
-    // `onSelect`, `close`, `reposition`, `open` and `autoReposition`, with
-    // `getSuggestions` and `renderSuggestion` abstract.
+    // Observed on Obsidian 1.14.4 desktop (Windows) with
+    // `probes/abstract-input-suggest.repl` (#1376): the real class extends
+    // PopoverSuggest and folds its members into one surface a consumer
+    // subclasses. The stub models what the probe saw; the divergences are
+    // listed here and in obsidian-console-probes.md:
     //
-    // Stub divergence: there is no production consumer — `folder-suggest.ts`
-    // uses its own `LegacyInputSuggest` so it still runs on Obsidian 1.1 — so
-    // the stub stays thin by design. Extend it faithfully when a consumer
-    // appears (obsidian-console-probes.md, "AbstractInputSuggest").
-    it("stays thin with no production consumer", () => {
+    // - Reposition geometry is not modeled: `reposition` and `autoReposition`
+    //   exist but do nothing, so the container has no `left`/`top` style.
+    // - `PageUp`/`PageDown` are not registered on the scope.
+    // - Scope modifiers stay an array (the real scope joins them into a
+    //   string), and the scope has no parent (the real one's is `app.scope`).
+    // - The real `setValue`/`getValue` use `innerText` on a contenteditable
+    //   div; jsdom has no `innerText`, so the stub uses `textContent`.
+    // - jsdom has no layout, so "input is shown" means connected with no
+    //   `display: none` on it or an ancestor.
+    // - `onInputFocus` defers the first query on a touch device without a
+    //   keyboard; the stub always runs it at once (not probed: desktop only).
+    // - The real popover closes itself within about 500 ms once its input
+    //   leaves the document; the stub does not poll.
+    type KeyHandler = {
+      key: string | null;
+      modifiers: string[] | null;
+      func: (evt: KeyboardEvent, ctx: unknown) => unknown;
+    };
+    type SuggestInternals = {
+      textInputEl: HTMLInputElement | HTMLDivElement;
+      suggestEl: HTMLDivElement;
+      suggestInnerEl: HTMLDivElement;
+      isOpen: boolean;
+      limit: number;
+      scope: { handlers: KeyHandler[] };
+      onInputChange(): void;
+      onInputFocus(): void;
+      showSuggestions(values: string[]): void;
+      reposition(rect?: unknown): void;
+      autoReposition(): void;
+    };
+
+    // Rows and open/close/query calls, in order, for a suggest over a text
+    // input. `produce` decides what `getSuggestions` returns.
+    class RecordingSuggest extends AbstractInputSuggest<string> {
+      readonly calls: unknown[][] = [];
+      produce: (query: string) => string[] | Promise<string[]> = (query) =>
+        ["alpha", "beta", "gamma"].filter((value) => value.includes(query));
+
+      protected getSuggestions(query: string): string[] | Promise<string[]> {
+        this.calls.push(["getSuggestions", query]);
+        return this.produce(query);
+      }
+      renderSuggestion(value: string, el: HTMLElement): void {
+        this.calls.push(["renderSuggestion", value, el.className]);
+        el.setText(value);
+      }
+      open(): void {
+        this.calls.push(["open"]);
+        super.open();
+      }
+      close(): void {
+        this.calls.push(["close"]);
+        super.close();
+      }
+    }
+
+    const internals = (suggest: object): SuggestInternals =>
+      suggest as unknown as SuggestInternals;
+    const addInput = (): HTMLInputElement => {
+      const input = createEl("input", { type: "text" });
+      document.body.appendChild(input);
+      return input;
+    };
+    const makeSuggest = (): {
+      suggest: RecordingSuggest;
+      input: HTMLInputElement;
+    } => {
+      const input = addInput();
+      return { suggest: new RecordingSuggest(new App(), input), input };
+    };
+    // Row texts, with a trailing `*` on the selected one.
+    const rows = (suggest: object): string[] =>
+      Array.from(
+        internals(suggest).suggestEl.querySelectorAll(".suggestion-item"),
+      ).map(
+        (row) =>
+          (row.textContent ?? "") +
+          (row.classList.contains("is-selected") ? "*" : ""),
+      );
+    const typeInto = (input: HTMLInputElement, value: string): void => {
+      input.value = value;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+    const pressKey = (
+      suggest: object,
+      key: string,
+      modifiers: string[] = [],
+    ): unknown => {
+      const handler = internals(suggest).scope.handlers.find(
+        (h) =>
+          h.key === key &&
+          JSON.stringify(h.modifiers) === JSON.stringify(modifiers),
+      );
+      return handler?.func(new KeyboardEvent("keydown", { key }), {});
+    };
+    const flushPromises = (): Promise<void> =>
+      new Promise((resolve) => {
+        setTimeout(resolve, 0);
+      });
+
+    afterEach(() => {
+      document.body.replaceChildren();
+    });
+
+    it("has the probed prototype and leaves the two abstract members to the subclass", () => {
       const proto = AbstractInputSuggest.prototype as unknown as Record<
         string,
         unknown
       >;
 
-      expect(typeof proto.getSuggestions).toBe("function");
-      expect(typeof proto.renderSuggestion).toBe("function");
-      expect(typeof proto.selectSuggestion).toBe("function");
-      expect(typeof proto.close).toBe("function");
-
-      expect(proto.setValue).toBeUndefined();
-      expect(proto.getValue).toBeUndefined();
-      expect(proto.onSelect).toBeUndefined();
-      expect(proto.open).toBeUndefined();
-      expect(proto.reposition).toBeUndefined();
+      for (const name of [
+        "showSuggestions",
+        "setValue",
+        "getValue",
+        "onInputFocus",
+        "onInputChange",
+        "selectSuggestion",
+        "onSelect",
+        "close",
+        "reposition",
+        "open",
+      ]) {
+        expect(typeof proto[name], name).toBe("function");
+      }
+      // Abstract: the real prototype has neither.
+      expect("getSuggestions" in proto).toBe(false);
+      expect("renderSuggestion" in proto).toBe(false);
     });
 
-    // Not probed: the stub's constructor stores the app and the input element
-    // (in `inputEl`) and its suggestions are empty; there is no consumer to
-    // exercise more.
-    it("keeps the thin constructor behavior", () => {
-      type ThinSuggest = {
-        getSuggestions(query: string): string[];
-        close(): void;
-      };
-      const Suggest = AbstractInputSuggest as unknown as new (
-        app: App,
-        inputEl: HTMLInputElement,
-      ) => ThinSuggest;
+    it("keeps its input as textInputEl, starts closed, and limits rows to 100", () => {
+      const { suggest, input } = makeSuggest();
+      const inner = internals(suggest);
 
-      const suggest = new Suggest(new App(), createEl("input"));
+      expect(inner.textInputEl).toBe(input);
+      expect("inputEl" in suggest).toBe(false);
+      expect(inner.isOpen).toBe(false);
+      expect(inner.limit).toBe(100);
+      expect(inner.suggestEl.className).toBe("suggestion-container");
+      expect(inner.suggestEl.firstElementChild).toBe(inner.suggestInnerEl);
+      expect(inner.suggestInnerEl.className).toBe("suggestion");
+      expect(inner.suggestEl.isConnected).toBe(false);
+      expect(suggest.calls).toEqual([]);
+    });
 
-      expect(suggest.getSuggestions("q")).toEqual([]);
+    it("registers the navigation keys on its scope", () => {
+      const { suggest } = makeSuggest();
+
+      const keys = internals(suggest).scope.handlers.map((h) => [
+        ...(h.modifiers ?? []),
+        h.key,
+      ]);
+
+      expect(keys).toEqual(
+        expect.arrayContaining([
+          ["ArrowUp"],
+          ["ArrowDown"],
+          ["Home"],
+          ["End"],
+          ["Ctrl", "P"],
+          ["Ctrl", "N"],
+          ["Enter"],
+          ["Escape"],
+        ]),
+      );
+    });
+
+    it("writes and reads the input with setValue and getValue, firing no events", () => {
+      const { suggest, input } = makeSuggest();
+      const events: string[] = [];
+      input.addEventListener("input", () => events.push("input"));
+      input.addEventListener("change", () => events.push("change"));
+
+      expect(suggest.setValue("be")).toBeUndefined();
+
+      expect(input.value).toBe("be");
+      expect(suggest.getValue()).toBe("be");
+      input.value = "gam";
+      expect(suggest.getValue()).toBe("gam");
+      expect(events).toEqual([]);
+      expect(suggest.calls).toEqual([]);
+      expect(internals(suggest).isOpen).toBe(false);
+    });
+
+    it("queries, renders every row, then opens when the input gains focus", () => {
+      const { suggest, input } = makeSuggest();
+      suggest.setValue("");
+
+      input.focus();
+
+      expect(suggest.calls).toEqual([
+        ["getSuggestions", ""],
+        ["renderSuggestion", "alpha", "suggestion-item"],
+        ["renderSuggestion", "beta", "suggestion-item"],
+        ["renderSuggestion", "gamma", "suggestion-item"],
+        ["open"],
+      ]);
+      expect(internals(suggest).isOpen).toBe(true);
+    });
+
+    it("builds .suggestion-container > .suggestion > .suggestion-item in the body, first row selected", () => {
+      const { suggest, input } = makeSuggest();
+
+      input.focus();
+
+      const container = document.querySelector(".suggestion-container");
+      expect(container).toBe(internals(suggest).suggestEl);
+      expect(container?.parentElement).toBe(document.body);
+      expect(container?.firstElementChild?.className).toBe("suggestion");
+      expect(
+        Array.from(
+          container?.querySelectorAll(".suggestion > .suggestion-item") ?? [],
+        ).map((row) => row.className),
+      ).toEqual([
+        "suggestion-item is-selected",
+        "suggestion-item",
+        "suggestion-item",
+      ]);
+      expect(rows(suggest)).toEqual(["alpha*", "beta", "gamma"]);
+    });
+
+    it("re-queries on each input event while focused, rendering within the dispatch", () => {
+      const { suggest, input } = makeSuggest();
+      input.focus();
+      suggest.calls.length = 0;
+
+      typeInto(input, "bet");
+
+      expect(suggest.calls).toEqual([
+        ["getSuggestions", "bet"],
+        ["renderSuggestion", "beta", "suggestion-item"],
+        ["open"],
+      ]);
+      expect(rows(suggest)).toEqual(["beta*"]);
+    });
+
+    it("ignores an input event while the input is not the active element", () => {
+      const { suggest, input } = makeSuggest();
+
+      typeInto(input, "gam");
+
+      expect(suggest.calls).toEqual([]);
+      expect(internals(suggest).isOpen).toBe(false);
+    });
+
+    it("does not reopen on a click once closed", () => {
+      const { suggest, input } = makeSuggest();
+      input.focus();
+      suggest.close();
+      suggest.calls.length = 0;
+
+      input.click();
+
+      expect(suggest.calls).toEqual([]);
+      expect(internals(suggest).isOpen).toBe(false);
+    });
+
+    it("closes at once, through close(), when the input blurs", () => {
+      const { suggest, input } = makeSuggest();
+      input.focus();
+      suggest.calls.length = 0;
+
+      input.blur();
+
+      expect(suggest.calls).toEqual([["close"]]);
+      expect(internals(suggest).isOpen).toBe(false);
+      expect(document.querySelector(".suggestion-container")).toBeNull();
+    });
+
+    it("empties the rows and detaches the container on close, and ignores a repeated close or open", () => {
+      const { suggest, input } = makeSuggest();
+      input.focus();
+      const inner = internals(suggest);
+
       expect(suggest.close()).toBeUndefined();
+
+      expect(inner.suggestInnerEl.children.length).toBe(0);
+      expect(inner.suggestEl.isConnected).toBe(false);
+      suggest.close();
+      suggest.open();
+      suggest.open();
+      expect(document.querySelectorAll(".suggestion-container").length).toBe(1);
+      suggest.close();
+      expect(document.querySelectorAll(".suggestion-container").length).toBe(0);
+    });
+
+    it("shows rows from showSuggestions without querying, and closes on an empty list", () => {
+      const { suggest, input } = makeSuggest();
+      input.focus();
+      suggest.calls.length = 0;
+
+      expect(internals(suggest).showSuggestions(["x1", "x2"])).toBeUndefined();
+
+      expect(suggest.calls).toEqual([
+        ["renderSuggestion", "x1", "suggestion-item"],
+        ["renderSuggestion", "x2", "suggestion-item"],
+        ["open"],
+      ]);
+      expect(rows(suggest)).toEqual(["x1*", "x2"]);
+      suggest.calls.length = 0;
+
+      internals(suggest).showSuggestions([]);
+
+      expect(suggest.calls).toEqual([["close"]]);
+      expect(internals(suggest).isOpen).toBe(false);
+    });
+
+    it("runs a query from onInputChange and onInputFocus called directly", () => {
+      const { suggest, input } = makeSuggest();
+      input.focus();
+      suggest.setValue("a");
+      suggest.close();
+      suggest.calls.length = 0;
+
+      internals(suggest).onInputChange();
+      expect(suggest.calls[0]).toEqual(["getSuggestions", "a"]);
+      expect(internals(suggest).isOpen).toBe(true);
+      suggest.close();
+      suggest.calls.length = 0;
+
+      internals(suggest).onInputFocus();
+      expect(suggest.calls[0]).toEqual(["getSuggestions", "a"]);
+      expect(internals(suggest).isOpen).toBe(true);
+    });
+
+    it("closes on an empty result and leaves the popover alone for a falsy one", () => {
+      const { suggest, input } = makeSuggest();
+      input.focus();
+
+      suggest.produce = () => undefined as unknown as string[];
+      typeInto(input, "u");
+      expect(rows(suggest)).toEqual(["alpha*", "beta", "gamma"]);
+      expect(internals(suggest).isOpen).toBe(true);
+
+      suggest.produce = () => null as unknown as string[];
+      typeInto(input, "n");
+      expect(rows(suggest)).toEqual(["alpha*", "beta", "gamma"]);
+      expect(internals(suggest).isOpen).toBe(true);
+
+      suggest.produce = () => [];
+      typeInto(input, "e");
+      expect(internals(suggest).isOpen).toBe(false);
+      expect(document.querySelector(".suggestion-container")).toBeNull();
+    });
+
+    it("awaits a promised result, keeping the old rows until it resolves", async () => {
+      const { suggest, input } = makeSuggest();
+      input.focus();
+      let resolve!: (values: string[]) => void;
+      suggest.produce = () =>
+        new Promise<string[]>((r) => {
+          resolve = r;
+        });
+
+      typeInto(input, "p");
+      expect(rows(suggest)).toEqual(["alpha*", "beta", "gamma"]);
+      resolve(["late"]);
+      await flushPromises();
+
+      expect(rows(suggest)).toEqual(["late*"]);
+    });
+
+    it("drops a promised result that a newer query has superseded", async () => {
+      const { suggest, input } = makeSuggest();
+      input.focus();
+      const pending: Array<(values: string[]) => void> = [];
+      suggest.produce = () =>
+        new Promise<string[]>((r) => {
+          pending.push(r);
+        });
+
+      typeInto(input, "1");
+      typeInto(input, "2");
+      pending[1]?.(["second"]);
+      await flushPromises();
+      pending[0]?.(["first"]);
+      await flushPromises();
+
+      expect(rows(suggest)).toEqual(["second*"]);
+    });
+
+    it("renders at most `limit` rows, and every row when limit is 0", () => {
+      const { suggest, input } = makeSuggest();
+      const many = Array.from({ length: 150 }, (_, i) => `n${i}`);
+      suggest.produce = () => many;
+      input.focus();
+      expect(rows(suggest).length).toBe(100);
+
+      suggest.limit = 3;
+      typeInto(input, "q");
+      expect(rows(suggest).length).toBe(3);
+
+      suggest.limit = 0;
+      typeInto(input, "r");
+      expect(rows(suggest).length).toBe(150);
+    });
+
+    it("does not open for an input that is hidden", () => {
+      const { suggest, input } = makeSuggest();
+      input.setCssProps({ display: "none" });
+
+      internals(suggest).showSuggestions(["h1"]);
+
+      expect(internals(suggest).isOpen).toBe(false);
+      expect(document.querySelector(".suggestion-container")).toBeNull();
+    });
+
+    it("moves the selection with the scope keys, wrapping at both ends", () => {
+      const { suggest, input } = makeSuggest();
+      input.focus();
+
+      expect(pressKey(suggest, "ArrowDown")).toBe(false);
+      expect(rows(suggest)).toEqual(["alpha", "beta*", "gamma"]);
+      pressKey(suggest, "ArrowDown");
+      pressKey(suggest, "ArrowDown");
+      expect(rows(suggest)).toEqual(["alpha*", "beta", "gamma"]);
+      pressKey(suggest, "ArrowUp");
+      expect(rows(suggest)).toEqual(["alpha", "beta", "gamma*"]);
+      expect(pressKey(suggest, "Home")).toBe(false);
+      expect(rows(suggest)).toEqual(["alpha*", "beta", "gamma"]);
+      expect(pressKey(suggest, "End")).toBe(false);
+      expect(rows(suggest)).toEqual(["alpha", "beta", "gamma*"]);
+      pressKey(suggest, "Home");
+      pressKey(suggest, "N", ["Ctrl"]);
+      expect(rows(suggest)).toEqual(["alpha", "beta*", "gamma"]);
+      pressKey(suggest, "P", ["Ctrl"]);
+      expect(rows(suggest)).toEqual(["alpha*", "beta", "gamma"]);
+    });
+
+    it("selects the row under the pointer on mousemove only, not on mouseover or mouseenter", () => {
+      const { suggest, input } = makeSuggest();
+      input.focus();
+      const items =
+        internals(suggest).suggestEl.querySelectorAll(".suggestion-item");
+
+      items[2]?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+      items[2]?.dispatchEvent(new MouseEvent("mouseenter", { bubbles: true }));
+      expect(rows(suggest)).toEqual(["alpha*", "beta", "gamma"]);
+      items[2]?.dispatchEvent(new MouseEvent("mousemove", { bubbles: true }));
+
+      expect(rows(suggest)).toEqual(["alpha", "beta", "gamma*"]);
+    });
+
+    it("cancels a mousedown on a row so the input keeps focus, and a click selects that row", () => {
+      const { suggest, input } = makeSuggest();
+      input.focus();
+      const seen: Array<[string, string]> = [];
+      suggest.onSelect((value, evt) => seen.push([value, evt.type]));
+      const items =
+        internals(suggest).suggestEl.querySelectorAll(".suggestion-item");
+
+      const down = new MouseEvent("mousedown", {
+        bubbles: true,
+        cancelable: true,
+      });
+      items[1]?.dispatchEvent(down);
+      expect(down.defaultPrevented).toBe(true);
+      expect(seen).toEqual([]);
+      items[1]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+      expect(seen).toEqual([["beta", "click"]]);
+      expect(rows(suggest)).toEqual(["alpha", "beta*", "gamma"]);
+    });
+
+    it("selects the current row on Enter and passes the keyboard event on", () => {
+      const { suggest, input } = makeSuggest();
+      input.focus();
+      const seen: Array<[string, string]> = [];
+      suggest.onSelect((value, evt) => seen.push([value, evt.type]));
+      pressKey(suggest, "ArrowDown");
+
+      expect(pressKey(suggest, "Enter")).toBe(false);
+
+      expect(seen).toEqual([["beta", "keydown"]]);
+    });
+
+    it("closes on Escape, and reopens when the user types again", () => {
+      const { suggest, input } = makeSuggest();
+      input.focus();
+
+      expect(pressKey(suggest, "Escape")).toBe(false);
+      expect(internals(suggest).isOpen).toBe(false);
+      expect(document.activeElement).toBe(input);
+      typeInto(input, "a");
+
+      expect(internals(suggest).isOpen).toBe(true);
+    });
+
+    // Observed: the base selectSuggestion only calls the onSelect callback. It
+    // does not set the input's value and does not close the popover, so a
+    // consumer's override does both itself.
+    it("calls only the onSelect callback from the base selectSuggestion", () => {
+      const { suggest, input } = makeSuggest();
+      input.focus();
+      const seen: Array<[string, string]> = [];
+      suggest.onSelect((value, evt) => seen.push([value, evt.type]));
+
+      const returned = suggest.selectSuggestion(
+        "beta",
+        new MouseEvent("click"),
+      );
+
+      expect(returned).toBeUndefined();
+      expect(seen).toEqual([["beta", "click"]]);
+      expect(input.value).toBe("");
+      expect(internals(suggest).isOpen).toBe(true);
+    });
+
+    it("keeps only the latest onSelect callback, and onSelect returns the suggest", () => {
+      const { suggest } = makeSuggest();
+      const seen: string[] = [];
+
+      expect(suggest.onSelect(() => seen.push("first"))).toBe(suggest);
+      suggest.onSelect(() => seen.push("second"));
+      suggest.selectSuggestion("x", new MouseEvent("click"));
+
+      expect(seen).toEqual(["second"]);
+    });
+
+    it("runs a subclass selectSuggestion on click, and its super call is what reaches onSelect", () => {
+      const seen: string[] = [];
+      class Overriding extends RecordingSuggest {
+        selectSuggestion(value: string, evt: MouseEvent | KeyboardEvent): void {
+          seen.push(`override:${value}`);
+          if (value === "beta") super.selectSuggestion(value, evt);
+          this.setValue(value);
+          this.close();
+        }
+      }
+      const input = addInput();
+      const suggest = new Overriding(new App(), input);
+      suggest.onSelect((value) => seen.push(`onSelect:${value}`));
+      input.focus();
+      const items =
+        internals(suggest).suggestEl.querySelectorAll(".suggestion-item");
+
+      items[0]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      expect(seen).toEqual(["override:alpha"]);
+      suggest.setValue("");
+      input.blur();
+      input.focus();
+      const again =
+        internals(suggest).suggestEl.querySelectorAll(".suggestion-item");
+      seen.length = 0;
+      again[1]?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+      expect(seen).toEqual(["override:beta", "onSelect:beta"]);
+      expect(input.value).toBe("beta");
+      expect(internals(suggest).isOpen).toBe(false);
+    });
+
+    it("leaves a popover open when an overriding selectSuggestion does not close it", () => {
+      class NoClose extends RecordingSuggest {
+        selectSuggestion(): void {}
+      }
+      const input = addInput();
+      const suggest = new NoClose(new App(), input);
+      input.focus();
+
+      internals(suggest)
+        .suggestEl.querySelector(".suggestion-item")
+        ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+      expect(internals(suggest).isOpen).toBe(true);
+    });
+
+    // Divergence: the real class reads and writes `innerText` here.
+    it("reads and writes a contenteditable div as well as an input", () => {
+      const div = createDiv();
+      div.setAttr("contenteditable", "true");
+      document.body.appendChild(div);
+      const calls: string[] = [];
+      class DivSuggest extends AbstractInputSuggest<string> {
+        protected getSuggestions(query: string): string[] {
+          calls.push(query);
+          return ["d1"];
+        }
+        renderSuggestion(value: string, el: HTMLElement): void {
+          el.setText(value);
+        }
+      }
+      const suggest = new DivSuggest(new App(), div);
+
+      suggest.setValue("hello");
+
+      expect(div.textContent).toBe("hello");
+      expect(suggest.getValue()).toBe("hello");
+      expect("value" in div).toBe(false);
+      div.focus();
+      expect(calls).toEqual(["hello"]);
+      expect(internals(suggest).isOpen).toBe(true);
+      div.blur();
+      expect(internals(suggest).isOpen).toBe(false);
+    });
+
+    // Observed: `getSuggestions` and `renderSuggestion` are looked up on the
+    // instance when first needed, so a subclass that omits one throws a
+    // TypeError at that point (the real messages name `this.getSuggestions` and
+    // `this.chooser.renderSuggestion`).
+    it("throws a TypeError when a subclass omits an abstract member", () => {
+      const BareSuggest = AbstractInputSuggest as unknown as new (
+        app: App,
+        el: HTMLInputElement,
+      ) => object;
+      const input = addInput();
+      // Focus before constructing, so the focus listener does not throw inside
+      // the event dispatch.
+      input.focus();
+      const bare = new BareSuggest(new App(), input);
+
+      expect(() => internals(bare).onInputChange()).toThrow(TypeError);
+      expect(() => internals(bare).showSuggestions(["x"])).toThrow(TypeError);
+    });
+
+    // Not modeled (see the list at the top of this block): the geometry
+    // methods exist so a consumer can call them, and do nothing.
+    it("keeps reposition and autoReposition as no-ops", () => {
+      const { suggest, input } = makeSuggest();
+      input.focus();
+      const before = internals(suggest).suggestEl.outerHTML;
+
+      expect(
+        internals(suggest).reposition({ top: 1, bottom: 2 }),
+      ).toBeUndefined();
+      expect(internals(suggest).autoReposition()).toBeUndefined();
+
+      expect(internals(suggest).suggestEl.outerHTML).toBe(before);
     });
   });
 });
@@ -2240,6 +2828,288 @@ describe("Obsidian stub contract: renaming", () => {
         "Destination file already exists!",
       );
       expect(await vault.read(file)).toBe("one");
+    });
+  });
+});
+
+describe("Obsidian stub contract: external writes and vault events", () => {
+  // Ledger: "External writes and vault events" in
+  // `obsidian-console-probes.md` (#1403), observed on Obsidian 1.14.4 desktop
+  // (Windows 11). An external write is what an Obsidian Sync delivery looks
+  // like to the plugin: a file that changed behind the vault adapter.
+  type VaultEvent = [name: string, ...args: unknown[]];
+  // `App` as a type is the real one; `new App()` is typed as the stub.
+  type StubApp = Awaited<ReturnType<typeof setup>>["app"];
+  type StubVault = StubApp["vault"];
+
+  const manifest = {
+    id: "probe",
+    name: "Probe",
+    version: "0.0.0",
+    minAppVersion: "1.0.0",
+    author: "probe",
+    description: "",
+  };
+
+  async function setup() {
+    const app = new App();
+    const { vault } = app;
+    await vault.createFolder("feeds");
+    await vault.create("feeds/a.json", "{}");
+    const events: VaultEvent[] = [];
+    for (const name of ["modify", "create", "delete", "rename", "raw"]) {
+      vault.on(name, (...args: unknown[]) => events.push([name, ...args]));
+    }
+    return { app, vault, events };
+  }
+
+  const pathOf = (arg: unknown): string =>
+    typeof arg === "string" ? arg : (arg as { path: string }).path;
+
+  const pathsOf = (events: VaultEvent[], name: string): string[] =>
+    events
+      .filter(([eventName]) => eventName === name)
+      .map(([, arg]) => pathOf(arg));
+
+  const withoutRaw = (events: VaultEvent[]): VaultEvent[] =>
+    events.filter(([name]) => name !== "raw");
+
+  describe("event registration", () => {
+    // Obsidian's `Events`: `on()` returns an `EventRef`, `offref()` detaches
+    // it, and `trigger()` calls every handler for the name.
+    it("calls a handler on trigger and stops after offref", async () => {
+      const { vault } = await setup();
+      const calls: unknown[][] = [];
+      const ref = vault.on("custom", (...args: unknown[]) => calls.push(args));
+
+      vault.trigger("custom", 1, "two");
+      vault.offref(ref);
+      vault.trigger("custom", 3);
+
+      expect(calls).toEqual([[1, "two"]]);
+    });
+
+    it("detaches a handler when its owner unloads", async () => {
+      const { vault } = await setup();
+      class ProbePlugin extends Plugin {}
+      const plugin = new ProbePlugin(new App(), manifest);
+      plugin.load();
+      const calls: unknown[][] = [];
+      plugin.registerEvent(
+        vault.on("custom", (...args: unknown[]) => calls.push(args)),
+      );
+
+      plugin.unload();
+      vault.trigger("custom");
+
+      expect(calls).toEqual([]);
+    });
+  });
+
+  describe("modify, create and delete", () => {
+    // Ledger rows a3 (modify) and a4 (create, delete): each fires the
+    // matching `vault.on` event with the file, and `adapter.stat` reports it.
+    it("fires modify for an external write to an existing file", async () => {
+      const { vault, events } = await setup();
+      const before = await vault.adapter.stat("feeds/a.json");
+
+      vault.externalWrite("feeds/a.json", "{ }");
+
+      expect(pathsOf(events, "modify")).toEqual(["feeds/a.json"]);
+      expect(pathsOf(events, "create")).toEqual([]);
+      const after = await vault.adapter.stat("feeds/a.json");
+      expect(after?.size).toBe((before?.size ?? 0) + 1);
+      expect(after?.mtime).toBeGreaterThan(before?.mtime ?? 0);
+      expect(await vault.adapter.read("feeds/a.json")).toBe("{ }");
+    });
+
+    // Ledger "Real Sync pass, run 1": Sync keeps the sender's mtime and size
+    // on a delivered file.
+    it("keeps the mtime an external write is given", async () => {
+      const { vault } = await setup();
+
+      vault.externalWrite("feeds/a.json", "{ }", { mtime: 1_234 });
+
+      expect(await vault.adapter.stat("feeds/a.json")).toMatchObject({
+        mtime: 1_234,
+        size: 3,
+      });
+    });
+
+    it("fires create for an external write to a new file and stat sees it", async () => {
+      const { vault, events } = await setup();
+      expect(await vault.adapter.stat("feeds/new.json")).toBeNull();
+
+      vault.externalWrite("feeds/new.json", "[1,2,3]");
+
+      expect(pathsOf(events, "create")).toEqual(["feeds/new.json"]);
+      expect(pathsOf(events, "modify")).toEqual([]);
+      expect(await vault.adapter.stat("feeds/new.json")).toMatchObject({
+        type: "file",
+        size: 7,
+      });
+      expect(vault.getAbstractFileByPath("feeds/new.json")).not.toBeNull();
+    });
+
+    it("fires delete for an external delete and stat reports it gone", async () => {
+      const { vault, events } = await setup();
+
+      vault.externalDelete("feeds/a.json");
+
+      expect(pathsOf(events, "delete")).toEqual(["feeds/a.json"]);
+      expect(await vault.adapter.stat("feeds/a.json")).toBeNull();
+      expect(await vault.adapter.exists("feeds/a.json")).toBe(false);
+      expect(vault.getAbstractFileByPath("feeds/a.json")).toBeNull();
+    });
+  });
+
+  describe("rename", () => {
+    // Ledger row a4: a rename from outside arrives as `create` (new path),
+    // then `delete` (old path), and never as `rename`.
+    it("arrives as create for the new path, then delete for the old, with no rename", async () => {
+      const { vault, events } = await setup();
+
+      vault.externalRename("feeds/a.json", "feeds/b.json");
+
+      expect(
+        withoutRaw(events).map(([name, file]) => [name, pathOf(file)]),
+      ).toEqual([
+        ["create", "feeds/b.json"],
+        ["delete", "feeds/a.json"],
+      ]);
+      expect(await vault.adapter.exists("feeds/a.json")).toBe(false);
+      expect(await vault.adapter.read("feeds/b.json")).toBe("{}");
+    });
+  });
+
+  describe("delete then create within one watcher tick", () => {
+    // Ledger row a4: a delete then a create of one path, back to back,
+    // collapses to one `modify`, with no `delete` and no `create`.
+    it("collapses to a single modify", async () => {
+      const { vault, events } = await setup();
+
+      vault.externalTick(() => {
+        vault.externalDelete("feeds/a.json");
+        vault.externalWrite("feeds/a.json", "[]");
+      });
+
+      expect(withoutRaw(events).map(([name]) => name)).toEqual(["modify"]);
+      expect(await vault.adapter.read("feeds/a.json")).toBe("[]");
+    });
+  });
+
+  describe("hidden paths", () => {
+    // Ledger row b1: nothing under a dot-folder fires a `vault.on` event
+    // except `raw`, and `adapter.stat` sees every step.
+    it("fires only raw for a path under a dot folder, and stat still sees it", async () => {
+      const { vault, events } = await setup();
+      vault.addFolderOnDisk(".sync-probe");
+
+      vault.externalWrite(".sync-probe/p.json", "{}");
+      expect(await vault.adapter.stat(".sync-probe/p.json")).toMatchObject({
+        type: "file",
+        size: 2,
+      });
+      vault.externalWrite(".sync-probe/p.json", "{ }");
+      vault.externalRename(".sync-probe/p.json", ".sync-probe/q.json");
+      vault.externalDelete(".sync-probe/q.json");
+
+      expect(withoutRaw(events)).toEqual([]);
+      expect(pathsOf(events, "raw")).toContain(".sync-probe/p.json");
+      expect(await vault.adapter.stat(".sync-probe/q.json")).toBeNull();
+    });
+  });
+
+  describe("raw", () => {
+    // Ledger, "What the table means": `raw` fires for every case, with the
+    // changed path as its only argument.
+    it.each([
+      [
+        "a write",
+        (vault: StubVault) => vault.externalWrite("feeds/a.json", "1"),
+      ],
+      [
+        "a create",
+        (vault: StubVault) => vault.externalWrite("feeds/n.json", "1"),
+      ],
+      ["a delete", (vault: StubVault) => vault.externalDelete("feeds/a.json")],
+    ])("fires with the path alone for %s", async (label, act) => {
+      const { vault, events } = await setup();
+
+      act(vault);
+
+      const raw = events.filter(([name]) => name === "raw");
+      expect(raw).toHaveLength(1);
+      expect(raw[0]).toHaveLength(2);
+      expect(raw[0]?.[1]).toBe(
+        label === "a create" ? "feeds/n.json" : "feeds/a.json",
+      );
+    });
+
+    it("fires for both paths of a rename", async () => {
+      const { vault, events } = await setup();
+
+      vault.externalRename("feeds/a.json", "feeds/b.json");
+
+      expect(pathsOf(events, "raw").sort()).toEqual([
+        "feeds/a.json",
+        "feeds/b.json",
+      ]);
+    });
+  });
+
+  describe("identical bytes", () => {
+    // Ledger row a5: writing identical bytes still changes the mtime and
+    // still fires `modify`; the size stays the same.
+    it("changes mtime and fires modify while the size stays", async () => {
+      const { vault, events } = await setup();
+      const before = await vault.adapter.stat("feeds/a.json");
+
+      vault.externalWrite("feeds/a.json", "{}");
+
+      expect(pathsOf(events, "modify")).toEqual(["feeds/a.json"]);
+      const after = await vault.adapter.stat("feeds/a.json");
+      expect(after?.size).toBe(before?.size);
+      expect(after?.mtime).toBeGreaterThan(before?.mtime ?? 0);
+    });
+  });
+
+  describe("bootstrap pointer", () => {
+    function pluginWithPointer(app: StubApp) {
+      const dir = `${app.vault.configDir}/plugins/probe`;
+      class ProbePlugin extends Plugin {
+        external = 0;
+        onExternalSettingsChange(): void {
+          this.external++;
+        }
+      }
+      app.vault.addFolderOnDisk(dir);
+      const plugin = new ProbePlugin(app, { ...manifest, dir });
+      return { plugin, pointer: `${dir}/data.json` };
+    }
+
+    // Ledger row c1: a change to `<configDir>/plugins/<id>/data.json` calls
+    // `onExternalSettingsChange` once and fires no `vault.on` event but `raw`.
+    it("calls onExternalSettingsChange once and fires no vault event but raw", async () => {
+      const { app, vault, events } = await setup();
+      const { plugin, pointer } = pluginWithPointer(app);
+      await vault.adapter.write(pointer, "{}");
+
+      vault.externalWrite(pointer, '{"a":1}');
+
+      expect(plugin.external).toBe(1);
+      expect(withoutRaw(events)).toEqual([]);
+      expect(pathsOf(events, "raw")).toContain(pointer);
+      expect(await vault.adapter.stat(pointer)).toMatchObject({ size: 7 });
+    });
+
+    it("does not call onExternalSettingsChange for other files", async () => {
+      const { app, vault } = await setup();
+      const { plugin } = pluginWithPointer(app);
+
+      vault.externalWrite("feeds/a.json", "{ }");
+
+      expect(plugin.external).toBe(0);
     });
   });
 });

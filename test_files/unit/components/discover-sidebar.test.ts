@@ -137,7 +137,7 @@ describe("DiscoverSidebar", () => {
     expect(callbacks.onFilterChange).toHaveBeenCalledTimes(2);
   });
 
-  it("fires header callbacks for Return Home and Kagi Smallweb with click + keyboard parity", () => {
+  it("fires header callbacks for Return Home and Kagi Smallweb from native buttons", () => {
     const { container, callbacks } = setupSidebar();
 
     const returnHome = container.querySelector(
@@ -145,17 +145,14 @@ describe("DiscoverSidebar", () => {
     ) as HTMLElement;
     expect(returnHome).toBeTruthy();
     expect(lucideIconId(returnHome)).toBe("arrow-left");
-    expect(returnHome.getAttribute("role")).toBe("button");
-    expect(returnHome.getAttribute("tabindex")).toBe("0");
+    // Native button: the browser supplies role, focus and Enter/Space.
+    expect(returnHome.tagName).toBe("BUTTON");
+    expect(returnHome.getAttribute("type")).toBe("button");
+    expect(returnHome.hasAttribute("role")).toBe(false);
+    expect(returnHome.hasAttribute("tabindex")).toBe(false);
 
     returnHome.click();
     expect(callbacks.onActivateView).toHaveBeenCalledTimes(1);
-
-    returnHome.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
-    expect(callbacks.onActivateView).toHaveBeenCalledTimes(2);
-
-    returnHome.dispatchEvent(new KeyboardEvent("keydown", { key: " " }));
-    expect(callbacks.onActivateView).toHaveBeenCalledTimes(3);
 
     const smallweb = container.querySelector(
       ".rss-discover-smallweb-button",
@@ -163,17 +160,13 @@ describe("DiscoverSidebar", () => {
     expect(smallweb).toBeTruthy();
     expect(lucideIconId(smallweb)).toBe("sparkles");
     expect(smallweb.textContent).toContain("Kagi");
-    expect(smallweb.getAttribute("role")).toBe("button");
-    expect(smallweb.getAttribute("tabindex")).toBe("0");
+    expect(smallweb.tagName).toBe("BUTTON");
+    expect(smallweb.getAttribute("type")).toBe("button");
+    expect(smallweb.hasAttribute("role")).toBe(false);
+    expect(smallweb.hasAttribute("tabindex")).toBe(false);
 
     smallweb.click();
     expect(callbacks.onActivateSmallwebView).toHaveBeenCalledTimes(1);
-
-    smallweb.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
-    expect(callbacks.onActivateSmallwebView).toHaveBeenCalledTimes(2);
-
-    smallweb.dispatchEvent(new KeyboardEvent("keydown", { key: " " }));
-    expect(callbacks.onActivateSmallwebView).toHaveBeenCalledTimes(3);
 
     expect(
       container.querySelector(".rss-dashboard-header-close-button"),

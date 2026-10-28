@@ -12,6 +12,7 @@ import {
 import { firstNonFormulaImageUrl, isAvatarImageUrl } from "./image-url-utils";
 import { isFeedIconUrl } from "./reader-article-render";
 import { isLikelyVideoItem } from "./video-detection";
+import { resolveVideoSource } from "./video-source";
 import { getOpenableHttpHref } from "./url-utils";
 
 const VIDEO_ARTICLE_BANNER =
@@ -147,7 +148,28 @@ export function renderRestrictedBanner(
 
 /** True for a video item that carries no playable source of its own. */
 export function shouldRenderVideoSourceBanner(item: FeedItem): boolean {
-  return isLikelyVideoItem(item) && !item.videoId && !item.videoUrl;
+  return (
+    isLikelyVideoItem(item) &&
+    !item.videoId &&
+    !item.videoUrl &&
+    // The route only opens the player for a video-typed item.
+    !(item.mediaType === "video" && resolveVideoSource(item))
+  );
+}
+
+/**
+ * True for a starred.json-imported article (234-09) that has never had a
+ * full-content fetch attempted, or whose last attempt failed. The reader's
+ * automatic fetch-on-open is skipped in both cases - a fetch only happens
+ * when the user clicks "Fetch now" on the cached-preview banner. Articles
+ * that never came from a starred import (no `starredImportContentState` at
+ * all) always return false here.
+ */
+export function isStarredImportCachedPreview(item: FeedItem): boolean {
+  return (
+    item.starredImportContentState === "unfetched" ||
+    item.starredImportContentState === "failed"
+  );
 }
 
 /** Banner for a video item that carries no playable source of its own. */

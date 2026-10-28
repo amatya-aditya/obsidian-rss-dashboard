@@ -61,7 +61,7 @@
 
 .rss-dashboard-card-view
   .rss-dashboard-card-preview-region
-  .rss-dashboard-cover-container.has-summary:hover
+  .rss-dashboard-cover-container.has-summary.is-previewing
   .rss-dashboard-cover-image {
   opacity: 0;
 }
@@ -75,7 +75,7 @@
 
 .rss-dashboard-card-view
   .rss-dashboard-card-preview-region
-  .rss-dashboard-cover-container.has-summary:hover
+  .rss-dashboard-cover-container.has-summary.is-previewing
   .rss-dashboard-summary-overlay {
   opacity: 1;
 }
@@ -86,6 +86,25 @@
   .rss-dashboard-summary-overlay {
   opacity: 1;
   overflow-y: auto;
+}
+
+/* Hover reveals the Preview only where hover exists (#1530); on a touch screen
+   :hover sticks to the last touched element, so a rebuilt card would arrive
+   already covered. */
+@media (hover: hover) {
+  .rss-dashboard-card-view
+    .rss-dashboard-card-preview-region
+    .rss-dashboard-cover-container.has-summary:hover
+    .rss-dashboard-cover-image {
+    opacity: 0;
+  }
+
+  .rss-dashboard-card-view
+    .rss-dashboard-card-preview-region
+    .rss-dashboard-cover-container.has-summary:hover
+    .rss-dashboard-summary-overlay {
+    opacity: 1;
+  }
 }
 
 .rss-dashboard-article-summary {
@@ -106,15 +125,15 @@
 .rss-dashboard-tag-badge {
   padding: 2px 8px;
   font-size: 0.8em;
-  color: var(--text-on-accent);
+  color: var(--tag-text-color, var(--text-on-accent));
 }
 
 .rss-dashboard-tag-overflow {
   padding: 2px 8px;
   border-radius: var(--rss-dashboard-tag-chip-radius, 999px);
   font-size: 0.8em;
-  background: var(--interactive-accent);
-  color: var(--text-on-accent);
+  background: var(--tag-color, var(--interactive-accent));
+  color: var(--tag-text-color, var(--text-on-accent));
 }
 
 .rss-dashboard-action-toolbar {
@@ -143,7 +162,6 @@
 .rss-dashboard-folder,
 .rss-dashboard-feed,
 .rss-dashboard-sidebar-tag,
-.rss-dashboard-toolbar-button,
 .rss-dashboard-view-toggle button,
 .rss-dashboard-read-toggle,
 .rss-dashboard-star-toggle,
@@ -292,7 +310,7 @@
 }
 
 .rss-dashboard-article-title {
-  font-size: 1.1em;
+  font-size: calc(1.1em * var(--rss-dashboard-article-title-scale, 1));
   font-weight: 600;
   color: var(--text-normal);
   margin-bottom: 2px;
@@ -389,7 +407,7 @@
   }
 
   .rss-dashboard-article-title {
-    font-size: 1.15em;
+    font-size: calc(1.15em * var(--rss-dashboard-article-title-scale, 1));
     line-height: 1.4;
   }
 }
@@ -431,7 +449,7 @@
   }
 
   .rss-dashboard-article-title {
-    font-size: 1.05em;
+    font-size: calc(1.05em * var(--rss-dashboard-article-title-scale, 1));
     line-height: 1.35;
   }
 }
@@ -451,7 +469,7 @@
   }
 
   .rss-dashboard-article-title {
-    font-size: 1em;
+    font-size: calc(1em * var(--rss-dashboard-article-title-scale, 1));
     line-height: 1.3;
   }
 
@@ -483,7 +501,7 @@
   }
 
   .rss-dashboard-article-title {
-    font-size: 1em;
+    font-size: calc(1em * var(--rss-dashboard-article-title-scale, 1));
     line-height: 1.35;
     margin-bottom: 8px;
   }
@@ -532,7 +550,7 @@
   }
 
   .rss-dashboard-article-title {
-    font-size: 1em;
+    font-size: calc(1em * var(--rss-dashboard-article-title-scale, 1));
     line-height: 1.3;
     line-clamp: 2;
     -webkit-line-clamp: 2;
@@ -714,20 +732,6 @@
   will-change: opacity;
   font-size: 0.9em;
   line-height: 1.5;
-}
-
-.rss-dashboard-card-view
-  .rss-dashboard-card-preview-region
-  .rss-dashboard-cover-container.has-summary:hover
-  .rss-dashboard-cover-image {
-  opacity: 0;
-}
-
-.rss-dashboard-card-view
-  .rss-dashboard-card-preview-region
-  .rss-dashboard-cover-container.has-summary:hover
-  .rss-dashboard-summary-overlay {
-  opacity: 1;
 }
 
 .rss-dashboard-card-view

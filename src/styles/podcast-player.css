@@ -3,6 +3,9 @@
   padding: 8px;
   position: relative;
   overflow: hidden;
+  /* One colour for the sleep timer's active button and its seek-bar band
+     (#1371, DEC-006), so the two cannot diverge. */
+  --rss-sleep-timer-color: var(--interactive-accent);
 }
 
 @keyframes podcastGradientShift {
@@ -127,8 +130,8 @@
   padding: 2px 8px;
   border-radius: var(--rss-dashboard-tag-chip-radius, 999px);
   font-size: 0.8em;
-  background: var(--background-modifier-border);
-  color: var(--text-on-accent);
+  background: var(--tag-color, var(--background-modifier-border));
+  color: var(--tag-text-color, var(--text-on-accent));
 }
 
 .podcast-tag-more {
@@ -291,6 +294,17 @@
   color: var(--text-error);
 }
 
+/* The transport and volume controls are native buttons (#1478). They keep
+   clickable-icon, so Obsidian's button:not(.clickable-icon) fill and height skip
+   them; this drops the border, shadow and font the browser still gives a button.
+   :where() keeps it below the themes' per-control borders, which the old divs
+   already showed. */
+:where(.rss-reader-podcast-container) button.clickable-icon {
+  border: none;
+  box-shadow: none;
+  font-family: inherit;
+}
+
 /* 1.3 Tools Section (Positioned as a bar or bottom) */
 .podcast-tools-section {
   display: flex;
@@ -352,7 +366,7 @@
 }
 
 .rss-sleep-timer-btn.is-active {
-  color: var(--interactive-accent);
+  color: var(--rss-sleep-timer-color);
 }
 
 .rss-sleep-timer-inline-value {
@@ -369,6 +383,14 @@
 
 .rss-sleep-timer-btn.has-countdown .rss-sleep-timer-inline-value {
   display: inline;
+}
+
+/* A native button (#1478): the player-wide button.clickable-icon reset drops the
+   border, so this one restores its own and drops the UA shadow and font. */
+.rss-reader-podcast-container button.rss-sleep-timer-btn {
+  border: 1px solid var(--background-modifier-border);
+  box-shadow: none;
+  font-family: inherit;
 }
 
 .rss-reader-podcast-container .hidden {
@@ -391,6 +413,11 @@
 /* ROW 2: Progress Area */
 .podcast-progress-area {
   width: 100%;
+  /* The group's `aria-label` is the current chapter title, which the visible
+     label below repeats. Obsidian draws a native tooltip from it; that tooltip
+     lingers under the marker preview when the pointer moves from the label
+     onto a marker, so switch it off while keeping the accessible name. */
+  --no-tooltip: true;
 }
 
 .podcast-seekbar-row {
@@ -412,7 +439,9 @@
   border-radius: 6px;
   position: relative;
   cursor: pointer;
-  overflow: hidden;
+  /* Markers get a taller transparent hit area and a floating preview, so the
+     wrapper must not clip (DEC-011). The fill clips itself. */
+  overflow: visible;
 }
 
 .podcast-progress-bar {
@@ -427,6 +456,20 @@
   z-index: 2;
 }
 
+/* The native element stays above the fill so it keeps receiving seek clicks,
+   and Chromium paints its value and track pseudo-elements there even with
+   `appearance: none`. That UA paint covered the themed fill in every podcast
+   theme, so make it paint nothing: the wrapper's themed track and
+   .podcast-progress-bar-filled are the visible bar (#1409). */
+.podcast-progress-bar::-webkit-progress-bar,
+.podcast-progress-bar::-webkit-progress-value {
+  background: transparent;
+}
+
+.podcast-progress-bar::-moz-progress-bar {
+  background: transparent;
+}
+
 .podcast-progress-bar-filled {
   position: absolute;
   top: 0;
@@ -434,7 +477,184 @@
   height: 100%;
   width: var(--progress-percent, 0%);
   background: var(--rss-podcast-progress-color, #1db954);
+  border-radius: inherit;
+  overflow: hidden;
+  /* Above the sleep band so the band's overlap hides behind the rounded cap
+     (#1447); below the native progress element, which keeps seek input. */
+  z-index: 1;
   transition: width 0.1s linear;
+}
+
+/* Sleep timer band (#1371): a preview of the unplayed audio that will stop at
+   the timer's projected expiry. It starts a few pixels left of the playhead,
+   under the played fill, so the fill's rounded cap covers the join instead of
+   leaving the track showing between them (#1447), and it shares the active
+   button's colour at reduced opacity, mixed toward the text colour so it stays
+   visible on the light track. */
+.podcast-sleep-band {
+  /* The played fill's cap has a 6px radius. 8px covers it and leaves 2px of
+     band showing beside the cap at the top and bottom rows, which is what makes
+     the join read as two layers. max() keeps the band inside the track at the
+     start. */
+  --sleep-band-overlap: 8px;
+  --sleep-band-left: max(
+    0%,
+    calc(var(--sleep-band-start, 0%) - var(--sleep-band-overlap))
+  );
+  position: absolute;
+  top: 0;
+  left: var(--sleep-band-left);
+  height: 100%;
+  width: calc(var(--sleep-band-end, 0%) - var(--sleep-band-left));
+  background: color-mix(
+    in srgb,
+    var(--rss-sleep-timer-color) 60%,
+    var(--text-normal)
+  );
+  border-radius: 0 6px 6px 0;
+  opacity: 0.4;
+  pointer-events: none;
+  z-index: 0;
+  transition:
+    left 0.1s linear,
+    width 0.1s linear;
+}
+
+/* Shared marker layer (#1374, reused by #1357). It sits above the progress
+   element so each marker button takes its own click, while the layer itself
+   lets pointer events through to the bar between markers. The 32 px hit area
+   is the design-spec baseline; dense lists overlap, and the layer resolves a
+   click to the nearest tick (DEC-012). */
+.seek-bar-marker-layer {
+  position: absolute;
+  inset: -10px 0;
+  z-index: 3;
+  pointer-events: none;
+  /* Obsidian draws its own hover tooltip from `aria-label` and skips it when
+     this computes to "true". The plugin shows a richer preview on hover and
+     focus, so the two must not stack. The property inherits to the markers. */
+  --no-tooltip: true;
+}
+
+.seek-bar-marker {
+  position: absolute;
+  top: 50%;
+  left: var(--seek-bar-marker-position, 0%);
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-normal);
+  cursor: pointer;
+  pointer-events: auto;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  opacity: 1;
+  transition: opacity 0.15s ease;
+}
+
+/* The 32 px hit area is deliberately invisible: only the tick shows. Obsidian's
+   global `button` styling paints a background and shadow here, so this scoped
+   selector out-specifies it without !important (#1374 v1, WCAG trade-off
+   accepted). The keyboard focus outline still marks the target when focused. */
+.rss-reader-podcast-container
+  .podcast-progress-bar-wrapper
+  .seek-bar-marker[type="button"] {
+  appearance: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* The visible tick: a 2 px core with a one-pixel ring so it keeps a 3:1 edge
+   against both the unfilled track and the accent fill (WCAG 1.4.11). The ring
+   is the player background, so it is only dark in a dark base theme; with a
+   light base it measures 1.5–2.6:1 on the lighter fills. Accepted limitation
+   (#1409, DEC-010), not a regression from the paint fix. */
+.seek-bar-marker::before {
+  content: "";
+  width: 2px;
+  height: 12px;
+  border-radius: 1px;
+  background: currentColor;
+  box-shadow:
+    0 0 0 1px var(--background-primary),
+    0 0 0 2px currentColor;
+  transition: height 0.15s ease;
+}
+
+/* Passed markers dim and shorten, so the state is not carried by opacity
+   alone. Only the tick body and its colour edge dim; the one-pixel ring stays
+   opaque, because it is what keeps a 3:1 boundary against the themed fill in a
+   dark base theme (WCAG 1.4.11, #1409/DEC-010). The light-base limitation
+   above is accepted. */
+.seek-bar-marker.is-passed::before {
+  height: 8px;
+  background: color-mix(in srgb, currentColor 50%, transparent);
+  box-shadow:
+    0 0 0 1px var(--background-primary),
+    0 0 0 2px color-mix(in srgb, currentColor 50%, transparent);
+}
+
+.seek-bar-marker:hover {
+  z-index: 1;
+}
+
+.seek-bar-marker:focus-visible {
+  z-index: 1;
+}
+
+.seek-bar-marker.is-passed:focus-visible::before {
+  background: currentColor;
+}
+
+.seek-bar-marker:focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
+}
+
+.seek-bar-marker-preview {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: var(--seek-bar-marker-position, 0%);
+  transform: translateX(-50%);
+  z-index: 5;
+  width: max-content;
+  max-width: min(320px, 90%);
+  padding: 4px 8px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 6px;
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: hidden;
+  box-shadow: var(--shadow-s);
+  pointer-events: none;
+}
+
+.seek-bar-marker-preview[hidden] {
+  display: none;
+}
+
+.podcast-chapter-label {
+  margin-top: 4px;
+  min-width: 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.podcast-chapter-label[hidden] {
+  display: none;
 }
 
 /* Episode details (collapsible notes + metadata) */
@@ -456,7 +676,7 @@
   padding: 10px 12px;
   font-weight: 700;
   color: var(--text-normal);
-  background: color-mix(in srgb, var(--background-secondary) 80%, #5a5a5a 20%);
+  background: var(--background-secondary);
   border-bottom: 1px solid transparent;
   user-select: none;
   transition:
@@ -479,7 +699,7 @@
 }
 
 .podcast-episode-details > summary:hover {
-  background: color-mix(in srgb, var(--background-secondary) 70%, #6a6a6a 30%);
+  background: var(--background-modifier-hover);
 }
 
 .podcast-episode-details > summary:focus-visible {
@@ -703,8 +923,8 @@
   border-radius: var(--rss-dashboard-tag-chip-radius, 999px);
   font-size: 0.8em;
   line-height: 1.2;
-  background: var(--interactive-accent);
-  color: var(--text-on-accent);
+  background: var(--tag-color, var(--interactive-accent));
+  color: var(--tag-text-color, var(--text-on-accent));
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -888,20 +1108,23 @@
   font-weight: 700;
 }
 
+/* Text-labelled chips: the box grows to the label, keeping an icon-sized
+   minimum target. A fixed width/height clipped "Load 20 more episodes". */
 .episode-list-current,
 .episode-list-load-more {
-  width: 32px;
-  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 6px 12px;
   border: 1px solid var(--background-modifier-border);
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  white-space: nowrap;
   cursor: pointer;
 }
 
 .episode-list-load-more {
   margin: 12px auto 0;
-  padding: 6px 12px;
 }
 
 /* .active { theme specific styles apply via podcast-themes.css } */

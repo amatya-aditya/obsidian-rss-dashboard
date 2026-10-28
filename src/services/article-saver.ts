@@ -16,7 +16,12 @@ import { ensureUtf8Meta } from "../utils/platform-utils";
 import { withSavedTagName } from "../utils/tag-utils";
 import { isLikelyVideoItem } from "../utils/video-detection";
 import { articleHtmlToMarkdown } from "../utils/article-markdown";
-import { replaceYouTubeEmbedsInHtmlNote } from "../utils/youtube-embed";
+import {
+  embedMarkdown,
+  isYouTubeVideoId,
+  replaceYouTubeEmbedsInHtmlNote,
+  stripYouTubeEmbedMarkdown,
+} from "../utils/youtube-embed";
 import { normalizeSubstackImageUrl } from "../utils/substack-image-url";
 import {
   feedDescriptionToStripFromBody,
@@ -36,6 +41,12 @@ import {
   applyArticleMetadata,
   feedLanguageFor,
 } from "../utils/article-metadata-persistence";
+import {
+  bodyLeadsWithHero,
+  noteLeadsWithHero,
+  resolveNoteTemplate,
+  templateImageUrl,
+} from "./article-template/note-template";
 import { renderArticleTemplate } from "./article-template/render-template";
 import {
   ARTICLE_SAVER_FRONTMATTER_STEPS,
@@ -59,7 +70,9 @@ import {
   type SaveReport,
 } from "../utils/save-version";
 
-const MAX_FILENAME_LENGTH = 100;
+const MAX_FILENAME_LENGTH = 245;
+const MAX_FILENAME_BYTES = 255;
+const MARKDOWN_EXTENSION_BYTES = 3;
 const RSS_FALLBACK_MARKER =
   "> RSS feed content shown because the full article could not be fetched.";
 
@@ -68,15 +81,58 @@ export function sanitizeFilename(name: string): string {
 }
 
 function sanitizeFilenameStem(name: string): string {
-  const stem = name
-    .replace(/[/\\:*?"<>|]/g, "")
+  const cleaned = name
+    .replace(/[/\\:*?"<>|#\x5b\x5d^]/g, "")
     .replace(/\s+/g, " ")
     .trim()
-    .slice(0, MAX_FILENAME_LENGTH)
-    .trim();
+    .replace(/[. ]+$/g, "");
+  const stem = truncateFilenameStem(
+    cleaned,
+    MAX_FILENAME_LENGTH,
+    MAX_FILENAME_BYTES - MARKDOWN_EXTENSION_BYTES,
+  )
+    .trim()
+    .replace(/[. ]+$/g, "");
   return /^(?:CON|PRN|AUX|NUL|COM[1-9¹²³]|LPT[1-9¹²³])$/i.test(stem)
     ? ""
     : stem;
+}
+
+function truncateFilenameStem(
+  value: string,
+  maxCharacters: number,
+  maxBytes: number,
+): string {
+  let characterCount = 0;
+  let byteCount = 0;
+  let result = "";
+  for (const character of value) {
+    const codePoint = character.codePointAt(0);
+    if (
+      codePoint === undefined ||
+      (codePoint >= 0xd800 && codePoint <= 0xdfff)
+    ) {
+      continue;
+    }
+    const characterBytes =
+      codePoint <= 0x7f
+        ? 1
+        : codePoint <= 0x7ff
+          ? 2
+          : codePoint <= 0xffff
+            ? 3
+            : 4;
+    if (
+      characterCount >= maxCharacters ||
+      byteCount + characterBytes > maxBytes
+    ) {
+      break;
+    }
+    result += character;
+    characterCount += 1;
+    byteCount += characterBytes;
+  }
+  return result;
 }
 
 export function buildArticleFilename(
@@ -126,13 +182,34 @@ export function findAvailableArticlePath(
   let suffix = 2;
   while (app.vault.getAbstractFileByPath(pathFor(candidate)) !== null) {
     const suffixText = ` ${suffix}`;
-    const shortened = filename
-      .slice(0, MAX_FILENAME_LENGTH - suffixText.length)
-      .trim();
+    const shortened = truncateFilenameStem(
+      filename,
+      MAX_FILENAME_LENGTH - [...suffixText].length,
+      MAX_FILENAME_BYTES -
+        MARKDOWN_EXTENSION_BYTES -
+        utf8ByteLength(suffixText),
+    ).trim();
     candidate = `${shortened}${suffixText}`;
     suffix += 1;
   }
   return pathFor(candidate);
+}
+
+function utf8ByteLength(value: string): number {
+  let byteCount = 0;
+  for (const character of value) {
+    const codePoint = character.codePointAt(0);
+    if (codePoint === undefined) continue;
+    byteCount +=
+      codePoint <= 0x7f
+        ? 1
+        : codePoint <= 0x7ff
+          ? 2
+          : codePoint <= 0xffff
+            ? 3
+            : 4;
+  }
+  return byteCount;
 }
 
 export class ArticleSaver {
@@ -261,19 +338,7 @@ export class ArticleSaver {
   }
 
   private getFallbackHeroUrl(item: FeedItem): string {
-    const enclosureImageUrl =
-      item.enclosure?.type?.startsWith("image/") && item.enclosure.url
-        ? item.enclosure.url
-        : "";
-
-    const heroUrl = firstNonFormulaImageUrl([
-      item.coverImage,
-      item.image,
-      item.itunes?.image?.href,
-      enclosureImageUrl,
-    ]);
-
-    return normalizeSubstackImageUrl((heroUrl || "").trim());
+    return templateImageUrl(item);
   }
 
   /**
@@ -404,7 +469,9 @@ guid: "{{guid}}"
     rawContent: string | undefined,
     writtenVersion: SaveVersion,
   ): string {
-    const content = rawContent ? rawContent : this.feedHtmlAsMarkdown(item);
+    const content = rawContent
+      ? rawContent
+      : this.feedHtmlAsMarkdown(item, bodyLeadsWithHero(template, item));
 
     return renderArticleTemplate(
       template,
@@ -412,6 +479,31 @@ guid: "{{guid}}"
       this.buildTemplateValues(item, writtenVersion),
       content,
     );
+  }
+
+  /**
+   * The validated video ID a video item saves its embed from (#1237). The
+   * item's own field is the only source; feed markup is never consulted.
+   */
+  private videoItemEmbedId(item: FeedItem): string | null {
+    if (item.mediaType !== "video") return null;
+    const videoId = item.videoId?.trim() ?? "";
+    return isYouTubeVideoId(videoId) ? videoId : null;
+  }
+
+  /**
+   * Leads a video item's body with its native embed in place of the hero
+   * thumbnail (#1237). The content keeps everything else, but an embed for the
+   * same video is removed so the note holds exactly one; another video's embed
+   * is a different video and stays.
+   */
+  private leadWithVideoEmbed(item: FeedItem, body: string): string {
+    const videoId = this.videoItemEmbedId(item);
+    if (!videoId) return body;
+
+    const content = stripYouTubeEmbedMarkdown(body, videoId);
+    const embed = embedMarkdown(videoId).trim();
+    return content ? `${embed}\n\n${content}` : embed;
   }
 
   /**
@@ -423,15 +515,33 @@ guid: "{{guid}}"
    * intact. Turndown drops `<video>` and `<audio>` outright, so a non-empty
    * feed body that would convert to nothing keeps the HTML the old path wrote,
    * legacy hero markup included, rather than saving an empty note.
+   *
+   * A video item with a validated `videoId` leads with its own native embed
+   * instead of the fallback hero (#1237), on both the Markdown and HTML-note
+   * paths; the content follows.
+   *
+   * `leadWithHero` is false when the template places `{{image}}` itself; the
+   * body then takes no hero, as the prepend helpers treat an empty URL.
    */
-  private feedHtmlAsMarkdown(item: FeedItem): string {
+  private feedHtmlAsMarkdown(item: FeedItem, leadWithHero: boolean): string {
     const feedHtml = this.getPreferredFeedHtml(item);
     const sanitizedHtml = this.sanitizeFeedHtmlForMarkdown(feedHtml, item.link);
+    const heroUrl = leadWithHero ? this.getFeedHeroUrl(item) : "";
+
+    if (this.videoItemEmbedId(item)) {
+      const markdown = articleHtmlToMarkdown(sanitizedHtml);
+      if (markdown.trim()) {
+        return this.leadWithVideoEmbed(item, markdown);
+      }
+
+      return this.leadWithVideoEmbed(item, this.cleanHtml(feedHtml, item.link));
+    }
+
     const markdown = this.prependFallbackHeroMarkdown(
       item,
       articleHtmlToMarkdown(sanitizedHtml),
       sanitizedHtml,
-      this.getFeedHeroUrl(item),
+      heroUrl,
     );
 
     if (markdown.trim()) {
@@ -441,7 +551,7 @@ guid: "{{guid}}"
     return this.prependFallbackHeroHtml(
       item,
       this.cleanHtml(feedHtml, item.link),
-      this.getFeedHeroUrl(item),
+      heroUrl,
     );
   }
 
@@ -524,7 +634,16 @@ guid: "{{guid}}"
       const markdown = readerContent.markdown?.trim()
         ? readerContent.markdown
         : readerContent.fetchedHtml
-          ? this.convertFetchedHtmlToMarkdown(item, readerContent.fetchedHtml)
+          ? this.convertFetchedHtmlToMarkdown(
+              item,
+              readerContent.fetchedHtml,
+              noteLeadsWithHero(
+                this.settings,
+                customTemplate,
+                savedTemplate,
+                item,
+              ),
+            )
           : "";
       if (markdown.trim()) {
         return this.saveArticle(
@@ -569,12 +688,22 @@ guid: "{{guid}}"
     const fallbackMarkdown = feedContent
       ? articleHtmlToMarkdown(sanitizedHtml)
       : "";
+    // A template that places {{image}} itself takes no hero lead (the prepend
+    // treats an empty URL as no hero).
+    const heroUrl = noteLeadsWithHero(
+      this.settings,
+      customTemplate,
+      savedTemplate,
+      item,
+    )
+      ? this.getFeedHeroUrl(item)
+      : "";
     const fallbackWithHero = fallbackMarkdown
       ? this.prependFallbackHeroMarkdown(
           item,
           fallbackMarkdown,
           sanitizedHtml,
-          this.getFeedHeroUrl(item),
+          heroUrl,
         )
       : "";
     const markedFallback = fallbackWithHero.trim()
@@ -590,20 +719,28 @@ guid: "{{guid}}"
     );
   }
 
-  private convertFetchedHtmlToMarkdown(item: FeedItem, html: string): string {
+  private convertFetchedHtmlToMarkdown(
+    item: FeedItem,
+    html: string,
+    leadWithHero: boolean,
+  ): string {
     // The Fetched content save's hero is the page's own image first (#812),
     // then the saver's full feed chain (which also accepts an image enclosure).
     const fetchedHeroUrl =
       normalizeSubstackImageUrl(
         resolvePageImageHeroUrl(item, this.getFeeds()) || "",
       ).trim() || this.getFallbackHeroUrl(item);
+    // A template that places {{image}} itself takes no hero lead (the prepend
+    // treats an empty URL as no hero); the cleanup below still reads the hero
+    // to drop the page's own repeated lead.
+    const leadHeroUrl = leadWithHero ? fetchedHeroUrl : "";
     const doc = this.parseHtmlBody(html);
     if (!doc) {
       return this.prependFallbackHeroMarkdown(
         item,
         articleHtmlToMarkdown(html),
         html,
-        fetchedHeroUrl,
+        leadHeroUrl,
       );
     }
 
@@ -625,7 +762,7 @@ guid: "{{guid}}"
       item,
       articleHtmlToMarkdown(sanitizedHtml),
       sanitizedHtml,
-      fetchedHeroUrl,
+      leadHeroUrl,
     );
   }
 
@@ -684,6 +821,7 @@ guid: "{{guid}}"
       const markdownContent = this.convertFetchedHtmlToMarkdown(
         item,
         fetchResult.content,
+        noteLeadsWithHero(this.settings, customTemplate, savedTemplate, item),
       );
       if (!markdownContent.trim()) {
         loadingNotice.hide();
@@ -816,11 +954,7 @@ guid: "{{guid}}"
     customTemplate: string | undefined,
     savedTemplate: SavedTemplate | undefined,
   ): string {
-    return savedTemplate
-      ? (customTemplate ?? savedTemplate.template)
-      : customTemplate ||
-          this.settings.defaultTemplate ||
-          "# {{title}}\n\n{{content}}\n\n[Source]({{link}})";
+    return resolveNoteTemplate(this.settings, customTemplate, savedTemplate);
   }
 
   /** Assembles the note body: optional plugin frontmatter, then the rendered template. */

@@ -62,7 +62,6 @@ export function createSettingsUiCompatibility(
       const valueEl = controlEl.createSpan({
         cls: "rss-dashboard-slider-value",
       });
-      valueEl.setAttribute("aria-live", "polite");
       const updateValue = (value: number): void => {
         valueEl.setText(format(value));
       };

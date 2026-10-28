@@ -187,14 +187,18 @@ describe("Reader save/delete continuations", () => {
       const deleted = vi.spyOn(callbacks, "handleSavedArticlePathDeleted");
       const readerUpdated = vi.spyOn(callbacks, "updateArticleFromReader");
       let persistenceHeld = false;
-      const persist = currentPlugin.saveSettings.bind(currentPlugin);
-      vi.spyOn(currentPlugin, "saveSettings").mockImplementation(async () => {
-        await persist();
-        if (!persistenceHeld) {
-          persistenceHeld = true;
-          await persistence.pending;
-        }
-      });
+      // Saved association now persists through the coalesced queue; hold its
+      // flush so the older save notification stays pending across the delete.
+      const persist = currentPlugin.flushPendingWrites.bind(currentPlugin);
+      vi.spyOn(currentPlugin, "flushPendingWrites").mockImplementation(
+        async () => {
+          await persist();
+          if (!persistenceHeld) {
+            persistenceHeld = true;
+            await persistence.pending;
+          }
+        },
+      );
       await source.actionSaveCurrentArticle();
       expect(saveButton.classList.contains("saved")).toBe(true);
       await vi.waitFor(() => {
@@ -239,10 +243,7 @@ describe("Reader save/delete continuations", () => {
           readerUpdated.mock.results.map((result) => result.value),
         );
         expect(backingItem).toMatchObject({ saved: true, savedFilePath: path });
-        expect(backingItem.tags).toContainEqual({
-          name: "Saved",
-          color: "#3498db",
-        });
+        expect(backingItem.tags).toContainEqual({ name: "Saved" });
       }
       await app.vault.delete(file as never);
       const deleteHandler = handlers.get("delete");

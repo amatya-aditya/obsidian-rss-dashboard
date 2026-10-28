@@ -9,6 +9,7 @@ import {
 
 interface AdapterSpy {
   write: (path: string, content: string) => Promise<void>;
+  exists: (path: string) => Promise<boolean>;
 }
 
 function freshSettings(): RssDashboardSettings {
@@ -80,8 +81,14 @@ describe("fresh install storage layout", () => {
     expect(settings.metadataStorageMode).toBe("plugin-default");
 
     // Shards and user-state.json still land in the vault dot-folder, because
-    // user-state.json follows metadataStorageFolder regardless of mode.
-    expect(adapterWrites).toContain(".rss-dashboard-data/user-state.json");
+    // user-state.json follows metadataStorageFolder regardless of mode. The
+    // snapshot is written through a temporary file and renamed into place.
+    expect(
+      await (app.vault.adapter as unknown as AdapterSpy).exists(
+        ".rss-dashboard-data/user-state.json",
+      ),
+    ).toBe(true);
+    expect(adapterWrites).toContain(".rss-dashboard-data/user-state.json.tmp");
     expect(
       adapterWrites.some((p) =>
         /^\.rss-dashboard-data\/feeds\/.+\.json$/.test(p),

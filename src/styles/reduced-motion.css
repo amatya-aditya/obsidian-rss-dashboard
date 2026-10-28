@@ -34,7 +34,6 @@
   .rss-icon-row-wrapper::before,
   .rss-dashboard-header-icon-row .clickable-icon,
   .rss-dashboard-header-icon-button,
-  .rss-dashboard-toolbar-button,
   .rss-dashboard-tag-filter-mode-btn,
   .rss-dashboard-sidebar-tags-list,
   .rss-dashboard-sidebar-tag-row,
@@ -64,6 +63,19 @@
   /* articles.css */
   .rss-dashboard-article-card,
   .rss-dashboard-save-toggle,
+  .rss-dashboard-read-toggle,
+  .rss-dashboard-star-toggle,
+  .rss-dashboard-tags-toggle,
+  body .rss-dashboard-save-toggle svg,
+  body .rss-dashboard-read-toggle svg,
+  body .rss-dashboard-star-toggle svg,
+  body .rss-dashboard-tags-toggle svg,
+  .rss-dashboard-star-icon,
+  .rss-dashboard-star-preview-icon,
+  .rss-reader-action-button,
+  .rss-reader-actions .rss-reader-action-button svg,
+  .rss-reader-star-icon,
+  .rss-reader-star-preview-icon,
   .rss-dashboard-article-card:hover,
   .rss-dashboard-article-item:hover,
   .rss-dashboard-article-card .rss-dashboard-fetch-cover-button,
@@ -89,7 +101,7 @@
   }
 
   /* article-empty-state.css */
-  .rss-dashboard-empty-state-button {
+  button.rss-dashboard-empty-state-button {
     transition-duration: 0.01ms;
     transition-delay: 0s;
   }
@@ -219,7 +231,6 @@
   .rss-dashboard-custom-save-modal .rss-dashboard-custom-save-confirm-button,
   .rss-dashboard-danger-button,
   .rss-confirm-modal-cancel,
-  .edit-feed-folder-option,
   .rss-dashboard-tag-modal-name-input,
   .rss-shortcut-help-modal .rss-dashboard-header-close-button {
     transition-duration: 0.01ms;
@@ -274,7 +285,6 @@
   }
 
   /* edit-feed-modal.css */
-  .edit-feed-folder-option,
   .rss-dashboard-modal.rss-edit-feed-modal
     .rss-edit-feed-actions
     .rss-edit-feed-save-button,
@@ -355,7 +365,7 @@
   /* discover-sidebar-filters.css */
   .rss-discover-add-all-btn,
   .rss-discover-selected-filter,
-  .rss-discover-selected-filter-remove,
+  button.rss-discover-selected-filter-remove,
   .rss-discover-mobile-filters-button,
   .rss-discover-btn-base,
   .rss-clear-filter-button,
@@ -426,6 +436,9 @@
   .rss-volume,
   .rss-sleep-timer-btn,
   .podcast-progress-bar-filled,
+  .podcast-sleep-band,
+  .seek-bar-marker,
+  .seek-bar-marker::before,
   .podcast-episode-details > summary,
   .podcast-episode-details > summary::before,
   .episode-list-sort,

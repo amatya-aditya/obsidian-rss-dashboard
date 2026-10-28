@@ -2,10 +2,25 @@ import { FeedItem } from "../types/types";
 import { App, setIcon, Menu, Notice } from "obsidian";
 import { PodcastEpisodeList } from "../components/podcast-episode-list";
 import { MediaService } from "../services/media-service";
-import { renderEpisodeDetails } from "./podcast-episode-details";
-import { onActivate } from "../utils/keyboard-activation";
+import {
+  renderEpisodeDetails,
+  selectEpisodeNotesHtml,
+} from "./podcast-episode-details";
+import { createIconButton } from "../utils/icon-button";
 import { windowInstanceOf } from "../utils/platform-utils";
 import { itemAuthorText } from "../utils/item-author";
+import {
+  formatChapterTime,
+  parsePodcastChapters,
+  shortenChapterTitle,
+  type PodcastChapter,
+} from "../utils/podcast-chapters";
+import { SeekBarMarkerLayer } from "../components/seek-bar-marker-layer";
+import {
+  applyTagAppearance,
+  DEFAULT_TAG_APPEARANCE_SETTINGS,
+  type TagAppearanceSettings,
+} from "../utils/tag-colors";
 
 /** The speeds the player's control offers, in menu order. */
 const PLAY_SPEEDS: readonly number[] = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3];
@@ -19,6 +34,7 @@ export class PodcastPlayer {
   private hasAudioForCurrentItem = true;
   private playlist: FeedItem[] = [];
   private progressInterval: number | null = null;
+  private isAudioPlaying = false;
   private endSeekDrag: (() => void) | null = null;
   private progressData: Map<string, { position: number; duration: number }> =
     new Map();
@@ -30,6 +46,16 @@ export class PodcastPlayer {
   private progressTrackingEnabled: boolean;
   private defaultPlaySpeed: number;
   private useFirstSeenDateFallback: boolean;
+  private chapterMarkersEnabled: boolean;
+  private sleepTimerBandEnabled: boolean;
+  private tagAppearanceSettings: TagAppearanceSettings =
+    DEFAULT_TAG_APPEARANCE_SETTINGS;
+  private chapters: PodcastChapter[] = [];
+  private currentNotesHtml = "";
+  private markerLayer: SeekBarMarkerLayer | null = null;
+  private progressWrapperEl: HTMLElement | null = null;
+  private progressAreaEl: HTMLElement | null = null;
+  private chapterLabelEl: HTMLElement | null = null;
   private isAutoplayEnabled = false;
   private playlistWindowStart: number | undefined;
   private episodeVisibleCount = 20;
@@ -51,6 +77,7 @@ export class PodcastPlayer {
   private durationEl: HTMLElement | null = null;
   private progressBarEl: HTMLProgressElement | null = null;
   private progressFilledEl: HTMLElement | null = null;
+  private sleepBandEl: HTMLElement | null = null;
   private speedButtonEl: HTMLElement | null = null;
   private shuffleButton: HTMLElement | null = null;
   private repeatButton: HTMLElement | null = null;
@@ -83,6 +110,8 @@ export class PodcastPlayer {
     defaultPlaySpeed = 1,
     useFirstSeenDateFallback = false,
     onPlaySpeedChange?: (speed: number) => void,
+    chapterMarkersEnabled = true,
+    sleepTimerBandEnabled = true,
   ) {
     this.container = container;
     this.app = app;
@@ -90,6 +119,8 @@ export class PodcastPlayer {
     this.progressTrackingEnabled = progressTrackingEnabled;
     this.defaultPlaySpeed = defaultPlaySpeed ?? 1;
     this.useFirstSeenDateFallback = useFirstSeenDateFallback;
+    this.chapterMarkersEnabled = chapterMarkersEnabled;
+    this.sleepTimerBandEnabled = sleepTimerBandEnabled;
     if (playlist) {
       this.setPlaylist(playlist);
     }
@@ -117,6 +148,10 @@ export class PodcastPlayer {
     this.episodeVisibleCount = 20;
   }
 
+  setTagAppearanceSettings(settings: TagAppearanceSettings): void {
+    this.tagAppearanceSettings = settings;
+  }
+
   loadEpisode(
     item: FeedItem,
     fullFeedEpisodes?: FeedItem[],
@@ -138,6 +173,8 @@ export class PodcastPlayer {
 
     this.currentItem = item;
     this.hasAudioForCurrentItem = !!resolvedAudioUrl;
+    this.currentNotesHtml = selectEpisodeNotesHtml(item);
+    this.chapters = [];
     this.currentPlaylistIndex = this.playlist.findIndex(
       (ep) => ep.guid === item.guid,
     );
@@ -220,9 +257,7 @@ export class PodcastPlayer {
 
     tagsToShow.forEach((tag) => {
       const tagEl = tagsStrip.createDiv({ cls: "podcast-tag", text: tag.name });
-      if (tag.color) {
-        tagEl.style.backgroundColor = tag.color;
-      }
+      applyTagAppearance(tagEl, tag, this.tagAppearanceSettings);
     });
 
     if (remainingCount > 0) {
@@ -239,6 +274,13 @@ export class PodcastPlayer {
     const item = this.currentItem;
     if (!item) return;
     this.endSeekDrag?.();
+    this.markerLayer?.destroy();
+    this.markerLayer = null;
+    this.progressWrapperEl = null;
+    this.progressAreaEl = null;
+    this.chapterLabelEl = null;
+    this.progressFilledEl = null;
+    this.sleepBandEl = null;
     this.container.empty();
 
     const podcastContainer = this.container.createDiv({
@@ -282,20 +324,37 @@ export class PodcastPlayer {
     if (item.audioUrl) {
       this.audioElement.src = item.audioUrl;
     }
+    this.isAudioPlaying = false;
     this.audioElement.onplay = () => {
+      this.isAudioPlaying = true;
       this.updatePlayButtonIcon(true);
       this.startProgressTracking();
+      this.updateSleepBand(true);
     };
     this.audioElement.onpause = () => {
+      this.isAudioPlaying = false;
       this.updatePlayButtonIcon(false);
       this.stopProgressTracking();
       this.saveProgress(true);
     };
     this.audioElement.ontimeupdate = () => this.updateProgressDisplay();
-    this.audioElement.onloadedmetadata = () => this.updateProgressDisplay();
+    this.audioElement.onseeked = () => {
+      this.updateProgressDisplay();
+      this.updateSleepBand(true);
+    };
+    this.audioElement.onratechange = () => this.updateSleepBand(true);
+    this.audioElement.onloadedmetadata = () => {
+      this.updateProgressDisplay();
+      this.syncChapterMarkers();
+      this.updateSleepBand(true);
+    };
     this.audioElement.onended = () => {
+      this.isAudioPlaying = false;
       this.stopProgressTracking();
       this.saveProgress(true);
+      // A timed timer stays active after a natural episode end, but the band
+      // is a preview of unplayed audio and must not linger (AC-007).
+      if (this.sleepBandEl) this.sleepBandEl.hidden = true;
       this.handleEpisodeEnd();
     };
     this.audioElement.volume = 1;
@@ -349,75 +408,38 @@ export class PodcastPlayer {
       cls: "podcast-transport-section",
     });
 
-    this.shuffleButton = transportSection.createDiv({
+    this.shuffleButton = createIconButton({
+      parent: transportSection,
       cls: "rss-shuffle-btn clickable-icon",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Shuffle",
-      },
-    });
-    setIcon(this.shuffleButton, "shuffle");
-    this.shuffleButton.onclick = () => this.toggleShuffle();
-    this.shuffleButton.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        this.toggleShuffle();
-      }
+      label: "Shuffle",
+      icon: "shuffle",
+      onClick: () => this.toggleShuffle(),
     });
     this.updateShuffleButton();
 
-    const rewindBtn = transportSection.createDiv({
-      cls: "rss-rewind clickable-icon",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Rewind 30 seconds",
-      },
-    });
-    setIcon(rewindBtn, "rotate-ccw");
-    rewindBtn.createSpan({ cls: "seek-label", text: "30" });
-    rewindBtn.onclick = () => {
+    const seekBack = () => {
       if (this.audioElement) {
-        this.audioElement.currentTime = Math.max(
-          0,
-          this.audioElement.currentTime - 30,
-        );
-        this.updateProgressDisplay();
+        this.seekTo(Math.max(0, this.audioElement.currentTime - 30));
       }
     };
-    rewindBtn.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        if (this.audioElement) {
-          this.audioElement.currentTime = Math.max(
-            0,
-            this.audioElement.currentTime - 30,
-          );
-          this.updateProgressDisplay();
-        }
-      }
+    const rewindBtn = createIconButton({
+      parent: transportSection,
+      cls: "rss-rewind clickable-icon",
+      label: "Rewind 30 seconds",
+      icon: "rotate-ccw",
+      onClick: seekBack,
     });
+    rewindBtn.createSpan({ cls: "seek-label", text: "30" });
 
-    this.playButton = transportSection.createDiv({
+    this.playButton = createIconButton({
+      parent: transportSection,
       cls: "rss-play-pause clickable-icon",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Play/Pause",
-      },
-    });
-    setIcon(this.playButton, "play");
-    this.playButton.onclick = () => {
-      if (this.playButton?.classList.contains("is-disabled")) return;
-      this.togglePlayback();
-    };
-    this.playButton.addEventListener("keydown", (e: KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
+      label: "Play/Pause",
+      icon: "play",
+      onClick: () => {
         if (this.playButton?.classList.contains("is-disabled")) return;
         this.togglePlayback();
-      }
+      },
     });
     if (!this.hasAudioForCurrentItem) {
       this.playButton.addClass("is-disabled");
@@ -431,53 +453,31 @@ export class PodcastPlayer {
       });
     }
 
-    const forwardBtn = transportSection.createDiv({
-      cls: "rss-forward clickable-icon",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Forward 30 seconds",
-      },
-    });
-    setIcon(forwardBtn, "rotate-cw");
-    forwardBtn.createSpan({ cls: "seek-label", text: "30" });
-    forwardBtn.onclick = () => {
+    const seekForward = () => {
       if (this.audioElement) {
-        this.audioElement.currentTime = Math.min(
-          this.audioElement.duration || Infinity,
-          this.audioElement.currentTime + 30,
-        );
-        this.updateProgressDisplay();
-      }
-    };
-    forwardBtn.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        if (this.audioElement) {
-          this.audioElement.currentTime = Math.min(
+        this.seekTo(
+          Math.min(
             this.audioElement.duration || Infinity,
             this.audioElement.currentTime + 30,
-          );
-          this.updateProgressDisplay();
-        }
+          ),
+        );
       }
+    };
+    const forwardBtn = createIconButton({
+      parent: transportSection,
+      cls: "rss-forward clickable-icon",
+      label: "Forward 30 seconds",
+      icon: "rotate-cw",
+      onClick: seekForward,
     });
+    forwardBtn.createSpan({ cls: "seek-label", text: "30" });
 
-    this.repeatButton = transportSection.createDiv({
+    this.repeatButton = createIconButton({
+      parent: transportSection,
       cls: "rss-repeat-btn clickable-icon",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Repeat",
-      },
-    });
-    setIcon(this.repeatButton, "repeat");
-    this.repeatButton.onclick = () => this.toggleRepeat();
-    this.repeatButton.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        this.toggleRepeat();
-      }
+      label: "Repeat",
+      icon: "repeat",
+      onClick: () => this.toggleRepeat(),
     });
   }
 
@@ -500,23 +500,26 @@ export class PodcastPlayer {
     this.speedButtonEl.onchange = () => this.applySelectedPlaySpeed();
 
     // Sleep timer button
-    this.sleepTimerButton = toolsSection.createDiv({
+    this.sleepTimerButton = createIconButton({
+      parent: toolsSection,
       cls: "rss-sleep-timer-btn clickable-icon",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Sleep timer",
-      },
+      label: "Sleep timer",
+      icon: "moon",
+      onClick: (e) => this.showSleepTimerMenu(e),
     });
+    // The button holds the icon and a countdown, so the icon moves into its own
+    // span that the countdown state can hide.
     this.sleepTimerIconEl = this.sleepTimerButton.createSpan({
       cls: "rss-sleep-timer-icon",
       attr: { "aria-hidden": "true" },
     });
-    setIcon(this.sleepTimerIconEl, "moon");
+    const moon = this.sleepTimerButton.firstElementChild;
+    if (moon && moon !== this.sleepTimerIconEl) {
+      this.sleepTimerIconEl.appendChild(moon);
+    }
     this.sleepTimerTextEl = this.sleepTimerButton.createSpan({
       cls: "rss-sleep-timer-inline-value",
     });
-    onActivate(this.sleepTimerButton, (e) => this.showSleepTimerMenu(e));
     this.updateSleepTimerButtonState();
 
     this.renderVolumeControl(toolsSection);
@@ -528,12 +531,14 @@ export class PodcastPlayer {
     this.volumeContainer = toolsSection.createDiv({
       cls: "rss-volume-control-container",
     });
-    const volumeBtn = this.volumeContainer.createDiv({
+    const volumeBtn = createIconButton({
+      parent: this.volumeContainer,
       cls: "rss-volume clickable-icon",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Adjust volume",
+      label: "Adjust volume",
+      icon: "volume-2",
+      onClick: (e) => {
+        e.stopPropagation();
+        toggleMute();
       },
     });
     const updateVolumeIcon = () => {
@@ -554,21 +559,6 @@ export class PodcastPlayer {
       }
     };
 
-    volumeBtn.onclick = () => {
-      if (this.audioElement) {
-        if (!this.audioElement.muted && this.audioElement.volume > 0) {
-          this.previousVolume = this.audioElement.volume;
-          this.audioElement.muted = true;
-        } else {
-          this.audioElement.muted = false;
-          if (this.audioElement.volume === 0) {
-            this.audioElement.volume = this.previousVolume || 1;
-          }
-        }
-        updateVolumeIcon();
-      }
-    };
-
     const toggleMute = () => {
       if (this.audioElement) {
         if (!this.audioElement.muted && this.audioElement.volume > 0) {
@@ -583,17 +573,6 @@ export class PodcastPlayer {
         updateVolumeIcon();
       }
     };
-
-    volumeBtn.onclick = (e) => {
-      e.stopPropagation();
-      toggleMute();
-    };
-    volumeBtn.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        toggleMute();
-      }
-    });
 
     this.volumeSlider = this.volumeContainer.createDiv({
       cls: "rss-volume-slider",
@@ -626,7 +605,9 @@ export class PodcastPlayer {
     // Row 2: progress area
     const progressArea = this.playerEl.createDiv({
       cls: "podcast-progress-area",
+      attr: { role: "group" },
     });
+    this.progressAreaEl = progressArea;
 
     const seekbarRow = progressArea.createDiv({ cls: "podcast-seekbar-row" });
     this.currentTimeEl = seekbarRow.createDiv({
@@ -637,6 +618,7 @@ export class PodcastPlayer {
     const progressBarWrapper = seekbarRow.createDiv({
       cls: "podcast-progress-bar-wrapper",
     });
+    this.progressWrapperEl = progressBarWrapper;
     this.progressBarEl = progressBarWrapper.createEl("progress", {
       cls: "podcast-progress-bar",
     });
@@ -646,12 +628,32 @@ export class PodcastPlayer {
     this.progressFilledEl = progressBarWrapper.createDiv({
       cls: "podcast-progress-bar-filled",
     });
+    this.sleepBandEl = progressBarWrapper.createDiv({
+      cls: "podcast-sleep-band",
+      attr: { "aria-hidden": "true" },
+    });
+    this.sleepBandEl.hidden = true;
     this.durationEl = seekbarRow.createDiv({
       cls: "rss-duration",
       text: "-0:00",
     });
 
+    this.chapterLabelEl = progressArea.createDiv({
+      cls: "podcast-chapter-label",
+      attr: { "aria-live": "polite", "aria-atomic": "true" },
+    });
+    this.chapterLabelEl.hidden = true;
+
     this.bindSeekHandlers();
+    this.syncChapterMarkers();
+  }
+
+  /** Seek without changing play or pause state, redrawing the sleep band now. */
+  private seekTo(seconds: number): void {
+    if (!this.audioElement) return;
+    this.audioElement.currentTime = seconds;
+    this.updateProgressDisplay();
+    this.updateSleepBand(true);
   }
 
   private bindSeekHandlers(): void {
@@ -679,9 +681,7 @@ export class PodcastPlayer {
 
       progressBar.addEventListener("click", (e) => {
         if (!this.audioElement || this.getFiniteDuration() === null) return;
-        const seekTime = getSeekTime(e);
-        this.audioElement.currentTime = seekTime;
-        this.updateProgressDisplay();
+        this.seekTo(getSeekTime(e));
       });
 
       progressBar.addEventListener("mousedown", (_e) => {
@@ -690,9 +690,7 @@ export class PodcastPlayer {
         const moveHandler = (moveEvent: MouseEvent) => {
           if (!isDragging || !this.audioElement) return;
           if (this.getFiniteDuration() === null) return;
-          const seekTime = getSeekTime(moveEvent);
-          this.audioElement.currentTime = seekTime;
-          this.updateProgressDisplay();
+          this.seekTo(getSeekTime(moveEvent));
         };
         const upHandler = () => {
           isDragging = false;
@@ -712,9 +710,7 @@ export class PodcastPlayer {
         const moveHandler = (moveEvent: TouchEvent) => {
           if (!isDragging || !this.audioElement) return;
           if (this.getFiniteDuration() === null) return;
-          const seekTime = getSeekTime(moveEvent);
-          this.audioElement.currentTime = seekTime;
-          this.updateProgressDisplay();
+          this.seekTo(getSeekTime(moveEvent));
         };
         const upHandler = () => {
           isDragging = false;
@@ -749,6 +745,7 @@ export class PodcastPlayer {
       sortOrder: this.sortOrder,
       visibleCount: this.episodeVisibleCount,
       progressData: this.progressData,
+      tagAppearanceSettings: this.tagAppearanceSettings,
       onEpisodeSelected: (episode) => {
         this.loadEpisode(episode, undefined, {
           notify: true,
@@ -899,7 +896,7 @@ export class PodcastPlayer {
     }
   }
 
-  private showSleepTimerMenu(event: MouseEvent | KeyboardEvent): void {
+  private showSleepTimerMenu(event: MouseEvent): void {
     const menu = new Menu();
 
     const options = [
@@ -936,12 +933,13 @@ export class PodcastPlayer {
       });
     });
 
-    if (event.type === "keydown" && this.sleepTimerButton) {
-      // A key press carries no pointer position, so open under the button
+    if (event.detail === 0 && this.sleepTimerButton) {
+      // Enter or Space on the button arrives as a click with no pointer
+      // position (detail 0), so open under the button
       const rect = this.sleepTimerButton.getBoundingClientRect();
       menu.showAtPosition({ x: rect.left, y: rect.bottom });
     } else {
-      menu.showAtMouseEvent(event as MouseEvent);
+      menu.showAtMouseEvent(event);
     }
   }
 
@@ -967,6 +965,7 @@ export class PodcastPlayer {
 
     this.updateSleepTimerButtonState();
     this.updateSleepTimerDisplay();
+    this.updateSleepBand(true);
   }
 
   private clearSleepTimer(): void {
@@ -978,11 +977,16 @@ export class PodcastPlayer {
     this.stopAtEndOfEpisode = false;
     this.updateSleepTimerButtonState();
     this.updateSleepTimerDisplay();
+    this.updateSleepBand(true);
+  }
+
+  private isSleepTimerActive(): boolean {
+    return !!this.sleepTimerEndTime || this.stopAtEndOfEpisode;
   }
 
   private updateSleepTimerButtonState(): void {
     if (this.sleepTimerButton) {
-      const isActive = !!this.sleepTimerEndTime || this.stopAtEndOfEpisode;
+      const isActive = this.isSleepTimerActive();
       this.sleepTimerButton.classList.toggle("is-active", isActive);
       this.sleepTimerButton.classList.toggle("has-countdown", isActive);
     }
@@ -1014,6 +1018,49 @@ export class PodcastPlayer {
     }
   }
 
+  /**
+   * Draw the sleep timer band from the playhead to the projected stop
+   * (DEC-002). The countdown stays wall-clock; playback speed only scales the
+   * media-time preview. A paused player keeps the band it last drew until
+   * play, seek, or a speed change asks for a fresh projection
+   * (AC-003, AC-004).
+   */
+  private updateSleepBand(force = false): void {
+    const band = this.sleepBandEl;
+    if (!band) return;
+
+    if (!this.sleepTimerBandEnabled) {
+      band.hidden = true;
+      return;
+    }
+
+    const duration = this.getFiniteDuration();
+    if (!this.isSleepTimerActive() || duration === null) {
+      band.hidden = true;
+      return;
+    }
+    if (!force && !this.isAudioPlaying && !band.hidden) return;
+
+    const currentTime = Math.min(
+      Math.max(this.audioElement?.currentTime ?? 0, 0),
+      duration,
+    );
+    let projectedEnd = duration;
+    if (this.sleepTimerEndTime) {
+      const remainingMs = Math.max(0, this.sleepTimerEndTime - Date.now());
+      const rate = this.audioElement?.playbackRate ?? 1;
+      const safeRate = Number.isFinite(rate) && rate > 0 ? rate : 1;
+      projectedEnd = currentTime + (remainingMs / 1000) * safeRate;
+    }
+    const end = Math.min(duration, Math.max(currentTime, projectedEnd));
+    const percent = (seconds: number) =>
+      `${Number(((seconds / duration) * 100).toFixed(4))}%`;
+
+    band.style.setProperty("--sleep-band-start", percent(currentTime));
+    band.style.setProperty("--sleep-band-end", percent(end));
+    band.hidden = false;
+  }
+
   private togglePlayback(): void {
     if (!this.audioElement) return;
     if (!this.currentItem?.audioUrl) return;
@@ -1038,6 +1085,7 @@ export class PodcastPlayer {
     this.audioElement.playbackRate = newSpeed;
     this.defaultPlaySpeed = newSpeed;
     this.onPlaySpeedChange?.(newSpeed);
+    this.updateSleepBand(true);
   }
 
   private cyclePlaybackSpeed(): void {
@@ -1052,6 +1100,7 @@ export class PodcastPlayer {
     const nextSpeed = speeds[nextIndex] ?? 1;
     this.audioElement.playbackRate = nextSpeed;
     this.speedButtonEl.textContent = `${nextSpeed.toFixed(2)}x`;
+    this.updateSleepBand(true);
   }
 
   private startProgressTracking(): void {
@@ -1077,6 +1126,115 @@ export class PodcastPlayer {
       window.clearInterval(this.progressInterval);
       this.progressInterval = null;
     }
+  }
+
+  /**
+   * Rebuild the chapter markers for the current audio duration (AC-005,
+   * AC-011). Markers are dropped while the duration is unknown: a percentage
+   * needs a finite length. The setting and the command both land here.
+   */
+  private syncChapterMarkers(): void {
+    this.markerLayer?.destroy();
+    this.markerLayer = null;
+    this.progressAreaEl?.removeAttribute("aria-label");
+    if (this.chapterLabelEl) {
+      this.chapterLabelEl.textContent = "";
+      this.chapterLabelEl.hidden = true;
+    }
+    if (
+      !this.chapterMarkersEnabled ||
+      !this.progressWrapperEl ||
+      !this.progressAreaEl
+    ) {
+      return;
+    }
+
+    const duration = this.getFiniteDuration();
+    if (duration === null) return;
+
+    // Parse again with the duration so a timestamp at or past the end is
+    // dropped (DEC-005); the pre-metadata parse ran without it.
+    this.chapters = parsePodcastChapters(this.currentNotesHtml, duration);
+    if (this.chapters.length === 0) return;
+
+    const layer = new SeekBarMarkerLayer(this.progressWrapperEl, {
+      getDuration: () => this.getFiniteDuration(),
+      onSeek: (start) => this.seekToChapter(start),
+      groupLabel: "Chapters",
+    });
+    layer.setMarkers(
+      this.chapters.map((chapter, index) => {
+        const detail = this.chapterLength(index, duration);
+        const time = formatChapterTime(chapter.start);
+        const shortTitle = shortenChapterTitle(chapter.title);
+        return {
+          start: chapter.start,
+          label: `Chapter ${index + 1}, ${time}, ${chapter.title} (${detail})`,
+          preview: `${time} — ${shortTitle} (${detail})`,
+        };
+      }),
+    );
+    this.markerLayer = layer;
+    this.updateChapterState();
+  }
+
+  /** Length of one chapter: the next start, or the media duration at the end. */
+  private chapterLength(index: number, duration: number): string {
+    const chapter = this.chapters[index];
+    if (!chapter) return "";
+    const end = this.chapters[index + 1]?.start ?? duration;
+    return formatChapterTime(Math.max(0, end - chapter.start));
+  }
+
+  /** The chapter containing `seconds`, or -1 before the first one. */
+  private chapterIndexAt(seconds: number): number {
+    let current = -1;
+    for (let index = 0; index < this.chapters.length; index += 1) {
+      const chapter = this.chapters[index];
+      if (chapter && chapter.start <= seconds) current = index;
+      else break;
+    }
+    return current;
+  }
+
+  /**
+   * Dim passed markers and move the one-line current-chapter label
+   * (AC-008, AC-009). The label is also the progress area's accessible name.
+   */
+  private updateChapterState(): void {
+    const seconds = this.audioElement?.currentTime ?? 0;
+    this.markerLayer?.setActiveTime(seconds);
+    const label = this.chapterLabelEl;
+    if (!label || !this.markerLayer) return;
+
+    const index = this.chapterIndexAt(seconds);
+    const chapter = index >= 0 ? this.chapters[index] : this.chapters[0];
+    if (!chapter) return;
+    const shortTitle = shortenChapterTitle(chapter.title);
+    if (label.textContent !== shortTitle) label.textContent = shortTitle;
+    label.hidden = false;
+    // DEC-009: the visible label is also the progress area's accessible name.
+    if (this.progressAreaEl?.getAttribute("aria-label") !== shortTitle) {
+      this.progressAreaEl?.setAttribute("aria-label", shortTitle);
+    }
+  }
+
+  /** Seek to a chapter without changing play or pause state (DEC-006). */
+  private seekToChapter(start: number): void {
+    this.seekTo(start);
+  }
+
+  /** Apply the persisted setting to an open player at once (AC-011, AC-012). */
+  setChapterMarkersEnabled(enabled: boolean): void {
+    this.chapterMarkersEnabled = enabled;
+    this.syncChapterMarkers();
+  }
+
+  /** Apply the sleep timer band setting to an open player at once (AC-003). */
+  setSleepTimerBandEnabled(enabled: boolean): void {
+    this.sleepTimerBandEnabled = enabled;
+    // Disabling hides the band; enabling redraws it from the current timer.
+    this.updateSleepBand(true);
   }
 
   private updateProgressDisplay(): void {
@@ -1113,6 +1271,9 @@ export class PodcastPlayer {
         `${percent}%`,
       );
     }
+
+    this.updateSleepBand();
+    this.updateChapterState();
   }
 
   /** Audio duration when known and finite (> 0); null for NaN, 0 or Infinity. */
@@ -1175,12 +1336,19 @@ export class PodcastPlayer {
     this.endSeekDrag?.();
     this.stopProgressTracking();
     this.clearSleepTimer();
+    this.markerLayer?.destroy();
+    this.markerLayer = null;
+    this.sleepBandEl = null;
 
     if (this.audioElement) {
       this.saveProgress(true);
       this.audioElement.onplay = null;
       this.audioElement.onpause = null;
       this.audioElement.onended = null;
+      this.audioElement.onseeked = null;
+      this.audioElement.onratechange = null;
+      this.audioElement.onloadedmetadata = null;
+      this.audioElement.ontimeupdate = null;
       this.audioElement.pause();
       this.audioElement.src = "";
       this.audioElement.remove();

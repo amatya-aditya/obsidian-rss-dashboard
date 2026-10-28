@@ -34,6 +34,31 @@ describe("card-view", () => {
     ).toBe("Test Article");
   });
 
+  it("renders card tags from the registry when article copies are stale", () => {
+    const context = baseViewContext();
+    context.tagAppearanceSettings = {
+      availableTags: [
+        { name: "Topic", color: "#234567", textColor: "#765432" },
+      ],
+    };
+    renderCardView(
+      container,
+      [
+        makeArticle({
+          tags: [{ name: "Topic", color: "#stale", textColor: "#stale" }],
+        }),
+      ],
+      { ...context, showCardToolbar: false },
+      baseViewDeps(),
+    );
+
+    const chip = container.querySelector<HTMLElement>(
+      ".rss-dashboard-card-tags-region .rss-dashboard-tag-badge",
+    );
+    expect(chip?.style.getPropertyValue("--tag-color")).toBe("#234567");
+    expect(chip?.style.getPropertyValue("--tag-text-color")).toBe("#765432");
+  });
+
   it("orders keyboard stops as card opener, text, toolbar actions, then the next card", () => {
     const toolbarActions = [
       "Mark as read",
@@ -641,7 +666,7 @@ describe("card-view", () => {
       expect(button?.tagName).toBe("BUTTON");
       expect(button?.getAttribute("type")).toBe("button");
       expect(button?.getAttribute("aria-label")).toBe(
-        "Fetch and replace cover image",
+        "Fetch and replace cover image (Shift + c)",
       );
     });
 
@@ -651,7 +676,7 @@ describe("card-view", () => {
       });
 
       expect(fetchButton()?.getAttribute("aria-label")).toBe(
-        "Replace cover image from the fetch",
+        "Replace cover image from the fetch (Shift + c)",
       );
     });
 
@@ -760,6 +785,37 @@ describe("card-view", () => {
       expect(onArticleClick).not.toHaveBeenCalled();
     });
 
+    it("ignores a card click that began on the control", () => {
+      const onArticleClick = vi.fn();
+      const fetchCoverImage = vi.fn().mockResolvedValue(false);
+      renderCardView(
+        container,
+        [makeArticle()],
+        {
+          ...baseViewContext({ callbacks: { onArticleClick } }),
+          showCardToolbar: false,
+        },
+        baseViewDeps({ fetchCoverImage }),
+      );
+      const card = container.querySelector<HTMLElement>(
+        ".rss-dashboard-article-card",
+      )!;
+
+      // A tap that starts on the control and drifts before release is
+      // dispatched at the nearest common ancestor, so the card sees it.
+      fetchButton()!.dispatchEvent(
+        new PointerEvent("pointerdown", { bubbles: true }),
+      );
+      card.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+      expect(onArticleClick).not.toHaveBeenCalled();
+      expect(fetchCoverImage).not.toHaveBeenCalled();
+
+      // The press is spent: the next plain card click opens it again.
+      card.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      expect(onArticleClick).toHaveBeenCalledTimes(1);
+    });
+
     it("leaves the card in place when the page had no cover", async () => {
       const fetchCoverImage = vi.fn().mockResolvedValue(false);
       const replaceArticle = vi.fn();
@@ -866,7 +922,7 @@ describe("card-view", () => {
 
         const button = fetchButton();
         expect(button?.getAttribute("aria-label")).toBe(
-          "Restore cover image from feed",
+          "Restore cover image from feed (Shift + c)",
         );
         expect(button?.querySelector("svg.lucide-rotate-ccw")).not.toBeNull();
         expect(button?.querySelector("svg.lucide-download")).toBeNull();
@@ -879,7 +935,7 @@ describe("card-view", () => {
         });
 
         expect(fetchButton()?.getAttribute("aria-label")).toBe(
-          "Remove fetched cover image",
+          "Remove fetched cover image (Shift + c)",
         );
       });
 

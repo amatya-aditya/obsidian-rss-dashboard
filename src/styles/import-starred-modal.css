@@ -106,6 +106,17 @@
   padding: 0.35rem 0;
 }
 
+/* New-feed folder field: its control shrinks to the input's own width beside a
+ * long description, and the folder icon's start padding then leaves too little
+ * room for the default "Starred imports" (it was cut by the clear button).
+ * Hold the input at a width that fits it, so it also stays the same width
+ * whether or not the clear button shows. */
+.import-options-panel
+  .rss-dashboard-folder-combobox
+  > input.rss-dashboard-folder-combobox-input {
+  min-width: 12rem;
+}
+
 /* Dims an Options-panel toggle's own description text while that toggle is
  * off, per the spec's per-option disabled-state visual cue. Scoped to this
  * panel's description elements (no `!important`) so it can't leak into
@@ -188,6 +199,7 @@
 
 .import-new-tags-header {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.5rem;
   margin: 0 0 0.5rem;
@@ -202,6 +214,7 @@
 /* Palette, dice, and reset buttons beside the heading. */
 .import-new-tags-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 2px;
 }
@@ -211,13 +224,26 @@
   padding: 2px;
 }
 
+.import-new-tags-actions button.import-new-tags-action {
+  border: none;
+  box-shadow: none;
+  font-family: inherit;
+}
+
 .import-new-tags-actions .import-new-tags-action svg {
   width: 14px;
   height: 14px;
 }
 
-/* The palette button's native color input covers the icon, invisibly, so a
- * direct tap opens the system picker on every platform. */
+/* The native color input covers only its icon, leaving the named palette
+ * controls available beside it. */
+.import-new-tags-native-color-picker {
+  position: relative;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+}
+
 .import-new-tags-actions .import-new-tags-color-input {
   position: absolute;
   inset: 0;
@@ -227,6 +253,17 @@
   border: none;
   opacity: 0;
   cursor: pointer;
+}
+
+.import-new-tags-set-color {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 6px;
+}
+
+.import-new-tags-set-color .rss-dashboard-tag-color-palette-control {
+  flex: 1 1 220px;
 }
 
 .import-new-tags-actions .import-new-tags-set-color:focus-within {
@@ -252,6 +289,26 @@
 
 .import-new-tags-list .import-new-tags-chip {
   cursor: pointer;
+}
+
+/* The chip and the per-row Manage tags control are native buttons. Reset
+ * Obsidian's button chrome so they keep the chip and strip look. */
+.rss-dashboard-modal .import-new-tags-list button.import-new-tags-chip {
+  height: auto;
+  border: none;
+  background: var(--tag-color, var(--interactive-accent));
+  color: var(--tag-text-color, var(--text-on-accent));
+  box-shadow: none;
+  font-family: inherit;
+}
+
+.rss-dashboard-modal button.import-preview-tags-control {
+  height: auto;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+  font-family: inherit;
+  color: inherit;
 }
 
 .import-new-tags-list .import-new-tags-chip:hover,
@@ -293,8 +350,8 @@
   padding: 2px 4px;
 }
 
-.import-preview-tags-control.rss-dashboard-tag-container:hover,
-.import-preview-tags-control.rss-dashboard-tag-container:focus-visible {
+.rss-dashboard-modal button.import-preview-tags-control:hover,
+.rss-dashboard-modal button.import-preview-tags-control:focus-visible {
   background: var(--background-modifier-hover);
 }
 
@@ -367,4 +424,13 @@
   .rss-import-starred-modal .rss-dashboard-modal-buttons button {
     width: 100%;
   }
+}
+
+/* The feed-group toggle is a native button. Same scoped reset as the OPML
+ * preview tree, kept on its own selector so this file needs nothing from it. */
+.rss-dashboard-modal .import-preview-tree button.import-preview-toggle {
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  font-family: inherit;
 }

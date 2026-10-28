@@ -81,10 +81,10 @@ describe("ArticleList mirrored footer", () => {
         expect(footerEl).toBeTruthy();
 
         const stops = Array.from(
-          footerEl!.querySelectorAll<HTMLElement>('[role="button"]'),
+          footerEl!.querySelectorAll<HTMLElement>("button"),
         );
         expect(stops.map(actionClass)).toEqual(ACTION_CLASSES);
-        expect(stops[0].getAttribute("aria-label")).toBe("Mark as read");
+        expect(stops[0].getAttribute("aria-label")).toBe("Mark as read (m)");
 
         // The toolbar is the first footer child and the date the last, so the
         // flattened order is read -> save -> star -> tags -> date.

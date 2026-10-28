@@ -18,12 +18,20 @@ import {
   removeAllTagsFromFeeds,
   syncFolderAutoTagsOnFeeds,
 } from "../utils/folder-tag-sync";
-import { DEFAULT_TAG_COLOR } from "../utils/tag-colors";
+import {
+  applyTagAppearance,
+  createTagWithAppearanceChanges,
+  DEFAULT_TAG_COLOR,
+  DEFAULT_TAG_TEXT_COLOR,
+} from "../utils/tag-colors";
 import { AddTagModal } from "../modals/add-tag-modal";
 import { showEditTagModal } from "../utils/tag-utils";
 import { deleteTagFromSettings } from "../utils/tag-settings";
 import { windowInstanceOf } from "../utils/platform-utils";
+import type { ArticleStateChange } from "../utils/article-update";
 import { addInputClearButton } from "../utils/input-clear-button";
+import { addTagColorPaletteControl } from "./tag-color-palette-control";
+import { markMenuItemDestructive } from "../utils/destructive-menu-item";
 import { isDomNode } from "../utils/dom-node";
 import {
   SidebarSearchService,
@@ -276,7 +284,8 @@ export class Sidebar {
         );
       }
       const shardHealth = this.getReportedShardHealth(feed);
-      if (shardHealth) lines.push(this.getFeedShardWarningMessage(shardHealth));
+      if (shardHealth)
+        lines.push(this.getFeedShardWarningMessage(shardHealth, feed));
       if (status.refreshingCount > 0) lines.push("In progress");
       if (feed.excludeFromRefresh) lines.push("Excluded from global refresh");
       return lines;
@@ -795,7 +804,7 @@ export class Sidebar {
       tagCheckbox.checked = selected;
 
       const dot = row.createDiv({ cls: "rss-dashboard-tag-color-dot" });
-      dot.style.backgroundColor = tag.color;
+      applyTagAppearance(dot, tag, this.settings);
 
       row.createSpan({
         text: tag.name,
@@ -824,14 +833,68 @@ export class Sidebar {
         this.render();
       });
     });
-    // Inline add-tag row
+    this.renderAddTagForm(tagsSection, revealForSearch);
+  }
+
+  public refreshTagColors(): void {
+    this.container
+      .querySelectorAll<HTMLElement>(
+        ".rss-dashboard-sidebar-tag-row[data-tag-name] .rss-dashboard-tag-color-dot",
+      )
+      .forEach((dot) => {
+        const row = dot.closest<HTMLElement>(
+          ".rss-dashboard-sidebar-tag-row[data-tag-name]",
+        );
+        const tag = this.settings.availableTags.find(
+          (candidate) => candidate.name === row?.dataset.tagName,
+        );
+        if (tag) applyTagAppearance(dot, tag, this.settings);
+      });
+  }
+
+  private renderAddTagForm(
+    tagsSection: HTMLElement,
+    revealForSearch: boolean,
+  ): void {
     if (this.isAddTagExpanded) {
       const addRow = tagsSection.createDiv({
         cls: "rss-dashboard-sidebar-add-tag-row",
       });
-      const cp = addRow.createEl("input", {
-        attr: { type: "color", value: DEFAULT_TAG_COLOR },
+      const defaultTagColor =
+        this.settings.defaultTagColor ?? DEFAULT_TAG_COLOR;
+      const defaultTagTextColor =
+        this.settings.defaultTagTextColor ?? DEFAULT_TAG_TEXT_COLOR;
+      const backgroundColorField = addRow.createDiv({
+        cls: "rss-dashboard-sidebar-add-tag-color-field",
+      });
+      const cp = backgroundColorField.createEl("input", {
+        attr: {
+          type: "color",
+          value: defaultTagColor,
+          "aria-label": "Tag background color",
+        },
         cls: "rss-dashboard-tag-color-picker",
+      });
+      addTagColorPaletteControl({
+        container: backgroundColorField,
+        input: cp,
+        fieldName: "Background",
+      });
+      const textColorField = addRow.createDiv({
+        cls: "rss-dashboard-sidebar-add-tag-color-field",
+      });
+      const textColorInput = textColorField.createEl("input", {
+        attr: {
+          type: "color",
+          value: defaultTagTextColor,
+          "aria-label": "Tag text color",
+        },
+        cls: "rss-dashboard-tag-color-picker rss-dashboard-sidebar-add-tag-text-color",
+      });
+      addTagColorPaletteControl({
+        container: textColorField,
+        input: textColorInput,
+        fieldName: "Text",
       });
       const input = addRow.createEl("input", {
         attr: { type: "text", placeholder: "New tag..." },
@@ -867,7 +930,16 @@ export class Sidebar {
           new Notice("Tag already exists");
           return;
         }
-        this.settings.availableTags.push({ name: val, color: cp.value });
+        this.settings.availableTags.push(
+          createTagWithAppearanceChanges(
+            val,
+            { background: cp.value, text: textColorInput.value },
+            {
+              background: cp.value !== defaultTagColor,
+              text: textColorInput.value !== defaultTagTextColor,
+            },
+          ),
+        );
         void this.plugin.saveSettings();
         this.app.workspace.trigger("rss-dashboard:tags-mutated");
         input.value = "";
@@ -1897,9 +1969,15 @@ export class Sidebar {
     return this.plugin.getFeedShardHealth?.(feed) ?? null;
   }
 
-  private getFeedShardWarningMessage(health: FeedShardHealth): string {
+  private getFeedShardWarningMessage(
+    health: FeedShardHealth,
+    feed: Feed,
+  ): string {
     if (health === "rebuilt") {
       return "Feed shard file was missing or corrupted and was rebuilt. Restore the shard from the last known backup if one exists, or refresh the feed to fetch newest articles.";
+    }
+    if (health === "missing" && feed.items.length > 0) {
+      return "Feed shard file is missing. Your articles are still loaded. Run Settings > Storage > Repair/rebuild storage to recreate it.";
     }
     const problem = health === "missing" ? "missing" : "missing or corrupted";
     return `Feed shard file is ${problem}. Please run Settings > Storage > Repair/rebuild storage and refetch the feed.`;
@@ -2015,7 +2093,7 @@ export class Sidebar {
     });
     menu.addSeparator();
     menu.addItem((item: MenuItem) => {
-      item
+      markMenuItemDestructive(item)
         .setTitle("Delete selection")
         .setIcon("trash")
         .onClick(() => {
@@ -2048,19 +2126,26 @@ export class Sidebar {
 
   private markSelectionReadStatus(read: boolean): void {
     let count = 0;
+    const changes: ArticleStateChange[] = [];
 
     for (const feed of this.getEffectiveSelectedFeeds()) {
       for (const item of feed.items) {
         if (item.read !== read) {
           item.read = read;
           count++;
+          changes.push({
+            feedUrl: feed.url,
+            guid: item.guid,
+            changes: { read },
+          });
         }
       }
     }
 
     if (count > 0) {
       new Notice(`Marked ${count} items as ${read ? "read" : "unread"}`);
-      void this.plugin.saveSettings().then(() => this.render());
+      void this.plugin.queueArticleStateSave(changes);
+      this.render();
     } else {
       new Notice(`No items to mark as ${read ? "read" : "unread"}`);
     }
@@ -2310,6 +2395,10 @@ export class Sidebar {
       callbacks: this.callbacks,
       plugin: this.plugin,
       render: () => this.render(),
+      toggleFolderCollapse: (folderPath) => {
+        this.callbacks.onToggleFolderCollapse(folderPath, false);
+        this.render();
+      },
       showRefreshDetails: (anchor, feeds, scope) =>
         this.showRefreshDetails(anchor, feeds, scope),
       getAllDescendantFolderPaths: (path) =>
@@ -2904,7 +2993,7 @@ export class Sidebar {
     });
 
     menu.addItem((item: MenuItem) => {
-      item
+      markMenuItemDestructive(item)
         .setTitle("Delete tag")
         .setIcon("trash")
         .onClick(() => {
@@ -2981,19 +3070,25 @@ export class Sidebar {
     menu.showAtMouseEvent(event);
   }
 
-  private async markAllUnreadAsRead(): Promise<void> {
+  private markAllUnreadAsRead(): void {
     let count = 0;
+    const changes: ArticleStateChange[] = [];
     this.settings.feeds.forEach((feed) => {
       feed.items.forEach((item) => {
         if (!item.read) {
           item.read = true;
           count++;
+          changes.push({
+            feedUrl: feed.url,
+            guid: item.guid,
+            changes: { read: true },
+          });
         }
       });
     });
 
     if (count > 0) {
-      await this.plugin.saveSettings();
+      void this.plugin.queueArticleStateSave(changes);
       this.render();
       new Notice(`Marked ${count} items as read`);
     } else {
@@ -3001,19 +3096,25 @@ export class Sidebar {
     }
   }
 
-  private async markAllReadAsUnread(): Promise<void> {
+  private markAllReadAsUnread(): void {
     let count = 0;
+    const changes: ArticleStateChange[] = [];
     this.settings.feeds.forEach((feed) => {
       feed.items.forEach((item) => {
         if (item.read) {
           item.read = false;
           count++;
+          changes.push({
+            feedUrl: feed.url,
+            guid: item.guid,
+            changes: { read: false },
+          });
         }
       });
     });
 
     if (count > 0) {
-      await this.plugin.saveSettings();
+      void this.plugin.queueArticleStateSave(changes);
       this.render();
       new Notice(`Marked ${count} items as unread`);
     } else {
@@ -3305,169 +3406,6 @@ export class Sidebar {
     });
   }
 
-  public renderToolbar(parentEl: HTMLElement, inline = false): void {
-    const sidebarToolbar = parentEl.createDiv({
-      cls:
-        "rss-dashboard-sidebar-toolbar" +
-        (inline ? " rss-dashboard-sidebar-toolbar--inline" : ""),
-    });
-
-    const addFolderButton = sidebarToolbar.createDiv({
-      cls: "rss-dashboard-toolbar-button",
-      attr: {
-        "aria-label": "Add folder",
-      },
-    });
-    setIcon(addFolderButton, "folder-plus");
-    addFolderButton.addEventListener("click", () => {
-      this.showFolderNameModal({
-        title: "Add folder",
-        existingNames: this.settings.folders.map((f) => f.name),
-        onSubmit: (folderName) => {
-          void this.addTopLevelFolder(folderName).then(() => this.render());
-        },
-      });
-    });
-
-    const sortButton = sidebarToolbar.createDiv({
-      cls: "rss-dashboard-toolbar-button",
-      attr: {
-        "aria-label": "Sort folders",
-      },
-    });
-    setIcon(sortButton, "sort-asc");
-    sortButton.addEventListener("click", (e) => {
-      const menu = new Menu();
-
-      menu.addItem((item) =>
-        item.setTitle("Feed name (a to z)").onClick(() => {
-          void this.sortAllFeeds("name", true);
-        }),
-      );
-      menu.addItem((item) =>
-        item.setTitle("Feed name (z to a)").onClick(() => {
-          void this.sortAllFeeds("name", false);
-        }),
-      );
-      menu.addItem((item) =>
-        item.setTitle("Unread count (high to low)").onClick(() => {
-          void this.sortAllFeeds("unreadCount", false);
-        }),
-      );
-      menu.addItem((item) =>
-        item.setTitle("Unread count (low to high)").onClick(() => {
-          void this.sortAllFeeds("unreadCount", true);
-        }),
-      );
-      menu.addItem((item) =>
-        item.setTitle("Folder name (a to z)").onClick(() => {
-          void this.sortFolders("name", true);
-        }),
-      );
-      menu.addItem((item) =>
-        item.setTitle("Folder name (z to a)").onClick(() => {
-          void this.sortFolders("name", false);
-        }),
-      );
-      menu.addItem((item) =>
-        item.setTitle("Modified time (new to old)").onClick(() => {
-          void this.sortFolders("modified", false);
-        }),
-      );
-      menu.addItem((item) =>
-        item.setTitle("Modified time (old to new)").onClick(() => {
-          void this.sortFolders("modified", true);
-        }),
-      );
-      menu.addItem((item) =>
-        item.setTitle("Created time (new to old)").onClick(() => {
-          void this.sortFolders("created", false);
-        }),
-      );
-      menu.addItem((item) =>
-        item.setTitle("Created time (old to new)").onClick(() => {
-          void this.sortFolders("created", true);
-        }),
-      );
-
-      menu.showAtMouseEvent(e);
-    });
-
-    const collapseAllButton = sidebarToolbar.createDiv({
-      cls: "rss-dashboard-toolbar-button",
-      attr: {
-        "aria-label": "Collapse/expand all folders",
-      },
-    });
-
-    let cachedFolderPaths: string[] | null = null;
-
-    const updateCollapseIcon = () => {
-      if (!cachedFolderPaths) {
-        cachedFolderPaths = this.getCachedFolderPaths();
-      }
-
-      const collapsedFolders = this.settings.collapsedFolders || [];
-      const allCollapsed =
-        cachedFolderPaths.length > 0 &&
-        cachedFolderPaths.every((path) => collapsedFolders.includes(path));
-      setIcon(
-        collapseAllButton,
-        allCollapsed ? "chevrons-down-up" : "chevrons-up-down",
-      );
-    };
-
-    updateCollapseIcon();
-
-    collapseAllButton.addEventListener("click", () => {
-      cachedFolderPaths = null;
-      this.toggleAllFolders();
-
-      window.setTimeout(() => updateCollapseIcon(), 0);
-    });
-
-    const searchButton = sidebarToolbar.createDiv({
-      cls: "rss-dashboard-toolbar-button",
-      attr: {
-        "aria-label": "Search feeds",
-        role: "button",
-        tabindex: "0",
-      },
-    });
-    searchButton.toggleClass("is-active", this.isSearchExpanded);
-    searchButton.setAttr(
-      "aria-pressed",
-      this.isSearchExpanded ? "true" : "false",
-    );
-    setIcon(searchButton, "search");
-    const toggleSearch = () => {
-      this.isSearchExpanded = !this.isSearchExpanded;
-      this.render();
-
-      if (this.isSearchExpanded) {
-        window.requestAnimationFrame(() => {
-          const searchInput = this.container.querySelector<HTMLInputElement>(
-            ".rss-dashboard-search-input",
-          );
-          if (!searchInput) return;
-          searchInput.focus();
-          searchInput.select();
-          searchInput.scrollIntoView({ block: "nearest" });
-        });
-      }
-    };
-    searchButton.addEventListener("click", (e) => {
-      e.stopPropagation();
-      toggleSearch();
-    });
-    searchButton.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        toggleSearch();
-      }
-    });
-  }
-
   private showAddFeedModal(defaultFolder = "Uncategorized"): void {
     new AddFeedModal(
       this.app,
@@ -3674,10 +3612,19 @@ export class Sidebar {
         .setTitle("Mark all as read")
         .setIcon("check-circle")
         .onClick(() => {
-          feed.items.forEach((item) => {
-            item.read = true;
+          const changes: ArticleStateChange[] = [];
+          feed.items.forEach((entry) => {
+            if (!entry.read) {
+              entry.read = true;
+              changes.push({
+                feedUrl: feed.url,
+                guid: entry.guid,
+                changes: { read: true },
+              });
+            }
           });
-          void this.plugin.saveSettings().then(() => this.render());
+          void this.plugin.queueArticleStateSave(changes);
+          this.render();
         });
     });
 
@@ -3732,7 +3679,7 @@ export class Sidebar {
     });
 
     menu.addItem((item: MenuItem) => {
-      item
+      markMenuItemDestructive(item)
         .setTitle("Delete feed")
         .setIcon("trash")
         .onClick(() => {

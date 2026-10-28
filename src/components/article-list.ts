@@ -1,5 +1,8 @@
 import { type App, Notice, setIcon, setTooltip } from "obsidian";
 import {
+  ARTICLE_TITLE_SCALE_DEFAULT,
+  ARTICLE_TITLE_SCALE_MAX,
+  ARTICLE_TITLE_SCALE_MIN,
   ArticleGroupByOption,
   FeedItem,
   RssDashboardSettings,
@@ -8,6 +11,7 @@ import {
 } from "../types/types";
 import { ArticleHeader } from "./article-header";
 import { ArticleEmptyState } from "./article-empty-state";
+import { withBindingHint } from "../hotkeys/keymap";
 import { isNarrowViewport, setCssProps } from "../utils/platform-utils";
 import {
   resolveSaveVersion,
@@ -18,7 +22,16 @@ import { resolveSavedTemplateForArticle } from "../utils/saved-template-utils";
 import type { FilterContext } from "../utils/filter-detection";
 import { HighlightService } from "../services/highlight-service";
 import { getEffectiveDateMs } from "../services/feed-parser/feed-retention";
-import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
+import {
+  createTagsDropdownPortal,
+  tagsPortalHoldsFocus,
+} from "../utils/tags-dropdown-portal";
+import {
+  ARTICLE_ROW_REMOVING_CLASS,
+  ARTICLE_ROW_SELECTOR,
+  findRenderedNeighbourRow,
+} from "../utils/article-list-focus";
+import { articleTitleMatchesSearch } from "../utils/article-search";
 import {
   groupArticles as groupArticlesUtil,
   getFeedFolder as getFeedFolderUtil,
@@ -38,11 +51,19 @@ import { renderFeedIcon as renderFeedIconUtil } from "./article-list/utils/feed-
 import { createActionButtons as createArticleActionButtonsUtil } from "./article-list/utils/article-actions";
 import type { CustomSaveHooks } from "./article-list/utils/save-options-menu";
 import { showArticleContextMenu as showArticleContextMenuUtil } from "./article-list/utils/article-context-menu";
-import { withCoverImageBusyState } from "./article-list/utils/cover-image-busy";
+import {
+  COVER_IMAGE_BUSY_CLASS,
+  withCoverImageBusyState,
+} from "./article-list/utils/cover-image-busy";
 import {
   COVER_IMAGE_FETCH_BUTTON_CLASS,
   resolveCoverImageOffer,
+  type CoverImageAction,
 } from "./article-list/utils/cover-image-action";
+import {
+  runCoverImageAction,
+  type CoverImageActionDeps,
+} from "./article-list/utils/cover-image-run";
 import { renderFeedView as renderFeedViewUtil } from "./article-list/views/feed-view";
 import { renderListView as renderListViewUtil } from "./article-list/views/list-view";
 import { renderCardView as renderCardViewUtil } from "./article-list/views/card-view";
@@ -50,14 +71,28 @@ import type {
   BaseViewContext,
   ViewDeps,
 } from "./article-list/views/view-types";
+import { isDomNode } from "../utils/dom-node";
 import { prefersReducedMotion } from "../utils/motion-preference";
 import {
   LEFT_HANDED_LAYOUT_ROOT_CLASS,
   loadLeftHandedLayout,
 } from "../utils/left-handed-layout";
 
+const ARTICLE_CONTROL_SELECTOR = `.${COVER_IMAGE_FETCH_BUTTON_CLASS}`;
+
 interface ArticleListCallbacks {
   onArticleClick: (article: FeedItem) => void;
+  /**
+   * The separate cover-image control was activated. The dashboard selects
+   * that article without opening it; a mouse activation also takes focus back
+   * so the shortcut named in the tooltip works at once (#1468).
+   */
+  onArticleControlActivate?: (article: FeedItem, byMouse: boolean) => void;
+  /**
+   * The row that holds keyboard focus is about to leave the list. Returns the
+   * function that puts focus back once the row is gone (#1468).
+   */
+  onFocusedRowRemoval?: () => () => void;
   onToggleViewStyle: (style: "list" | "card" | "feed") => void;
   onRefreshFeeds: () => Promise<void>;
   onSearch: (query: string) => void;
@@ -141,6 +176,7 @@ export class ArticleList {
   private articleSearchQuery: string = "";
   private tagsDropdownCleanup: (() => void) | null = null;
   private currentTagsDropdownAnchor: HTMLElement | null = null;
+  private tagsDropdownPortal: HTMLElement | null = null;
   private activePortal: HTMLElement | null = null;
   private activeFilterToggleBtn: HTMLElement | null = null;
   private activeFilterOutsideListenerCleanup: (() => void) | null = null;
@@ -252,6 +288,30 @@ export class ArticleList {
     return this.header?.focusSearch() ?? Promise.resolve(false);
   }
 
+  /**
+   * True while the tag menu a card opened owns keyboard focus: inside it, on
+   * its opener, or on the body that a click on its non-focusable text leaves.
+   * The dashboard's leaf-activation handler checks it before restoring focus,
+   * so the menu opened with `t` is not emptied of focus (#1480).
+   */
+  public tagsMenuHoldsFocus(): boolean {
+    return tagsPortalHoldsFocus(
+      this.tagsDropdownPortal,
+      this.currentTagsDropdownAnchor,
+    );
+  }
+
+  /**
+   * Restores the article search a rebuilt list has to keep. The dashboard
+   * creates a new list on every render, so a page, filter or refresh change
+   * would otherwise drop the query with the old list (#1465).
+   */
+  public setSearchQuery(query: string): void {
+    this.articleSearchQuery = query.trim().toLowerCase();
+    this.header?.setSearchQuery(query);
+    this.filterArticlesBySearch(this.articleSearchQuery);
+  }
+
   public destroy(): void {
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
@@ -312,6 +372,11 @@ export class ArticleList {
     });
   }
 
+  public refreshTagColors(): void {
+    this.header?.refreshTagColors();
+    this.refreshVisibleArticleTags();
+  }
+
   public syncVisibleArticlesFromSource(
     resolveSourceArticle: (article: FeedItem) => FeedItem | null,
   ): void {
@@ -353,6 +418,20 @@ export class ArticleList {
     return Math.max(0, Math.min(40, Math.round(value)));
   }
 
+  /** The saved title size as a CSS multiplier, kept inside the slider's range. */
+  private getArticleTitleScale(): number {
+    const value = this.settings.display.articleTitleScale;
+    if (!Number.isFinite(value)) {
+      return ARTICLE_TITLE_SCALE_DEFAULT / 100;
+    }
+    return (
+      Math.max(
+        ARTICLE_TITLE_SCALE_MIN,
+        Math.min(ARTICLE_TITLE_SCALE_MAX, value),
+      ) / 100
+    );
+  }
+
   private getCardGridTemplateColumns(cardColumns: number): string | null {
     if (cardColumns > 0) {
       return `repeat(${cardColumns}, minmax(0, 1fr))`;
@@ -390,7 +469,7 @@ export class ArticleList {
 
     this.cardLayoutFrame = window.requestAnimationFrame(() => {
       this.cardLayoutFrame = null;
-      layoutCardTagRows(root, this.articles);
+      layoutCardTagRows(root, this.articles, this.settings);
     });
   }
 
@@ -412,11 +491,11 @@ export class ArticleList {
       return;
     }
 
-    renderSingleRowCardTagChips(tagsContainer, article.tags);
+    renderSingleRowCardTagChips(tagsContainer, article.tags, this.settings);
   }
 
   private renderTagChips(container: HTMLElement, tags: Tag[]): void {
-    renderTagChips(container, tags);
+    renderTagChips(container, tags, this.settings);
   }
 
   private ensureCardTagsContainer(articleEl: HTMLElement): HTMLElement | null {
@@ -695,13 +774,7 @@ export class ArticleList {
         (feedUrl !== undefined && article.feedUrl !== feedUrl),
     );
 
-    const targetEl = Array.from(
-      this.container.querySelectorAll<HTMLElement>(
-        `#article-${CSS.escape(guid)}`,
-      ),
-    ).find(
-      (article) => feedUrl === undefined || article.dataset.feedUrl === feedUrl,
-    );
+    const targetEl = this.findRowEl(guid, feedUrl);
     if (!targetEl) return;
 
     const listEl = this.container.querySelector<HTMLElement>(
@@ -709,14 +782,33 @@ export class ArticleList {
     );
     const scrollPos = listEl?.scrollTop ?? 0;
 
+    // A keyboard user loses their place when the focused row leaves. Tell the
+    // dashboard before the row goes, then let it take focus back once the row
+    // is gone, so the keymap stays live (#1385, #1468).
+    const hadFocus = targetEl.contains(targetEl.doc.activeElement);
+    const restoreFocus = hadFocus
+      ? this.callbacks.onFocusedRowRemoval?.()
+      : undefined;
+    const moveFocus = (): void => {
+      if (!hadFocus) return;
+      if (restoreFocus) {
+        restoreFocus();
+        return;
+      }
+      listEl?.setAttr("tabindex", "-1");
+      listEl?.focus({ preventScroll: true });
+    };
+
     // Script-driven collapse ignores the stylesheet's reduced-motion rules, so
     // honor the preference here: drop the row at once, no collapse.
     if (prefersReducedMotion(targetEl.win)) {
       targetEl.remove();
       if (listEl) listEl.scrollTop = scrollPos;
+      moveFocus();
       return;
     }
 
+    targetEl.classList.add(ARTICLE_ROW_REMOVING_CLASS);
     const originalHeight = targetEl.offsetHeight;
     setCssProps(targetEl, {
       overflow: "hidden",
@@ -739,6 +831,7 @@ export class ArticleList {
     window.setTimeout(() => {
       targetEl.remove();
       if (listEl) listEl.scrollTop = scrollPos;
+      moveFocus();
     }, 320);
   }
 
@@ -861,8 +954,45 @@ export class ArticleList {
     return true;
   }
 
+  /**
+   * The article the list would select if `guid` left it now: the next rendered
+   * row, else the previous one, read from the order on screen (#1468). Call it
+   * before removing the row.
+   */
+  public getRenderedNeighbour(guid: string, feedUrl?: string): FeedItem | null {
+    const targetEl = this.findRowEl(guid, feedUrl);
+    const listEl = this.container.querySelector<HTMLElement>(
+      ".rss-dashboard-articles-list",
+    );
+    if (!targetEl) return null;
+    const row = findRenderedNeighbourRow(targetEl, listEl);
+    if (!row) return null;
+    return this.findArticleForRow(row);
+  }
+
+  private findRowEl(guid: string, feedUrl?: string): HTMLElement | undefined {
+    return Array.from(
+      this.container.querySelectorAll<HTMLElement>(
+        `#article-${CSS.escape(guid)}`,
+      ),
+    ).find(
+      (article) => feedUrl === undefined || article.dataset.feedUrl === feedUrl,
+    );
+  }
+
+  private findArticleForRow(row: HTMLElement): FeedItem | null {
+    return (
+      this.articles.find(
+        (article) =>
+          row.id === `article-${article.guid}` &&
+          (row.dataset.feedUrl === undefined ||
+            article.feedUrl === row.dataset.feedUrl),
+      ) ?? null
+    );
+  }
+
   public setSelectedArticle(
-    article: FeedItem,
+    article: FeedItem | null,
     options?: { forceCardTopAnchor?: boolean },
   ): void {
     this.selectedArticle = article;
@@ -875,6 +1005,7 @@ export class ArticleList {
         ".rss-dashboard-article-item.active, .rss-dashboard-article-card.active, .rss-dashboard-feed-item.active",
       )
       .forEach((el) => el.classList.remove("active"));
+    if (!article) return;
     // Add active class to the newly selected article element
     const targetEl = this.container.querySelector<HTMLElement>(
       `#article-${CSS.escape(article.guid)}`,
@@ -1038,7 +1169,13 @@ export class ArticleList {
     if (readToggle) {
       readToggle.classList.toggle("read", !!article.read);
       readToggle.classList.toggle("unread", !article.read);
-      setTooltip(readToggle, article.read ? "Mark as unread" : "Mark as read");
+      setTooltip(
+        readToggle,
+        withBindingHint(
+          article.read ? "Mark as unread" : "Mark as read",
+          "toggle-read",
+        ),
+      );
       setIcon(readToggle, article.read ? "check-circle" : "circle");
     }
 
@@ -1049,14 +1186,17 @@ export class ArticleList {
       saveToggle.classList.toggle("saved", !!article.saved);
       setTooltip(
         saveToggle,
-        article.saved
-          ? SAVED_ARTICLE_TOOLTIP
-          : saveVersionTooltip(
-              resolveSaveVersion(
-                this.settings.articleSaving,
-                this.getArticleSavedTemplate(article),
+        withBindingHint(
+          article.saved
+            ? SAVED_ARTICLE_TOOLTIP
+            : saveVersionTooltip(
+                resolveSaveVersion(
+                  this.settings.articleSaving,
+                  this.getArticleSavedTemplate(article),
+                ),
               ),
-            ),
+          "save-article",
+        ),
       );
     }
 
@@ -1068,7 +1208,12 @@ export class ArticleList {
       starToggle.classList.toggle("unstarred", !article.starred);
       setTooltip(
         starToggle,
-        article.starred ? "Remove from starred items" : "Add to starred items",
+        withBindingHint(
+          article.starred
+            ? "Remove from starred items"
+            : "Add to starred items",
+          "toggle-star",
+        ),
       );
       const starIcon = starToggle.querySelector<HTMLElement>(
         ".rss-dashboard-star-icon",
@@ -1187,7 +1332,7 @@ export class ArticleList {
         (articleEl.classList.contains("rss-dashboard-feed-item") &&
           isFeedTagStrip)
       ) {
-        renderSingleRowCardTagChips(container, tags);
+        renderSingleRowCardTagChips(container, tags, this.settings);
         return;
       }
 
@@ -1216,14 +1361,14 @@ export class ArticleList {
     articleElements.forEach((el) => {
       const titleEl = el.querySelector(".rss-dashboard-article-title");
       const title =
-        (titleEl as HTMLElement | null)?.dataset.articleTitle?.toLowerCase() ||
-        titleEl?.textContent?.toLowerCase() ||
+        (titleEl as HTMLElement | null)?.dataset.articleTitle ??
+        titleEl?.textContent ??
         "";
 
-      if (query && !title.includes(query)) {
-        (el as HTMLElement).classList.add("rss-dashboard-search-hidden");
-      } else {
+      if (articleTitleMatchesSearch(title, query)) {
         (el as HTMLElement).classList.remove("rss-dashboard-search-hidden");
+      } else {
+        (el as HTMLElement).classList.add("rss-dashboard-search-hidden");
       }
     });
   }
@@ -1288,11 +1433,47 @@ export class ArticleList {
     });
   }
 
+  /**
+   * Activating the separate cover-image control selects its card before the
+   * control runs, so the shortcut in its tooltip refers to the card just used.
+   * The capture phase runs ahead of the control's own handler, which may
+   * remove the card (#1468). Article toolbar actions do not change selection.
+   * Enter and Space reach the control as keydown, not click.
+   */
+  private attachControlActivation(articlesList: HTMLElement): void {
+    const report = (event: Event, byMouse: boolean): void => {
+      const target = event.target;
+      // `instanceof HTMLElement` is false for elements a popout window created.
+      if (!isDomNode(target) || !target.instanceOf(HTMLElement)) return;
+      if (!target.closest(ARTICLE_CONTROL_SELECTOR)) return;
+      const row = target.closest<HTMLElement>(ARTICLE_ROW_SELECTOR);
+      const article = row ? this.findArticleForRow(row) : null;
+      if (article) this.callbacks.onArticleControlActivate?.(article, byMouse);
+    };
+    articlesList.addEventListener(
+      "click",
+      (event) => report(event, event.detail > 0),
+      true,
+    );
+    articlesList.addEventListener(
+      "keydown",
+      (event) => {
+        if (event.key === "Enter" || event.key === " ") report(event, false);
+      },
+      true,
+    );
+  }
+
   private createArticlesListContainer(): HTMLElement {
     const articlesList = this.container.createDiv({
       cls: `rss-dashboard-articles-list rss-dashboard-${this.settings.viewStyle}-view`,
     });
     this.applyLeftHandedLayoutClass(articlesList);
+    this.attachControlActivation(articlesList);
+    articlesList.style.setProperty(
+      "--rss-dashboard-article-title-scale",
+      String(this.getArticleTitleScale()),
+    );
     if (this.settings.viewStyle === "card") {
       // Keep card layout controls in one render-time path so both hamburger
       // controls and formal settings stay in sync with the same persisted fields.
@@ -1454,6 +1635,7 @@ export class ArticleList {
       selectedArticle: this.selectedArticle,
       showFeedSource: this.showFeedSource,
       settings: this.settings,
+      tagAppearanceSettings: this.settings,
       resolveCachedImageUrl: this.callbacks.onResolveCachedImageUrl,
       highlightService: this.highlightService,
       callbacks: this.callbacks,
@@ -1461,8 +1643,6 @@ export class ArticleList {
   }
 
   private getViewDeps(): ViewDeps {
-    const onFetchCoverImage = this.callbacks.onFetchCoverImage;
-    const onRestoreCoverImage = this.callbacks.onRestoreCoverImage;
     return {
       renderFeedIcon: (container, feedUrl, mediaType) =>
         this.renderFeedIcon(container, feedUrl, mediaType),
@@ -1470,16 +1650,23 @@ export class ArticleList {
         this.createArticleActionButtons(actionToolbar, article, mode),
       showArticleContextMenu: (event, article) =>
         this.showArticleContextMenu(event, article),
-      fetchCoverImage: onFetchCoverImage,
-      restoreCoverImage: onRestoreCoverImage,
-      replaceArticle: (article: FeedItem) => {
-        this.replaceArticleInPlace(article);
-      },
+      ...this.getCoverImageActionDeps(),
       scheduleMathRendering: (element: HTMLElement) =>
         this.callbacks.onRenderArticleTitle?.(element),
       scheduleCardTagLayout: (card) => this.scheduleCardTagLayout(card),
       onToggleFeedSectionCollapse: (feedSourceName, isCollapsed) =>
         this.onToggleFeedSectionCollapse(feedSourceName, isCollapsed),
+    };
+  }
+
+  /** The handlers a cover-image action runs through, wherever it starts. */
+  private getCoverImageActionDeps(): CoverImageActionDeps {
+    return {
+      fetchCoverImage: this.callbacks.onFetchCoverImage,
+      restoreCoverImage: this.callbacks.onRestoreCoverImage,
+      replaceArticle: (article: FeedItem) => {
+        this.replaceArticleInPlace(article);
+      },
     };
   }
 
@@ -1614,16 +1801,7 @@ export class ArticleList {
 
   private showArticleContextMenu(event: MouseEvent, article: FeedItem): void {
     const fetchCoverImage = this.callbacks.onFetchCoverImage;
-    const restoreCoverImage = this.callbacks.onRestoreCoverImage;
-    // The list view renders no cover, so it offers neither role (#1314, #1330).
-    const coverImageAction =
-      this.settings.viewStyle === "list"
-        ? null
-        : resolveCoverImageOffer(article, {
-            hasFetcher: !!fetchCoverImage,
-            hasRestorer: !!restoreCoverImage,
-            showCoverImage: this.settings.display.showCoverImage,
-          });
+    const coverImageAction = this.resolveOfferedCoverImageAction(article);
     showArticleContextMenuUtil(event, article, {
       callbacks: {
         ...this.callbacks,
@@ -1637,6 +1815,55 @@ export class ArticleList {
       coverImageAction: coverImageAction ?? undefined,
       settings: { articleSaving: this.settings.articleSaving },
     });
+  }
+
+  /**
+   * The cover action this surface offers for an article, or null. Answers
+   * through the same offer resolver as the visible control, plus the List view
+   * check the context menu applies, because List renders no cover for the
+   * action to change.
+   */
+  private resolveOfferedCoverImageAction(
+    article: FeedItem,
+  ): CoverImageAction | null {
+    if (this.settings.viewStyle === "list") return null;
+    return resolveCoverImageOffer(article, {
+      hasFetcher: !!this.callbacks.onFetchCoverImage,
+      hasRestorer: !!this.callbacks.onRestoreCoverImage,
+      showCoverImage: this.settings.display.showCoverImage,
+    });
+  }
+
+  /**
+   * Runs one article's offered cover-image action from the dashboard keyboard
+   * route (#1466). The role is resolved at the moment of the press, through the
+   * same offer resolver as the control and the context menu, so a fetch and the
+   * restore that follows it alternate.
+   *
+   * Resolves true when the surface offered an action and the press is handled.
+   * False leaves the key unhandled, with no notice, request or selection
+   * change, exactly as when the control and the menu offer nothing.
+   */
+  public runSelectedCoverImageAction(article: FeedItem): boolean {
+    const action = this.resolveOfferedCoverImageAction(article);
+    if (!action) return false;
+
+    const articleEl = this.findArticleElement(article);
+    // The article already shows a fetch running, whether this shortcut, the
+    // control or the context menu started it. Leave it alone rather than start
+    // a second page request; the press still belongs to the surface.
+    if (
+      action.role === "fetch" &&
+      articleEl?.classList.contains(COVER_IMAGE_BUSY_CLASS)
+    ) {
+      return true;
+    }
+
+    void runCoverImageAction(
+      { article, articleEl, deps: this.getCoverImageActionDeps() },
+      action.role,
+    );
+    return true;
   }
 
   /**
@@ -1775,10 +2002,15 @@ export class ArticleList {
       },
       onOpenTagsSettings: this.callbacks.onOpenTagsSettings,
       appContainer: this.container,
+      containTab: true,
+      onOpen: (portal) => {
+        this.tagsDropdownPortal = portal;
+      },
       onClosed: () => {
         if (this.tagsDropdownCleanup === cleanup) {
           this.tagsDropdownCleanup = null;
           this.currentTagsDropdownAnchor = null;
+          this.tagsDropdownPortal = null;
         }
       },
     });

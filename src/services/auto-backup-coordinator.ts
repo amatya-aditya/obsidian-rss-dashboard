@@ -1,8 +1,9 @@
 /**
  * Coordinates low-write automatic backup snapshots for one plugin session.
  *
- * The first persisted change creates a recovery baseline. Later changes only
- * mark that baseline stale until unload asks for one final best-effort snapshot.
+ * The recovery baseline is taken once the session's settings have loaded, and
+ * holds the state as loaded. Persisted changes after it only mark that
+ * baseline stale until unload asks for one final best-effort snapshot.
  */
 export class AutoBackupCoordinator {
   private persistedGeneration = 0;
@@ -22,13 +23,26 @@ export class AutoBackupCoordinator {
   }
 
   /**
-   * Records a successful settings persistence. The first persistence in a
-   * session establishes the recovery baseline; later ones only mark it stale.
+   * Records a successful settings persistence. It establishes the recovery
+   * baseline when the session has none; later persistence only marks it stale.
    */
   public async recordPersistedChange(): Promise<void> {
     this.persistedGeneration += 1;
     this.snapshotIsStale = true;
+    await this.ensureBaseline();
+  }
 
+  /**
+   * Records that the session's settings loaded and nothing was persisted:
+   * takes the recovery baseline of the loaded state when the session has none.
+   * Unlike a persisted change it leaves the baseline current, since nothing
+   * has changed since.
+   */
+  public async recordLoadedState(): Promise<void> {
+    await this.ensureBaseline();
+  }
+
+  private async ensureBaseline(): Promise<void> {
     if (!this.shouldWriteSnapshot()) {
       this.backupsWereEnabled = false;
       return;

@@ -70,10 +70,8 @@ export class VersionStatusBarFeature {
 
     const item = this.options.addStatusBarItem();
     this.statusItem = item;
-    // The label never changes after creation, so assistive tech announces it
-    // once. The "Open dashboard" command is the keyboard route to the click.
+    // The label is static; the "Open dashboard" command is the keyboard route to the click.
     item.setText(formatBuildLabel(this.options.version, getBuildInfo()));
-    item.setAttr("role", "status");
     item.setAttr("aria-label", `RSS Dashboard version ${this.options.version}`);
     item.addClass("mod-clickable");
     item.addEventListener("click", () => {

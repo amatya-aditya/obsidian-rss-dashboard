@@ -68,6 +68,7 @@ function cloneSettings(): RssDashboardSettings {
 interface TestPlugin {
   settings: RssDashboardSettings;
   saveSettings: ReturnType<typeof vi.fn>;
+  queueArticleStateSave: ReturnType<typeof vi.fn>;
   openSettingsToTab?: ReturnType<typeof vi.fn>;
 }
 
@@ -98,6 +99,7 @@ interface TestView {
     updateArticleInPlace?: ReturnType<typeof vi.fn>;
   };
   refreshFilterStatusBarOnly?: ReturnType<typeof vi.fn>;
+  render?: () => void;
   handleFilterChange?: (opts: {
     type: string;
     value: unknown;
@@ -144,6 +146,7 @@ describe("Filter Status Bar counts (TDD)", () => {
     const plugin: TestPlugin = {
       settings,
       saveSettings: vi.fn(async () => {}),
+      queueArticleStateSave: vi.fn(),
     };
 
     const leaf = {} as unknown as import("obsidian").WorkspaceLeaf;
@@ -172,6 +175,7 @@ describe("Filter Status Bar counts (TDD)", () => {
     const plugin: TestPlugin = {
       settings,
       saveSettings: vi.fn(async () => {}),
+      queueArticleStateSave: vi.fn(),
       openSettingsToTab: vi.fn(async () => {}),
     };
 
@@ -221,6 +225,7 @@ describe("Filter Status Bar counts (TDD)", () => {
     const plugin: TestPlugin = {
       settings,
       saveSettings: vi.fn(async () => {}),
+      queueArticleStateSave: vi.fn(),
       openSettingsToTab: vi.fn(async () => {}),
     };
 
@@ -270,6 +275,7 @@ describe("Filter Status Bar counts (TDD)", () => {
     const plugin: TestPlugin = {
       settings,
       saveSettings: vi.fn(async () => {}),
+      queueArticleStateSave: vi.fn(),
     };
 
     const leaf = {} as unknown as import("obsidian").WorkspaceLeaf;
@@ -293,6 +299,7 @@ describe("Filter Status Bar counts (TDD)", () => {
     const plugin: TestPlugin = {
       settings,
       saveSettings: vi.fn(async () => {}),
+      queueArticleStateSave: vi.fn(),
     };
 
     const leaf = {} as unknown as import("obsidian").WorkspaceLeaf;
@@ -306,6 +313,9 @@ describe("Filter Status Bar counts (TDD)", () => {
     view.filterLogic = "OR";
 
     view.refreshFilterStatusBarOnly = vi.fn();
+    // Removing the only filtered row rebuilds for the empty state (#1385);
+    // this test only covers the status bar, so keep the rebuild out of it.
+    view.render = vi.fn();
     view.articleList = {
       removeArticleInPlace: vi.fn(),
       hasArticle: vi.fn(() => true),

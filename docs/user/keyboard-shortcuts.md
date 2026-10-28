@@ -7,26 +7,61 @@ The shortcut reference opens in several ways:
 - Open the dashboard ☰ menu and choose **Keyboard shortcuts** (shown with its `?` key).
 - In **Settings → General**, choose **View** in the **Keyboard shortcuts** row.
 
+## Commands without default hotkeys
+
+These command-palette commands are always listed. Assign a hotkey in
+**Settings → Hotkeys** if you want one.
+
+| Command                        | Action                                       |
+| ------------------------------ | -------------------------------------------- |
+| Toggle video focus mode        | Show only the video, hiding its description  |
+| Toggle podcast chapter markers | Show or hide chapter markers on the seek bar |
+
 ## General Navigation
 
 | Shortcut | Action           |
 | -------- | ---------------- |
-| ?        | Open Help Dialog |
+| ?        | Open help dialog |
 | Esc      | Close dialog     |
-| r        | Refresh Feed     |
 
 ## Dashboard View
 
-| Shortcut  | Action                 |
-| --------- | ---------------------- |
-| Shift + s | Focus sidebar          |
-| Shift + r | Focus reader view      |
-| Shift + 1 | All articles filter    |
-| Shift + 2 | Unread articles filter |
-| Shift + 3 | Read articles filter   |
-| 1         | List view              |
-| 2         | Card view              |
-| 3         | Feed view              |
+Every key that works in the dashboard.
+
+| Shortcut               | Action                                               |
+| ---------------------- | ---------------------------------------------------- |
+| Shift + s              | Focus sidebar                                        |
+| Shift + r              | Focus reader view                                    |
+| Shift + 1              | All articles filter                                  |
+| Shift + 2              | Unread articles filter                               |
+| Shift + 3              | Read articles filter                                 |
+| Shift + C              | Fetch or restore cover image                         |
+| 1                      | List view                                            |
+| 2                      | Card view                                            |
+| 3                      | Feed view                                            |
+| r                      | Refresh feed                                         |
+| ArrowUp / ArrowDown    | Move article selection up / down                     |
+| ArrowLeft / ArrowRight | Move article selection left / right (card view only) |
+| o / Enter              | Open article in reader pane                          |
+| Space / Shift + Space  | Select next / previous article without opening       |
+| `                      | Select first article                                 |
+| k                      | Close reader pane                                    |
+| j                      | Open previous article                                |
+| l                      | Open next article                                    |
+| m                      | Mark article read/unread toggle                      |
+| ,                      | Mark article read and open next                      |
+| Shift + a              | Mark all as read                                     |
+| f                      | Star/Unstar article                                  |
+| Shift + f              | Toggle video focus mode                              |
+| t                      | Add tags to article                                  |
+| s                      | Save to notes                                        |
+
+Backquote returns the article list to the start of the current view and
+selects its first article without opening it, moving back to page 1 when the
+view is on a later page. The view, filters, and search stay as they are, and
+the key does nothing when the view holds no articles. On layouts where
+backquote needs AltGr, the key does not fire because dashboard shortcuts
+ignore modified keys.
 
 ## Reader View
 
@@ -45,22 +80,20 @@ The shortcut reference opens in several ways:
 
 ## Article Manipulation
 
-| Shortcut               | Action                                               |
-| ---------------------- | ---------------------------------------------------- |
-| ArrowUp / ArrowDown    | Move article selection up / down                     |
-| ArrowLeft / ArrowRight | Move article selection left / right (card view only) |
-| o / Enter              | Open article in reader pane                          |
-| k                      | Close reader pane                                    |
-| j                      | Open previous article                                |
-| l                      | Open next article                                    |
-| Space / Shift + Space  | Select next / previous article without opening       |
-| m                      | Mark article read/unread toggle                      |
-| ,                      | Mark article read and open next                      |
-| Shift + a              | Mark all as read                                     |
-| f                      | Star/Unstar article                                  |
-| Shift + f              | Toggle YouTube focus mode                            |
-| t                      | Add tags to article                                  |
-| s                      | Save to notes                                        |
+These keys work the same in the dashboard and in the Reader.
+
+| Shortcut  | Action                          |
+| --------- | ------------------------------- |
+| k         | Close reader pane               |
+| j         | Open previous article           |
+| l         | Open next article               |
+| m         | Mark article read/unread toggle |
+| ,         | Mark article read and open next |
+| Shift + a | Mark all as read                |
+| f         | Star/Unstar article             |
+| Shift + f | Toggle video focus mode         |
+| t         | Add tags to article             |
+| s         | Save to notes                   |
 
 `j`, `k`, and `l` work the same whether the dashboard or the Reader has focus.
 `j` and `l` open the previous or next article in the Reader, even when it was

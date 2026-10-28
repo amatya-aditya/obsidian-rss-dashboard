@@ -23,7 +23,48 @@ interface MediaSettingsPlugin {
   getActiveReaderView?(): Promise<{
     updatePodcastTheme: (theme: PodcastTheme) => void;
   } | null>;
-  applyYouTubeFocusMode(hide: boolean): Promise<void>;
+  applyVideoFocusMode(hide: boolean): Promise<void>;
+  applyPodcastChapterMarkers(enabled: boolean): Promise<void>;
+  applyPodcastSleepTimerBand(enabled: boolean): Promise<void>;
+}
+
+/**
+ * The two seek-bar toggles. Extracted so the media tab stays inside the
+ * function-length limit as settings are added (#1374, #1447).
+ */
+function renderPodcastSeekBarSettings(
+  containerEl: HTMLElement,
+  plugin: MediaSettingsPlugin,
+): void {
+  new Setting(containerEl)
+    .setName("Show chapter markers on the seek bar")
+    .setDesc(
+      "Markers appear for episodes whose description lists timestamps in a recognized form. Many shows list none, so most episodes have no markers.",
+    )
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.media.showPodcastChapterMarkers ?? true)
+        .onChange(async (value) => {
+          plugin.settings.media.showPodcastChapterMarkers = value;
+          await plugin.applyPodcastChapterMarkers(value);
+          await plugin.saveSettings();
+        }),
+    );
+
+  new Setting(containerEl)
+    .setName("Show the sleep timer band on the seek bar")
+    .setDesc(
+      "While a sleep timer is running, the band previews the audio that will play before it stops. Turning this off leaves the timer itself unchanged.",
+    )
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.media.showPodcastSleepTimerBand ?? true)
+        .onChange(async (value) => {
+          plugin.settings.media.showPodcastSleepTimerBand = value;
+          await plugin.applyPodcastSleepTimerBand(value);
+          await plugin.saveSettings();
+        }),
+    );
 }
 
 export function renderMediaSettingsTab(
@@ -74,20 +115,20 @@ export function renderMediaSettingsTab(
       settingsUiCompatibility.markDestructive(button);
     });
 
-  // ── YouTube player ────────────────────────────────────────────────────────
-  new Setting(containerEl).setName("YouTube player").setHeading();
+  // ── Video player ──────────────────────────────────────────────────────────
+  new Setting(containerEl).setName("Video player").setHeading();
 
   new Setting(containerEl)
-    .setName("Focus mode")
+    .setName("Video focus mode")
     .setDesc(
-      "Show only the video: hide the description and the related videos below it. The stored description is kept for search and saved notes.",
+      "Show only the video for YouTube videos and Twitch VODs: hide the description, related videos, watch link and source line. The stored description is kept for search and saved notes.",
     )
     .addToggle((toggle) =>
       toggle
         .setValue(plugin.settings.media.youtubeFocusMode ?? false)
         .onChange(async (value) => {
           plugin.settings.media.youtubeFocusMode = value;
-          await plugin.applyYouTubeFocusMode(value);
+          await plugin.applyVideoFocusMode(value);
           await plugin.saveSettings();
         }),
     );
@@ -114,6 +155,8 @@ export function renderMediaSettingsTab(
           await plugin.saveSettings();
         }),
     );
+
+  renderPodcastSeekBarSettings(containerEl, plugin);
 
   new Setting(containerEl)
     .setName("Player theme")

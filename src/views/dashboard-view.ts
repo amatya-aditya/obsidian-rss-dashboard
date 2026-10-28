@@ -12,6 +12,8 @@ import {
 } from "obsidian";
 import { resolveReaderMediaRoute } from "../utils/reader-article-render";
 import { renderReaderTagChips } from "../utils/reader-tag-chips";
+import { refreshTagsDropdownPortalColors } from "../utils/tags-dropdown-portal";
+import { refreshTagMultiSelectMenuColors } from "../components/tag-multi-select-menu";
 import {
   Feed,
   FeedKeywordRulesSettings,
@@ -30,6 +32,11 @@ import type {
   FiltersUpdatedEventPayload,
   default as RssDashboardPlugin,
 } from "../../main";
+import type { ArticleStateChange } from "../utils/article-update";
+import {
+  captureArticleListFocus,
+  restoreArticleListFocus,
+} from "../utils/article-list-focus";
 import { Sidebar, type SidebarOptions } from "../components/sidebar";
 import { ArticleList } from "../components/article-list";
 import { openFilterMenuFrom } from "../components/article-filter-menu";
@@ -73,7 +80,8 @@ import {
   formatDashboardMultiFiltersTitle,
 } from "../utils/filter-title-format";
 import { computePagination } from "../utils/pagination-utils";
-import { getArticlePreviewSummaryText } from "../utils/article-preview-utils";
+import { articleTitleMatchesSearch } from "../utils/article-search";
+import { computeHighlightMatchCounts } from "../utils/highlight-match-counts";
 import { removeFolderByPath } from "../utils/folder-tree";
 import { createIconButton, getIconButtonAction } from "../utils/icon-button";
 import { createLiveRegion } from "../utils/live-region";
@@ -99,6 +107,7 @@ import {
 import { getFeedErrorDetail } from "../utils/feed-error";
 import { RefreshDetailsModal } from "../modals/refresh-details-modal";
 import { setupDashboardHotkeys } from "../hotkeys/dashboard-hotkeys";
+import { withBindingHint } from "../hotkeys/keymap";
 import { scheduleProcessMathElements } from "../utils/math-rendering";
 import {
   handleReaderMathCopy,
@@ -153,6 +162,16 @@ export class RssDashboardView extends ItemView {
   private currentFeed: Feed | null = null;
   private selectedTags: string[] = [];
   private selectedArticle: FeedItem | null = null;
+  /**
+   * The article search the list is showing. The list is rebuilt on every
+   * render, so the query lives here and is handed back to the new list (#1465).
+   */
+  private articleSearchQuery = "";
+  /**
+   * Set when a removal moved the selection to its neighbour, so `,` opens that
+   * neighbour instead of advancing a second time (#1468).
+   */
+  private selectionAdvancedByRemoval: { next: FeedItem | null } | null = null;
   private tagsCollapsed = true;
   private collapsedFolders: string[] = [];
   private allArticlesPage = 1;
@@ -334,6 +353,30 @@ export class RssDashboardView extends ItemView {
     this.actionFocusDashboard();
   }
 
+  /**
+   * Whether `article` is the dashboard's current selection. `feedUrl` names the
+   * backing feed when the selection carries that URL instead of the article's.
+   */
+  public isSelectedArticle(article: FeedItem, feedUrl?: string): boolean {
+    return (
+      this.selectedArticle?.guid === article.guid &&
+      (this.selectedArticle.feedUrl === article.feedUrl ||
+        (feedUrl !== undefined && this.selectedArticle.feedUrl === feedUrl))
+    );
+  }
+
+  /** Reads and clears what the last removal did to the selection. */
+  private takeSelectionAdvance(): { next: FeedItem | null } | null {
+    const advance = this.selectionAdvancedByRemoval;
+    this.selectionAdvancedByRemoval = null;
+    return advance;
+  }
+
+  /** Puts keyboard focus on the dashboard itself, where its keymap is live. */
+  private focusDashboardContainer(): void {
+    this.containerEl.focus({ preventScroll: true });
+  }
+
   public actionFocusDashboard(): void {
     this.app.workspace.setActiveLeaf(this.leaf, { focus: true });
     this.getSidebarKeyboardController()?.blurSidebarFocus();
@@ -389,28 +432,11 @@ export class RssDashboardView extends ItemView {
         } else {
           // Last item on current page, go to next page if available
           if (currentPage < pagination.totalPages) {
-            this.handlePageChange(currentPage + 1);
-            // After page change, wait for render to select the first item on new page
-            window.requestAnimationFrame(() => {
-              const newFiltered = this.getFilteredArticles();
-              const newPagination = computePagination({
-                totalItems: newFiltered.length,
-                pageSize,
-                requestedPage: currentPage + 1,
-              });
-              const newArticles = newFiltered.slice(
-                newPagination.startIdx,
-                newPagination.endIdx,
-              );
-              if (newArticles.length > 0) {
-                const firstArticle = newArticles[0];
-                if (firstArticle) {
-                  void this.selectArticle(firstArticle, {
-                    open: options?.open,
-                  });
-                }
-              }
-            });
+            this.selectOnPageAfterRender(
+              currentPage + 1,
+              (pageArticles) => pageArticles[0],
+              { open: options?.open },
+            );
             return;
           } else {
             // Already on last page, stay on last item
@@ -461,27 +487,11 @@ export class RssDashboardView extends ItemView {
         } else {
           // First item on current page, go to previous page if available
           if (currentPage > 1) {
-            this.handlePageChange(currentPage - 1);
-            window.requestAnimationFrame(() => {
-              const newFiltered = this.getFilteredArticles();
-              const newPagination = computePagination({
-                totalItems: newFiltered.length,
-                pageSize,
-                requestedPage: currentPage - 1,
-              });
-              const newArticles = newFiltered.slice(
-                newPagination.startIdx,
-                newPagination.endIdx,
-              );
-              if (newArticles.length > 0) {
-                const lastArticle = newArticles[newArticles.length - 1];
-                if (lastArticle) {
-                  void this.selectArticle(lastArticle, {
-                    open: options?.open,
-                  });
-                }
-              }
-            });
+            this.selectOnPageAfterRender(
+              currentPage - 1,
+              (pageArticles) => pageArticles[pageArticles.length - 1],
+              { open: options?.open },
+            );
             return;
           } else {
             // Already on first page, stay on first item
@@ -495,6 +505,43 @@ export class RssDashboardView extends ItemView {
     if (prevArticle) {
       void this.selectArticle(prevArticle, { open: options?.open });
     }
+  }
+
+  /**
+   * Action: Put the article list back at the start of the current scope and
+   * select its first article without opening it. Returns false for an empty
+   * scope, so the key stays unhandled instead of swallowing a no-op.
+   * @internal
+   */
+  public actionSelectFirst(): boolean {
+    const allFilteredArticles = this.getFilteredArticles();
+    // Landing on page 1 is part of the action, so the article to select is
+    // page 1's first visible one, decided before the page moves. A search
+    // hides rows client side without changing the scope, so "the first
+    // article" means the first one the user can see (#1465).
+    const firstArticle = this.firstArticleInSearchScope(
+      allFilteredArticles.slice(0, this.getCurrentPageSize()),
+    );
+    if (!firstArticle) return false;
+    this.getSidebarKeyboardController()?.blurSidebarFocus();
+
+    if (this.getCurrentPage() === 1) {
+      void this.selectArticle(firstArticle);
+      return true;
+    }
+
+    this.selectOnPageAfterRender(1, () => firstArticle);
+    return true;
+  }
+
+  /** The first of the given rows that the article search leaves visible. */
+  private firstArticleInSearchScope(
+    articles: FeedItem[],
+  ): FeedItem | undefined {
+    const query = this.articleSearchQuery;
+    return articles.find((article) =>
+      articleTitleMatchesSearch(article.title, query),
+    );
   }
 
   /**
@@ -618,8 +665,18 @@ export class RssDashboardView extends ItemView {
    * @internal
    */
   public async actionMarkReadAndNext(): Promise<void> {
+    this.selectionAdvancedByRemoval = null;
     if (this.selectedArticle && !this.selectedArticle.read) {
       await this.actionToggleReadStatus();
+    }
+    // A filter that dropped the card already moved the selection; open that
+    // neighbour rather than advancing past it (#1468).
+    const advanced = this.takeSelectionAdvance();
+    if (advanced) {
+      if (advanced.next) {
+        await this.selectArticle(advanced.next, { open: true });
+      }
+      return;
     }
     this.actionNavigateNext({ open: true });
   }
@@ -674,15 +731,30 @@ export class RssDashboardView extends ItemView {
   }
 
   /**
+   * Action: Run the selected article's cover-image action from the `Shift+C`
+   * keymap binding (#1466).
+   *
+   * Resolves the role at the moment of the press through the same gate as the
+   * visible control and the context menu, so a fetch and the restore that
+   * follows it alternate. Returns false when the surface offers no action, so
+   * the key is left unhandled with no notice or request.
+   * @internal
+   */
+  public actionRunCoverImageAction(): boolean {
+    if (!this.selectedArticle || !this.articleList) return false;
+    return this.articleList.runSelectedCoverImageAction(this.selectedArticle);
+  }
+
+  /**
    * Action: Mark all filtered articles as read. The Notice names the view,
    * using the same title the article header shows.
    * @internal
    */
   public actionMarkAllAsRead(): void {
-    const count = this.updateFilteredArticleReadStatus(true);
+    const { count, changes } = this.updateFilteredArticleReadStatus(true);
 
     if (count > 0) {
-      void this.plugin.saveSettings();
+      void this.plugin.queueArticleStateSave(changes);
       this.scheduleRender();
       new Notice(
         `Marked ${count} items as read in ${this.getArticlesTitleInfo().title}`,
@@ -697,10 +769,10 @@ export class RssDashboardView extends ItemView {
    * @internal
    */
   public actionMarkAllAsUnread(): void {
-    const count = this.updateFilteredArticleReadStatus(false);
+    const { count, changes } = this.updateFilteredArticleReadStatus(false);
 
     if (count > 0) {
-      void this.plugin.saveSettings();
+      void this.plugin.queueArticleStateSave(changes);
       this.scheduleRender();
       new Notice(
         `Marked ${count} items as unread in ${this.getArticlesTitleInfo().title}`,
@@ -710,8 +782,12 @@ export class RssDashboardView extends ItemView {
     }
   }
 
-  private updateFilteredArticleReadStatus(read: boolean): number {
+  private updateFilteredArticleReadStatus(read: boolean): {
+    count: number;
+    changes: ArticleStateChange[];
+  } {
     let count = 0;
+    const changes: ArticleStateChange[] = [];
 
     this.getFilteredArticles().forEach((article) => {
       const backingArticle = this.findBackingArticleForDisplayItem(article);
@@ -719,10 +795,39 @@ export class RssDashboardView extends ItemView {
         backingArticle.read = read;
         article.read = read;
         count++;
+        const feed = this.findFeedForBackingArticle(article, backingArticle);
+        if (feed) {
+          changes.push({
+            feedUrl: feed.url,
+            guid: backingArticle.guid,
+            changes: { read },
+          });
+        }
       }
     });
 
-    return count;
+    return { count, changes };
+  }
+
+  /** The feed that owns a display item's backing article, for its identity. */
+  private findFeedForBackingArticle(
+    displayArticle: FeedItem,
+    backingArticle: FeedItem,
+  ): Feed | null {
+    if (this.currentFeed?.items.includes(backingArticle)) {
+      return this.currentFeed;
+    }
+    const byUrl = this.settings.feeds.find(
+      (feed) => feed.url === displayArticle.feedUrl,
+    );
+    if (byUrl?.items.includes(backingArticle)) return byUrl;
+    if (byUrl?.items.some((item) => item.guid === backingArticle.guid)) {
+      return byUrl;
+    }
+    return (
+      this.settings.feeds.find((feed) => feed.items.includes(backingArticle)) ??
+      null
+    );
   }
 
   /**
@@ -803,11 +908,11 @@ export class RssDashboardView extends ItemView {
   }
 
   /**
-   * Action: Toggle YouTube Focus mode from the `Shift+F` keymap binding.
+   * Action: Toggle Video Focus mode from the `Shift+F` keymap binding.
    * @internal
    */
-  public actionToggleYouTubeFocusMode(): void {
-    void this.plugin.toggleYouTubeFocusMode();
+  public actionToggleVideoFocusMode(): void {
+    void this.plugin.toggleVideoFocusMode();
   }
 
   // --- Render pipeline ---
@@ -889,7 +994,13 @@ export class RssDashboardView extends ItemView {
     );
     this.registerEvent(
       this.app.workspace.on("active-leaf-change", (leaf) => {
-        if (leaf === this.leaf) {
+        if (
+          leaf === this.leaf &&
+          !this.articleList?.tagsMenuHoldsFocus() &&
+          !this.containerEl.contains(
+            this.containerEl.ownerDocument.activeElement,
+          )
+        ) {
           this.containerEl.focus({ preventScroll: true });
         }
       }),
@@ -1212,6 +1323,9 @@ export class RssDashboardView extends ItemView {
         }),
       );
 
+      // The list is rebuilt on every render, so hand it the search the user
+      // typed on the previous one (#1465).
+      this.articleList.setSearchQuery(this.articleSearchQuery);
       this.articleList.render();
 
       this.updateRefreshButtonText();
@@ -1235,10 +1349,17 @@ export class RssDashboardView extends ItemView {
       onArticleClick: (article) => {
         void this.handleArticleClick(article);
       },
+      onArticleControlActivate: (article, byMouse) => {
+        void this.selectArticle(article);
+        if (byMouse) this.focusDashboardContainer();
+      },
+      onFocusedRowRemoval: () => () => this.focusDashboardContainer(),
       onToggleViewStyle: this.handleToggleViewStyle.bind(this),
       onRefreshFeeds: this.handleRefreshFeeds.bind(this),
-      onSearch: (_q: string) => {
-        // State is handled by ArticleList locally, but we could sync it here if needed
+      onSearch: (query) => {
+        // The list filters locally; the view keeps the query so the next
+        // render can hand it back to the rebuilt list (#1465).
+        this.articleSearchQuery = query;
       },
       onOpenViewFilters: (opener) => {
         this.openViewingFiltersMenu(opener);
@@ -1511,10 +1632,9 @@ export class RssDashboardView extends ItemView {
   }
 
   /**
-   * The static refresh summary row. Its live-region text span stays untouched;
-   * the error control is a separate button beside it, because an interactive
-   * control inside `aria-live="polite"` re-announces badly, and it is rendered
-   * only while something is failing.
+   * The visible refresh summary is recreated with the view content and has no
+   * live-region semantics. Transient announcements belong to the stable region
+   * mounted by mountRefreshAnnouncer(); the error control stays adjacent.
    */
   private renderRefreshStatusRow(
     subheaderContent: HTMLElement,
@@ -1530,7 +1650,6 @@ export class RssDashboardView extends ItemView {
     refreshStatusRow.createSpan({
       cls: "rss-dashboard-filter-stats-text rss-dashboard-refresh-status-text",
       text: refreshStatusText,
-      attr: { "aria-live": "polite" },
     });
     if (refreshStatus.failingCount > 0) {
       this.renderRefreshErrorButton(refreshStatusRow, refreshStatus);
@@ -1700,29 +1819,17 @@ export class RssDashboardView extends ItemView {
       cls: "rss-dashboard-filter-stats-row rss-dashboard-viewing-filter-stats-row",
     });
 
-    const viewFiltersBtn = viewingFilterRow.createDiv({
+    const viewFiltersBtn: HTMLButtonElement = createIconButton({
+      parent: viewingFilterRow,
       cls: "rss-dashboard-viewing-filter-open-btn clickable-icon",
-      attr: {
-        role: "button",
-        tabindex: "0",
-        "aria-label": "Open viewing filters",
-        "aria-haspopup": "dialog",
-        "aria-expanded": "false",
+      label: "Open viewing filters",
+      icon: "filter",
+      hasPopup: "dialog",
+      expanded: false,
+      onClick: (e) => {
+        e.stopPropagation();
+        this.openViewingFiltersMenu(viewFiltersBtn);
       },
-    });
-    setIcon(viewFiltersBtn, "filter");
-
-    const openFiltersMenu = (e?: Event) => {
-      e?.stopPropagation();
-      this.openViewingFiltersMenu(viewFiltersBtn);
-    };
-
-    viewFiltersBtn.addEventListener("click", openFiltersMenu);
-    viewFiltersBtn.addEventListener("keydown", (e) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        openFiltersMenu(e);
-      }
     });
 
     viewingFilterRow.createSpan({
@@ -1735,86 +1842,17 @@ export class RssDashboardView extends ItemView {
 
   // --- Highlight match counting ---
   /**
-   * HIGHLIGHT MATCH COUNTING
-   * ─────────────────────────
-   * For each enabled highlight word, counts how many articles in the
-   * currently-displayed set contain at least one match. Counts are
-   * per-article (an article is counted once regardless of how many times
-   * the word appears inside it).
-   *
    * Called once per render cycle, after getFilteredArticles() returns and
-   * before renderFilterSubheader() reads this.highlightMatchCounts.
-   *
-   * Field selection mirrors HighlightService behaviour:
-   *   settings.highlights.highlightInTitles    → article.title
-   *   settings.highlights.highlightInSummaries → the preview text the cards
-   *     show (getArticlePreviewSummaryText), and nothing while
-   *     settings.display.showSummary is off
-   *   settings.highlights.highlightInContent   → article.content
-   *
-   * Regex building mirrors HighlightService behaviour per-word: escapes each
-   * word text, applies optional whole-word boundaries, and respects each
-   * word's caseSensitive flag.
+   * before renderFilterSubheader() reads this.highlightMatchCounts. The
+   * per-article matching and its cache live in utils/highlight-match-counts.
    */
   private computeHighlightMatchCounts(articles: FeedItem[]): void {
     // Always reset so stale data from a previous render does not linger.
-    this.highlightMatchCounts = [];
-
-    const hs = this.settings.highlights;
-    if (!hs?.enabled || !hs.words?.length) return;
-
-    const enabledWords = hs.words.filter((w) => w.enabled);
-    if (enabledWords.length === 0) return;
-
-    const previewTexts = this.getHighlightPreviewTexts(articles);
-
-    for (const word of enabledWords) {
-      // Escape special regex characters (same as HighlightService.escapeRegex)
-      const escaped = word.text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      // Optional whole-word boundaries (same logic as HighlightService.buildPattern)
-      const pattern = word.wholeWord
-        ? `(?:^|\\W)(${escaped})(?:$|\\W)`
-        : escaped;
-      // Per-word case sensitivity: add "i" only for case-insensitive words.
-      const regexFlags = word.caseSensitive ? "" : "i";
-      const regex = new RegExp(pattern, regexFlags);
-
-      let count = 0;
-      for (const article of articles) {
-        // Collect the text fields governed by the highlight scope settings
-        const fields: string[] = [];
-        if (hs.highlightInTitles !== false) fields.push(article.title ?? "");
-        if (hs.highlightInSummaries !== false) {
-          fields.push(previewTexts.get(article) ?? "");
-        }
-        if (hs.highlightInContent !== false) fields.push(article.content ?? "");
-
-        // Fallback: always test the title when no scopes are enabled
-        if (fields.length === 0) fields.push(article.title ?? "");
-
-        if (fields.some((f) => regex.test(f))) count++;
-      }
-
-      this.highlightMatchCounts.push({ word, count });
-    }
-  }
-
-  /**
-   * The text the cards display for each article, for the summary highlight
-   * scope. Empty when that scope is off or summaries are hidden, so the scope
-   * adds nothing to the count. Built once per render, not once per word.
-   */
-  private getHighlightPreviewTexts(
-    articles: FeedItem[],
-  ): Map<FeedItem, string> {
-    const previewTexts = new Map<FeedItem, string>();
-    const hs = this.settings.highlights;
-    if (hs.highlightInSummaries === false || !this.settings.display.showSummary)
-      return previewTexts;
-    for (const article of articles) {
-      previewTexts.set(article, getArticlePreviewSummaryText(article));
-    }
-    return previewTexts;
+    this.highlightMatchCounts = computeHighlightMatchCounts(
+      articles,
+      this.settings.highlights,
+      this.settings.display.showSummary,
+    );
   }
 
   // --- Title and article-scope helpers ---
@@ -2369,6 +2407,8 @@ export class RssDashboardView extends ItemView {
     this.selectedTags = [];
 
     if (this.currentFolder !== folder) {
+      // A different scope starts a fresh search (#1465).
+      this.articleSearchQuery = "";
       if (folder === "unread") {
         this.unreadArticlesPage = 1;
       } else if (folder === "read") {
@@ -2401,6 +2441,9 @@ export class RssDashboardView extends ItemView {
   }
 
   private handleFeedMultiSelectClick(feed: Feed): void {
+    // Adding or removing a feed changes the scope, which starts a fresh search
+    // (#1465).
+    this.articleSearchQuery = "";
     const next = toggleFeedInMultiSelection(
       {
         currentFolder: this.currentFolder,
@@ -2439,6 +2482,10 @@ export class RssDashboardView extends ItemView {
       );
       if (foldersSection)
         scrollPosition = (foldersSection as HTMLElement).scrollTop;
+    }
+    // A different feed starts a fresh search (#1465).
+    if (this.currentFeed?.url !== feed.url) {
+      this.articleSearchQuery = "";
     }
     this.currentFeed = feed;
     this.currentFolder = null;
@@ -2800,8 +2847,16 @@ export class RssDashboardView extends ItemView {
         onRangeSelect: this.handleSidebarRangeSelect.bind(this),
         onFolderMultiSelect: this.handleFolderMultiSelect.bind(this),
         onSelectionCleared: this.handleSelectionCleared.bind(this),
-        onTagToggle: this.handleTagToggle.bind(this),
-        onClearTags: this.handleClearTags.bind(this),
+        // The dashboard owns the selection and may replace its array, so hand
+        // the drawer the current one before the sidebar redraws from it.
+        onTagToggle: (tag) => {
+          this.handleTagToggle(tag);
+          drawerOptions.selectedTags = this.selectedTags;
+        },
+        onClearTags: () => {
+          this.handleClearTags();
+          drawerOptions.selectedTags = this.selectedTags;
+        },
         onTagFilterModeChange: this.handleTagFilterModeChange.bind(this),
         onToggleTagsCollapse: this.handleToggleTagsCollapse.bind(this),
         onToggleFolderCollapse: this.handleToggleFolderCollapse.bind(this),
@@ -3259,13 +3314,9 @@ export class RssDashboardView extends ItemView {
       article.tags = normalizedUpdates.tags;
     }
 
-    await this.plugin.updateArticle(
-      originalArticle.guid,
-      feed.url,
-      normalizedUpdates,
-      false,
-    );
-
+    // Reflect the change in the list, sidebar, and filter counts first. The
+    // plugin facade owns persistence and its coalesced queue, so the write is
+    // requested after this interaction and never awaited here (#1385).
     if (shouldRerender) {
       void this.render();
     } else {
@@ -3277,6 +3328,27 @@ export class RssDashboardView extends ItemView {
       }
       this.syncArticleListAfterUpdate(article, feed);
     }
+
+    try {
+      void this.plugin
+        .updateArticle(originalArticle.guid, feed.url, normalizedUpdates, false)
+        .catch((error: unknown) => {
+          console.error("Failed to persist dashboard article update", error);
+          new Notice(
+            `RSS Dashboard: Failed to save article changes: ${
+              error instanceof Error ? error.message : "Unknown error"
+            }`,
+          );
+        });
+    } catch (error) {
+      console.error("Failed to persist dashboard article update", error);
+      new Notice(
+        `RSS Dashboard: Failed to save article changes: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`,
+      );
+    }
+
     return true;
   }
 
@@ -3340,16 +3412,30 @@ export class RssDashboardView extends ItemView {
     this.articleList?.setSelectedArticle(article);
   }
 
-  public setYouTubeFocusMode(hide: boolean): void {
-    this.articleRenderer?.setYouTubeFocusMode(hide);
-    this.syncInlineYouTubeFocusChrome(hide);
+  public setVideoFocusMode(hide: boolean): void {
+    const backButton =
+      this.containerEl.querySelector<HTMLElement>(
+        ".inline-reader-header .rss-reader-back-button",
+      ) ?? null;
+    this.articleRenderer?.setVideoFocusMode(hide, backButton);
+    this.syncInlineVideoFocusChrome(hide);
+  }
+
+  /** Apply the chapter-marker setting to an open inline podcast player. */
+  public setPodcastChapterMarkers(enabled: boolean): void {
+    this.articleRenderer?.setPodcastChapterMarkers(enabled);
+  }
+
+  /** Apply the sleep timer band setting to an open inline podcast player. */
+  public setPodcastSleepTimerBand(enabled: boolean): void {
+    this.articleRenderer?.setPodcastSleepTimerBand(enabled);
   }
 
   /**
-   * In Focus mode an inline YouTube video drops the toolbar and title from the
+   * In Focus mode an inline video drops the toolbar and title from the
    * inline header and keeps only the back button.
    */
-  private syncInlineYouTubeFocusChrome(
+  private syncInlineVideoFocusChrome(
     focusMode: boolean,
     header: HTMLElement | null = this.containerEl.querySelector<HTMLElement>(
       ".inline-reader-header",
@@ -3358,15 +3444,24 @@ export class RssDashboardView extends ItemView {
     const isVideo =
       this.inlineArticle !== null &&
       resolveReaderMediaRoute(this.inlineArticle) === "video";
-    header?.toggleClass("rss-youtube-focus", focusMode && isVideo);
+    header?.toggleClass("rss-video-focus", focusMode && isVideo);
   }
 
   public refreshTagColors(): void {
+    refreshTagMultiSelectMenuColors(
+      this.containerEl.ownerDocument,
+      this.settings,
+    );
+    refreshTagsDropdownPortalColors(
+      this.containerEl.ownerDocument,
+      this.settings,
+    );
     this.refreshInlineArticleTags();
+    this.sidebar?.refreshTagColors();
     this.articleList?.syncVisibleArticlesFromSource((article) =>
       this.findBackingArticleForDisplayItem(article),
     );
-    this.articleList?.refreshVisibleArticleTags();
+    this.articleList?.refreshTagColors();
   }
 
   /**
@@ -3380,18 +3475,13 @@ export class RssDashboardView extends ItemView {
 
     const backing = this.findBackingArticleForDisplayItem(inline);
     const source = backing ?? inline;
-    inline.tags = (source.tags ?? []).map((tag) => {
-      const definition = this.settings.availableTags.find(
-        (available) => available.name === tag.name,
-      );
-      return definition ? { ...tag, color: definition.color } : { ...tag };
-    });
+    inline.tags = (source.tags ?? []).map((tag) => ({ ...tag }));
 
     const header = this.containerEl.querySelector<HTMLElement>(
       ".inline-reader-content .rss-reader-article-header",
     );
     if (header) {
-      renderReaderTagChips(header, inline.tags);
+      renderReaderTagChips(header, inline.tags, this.settings);
     }
     this.articleRenderer?.setVideoTags(inline.tags);
   }
@@ -3413,10 +3503,16 @@ export class RssDashboardView extends ItemView {
     ) {
       // Scope pools use the backing feed URL; keep the existing display
       // identity for status/keyword removals within the current feed.
-      this.articleList.removeArticleInPlace(
-        article.guid,
-        feedInScope ? article.feedUrl : feed.url,
-      );
+      const removalFeedUrl = feedInScope ? article.feedUrl : feed.url;
+      const removedSelection = this.isSelectedArticle(article, feed.url);
+      // The neighbour comes from the order on screen, so it must be read
+      // before the row leaves the list (#1468).
+      const neighbour = removedSelection
+        ? this.articleList.getRenderedNeighbour(article.guid, removalFeedUrl)
+        : null;
+      if (removedSelection) this.moveSelectionTo(neighbour);
+      this.articleList.removeArticleInPlace(article.guid, removalFeedUrl);
+      this.reconcilePageAfterInPlaceRemoval(removedSelection && !neighbour);
       this.refreshFilterStatusBarOnly();
       return;
     }
@@ -3460,6 +3556,65 @@ export class RssDashboardView extends ItemView {
     this.refreshFilterStatusBarOnly();
   }
 
+  /**
+   * A row that leaves the filtered list can empty the current page or remove
+   * the last page. Clamp the page the way a pagination render would, and
+   * rebuild only for those boundary cases, so an ordinary in-place removal
+   * keeps its animation (#1385). The rebuild recomputes the empty state and
+   * the page footer for the smaller result set.
+   */
+  private reconcilePageAfterInPlaceRemoval(
+    selectLastOfClampedPage = false,
+  ): void {
+    if (!this.articleList) return;
+
+    const filtered = this.getFilteredArticles();
+    const pageSize = this.getCurrentPageSize();
+    const currentPage = this.getCurrentPage();
+    const pagination = computePagination({
+      totalItems: filtered.length,
+      pageSize,
+      requestedPage: currentPage,
+    });
+
+    const pageEmptied = pagination.currentPage !== currentPage;
+    const listEmptied = filtered.length === 0;
+    const pageGone = currentPage > pagination.totalPages;
+    // A total that happens to be a page multiple is not itself a boundary:
+    // page 1 can lose a row and still have rows. Rebuild only when the page
+    // emptied, the list emptied, or the current page no longer exists (#1380).
+    if (!pageEmptied && !listEmptied && !pageGone) return;
+
+    if (pageEmptied) {
+      this.setCurrentPageState(pagination.currentPage);
+      if (selectLastOfClampedPage) {
+        // The removed card was the page's only row, so there was no rendered
+        // neighbour; the previous page's last article is the nearest one.
+        const pageArticles = filtered.slice(
+          pagination.startIdx,
+          pagination.endIdx,
+        );
+        this.moveSelectionTo(pageArticles[pageArticles.length - 1] ?? null);
+      }
+    }
+    // The rebuild below replaces the list. Remember whether the keyboard user
+    // was in it and hand focus back to the dashboard afterwards, never to a
+    // card's inner control (#1387, #1468).
+    const hadFocus = captureArticleListFocus(this.containerEl);
+    void this.render();
+    restoreArticleListFocus(this.containerEl, hadFocus);
+  }
+
+  /**
+   * Moves the selection off a card that left the list without opening
+   * anything. `null` clears it, so no hidden article can be acted on (#1468).
+   */
+  private moveSelectionTo(article: FeedItem | null): void {
+    this.selectedArticle = article;
+    this.articleList?.setSelectedArticle(article);
+    this.selectionAdvancedByRemoval = { next: article };
+  }
+
   private markPageArticlesAsRead(
     currentPageArticles: FeedItem[],
     previousPage: number,
@@ -3472,6 +3627,7 @@ export class RssDashboardView extends ItemView {
     }
 
     const updatedArticles: FeedItem[] = [];
+    const changes: ArticleStateChange[] = [];
     currentPageArticles.forEach((article) => {
       if (article.read) {
         return;
@@ -3485,6 +3641,14 @@ export class RssDashboardView extends ItemView {
       originalArticle.read = true;
       article.read = true;
       updatedArticles.push(article);
+      const feed = this.findFeedForBackingArticle(article, originalArticle);
+      if (feed) {
+        changes.push({
+          feedUrl: feed.url,
+          guid: originalArticle.guid,
+          changes: { read: true },
+        });
+      }
     });
 
     if (updatedArticles.length === 0) {
@@ -3492,7 +3656,7 @@ export class RssDashboardView extends ItemView {
       return;
     }
 
-    void this.plugin.saveSettings();
+    void this.plugin.queueArticleStateSave(changes);
 
     const filtered = this.getFilteredArticles();
     const pagination = computePagination({
@@ -3731,7 +3895,13 @@ export class RssDashboardView extends ItemView {
       const saveButton = articleEl.querySelector(".rss-dashboard-save-toggle");
       if (saveButton?.instanceOf(HTMLElement)) {
         saveButton.classList.add("saved");
-        setTooltip(saveButton, SAVED_ARTICLE_TOOLTIP);
+        // The same saved-state name the footer control is built with (#1467),
+        // including the binding's hint; this path writes it outside the list's
+        // in-place sync.
+        setTooltip(
+          saveButton,
+          withBindingHint(SAVED_ARTICLE_TOOLTIP, "save-article"),
+        );
       }
     }
   }
@@ -3884,6 +4054,10 @@ export class RssDashboardView extends ItemView {
       this.dashboardMultiFiltersDirty = false;
       await this.plugin.saveSettings();
     }
+    // Article-state changes are queued after the interaction, so a close is the
+    // last chance to write them before the view's in-memory list goes away
+    // (#1380). A partial view double in tests may not expose the facade.
+    void this.plugin.flushPendingWrites?.();
     if (this.articleList) {
       this.articleList.destroy();
     }
@@ -4526,7 +4700,7 @@ export class RssDashboardView extends ItemView {
     const header = container.createDiv({
       cls: "rss-reader-header inline-reader-header",
     });
-    this.syncInlineYouTubeFocusChrome(
+    this.syncInlineVideoFocusChrome(
       this.settings.media.youtubeFocusMode,
       header,
     );
@@ -4776,6 +4950,37 @@ export class RssDashboardView extends ItemView {
   private handlePageChange(page: number): void {
     this.setCurrentPageState(page);
     void this.render();
+  }
+
+  /**
+   * Change page, wait for that render to settle, then select the article
+   * `pick` chooses from the rows now on the page. The next, previous and
+   * scope-start actions all need this sequence, and the wait has to come after
+   * the render has replaced the rows.
+   */
+  private selectOnPageAfterRender(
+    page: number,
+    pick: (pageArticles: FeedItem[]) => FeedItem | undefined,
+    options?: { open?: boolean },
+  ): void {
+    const pageSize = this.getCurrentPageSize();
+    this.handlePageChange(page);
+    window.requestAnimationFrame(() => {
+      const articles = this.getFilteredArticles();
+      const pagination = computePagination({
+        totalItems: articles.length,
+        pageSize,
+        requestedPage: page,
+      });
+      const pageArticles = articles.slice(
+        pagination.startIdx,
+        pagination.endIdx,
+      );
+      const target = pick(pageArticles);
+      if (target) {
+        void this.selectArticle(target, options);
+      }
+    });
   }
 
   private handlePageSizeChange(pageSize: number): void {

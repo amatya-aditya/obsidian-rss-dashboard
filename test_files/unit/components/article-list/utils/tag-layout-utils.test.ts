@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import type { FeedItem, Tag } from "../../../../../src/types/types";
 import {
+  DEFAULT_TAG_COLOR,
+  DEFAULT_TAG_TEXT_COLOR,
+} from "../../../../../src/utils/tag-colors";
+import {
   layoutCardTagRows,
   renderSingleRowCardTagChips,
   renderTagChips,
@@ -49,13 +53,21 @@ describe("tag-layout-utils", () => {
         { name: "Tag7", color: "#ffffff" },
       ];
 
-      renderTagChips(container, tags);
+      renderTagChips(container, tags, {
+        availableTags: [
+          { name: "Tag7", color: "#123456", textColor: "#654321" },
+        ],
+      });
 
       const overflow = container.querySelector<HTMLElement>(
         ".rss-dashboard-tag-overflow",
       );
       expect(overflow?.textContent).toBe("+1");
       expect(overflow?.getAttribute("aria-label")).toBe("Tag7");
+      expect(overflow?.style.getPropertyValue("--tag-color")).toBe("#123456");
+      expect(overflow?.style.getPropertyValue("--tag-text-color")).toBe(
+        "#654321",
+      );
     });
 
     it("applies tag color as CSS variable", () => {
@@ -69,8 +81,8 @@ describe("tag-layout-utils", () => {
       expect(badge.style.getPropertyValue("--tag-color")).toBe("#e74c3c");
     });
 
-    it("uses interactive-accent as default color when tag has no color", () => {
-      const tags: Tag[] = [{ name: "NoColor", color: "" }];
+    it("uses the global default color when tag has no color", () => {
+      const tags: Tag[] = [{ name: "NoColor" }];
 
       renderTagChips(container, tags);
 
@@ -78,8 +90,47 @@ describe("tag-layout-utils", () => {
         ".rss-dashboard-tag-badge",
       ) as HTMLElement;
       expect(badge.style.getPropertyValue("--tag-color")).toBe(
-        "var(--interactive-accent)",
+        DEFAULT_TAG_COLOR,
       );
+    });
+
+    it("resolves registry, orphan, and default appearance for each chip", () => {
+      const tags: Tag[] = [
+        {
+          name: "Registered",
+          color: "#stale-background",
+          textColor: "#stale-text",
+        },
+        {
+          name: "Inheriting",
+          color: "#stale-background",
+          textColor: "#stale-text",
+        },
+        { name: "Orphan", color: "#123456", textColor: "#654321" },
+        { name: "New" },
+      ];
+
+      renderTagChips(container, tags, {
+        availableTags: [
+          { name: "Registered", color: "#234567", textColor: "#765432" },
+          { name: "Inheriting" },
+        ],
+      });
+
+      const badges = container.querySelectorAll<HTMLElement>(
+        ".rss-dashboard-tag-badge",
+      );
+      expect(
+        Array.from(badges, (badge) => [
+          badge.style.getPropertyValue("--tag-color"),
+          badge.style.getPropertyValue("--tag-text-color"),
+        ]),
+      ).toEqual([
+        ["#234567", "#765432"],
+        [DEFAULT_TAG_COLOR, DEFAULT_TAG_TEXT_COLOR],
+        ["#123456", "#654321"],
+        [DEFAULT_TAG_COLOR, DEFAULT_TAG_TEXT_COLOR],
+      ]);
     });
   });
 
@@ -118,6 +169,25 @@ describe("tag-layout-utils", () => {
 
       expect(chip.getAttribute("aria-label")).toBe("Hidden1, Hidden2");
     });
+
+    it("uses the first hidden tag's canonical appearance", () => {
+      const chip = createTagOverflowChip(
+        container,
+        [
+          { name: "Hidden1", color: "#stale", textColor: "#stale" },
+          { name: "Hidden2", color: "#222" },
+        ],
+        {
+          availableTags: [
+            { name: "Hidden1", color: "#123456", textColor: "#654321" },
+          ],
+        },
+      );
+
+      expect(chip.style.getPropertyValue("--tag-color")).toBe("#123456");
+      expect(chip.style.getPropertyValue("--tag-text-color")).toBe("#654321");
+      expect(chip.getAttribute("aria-label")).toBe("Hidden1, Hidden2");
+    });
   });
 
   describe("renderSingleRowCardTagChips", () => {
@@ -143,6 +213,34 @@ describe("tag-layout-utils", () => {
 
       const badges = container.querySelectorAll(".rss-dashboard-tag-badge");
       expect(badges).toHaveLength(2);
+    });
+
+    it("uses the first hidden tag's appearance on the card overflow chip", () => {
+      Object.defineProperty(container, "clientWidth", { value: 1 });
+      Object.defineProperty(container, "scrollWidth", {
+        get: () => container.childElementCount * 10,
+      });
+
+      renderSingleRowCardTagChips(
+        container,
+        [
+          { name: "Hidden1", color: "#stale", textColor: "#stale" },
+          { name: "Hidden2", color: "#222" },
+        ],
+        {
+          availableTags: [
+            { name: "Hidden1", color: "#123456", textColor: "#654321" },
+          ],
+        },
+      );
+
+      const overflow = container.querySelector<HTMLElement>(
+        ".rss-dashboard-tag-overflow",
+      );
+      expect(overflow?.style.getPropertyValue("--tag-color")).toBe("#123456");
+      expect(overflow?.style.getPropertyValue("--tag-text-color")).toBe(
+        "#654321",
+      );
     });
   });
 

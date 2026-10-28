@@ -131,7 +131,7 @@
  * ============================================ */
 
 .rss-dashboard-article-title {
-  font-size: 1.1em;
+  font-size: calc(1.1em * var(--rss-dashboard-article-title-scale, 1));
   font-weight: 600;
   color: var(--text-normal);
   margin-bottom: 2px;
@@ -320,8 +320,14 @@
   height: 24px;
   border-radius: 12px;
   padding: 2px;
+  border: none;
+  box-shadow: none;
+  font-family: inherit;
   background-color: var(--background-primary-alt);
   position: relative;
+  transition:
+    color 150ms ease,
+    background-color 150ms ease;
 }
 
 body .rss-dashboard-save-toggle svg,
@@ -333,32 +339,96 @@ body .rss-dashboard-tags-toggle svg {
   display: block;
   visibility: visible;
   stroke-width: 2;
+  transition: filter 150ms ease;
 }
 
-.rss-dashboard-save-toggle:hover,
-.rss-dashboard-read-toggle:hover,
-.rss-dashboard-star-toggle:hover,
-.rss-dashboard-tags-toggle:hover {
+.rss-dashboard-star-icon,
+.rss-dashboard-star-preview-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 150ms ease;
+}
+
+.rss-dashboard-star-preview-icon {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+@media (hover: hover) {
+  .rss-dashboard-save-toggle:hover,
+  .rss-dashboard-read-toggle:hover,
+  .rss-dashboard-star-toggle:hover,
+  .rss-dashboard-tags-toggle:hover {
+    color: var(--text-normal);
+  }
+}
+
+.rss-dashboard-save-toggle:focus-visible,
+.rss-dashboard-read-toggle:focus-visible,
+.rss-dashboard-tags-toggle:focus-visible {
   color: var(--text-normal);
 }
 
-/* Save toggle states */
-.rss-dashboard-save-toggle {
-  opacity: 0.7;
-  transition: opacity 0.2s ease;
+@media (hover: hover) {
+  .rss-dashboard-save-toggle:not(.saved):hover {
+    color: var(--interactive-accent);
+  }
+
+  .rss-dashboard-read-toggle:not(.read):hover {
+    color: var(--color-green);
+  }
+
+  .rss-dashboard-star-toggle.unstarred:hover {
+    color: var(--color-yellow);
+  }
+
+  .rss-dashboard-save-toggle.saved:hover svg,
+  .rss-dashboard-read-toggle.read:hover svg,
+  .rss-dashboard-star-toggle.starred:hover svg {
+    filter: brightness(1.2);
+  }
 }
 
-.rss-dashboard-save-toggle:hover {
-  opacity: 1;
+.rss-dashboard-save-toggle.saved:focus-visible svg,
+.rss-dashboard-read-toggle.read:focus-visible svg,
+.rss-dashboard-star-toggle.starred:focus-visible svg {
+  filter: brightness(1.2);
 }
 
-.rss-dashboard-save-toggle.saved {
-  opacity: 1;
+.rss-dashboard-save-toggle:not(.saved):focus-visible {
   color: var(--interactive-accent);
 }
 
-.rss-dashboard-save-toggle.saved:hover {
-  opacity: 0.8;
+.rss-dashboard-read-toggle:not(.read):focus-visible {
+  color: var(--color-green);
+}
+
+.rss-dashboard-star-toggle.unstarred:focus-visible {
+  color: var(--color-yellow);
+}
+
+.rss-dashboard-star-toggle.unstarred:hover .rss-dashboard-star-icon,
+.rss-dashboard-star-toggle.unstarred:focus-visible .rss-dashboard-star-icon {
+  opacity: 0;
+}
+
+.rss-dashboard-star-toggle.unstarred:hover .rss-dashboard-star-preview-icon,
+.rss-dashboard-star-toggle.unstarred:focus-visible
+  .rss-dashboard-star-preview-icon {
+  opacity: 1;
+}
+
+.rss-dashboard-star-preview-icon svg {
+  color: var(--color-yellow);
+  fill: var(--color-yellow);
+}
+
+/* Save toggle states */
+.rss-dashboard-save-toggle.saved {
+  color: var(--interactive-accent);
 }
 
 .rss-dashboard-save-toggle.saving {
@@ -385,11 +455,11 @@ body .rss-dashboard-tags-toggle svg {
 
 /* Read toggle state */
 .rss-dashboard-read-toggle.read {
-  color: #2ecc71;
+  color: var(--color-green);
 }
 
 body .rss-dashboard-read-toggle.read svg {
-  color: #43a047;
+  color: var(--color-green);
 }
 
 /* Star toggle states */
@@ -406,16 +476,10 @@ body .rss-dashboard-read-toggle.read svg {
 .rss-dashboard-star-toggle.unstarred,
 .rss-reader-star-toggle.unstarred {
   color: var(--text-muted);
-  opacity: 1;
 }
 
 body .rss-dashboard-star-toggle svg {
   opacity: 1;
-}
-
-.rss-dashboard-star-toggle:hover svg,
-.rss-reader-star-toggle:hover svg {
-  stroke: color-mix(in srgb, var(--color-yellow) 50%, #000);
 }
 
 /* The cover-image control (#1314, #1330): one control shared by the article
@@ -429,6 +493,7 @@ body .rss-dashboard-star-toggle svg {
  * fetch role and the restore role alike; only the fetch dims the article. */
 .rss-dashboard-article-card .rss-dashboard-fetch-cover-button,
 .rss-dashboard-feed-item .rss-dashboard-fetch-cover-button {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -459,11 +524,23 @@ body .rss-dashboard-star-toggle svg {
   background-color: var(--background-modifier-hover);
 }
 
-@media (pointer: coarse) {
+/* A device whose primary pointer has no hover has no hover to reveal the
+ * control, so it is shown outright. The visible box stays 24px, but the
+ * pointer target grows to 40×40 with an overhanging pseudo-element (#1529):
+ * the tag row keeps its height and the chips keep their places, while a tap
+ * near the control lands on it instead of the card's open action. */
+@media (hover: none), (pointer: coarse) {
   .rss-dashboard-article-card .rss-dashboard-fetch-cover-button,
   .rss-dashboard-feed-item .rss-dashboard-fetch-cover-button {
     opacity: 1;
     pointer-events: auto;
+  }
+
+  .rss-dashboard-article-card .rss-dashboard-fetch-cover-button::after,
+  .rss-dashboard-feed-item .rss-dashboard-fetch-cover-button::after {
+    content: "";
+    position: absolute;
+    inset: -8px;
   }
 }
 
@@ -512,24 +589,14 @@ body .rss-dashboard-star-toggle svg {
 
 /* Inline add-row inside the dropdown */
 .rss-dashboard-tag-inline-add-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   align-items: center;
   gap: 6px;
   padding: 6px 8px;
 }
 
-.rss-dashboard-tag-inline-color {
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  background: transparent;
-}
-
 .rss-dashboard-tag-inline-input {
-  flex: 1;
   min-width: 0;
   padding: 4px 8px;
   border: 1px solid var(--background-modifier-border);
@@ -583,7 +650,7 @@ body .rss-dashboard-tag-inline-button svg {
   padding: 2px 8px;
   border-radius: var(--rss-dashboard-tag-chip-radius, 999px);
   font-size: 0.95em;
-  color: #fff;
+  color: var(--tag-text-color, #fff);
   background: var(--tag-color, var(--interactive-accent));
   font-weight: 500;
 }
@@ -593,7 +660,7 @@ body .rss-dashboard-tag-inline-button svg {
   padding: 1px 6px;
   border-radius: var(--rss-dashboard-tag-chip-radius, 999px);
   font-size: 11px;
-  color: #fff;
+  color: var(--tag-text-color, #fff);
   cursor: pointer;
   flex-grow: 1;
   background-color: var(--tag-color, var(--interactive-accent));
@@ -642,6 +709,30 @@ body .rss-dashboard-tag-action-button svg {
 .rss-dashboard-tag-edit-button:hover {
   color: var(--text-accent);
   border-color: var(--text-accent);
+}
+
+/* The tag controls are native buttons. Scope under the portal root so these
+   outrank Obsidian's `button` height, padding, shadow and font defaults. */
+.rss-dashboard-tags-dropdown-content-portal
+  button.rss-dashboard-tag-action-button,
+.rss-dashboard-tags-dropdown-content-portal
+  button.rss-dashboard-tag-inline-button {
+  padding: 0;
+  box-shadow: none;
+  font-family: inherit;
+  line-height: 1;
+}
+
+.rss-dashboard-tags-dropdown-content-portal
+  button.rss-dashboard-tag-action-button {
+  width: 20px;
+  height: 20px;
+}
+
+.rss-dashboard-tags-dropdown-content-portal
+  button.rss-dashboard-tag-inline-button {
+  width: 24px;
+  height: 24px;
 }
 
 /* ============================================
@@ -699,10 +790,25 @@ body .rss-dashboard-tag-action-button svg {
 
 /* Mobile (≤ 900px) — reduce typography scale */
 @media (max-width: 900px) {
-  .rss-dashboard-article-title,
+  .rss-dashboard-article-title {
+    font-size: calc(1em * var(--rss-dashboard-article-title-scale, 1));
+    line-clamp: 2;
+  }
+
   .rss-dashboard-article-summary {
     font-size: 1em;
     line-clamp: 2;
+  }
+}
+
+/* Keep compact article action controls outlined at tablet and mobile widths. */
+@media (max-width: 1200px) {
+  .rss-dashboard-action-toolbar .rss-dashboard-save-toggle,
+  .rss-dashboard-action-toolbar .rss-dashboard-read-toggle,
+  .rss-dashboard-action-toolbar .rss-dashboard-star-toggle,
+  .rss-dashboard-action-toolbar .rss-dashboard-tags-toggle {
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
   }
 }
 
@@ -717,8 +823,6 @@ body .rss-dashboard-tag-action-button svg {
     height: 36px;
     border-radius: 12px;
     padding: 0 10px;
-    border: 1px solid var(--background-modifier-border);
-    background-color: var(--background-primary);
   }
 
   /* Grid-style mobile list: square icon-only buttons */
@@ -756,7 +860,6 @@ body .rss-dashboard-tag-action-button svg {
     min-height: 44px;
     height: 44px;
     border-radius: 12px;
-    background-color: var(--background-primary-alt);
   }
 }
 
