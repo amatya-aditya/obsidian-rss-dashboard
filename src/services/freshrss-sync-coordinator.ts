@@ -71,7 +71,7 @@ export type FreshRssSyncPreviewOutcome =
     };
 
 export type FreshRssSyncRunStatus =
-  "completed" | "failed" | "cancelled" | "not-started";
+  "completed" | "incomplete" | "failed" | "cancelled" | "not-started";
 
 export class FreshRssSyncCancelledError extends Error {
   constructor() {
@@ -95,6 +95,7 @@ export type FreshRssSyncOutcome =
       importedArticleCount: number;
       partial: boolean;
     }
+  | { outcome: "incomplete" }
   | { outcome: "credentials-rejected" }
   | { outcome: "scope-mismatch" }
   | { outcome: "server-unavailable" };
@@ -190,12 +191,12 @@ async function refreshViewOnce(
 ): Promise<void> {
   const view = await getView();
   if (!view) return;
-  if (view.refreshSidebarOnly) {
-    view.refreshSidebarOnly();
-    return;
-  }
   if (view.refresh) {
     view.refresh();
+    return;
+  }
+  if (view.refreshSidebarOnly) {
+    view.refreshSidebarOnly();
     return;
   }
   view.render();
@@ -514,6 +515,7 @@ export class FreshRssSyncCoordinator {
       return { outcome: "credentials-rejected" };
     }
 
+    let articleStateReconciliationComplete = true;
     if (settings.freshRss.stateSyncMode === "two-way") {
       const readStateOutcome = await reconcileArticleStateAndCheckpoints(
         client,
@@ -525,6 +527,7 @@ export class FreshRssSyncCoordinator {
       }
       if (readStateOutcome === "partial") {
         syncState.partial = true;
+        articleStateReconciliationComplete = false;
       }
     }
 
@@ -543,6 +546,10 @@ export class FreshRssSyncCoordinator {
       return { outcome: commitOutcome };
     }
     await refreshViewOnce(this.deps.getView);
+
+    if (!articleStateReconciliationComplete) {
+      return { outcome: "incomplete" };
+    }
 
     return {
       outcome: "synced",

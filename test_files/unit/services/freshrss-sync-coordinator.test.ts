@@ -1962,6 +1962,10 @@ describe("FreshRSS sync coordinator", () => {
       },
     );
     const statePageCalls: URL[] = [];
+    const saveSettings = vi.fn(async () => {});
+    const render = vi.fn();
+    const refresh = vi.fn();
+    const refreshSidebarOnly = vi.fn();
     const request = vi.fn<FreshRssHttpClient["request"]>(async ({ url }) => {
       if (url.endsWith("/accounts/ClientLogin"))
         return { status: 200, text: "Auth=session-token" };
@@ -2006,14 +2010,14 @@ describe("FreshRSS sync coordinator", () => {
     const coordinator = new FreshRssSyncCoordinator({
       httpClient: { request },
       getSettings: () => settings,
-      saveSettings: async () => {},
+      saveSettings,
       sidecarRepository: {
         read: async () => sidecar,
         write: async (next) => {
           Object.assign(sidecar, next);
         },
       },
-      getView: async () => null,
+      getView: async () => ({ render, refresh, refreshSidebarOnly }),
     });
 
     await expect(
@@ -2038,6 +2042,9 @@ describe("FreshRSS sync coordinator", () => {
       true,
       false,
     ]);
+    expect(saveSettings).toHaveBeenCalledOnce();
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(refreshSidebarOnly).not.toHaveBeenCalled();
     expect(sidecar.checkpoints).toMatchObject([
       { remoteSubscriptionId: "feed/6" },
     ]);
@@ -2131,7 +2138,7 @@ describe("FreshRSS sync coordinator", () => {
         scope,
         owner: createOwner(),
       }),
-    ).resolves.toMatchObject({ outcome: "synced", partial: true });
+    ).resolves.toEqual({ outcome: "incomplete" });
 
     expect(statePageCalls).toBe(25);
     expect(settings.feeds[0]?.items[0]?.read).toBe(true);
@@ -2205,7 +2212,7 @@ describe("FreshRSS sync coordinator", () => {
         scope,
         owner: createOwner(),
       }),
-    ).resolves.toMatchObject({ outcome: "synced", partial: true });
+    ).resolves.toEqual({ outcome: "incomplete" });
 
     expect(settings.feeds[0]?.items[0]?.read).toBe(true);
     expect(sidecar.checkpoints).toEqual([

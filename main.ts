@@ -2934,7 +2934,15 @@ export default class RssDashboardPlugin extends Plugin {
 
   private async reportFreshRssSyncOutcome(
     outcome: FreshRssSyncOutcome,
-  ): Promise<Extract<FreshRssSyncRunStatus, "completed" | "failed">> {
+  ): Promise<
+    Extract<FreshRssSyncRunStatus, "completed" | "incomplete" | "failed">
+  > {
+    if (outcome.outcome === "incomplete") {
+      new Notice(
+        "FreshRSS sync incomplete because article-state reconciliation could not be confirmed. Try sync now again.",
+      );
+      return "incomplete";
+    }
     if (outcome.outcome === "scope-mismatch") {
       await this.setFreshRssConnectionStatus("test-required");
       new Notice(
