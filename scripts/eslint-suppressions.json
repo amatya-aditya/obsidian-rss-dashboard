@@ -1,7 +1,1 @@
-{
-  "src/settings/tabs/import-export-settings-tab.ts": {
-    "max-lines-per-function": {
-      "count": 1
-    }
-  }
-}
+{}
