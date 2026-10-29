@@ -77,7 +77,7 @@ import {
   PageCoverImageService,
   type PageCoverImageResult,
 } from "./src/services/page-cover-image-service";
-import { fetchFullArticleContentWithOutcome } from "./src/utils/full-article-fetch";
+import { fetchPageMetadataWithOutcome } from "./src/utils/full-article-fetch";
 import { FeedOperationTracker } from "./src/services/feed-operation-tracker";
 import {
   FeedRefreshRunner,
@@ -318,8 +318,9 @@ export default class RssDashboardPlugin extends Plugin {
       getDashboardView: () => this.getActiveDashboardView(),
     });
     this.pageCoverImageService = new PageCoverImageService({
+      // Only the page's declared image is needed, so read the head, not the article.
       fetchPage: (url) =>
-        fetchFullArticleContentWithOutcome(
+        fetchPageMetadataWithOutcome(
           url,
           this.settings.corsProxyEnabled && this.settings.corsProxyUrl
             ? this.settings.corsProxyUrl

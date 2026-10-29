@@ -12,6 +12,22 @@ export const RESTRICTED_ARTICLE_BANNER =
   "Fetched content appears to be truncated, restricted or paywalled.";
 export const RESTRICTED_ARTICLE_LINK_TEXT = "Click here to double check.";
 
+/**
+ * Reads only what a page's head declares (#1702): the same request, proxy
+ * fallback and refusal handling as the full fetch, with no article parse. For
+ * callers that need the page's metadata and nothing else, such as the cover
+ * image fetch.
+ */
+export function fetchPageMetadataWithOutcome(
+  url: string,
+  proxyUrl?: string,
+  fetchTimeoutSeconds?: number,
+): Promise<FullArticleFetchResult> {
+  return fetchWithProxyFallbackDetailed(url, proxyUrl, fetchTimeoutSeconds, {
+    metadataOnly: true,
+  });
+}
+
 export async function fetchFullArticleContentWithOutcome(
   url: string,
   proxyUrl?: string,

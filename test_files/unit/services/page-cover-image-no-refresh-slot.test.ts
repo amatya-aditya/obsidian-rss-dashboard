@@ -11,7 +11,7 @@ vi.mock("../../../src/utils/fetch-helpers", async (importOriginal) => ({
 }));
 
 import { fetchWithProxyFallbackDetailed } from "../../../src/utils/fetch-helpers";
-import { fetchFullArticleContentWithOutcome } from "../../../src/utils/full-article-fetch";
+import { fetchPageMetadataWithOutcome } from "../../../src/utils/full-article-fetch";
 import { globalFetchSemaphore } from "../../../src/services/feed-parser/fetch-semaphore";
 import { PageCoverImageService } from "../../../src/services/page-cover-image-service";
 
@@ -26,7 +26,7 @@ describe("PageCoverImageService and the feed-refresh limiter (#1702)", () => {
   it("fetches a page without taking a feed-refresh slot", async () => {
     const acquire = vi.spyOn(globalFetchSemaphore, "acquire");
     const service = new PageCoverImageService({
-      fetchPage: (url) => fetchFullArticleContentWithOutcome(url),
+      fetchPage: (url) => fetchPageMetadataWithOutcome(url),
     });
 
     await service.fetch("https://example.com/posts/one");
