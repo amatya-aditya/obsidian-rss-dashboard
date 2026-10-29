@@ -582,6 +582,7 @@ function renderAddTagSection(
       addInputClearButton(text.inputEl);
       nameInput = text;
     });
+  nameSetting.settingEl.addClass("rss-dashboard-tag-new-name-setting");
   const newTagPreview = nameSetting.controlEl.createSpan({
     cls: "rss-dashboard-tag-badge rss-dashboard-tag-new-preview",
     text: "Preview",
