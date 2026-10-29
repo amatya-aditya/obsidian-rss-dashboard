@@ -3,6 +3,7 @@
 ### Fixes
 
 - A saved-note template that places `{{image}}` in the note body, such as `![]({{image}})`, now also leaves the article's own copy of that image out of `{{content}}`, as Web Clipper does. Previously the note showed the picture twice whenever the article body repeated it at another size or behind an image resizer. A template without `{{image}}` in its body is unchanged.
+- Turning off **Use site icons/favicons for RSS feeds** or **Use album/show artwork for Podcast feeds** and confirming the clear dialog now clears the cached icons of only the feeds that setting covers, instead of every feed's icon, including podcast, YouTube and Mastodon feeds. [GH Issue #1629](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1629)
 - A feed item title with an unclosed formatting tag followed by a long run of text, such as `<i ` and dozens of `!`, no longer freezes the dashboard while the title is cleaned up.
 - A saved table cell containing code with a backslash before a pipe, such as `` `a\|b` ``, no longer splits into an extra column.
 - The buttons in the "Storage mode is being retired" upgrade prompt now wrap their labels inside the buttons instead of spilling outside them.
