@@ -80,6 +80,7 @@
 
 ### Fixes
 
+- The FreshRSS sync preview keeps its status line and **Cancel** and **Start sync** buttons pinned to the bottom of the dialog, so they stay in reach on a phone however long the incoming list is, and long article links now wrap instead of running past the edge. [GH Issue #1562](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1562)
 - FreshRSS **Sync now** reports an incomplete sync when it cannot confirm that remote read and unread state was reconciled for bound articles. [GH Issue #1680](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1680)
 - FreshRSS sync now imports articles when its ID list returns decimal IDs and article content returns Google Reader hexadecimal IDs. [GH Issue #1563](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1563)
 - FreshRSS sync verifies each saved feed shard before advancing article bindings, so a silent storage failure can be retried. [GH Issue #1693](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1693)
