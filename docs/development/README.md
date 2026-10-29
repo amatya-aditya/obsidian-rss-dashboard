@@ -14,6 +14,7 @@ Internal developer documentation for the RSS Dashboard plugin.
 - [Feed Data Lifecycle](./data-flow.md)
 - [Feed Validation](./feed-validation.md)
 - [Fixture Vault for Manual Testing](./fixture-vault.md)
+- [FreshRSS V1 Compatibility](./freshrss-compatibility.md)
 - [Issue Labels and Milestones](./labels.md)
 - [Obsidian Alignment Audit](./obsidian-alignment-audit.md)
 - [Obsidian Settings Reference](./obsidian-settings-reference.md)
