@@ -1832,12 +1832,19 @@ export class RssDashboardView extends ItemView {
       },
     });
 
-    viewingFilterRow.createSpan({
+    const statsText = viewingFilterRow.createSpan({
       cls: "rss-dashboard-viewing-filter-stats-text",
-      text: hasActiveDashboardMultiFilters
-        ? `Viewing filters: Showing ${shown} | Filtered out ${filteredOut} | Total ${total}`
-        : `No filters applied - Showing ${shown} | Filtered out ${filteredOut} | Total ${total}`,
     });
+    // The label is hidden on mobile widths, where the row needs the room.
+    statsText.createSpan({
+      cls: "rss-dashboard-viewing-filter-stats-label",
+      text: hasActiveDashboardMultiFilters
+        ? "Viewing filters: "
+        : "No filters applied - ",
+    });
+    statsText.appendText(
+      `Showing ${shown} | Filtered out ${filteredOut} | Total ${total}`,
+    );
   }
 
   // --- Highlight match counting ---

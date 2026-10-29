@@ -696,6 +696,10 @@
   .rss-dashboard-sidebar-toggle {
     margin-right: 8px;
   }
+  .rss-dashboard-viewing-filter-stats-text
+    .rss-dashboard-viewing-filter-stats-label {
+    display: none;
+  }
 }
 
 @media (min-width: 769px) and (max-width: 1200px) {

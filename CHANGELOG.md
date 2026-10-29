@@ -2,6 +2,8 @@
 
 ### Fixes
 
+- Tapping an article card on a touch device no longer shrinks it slightly while pressed; the tap highlight is unchanged. [GH Issue #1703](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1703)
+- The filter status bar drops its "Viewing filters:" and "No filters applied -" label at mobile widths, leaving the Showing, Filtered out and Total counts. [GH Issue #1704](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1704)
 - A saved-note template that places `{{image}}` in the note body, such as `![]({{image}})`, now also leaves the article's own copy of that image out of `{{content}}`, as Web Clipper does. Previously the note showed the picture twice whenever the article body repeated it at another size or behind an image resizer. A template without `{{image}}` in its body is unchanged.
 - Turning off **Use site icons/favicons for RSS feeds** or **Use album/show artwork for Podcast feeds** and confirming the clear dialog now clears the cached icons of only the feeds that setting covers, instead of every feed's icon, including podcast, YouTube and Mastodon feeds. [GH Issue #1629](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1629)
 - A feed item title with an unclosed formatting tag followed by a long run of text, such as `<i ` and dozens of `!`, no longer freezes the dashboard while the title is cleaned up.
