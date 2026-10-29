@@ -359,10 +359,16 @@ describe("FreshRSS article state queue", () => {
       write: async (path, contents) => {
         files.set(path, contents);
       },
+      list: async (folder) =>
+        [...files.keys()].filter((path) => path.startsWith(`${folder}/`)),
+      remove: async (path) => {
+        files.delete(path);
+      },
     };
     const createRepository = () =>
       new FreshRssConnectionScopeRepository(store, {
         sidecarPath: "rss-dashboard-data/freshrss-state.json",
+        quarantineFolder: "rss-dashboard-data",
         createQuarantinePath: () => "rss-dashboard-data/quarantine.json",
       });
     const repository = createRepository();

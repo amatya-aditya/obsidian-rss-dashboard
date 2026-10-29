@@ -111,7 +111,10 @@ export interface FreshRssSyncCoordinatorDeps {
   httpClient: FreshRssHttpClient;
   getSettings: () => RssDashboardSettings;
   saveSettings: () => Promise<void>;
-  sidecarRepository: Pick<FreshRssConnectionScopeRepository, "read" | "write">;
+  sidecarRepository: Pick<FreshRssConnectionScopeRepository, "read" | "write"> &
+    Partial<
+      Pick<FreshRssConnectionScopeRepository, "clearQuarantinedForScope">
+    >;
   getView: () => Promise<FreshRssDashboardView | null>;
 }
 
@@ -549,6 +552,16 @@ export class FreshRssSyncCoordinator {
 
     if (!articleStateReconciliationComplete) {
       return { outcome: "incomplete" };
+    }
+
+    if (!syncState.partial) {
+      try {
+        await this.deps.sidecarRepository.clearQuarantinedForScope?.(
+          input.scope,
+        );
+      } catch {
+        // Keep recovery copies if cleanup fails; the completed sync is durable.
+      }
     }
 
     return {

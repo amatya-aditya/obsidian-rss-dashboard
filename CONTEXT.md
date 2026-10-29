@@ -412,6 +412,12 @@ _Avoid_: Bad description, invalid description, junk value
 A description that restates the article's own opening text — exactly, or as a normalized prefix in either direction — rather than carrying independent publisher-authored prose. Detected identically wherever it's checked: the Reader's duplicate-suppression display and the resolver's [[Degenerate description value]] guard share one test.
 _Avoid_: Restated intro, redundant description, duplicate lead
 
+## FreshRSS sync
+
+**FreshRSS account scope**:
+The identity boundary formed by a canonical FreshRSS endpoint and its authenticated user; sync state and pending changes belong to one scope and are isolated from other scopes.
+_Avoid_: Account (without the endpoint), connection (when the authenticated user matters)
+
 ## Storage
 
 **Automatic backup**:

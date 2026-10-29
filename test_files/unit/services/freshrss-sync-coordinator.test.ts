@@ -425,6 +425,7 @@ describe("FreshRSS sync coordinator", () => {
     const write = vi.fn(async (next: FreshRssSidecarFile) => {
       Object.assign(sidecar, next);
     });
+    const clearQuarantinedForScope = vi.fn(async () => {});
     const { request, httpClient } = createClient([
       { status: 200, text: "Auth=session-token" },
       { status: 200, text: subscriptionList() },
@@ -454,7 +455,7 @@ describe("FreshRSS sync coordinator", () => {
       httpClient,
       getSettings: () => settings,
       saveSettings,
-      sidecarRepository: { read, write },
+      sidecarRepository: { read, write, clearQuarantinedForScope },
       getView: async () => null,
     });
 
@@ -503,6 +504,8 @@ describe("FreshRSS sync coordinator", () => {
       { remoteLabelId: "label/1", localTagName: "Keep", remoteType: "tag" },
     ]);
     expect(saveSettings).toHaveBeenCalledOnce();
+    expect(clearQuarantinedForScope).toHaveBeenCalledOnce();
+    expect(clearQuarantinedForScope).toHaveBeenCalledWith(scope);
   });
 
   it("does not persist local changes when FreshRSS rejects a request mid-cycle", async () => {
