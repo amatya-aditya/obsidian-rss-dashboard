@@ -51,8 +51,8 @@ community implementations are not policy clearance for RSS Dashboard.
 FreshRSS is the only implemented SecretStorage consumer today. Keep its
 resolver feature-local, and defer a shared module rather than designing it
 around the unimplemented YouTube proposal. Issue [#1363](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1363)
-is a no-go for generic credentialed article fetching and is being closed
-without implementation. It is not a current or approved SecretStorage
+is closed with a no-go for generic credentialed article fetching and no
+implementation. It is not a current or approved SecretStorage
 consumer. A separate, publisher-specific proposal may be considered only if it
 establishes that the exact access pattern is permitted and meets its own
 product and security requirements. YouTube, such a future proposal, or another
