@@ -197,6 +197,8 @@ export class ArticleHeader {
       cls: "rss-dashboard-header-right",
     });
 
+    this.renderFetchAllCoversButton(rightSection);
+
     const mobileFilterBtn = rightSection.createEl("button", {
       cls: "rss-dashboard-mobile-filter-button rss-dashboard-filter-trigger clickable-icon",
       attr: {
@@ -220,8 +222,6 @@ export class ArticleHeader {
         takePendingFilterMenuOpener(mobileFilterBtn),
       );
     });
-
-    this.renderFetchAllCoversButton(rightSection);
 
     const existingHeaderMenu: ArticleHeaderMenuController | null =
       this.headerMenu;
@@ -268,7 +268,7 @@ export class ArticleHeader {
   }
 
   /**
-   * Adds the fetch-all-covers button immediately left of the hamburger menu. It
+   * Adds the fetch-all-covers button at the left of the header's buttons, before the filter button. It
    * carries the same icon as a card's cover control, since it runs that action
    * on every eligible card of the page.
    */

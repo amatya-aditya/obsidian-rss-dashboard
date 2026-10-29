@@ -98,7 +98,7 @@ describe("ArticleHeader fetch-all-covers button (#1702)", () => {
     return container.querySelector<HTMLButtonElement>(BUTTON);
   }
 
-  it("sits immediately left of the hamburger menu with the download icon", () => {
+  it("sits at the left of the header's button row with the download icon", () => {
     renderHeader(buildSettings());
 
     const fetchAll = button();
@@ -108,9 +108,18 @@ describe("ArticleHeader fetch-all-covers button (#1702)", () => {
     expect(fetchAll?.getAttribute("aria-label")).toBe(IDLE_LABEL);
     expect(fetchAll?.getAttribute("data-rss-action")).toBe("fetch-all-covers");
     expect(fetchAll?.querySelector("svg")).not.toBeNull();
+    // Left of the filter button, which sits left of the hamburger menu.
     expect(fetchAll?.nextElementSibling?.className).toContain(
-      "rss-dashboard-hamburger-menu",
+      "rss-dashboard-mobile-filter-button",
     );
+    const row = container.querySelector(".rss-dashboard-header-right");
+    expect(
+      Array.from(row?.children ?? []).map((child) => child.className),
+    ).toEqual([
+      expect.stringContaining("rss-dashboard-fetch-all-covers-button"),
+      expect.stringContaining("rss-dashboard-mobile-filter-button"),
+      expect.stringContaining("rss-dashboard-hamburger-menu"),
+    ]);
   });
 
   it.each(["card", "feed"] as const)("is offered in the %s view", (view) => {
