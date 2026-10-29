@@ -1149,36 +1149,6 @@
     "rating": 4
   },
   {
-    "id": "feed-078",
-    "title": "Reddit r/AskScience",
-    "url": "https://www.reddit.com/r/askscience/.rss",
-    "imageUrl": "https://www.google.com/s2/favicons?domain=reddit.com&sz=128",
-    "domain": ["Science"],
-    "subdomain": ["General Science"],
-    "area": ["Q&A"],
-    "topic": ["Science"],
-    "tags": ["community", "science"],
-    "type": "Forum",
-    "createdAt": "2025-06-25T16:55:00.000Z",
-    "summary": "Crowd-sourced science questions and expert answers from Reddit's r/AskScience community.",
-    "rating": 3
-  },
-  {
-    "id": "feed-079",
-    "title": "Reddit r/AskHistorians",
-    "url": "https://www.reddit.com/r/AskHistorians/.rss",
-    "imageUrl": "https://www.google.com/s2/favicons?domain=reddit.com&sz=128",
-    "domain": ["History"],
-    "subdomain": ["World History"],
-    "area": ["Q&A"],
-    "topic": ["History"],
-    "tags": ["community", "history"],
-    "type": "Forum",
-    "createdAt": "2025-06-25T16:55:00.000Z",
-    "summary": "Expert answers to historical questions from the Reddit r/AskHistorians community.",
-    "rating": 4
-  },
-  {
     "id": "feed-080",
     "title": "freeCodeCamp News",
     "url": "https://www.freecodecamp.org/news/rss",
@@ -1282,21 +1252,6 @@
     "createdAt": "2025-06-25T16:55:00.000Z",
     "summary": "Scientific news and highlights from Nature, covering the latest research across disciplines.",
     "rating": 5
-  },
-  {
-    "id": "feed-087",
-    "title": "Reddit r/technology",
-    "url": "https://www.reddit.com/r/technology/.rss",
-    "imageUrl": "https://www.google.com/s2/favicons?domain=reddit.com&sz=128",
-    "domain": ["Technology"],
-    "subdomain": ["General Tech"],
-    "area": ["Community"],
-    "topic": ["Tech News"],
-    "tags": ["technology", "community"],
-    "type": "Forum",
-    "createdAt": "2025-06-25T16:55:00.000Z",
-    "summary": "User-submitted technology news and discussions from Reddit's r/technology community.",
-    "rating": 3
   },
   {
     "id": "feed-088",
@@ -1764,21 +1719,6 @@
     "rating": 4
   },
   {
-    "id": "feed-119",
-    "title": "Reddit r/TodayILearned",
-    "url": "https://www.reddit.com/r/todayilearned/.rss",
-    "imageUrl": "https://www.google.com/s2/favicons?domain=reddit.com&sz=128",
-    "domain": ["Community"],
-    "subdomain": ["Trivia"],
-    "area": ["Crowdsourced Facts"],
-    "topic": ["TIL"],
-    "tags": ["facts", "learning"],
-    "type": "Forum",
-    "createdAt": "2025-06-26T09:01:29Z",
-    "summary": "Crowdsourced 'Today I Learned' facts with backstory links.",
-    "rating": 4
-  },
-  {
     "id": "feed-120",
     "title": "McSweeney's Internet Tendency",
     "url": "https://feeds.feedburner.com/mcsweeneys/",
@@ -1971,21 +1911,6 @@
     "type": "Blog",
     "createdAt": "2025-06-26T09:01:29Z",
     "summary": "News and recommendations for book lovers.",
-    "rating": 4
-  },
-  {
-    "id": "feed-134",
-    "title": "Reddit r/BookSuggestions",
-    "url": "https://www.reddit.com/r/booksuggestions/.rss",
-    "imageUrl": "https://www.google.com/s2/favicons?domain=reddit.com&sz=128",
-    "domain": ["Community"],
-    "subdomain": ["Books"],
-    "area": ["Forum"],
-    "topic": ["Recommendations"],
-    "tags": ["books"],
-    "type": "Forum",
-    "createdAt": "2025-06-26T09:01:29Z",
-    "summary": "Crowdsourced book recommendation community.",
     "rating": 4
   },
   {
