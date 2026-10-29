@@ -68,9 +68,12 @@ The current Google and Obsidian documentation establishes these facts:
   least one unit.
 - The YouTube error reference lists `403 quotaExceeded`, generic `403
 forbidden`, invalid/missing request parameter errors, and `404
-channelNotFound`. It does not establish one universal YouTube error code for
-  an invalid or client-restricted API key. Exact key and restriction failures
-  need to be verified rather than inferred from the HTTP status alone.
+channelNotFound`. Its global error table also identifies `keyInvalid`,
+  `keyExpired`, and `403 accessNotConfigured` for project/API configuration.
+  Google's API-key guidance explains that key restrictions can reject a call,
+  but the exact YouTube response for each restriction needs verification. Error
+  handling must inspect the reason code, not infer the cause from HTTP status
+  alone.
 - `videos.list` can return public video resource fields such as snippets,
   duration, live-stream details, and statistics for one unit per call;
   `commentThreads.list` returns published comment threads for one unit per
@@ -84,9 +87,13 @@ channelNotFound`. It does not establish one universal YouTube error code for
   resolve the proposed case where each end user creates a project and uses that
   key with this distributed plugin.
 - Google prohibits aggregation of API Data across different recognized
-  YouTube content owners. This raises a product question because RSS Dashboard
-  can show multiple channel feeds together; whether that feed-reader behavior
-  is policy-defined aggregation needs authoritative interpretation.
+  YouTube content owners. Its compliance guide says API data shown alongside
+  other platforms must be clearly distinguished, and gives a search engine that
+  labels YouTube versus other videos as an acceptable example. RSS Dashboard
+  shows a feed title on article rows, but the default feed views can mix
+  channels and platforms. Whether that source label is sufficient and whether
+  a chronological feed list counts as cross-owner aggregation need
+  authoritative interpretation.
 - Non-authorized API Data may be stored only as needed and for no longer than
   30 calendar days, after which it must be refreshed or deleted. The policy
   separately requires API Clients that access or use user data to provide a
@@ -210,10 +217,15 @@ resolved with evidence:
    Obsidian desktop, Android, and iOS. Google documents only one client
    restriction type per key; a single cross-platform key may not support the
    restrictions each platform needs.
-2. **Cross-owner aggregation.** Resolve whether API Data for channels from
-   different YouTube-recognized content owners may be combined in RSS
-   Dashboard's views. If not, redesign the product so the API-backed data is
-   not aggregated across owners or defer the feature.
+2. **Cross-owner and cross-source display.** Obtain authoritative guidance on
+   whether RSS Dashboard's chronological views, which can show YouTube API
+   items beside items from other YouTube channels and other platforms, count as
+   prohibited aggregation or combining API Data. The app shows each item's feed
+   title, and YouTube's compliance guide gives a clearly distinguished
+   multi-platform video search as an acceptable example, but that does not
+   settle this feed-reader use case or the content-owner view restriction. If
+   the existing source labels and separate items are insufficient, redesign the
+   presentation or defer the feature.
 3. **Retention, deletion, and copies.** Define how API-derived non-authorized
    data is refreshed or deleted within the documented 30-day window. Confirm
    whether the seven-calendar-day user-data deletion rule applies to this
@@ -312,6 +324,7 @@ seam would be hypothetical and the module risks becoming a shallow pass-through.
 - [search.list](https://developers.google.com/youtube/data/reference/rest/v3/search/list)
 - [Caption implementation guide](https://developers.google.com/youtube/data/guides/implementation/captions)
 - [YouTube API error reference](https://developers.google.com/youtube/data/reference/rest/v3/errors)
+- [Google APIs global error reference](https://developers.google.com/youtube/data/reference/rest/v3/core_errors)
 - [YouTube Shorts criteria](https://support.google.com/youtube/answer/15424877)
 - [Required Minimum Functionality](https://developers.google.com/youtube/terms/required-minimum-functionality)
 - [Google API key best practices](https://docs.cloud.google.com/docs/authentication/api-keys-best-practices)
