@@ -2,6 +2,7 @@
 
 ### Fixes
 
+- A saved-note template that places `{{image}}` in the note body, such as `![]({{image}})`, now also leaves the article's own copy of that image out of `{{content}}`, as Web Clipper does. Previously the note showed the picture twice whenever the article body repeated it at another size or behind an image resizer. A template without `{{image}}` in its body is unchanged.
 - A feed item title with an unclosed formatting tag followed by a long run of text, such as `<i ` and dozens of `!`, no longer freezes the dashboard while the title is cleaned up.
 - A saved table cell containing code with a backslash before a pipe, such as `` `a\|b` ``, no longer splits into an extra column.
 - The buttons in the "Storage mode is being retired" upgrade prompt now wrap their labels inside the buttons instead of spilling outside them.

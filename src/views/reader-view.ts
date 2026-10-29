@@ -60,7 +60,11 @@ import {
 import { HighlightService } from "../services/highlight-service";
 import { resolveDisplayDate } from "../services/feed-parser/feed-retention";
 import { ArticleSaver } from "../services/article-saver";
-import { noteLeadsWithHero } from "../services/article-template/note-template";
+import {
+  noteLeadsWithHero,
+  removeTemplateImageFromBody,
+  templateImageUrl,
+} from "../services/article-template/note-template";
 import { setCssProps } from "../utils/platform-utils";
 import { applyTagAppearance } from "../utils/tag-colors";
 import { createIconButton } from "../utils/icon-button";
@@ -809,7 +813,8 @@ export class ReaderView extends ItemView {
 
   /**
    * The Markdown a Reader save hands the saver. `leadWithHero` is false when
-   * the note template places `{{image}}` itself, so the body takes no hero.
+   * the note template places `{{image}}` itself, so the body takes no hero and
+   * drops its own copy of that image.
    */
   private buildReaderSaveMarkdown(item: FeedItem, leadWithHero = true): string {
     const htmlToSave =
@@ -828,7 +833,7 @@ export class ReaderView extends ItemView {
     const strippedHtml = stripAdContainersFromHtml(htmlToSave);
     const htmlWithHero = leadWithHero
       ? this.prependFallbackHeroForSavedMarkdown(item, strippedHtml)
-      : strippedHtml;
+      : removeTemplateImageFromBody(strippedHtml, templateImageUrl(item));
     const normalizedSaveHtml =
       this.normalizeBlockLinksForSavedMarkdown(htmlWithHero);
     return this.turndownService.turndown(
