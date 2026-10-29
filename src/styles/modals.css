@@ -1514,6 +1514,23 @@ body .modal.rss-mobile-discover-filters-modal .rss-dashboard-sidebar {
   padding: 0.5em 0;
 }
 
+/* The preview lists every recent article, so it can scroll for dozens of
+ * screens. Pin the status line and buttons to the bottom of that scroll, and
+ * let long URLs wrap instead of running past the modal's edge. */
+.rss-freshrss-sync-modal .rss-freshrss-sync-footer {
+  position: sticky;
+  /* Reach over the content area's bottom padding so no list text shows
+   * beneath the footer. */
+  bottom: calc(-1 * var(--size-4-4, 16px));
+  padding-bottom: var(--size-4-4, 16px);
+  background: var(--modal-background, var(--background-primary));
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.rss-freshrss-sync-modal .rss-freshrss-sync-preview {
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 600px) {
   .rss-freshrss-sync-failure {
     align-items: stretch;
