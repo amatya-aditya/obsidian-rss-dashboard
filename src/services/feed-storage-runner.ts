@@ -657,6 +657,12 @@ async function writeFeedShard(
     );
     try {
       await host.app.vault.adapter.write(shardPath, shardJson);
+      const persistedComparableJson = comparableFromText(
+        await host.app.vault.adapter.read(shardPath),
+      );
+      if (persistedComparableJson !== comparableFromText(shardJson)) {
+        throw new Error("Feed shard write could not be verified.");
+      }
     } catch (error) {
       rollbackOwnWrite();
       throw error;
