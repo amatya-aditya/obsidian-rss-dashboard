@@ -64,6 +64,12 @@ _Avoid_: Skipping, episode navigation
 Adding the next bounded batch of episode rows to the rendered list. It preserves responsive performance for feeds with thousands of locally stored episodes.
 _Avoid_: Full-list rendering, unbounded scrolling
 
+## Video subscriptions
+
+**YouTube channel feed**:
+An RSS Dashboard subscription to one public YouTube channel's uploads; each item represents a video published by that channel.
+_Avoid_: YouTube playlist feed
+
 ## Sidebar feed management
 
 **Per-feed refresh status**:
