@@ -894,8 +894,8 @@ export function renderSidebarSettingsTab(
       !MediaService.isYouTubeFeed(feed.url) &&
       feed.mediaType !== "podcast",
     clearIconOnDisable: (entries) => {
-      for (const { feed } of entries) {
-        if (feed.iconUrl) {
+      for (const { feed, needsRefresh } of entries) {
+        if (needsRefresh && feed.iconUrl) {
           feed.iconUrl = "";
         }
       }
@@ -912,8 +912,8 @@ export function renderSidebarSettingsTab(
     confirmLabel: "Clear artwork",
     matchesDomain: (feed) => feed.mediaType === "podcast",
     clearIconOnDisable: (entries) => {
-      for (const { feed } of entries) {
-        if (feed.iconUrl) {
+      for (const { feed, needsRefresh } of entries) {
+        if (needsRefresh && feed.iconUrl) {
           feed.iconUrl = "";
         }
       }
@@ -930,8 +930,8 @@ export function renderSidebarSettingsTab(
     confirmLabel: "Clear profile images",
     matchesDomain: (feed) => MastodonService.isResolvedFeedUrl(feed.url),
     clearIconOnDisable: (entries) => {
-      for (const { feed } of entries) {
-        if (MastodonService.isResolvedFeedUrl(feed.url)) {
+      for (const { feed, needsRefresh } of entries) {
+        if (needsRefresh) {
           feed.iconUrl = "";
         }
       }
