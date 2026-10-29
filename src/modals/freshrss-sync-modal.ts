@@ -30,6 +30,7 @@ export class FreshRssSyncModal extends AccessibleModal {
 
   onOpen(): void {
     this.opened = true;
+    this.modalEl.addClass("rss-freshrss-sync-modal");
     void this.render();
   }
 
@@ -60,11 +61,14 @@ export class FreshRssSyncModal extends AccessibleModal {
     outgoing.createEl("h3", { text: "Outgoing article state" });
     const failures = contentEl.createDiv({ cls: "rss-freshrss-sync-failures" });
     failures.setAttribute("aria-label", "Failed FreshRSS mutations");
-    const status = contentEl.createEl("p", { cls: "rss-freshrss-sync-status" });
+    // The preview can run to dozens of screens, so the status and buttons live
+    // in a footer that stays pinned to the bottom of the scrolling content.
+    const footer = contentEl.createDiv({ cls: "rss-freshrss-sync-footer" });
+    const status = footer.createEl("p", { cls: "rss-freshrss-sync-status" });
     status.setAttribute("role", "status");
     status.setAttribute("aria-live", "polite");
     status.textContent = "Loading FreshRSS preview.";
-    const actions = contentEl.createDiv({ cls: "rss-dashboard-modal-buttons" });
+    const actions = footer.createDiv({ cls: "rss-dashboard-modal-buttons" });
     const cancel = actions.createEl("button", { text: "Cancel" });
     cancel.addEventListener("click", () => {
       if (this.running) {

@@ -232,4 +232,29 @@ describe("FreshRSS sync preview modal", () => {
     });
     modal.onClose();
   });
+
+  it("keeps the status line and the Cancel and Start sync buttons in one footer after the preview", async () => {
+    installObsidianDomPolyfills();
+    const modal = new FreshRssSyncModal({} as App, host("two-way"));
+
+    modal.onOpen();
+    await vi.waitFor(() => {
+      expect(modal.contentEl.textContent).toContain("Preview feed");
+    });
+
+    expect(modal.modalEl.classList.contains("rss-freshrss-sync-modal")).toBe(
+      true,
+    );
+    const footer = modal.contentEl.querySelector(".rss-freshrss-sync-footer");
+    expect(footer).not.toBeNull();
+    expect(footer?.parentElement).toBe(modal.contentEl);
+    expect(modal.contentEl.lastElementChild).toBe(footer);
+    expect(footer?.querySelector('[role="status"]')).not.toBeNull();
+    expect(
+      Array.from(footer?.querySelectorAll("button") ?? []).map(
+        (button) => button.textContent,
+      ),
+    ).toEqual(["Cancel", "Start sync"]);
+    modal.onClose();
+  });
 });
