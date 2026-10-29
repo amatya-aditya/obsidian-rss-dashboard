@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { App, Setting } from "obsidian";
+import { App, Modal, Setting } from "obsidian";
+import { JSDOM } from "jsdom";
 import { AccessibleModal } from "../../../src/utils/accessible-modal";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
@@ -540,6 +541,47 @@ describe("AccessibleModal focus return", () => {
     modal.close();
 
     expect(document.activeElement).toBe(trigger);
+  });
+
+  it("returns focus to an opener in the modal's own window", () => {
+    const popout = new JSDOM("<!doctype html><html><body></body></html>", {
+      url: "https://popout.example",
+    });
+    const popoutDocument = popout.window.document;
+    const modalOpen = vi
+      .spyOn(Modal.prototype, "open")
+      .mockImplementation(function (this: Modal) {
+        if (!this.containerEl.isConnected) {
+          popoutDocument.body.appendChild(this.containerEl);
+        }
+        void this.onOpen();
+      });
+    try {
+      const trigger = popoutDocument
+        .createRange()
+        .createContextualFragment("<button>Sync now</button>")
+        .querySelector("button")!;
+      popoutDocument.body.appendChild(trigger);
+      trigger.focus();
+
+      const modal = new TestModal((m) => {
+        m.titleEl.textContent = "Sync preview";
+        const input = popoutDocument
+          .createRange()
+          .createContextualFragment("<input>")
+          .querySelector("input")!;
+        m.contentEl.appendChild(input);
+      });
+      modal.open(trigger);
+      modal.contentEl.querySelector("input")?.focus();
+
+      modal.close();
+
+      expect(popoutDocument.activeElement).toBe(trigger);
+    } finally {
+      modalOpen.mockRestore();
+      popout.window.close();
+    }
   });
 
   it("returns focus after a close button inside the modal is clicked", () => {

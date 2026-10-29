@@ -21,7 +21,7 @@ export interface FreshRssSettingsPlugin {
   openFreshRssStorageMigrationChoice(): void;
   testFreshRssConnection(): Promise<FreshRssConnectionStatus>;
   syncFreshRssNow(): Promise<FreshRssSyncRunStatus>;
-  openFreshRssSyncPreview(): void;
+  openFreshRssSyncPreview(opener?: HTMLElement): void;
   getFreshRssPendingMutations(): Promise<FreshRssPendingFacetMutation[]>;
   cancelFreshRssSyncNow(): void;
   retryFreshRssMutation(operationId: string): Promise<void>;
@@ -196,7 +196,7 @@ export function renderFreshRssSettingsTab(
       button.onClick(async () => {
         button.buttonEl.disabled = true;
         try {
-          plugin.openFreshRssSyncPreview();
+          plugin.openFreshRssSyncPreview(button.buttonEl);
         } finally {
           button.buttonEl.disabled =
             plugin.settings.freshRss.status !== "connected";
