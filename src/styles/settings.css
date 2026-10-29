@@ -706,3 +706,31 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* On a phone the name card stacks into four rows: the label, the name field,
+ * the live preview and the Add tag button. */
+@media (max-width: 520px) {
+  .rss-dashboard-tag-new-name-setting.setting-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .rss-dashboard-tag-new-name-setting .setting-item-control {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .rss-dashboard-tag-new-name-setting .setting-item-control input[type="text"],
+  .rss-dashboard-tag-new-name-setting .setting-item-control button {
+    width: 100%;
+  }
+
+  .rss-dashboard-tag-new-name-setting .rss-dashboard-tag-new-preview {
+    align-self: flex-start;
+    max-width: 100%;
+  }
+}
