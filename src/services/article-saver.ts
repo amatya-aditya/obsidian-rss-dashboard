@@ -44,6 +44,7 @@ import {
 import {
   bodyLeadsWithHero,
   noteLeadsWithHero,
+  removeTemplateImageFromBody,
   resolveNoteTemplate,
   templateImageUrl,
 } from "./article-template/note-template";
@@ -364,6 +365,21 @@ export class ArticleSaver {
     }
   }
 
+  /**
+   * The body HTML a note saves. A template that places `{{image}}` itself
+   * (`leadWithHero` false) also drops the body's own copy of that image, so
+   * the note shows it once, where the template put it.
+   */
+  private bodyHtmlForNote(
+    item: FeedItem,
+    html: string,
+    leadWithHero: boolean,
+  ): string {
+    return leadWithHero
+      ? html
+      : removeTemplateImageFromBody(html, templateImageUrl(item));
+  }
+
   private prependFallbackHeroHtml(
     item: FeedItem,
     html: string,
@@ -525,7 +541,11 @@ guid: "{{guid}}"
    */
   private feedHtmlAsMarkdown(item: FeedItem, leadWithHero: boolean): string {
     const feedHtml = this.getPreferredFeedHtml(item);
-    const sanitizedHtml = this.sanitizeFeedHtmlForMarkdown(feedHtml, item.link);
+    const sanitizedHtml = this.bodyHtmlForNote(
+      item,
+      this.sanitizeFeedHtmlForMarkdown(feedHtml, item.link),
+      leadWithHero,
+    );
     const heroUrl = leadWithHero ? this.getFeedHeroUrl(item) : "";
 
     if (this.videoItemEmbedId(item)) {
@@ -681,23 +701,23 @@ guid: "{{guid}}"
     // Same ad stripping and relative-image fix-up as the RSS-content path, so
     // the fallback and a fetched save match it (#1195).
     const feedContent = this.getPreferredFeedHtml(item);
-    const sanitizedHtml = this.sanitizeFeedHtmlForMarkdown(
-      feedContent,
-      item.link,
+    const leadWithHero = noteLeadsWithHero(
+      this.settings,
+      customTemplate,
+      savedTemplate,
+      item,
+    );
+    const sanitizedHtml = this.bodyHtmlForNote(
+      item,
+      this.sanitizeFeedHtmlForMarkdown(feedContent, item.link),
+      leadWithHero,
     );
     const fallbackMarkdown = feedContent
       ? articleHtmlToMarkdown(sanitizedHtml)
       : "";
     // A template that places {{image}} itself takes no hero lead (the prepend
     // treats an empty URL as no hero).
-    const heroUrl = noteLeadsWithHero(
-      this.settings,
-      customTemplate,
-      savedTemplate,
-      item,
-    )
-      ? this.getFeedHeroUrl(item)
-      : "";
+    const heroUrl = leadWithHero ? this.getFeedHeroUrl(item) : "";
     const fallbackWithHero = fallbackMarkdown
       ? this.prependFallbackHeroMarkdown(
           item,
@@ -736,10 +756,11 @@ guid: "{{guid}}"
     const leadHeroUrl = leadWithHero ? fetchedHeroUrl : "";
     const doc = this.parseHtmlBody(html);
     if (!doc) {
+      const bodyHtml = this.bodyHtmlForNote(item, html, leadWithHero);
       return this.prependFallbackHeroMarkdown(
         item,
-        articleHtmlToMarkdown(html),
-        html,
+        articleHtmlToMarkdown(bodyHtml),
+        bodyHtml,
         leadHeroUrl,
       );
     }
@@ -757,7 +778,11 @@ guid: "{{guid}}"
       fallbackHeroUrl: fetchedHeroUrl,
     });
 
-    const sanitizedHtml = doc.body.innerHTML;
+    const sanitizedHtml = this.bodyHtmlForNote(
+      item,
+      doc.body.innerHTML,
+      leadWithHero,
+    );
     return this.prependFallbackHeroMarkdown(
       item,
       articleHtmlToMarkdown(sanitizedHtml),
