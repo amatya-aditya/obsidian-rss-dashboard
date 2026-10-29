@@ -78,6 +78,7 @@ See the [ADR Policy](POLICY.md) for the complete lifecycle, authoring, and maint
 | [0038](0038-rank-cors-proxies-from-passive-session-health.md)                  | Rank CORS Proxies from Passive, Session-Only Health                      | accepted | Order and bench the `auto` proxies from the outcomes of real fetches, in memory for the session, with no probe traffic and no extra proxy contacted.                             |
 | [0039](0039-use-user-managed-secretstorage-references.md)                      | Use User-Managed SecretStorage References for Credentials                | accepted | Store credential references, never values; keep FreshRSS resolution feature-local and defer a shared module until a second real consumer exists.                                 |
 | [0040](0040-defer-youtube-data-api-pending-compliance.md)                      | Defer YouTube Data API Feeds Pending Compliance Clearance                | accepted | Keep RSS and IFrame behavior; defer API keys until credential, retention, cross-channel, and 50-item gates are cleared.                                                          |
+| [0042](0042-keep-freshrss-in-core.md)                                          | Keep FreshRSS in Core for v1                                             | accepted | Keep FreshRSS v1 in the main plugin's build and release lifecycle; defer a separate connector boundary until a concrete need exists.                                             |
 
 ## Creating a new ADR
 
