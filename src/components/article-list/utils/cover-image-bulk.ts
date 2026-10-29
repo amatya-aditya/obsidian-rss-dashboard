@@ -6,9 +6,10 @@ import {
 
 /**
  * What the fetch-all-covers button shows (#1702): ready, unavailable because no
- * card on the page needs a cover, or a run in progress (a press cancels it).
+ * card on the page needs a cover, a run in progress (a press cancels it), or a
+ * cancelled run waiting for the fetches already started.
  */
-export type FetchAllCoversState = "idle" | "disabled" | "running";
+export type FetchAllCoversState = "idle" | "disabled" | "running" | "stopping";
 
 /**
  * How many page requests the bulk cover-image fetch keeps open at once. The

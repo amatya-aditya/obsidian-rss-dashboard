@@ -27,24 +27,29 @@ export class FetchAllCoversController {
 
   constructor(private readonly host: FetchAllCoversHost) {}
 
-  /** The state the button shows: running, ready, or unavailable. */
+  /** The state the button shows: running, stopping, ready, or unavailable. */
   public getState(): FetchAllCoversState {
-    if (this.abort) return "running";
+    if (this.abort) return this.abort.signal.aborted ? "stopping" : "running";
     return this.host.getTargets().length > 0 ? "idle" : "disabled";
   }
 
   /** Starts a run, or cancels the one in progress. */
   public toggle(): void {
     if (this.abort) {
-      this.abort.abort();
+      this.cancel();
       return;
     }
     void this.run();
   }
 
-  /** Stops new fetches from starting, e.g. when the list is torn down. */
+  /**
+   * Stops new fetches from starting; the ones already started finish. The
+   * button says so, since they may take a while.
+   */
   public cancel(): void {
-    this.abort?.abort();
+    if (!this.abort || this.abort.signal.aborted) return;
+    this.abort.abort();
+    this.host.onStateChange("stopping");
   }
 
   private async run(): Promise<void> {

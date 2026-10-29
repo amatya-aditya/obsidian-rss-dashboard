@@ -3260,8 +3260,9 @@ export class RssDashboardView extends ItemView {
       if (!stored) {
         // The article is no longer in a feed this dashboard can update; say so
         // rather than leaving the reader with a silent no-op.
-        if (!quiet)
+        if (!quiet) {
           new Notice("Could not save the cover image on this article.");
+        }
         return false;
       }
       // The cache itself decides whether caching is on for this image.

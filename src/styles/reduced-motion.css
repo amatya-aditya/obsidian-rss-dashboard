@@ -92,12 +92,6 @@
     transition-delay: 0s;
   }
 
-  .rss-dashboard-fetch-all-covers-button.is-running svg {
-    animation-duration: 3s;
-    animation-delay: 0s;
-    animation-iteration-count: infinite;
-  }
-
   .rss-dashboard-save-toggle.saving::after {
     animation-duration: 3s;
     animation-delay: 0s;
@@ -190,6 +184,7 @@
     .rss-dashboard-refresh-button.refreshing
     .rss-dashboard-refresh-icon
     svg,
+  .rss-dashboard-fetch-all-covers-button.is-running svg,
   .rss-dashboard-view-more.loading::after {
     animation-duration: 3s;
     animation-delay: 0s;

@@ -16,6 +16,7 @@ const FETCH_ALL_COVERS_LABELS: Record<FetchAllCoversState, string> = {
   idle: "Fetch cover images for all cards on this page",
   disabled: "No cards on this page need a cover image",
   running: "Cancel fetching cover images",
+  stopping: "Stopping after the fetches already started",
 };
 
 /** The spinner the button shows while a run is active (`loader-2`, as the other in-progress controls use). */
@@ -72,6 +73,7 @@ export class ArticleHeader {
   private headerMenu: ArticleHeaderMenuController | null = null;
   private filterMenu: ArticleFilterMenu | null = null;
   private fetchAllCoversBtn: HTMLButtonElement | null = null;
+  private fetchAllCoversIcon: string | null = null;
 
   private statusFilters: Set<string>;
   private tagFilters: Set<string>;
@@ -250,9 +252,9 @@ export class ArticleHeader {
 
   /**
    * Whether this header offers the fetch-all-covers button: the dashboard
-   * supplies the action, both Display settings are on, and the view
-   * renders cover images at all. The List view does not, so it has nothing for
-   * a fetched cover to appear on.
+   * supplies the action, both Display settings are on, and the view renders
+   * cover images at all. The List view does not, so a fetched cover would have
+   * nowhere to appear.
    */
   private offersFetchAllCovers(): boolean {
     const { display, viewStyle } = this.settings;
@@ -267,8 +269,8 @@ export class ArticleHeader {
 
   /**
    * Adds the fetch-all-covers button immediately left of the hamburger menu. It
-   * carries the same icon as a card's cover control, since it runs
-   * that action on every eligible card of the page.
+   * carries the same icon as a card's cover control, since it runs that action
+   * on every eligible card of the page.
    */
   private renderFetchAllCoversButton(parent: HTMLElement): void {
     this.fetchAllCoversBtn = null;
@@ -284,12 +286,11 @@ export class ArticleHeader {
     });
     button.addEventListener("click", (event: MouseEvent) => {
       event.stopPropagation();
-      // Even while the button looks unavailable the press goes through: the look
-      // can be stale, and the dashboard re-checks the page and says so when
-      // nothing needs a cover.
+      // The look can be stale, so the press goes through even while unavailable.
       this.callbacks.onFetchAllCovers?.();
     });
     this.fetchAllCoversBtn = button;
+    this.fetchAllCoversIcon = COVER_IMAGE_FETCH_ICON;
     this.setFetchAllCoversState(
       this.callbacks.getFetchAllCoversState?.() ?? "idle",
     );
@@ -300,9 +301,9 @@ export class ArticleHeader {
     const button = this.fetchAllCoversBtn;
     if (!button) return;
 
-    const running = state === "running";
-    button.classList.toggle("is-running", running);
-    if (running) {
+    const busy = state === "running" || state === "stopping";
+    button.classList.toggle("is-running", busy);
+    if (busy) {
       button.setAttribute("aria-busy", "true");
     } else {
       button.removeAttribute("aria-busy");
@@ -312,10 +313,13 @@ export class ArticleHeader {
     } else {
       button.removeAttribute("aria-disabled");
     }
-    setIcon(
-      button,
-      running ? FETCH_ALL_COVERS_RUNNING_ICON : COVER_IMAGE_FETCH_ICON,
-    );
+    // Rebuilding the icon restarts the spin, and the list refreshes this often
+    // while a run is active, so only swap it when the icon itself changes.
+    const icon = busy ? FETCH_ALL_COVERS_RUNNING_ICON : COVER_IMAGE_FETCH_ICON;
+    if (this.fetchAllCoversIcon !== icon) {
+      this.fetchAllCoversIcon = icon;
+      setIcon(button, icon);
+    }
     setTooltip(button, FETCH_ALL_COVERS_LABELS[state]);
   }
 

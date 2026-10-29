@@ -180,6 +180,33 @@ describe("ArticleHeader fetch-all-covers button (#1702)", () => {
     expect(onFetchAllCovers).toHaveBeenCalledTimes(1);
   });
 
+  it("shows a cancel as registered while the started fetches finish", () => {
+    const header = renderHeader(buildSettings());
+
+    header.setFetchAllCoversState("stopping");
+
+    const fetchAll = button();
+    expect(fetchAll?.getAttribute("aria-label")).toBe(
+      "Stopping after the fetches already started",
+    );
+    expect(fetchAll?.classList.contains("is-running")).toBe(true);
+    expect(fetchAll?.getAttribute("aria-busy")).toBe("true");
+  });
+
+  it("keeps its icon, and so its spinning, when the state has not changed", () => {
+    const header = renderHeader(buildSettings());
+
+    header.setFetchAllCoversState("running");
+    const spinner = button()?.querySelector("svg");
+    header.setFetchAllCoversState("running");
+    header.setFetchAllCoversState("running");
+
+    expect(button()?.querySelector("svg")).toBe(spinner);
+
+    header.setFetchAllCoversState("stopping");
+    expect(button()?.querySelector("svg")).toBe(spinner);
+  });
+
   it("moves between its states in place, without a re-render", () => {
     const header = renderHeader(buildSettings());
     const fetchAll = button();

@@ -261,6 +261,10 @@ describe("fetch-all-covers on the article list (#1702)", () => {
     );
 
     running.click();
+    // The press registered, though the three started fetches are still running.
+    expect(headerButton(h.container).getAttribute("aria-label")).toBe(
+      "Stopping after the fetches already started",
+    );
     finish.splice(0).forEach((resolve) => resolve());
     await vi.waitFor(() => expect(notices()).toHaveLength(1));
 
@@ -269,6 +273,13 @@ describe("fetch-all-covers on the article list (#1702)", () => {
       "Stopped. Fetched 3 of 3 cover images. 5 not started.",
     ]);
     // The three finished covers were kept; the other five can still be fetched.
+    for (const article of h.articles.slice(0, 3)) {
+      expect(article.coverImage).toBe(PAGE_IMAGE);
+      expect(article.coverImageFromPage).toBe(true);
+    }
+    for (const article of h.articles.slice(3)) {
+      expect(article.coverImage).toBe("");
+    }
     expect(h.getArticleEl("g0")?.classList.contains(FETCHING_CLASS)).toBe(
       false,
     );
