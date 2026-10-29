@@ -1099,8 +1099,12 @@ describe("Sidebar settings tab characterization: feed icon toggles", () => {
     await flushPromises();
 
     const feeds = (settings as unknown as { feeds: Feed[] }).feeds;
-    // BUG: pinned, see #1629 (clears the icon of every feed, not only RSS ones)
-    expect(feeds.map((f) => f.iconUrl)).toEqual(["", "", ""]);
+    // Only the RSS feed is cleared; the podcast and YouTube feeds keep their icons (#1629)
+    expect(feeds.map((f) => f.iconUrl)).toEqual([
+      "",
+      "https://c.example/art.png",
+      "yt.png",
+    ]);
     expect(settings.display.useDomainIconsRss).toBe(false);
     expect(calls).toEqual(["save"]);
     expect(view.render).toHaveBeenCalledTimes(1);
@@ -1112,7 +1116,7 @@ describe("Sidebar settings tab characterization: feed icon toggles", () => {
     );
   });
 
-  it("confirming the Podcast toggle off clears every feed's cached icon", async () => {
+  it("confirming the Podcast toggle off clears only podcast feeds' cached icons", async () => {
     const { containerEl, plugin, onRefresh, settings } = createFixture((s) => {
       s.display.useDomainIconsPodcast = true;
       (s as unknown as { feeds: Feed[] }).feeds = [
@@ -1135,8 +1139,8 @@ describe("Sidebar settings tab characterization: feed icon toggles", () => {
     await flushPromises();
 
     const feeds = (settings as unknown as { feeds: Feed[] }).feeds;
-    // BUG: pinned, see #1629 (clears the icon of every feed, not only podcasts)
-    expect(feeds.map((f) => f.iconUrl)).toEqual(["", ""]);
+    // The RSS feed keeps its icon (#1629)
+    expect(feeds.map((f) => f.iconUrl)).toEqual(["", "icon.png"]);
   });
 
   it("describes the case with no cached icons", async () => {
@@ -1203,6 +1207,27 @@ describe("Sidebar settings tab characterization: feed icon toggles", () => {
     expect(settings.display.useDomainIconsMastodon).toBe(true);
     expect(saveSettings).not.toHaveBeenCalled();
     expect(isToggleOn(toggle)).toBe(true);
+  });
+
+  it("keeps every feed's icon when the RSS toggle-off confirmation is cancelled", async () => {
+    const { containerEl, plugin, onRefresh, settings } = createFixture((s) => {
+      s.display.useDomainIconsRss = true;
+      (s as unknown as { feeds: Feed[] }).feeds = [
+        feed("https://a.example/feed.xml", "icon.png"),
+        feed("https://c.example/pod.xml", "art.png", "podcast"),
+      ];
+    });
+    vi.mocked(showDomainIconToggleConfirm).mockResolvedValueOnce(false);
+    renderSidebarSettingsTab(containerEl, plugin, onRefresh);
+
+    setToggle(
+      getToggle(containerEl, "Use site icons/favicons for RSS feeds"),
+      false,
+    );
+    await flushPromises();
+
+    const feeds = (settings as unknown as { feeds: Feed[] }).feeds;
+    expect(feeds.map((f) => f.iconUrl)).toEqual(["icon.png", "art.png"]);
   });
 
   it("only clears the matching icons when confirming the Mastodon toggle off", async () => {
