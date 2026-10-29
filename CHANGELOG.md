@@ -81,6 +81,7 @@
 ### Fixes
 
 - A new vault no longer reports `storage-migration-required` on the first FreshRSS **Test connection**. A vault with no earlier RSS Dashboard data now starts on the vault-located storage FreshRSS needs, so there is nothing to upgrade; existing vaults still see the upgrade prompt. [GH Issue #1714](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1714)
+- FreshRSS sync preview now shows retry and cancel controls for mutations that fail during a sync run, without needing to reopen the preview. [GH Issue #1713](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1713)
 - The FreshRSS sync preview keeps its status line and **Cancel** and **Start sync** buttons pinned to the bottom of the dialog, so they stay in reach on a phone however long the incoming list is, and long article links now wrap instead of running past the edge. [GH Issue #1562](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1562)
 - FreshRSS **Sync now** reports an incomplete sync when it cannot confirm that remote read and unread state was reconciled for bound articles. [GH Issue #1680](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1680)
 - FreshRSS sync now imports articles when its ID list returns decimal IDs and article content returns Google Reader hexadecimal IDs. [GH Issue #1563](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1563)
