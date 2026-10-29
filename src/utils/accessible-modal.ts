@@ -139,9 +139,9 @@ export class AccessibleModal extends Modal {
     return null;
   }
 
-  open(): void {
+  open(opener?: HTMLElement): void {
     // Opening an already-open modal keeps the first opener.
-    this.opener ??= this.captureOpener();
+    this.opener ??= opener ?? this.captureOpener();
     super.open();
     this.applyDialogSemantics();
     this.startFocusTrap();
