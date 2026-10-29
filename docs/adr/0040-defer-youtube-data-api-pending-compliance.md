@@ -51,13 +51,15 @@ community implementations are not policy clearance for RSS Dashboard.
 FreshRSS is the only implemented SecretStorage consumer today. Keep its
 resolver feature-local, and defer a shared module rather than designing it
 around the unimplemented YouTube proposal. Issue [#1363](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1363)
-is another research candidate: it explores user-pasted, per-origin session
-cookies for credentialed article fetches, but remains undecided and has no
-implementation. YouTube, #1363, or another future feature may justify
-reconsidering the seam if its scope is approved and it becomes a real consumer.
-At that point, compare the callers' needs and choose an interface only if it
-provides shared behavior with enough depth, leverage, and locality. Do not
-assume every secret type fits the same adapter or module.
+is a no-go for generic credentialed article fetching and is being closed
+without implementation. It is not a current or approved SecretStorage
+consumer. A separate, publisher-specific proposal may be considered only if it
+establishes that the exact access pattern is permitted and meets its own
+product and security requirements. YouTube, such a future proposal, or another
+approved feature may justify reconsidering the seam only after it becomes a
+concrete consumer. At that point, compare the callers' needs and choose an
+interface only if it provides shared behavior with enough depth, leverage, and
+locality. Do not assume every secret type fits the same adapter or module.
 
 The SecretStorage contract in [ADR 0039](0039-use-user-managed-secretstorage-references.md)
 continues to apply: users manage SecretStorage entries, settings and portable
@@ -146,8 +148,9 @@ decide whether two real consumers justify a shared SecretStorage module and
 what small, deep interface would provide leverage and locality. A shared
 resolver must not be extracted just to wrap `app.secretStorage.getSecret`.
 
-The shared-module decision is not tied to this YouTube feature. Issue #1363 or
-another independent feature may supply a second consumer; its own policy and
+The shared-module decision is not tied to this YouTube feature. A future,
+separately scoped publisher-specific proposal or another approved independent
+feature may supply a second consumer; #1363 itself does not. Its own policy and
 product questions remain separate and do not clear the YouTube gates above.
 
 ## Consequences
@@ -168,7 +171,7 @@ product questions remain separate and do not clear the YouTube gates above.
 
 - [GitHub Issue #1076 — Design the shared credential seam on SecretStorage](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1076)
 - [GitHub Issue #1077 — Scope the first YouTube Data API release](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1077)
-- [GitHub Issue #1363 — Research credentialed article fetch for paywalled sites](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1363) — research candidate only; no consumer is implemented or approved
+- [GitHub Issue #1363 — Research credentialed article fetch for paywalled sites](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1363) — closed: generic scope declined; no implementation; any publisher-specific proposal requires separate review
 - [ADR 0039 — Use User-Managed SecretStorage References for Credentials](0039-use-user-managed-secretstorage-references.md)
 - [YouTube API Services Developer Policies](https://developers.google.com/youtube/terms/developer-policies) — API credential assignment and sharing, data aggregation, and API data retention
 - [Google Cloud API key best practices](https://docs.cloud.google.com/docs/authentication/api-keys-best-practices) — client-key exposure and server-side request guidance
