@@ -552,7 +552,6 @@
   cursor: not-allowed;
 }
 .rss-dashboard-fetch-all-covers-button.is-running svg {
-  /* `spin` keyframe is defined in the root styles.css bundle */
   animation: spin 1s linear infinite;
 }
 

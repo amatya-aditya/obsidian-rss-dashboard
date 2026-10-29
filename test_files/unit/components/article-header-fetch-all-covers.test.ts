@@ -153,7 +153,7 @@ describe("ArticleHeader fetch-all-covers button (#1702)", () => {
     expect(onFetchAllCovers).toHaveBeenCalledTimes(1);
   });
 
-  it("stays in the tab order but does nothing when no card needs a cover", () => {
+  it("looks unavailable when no card needs a cover, yet still hands a press to the dashboard", () => {
     state = "disabled";
     renderHeader(buildSettings());
 
@@ -162,8 +162,9 @@ describe("ArticleHeader fetch-all-covers button (#1702)", () => {
     expect(fetchAll?.getAttribute("aria-label")).toBe(
       "No cards on this page need a cover image",
     );
+    // The look can be stale, so the dashboard re-checks the page on every press.
     fetchAll?.click();
-    expect(onFetchAllCovers).not.toHaveBeenCalled();
+    expect(onFetchAllCovers).toHaveBeenCalledTimes(1);
   });
 
   it("shows a spinner and a cancel tooltip while a run is active", () => {

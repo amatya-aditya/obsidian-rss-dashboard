@@ -6,7 +6,7 @@ import {
   type FetchAllCoversState,
 } from "./cover-image-bulk";
 
-/** What the controller needs from the list that owns the cards (#1702). */
+/** What the controller needs from the list that owns the cards. */
 export interface FetchAllCoversHost {
   /** The cards a run would fetch right now. */
   getTargets(): FeedItem[];

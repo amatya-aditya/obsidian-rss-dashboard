@@ -11,15 +11,15 @@ import {
 export type FetchAllCoversState = "idle" | "disabled" | "running";
 
 /**
- * How many page requests the bulk cover-image fetch keeps open at once (#1702).
- * The feed-refresh limit does not apply: a cover fetch reads an article page on
- * the publisher's own site, and it must not queue behind (or starve) a refresh.
+ * How many page requests the bulk cover-image fetch keeps open at once. The
+ * feed-refresh limit does not apply: a cover fetch reads an article page on the
+ * publisher's own site, and it must not queue behind (or starve) a refresh.
  */
 export const BULK_COVER_IMAGE_CONCURRENCY = 3;
 
 /**
- * The cards the bulk fetch runs on (#1702): the ones whose own control would
- * offer the fetch. That covers a card with no cover and one that only has the
+ * The cards the bulk fetch runs on: the ones whose own control would offer the
+ * fetch. That covers a card with no cover and one that only has the
  * feed's cover; it leaves out a card that already holds a fetched cover (its
  * control offers the restore, which a bulk run never performs) and any card
  * the fetch cannot reach, so the bulk run and the single-card control cannot
@@ -44,9 +44,7 @@ export interface BulkCoverImageRunOptions {
 }
 
 export interface BulkCoverImageResult {
-  /** Fetches that were started. */
   attempted: number;
-  /** Started fetches that stored a cover. */
   fetched: number;
   /** Targets a cancel kept from starting. */
   notStarted: number;
@@ -54,7 +52,7 @@ export interface BulkCoverImageResult {
 }
 
 /**
- * Runs the fetch over `targets` with a small worker pool (#1702). A fetch that
+ * Runs the fetch over `targets` with a small worker pool. A fetch that
  * throws counts as a failure and does not stop the others. A cancel leaves the
  * covers already stored in place and lets the fetches in flight finish, so the
  * result still accounts for every started request.
@@ -95,7 +93,7 @@ function coverImages(count: number): string {
   return `${count} cover ${count === 1 ? "image" : "images"}`;
 }
 
-/** The one sentence that reports a finished or stopped run (#1702). */
+/** The one sentence that reports a finished or stopped run. */
 export function describeBulkCoverImageResult(
   result: BulkCoverImageResult,
 ): string {

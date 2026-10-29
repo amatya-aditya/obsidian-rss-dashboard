@@ -9,6 +9,7 @@ import {
   vi,
   type MockInstance,
 } from "vitest";
+import { globalFetchSemaphore } from "../../../src/services/feed-parser/fetch-semaphore";
 import { buildArticle, createArticleListHarness } from "./article-list-harness";
 import type { FeedItem, RssDashboardSettings } from "../../../src/types/types";
 
@@ -350,5 +351,143 @@ describe("fetch-all-covers on the article list (#1702)", () => {
 
     expect(fetchQuiet).toHaveBeenCalledTimes(3);
     h.cleanup();
+  });
+
+  it("never takes a feed-refresh slot for a bulk fetch", async () => {
+    const acquire = vi.spyOn(globalFetchSemaphore, "acquire");
+    const fetchQuiet = storingFetch();
+    const h = createArticleListHarness({
+      settings: settingsWith(),
+      callbacks: {
+        onFetchCoverImage: fetchQuiet,
+        onFetchCoverImageQuiet: fetchQuiet,
+      },
+      articles: makeArticles(4),
+    });
+    h.list.render();
+
+    headerButton(h.container).click();
+    await vi.waitFor(() => expect(notices()).toHaveLength(1));
+
+    expect(fetchQuiet).toHaveBeenCalledTimes(4);
+    expect(acquire).not.toHaveBeenCalled();
+    h.cleanup();
+  });
+
+  describe("keeping the button's state current", () => {
+    function fetched(guid: string): FeedItem {
+      return buildArticle({
+        guid,
+        title: `Fetched ${guid}`,
+        link: `https://example.com/${guid}`,
+        coverImage: PAGE_IMAGE,
+        coverImageFromPage: true,
+      });
+    }
+
+    function harnessFor(articles: FeedItem[]) {
+      const fetchQuiet = storingFetch();
+      const h = createArticleListHarness({
+        settings: settingsWith(),
+        callbacks: {
+          onFetchCoverImage: fetchQuiet,
+          onFetchCoverImageQuiet: fetchQuiet,
+          onRestoreCoverImage: vi.fn(async () => true),
+        },
+        articles,
+      });
+      h.list.render();
+      return { h, fetchQuiet };
+    }
+
+    function isDisabled(container: HTMLElement): boolean {
+      return headerButton(container).getAttribute("aria-disabled") === "true";
+    }
+
+    it("becomes available again when a filter change brings in cards that need a cover", () => {
+      const { h } = harnessFor([fetched("a"), fetched("b")]);
+      expect(isDisabled(h.container)).toBe(true);
+
+      h.list.refilter(new Set(), new Set(), "OR", makeArticles(2), 1, 1, 10, 2);
+
+      expect(isDisabled(h.container)).toBe(false);
+      h.cleanup();
+    });
+
+    it("becomes unavailable when a filter change leaves nothing to fetch", () => {
+      const { h } = harnessFor(makeArticles(2));
+      expect(isDisabled(h.container)).toBe(false);
+
+      h.list.refilter(new Set(), new Set(), "OR", [fetched("a")], 1, 1, 10, 1);
+
+      expect(isDisabled(h.container)).toBe(true);
+      h.cleanup();
+    });
+
+    it("becomes available when a card's cover is restored from its own control", () => {
+      const restored = fetched("a");
+      const { h } = harnessFor([restored]);
+      expect(isDisabled(h.container)).toBe(true);
+
+      restored.coverImage = "";
+      restored.coverImageFromPage = undefined;
+      h.list.replaceArticleInPlace(restored);
+
+      expect(isDisabled(h.container)).toBe(false);
+      h.cleanup();
+    });
+
+    it("follows a card that is inserted into the page", () => {
+      const { h } = harnessFor([fetched("a")]);
+      expect(isDisabled(h.container)).toBe(true);
+
+      h.list.insertArticleInPlace(
+        buildArticle({ guid: "new", link: "https://example.com/new" }),
+        "newest",
+      );
+
+      expect(isDisabled(h.container)).toBe(false);
+      h.cleanup();
+    });
+
+    it("follows a card that is removed from the page", () => {
+      const needy = buildArticle({
+        guid: "needy",
+        link: "https://example.com/n",
+      });
+      const { h } = harnessFor([fetched("a"), needy]);
+      expect(isDisabled(h.container)).toBe(false);
+
+      h.list.removeArticleInPlace("needy");
+
+      expect(isDisabled(h.container)).toBe(true);
+      h.cleanup();
+    });
+
+    it("runs a press that arrives while the button still looks unavailable", async () => {
+      const stale = fetched("a");
+      const { h, fetchQuiet } = harnessFor([stale]);
+      expect(isDisabled(h.container)).toBe(true);
+
+      // The card changed behind the list's back, so the look is out of date.
+      stale.coverImage = "";
+      stale.coverImageFromPage = undefined;
+      headerButton(h.container).click();
+      await vi.waitFor(() => expect(notices()).toHaveLength(1));
+
+      expect(fetchQuiet).toHaveBeenCalledTimes(1);
+      expect(notices()).toEqual(["Fetched 1 of 1 cover image."]);
+      h.cleanup();
+    });
+
+    it("says so, and requests nothing, when a press finds no card that needs a cover", () => {
+      const { h, fetchQuiet } = harnessFor([fetched("a")]);
+
+      headerButton(h.container).click();
+
+      expect(fetchQuiet).not.toHaveBeenCalled();
+      expect(notices()).toEqual(["No cards on this page need a cover image."]);
+      h.cleanup();
+    });
   });
 });

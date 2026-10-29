@@ -42,7 +42,7 @@ export interface ArticleHeaderCallbacks {
   onShowShortcuts: () => void;
   /** Starts the fetch-all-covers run, or cancels the one in progress (#1702). */
   onFetchAllCovers?: () => void;
-  /** The state the fetch-all-covers button opens in (#1702). */
+  /** The state the fetch-all-covers button opens in. */
   getFetchAllCoversState?: () => FetchAllCoversState;
 }
 
@@ -249,8 +249,8 @@ export class ArticleHeader {
   }
 
   /**
-   * Whether this header offers the fetch-all-covers button (#1702): the
-   * dashboard supplies the action, both Display settings are on, and the view
+   * Whether this header offers the fetch-all-covers button: the dashboard
+   * supplies the action, both Display settings are on, and the view
    * renders cover images at all. The List view does not, so it has nothing for
    * a fetched cover to appear on.
    */
@@ -266,8 +266,8 @@ export class ArticleHeader {
   }
 
   /**
-   * Adds the fetch-all-covers button immediately left of the hamburger menu
-   * (#1702). It carries the same icon as a card's cover control, since it runs
+   * Adds the fetch-all-covers button immediately left of the hamburger menu. It
+   * carries the same icon as a card's cover control, since it runs
    * that action on every eligible card of the page.
    */
   private renderFetchAllCoversButton(parent: HTMLElement): void {
@@ -284,8 +284,9 @@ export class ArticleHeader {
     });
     button.addEventListener("click", (event: MouseEvent) => {
       event.stopPropagation();
-      // The button stays focusable while unavailable so its tooltip can say why.
-      if (button.getAttribute("aria-disabled") === "true") return;
+      // Even while the button looks unavailable the press goes through: the look
+      // can be stale, and the dashboard re-checks the page and says so when
+      // nothing needs a cover.
       this.callbacks.onFetchAllCovers?.();
     });
     this.fetchAllCoversBtn = button;
