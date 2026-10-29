@@ -139,6 +139,14 @@ empty, as for a feed with no cover whose image comes only from the fetched
 page): the body keeps its hero, so the note is not left with no image. The hero the body would have led with can differ in size from `{{image}}`,
 which is why the "already in the body" check could not prevent the repeat.
 
+The same condition also removes the body's own copy of that image. The article's
+HTML usually repeats the cover at another size or behind a resizer path, so
+`removeTemplateImageFromBody` (same file) drops the first `<img>` that is
+`{{image}}`: the same host and path ignoring the query and a WordPress size
+suffix, or else the same distinctive file name. A generic name such as
+`image.jpg` never matches, and only that first image goes. Each save path applies
+it to the HTML before conversion, as the hero decision itself is made.
+
 ## Why the plugin fetches pages only on open
 
 Fetching a page per item per feed at refresh would reverse a deliberate choice.

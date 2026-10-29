@@ -206,6 +206,93 @@ describe("ArticleSaver - {{image}} in the note body replaces the hero lead", () 
     expect(written).toBe(`![](${COVER})\n\nBody.`);
   });
 
+  it("leaves the in-content copy of the image out of an RSS content save", async () => {
+    const app = App.createMock();
+    const item = createItem({
+      coverImage: COVER,
+      content:
+        '<p>Intro.</p><img src="https://img.example.com/cover.jpg?lossy" alt="Cover"><p>Body.</p>',
+    });
+
+    const written = await readSaved(
+      app,
+      await createSaver(app).saveArticle(item),
+    );
+
+    expect(written).toBe(`![](${COVER})
+
+Intro.
+
+Body.`);
+  });
+
+  it("leaves the in-content copy of the image out of a Fetched content save", async () => {
+    const app = App.createMock();
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({
+      content:
+        '<p>Intro.</p><img src="https://img.example.com/cover.jpg?lossy"><p>Fetched body.</p>',
+      failureType: "none",
+    });
+    const item = createItem({ coverImage: COVER });
+
+    const written = await readSaved(
+      app,
+      await createSaver(app, {
+        saveVersion: "fetched",
+      }).saveArticleWithFullContent(item),
+    );
+
+    expect(written).toContain(`![](${COVER})`);
+    expect(written).toContain("Fetched body.");
+    expect(written).not.toContain("cover.jpg?lossy");
+  });
+
+  it("leaves the in-content copy of the image out of the fetch-failure fallback", async () => {
+    const app = App.createMock();
+    vi.spyOn(
+      fetchHelpers,
+      "fetchWithProxyFallbackDetailed",
+    ).mockResolvedValueOnce({ content: "", failureType: "network" });
+    const item = createItem({
+      coverImage: COVER,
+      content:
+        '<img src="https://img.example.com/cover.jpg?lossy"><p>Feed body.</p>',
+    });
+
+    const written = await readSaved(
+      app,
+      await createSaver(app, {
+        saveVersion: "fetched",
+      }).saveArticleWithFullContent(item),
+    );
+
+    expect(written).toContain("Feed body.");
+    expect(written).not.toContain("cover.jpg?lossy");
+  });
+
+  it("keeps the in-content copy of the image when the template never names {{image}}", async () => {
+    const app = App.createMock();
+    const item = createItem({
+      coverImage: COVER,
+      content:
+        '<p>Intro.</p><img src="https://img.example.com/cover.jpg?lossy" alt="Cover"><p>Body.</p>',
+    });
+
+    const written = await readSaved(
+      app,
+      await createSaver(app, { defaultTemplate: "{{content}}" }).saveArticle(
+        item,
+      ),
+    );
+
+    expect(written).toContain(
+      "![Cover](https://img.example.com/cover.jpg?lossy)",
+    );
+  });
+
   it("keeps the hero lead when the template never names the image", async () => {
     const app = App.createMock();
     const item = createItem({ coverImage: COVER, content: "<p>Body.</p>" });
