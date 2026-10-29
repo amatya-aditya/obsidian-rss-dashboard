@@ -1422,6 +1422,8 @@ export class RssDashboardView extends ItemView {
       onResolveCachedImageUrl: (remoteUrl) =>
         this.plugin.resolveCachedImageUrl(remoteUrl),
       onFetchCoverImage: (article) => this.handleFetchCoverImage(article),
+      onFetchCoverImageQuiet: (article) =>
+        this.handleFetchCoverImage(article, { quiet: true }),
       onRestoreCoverImage: (article) => this.handleRestoreCoverImage(article),
       onMarkAllAsRead: () => {
         this.actionMarkAllAsRead();
@@ -3239,8 +3241,15 @@ export class RssDashboardView extends ItemView {
    * (#1330), and nothing else about the article changed. Warms the disk cache
    * when image caching is on. Resolves true when an image was stored, so the
    * calling card can rebuild itself.
+   *
+   * A `quiet` fetch (the header's fetch-all run, #1702) reports its failures
+   * through the false result alone, because the run ends with one summary
+   * rather than one Notice per card.
    */
-  private async handleFetchCoverImage(article: FeedItem): Promise<boolean> {
+  private async handleFetchCoverImage(
+    article: FeedItem,
+    { quiet = false }: { quiet?: boolean } = {},
+  ): Promise<boolean> {
     const result = await this.plugin.fetchPageCoverImage(article.link);
     if (result.status === "found") {
       const stored = await this.updateArticleStatus(
@@ -3251,7 +3260,8 @@ export class RssDashboardView extends ItemView {
       if (!stored) {
         // The article is no longer in a feed this dashboard can update; say so
         // rather than leaving the reader with a silent no-op.
-        new Notice("Could not save the cover image on this article.");
+        if (!quiet)
+          new Notice("Could not save the cover image on this article.");
         return false;
       }
       // The cache itself decides whether caching is on for this image.
@@ -3259,7 +3269,7 @@ export class RssDashboardView extends ItemView {
       return true;
     }
 
-    const notice = coverImageFailureNotice(result);
+    const notice = quiet ? null : coverImageFailureNotice(result);
     if (notice) {
       new Notice(notice);
     }

@@ -7,7 +7,20 @@ import {
   takePendingFilterMenuOpener,
 } from "./article-filter-menu";
 import { ArticleHeaderMenu } from "./article-header-menu";
+import { COVER_IMAGE_FETCH_ICON } from "./article-list/utils/cover-image-action";
+import type { FetchAllCoversState } from "./article-list/utils/cover-image-bulk";
 import { renderHeaderFeedIcon } from "./article-list/utils/feed-icon";
+import { createIconButton } from "../utils/icon-button";
+
+const FETCH_ALL_COVERS_LABELS: Record<FetchAllCoversState, string> = {
+  idle: "Fetch cover images for all cards on this page",
+  disabled: "No cards on this page need a cover image",
+  running: "Cancel fetching cover images",
+};
+
+/** The spinner the button shows while a run is active (`loader-2`, as the other in-progress controls use). */
+const FETCH_ALL_COVERS_RUNNING_ICON = "loader-2";
+
 interface ArticleHeaderMenuController {
   destroy(): void;
   render(parent: HTMLElement): void;
@@ -27,6 +40,10 @@ export interface ArticleHeaderCallbacks {
   onMarkAllAsRead: () => void;
   onMarkAllAsUnread: () => void;
   onShowShortcuts: () => void;
+  /** Starts the fetch-all-covers run, or cancels the one in progress (#1702). */
+  onFetchAllCovers?: () => void;
+  /** The state the fetch-all-covers button opens in (#1702). */
+  getFetchAllCoversState?: () => FetchAllCoversState;
 }
 
 /**
@@ -54,6 +71,7 @@ export class ArticleHeader {
   private articleSearchQuery: string = "";
   private headerMenu: ArticleHeaderMenuController | null = null;
   private filterMenu: ArticleFilterMenu | null = null;
+  private fetchAllCoversBtn: HTMLButtonElement | null = null;
 
   private statusFilters: Set<string>;
   private tagFilters: Set<string>;
@@ -201,6 +219,8 @@ export class ArticleHeader {
       );
     });
 
+    this.renderFetchAllCoversButton(rightSection);
+
     const existingHeaderMenu: ArticleHeaderMenuController | null =
       this.headerMenu;
     if (existingHeaderMenu) {
@@ -226,6 +246,76 @@ export class ArticleHeader {
       },
     );
     this.headerMenu.render(rightSection);
+  }
+
+  /**
+   * Whether this header offers the fetch-all-covers button (#1702): the
+   * dashboard supplies the action, both Display settings are on, and the view
+   * renders cover images at all. The List view does not, so it has nothing for
+   * a fetched cover to appear on.
+   */
+  private offersFetchAllCovers(): boolean {
+    const { display, viewStyle } = this.settings;
+    return (
+      !!this.callbacks.onFetchAllCovers &&
+      !!this.callbacks.getFetchAllCoversState &&
+      !!display.showCoverImage &&
+      !!display.showFetchAllCoversButton &&
+      viewStyle !== "list"
+    );
+  }
+
+  /**
+   * Adds the fetch-all-covers button immediately left of the hamburger menu
+   * (#1702). It carries the same icon as a card's cover control, since it runs
+   * that action on every eligible card of the page.
+   */
+  private renderFetchAllCoversButton(parent: HTMLElement): void {
+    this.fetchAllCoversBtn = null;
+    if (!this.offersFetchAllCovers()) return;
+
+    const button = createIconButton({
+      label: FETCH_ALL_COVERS_LABELS.idle,
+      icon: COVER_IMAGE_FETCH_ICON,
+      parent,
+      cls: "rss-dashboard-fetch-all-covers-button clickable-icon",
+      action: "fetch-all-covers",
+      region: "article-header",
+    });
+    button.addEventListener("click", (event: MouseEvent) => {
+      event.stopPropagation();
+      // The button stays focusable while unavailable so its tooltip can say why.
+      if (button.getAttribute("aria-disabled") === "true") return;
+      this.callbacks.onFetchAllCovers?.();
+    });
+    this.fetchAllCoversBtn = button;
+    this.setFetchAllCoversState(
+      this.callbacks.getFetchAllCoversState?.() ?? "idle",
+    );
+  }
+
+  /** Moves the fetch-all-covers button to `state` in place; a no-op when it is not offered. */
+  public setFetchAllCoversState(state: FetchAllCoversState): void {
+    const button = this.fetchAllCoversBtn;
+    if (!button) return;
+
+    const running = state === "running";
+    button.classList.toggle("is-running", running);
+    if (running) {
+      button.setAttribute("aria-busy", "true");
+    } else {
+      button.removeAttribute("aria-busy");
+    }
+    if (state === "disabled") {
+      button.setAttribute("aria-disabled", "true");
+    } else {
+      button.removeAttribute("aria-disabled");
+    }
+    setIcon(
+      button,
+      running ? FETCH_ALL_COVERS_RUNNING_ICON : COVER_IMAGE_FETCH_ICON,
+    );
+    setTooltip(button, FETCH_ALL_COVERS_LABELS[state]);
   }
 
   /**

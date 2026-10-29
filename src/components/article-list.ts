@@ -60,6 +60,8 @@ import {
   resolveCoverImageOffer,
   type CoverImageAction,
 } from "./article-list/utils/cover-image-action";
+import { selectBulkCoverImageTargets } from "./article-list/utils/cover-image-bulk";
+import { FetchAllCoversController } from "./article-list/utils/fetch-all-covers-controller";
 import {
   runCoverImageAction,
   type CoverImageActionDeps,
@@ -140,6 +142,13 @@ interface ArticleListCallbacks {
    */
   onFetchCoverImage?: (article: FeedItem) => Promise<boolean>;
   /**
+   * The same fetch without its per-card failure Notices (#1702). The header's
+   * fetch-all run uses it so a page of cards ends with one summary rather than
+   * a Notice for every card that had no image. Falls back to
+   * `onFetchCoverImage` when the dashboard supplies no separate one.
+   */
+  onFetchCoverImageQuiet?: (article: FeedItem) => Promise<boolean>;
+  /**
    * Puts the feed's own cover image back after the manual fetch replaced it
    * (#1330), locally and with no request. Resolves true when the article was
    * rewritten. Absent when the dashboard cannot restore, which hides that state
@@ -147,6 +156,9 @@ interface ArticleListCallbacks {
    */
   onRestoreCoverImage?: (article: FeedItem) => Promise<boolean>;
 }
+
+/** The class a search puts on a card whose title does not match it. */
+const SEARCH_HIDDEN_CLASS = "rss-dashboard-search-hidden";
 
 export class ArticleList {
   private container: HTMLElement;
@@ -168,6 +180,24 @@ export class ArticleList {
   private currentFeedUrl: string | null = null;
   private header: ArticleHeader | null = null;
   private highlightService: HighlightService | null = null;
+  // The header's fetch-all-covers run (#1702). The closures read this list
+  // lazily, so they are safe to declare before the constructor assigns it.
+  private readonly fetchAllCovers = new FetchAllCoversController({
+    getTargets: () => this.getFetchAllCoversTargets(),
+    fetchOne: (article) =>
+      runCoverImageAction(
+        {
+          article,
+          articleEl: this.findArticleElement(article),
+          deps: {
+            ...this.getCoverImageActionDeps(),
+            fetchCoverImage: this.getBulkCoverImageFetcher(),
+          },
+        },
+        "fetch",
+      ),
+    onStateChange: (state) => this.header?.setFetchAllCoversState(state),
+  });
 
   private showFeedSource: boolean = true;
   private statusFilters: Set<string>;
@@ -246,6 +276,10 @@ export class ArticleList {
           this.filterArticlesBySearch(this.articleSearchQuery);
           this.callbacks.onSearch(q);
         },
+        onFetchAllCovers: this.getBulkCoverImageFetcher()
+          ? () => this.fetchAllCovers.toggle()
+          : undefined,
+        getFetchAllCoversState: () => this.fetchAllCovers.getState(),
         onSortChange: (s) => this.callbacks.onSortChange(s),
         onGroupChange: (g) => this.callbacks.onGroupChange(g),
         onFilterChange: (f) => this.callbacks.onFilterChange(f),
@@ -313,6 +347,7 @@ export class ArticleList {
   }
 
   public destroy(): void {
+    this.fetchAllCovers.cancel();
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
@@ -1366,11 +1401,13 @@ export class ArticleList {
         "";
 
       if (articleTitleMatchesSearch(title, query)) {
-        (el as HTMLElement).classList.remove("rss-dashboard-search-hidden");
+        (el as HTMLElement).classList.remove(SEARCH_HIDDEN_CLASS);
       } else {
-        (el as HTMLElement).classList.add("rss-dashboard-search-hidden");
+        (el as HTMLElement).classList.add(SEARCH_HIDDEN_CLASS);
       }
     });
+    // A search changes which cards the fetch-all button would run on.
+    this.header?.setFetchAllCoversState(this.fetchAllCovers.getState());
   }
 
   /**
@@ -1815,6 +1852,36 @@ export class ArticleList {
       coverImageAction: coverImageAction ?? undefined,
       settings: { articleSaving: this.settings.articleSaving },
     });
+  }
+
+  /**
+   * The fetch the header's fetch-all run uses, or undefined when the dashboard
+   * supplies none (#1702). The quiet variant is preferred so the run ends with
+   * one summary rather than a Notice for every card that had no image.
+   */
+  private getBulkCoverImageFetcher():
+    ((article: FeedItem) => Promise<boolean>) | undefined {
+    return (
+      this.callbacks.onFetchCoverImageQuiet ?? this.callbacks.onFetchCoverImage
+    );
+  }
+
+  /**
+   * The cards the fetch-all button would run on: the page's cards whose own
+   * control offers the fetch, that a search has not hidden (#1702).
+   */
+  private getFetchAllCoversTargets(): FeedItem[] {
+    if (this.settings.viewStyle === "list") return [];
+    return selectBulkCoverImageTargets(this.articles, {
+      hasFetcher: !!this.getBulkCoverImageFetcher(),
+      hasRestorer: !!this.callbacks.onRestoreCoverImage,
+      showCoverImage: this.settings.display.showCoverImage,
+    }).filter(
+      (article) =>
+        !this.findArticleElement(article)?.classList.contains(
+          SEARCH_HIDDEN_CLASS,
+        ),
+    );
   }
 
   /**

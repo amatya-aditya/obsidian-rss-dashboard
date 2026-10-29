@@ -543,6 +543,19 @@
   outline-offset: 2px;
 }
 
+/* Fetch-all-covers button (#1702): the header's cover action for the whole page. */
+.rss-dashboard-fetch-all-covers-button {
+  flex-shrink: 0;
+}
+.rss-dashboard-fetch-all-covers-button[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.rss-dashboard-fetch-all-covers-button.is-running svg {
+  /* `spin` keyframe is defined in the root styles.css bundle */
+  animation: spin 1s linear infinite;
+}
+
 .rss-dashboard-menu-backdrop {
   position: fixed;
   top: 0;
