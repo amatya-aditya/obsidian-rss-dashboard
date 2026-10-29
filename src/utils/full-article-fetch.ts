@@ -2,6 +2,7 @@ import {
   fetchWithProxyFallbackDetailed,
   resolveFetchTimeoutMs,
   type FullArticleFetchResult,
+  type PageFetchOptions,
 } from "./fetch-helpers";
 import { hostMatches } from "./url-host";
 
@@ -23,30 +24,43 @@ export function fetchPageMetadataWithOutcome(
   proxyUrl?: string,
   fetchTimeoutSeconds?: number,
 ): Promise<FullArticleFetchResult> {
-  return fetchWithProxyFallbackDetailed(url, proxyUrl, fetchTimeoutSeconds, {
-    metadataOnly: true,
-  });
+  return fetchFullArticleContentWithOutcome(
+    url,
+    proxyUrl,
+    fetchTimeoutSeconds,
+    { metadataOnly: true },
+  );
 }
 
 export async function fetchFullArticleContentWithOutcome(
   url: string,
   proxyUrl?: string,
   fetchTimeoutSeconds?: number,
+  options: PageFetchOptions = {},
 ): Promise<FullArticleFetchResult> {
   const deadline = Date.now() + resolveFetchTimeoutMs(fetchTimeoutSeconds);
   const isSagepubFull =
     hostMatches(url, "journals.sagepub.com") && url.includes("/doi/full/");
+  const fetchPage = (pageUrl: string, timeoutSeconds?: number) =>
+    options.metadataOnly
+      ? fetchWithProxyFallbackDetailed(
+          pageUrl,
+          proxyUrl,
+          timeoutSeconds,
+          options,
+        )
+      : fetchWithProxyFallbackDetailed(pageUrl, proxyUrl, timeoutSeconds);
+  // A metadata-only read returns no content, so a served page is told by its
+  // failure type instead.
+  const served = (page: FullArticleFetchResult): boolean =>
+    options.metadataOnly ? page.failureType === "none" : Boolean(page.content);
 
-  const result = await fetchWithProxyFallbackDetailed(
-    url,
-    proxyUrl,
-    fetchTimeoutSeconds,
-  );
+  const result = await fetchPage(url, fetchTimeoutSeconds);
 
   // A block needs no abstract fallback: the abstract page is on the same host,
   // so the host's refusal answers for both (#1347).
   if (
-    result.content ||
+    served(result) ||
     !isSagepubFull ||
     result.failureReason === "timeout" ||
     result.failureReason === "blocked"
@@ -58,13 +72,9 @@ export async function fetchFullArticleContentWithOutcome(
   if (remainingMs <= 0) return { ...result, failureReason: "timeout" };
 
   const abstractUrl = url.replace("/doi/full/", "/doi/abs/");
-  const fallbackResult = await fetchWithProxyFallbackDetailed(
-    abstractUrl,
-    proxyUrl,
-    remainingMs / 1000,
-  );
+  const fallbackResult = await fetchPage(abstractUrl, remainingMs / 1000);
 
-  if (fallbackResult.content) return fallbackResult;
+  if (served(fallbackResult)) return fallbackResult;
 
   return {
     ...fallbackResult,

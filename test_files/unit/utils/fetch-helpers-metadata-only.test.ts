@@ -126,7 +126,7 @@ describe("metadata-only page read (#1702)", () => {
 
     expect(resolvePageCoverImage(result.pageMetadata!, URL_)).toBe(OG);
     for (const [input] of parse.mock.calls) {
-      expect(String(input).length).toBeLessThanOrEqual(100 * 1024);
+      expect(String(input).length).toBeLessThanOrEqual(256 * 1024);
     }
   });
 
@@ -144,6 +144,94 @@ describe("metadata-only page read (#1702)", () => {
 
     expect(metadataOnly.failureType).toBe(whole.failureType);
     expect(metadataOnly.failureReason).toBe(whole.failureReason);
+  });
+
+  it("finds an image declared after a long head of inline styles", async () => {
+    const longHead = `<style>${"a{color:red}".repeat(18000)}</style>`; // ~200 KB
+    detailedMock.mockResolvedValue({
+      text: page(`${longHead}<meta property="og:image" content="${OG}">`, 20),
+      status: 200,
+    });
+
+    const result = await fetchWithProxyFallbackDetailed(
+      URL_,
+      undefined,
+      undefined,
+      { metadataOnly: true },
+    );
+
+    expect(resolvePageCoverImage(result.pageMetadata!, URL_)).toBe(OG);
+  });
+
+  it("does not see a declaration past the read limit, which the full read would", async () => {
+    const hugeHead = `<style>${"a{color:red}".repeat(30000)}</style>`; // ~360 KB
+    const html = page(
+      `${hugeHead}<meta property="og:image" content="${OG}">`,
+      20,
+    );
+    detailedMock.mockResolvedValue({ text: html, status: 200 });
+
+    const headOnly = await fetchWithProxyFallbackDetailed(
+      URL_,
+      undefined,
+      undefined,
+      { metadataOnly: true },
+    );
+    const whole = await fetchWithProxyFallbackDetailed(URL_);
+
+    expect(resolvePageCoverImage(headOnly.pageMetadata!, URL_)).toBe("");
+    expect(resolvePageCoverImage(whole.pageMetadata!, URL_)).toBe(OG);
+  });
+
+  it("reads a page a proxy serves after a refusal through the head-only parser too", async () => {
+    detailedMock
+      .mockResolvedValueOnce({ text: "", status: 403 })
+      .mockResolvedValueOnce({
+        text: page(`<meta property="og:image" content="${OG}">`, 300),
+        status: 200,
+      });
+
+    const result = await fetchWithProxyFallbackDetailed(
+      URL_,
+      "https://proxy.example.com/?url=",
+      undefined,
+      { metadataOnly: true },
+    );
+
+    expect(detailedMock).toHaveBeenCalledTimes(2);
+    expect(result.failureType).toBe("none");
+    expect(resolvePageCoverImage(result.pageMetadata!, URL_)).toBe(OG);
+    expect(readability.constructed).not.toHaveBeenCalled();
+  });
+
+  it("still falls back to a Sage abstract page for the cover, as the full fetch does", async () => {
+    const full = "https://journals.sagepub.com/doi/full/10.1/article";
+    detailedMock
+      .mockRejectedValueOnce(new Error("ECONNRESET"))
+      .mockResolvedValueOnce({
+        text: page(`<meta property="og:image" content="${OG}">`, 20),
+        status: 200,
+      });
+
+    const result = await fetchPageMetadataWithOutcome(full);
+
+    expect(detailedMock.mock.calls.map(([requested]) => requested)).toEqual([
+      full,
+      "https://journals.sagepub.com/doi/abs/10.1/article",
+    ]);
+    expect(resolvePageCoverImage(result.pageMetadata!, full)).toBe(OG);
+  });
+
+  it("does not request the Sage abstract page when the full page was served", async () => {
+    const full = "https://journals.sagepub.com/doi/full/10.1/article";
+    detailedMock.mockResolvedValue({
+      text: page(`<meta property="og:image" content="${OG}">`, 20),
+      status: 200,
+    });
+
+    await fetchPageMetadataWithOutcome(full);
+
+    expect(detailedMock).toHaveBeenCalledTimes(1);
   });
 
   it("is what the cover service reads through fetchPageMetadataWithOutcome", async () => {

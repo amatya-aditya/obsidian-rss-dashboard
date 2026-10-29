@@ -115,7 +115,7 @@ export function renderImageCachingSettings(
   new Setting(containerEl)
     .setName("Show fetch all covers button")
     .setDesc(
-      "Show a button beside the menu that fetches cover images for every card on the page. It needs cover images to be shown.",
+      "Show a button in the dashboard header that fetches cover images for every card on the page. It needs cover images to be shown.",
     )
     .addToggle((toggle) =>
       toggle

@@ -377,8 +377,12 @@ export interface PageFetchOptions {
   metadataOnly?: boolean;
 }
 
-/** The longest start of a page a metadata-only read will parse. */
-const METADATA_HEAD_LIMIT = 100 * 1024;
+/**
+ * The longest start of a page a metadata-only read will parse. Heads run long
+ * with inline CSS and state, so this is generous; a declaration past it is not
+ * seen. A literal `</head>` inside a head script would end the read early.
+ */
+const METADATA_HEAD_LIMIT = 256 * 1024;
 
 /**
  * Reads a page's declared metadata from its head alone. The head ends at
@@ -542,7 +546,7 @@ function proxyOutcomeOfError(failure: FetchErrorDetails): ProxyOutcome {
 async function attemptDirectFetch(
   url: string,
   deadline: number,
-  parse: PageParser,
+  attempts: FetchAttempts,
 ): Promise<
   | { kind: "page"; result: FullArticleFetchResult }
   | {
@@ -564,7 +568,7 @@ async function attemptDirectFetch(
       );
       return {
         kind: "page",
-        result: { ...parse(html, url), failureType: "none" },
+        result: { ...attempts.parse(html, url), failureType: "none" },
       };
     }
     console.warn(
@@ -767,7 +771,7 @@ export async function fetchWithProxyFallbackDetailed(
   };
   try {
     // 1. Direct fetch
-    const direct = await attemptDirectFetch(url, deadline, parse);
+    const direct = await attemptDirectFetch(url, deadline, attempts);
     if (direct.kind === "page") return direct.result;
     attempts.refusal = direct.refusal;
     attempts.metadata = direct.metadata;
