@@ -538,6 +538,88 @@ describe("FreshRSS sync coordinator", () => {
     expect(write).not.toHaveBeenCalled();
   });
 
+  it("retries article imports when local persistence fails before bindings commit", async () => {
+    const settings = makeSettings();
+    settings.feeds = [];
+    settings.freshRss.stateSyncMode = "receive-only";
+    const sidecar = createSidecar();
+    const originalFeeds = settings.feeds;
+    const write = vi.fn(async (next: FreshRssSidecarFile) => {
+      Object.assign(sidecar, next);
+    });
+    const createImportClient = () =>
+      createClient([
+        { status: 200, text: "Auth=session-token" },
+        { status: 200, text: subscriptionList() },
+        {
+          status: 200,
+          text: JSON.stringify({ itemRefs: [{ id: "article/42" }] }),
+        },
+        {
+          status: 200,
+          text: JSON.stringify({
+            items: [
+              {
+                id: "article/42",
+                title: "Article 42",
+                alternate: [{ href: "https://article.example.test/42" }],
+                content: { content: "Article body" },
+              },
+            ],
+          }),
+        },
+      ]).httpClient;
+    const sidecarRepository = { read: async () => sidecar, write };
+    const failedCoordinator = new FreshRssSyncCoordinator({
+      httpClient: createImportClient(),
+      getSettings: () => settings,
+      saveSettings: async () => {
+        throw new Error("Feed shard write could not be verified.");
+      },
+      sidecarRepository,
+      getView: async () => null,
+    });
+
+    await expect(
+      failedCoordinator.run({
+        endpoint,
+        credentials: { username: "reader", apiPassword: "secret" },
+        scope,
+        owner: createOwner(),
+      }),
+    ).rejects.toThrow("Feed shard write could not be verified.");
+
+    expect(settings.feeds).toBe(originalFeeds);
+    expect(sidecar.articleBindings).toEqual([]);
+    expect(write).not.toHaveBeenCalled();
+
+    const retryCoordinator = new FreshRssSyncCoordinator({
+      httpClient: createImportClient(),
+      getSettings: () => settings,
+      saveSettings: async () => {},
+      sidecarRepository,
+      getView: async () => null,
+    });
+
+    await expect(
+      retryCoordinator.run({
+        endpoint,
+        credentials: { username: "reader", apiPassword: "secret" },
+        scope,
+        owner: createOwner(),
+      }),
+    ).resolves.toMatchObject({ outcome: "synced", importedArticleCount: 1 });
+
+    expect(sidecar.articleBindings).toEqual([
+      {
+        feedId: settings.feeds[0]?.feedId,
+        guid: "article/42",
+        remoteArticleId: "article/42",
+      },
+    ]);
+    expect(write).toHaveBeenCalledOnce();
+  });
+
   it("stops before persistence when the shared operation is cancelled", async () => {
     const settings = makeSettings();
     const sidecar = createSidecar();
