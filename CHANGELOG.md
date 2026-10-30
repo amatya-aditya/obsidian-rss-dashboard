@@ -2,6 +2,7 @@
 
 ### Fixes
 
+- The filter status bar no longer appears underneath an article opened in the inline reader when a feed refresh or read-state change updates the counts; it returns when you go back to the list. [GH Issue #1734](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1734)
 - With the filter status bar open on a phone, a thin line of the scrolled card's cover image no longer shows between the status bar and the dashboard header.
 - Tapping a card's cover image or summary on a touch device no longer draws a second border around the card; keyboard focus still shows a ring. [GH Issue #1723](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1723)
 - The image lightbox's buttons are no longer hidden under the iPhone status bar. On a touch device they now sit in a bar at the bottom of the screen, clear of the home indicator, with the close button in the corner and the caption above the bar; desktop keeps the top toolbar. [GH Issue #1722](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1722)
