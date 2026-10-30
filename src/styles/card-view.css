@@ -642,7 +642,7 @@
   }
 }
 
-.rss-dashboard-article-card:focus-within {
+.rss-dashboard-article-card:has(:focus-visible) {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
 }
