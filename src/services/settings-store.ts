@@ -548,9 +548,14 @@ export class SettingsStore {
       // plugin folder, so uninstalling the plugin removes them too. Only a
       // null load is changed: existing installs keep the vault folder they
       // already use, and a synced data.json that arrives later replaces this.
+      // It also starts on the vault-located metadata that the FreshRSS
+      // capability gate requires, so a new vault is not asked to migrate
+      // storage it has no data in (#1714).
       if (data === null) {
         const pluginDir = normalizePath(this.resolvePluginDir());
+        this.settings.metadataStorageMode = "vault-location";
         this.settings.metadataStorageFolder = `${pluginDir}/data`;
+        this.settings.metadataStorageSchemaVersion = 2;
         this.settings.storageFolder = `${pluginDir}/data/feeds`;
       }
       const didMigrateKeywordRules = this.options.migrateLegacySettings();
