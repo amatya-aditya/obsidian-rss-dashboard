@@ -208,6 +208,52 @@ describe("FreshRSS sync preview modal", () => {
     modal.onClose();
   });
 
+  it("shows newly failed mutations after a sync finishes without reopening", async () => {
+    installObsidianDomPolyfills();
+    const api = host("two-way");
+    vi.mocked(api.getFreshRssPendingMutations)
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([
+        {
+          operationId: "failed-starred",
+          remoteArticleId: "article/1",
+          facet: "starred",
+          desiredState: true,
+          createdAtMs: 1,
+          attemptCount: 1,
+          retryDisposition: "manual",
+          lastError: "FreshRSS rejected the update",
+        },
+      ]);
+    vi.mocked(api.syncFreshRssNow).mockResolvedValue("failed");
+    const modal = new FreshRssSyncModal({} as App, api);
+
+    modal.onOpen();
+    await vi.waitFor(() => {
+      expect(
+        modal.contentEl.querySelector('[role="status"]')?.textContent,
+      ).toBe("Preview ready.");
+    });
+    modal.contentEl
+      .querySelector<HTMLButtonElement>("button:last-child")
+      ?.click();
+
+    await vi.waitFor(() => {
+      expect(
+        Array.from(modal.contentEl.querySelectorAll("button")).map(
+          (button) => button.textContent,
+        ),
+      ).toContain("Retry");
+      expect(
+        Array.from(modal.contentEl.querySelectorAll("button")).map(
+          (button) => button.textContent,
+        ),
+      ).toContain("Cancel mutation");
+    });
+    expect(api.getFreshRssPendingMutations).toHaveBeenCalledTimes(2);
+    modal.onClose();
+  });
+
   it("announces an incomplete article-state reconciliation", async () => {
     installObsidianDomPolyfills();
     const api = host("two-way");
