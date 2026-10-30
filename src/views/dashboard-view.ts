@@ -2962,6 +2962,11 @@ export class RssDashboardView extends ItemView {
     this.render();
   }
 
+  /** Applies the Card press animation setting without a re-render (#1727). */
+  public refreshCardPressAnimation(): void {
+    this.articleList?.refreshCardPressAnimation();
+  }
+
   private handleToggleSidebar(): void {
     if (this.shouldUseMobileSidebarMode()) {
       this.openMobileSidebar();
