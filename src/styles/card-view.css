@@ -622,6 +622,14 @@
   }
 }
 
+/* Card press animation setting (#1727): off under reduced motion. */
+@media (hover: none) and (prefers-reduced-motion: no-preference) {
+  .rss-dashboard-card-press-scale .rss-dashboard-article-card:active {
+    transform: scale(0.98);
+    transition: transform 0.1s ease;
+  }
+}
+
 .theme-dark .rss-dashboard-article-card {
   box-shadow: 0 2px 4px rgb(0 0 0 / 0.2);
 }
