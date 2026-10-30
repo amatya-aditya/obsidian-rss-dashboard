@@ -214,6 +214,10 @@ function normalizeSettingGroups(settings: RssDashboardSettings): void {
     settings.display.imageCacheUnlimited =
       DEFAULT_SETTINGS.display.imageCacheUnlimited;
   }
+  if (typeof settings.display.swipeBetweenPanels !== "boolean") {
+    settings.display.swipeBetweenPanels =
+      DEFAULT_SETTINGS.display.swipeBetweenPanels;
+  }
   settings.display.tagChipRadius = normalizeTagChipRadius(
     settings.display.tagChipRadius,
   );

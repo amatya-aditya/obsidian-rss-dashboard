@@ -118,6 +118,11 @@
   top: 0;
   z-index: 10;
   padding: 10px;
+  /* The open status bar above has a fractional height, so the scroll
+     container's top edge lands on a sub-pixel and the sticky header snaps a
+     pixel lower, exposing a 1px sliver of the scrolled card above it. The
+     upward shadow paints the header background over that sliver. */
+  box-shadow: 0 -1px 0 var(--background-primary);
 }
 
 .rss-dashboard-header-left {
