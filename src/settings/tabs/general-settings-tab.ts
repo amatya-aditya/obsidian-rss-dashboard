@@ -8,7 +8,7 @@
  *   - MAX_ITEMS_PRESETS, isPresetMaxItems                — testable helpers
  *   - AUTO_DELETE_PRESETS, isPresetAutoDeleteDuration    — testable helpers
  */
-import { App, Notice, Setting, WorkspaceLeaf } from "obsidian";
+import { App, Notice, Platform, Setting, WorkspaceLeaf } from "obsidian";
 import { robustFetchDetailed, setCssProps } from "../../utils/platform-utils";
 import { addInputClearButton } from "../../utils/input-clear-button";
 import {
@@ -17,6 +17,7 @@ import {
 } from "../../utils/validation";
 import { isPresetRefreshInterval } from "../../utils/refresh-intervals";
 import { pageRequestHeaders } from "../../utils/request-headers";
+import { RSS_READER_VIEW_TYPE } from "../../views/reader-view";
 import { renderProxyCheckControls } from "../proxy-check-controls";
 export {
   REFRESH_INTERVAL_PRESETS,
@@ -430,6 +431,33 @@ export function renderGeneralSettingsTab(
         applyMaxItemsValue(maxItemsLimit);
       });
   });
+
+  if (Platform.isMobile) {
+    new Setting(containerEl).setName("Mobile navigation").setHeading();
+
+    new Setting(containerEl)
+      .setName("Swipe between panels")
+      .setDesc(
+        "Swipe right to open the sidebar and left to return to the article, and swipe right in the reader to go back to the dashboard. This turns off Obsidian's own swipe gestures, such as swipe-to-open-sidebar, inside this plugin's views and relies on Obsidian internals, so an Obsidian update could change it. It does not apply when the reader opens in the left or right sidebar.",
+      )
+      .addToggle((toggle) =>
+        toggle
+          .setValue(plugin.settings.display.swipeBetweenPanels)
+          .onChange(async (value) => {
+            plugin.settings.display.swipeBetweenPanels = value;
+            await plugin.saveSettings();
+            // Attach or detach the swipe listeners on the open dashboard.
+            (await plugin.getActiveDashboardView())?.render();
+            for (const leaf of plugin.app.workspace.getLeavesOfType(
+              RSS_READER_VIEW_TYPE,
+            )) {
+              (
+                leaf.view as { syncSwipeNavigation?: () => void }
+              ).syncSwipeNavigation?.();
+            }
+          }),
+      );
+  }
 
   new Setting(containerEl).setName("Data retention").setHeading();
 

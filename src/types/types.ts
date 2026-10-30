@@ -414,6 +414,8 @@ export interface DisplaySettings {
   mobileShowCardToolbar: boolean;
   mobileShowListToolbar: boolean;
   mobileListToolbarStyle: "left-grid" | "bottom-row" | "minimal";
+  /** Opt-in: horizontal swipes move between sidebar, dashboard, and reader on mobile. */
+  swipeBetweenPanels: boolean;
   /** CSS border-radius shared by every plugin-rendered tag chip (#663). */
   tagChipRadius: string;
   defaultFilter:
@@ -955,6 +957,7 @@ guid: "{{guid}}"
     mobileShowCardToolbar: true,
     mobileShowListToolbar: true,
     mobileListToolbarStyle: "minimal",
+    swipeBetweenPanels: false,
     defaultFilter: "all",
     hiddenFilters: [],
     useDomainIconsPodcast: false,
