@@ -76,6 +76,11 @@ import {
   setCssProps,
 } from "../utils/platform-utils";
 import {
+  areSwipePanelsEnabled,
+  SwipeNavigator,
+  type SwipeDirection,
+} from "../utils/swipe-gesture";
+import {
   formatArticlesTitle,
   formatDashboardMultiFiltersTitle,
 } from "../utils/filter-title-format";
@@ -222,6 +227,14 @@ export class RssDashboardView extends ItemView {
     listener: () => void;
   } | null = null;
   private inlineArticle: FeedItem | null = null;
+  private swipeNavigator: SwipeNavigator | null = null;
+  /** The article most recently opened from this dashboard, for swipe-left. */
+  private lastOpenedArticle: {
+    article: FeedItem;
+    location: ViewLocation;
+    leaf: WorkspaceLeaf | null;
+  } | null = null;
+  private lastOpenedReaderLeaf: WorkspaceLeaf | null = null;
   private articleRenderer: ArticleRenderer | null = null;
   private lastClickAnchorKey: string | null = null;
   /**
@@ -920,6 +933,12 @@ export class RssDashboardView extends ItemView {
     this.listenForHotkeysInHostDocument();
     this.createArticleRenderer();
 
+    this.swipeNavigator = new SwipeNavigator(this.containerEl, {
+      isEnabled: () => areSwipePanelsEnabled(this.settings),
+      onSwipe: (direction) => this.handleSwipe(direction),
+    });
+    this.swipeNavigator.sync();
+
     this.app.workspace.onLayoutReady(() => {
       this.plugin.maybeShowStorageDeprecationPrompt();
     });
@@ -1191,6 +1210,7 @@ export class RssDashboardView extends ItemView {
     this.isRenderInProgress = true;
 
     try {
+      this.swipeNavigator?.sync();
       this.syncCurrentFeedReference();
       this.syncDashboardMultiFiltersFromSettings();
       if (!this.shouldUseMobileSidebarMode()) {
@@ -2900,6 +2920,47 @@ export class RssDashboardView extends ItemView {
     modal.open();
   }
 
+  /**
+   * Swipe right closes an inline article or else opens the sidebar; swipe left
+   * returns to the last article.
+   */
+  private handleSwipe(direction: SwipeDirection): void {
+    if (direction === "right") {
+      if (this.inlineArticle) {
+        // Same as the inline reader's back button.
+        this.inlineArticle = null;
+        void this.render();
+        return;
+      }
+      this.openMobileSidebar();
+      return;
+    }
+    void this.reopenLastArticle();
+  }
+
+  private async reopenLastArticle(): Promise<void> {
+    const last = this.lastOpenedArticle;
+    if (!last) return;
+
+    if (last.location === "inline") {
+      if (this.getReaderViewLocation() !== "inline" || this.inlineArticle) {
+        return;
+      }
+      this.inlineArticle = last.article;
+      void this.render();
+      return;
+    }
+
+    // Sidebar reader locations are not part of the swipe flow.
+    if (last.location !== "main" || !last.leaf) return;
+    const { workspace } = this.app;
+    if (!workspace.getLeavesOfType(RSS_READER_VIEW_TYPE).includes(last.leaf)) {
+      return;
+    }
+    await workspace.revealLeaf(last.leaf);
+    workspace.setActiveLeaf(last.leaf, { focus: true });
+  }
+
   /** Decides drawer vs inline sidebar from the window showing this view. */
   private shouldUseMobileSidebarMode(
     viewportWidth = this.containerEl.win.innerWidth,
@@ -3017,7 +3078,13 @@ export class RssDashboardView extends ItemView {
     if (!article.read && this.settings.display.autoMarkReadOnOpen) {
       await this.updateArticleStatus(article, { read: true }, false);
     }
+    this.lastOpenedReaderLeaf = null;
     await this.openArticleInConfiguredReaderLocation(article);
+    this.lastOpenedArticle = {
+      article,
+      location: readerLocation,
+      leaf: this.lastOpenedReaderLeaf,
+    };
 
     if (shouldForceCardTopAnchor) {
       // Clear any stale ref from a previous rapid click.
@@ -3051,6 +3118,7 @@ export class RssDashboardView extends ItemView {
       });
       await workspace.revealLeaf(leaf);
       workspace.setActiveLeaf(leaf, { focus: true });
+      this.lastOpenedReaderLeaf = leaf;
 
       if (leaf.view instanceof ReaderView) {
         const view = leaf.view;
@@ -3075,6 +3143,7 @@ export class RssDashboardView extends ItemView {
       });
       await this.app.workspace.revealLeaf(leaf);
       this.app.workspace.setActiveLeaf(leaf, { focus: true });
+      this.lastOpenedReaderLeaf = leaf;
 
       if (leaf.view instanceof ReaderView) {
         const view = leaf.view;
@@ -4059,6 +4128,8 @@ export class RssDashboardView extends ItemView {
     this.articleRenderer?.cancelPendingDisplay();
     clearViewReady(this.containerEl);
     this.closeMobileSidebarModal();
+    this.swipeNavigator?.destroy();
+    this.swipeNavigator = null;
     this.unbindViewportResizeListener();
     this.lastViewportMobileSidebarMode = null;
 

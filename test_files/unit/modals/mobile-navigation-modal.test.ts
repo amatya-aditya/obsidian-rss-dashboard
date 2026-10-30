@@ -66,7 +66,10 @@ describe("MobileNavigationModal", () => {
 
     const app = obsidian.App.createMock();
     const plugin = { saveSettings: vi.fn(async () => {}) };
-    const settings = { sidebarWidth: 310 } as unknown as RssDashboardSettings;
+    const settings = {
+      sidebarWidth: 310,
+      display: { swipeBetweenPanels: false },
+    } as unknown as RssDashboardSettings;
     const callbacks = {
       onFolderClick: vi.fn(),
       onFeedClick: vi.fn(),
@@ -129,7 +132,10 @@ describe("MobileNavigationModal", () => {
 
     const app = obsidian.App.createMock();
     const plugin = { saveSettings: vi.fn(async () => {}) };
-    const settings = { sidebarWidth: 310 } as unknown as RssDashboardSettings;
+    const settings = {
+      sidebarWidth: 310,
+      display: { swipeBetweenPanels: false },
+    } as unknown as RssDashboardSettings;
 
     const modal = new MobileNavigationModal(
       app as unknown as obsidian.App,
@@ -161,7 +167,10 @@ describe("MobileNavigationModal", () => {
     const modal = new MobileNavigationModal(
       obsidian.App.createMock() as unknown as obsidian.App,
       { saveSettings: vi.fn(async () => {}) } as unknown as RssDashboardPlugin,
-      { sidebarWidth: 310 } as unknown as RssDashboardSettings,
+      {
+        sidebarWidth: 310,
+        display: { swipeBetweenPanels: false },
+      } as unknown as RssDashboardSettings,
       { selectedTags: [] } as unknown as SidebarOptions,
       {} as unknown as SidebarCallbacks,
     );
@@ -184,7 +193,10 @@ describe("MobileNavigationModal", () => {
 
     const app = obsidian.App.createMock();
     const plugin = { saveSettings: vi.fn(async () => {}) };
-    const settings = { sidebarWidth: 310 } as unknown as RssDashboardSettings;
+    const settings = {
+      sidebarWidth: 310,
+      display: { swipeBetweenPanels: false },
+    } as unknown as RssDashboardSettings;
     const addListener = vi.spyOn(activeDocument, "addEventListener");
 
     const modal = new MobileNavigationModal(
