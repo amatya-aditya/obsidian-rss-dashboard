@@ -456,6 +456,8 @@ function renderMobileNavigationSettings(
         .onChange(async (value) => {
           plugin.settings.display.swipeBetweenPanels = value;
           await plugin.saveSettings();
+          // Attach or detach the swipe listeners on the open dashboard.
+          (await plugin.getActiveDashboardView())?.render();
         }),
     );
 }

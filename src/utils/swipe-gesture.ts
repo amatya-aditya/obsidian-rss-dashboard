@@ -79,6 +79,89 @@ export function shouldIgnoreSwipeStart(
   return false;
 }
 
+export interface SwipeNavigatorOptions {
+  /** Re-evaluated on every `sync()`; listeners exist only while true. */
+  isEnabled: () => boolean;
+  /**
+   * Called for every recognized horizontal swipe. The event has already been
+   * stopped from propagating, so handle it or ignore it, but a native
+   * Obsidian gesture never also fires.
+   */
+  onSwipe: (direction: SwipeDirection) => void;
+}
+
+/**
+ * Listens for horizontal swipes on `el` in the capture phase while enabled.
+ * Call `sync()` whenever the setting or viewport may have changed and
+ * `destroy()` when the owner closes.
+ */
+export class SwipeNavigator {
+  private attached = false;
+  private start: SwipePoint | null = null;
+
+  constructor(
+    private readonly el: HTMLElement,
+    private readonly options: SwipeNavigatorOptions,
+  ) {}
+
+  sync(): void {
+    const enabled = this.options.isEnabled();
+    if (enabled === this.attached) return;
+    if (enabled) {
+      this.el.addEventListener("touchstart", this.onTouchStart, LISTENER);
+      this.el.addEventListener("touchend", this.onTouchEnd, LISTENER);
+      this.el.addEventListener("touchcancel", this.onTouchCancel, LISTENER);
+    } else {
+      this.detach();
+    }
+    this.attached = enabled;
+  }
+
+  destroy(): void {
+    this.detach();
+    this.attached = false;
+  }
+
+  private detach(): void {
+    this.el.removeEventListener("touchstart", this.onTouchStart, LISTENER);
+    this.el.removeEventListener("touchend", this.onTouchEnd, LISTENER);
+    this.el.removeEventListener("touchcancel", this.onTouchCancel, LISTENER);
+    this.start = null;
+  }
+
+  private readonly onTouchStart = (evt: TouchEvent): void => {
+    const touch = evt.touches[0];
+    if (evt.touches.length !== 1 || !touch) {
+      this.start = null;
+      return;
+    }
+    this.start = shouldIgnoreSwipeStart(evt.target, this.el)
+      ? null
+      : { x: touch.clientX, y: touch.clientY, t: evt.timeStamp };
+  };
+
+  private readonly onTouchEnd = (evt: TouchEvent): void => {
+    const start = this.start;
+    this.start = null;
+    const touch = evt.changedTouches[0];
+    if (!start || !touch) return;
+    const direction = recognizeSwipe(start, {
+      x: touch.clientX,
+      y: touch.clientY,
+      t: evt.timeStamp,
+    });
+    if (!direction) return;
+    evt.stopPropagation();
+    this.options.onSwipe(direction);
+  };
+
+  private readonly onTouchCancel = (): void => {
+    this.start = null;
+  };
+}
+
+const LISTENER: AddEventListenerOptions = { capture: true, passive: true };
+
 /**
  * True when swipe navigation should be active: the setting is on, Obsidian is
  * running on mobile, and the viewport uses the phone/tablet layout.
