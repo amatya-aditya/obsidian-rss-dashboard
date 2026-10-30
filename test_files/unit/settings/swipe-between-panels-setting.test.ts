@@ -21,7 +21,12 @@ function render(settings: typeof DEFAULT_SETTINGS) {
   document.body.appendChild(containerEl);
   const saveSettings = vi.fn(async () => {});
   const plugin = {
-    app: { workspace: { revealLeaf: vi.fn(async () => {}) } },
+    app: {
+      workspace: {
+        revealLeaf: vi.fn(async () => {}),
+        getLeavesOfType: vi.fn(() => []),
+      },
+    },
     settings,
     saveSettings,
     getActiveDashboardView: vi.fn(async () => null),

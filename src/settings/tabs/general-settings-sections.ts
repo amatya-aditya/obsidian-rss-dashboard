@@ -11,6 +11,7 @@ import {
   RetentionChangeConfirmModal,
 } from "../modals/settings-modals";
 import type { GeneralSettingsPlugin } from "./general-settings-plugin";
+import { RSS_READER_VIEW_TYPE } from "../../views/reader-view";
 import { renderGeneralProxySection } from "./general-settings-proxy-section";
 
 // ── Pure preset helpers (exported for testing) ───────────────────────────────
@@ -458,6 +459,13 @@ function renderMobileNavigationSettings(
           await plugin.saveSettings();
           // Attach or detach the swipe listeners on the open dashboard.
           (await plugin.getActiveDashboardView())?.render();
+          for (const leaf of plugin.app.workspace.getLeavesOfType(
+            RSS_READER_VIEW_TYPE,
+          )) {
+            (
+              leaf.view as { syncSwipeNavigation?: () => void }
+            ).syncSwipeNavigation?.();
+          }
         }),
     );
 }

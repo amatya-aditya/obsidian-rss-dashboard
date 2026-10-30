@@ -271,12 +271,17 @@ export class ReaderView extends ItemView {
     }
   }
 
-  /** Swipe back is a main-view gesture; sidebar readers keep Obsidian's own. */
+  /** Swipe back is a main-view gesture; a sidebar reader swallows the swipe but does not act on it (DEC-015). */
   private isInSidebar(): boolean {
     const root = this.leaf.getRoot?.();
     if (!root) return false;
     const { leftSplit, rightSplit } = this.app.workspace;
     return root === leftSplit || root === rightSplit;
+  }
+
+  /** Attaches or detaches the swipe listeners to match the current setting. */
+  public syncSwipeNavigation(): void {
+    this.swipeNavigator?.sync();
   }
 
   private handleSwipe(direction: SwipeDirection): void {
