@@ -1,5 +1,5 @@
 /** Focused renderers and helpers for the General settings tab. */
-import { Notice, Setting } from "obsidian";
+import { Notice, Platform, Setting } from "obsidian";
 import { normalizeRefreshIntervalMinutes } from "../../utils/validation";
 import { isPresetRefreshInterval } from "../../utils/refresh-intervals";
 import {
@@ -37,6 +37,7 @@ export function renderGeneralSettingsSections(
   renderPageSizeSetting(containerEl, plugin);
   renderGlobalFeedsSettings(containerEl, plugin);
   renderDataRetentionSettings(containerEl, plugin);
+  renderMobileNavigationSettings(containerEl, plugin);
   return renderGeneralProxySection(containerEl, plugin);
 }
 
@@ -435,6 +436,29 @@ function renderMaxItemsSetting(
 }
 
 // ── Data retention ────────────────────────────────────────────────────────
+
+function renderMobileNavigationSettings(
+  containerEl: HTMLElement,
+  plugin: GeneralSettingsPlugin,
+): void {
+  if (!Platform.isMobile) return;
+
+  new Setting(containerEl).setName("Mobile navigation").setHeading();
+
+  new Setting(containerEl)
+    .setName("Swipe between panels")
+    .setDesc(
+      "Swipe right to open the sidebar and left to return to the article, and swipe right in the reader to go back to the dashboard. This replaces Obsidian's swipe-to-open-sidebar gesture inside this plugin's views and relies on Obsidian internals, so an Obsidian update could change it. It does not apply when the reader opens in the left or right sidebar.",
+    )
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.display.swipeBetweenPanels)
+        .onChange(async (value) => {
+          plugin.settings.display.swipeBetweenPanels = value;
+          await plugin.saveSettings();
+        }),
+    );
+}
 
 function renderDataRetentionSettings(
   containerEl: HTMLElement,
