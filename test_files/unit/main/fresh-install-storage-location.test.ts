@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { App, type PluginManifest } from "obsidian";
 
 import RssDashboardPlugin from "../../../main";
+import { getFreshRssCapability } from "../../../src/services/freshrss-connection-manager";
 import { DEFAULT_SETTINGS, type Feed } from "../../../src/types/types";
 
 // Any config folder name works; the plugin must follow manifest.dir.
@@ -109,6 +110,39 @@ describe("Storage location for a fresh install", () => {
     expect(item?.starred).toBe(true);
   });
 
+  it("starts in the storage state FreshRSS requires (#1714)", async () => {
+    const app = App.createMock();
+    const { plugin } = await launch(app, null);
+
+    expect(plugin.settings.storageMode).toBe("vault-shards-v2");
+    expect(plugin.settings.metadataStorageMode).toBe("vault-location");
+    expect(plugin.settings.metadataStorageSchemaVersion).toBe(2);
+    expect(
+      getFreshRssCapability({
+        apiAvailable: true,
+        secretStorage: { getSecret: () => null, listSecrets: () => [] },
+        storageMode: plugin.settings.storageMode,
+        metadataStorageMode: plugin.settings.metadataStorageMode,
+        metadataStorageSchemaVersion:
+          plugin.settings.metadataStorageSchemaVersion,
+      }),
+    ).toBe("available");
+  });
+
+  it("stays in that state after the first save and a restart (#1714)", async () => {
+    const app = App.createMock();
+    const first = await launch(app, null);
+    await addFeedAndSave(first.plugin);
+
+    const { plugin } = await launch(app, first.persisted());
+
+    expect(plugin.settings.metadataStorageMode).toBe("vault-location");
+    expect(plugin.settings.metadataStorageSchemaVersion).toBe(2);
+    expect(plugin.settings.feeds.map((feed) => feed.feedId)).toContain(
+      "feed-1",
+    );
+  });
+
   it("leaves an existing install on its current storage folder", async () => {
     const app = App.createMock();
     const existing = JSON.parse(JSON.stringify(DEFAULT_SETTINGS)) as Record<
@@ -124,6 +158,9 @@ describe("Storage location for a fresh install", () => {
 
     expect(plugin.settings.storageFolder).toBe(".rss-dashboard-data/feeds");
     expect(plugin.settings.metadataStorageFolder).toBe(".rss-dashboard-data");
+    // An existing install still needs the FreshRSS storage upgrade (#1714).
+    expect(plugin.settings.metadataStorageMode).toBe("plugin-default");
+    expect(plugin.settings.metadataStorageSchemaVersion).toBe(1);
     expect(
       await app.vault.adapter.exists(".rss-dashboard-data/user-state.json"),
     ).toBe(true);
