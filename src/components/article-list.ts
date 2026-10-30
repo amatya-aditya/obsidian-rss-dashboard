@@ -1424,6 +1424,24 @@ export class ArticleList {
     );
   }
 
+  /** Card press scale is a CSS modifier on the articles-list root (#1727). */
+  private applyCardPressAnimationClass(articlesList: HTMLElement): void {
+    articlesList.toggleClass(
+      "rss-dashboard-card-press-scale",
+      this.settings.display.cardPressAnimation ?? true,
+    );
+  }
+
+  /** Re-applies the setting to the rendered list without rebuilding it. */
+  public refreshCardPressAnimation(): void {
+    const articlesList = this.container.querySelector<HTMLElement>(
+      ".rss-dashboard-articles-list",
+    );
+    if (articlesList) {
+      this.applyCardPressAnimationClass(articlesList);
+    }
+  }
+
   private renderEmptyState(articlesList: HTMLElement): void {
     const emptyState = new ArticleEmptyState();
     const actionTarget = this.emptyStateContext?.actionTarget;
@@ -1509,6 +1527,7 @@ export class ArticleList {
       cls: `rss-dashboard-articles-list rss-dashboard-${this.settings.viewStyle}-view`,
     });
     this.applyLeftHandedLayoutClass(articlesList);
+    this.applyCardPressAnimationClass(articlesList);
     this.attachControlActivation(articlesList);
     articlesList.style.setProperty(
       "--rss-dashboard-article-title-scale",

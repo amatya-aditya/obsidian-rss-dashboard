@@ -70,6 +70,61 @@ describe("ArticleList view layout", () => {
     });
   });
 
+  describe("Card press animation (#1727)", () => {
+    const listEl = (): HTMLElement =>
+      container.querySelector(".rss-dashboard-articles-list") as HTMLElement;
+
+    it("marks the list while the setting is on, which is the default", () => {
+      createArticleListInstance(
+        container,
+        settings,
+        articles,
+        mockCallbacks,
+        null,
+        2,
+      ).render();
+
+      expect(listEl().hasClass("rss-dashboard-card-press-scale")).toBe(true);
+    });
+
+    it("leaves the list unmarked while the setting is off", () => {
+      settings.display.cardPressAnimation = false;
+      createArticleListInstance(
+        container,
+        settings,
+        articles,
+        mockCallbacks,
+        null,
+        2,
+      ).render();
+
+      expect(listEl().hasClass("rss-dashboard-card-press-scale")).toBe(false);
+    });
+
+    it("updates the mark in place, without rebuilding the list", () => {
+      const articleList = createArticleListInstance(
+        container,
+        settings,
+        articles,
+        mockCallbacks,
+        null,
+        2,
+      );
+      articleList.render();
+      const before = listEl();
+
+      settings.display.cardPressAnimation = false;
+      articleList.refreshCardPressAnimation();
+
+      expect(listEl()).toBe(before);
+      expect(before.hasClass("rss-dashboard-card-press-scale")).toBe(false);
+
+      settings.display.cardPressAnimation = true;
+      articleList.refreshCardPressAnimation();
+      expect(before.hasClass("rss-dashboard-card-press-scale")).toBe(true);
+    });
+  });
+
   describe("Article title scale", () => {
     const scaleOf = (): string =>
       (

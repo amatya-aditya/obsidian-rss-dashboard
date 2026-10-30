@@ -23,6 +23,7 @@ import {
   saveLeftHandedLayout,
 } from "../../utils/left-handed-layout";
 import { formatDateWithRelative } from "../../utils/platform-utils";
+import { prefersReducedMotion } from "../../utils/motion-preference";
 import { settingsUiCompatibility } from "../settings-ui-compat";
 
 /** The slice of the plugin the Display tab sections read and call. */
@@ -39,6 +40,7 @@ export interface DisplaySectionsPlugin {
   getActiveDashboardView(): Promise<{
     leaf: import("obsidian").WorkspaceLeaf;
     render(): void;
+    refreshCardPressAnimation?(): void;
   } | null>;
 }
 
@@ -487,6 +489,30 @@ export function renderArticleTitleSizeSetting(
           titleSizeSlider?.setValue(ARTICLE_TITLE_SCALE_DEFAULT);
           isResetting = false;
           await applyArticleTitleScale(ARTICLE_TITLE_SCALE_DEFAULT);
+        }),
+    );
+}
+
+export function renderCardPressAnimationSetting(
+  containerEl: HTMLElement,
+  plugin: DisplaySectionsPlugin,
+): void {
+  const description = "Cards shrink slightly while pressed on touch devices";
+  new Setting(containerEl)
+    .setName("Card press animation")
+    .setDesc(
+      prefersReducedMotion(containerEl.win)
+        ? `${description}. Off while your system reduces motion`
+        : description,
+    )
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.display.cardPressAnimation ?? true)
+        .onChange(async (value) => {
+          plugin.settings.display.cardPressAnimation = value;
+          await plugin.saveSettings();
+          const view = await plugin.getActiveDashboardView();
+          view?.refreshCardPressAnimation?.();
         }),
     );
 }

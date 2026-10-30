@@ -433,6 +433,7 @@ export interface DisplaySettings {
   cardColumnsPerRow: number;
   cardSpacing: number;
   articleTitleScale: number;
+  cardPressAnimation: boolean;
   hideEmptyFeeds: boolean;
   hideFeedFetchErrorBadges: boolean;
 
@@ -971,6 +972,7 @@ guid: "{{guid}}"
     cardColumnsPerRow: 0,
     cardSpacing: 15,
     articleTitleScale: ARTICLE_TITLE_SCALE_DEFAULT,
+    cardPressAnimation: true,
     hideEmptyFeeds: false,
     hideFeedFetchErrorBadges: false,
     hideIconDashboard: false,

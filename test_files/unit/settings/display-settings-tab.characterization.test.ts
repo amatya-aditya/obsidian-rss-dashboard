@@ -136,6 +136,7 @@ describe("renderDisplaySettingsTab() characterization", () => {
       "Cards per row",
       "Card spacing",
       "Article title size",
+      "Card press animation",
       "Show filter status bar",
       "Pagination position",
       'Automatically mark article "read" upon opening',
