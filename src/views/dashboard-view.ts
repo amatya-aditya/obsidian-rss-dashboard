@@ -2920,9 +2920,18 @@ export class RssDashboardView extends ItemView {
     modal.open();
   }
 
-  /** Swipe right opens the sidebar; swipe left returns to the last article. */
+  /**
+   * Swipe right closes an inline article or else opens the sidebar; swipe left
+   * returns to the last article.
+   */
   private handleSwipe(direction: SwipeDirection): void {
     if (direction === "right") {
+      if (this.inlineArticle) {
+        // Same as the inline reader's back button.
+        this.inlineArticle = null;
+        void this.render();
+        return;
+      }
       this.openMobileSidebar();
       return;
     }

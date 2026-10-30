@@ -8,26 +8,9 @@ import {
   type FeedItem,
   type RssDashboardSettings,
 } from "../../../src/types/types";
+import { setCssProps } from "../../../src/utils/platform-utils";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
-
-/** Fires a touchstart/touchend pair `dx`,`dy` apart on `target`. */
-export function swipeOn(
-  target: Element,
-  dx: number,
-  dy = 0,
-): { endEvent: Event } {
-  const point = (x: number, y: number) => [{ clientX: x, clientY: y }];
-  const start = new Event("touchstart", { bubbles: true, cancelable: true });
-  Object.defineProperty(start, "touches", { value: point(200, 300) });
-  target.dispatchEvent(start);
-  const end = new Event("touchend", { bubbles: true, cancelable: true });
-  Object.defineProperty(end, "touches", { value: [] });
-  Object.defineProperty(end, "changedTouches", {
-    value: point(200 + dx, 300 + dy),
-  });
-  target.dispatchEvent(end);
-  return { endEvent: end };
-}
+import { swipeOn } from "../test-swipe-helpers";
 
 function article(guid: string): FeedItem {
   return {
@@ -303,5 +286,31 @@ describe("Dashboard swipe navigation", () => {
         expect(internals.inlineArticle).toBeNull();
       },
     );
+  });
+
+  describe("inline reader", () => {
+    it("closes the open article and shows the list on a swipe right, without opening the sidebar", () => {
+      const render = vi.mocked(view.render);
+      internals.inlineArticle = article("a");
+      render.mockClear();
+
+      swipeOn(view.containerEl, 120);
+
+      expect((view as unknown as Internals).inlineArticle).toBeNull();
+      expect(render).toHaveBeenCalledTimes(1);
+      expect(internals.mobileSidebarModal).toBeNull();
+    });
+
+    it("keeps the article when the swipe starts in a horizontally scrolling table", () => {
+      internals.inlineArticle = article("a");
+      const table = view.containerEl.createDiv();
+      setCssProps(table, { "overflow-x": "auto" });
+      Object.defineProperty(table, "scrollWidth", { value: 900 });
+      Object.defineProperty(table, "clientWidth", { value: 300 });
+
+      swipeOn(table.createSpan(), 120);
+
+      expect((view as unknown as Internals).inlineArticle?.guid).toBe("a");
+    });
   });
 });
