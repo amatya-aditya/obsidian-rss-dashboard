@@ -4047,6 +4047,10 @@ export class RssDashboardView extends ItemView {
    * and chips in sync with latest settings.
    */
   refreshFilterStatusBarOnly(): void {
+    // The inline article view has no filter status bar; render() adds it back
+    // when the list returns.
+    if (this.inlineArticle) return;
+
     const contentContainer = this.containerEl.querySelector<HTMLElement>(
       ".rss-dashboard-content",
     );
