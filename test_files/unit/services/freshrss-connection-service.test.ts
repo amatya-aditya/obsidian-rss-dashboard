@@ -5,8 +5,45 @@ import {
   parseCredentialBundle,
   type FreshRssHttpClient,
 } from "../../../src/services/freshrss-connection-service";
+import { testFreshRssConnection } from "../../../src/services/freshrss-connection-manager";
 
 describe("FreshRSS connection credentials", () => {
+  it("notifies generically when switching defers pending changes", async () => {
+    const scope = {
+      endpoint: "https://reader.example.test/greader.php",
+      remoteUserId: "remote-user",
+    };
+    const activate = vi.fn(async () => ({
+      outcome: "activated" as const,
+      deferredPendingMutationCount: 2,
+    }));
+    const onPendingChangesDeferred = vi.fn();
+    const setStatus = vi.fn(async (status: "connected") => status);
+
+    await expect(
+      testFreshRssConnection({
+        capability: "available",
+        credentialReference: "secret-reference",
+        secretStorage: {
+          getSecret: () => '{"username":"reader","apiPassword":"secret"}',
+          listSecrets: () => ["secret-reference"],
+        },
+        endpoint: scope.endpoint,
+        connectionService: {
+          testConnection: async () => ({ outcome: "connected", scope }),
+        },
+        getScopeRepository: () => ({ activate }),
+        ensureSidecarFolder: async () => {},
+        onPendingChangesDeferred,
+        setStatus,
+      }),
+    ).resolves.toBe("connected");
+
+    expect(activate).toHaveBeenCalledWith(scope);
+    expect(onPendingChangesDeferred).toHaveBeenCalledWith(2);
+    expect(setStatus).toHaveBeenCalledWith("connected");
+  });
+
   it("parses only a complete credential bundle", () => {
     expect(
       parseCredentialBundle(

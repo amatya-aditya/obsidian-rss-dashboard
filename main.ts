@@ -2750,6 +2750,10 @@ export default class RssDashboardPlugin extends Plugin {
       }),
       getScopeRepository: () => this.getFreshRssConnectionScopeRepository(),
       ensureSidecarFolder: () => this.ensureFreshRssSidecarFolder(),
+      onPendingChangesDeferred: () =>
+        new Notice(
+          "Pending FreshRSS changes are saved and will wait until their account is active and synced.",
+        ),
       setStatus: (status) => this.setFreshRssConnectionStatus(status),
     });
   }
@@ -2994,15 +2998,26 @@ export default class RssDashboardPlugin extends Plugin {
   private getFreshRssConnectionScopeRepository(): FreshRssConnectionScopeRepository {
     const folder = this.getFreshRssSidecarFolder();
     const sidecarPath = normalizePath(`${folder}/freshrss-state.json`);
-    return new FreshRssConnectionScopeRepository(this.app.vault.adapter, {
-      sidecarPath,
-      createQuarantinePath: () => {
-        this.freshRssQuarantineSequence += 1;
-        return normalizePath(
-          `${folder}/freshrss-state.quarantine-${Date.now()}-${this.freshRssQuarantineSequence}.json`,
-        );
+    const adapter = this.app.vault.adapter;
+    return new FreshRssConnectionScopeRepository(
+      {
+        exists: (path) => adapter.exists(path),
+        read: (path) => adapter.read(path),
+        write: (path, contents) => adapter.write(path, contents),
+        list: async (path) => (await adapter.list(path)).files,
+        remove: (path) => adapter.remove(path),
       },
-    });
+      {
+        sidecarPath,
+        quarantineFolder: folder,
+        createQuarantinePath: () => {
+          this.freshRssQuarantineSequence += 1;
+          return normalizePath(
+            `${folder}/freshrss-state.quarantine-${Date.now()}-${this.freshRssQuarantineSequence}.json`,
+          );
+        },
+      },
+    );
   }
 
   private getFreshRssSidecarFolder(): string {

@@ -76,6 +76,7 @@ See the [ADR Policy](POLICY.md) for the complete lifecycle, authoring, and maint
 | [0036](0036-merge-a-synced-data-json-against-an-ancestor.md)                   | Merge a Synced data.json Against an Ancestor                             | proposed | Merge a delivered data.json per entry against a device-local ancestor, so an edit made on one device survives a save on another.                                                 |
 | [0037](0037-read-site-specific-content-only-from-the-fetched-page.md)          | Read Site-Specific Content Only from the Page the Fetch Already Returned | accepted | Allow a site-specific content extractor only if it reads the page the fetch already returned, with no extra request or impersonation; narrows ADR 0013 to Reddit.                |
 | [0038](0038-keep-freshrss-in-core.md)                                          | Keep FreshRSS in Core for v1                                             | accepted | Ship FreshRSS within the existing RSS Dashboard plugin and release lifecycle; revisit a separate connector boundary only if a concrete need emerges.                             |
+| [0041](0041-preserve-freshrss-state-across-account-switches.md)                | Preserve FreshRSS State Across Account Switches                          | accepted | Restore complete state only for the exact returning account scope; retain pending changes and fail closed when saved state cannot be trusted.                                    |
 
 ## Creating a new ADR
 
