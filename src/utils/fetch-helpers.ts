@@ -358,14 +358,51 @@ export async function fetchAndParse(
   return article?.content ?? "";
 }
 
-function parseArticleContent(
-  html: string,
-  pageUrl: string,
-): {
+interface ParsedPage {
   content: string;
   pageMetadata: RawArticleMetadata;
   pageImage?: string;
-} {
+}
+
+/** How a served page is read: the whole article, or only what its head declares. */
+type PageParser = (html: string, pageUrl: string) => ParsedPage;
+
+export interface PageFetchOptions {
+  /**
+   * Read only the metadata the page's head declares, and return no content.
+   * The cover-image fetch needs nothing else, and the full article parse costs
+   * about two seconds of main-thread time on a large page (#1702).
+   */
+  metadataOnly?: boolean;
+}
+
+/**
+ * The longest start of a page a metadata-only read will parse. Heads run long
+ * with inline CSS and state, so this is generous; a declaration past it is not
+ * seen. A literal `</head>` inside a head script would end the read early.
+ */
+const METADATA_HEAD_LIMIT = 256 * 1024;
+
+/**
+ * Reads a page's declared metadata from its head alone. The head ends at
+ * `</head>`; a page that never closes it, or an unusually long one, is read up
+ * to {@link METADATA_HEAD_LIMIT}. No Readability, no ad stripping, no URL
+ * rewriting: those only serve the article body.
+ */
+function parsePageMetadataOnly(html: string, pageUrl: string): ParsedPage {
+  const start = html.slice(0, METADATA_HEAD_LIMIT);
+  const close = /<\/head\s*>/i.exec(start);
+  const head = close ? start.slice(0, close.index + close[0].length) : start;
+  const doc = new DOMParser().parseFromString(
+    ensureUtf8Meta(head),
+    "text/html",
+  );
+  const pageMetadata = extractPageMetadata(doc);
+  const pageImage = extractPageImage(doc, pageUrl);
+  return { content: "", pageMetadata, ...(pageImage ? { pageImage } : {}) };
+}
+
+function parseArticleContent(html: string, pageUrl: string): ParsedPage {
   const doc = parsePageDocument(html, pageUrl);
   // Readability.parse() mutates the document (it drops scripts, so JSON-LD
   // would be gone), so the page's metadata is read first.
@@ -483,6 +520,8 @@ interface FetchAttempts {
   pageImage: string | undefined;
   lastFailure: FullArticleFetchResult | undefined;
   lastError: Error | undefined;
+  /** How a page a proxy serves is read. */
+  parse: PageParser;
 }
 
 /**
@@ -494,6 +533,7 @@ interface FetchAttempts {
 async function attemptDirectFetch(
   url: string,
   deadline: number,
+  attempts: FetchAttempts,
 ): Promise<
   | { kind: "page"; result: FullArticleFetchResult }
   | {
@@ -515,7 +555,7 @@ async function attemptDirectFetch(
       );
       return {
         kind: "page",
-        result: { ...parseArticleContent(html, url), failureType: "none" },
+        result: { ...attempts.parse(html, url), failureType: "none" },
       };
     }
     console.warn(
@@ -571,7 +611,7 @@ async function attemptProxyFetch(
       debugLog(
         `[RSS Dashboard] Proxy fetch succeeded for ${url} (${html.length} chars).`,
       );
-      return { ...parseArticleContent(html, url), failureType: "none" };
+      return { ...attempts.parse(html, url), failureType: "none" };
     }
 
     console.warn(
@@ -612,18 +652,23 @@ export async function fetchWithProxyFallbackDetailed(
   url: string,
   proxyUrl?: string,
   fetchTimeoutSeconds?: number,
+  options: PageFetchOptions = {},
 ): Promise<FullArticleFetchResult> {
   const deadline = Date.now() + resolveFetchTimeoutMs(fetchTimeoutSeconds);
+  const parse = options.metadataOnly
+    ? parsePageMetadataOnly
+    : parseArticleContent;
   const attempts: FetchAttempts = {
     refusal: undefined,
     metadata: undefined,
     pageImage: undefined,
     lastFailure: undefined,
     lastError: undefined,
+    parse,
   };
   try {
     // 1. Direct fetch
-    const direct = await attemptDirectFetch(url, deadline);
+    const direct = await attemptDirectFetch(url, deadline, attempts);
     if (direct.kind === "page") return direct.result;
     attempts.refusal = direct.refusal;
     attempts.metadata = direct.metadata;

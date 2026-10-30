@@ -127,6 +127,7 @@ describe("renderDisplaySettingsTab() characterization", () => {
     expect(names).toEqual([
       "Dashboard",
       "Show cover images",
+      "Show fetch all covers button",
       "Allow image caching",
       "Image cache limit",
       "No cache size limit",
