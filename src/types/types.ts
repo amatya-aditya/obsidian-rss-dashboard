@@ -388,6 +388,12 @@ export const ARTICLE_TITLE_SCALE_DEFAULT = 100;
 
 export interface DisplaySettings {
   showCoverImage: boolean;
+  /**
+   * Shows the header button that fetches cover images for every card on the
+   * page (#1702). The button also needs `showCoverImage`, since a fetched
+   * cover has nowhere to appear otherwise.
+   */
+  showFetchAllCoversButton: boolean;
   allowImageCaching: boolean;
   imageCacheLimitMiB: number;
   imageCacheUnlimited: boolean;
@@ -927,6 +933,7 @@ guid: "{{guid}}"
   },
   display: {
     showCoverImage: true,
+    showFetchAllCoversButton: true,
     allowImageCaching: false,
     imageCacheLimitMiB: 100,
     imageCacheUnlimited: false,

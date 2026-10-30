@@ -31,7 +31,11 @@ import {
 } from "../../scripts/generate-fixture-vault.mjs";
 import {
   describeRequestIdentity,
+  HEAVY_ARTICLE_PATH,
+  heavyArticleHtml,
+  heavyArticleSizeKb,
   isFixtureFeedPath,
+  isHeavyArticlePath,
   resolveFixtureFile,
   startFixtureServer,
 } from "../../scripts/fixture-server.mjs";
@@ -506,5 +510,38 @@ describe("Fixture server file mapping (#1169)", () => {
     expect(Array.from(pixel.body.subarray(0, 8))).toEqual([
       0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
     ]);
+  });
+});
+
+describe("Heavy article page for the cover-fetch freeze (#1702)", () => {
+  it("synthesizes a large page whose head declares an og:image", () => {
+    const html = heavyArticleHtml("http://127.0.0.1:8787", 400);
+
+    expect(html.length).toBeGreaterThanOrEqual(400 * 1024);
+    const head = html.slice(0, html.indexOf("</head>"));
+    expect(head).toContain(
+      '<meta property="og:image" content="http://127.0.0.1:8787/og-image.png">',
+    );
+    // The weight is in the body, past the head, so a head-only read stays cheap.
+    expect(html.indexOf("</head>")).toBeLessThan(2048);
+  });
+
+  it("recognizes only its own path and bounds the size it will build", () => {
+    expect(isHeavyArticlePath(`${HEAVY_ARTICLE_PATH}?kb=100&n=1`)).toBe(true);
+    expect(isHeavyArticlePath("/empty-description.html")).toBe(false);
+    expect(heavyArticleSizeKb(`${HEAVY_ARTICLE_PATH}?kb=100`)).toBe(100);
+    expect(heavyArticleSizeKb(HEAVY_ARTICLE_PATH)).toBe(1500);
+    expect(heavyArticleSizeKb(`${HEAVY_ARTICLE_PATH}?kb=99999999`)).toBe(8192);
+    expect(heavyArticleSizeKb(`${HEAVY_ARTICLE_PATH}?kb=abc`)).toBe(1500);
+  });
+
+  it("serves the page over HTTP", async () => {
+    const port = await listeningPort();
+
+    const page = await getBytes(port, `${HEAVY_ARTICLE_PATH}?kb=50&n=7`);
+
+    expect(page.status).toBe(200);
+    expect(page.contentType).toContain("text/html");
+    expect(page.body.byteLength).toBeGreaterThanOrEqual(50 * 1024);
   });
 });

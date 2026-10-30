@@ -166,6 +166,8 @@
   .rss-dashboard-tag-item-processing,
   .rss-dashboard-hamburger-button,
   .rss-dashboard-hamburger-button svg,
+  .rss-dashboard-fetch-all-covers-button,
+  .rss-dashboard-fetch-all-covers-button svg,
   .rss-dashboard-mobile-filter-button,
   .rss-dashboard-article-group-toggle {
     transition-duration: 0.01ms;
@@ -184,6 +186,7 @@
     .rss-dashboard-refresh-button.refreshing
     .rss-dashboard-refresh-icon
     svg,
+  .rss-dashboard-fetch-all-covers-button.is-running svg,
   .rss-dashboard-view-more.loading::after {
     animation-duration: 3s;
     animation-delay: 0s;

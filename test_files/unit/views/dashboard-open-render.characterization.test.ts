@@ -301,6 +301,7 @@ const ARTICLE_LIST_CALLBACK_NAMES = [
   "onArticleSave",
   "onArticleUpdate",
   "onFetchCoverImage",
+  "onFetchCoverImageQuiet",
   "onFilterChange",
   "onFocusedRowRemoval",
   "onGroupChange",

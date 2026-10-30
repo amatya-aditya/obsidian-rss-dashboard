@@ -53,6 +53,16 @@ describe("keymap table", () => {
     ).toBe("cover-image-action");
   });
 
+  it("leaves the header's fetch-all-covers button without a shortcut (#1702)", () => {
+    // Shift+C belongs to the selected article's cover action alone. The search
+    // reads the id and the label, so a binding under another id still shows.
+    expect(
+      KEYMAP.filter((binding) =>
+        /covers?\b/i.test(`${binding.id} ${binding.label ?? ""}`),
+      ).map((binding) => binding.id),
+    ).toEqual(["cover-image-action"]);
+  });
+
   it("gives every candidate for one key press the same repeat class", () => {
     for (const binding of KEYMAP) {
       if (!binding.contexts.includes("dashboard")) continue;

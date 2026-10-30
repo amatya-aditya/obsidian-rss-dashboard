@@ -107,8 +107,27 @@ export function renderImageCachingSettings(
           plugin.settings.display.showCoverImage = value;
           await plugin.saveSettings();
           await rerenderActiveDashboardView();
+          // The fetch-all button's toggle follows this one, so redraw the tab.
+          onRefresh();
         }),
     );
+
+  new Setting(containerEl)
+    .setName("Show fetch all covers button")
+    .setDesc(
+      "Show a button in the dashboard header that fetches cover images for every card on the page. It needs cover images to be shown.",
+    )
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.display.showFetchAllCoversButton)
+        .onChange(async (value) => {
+          plugin.settings.display.showFetchAllCoversButton = value;
+          await plugin.saveSettings();
+          await rerenderActiveDashboardView();
+        }),
+    )
+    // After the toggle: setDisabled only reaches components already added.
+    .setDisabled(!plugin.settings.display.showCoverImage);
 
   new Setting(containerEl)
     .setName("Allow image caching")
