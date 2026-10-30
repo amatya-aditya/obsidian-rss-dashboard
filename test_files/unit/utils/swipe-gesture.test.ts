@@ -5,8 +5,10 @@ import {
   areSwipePanelsEnabled,
   recognizeSwipe,
   shouldIgnoreSwipeStart,
+  SwipeNavigator,
   type SwipePoint,
 } from "../../../src/utils/swipe-gesture";
+import { swipeOn } from "../test-swipe-helpers";
 
 const at = (x: number, y: number, t: number): SwipePoint => ({ x, y, t });
 
@@ -136,5 +138,46 @@ describe("areSwipePanelsEnabled()", () => {
     Platform.isMobile = true;
     vi.spyOn(activeWindow, "innerWidth", "get").mockReturnValue(1600);
     expect(areSwipePanelsEnabled(on)).toBe(false);
+  });
+});
+
+describe("SwipeNavigator", () => {
+  afterEach(() => {
+    document.body.replaceChildren();
+  });
+
+  it("marks its element for Obsidian only while enabled", () => {
+    const el = document.body.createDiv();
+    let enabled = true;
+    const nav = new SwipeNavigator(el, {
+      isEnabled: () => enabled,
+      onSwipe: vi.fn(),
+    });
+
+    expect(el.dataset.ignoreSwipe).toBeUndefined();
+    nav.sync();
+    expect(el.dataset.ignoreSwipe).toBe("true");
+
+    enabled = false;
+    nav.sync();
+    expect(el.dataset.ignoreSwipe).toBeUndefined();
+
+    enabled = true;
+    nav.sync();
+    nav.destroy();
+    expect(el.dataset.ignoreSwipe).toBeUndefined();
+  });
+
+  it("reports a swipe without stopping the event, so Obsidian can clean up its own touch state", () => {
+    const el = document.body.createDiv();
+    const onSwipe = vi.fn();
+    new SwipeNavigator(el, { isEnabled: () => true, onSwipe }).sync();
+    const above = vi.fn();
+    document.body.addEventListener("touchend", above);
+
+    swipeOn(el, 120);
+
+    expect(onSwipe).toHaveBeenCalledWith("right");
+    expect(above).toHaveBeenCalledTimes(1);
   });
 });

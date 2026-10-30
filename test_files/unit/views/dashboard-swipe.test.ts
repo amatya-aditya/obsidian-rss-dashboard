@@ -81,35 +81,28 @@ describe("Dashboard swipe navigation", () => {
       expect(internals.mobileSidebarModal).toBe(modal);
     });
 
-    it("keeps the swipe from reaching Obsidian's own handlers", () => {
-      const inner = view.containerEl.createDiv();
-      const below = vi.fn();
-      const above = vi.fn();
-      inner.addEventListener("touchend", below);
-      document.body.addEventListener("touchend", above);
-
-      swipeOn(inner, 120);
-      expect(below).not.toHaveBeenCalled();
-      expect(above).toHaveBeenCalledTimes(0);
+    it("tells Obsidian to skip its own swipe handling inside the view", () => {
+      expect(view.containerEl.dataset.ignoreSwipe).toBe("true");
     });
 
-    it("also swallows a swipe that does nothing, such as a left swipe with no article", () => {
-      const above = vi.fn();
-      document.body.addEventListener("touchend", above);
+    it("tells Obsidian to skip its own swipe handling inside the sidebar", () => {
+      view.openMobileSidebar();
 
+      expect(
+        internals.mobileSidebarModal!.containerEl.dataset.ignoreSwipe,
+      ).toBe("true");
+    });
+
+    it("does nothing on a swipe left with no article, and the view stays marked", () => {
       swipeOn(view.containerEl, -120);
 
       expect(internals.mobileSidebarModal).toBeNull();
-      expect(above).not.toHaveBeenCalled();
+      expect(view.containerEl.dataset.ignoreSwipe).toBe("true");
     });
 
-    it("lets taps and vertical scrolls through untouched", () => {
-      const above = vi.fn();
-      document.body.addEventListener("touchend", above);
-
+    it("leaves taps and vertical scrolls alone", () => {
       swipeOn(view.containerEl, 5, 200);
 
-      expect(above).toHaveBeenCalledTimes(1);
       expect(internals.mobileSidebarModal).toBeNull();
     });
 
@@ -155,8 +148,6 @@ describe("Dashboard swipe navigation", () => {
       document.body.appendChild(fresh.containerEl);
       const add = vi.spyOn(fresh.containerEl, "addEventListener");
       await fresh.onOpen();
-      const above = vi.fn();
-      document.body.addEventListener("touchend", above);
 
       swipeOn(fresh.containerEl, 120);
 
@@ -164,7 +155,7 @@ describe("Dashboard swipe navigation", () => {
         add.mock.calls.filter(([type]) => type.startsWith("touch")),
       ).toHaveLength(0);
       expect((fresh as unknown as Internals).mobileSidebarModal).toBeNull();
-      expect(above).toHaveBeenCalledTimes(1);
+      expect(fresh.containerEl.dataset.ignoreSwipe).toBeUndefined();
     });
 
     it("adds no listeners on desktop even with the setting on", async () => {
@@ -177,12 +168,11 @@ describe("Dashboard swipe navigation", () => {
       vi.spyOn(fresh, "render").mockResolvedValue(undefined);
       document.body.appendChild(fresh.containerEl);
       await fresh.onOpen();
-      const above = vi.fn();
-      document.body.addEventListener("touchend", above);
 
       swipeOn(fresh.containerEl, 120);
 
-      expect(above).toHaveBeenCalledTimes(1);
+      expect((fresh as unknown as Internals).mobileSidebarModal).toBeNull();
+      expect(fresh.containerEl.dataset.ignoreSwipe).toBeUndefined();
     });
 
     it("stops handling swipes once the setting is turned off", () => {

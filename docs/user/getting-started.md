@@ -58,7 +58,7 @@ On a phone or tablet you can move between the sidebar, the dashboard, and the re
 
 Swipes that start on a horizontally scrolling table or code block, a text field, a slider such as the podcast seekbar, the sidebar icon row, or the image lightbox are ignored, and vertical scrolling is never treated as a swipe.
 
-While this setting is on, it replaces Obsidian's own swipe-to-open-sidebar gesture inside RSS Dashboard views. It relies on Obsidian internals, so an Obsidian update could change how it behaves. It does not apply when the reader opens in the left or right sidebar.
+While this setting is on, it turns off Obsidian's own swipe gestures, such as swipe-to-open-sidebar, inside RSS Dashboard views. It relies on Obsidian internals, so an Obsidian update could change how it behaves. It does not apply when the reader opens in the left or right sidebar.
 
 ## Organizing Your Feeds
 

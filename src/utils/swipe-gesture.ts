@@ -83,15 +83,18 @@ export interface SwipeNavigatorOptions {
   /** Re-evaluated on every `sync()`; listeners exist only while true. */
   isEnabled: () => boolean;
   /**
-   * Called for every recognized horizontal swipe. The event has already been
-   * stopped from propagating, so handle it or ignore it, but a native
-   * Obsidian gesture never also fires.
+   * Called for every recognized horizontal swipe. Obsidian's own swipe
+   * handling is switched off for the element while enabled, so a native
+   * gesture never also fires.
    */
   onSwipe: (direction: SwipeDirection) => void;
 }
 
 /**
  * Listens for horizontal swipes on `el` in the capture phase while enabled.
+ * Enabled elements carry Obsidian's `data-ignore-swipe` marker, which makes
+ * its own swipe handler (sidebar drawers, pull-down) skip touches that begin
+ * inside them. That marker is an undocumented Obsidian internal.
  * Call `sync()` whenever the setting or viewport may have changed and
  * `destroy()` when the owner closes.
  */
@@ -111,6 +114,7 @@ export class SwipeNavigator {
       this.el.addEventListener("touchstart", this.onTouchStart, LISTENER);
       this.el.addEventListener("touchend", this.onTouchEnd, LISTENER);
       this.el.addEventListener("touchcancel", this.onTouchCancel, LISTENER);
+      this.el.dataset.ignoreSwipe = "true";
     } else {
       this.detach();
     }
@@ -126,6 +130,7 @@ export class SwipeNavigator {
     this.el.removeEventListener("touchstart", this.onTouchStart, LISTENER);
     this.el.removeEventListener("touchend", this.onTouchEnd, LISTENER);
     this.el.removeEventListener("touchcancel", this.onTouchCancel, LISTENER);
+    delete this.el.dataset.ignoreSwipe;
     this.start = null;
   }
 
@@ -151,7 +156,6 @@ export class SwipeNavigator {
       t: evt.timeStamp,
     });
     if (!direction) return;
-    evt.stopPropagation();
     this.options.onSwipe(direction);
   };
 

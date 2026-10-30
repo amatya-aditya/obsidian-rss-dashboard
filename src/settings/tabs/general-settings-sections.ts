@@ -449,7 +449,7 @@ function renderMobileNavigationSettings(
   new Setting(containerEl)
     .setName("Swipe between panels")
     .setDesc(
-      "Swipe right to open the sidebar and left to return to the article, and swipe right in the reader to go back to the dashboard. This replaces Obsidian's swipe-to-open-sidebar gesture inside this plugin's views and relies on Obsidian internals, so an Obsidian update could change it. It does not apply when the reader opens in the left or right sidebar.",
+      "Swipe right to open the sidebar and left to return to the article, and swipe right in the reader to go back to the dashboard. This turns off Obsidian's own swipe gestures, such as swipe-to-open-sidebar, inside this plugin's views and relies on Obsidian internals, so an Obsidian update could change it. It does not apply when the reader opens in the left or right sidebar.",
     )
     .addToggle((toggle) =>
       toggle

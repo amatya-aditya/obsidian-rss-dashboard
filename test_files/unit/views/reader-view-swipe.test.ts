@@ -96,34 +96,28 @@ describe("ReaderView swipe back to the dashboard", () => {
     });
   });
 
-  it("does nothing on a swipe left, but still keeps Obsidian from seeing it", async () => {
-    const above = vi.fn();
-    document.body.addEventListener("touchend", above);
+  it("marks the reader so Obsidian skips its own swipe handling", () => {
+    expect(view.containerEl.dataset.ignoreSwipe).toBe("true");
+  });
 
+  it("does nothing on a swipe left", async () => {
     swipeOn(view.containerEl, -120);
     await flush();
 
     expect(workspace.setActiveLeaf).not.toHaveBeenCalled();
-    expect(above).not.toHaveBeenCalled();
   });
 
   it.each([
     ["left", leftSplit],
     ["right", rightSplit],
-  ])(
-    "does nothing in the %s sidebar, yet swallows the swipe",
-    async (_n, split) => {
-      root = split;
-      const above = vi.fn();
-      document.body.addEventListener("touchend", above);
+  ])("does nothing in the %s sidebar", async (_n, split) => {
+    root = split;
 
-      swipeOn(view.containerEl, 120);
-      await flush();
+    swipeOn(view.containerEl, 120);
+    await flush();
 
-      expect(workspace.setActiveLeaf).not.toHaveBeenCalled();
-      expect(above).not.toHaveBeenCalled();
-    },
-  );
+    expect(workspace.setActiveLeaf).not.toHaveBeenCalled();
+  });
 
   it("ignores a swipe that starts on a horizontally scrolling code block", async () => {
     const pre = view.containerEl.createEl("pre");
@@ -140,13 +134,11 @@ describe("ReaderView swipe back to the dashboard", () => {
   it("adds no listeners when the setting is off", async () => {
     document.body.empty();
     await openView(false);
-    const above = vi.fn();
-    document.body.addEventListener("touchend", above);
 
     swipeOn(view.containerEl, 120);
     await flush();
 
     expect(workspace.setActiveLeaf).not.toHaveBeenCalled();
-    expect(above).toHaveBeenCalledTimes(1);
+    expect(view.containerEl.dataset.ignoreSwipe).toBeUndefined();
   });
 });
