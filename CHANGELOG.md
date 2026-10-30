@@ -2,6 +2,7 @@
 
 ### Fixes
 
+- The image lightbox's buttons are no longer hidden under the iPhone status bar. On a touch device they now sit in a bar at the bottom of the screen, clear of the home indicator, with the close button in the corner and the caption above the bar; desktop keeps the top toolbar. [GH Issue #1722](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1722)
 - The **Tag name** card under **Settings → Tags → Add new tag** now stacks into four rows on a phone, with the label, name field, live preview and **Add tag** button each on their own row, instead of crowding them onto one line. [GH Issue #1707](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1707)
 - Tapping an article card on a touch device no longer shrinks it slightly while pressed; the tap highlight is unchanged. [GH Issue #1703](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1703)
 - The filter status bar drops its "Viewing filters:" and "No filters applied -" label at mobile widths, leaving the Showing, Filtered out and Total counts. [GH Issue #1704](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1704)
