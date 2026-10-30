@@ -150,6 +150,53 @@ describe("ReaderLightbox", () => {
     expect(backdrop?.classList.contains("is-open")).toBe(false);
   });
 
+  it("keeps every control's accessible name and action", () => {
+    const windowOpenMock = vi.fn();
+    window.open = windowOpenMock;
+
+    const lightbox = new ReaderLightbox({
+      source: {
+        previewUrl: "https://example.com/thumb.jpg",
+        fullUrl: "https://example.com/full.jpg",
+        altText: "",
+        externalHref: "https://example.org/article",
+      },
+      doc: document,
+    });
+
+    lightbox.open();
+
+    const names = Array.from(
+      document.body.querySelectorAll(".rss-reader-lightbox-btn"),
+    ).map((btn) => btn.getAttribute("aria-label"));
+    expect(names).toEqual([
+      "Open link to example.org",
+      "Reset zoom",
+      "Open original image in browser",
+      "Close lightbox",
+    ]);
+
+    document.body
+      .querySelector<HTMLButtonElement>(
+        ".rss-reader-lightbox-btn-open-external",
+      )
+      ?.click();
+    expect(windowOpenMock).toHaveBeenCalledWith(
+      "https://example.com/full.jpg",
+      "_blank",
+      "noopener,noreferrer",
+    );
+
+    document.body
+      .querySelector<HTMLButtonElement>(".rss-reader-lightbox-btn-close")
+      ?.click();
+    expect(
+      document.body
+        .querySelector(".rss-reader-lightbox-backdrop")
+        ?.classList.contains("is-open"),
+    ).toBe(false);
+  });
+
   it("opens external webpage in new window on clicking external link button", () => {
     const windowOpenMock = vi.fn();
     window.open = windowOpenMock;

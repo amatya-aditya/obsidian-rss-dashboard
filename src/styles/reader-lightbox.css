@@ -201,6 +201,60 @@ body .rss-reader-lightbox-backdrop.rss-reader-lightbox-above-modal {
   backdrop-filter: blur(4px);
 }
 
+/* Touch devices: the status bar and Dynamic Island cover a toolbar pinned to
+   the top edge, so the controls move to the bottom edge, inside the
+   home-indicator inset (#1722). The caption stacks above the bar: 60px clears
+   one 36px button row, 104px clears the link pill row as well. */
+@media (hover: none) and (pointer: coarse) {
+  .rss-reader-lightbox-toolbar {
+    top: auto;
+    bottom: 0;
+    height: auto;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.6) 0%,
+      rgba(0, 0, 0, 0) 100%
+    );
+  }
+
+  .rss-reader-lightbox-toolbar-start:empty {
+    display: none;
+  }
+
+  .rss-reader-lightbox-toolbar-start {
+    max-width: 100%;
+  }
+
+  .rss-reader-lightbox-btn.rss-reader-lightbox-external-link {
+    max-width: 100%;
+  }
+
+  .rss-reader-lightbox-toolbar-end {
+    justify-content: center;
+  }
+
+  /* The toolbar is the positioning context, so Close sits in the bar's
+     corner while the other controls stay centred. */
+  .rss-reader-lightbox-btn.rss-reader-lightbox-btn-close {
+    position: absolute;
+    right: 16px;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .rss-reader-lightbox-caption {
+    bottom: calc(60px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .rss-reader-lightbox-backdrop:has(.rss-reader-lightbox-external-link)
+    .rss-reader-lightbox-caption {
+    bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 /* Image affordance in reader content */
 .rss-reader-zoomable-img {
   cursor: zoom-in;
