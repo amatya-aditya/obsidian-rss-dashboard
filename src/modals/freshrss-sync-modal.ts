@@ -95,9 +95,14 @@ export class FreshRssSyncModal extends AccessibleModal {
         .catch(() => {
           status.textContent = "FreshRSS sync failed.";
         })
-        .finally(() => {
+        .finally(async () => {
           this.running = false;
           if (!this.opened) return;
+          const [pendingResult] = await Promise.allSettled([
+            this.host.getFreshRssPendingMutations(),
+          ]);
+          if (!this.opened) return;
+          this.renderFailures(failures, pendingResult);
           start.textContent = "Start sync";
           start.disabled = false;
         });
