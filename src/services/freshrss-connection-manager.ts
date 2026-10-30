@@ -59,6 +59,7 @@ export async function testFreshRssConnection(input: {
   connectionService: Pick<FreshRssConnectionService, "testConnection">;
   getScopeRepository(): Pick<FreshRssConnectionScopeRepository, "activate">;
   ensureSidecarFolder(): Promise<void>;
+  onPendingChangesDeferred?(count: number): void;
   setStatus(
     status: FreshRssConnectionStatus,
   ): Promise<FreshRssConnectionStatus>;
@@ -94,6 +95,12 @@ export async function testFreshRssConnection(input: {
     const activation: FreshRssConnectionScopeActivationResult = await input
       .getScopeRepository()
       .activate(result.scope);
+    if (
+      activation.outcome === "activated" &&
+      activation.deferredPendingMutationCount
+    ) {
+      input.onPendingChangesDeferred?.(activation.deferredPendingMutationCount);
+    }
     return input.setStatus(
       activation.outcome === "activated" ? "connected" : "server-unavailable",
     );

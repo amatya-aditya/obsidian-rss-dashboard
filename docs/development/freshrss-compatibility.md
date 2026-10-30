@@ -49,11 +49,6 @@ articles are marked partial by design.
 
 ## Known limits and open items
 
-- **Switching to a different FreshRSS account loses a pending local change.**
-  Testing the connection with a second account sets the first account's saved
-  state aside; testing with the first account again starts a fresh scope
-  instead of restoring it, and a pending local read can revert to the server's
-  value. Nothing is sent to the wrong account.
 - After a sync run that fails inside the sync preview, its list of failed
   updates stays empty until the preview is reopened.
 - A first connection test in a brand-new vault returned
