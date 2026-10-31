@@ -328,6 +328,53 @@ describe("FreshRSS sync coordinator", () => {
     expect(sidecar.pendingFacetMutations).toEqual([]);
   });
 
+  it("does not commit a sync under an account whose credential reference changed mid-run", async () => {
+    const settings = makeSettings();
+    settings.freshRss.credentialReference = "freshrss-test";
+    settings.freshRss.status = "connected";
+    settings.freshRss.stateSyncMode = "receive-only";
+    const sidecar = createSidecar();
+    const write = vi.fn(async () => {});
+    const request = vi.fn<FreshRssHttpClient["request"]>(async ({ url }) => {
+      if (url.endsWith("/accounts/ClientLogin")) {
+        return { status: 200, text: "Auth=session-token" };
+      }
+      if (url.includes("/user-info?")) {
+        return {
+          status: 200,
+          text: JSON.stringify({ userId: scope.remoteUserId }),
+        };
+      }
+      if (url.endsWith("/subscription/list?output=json")) {
+        settings.freshRss.credentialReference = "freshrss-marc";
+        return { status: 200, text: JSON.stringify({ subscriptions: [] }) };
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const saveSettings = vi.fn(async () => {});
+    const coordinator = new FreshRssSyncCoordinator({
+      httpClient: { request },
+      getSettings: () => settings,
+      saveSettings,
+      sidecarRepository: { read: async () => sidecar, write },
+      getView: async () => null,
+    });
+
+    await expect(
+      coordinator.run({
+        endpoint,
+        credentials: { username: "reader", apiPassword: "secret" },
+        scope,
+        credentialReference: "freshrss-test",
+        owner: createOwner(),
+      }),
+    ).resolves.toEqual({ outcome: "scope-mismatch" });
+
+    expect(settings.freshRss.credentialReference).toBe("freshrss-marc");
+    expect(saveSettings).not.toHaveBeenCalled();
+    expect(write).not.toHaveBeenCalled();
+  });
+
   it("previews live subscriptions and their bounded articles without writing", async () => {
     const settings = makeSettings();
     settings.freshRss.endpoint = endpoint;
