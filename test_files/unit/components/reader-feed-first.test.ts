@@ -156,6 +156,38 @@ describe("runFeedFirstDisplay", () => {
     expect(options.persistMetadata).not.toHaveBeenCalled();
   });
 
+  it("offers the fetched version and keeps the page metadata for a short trusted extraction (#1738)", async () => {
+    const short = "<p>Hi</p><img>";
+    const { container, options } = setup({
+      content: short,
+      failureType: "none",
+      trusted: true,
+    });
+    // The gate under test rejects this body, as it does for a short post.
+    expect(options.hasMeaningfulContent(short)).toBe(false);
+
+    await runFeedFirstDisplay(options);
+
+    expect(findContentToggle(container)?.textContent).toBe(
+      "Show fetched content",
+    );
+    expect(options.persistMetadata).toHaveBeenCalledTimes(1);
+  });
+
+  it("still withholds the page metadata of a short extraction that is not trusted", async () => {
+    const { container, options } = setup({
+      content: "<p>Short</p>",
+      failureType: "none",
+    });
+
+    await runFeedFirstDisplay(options);
+
+    expect(findContentToggle(container)?.textContent).toBe(
+      "Show fetched content",
+    );
+    expect(options.persistMetadata).not.toHaveBeenCalled();
+  });
+
   it("does not hand on a page image the fetch does not declare", async () => {
     const { options } = setup({ content: "", failureType: "restricted" });
 
