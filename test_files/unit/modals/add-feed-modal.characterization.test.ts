@@ -306,6 +306,7 @@ describe("AddFeedModal feed options (characterization)", () => {
       "Max items limit",
       "Auto-refresh interval",
       "Exclude from refresh",
+      "Article content shown first",
       "Article template",
       "Custom auto-tags",
     ]);

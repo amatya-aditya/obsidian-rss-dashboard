@@ -6,6 +6,7 @@ import {
   Tag,
   RssDashboardSettings,
   FeedKeywordRulesSettings,
+  ArticleContentFirst,
   FeedEncoding,
   FeedShardHealth,
 } from "../types/types";
@@ -135,6 +136,7 @@ export interface SidebarCallbacks {
     excludeFromRefresh?: boolean,
     customTags?: string[],
     feedEncoding?: FeedEncoding,
+    articleContentFirst?: ArticleContentFirst,
   ) => Promise<void>;
   onEditFeed: (feed: Feed, title: string, url: string, folder: string) => void;
   onDeleteFeed: (feed: Feed) => void;
@@ -3423,6 +3425,7 @@ export class Sidebar {
           request.excludeFromRefresh,
           request.customTags,
           request.feedEncoding,
+          request.articleContentFirst,
         ),
       () => this.render(),
       defaultFolder,

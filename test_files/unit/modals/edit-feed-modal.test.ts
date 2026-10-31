@@ -422,6 +422,68 @@ describe("EditFeedModal", () => {
     },
   );
 
+  it("persists the Article content shown first choice and clears it", async () => {
+    const app = createMockApp();
+    const feed: Feed = {
+      title: "Example feed",
+      url: "https://example.com/feed.xml",
+      folder: "Tech",
+      items: [],
+      lastUpdated: 0,
+    };
+    const plugin: PluginTestFixture = {
+      app,
+      settings: {
+        feeds: [feed],
+        folders: [],
+        maxItems: 50,
+        corsProxyEnabled: false,
+        corsProxyUrl: "",
+        articleSaving: { savedTemplates: [] },
+      },
+      ensureFolderExists: vi.fn(async () => {}),
+      saveSettings: vi.fn(async () => {}),
+      refreshSelectedFeed: vi.fn(async () => {}),
+      notifyFiltersUpdated: vi.fn(),
+    };
+
+    const modal = new EditFeedModal(
+      app,
+      asRssDashboardPlugin(plugin),
+      feed,
+      vi.fn(),
+    );
+    modal.open();
+    const select = getSelectBySettingName(
+      modal.contentEl,
+      "Article content shown first",
+    );
+    expect(select.value).toBe("");
+    select.value = "rss";
+    select.dispatchEvent(new Event("change"));
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+    expect(feed.articleContentFirst).toBe("rss");
+
+    const reopened = new EditFeedModal(
+      app,
+      asRssDashboardPlugin(plugin),
+      feed,
+      vi.fn(),
+    );
+    reopened.open();
+    const again = getSelectBySettingName(
+      reopened.contentEl,
+      "Article content shown first",
+    );
+    expect(again.value).toBe("rss");
+    again.value = "";
+    again.dispatchEvent(new Event("change"));
+    getButtonByText(reopened.contentEl, "Save").click();
+    await flushPromises();
+    expect(feed.articleContentFirst).toBeUndefined();
+  });
+
   it("persists an encoding change and immediately refreshes the feed", async () => {
     const app = createMockApp();
     const feed: Feed = {

@@ -3,6 +3,7 @@ import { AccessibleModal } from "../../utils/accessible-modal";
 import type RssDashboardPlugin from "../../../main";
 import type {
   Feed,
+  ArticleContentFirst,
   FeedEncoding,
   FeedKeywordRulesSettings,
 } from "../../types/types";
@@ -53,6 +54,7 @@ export class EditFeedModal extends AccessibleModal {
   private latestEntry: string = "-";
   private customTags: string[];
   private feedEncoding: FeedEncoding;
+  private articleContentFirst: ArticleContentFirst | undefined;
   private originalCustomTags: string[];
   private autoDeleteDuration: number;
   private maxItemsLimit: number;
@@ -91,6 +93,7 @@ export class EditFeedModal extends AccessibleModal {
     this.originalCustomTags = [...(this.feed.customTags ?? [])];
     this.customTags = [...(this.feed.customTags ?? [])];
     this.feedEncoding = this.feed.feedEncoding ?? "auto";
+    this.articleContentFirst = this.feed.articleContentFirst;
 
     this.autoDeleteDuration = this.feed.autoDeleteDuration || 0;
     this.maxItemsLimit =
@@ -430,6 +433,10 @@ export class EditFeedModal extends AccessibleModal {
       getFeedEncoding: () => this.feedEncoding,
       setFeedEncoding: (value) => {
         this.feedEncoding = value;
+      },
+      getArticleContentFirst: () => this.articleContentFirst,
+      setArticleContentFirst: (value) => {
+        this.articleContentFirst = value;
       },
       getAutoDeleteDuration: () => this.autoDeleteDuration,
       setAutoDeleteDuration: (value) => {

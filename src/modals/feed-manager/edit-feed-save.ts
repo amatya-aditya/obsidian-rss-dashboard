@@ -2,6 +2,7 @@ import type { App } from "obsidian";
 import { Notice } from "obsidian";
 import type {
   Feed,
+  ArticleContentFirst,
   FeedEncoding,
   FeedKeywordRulesSettings,
 } from "../../types/types";
@@ -33,6 +34,7 @@ export interface EditFeedSaveHost {
   readonly scanInterval: number;
   readonly excludeFromRefresh: boolean;
   readonly feedEncoding: FeedEncoding;
+  readonly articleContentFirst: ArticleContentFirst | undefined;
   readonly customTemplate: string;
   readonly feedKeywordRules: FeedKeywordRulesSettings;
   close(): void;
@@ -156,6 +158,7 @@ function applyOptionFields(host: EditFeedSaveHost, oldTitle: string): number {
   host.feed.excludeFromRefresh = host.excludeFromRefresh;
   host.feed.feedEncoding =
     host.feedEncoding === "windows-1251" ? host.feedEncoding : undefined;
+  host.feed.articleContentFirst = host.articleContentFirst;
   host.feed.customTemplate = host.customTemplate || undefined;
   host.feed.keywordRules = {
     overrideGlobalRules: host.feedKeywordRules.overrideGlobalRules,

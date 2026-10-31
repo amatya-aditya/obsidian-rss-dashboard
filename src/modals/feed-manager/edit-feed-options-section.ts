@@ -6,6 +6,7 @@ import {
   renderAutoDeleteSetting,
   renderAutoTagsSetting,
   renderExcludeFromRefreshSetting,
+  renderArticleContentFirstSetting,
   renderFeedEncodingSetting,
   renderMaxItemsSetting,
   renderScanIntervalSetting,
@@ -73,6 +74,7 @@ export function renderEditFeedOptionsSection(
   renderLocalStorageAddressSetting(perFeedControlsBody, host);
   renderPerFeedLimitSettings(perFeedControlsBody, host);
   renderExcludeFromRefreshSetting(perFeedControlsBody, host);
+  renderArticleContentFirstSetting(perFeedControlsBody, host);
   renderEditArticleTemplateSetting(perFeedControlsBody, host);
   renderAutoTagsSetting(
     perFeedControlsBody,

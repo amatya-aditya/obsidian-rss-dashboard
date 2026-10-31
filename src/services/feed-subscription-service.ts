@@ -1,6 +1,7 @@
 import { Notice } from "obsidian";
 import type {
   Feed,
+  ArticleContentFirst,
   FeedEncoding,
   FeedKeywordRulesSettings,
   RssDashboardSettings,
@@ -27,6 +28,7 @@ export interface FeedSubscriptionViewLike {
 export interface FeedSubscriptionAddOptions {
   showNotice?: boolean;
   feedEncoding?: FeedEncoding;
+  articleContentFirst?: ArticleContentFirst;
   globalOperation?: boolean;
 }
 
@@ -374,6 +376,7 @@ export class FeedSubscriptionService {
         options?.feedEncoding === "windows-1251"
           ? options.feedEncoding
           : undefined,
+      articleContentFirst: options?.articleContentFirst,
       keywordRules: feedKeywordRules || {
         overrideGlobalRules: false,
         includeLogic: "AND",
