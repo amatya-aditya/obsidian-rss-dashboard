@@ -16,6 +16,11 @@ import { proxyHealth, type ProxyOutcome } from "./proxy-health";
 import { stripAdContainers } from "./ad-containers";
 import { promotePictureImageSources } from "./image-url-utils";
 import { extractGitHubIssueContent } from "./github-issue-page";
+import {
+  extractBlueskyPost,
+  isBlueskyPostUrl,
+  type BlueskyPostContent,
+} from "./bluesky-post-page";
 
 /** Markers that indicate the page is a WAF/bot-challenge block rather than real content. */
 const BLOCKED_MARKERS = [
@@ -98,6 +103,12 @@ export interface FullArticleFetchResult {
    * place the page's hero survives.
    */
   pageImage?: string;
+  /**
+   * Set when a site-specific extractor produced `content` from the page's own
+   * data (#1738). Such content is deliberately short, so the Reader's
+   * substantial-body gate does not apply to it.
+   */
+  trusted?: true;
 }
 
 export const DEFAULT_FETCH_TIMEOUT_SECONDS = 10;
@@ -363,6 +374,7 @@ interface ParsedPage {
   content: string;
   pageMetadata: RawArticleMetadata;
   pageImage?: string;
+  trusted?: true;
 }
 
 /** How a served page is read: the whole article, or only what its head declares. */
@@ -399,8 +411,33 @@ function parsePageMetadataOnly(html: string, pageUrl: string): ParsedPage {
     "text/html",
   );
   const pageMetadata = extractPageMetadata(doc);
-  const pageImage = extractPageImage(doc, pageUrl);
+  const pageImage = readPageImage(
+    doc,
+    pageUrl,
+    pageMetadata,
+    extractBlueskyPost(head, pageUrl),
+  );
   return { content: "", pageMetadata, ...(pageImage ? { pageImage } : {}) };
+}
+
+/**
+ * The page's own image. A Bluesky post page declares the author's avatar or a
+ * replier's picture in `og:image`, so there it comes from the post alone and a
+ * post with no picture has none (#1738). The cover-image fetch reads the
+ * metadata's `og:image` and `twitter:image`, not the returned image, so both
+ * are overwritten on `pageMetadata` too.
+ */
+function readPageImage(
+  doc: Document,
+  pageUrl: string,
+  pageMetadata: RawArticleMetadata,
+  blueskyPost: BlueskyPostContent | null,
+): string {
+  if (!isBlueskyPostUrl(pageUrl)) return extractPageImage(doc, pageUrl);
+  const cover = blueskyPost?.coverImage ?? "";
+  pageMetadata.ogImage = cover;
+  pageMetadata.twitterImage = "";
+  return cover;
 }
 
 function parseArticleContent(html: string, pageUrl: string): ParsedPage {
@@ -408,16 +445,18 @@ function parseArticleContent(html: string, pageUrl: string): ParsedPage {
   // Readability.parse() mutates the document (it drops scripts, so JSON-LD
   // would be gone), so the page's metadata is read first.
   const pageMetadata = extractPageMetadata(doc);
-  const pageImage = extractPageImage(doc, pageUrl);
-  // Readability still runs for an issue page so its excerpt keeps feeding the
-  // page metadata; only the content is replaced (#1394).
+  const blueskyPost = extractBlueskyPost(html, pageUrl);
+  const pageImage = readPageImage(doc, pageUrl, pageMetadata, blueskyPost);
+  // Readability still runs for an issue or post page so its excerpt keeps
+  // feeding the page metadata; only the content is replaced (#1394, #1738).
   const issueContent = extractGitHubIssueContent(html, pageUrl);
   const article = new Readability(doc).parse();
   pageMetadata.readabilityExcerpt = (article?.excerpt ?? "").trim();
   return {
-    content: issueContent ?? article?.content ?? "",
+    content: issueContent ?? blueskyPost?.content ?? article?.content ?? "",
     pageMetadata,
     ...(pageImage ? { pageImage } : {}),
+    ...(blueskyPost ? { trusted: true as const } : {}),
   };
 }
 
@@ -441,7 +480,12 @@ function extractMetadataOfUnparsedResponse(
     "text/html",
   );
   const metadata = extractPageMetadata(doc);
-  const pageImage = extractPageImage(doc, pageUrl);
+  const pageImage = readPageImage(
+    doc,
+    pageUrl,
+    metadata,
+    extractBlueskyPost(html, pageUrl),
+  );
   return {
     ...(isEmptyRawMetadata(metadata) ? {} : { pageMetadata: metadata }),
     ...(pageImage ? { pageImage } : {}),
