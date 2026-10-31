@@ -106,6 +106,8 @@ export interface FreshRssSyncRunInput {
   endpoint: string;
   credentials: FreshRssCredentialBundle;
   scope: FreshRssConnectionScope;
+  /** Credential reference whose bundle was used to start this sync. */
+  credentialReference?: string;
   owner: FreshRssSyncOwner;
 }
 
@@ -145,6 +147,7 @@ interface FreshRssSyncCommitInput {
   scope: FreshRssConnectionScope;
   sidecarRepository: Pick<FreshRssConnectionScopeRepository, "read" | "write">;
   saveSettings: () => Promise<void>;
+  isConfigurationCurrent?: () => boolean;
   owner: FreshRssSyncOwner;
 }
 
@@ -549,6 +552,17 @@ export class FreshRssSyncCoordinator {
       scope: input.scope,
       sidecarRepository: this.deps.sidecarRepository,
       saveSettings: this.deps.saveSettings,
+      isConfigurationCurrent:
+        input.credentialReference === undefined
+          ? undefined
+          : () => {
+              const current = this.deps.getSettings().freshRss;
+              return (
+                current.credentialReference === input.credentialReference &&
+                current.endpoint === input.endpoint &&
+                current.status === "connected"
+              );
+            },
       owner,
     });
     if (commitOutcome !== "committed") {
@@ -708,11 +722,12 @@ export class FreshRssSyncCoordinator {
 
 async function commitFreshRssSync(
   input: FreshRssSyncCommitInput,
-): Promise<"committed" | "server-unavailable"> {
+): Promise<"committed" | "server-unavailable" | "scope-mismatch"> {
   return withFreshRssSidecarMutationLock(async () => {
     const latestSidecar = await input.sidecarRepository.read(input.scope);
     input.owner.throwIfInactive();
     if (!latestSidecar) return "server-unavailable";
+    if (input.isConfigurationCurrent?.() === false) return "scope-mismatch";
     if (
       applyPendingFacetOverrides(
         input.syncState.feeds,
