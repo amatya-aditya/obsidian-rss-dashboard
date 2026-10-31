@@ -87,7 +87,10 @@ const FEED_IMAGE = "https://img.example.com/feed.jpg";
 
 /** Typed accessor for the view's private cover-image actions. */
 interface CoverActionsAPI {
-  handleFetchCoverImage(article: FeedItem): Promise<boolean>;
+  handleFetchCoverImage(
+    article: FeedItem,
+    options?: { quiet?: boolean },
+  ): Promise<boolean>;
   handleRestoreCoverImage(article: FeedItem): Promise<boolean>;
 }
 
@@ -221,6 +224,51 @@ describe("dashboard cover-image actions (#1330)", () => {
       expect(h.article.coverImage).toBe("");
       expect(h.article.coverImageFromPage).toBeUndefined();
       expect(notices()).toEqual(["No cover image found on that page."]);
+    });
+
+    // The bulk fetch (#1702) reports one summary for the whole run, so the
+    // per-card Notices a single fetch shows would stack up behind it.
+    it("stores the image the same way but stays silent in a quiet run", async () => {
+      const h = makeHarness();
+
+      await expect(
+        h.view.handleFetchCoverImage(h.article, { quiet: true }),
+      ).resolves.toBe(true);
+
+      expect(h.plugin.updateArticle).toHaveBeenCalledWith(
+        h.article.guid,
+        FEED_URL,
+        { coverImage: PAGE_IMAGE, coverImageFromPage: true },
+        false,
+      );
+      expect(h.plugin.warmCoverImage).toHaveBeenCalledWith(PAGE_IMAGE);
+      expect(notices()).toEqual([]);
+    });
+
+    it("reports a page with no image as false without a Notice in a quiet run", async () => {
+      const h = makeHarness();
+      h.plugin.fetchPageCoverImage.mockResolvedValue({
+        status: "none",
+        url: "",
+      });
+
+      await expect(
+        h.view.handleFetchCoverImage(h.article, { quiet: true }),
+      ).resolves.toBe(false);
+
+      expect(h.plugin.updateArticle).not.toHaveBeenCalled();
+      expect(notices()).toEqual([]);
+    });
+
+    it("reports an article that can no longer be saved as false without a Notice in a quiet run", async () => {
+      const h = makeHarness();
+      h.settings.feeds = [];
+
+      await expect(
+        h.view.handleFetchCoverImage(h.article, { quiet: true }),
+      ).resolves.toBe(false);
+
+      expect(notices()).toEqual([]);
     });
   });
 

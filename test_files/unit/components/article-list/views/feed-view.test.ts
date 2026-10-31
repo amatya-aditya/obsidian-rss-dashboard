@@ -32,6 +32,31 @@ describe("feed-view", () => {
     expect(item?.querySelector(".rss-dashboard-feed-footer")).toBeTruthy();
   });
 
+  it("renders feed tags from the registry when article copies are stale", () => {
+    const context = baseViewContext();
+    context.tagAppearanceSettings = {
+      availableTags: [
+        { name: "Topic", color: "#234567", textColor: "#765432" },
+      ],
+    };
+    renderFeedView(
+      container,
+      [
+        makeArticle({
+          tags: [{ name: "Topic", color: "#stale", textColor: "#stale" }],
+        }),
+      ],
+      context,
+      baseViewDeps(),
+    );
+
+    const chip = container.querySelector<HTMLElement>(
+      ".rss-dashboard-feed-tags-region .rss-dashboard-tag-badge",
+    );
+    expect(chip?.style.getPropertyValue("--tag-color")).toBe("#234567");
+    expect(chip?.style.getPropertyValue("--tag-text-color")).toBe("#765432");
+  });
+
   it("shows the first-seen date in the feed footer when pubDate is empty and the fallback setting is on", () => {
     const firstSeenMs = Date.parse("2026-01-01T00:00:00Z");
     const ctx = baseViewContext();

@@ -1,49 +1,68 @@
 /**
  * Tag shape control (#663): a radiogroup of Rectangle, Squircle and Pill
- * previews, a custom border-radius field with a live sample, and a reset
- * button. Choosing a value saves it and triggers TAG_CHIP_RADIUS_EVENT so
- * every open window republishes the radius.
+ * previews, drawn in the global default tag colors. Choosing a value saves it
+ * and triggers TAG_CHIP_RADIUS_EVENT so every open window republishes the
+ * radius.
  */
 import { Setting } from "obsidian";
 import { setCssProps } from "../../utils/platform-utils";
 import {
-  DEFAULT_TAG_CHIP_RADIUS,
+  applyTagAppearance,
+  DEFAULT_TAG_COLOR,
+  DEFAULT_TAG_TEXT_COLOR,
+} from "../../utils/tag-colors";
+import {
   TAG_CHIP_RADIUS_CSS_VAR,
   TAG_CHIP_RADIUS_EVENT,
   TAG_CHIP_RADIUS_PRESETS,
   findTagChipRadiusPreset,
   normalizeTagChipRadius,
-  parseTagChipRadius,
 } from "../../utils/tag-chip-radius";
-import { addInputClearButton } from "../../utils/input-clear-button";
 
 /** The slice of the plugin this control reads and writes. */
 export interface TagShapeControlHost {
-  settings: { display: { tagChipRadius: string } };
+  settings: TagShapeColorSettings & { display: { tagChipRadius: string } };
   app: { workspace: { trigger: (name: string) => void } };
   saveSettings: () => Promise<void>;
 }
 
-const SAMPLE_TAG_COLOR = "var(--interactive-accent)";
-const INVALID_RADIUS_MESSAGE =
-  "Enter one to four non-negative lengths or percentages, such as 8px or 50%. Use / for elliptical corners. Keeping the last valid shape.";
+/** The global defaults the sample chips inherit. */
+export interface TagShapeColorSettings {
+  defaultTagColor?: string;
+  defaultTagTextColor?: string;
+}
 
-let controlCounter = 0;
+/**
+ * Styles every sample chip under `containerEl` with the global default tag
+ * colors, so the shapes preview what a tag without its own colors looks like.
+ */
+export function refreshTagShapeSampleColors(
+  containerEl: HTMLElement,
+  settings: TagShapeColorSettings,
+): void {
+  const defaults = {
+    availableTags: [],
+    defaultTagColor: settings.defaultTagColor ?? DEFAULT_TAG_COLOR,
+    defaultTagTextColor: settings.defaultTagTextColor ?? DEFAULT_TAG_TEXT_COLOR,
+  };
+  for (const chip of containerEl.querySelectorAll<HTMLElement>(
+    ".rss-dashboard-tag-shape-chip",
+  )) {
+    applyTagAppearance(chip, { name: chip.textContent ?? "" }, defaults);
+  }
+}
 
 function createSampleChip(parent: HTMLElement, label: string): HTMLElement {
-  const chip = parent.createSpan({
+  return parent.createSpan({
     cls: "rss-dashboard-tag-badge rss-dashboard-tag-shape-chip",
     text: label,
   });
-  setCssProps(chip, { "--tag-color": SAMPLE_TAG_COLOR });
-  return chip;
 }
 
 export function renderTagShapeControl(
   containerEl: HTMLElement,
   plugin: TagShapeControlHost,
 ): void {
-  const idBase = `rss-dashboard-tag-shape-${++controlCounter}`;
   new Setting(containerEl).setName("Tag shape").setHeading();
 
   const root = containerEl.createDiv({ cls: "rss-dashboard-tag-shape" });
@@ -62,40 +81,6 @@ export function renderTagShapeControl(
     plugin.settings.display.tagChipRadius,
   );
 
-  const customWrap = root.createDiv({ cls: "rss-dashboard-tag-shape-custom" });
-  const inputId = `${idBase}-input`;
-  const errorId = `${idBase}-error`;
-  customWrap.createEl("label", {
-    cls: "rss-dashboard-tag-shape-custom-label",
-    text: "Custom radius",
-    attr: { for: inputId },
-  });
-  const input = customWrap.createEl("input", {
-    cls: "rss-dashboard-tag-shape-input",
-    attr: {
-      id: inputId,
-      type: "text",
-      spellcheck: "false",
-      autocomplete: "off",
-      placeholder: "50%",
-      "aria-invalid": "false",
-      "aria-describedby": errorId,
-    },
-  });
-  addInputClearButton(input, { fill: true, label: "Clear custom radius" });
-  const sample = createSampleChip(customWrap, "Sample");
-  sample.addClass("rss-dashboard-tag-shape-sample");
-  const errorEl = root.createDiv({
-    cls: "rss-dashboard-tag-shape-error",
-    attr: { id: errorId, role: "status", "aria-live": "polite" },
-  });
-
-  const showError = (message: string): void => {
-    errorEl.setText(message);
-    input.setAttribute("aria-invalid", message ? "true" : "false");
-    customWrap.toggleClass("is-invalid", Boolean(message));
-  };
-
   const syncPresetSelection = (): void => {
     const selected = findTagChipRadiusPreset(currentRadius);
     optionEls.forEach((el, id) => {
@@ -103,13 +88,12 @@ export function renderTagShapeControl(
       el.setAttribute("aria-checked", checked ? "true" : "false");
       el.toggleClass("is-selected", checked);
     });
-    // Roving tabindex: the checked radio is the one tab stop; with a custom
-    // value no radio is checked, so the first one is.
+    // Roving tabindex: the checked radio is the one tab stop; a stored custom
+    // radius matches no preset, so then the first one is.
     const tabStop = selected?.id ?? TAG_CHIP_RADIUS_PRESETS[0]?.id;
     optionEls.forEach((el, id) => {
       el.tabIndex = id === tabStop ? 0 : -1;
     });
-    setCssProps(sample, { [TAG_CHIP_RADIUS_CSS_VAR]: currentRadius });
   };
 
   const commit = (value: string): void => {
@@ -122,8 +106,6 @@ export function renderTagShapeControl(
   };
 
   const choose = (value: string): void => {
-    input.value = value;
-    showError("");
     if (value !== currentRadius) commit(value);
   };
 
@@ -164,26 +146,7 @@ export function renderTagShapeControl(
     });
   });
 
-  input.value = currentRadius;
-  input.addEventListener("input", () => {
-    const parsed = parseTagChipRadius(input.value);
-    if (parsed === null) {
-      showError(INVALID_RADIUS_MESSAGE);
-      return;
-    }
-    showError("");
-    if (parsed !== currentRadius) commit(parsed);
-  });
-
-  // Lower-case "pill": the sentence-case lint rule rejects the capital and
-  // "Pill" is not in the eslint brands list (see the #663 handoff note).
-  const resetButton = root.createEl("button", {
-    cls: "rss-dashboard-tag-shape-reset",
-    text: "Reset to pill",
-    attr: { type: "button" },
-  });
-  resetButton.addEventListener("click", () => choose(DEFAULT_TAG_CHIP_RADIUS));
-
+  refreshTagShapeSampleColors(root, plugin.settings);
   syncPresetSelection();
 }
 

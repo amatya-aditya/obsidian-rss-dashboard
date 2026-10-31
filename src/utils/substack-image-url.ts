@@ -1,3 +1,5 @@
+import { recoverFailedSubstackImageElementImpl } from "./substack-image-recovery";
+
 function decodeSubstackImageFetchUrl(url: string): string | null {
   const trimmed = url.trim();
   if (!/^https:\/\/substackcdn\.com\/image\/fetch\//i.test(trimmed)) {
@@ -99,95 +101,11 @@ export function normalizeSubstackImageUrlsInElement(root: ParentNode): void {
 export function recoverFailedSubstackImageElement(
   img: HTMLImageElement,
 ): HTMLImageElement | null {
-  if (img.dataset.rssSubstackRecoverAttempted === "true") {
-    return null;
-  }
-
-  const rawSrc = img.getAttribute("src");
-  const rawSrcset = img.getAttribute("srcset");
-  const currentSrc = img.currentSrc || "";
-  const normalizedRawSrc = normalizeSubstackImageUrl(rawSrc || "");
-  const picture = img.closest("picture");
-  const pictureSourceSrcsets = picture
-    ? Array.from(
-        picture.querySelectorAll<HTMLSourceElement>("source[srcset]"),
-      ).map((source) => source.getAttribute("srcset") || "")
-    : [];
-
-  const hasRecoverableUrl = [
-    rawSrc,
-    rawSrcset,
-    currentSrc,
-    ...pictureSourceSrcsets,
-  ].some((value) => hasRecoverableSubstackImageUrl(value));
-  if (!hasRecoverableUrl) {
-    if (!currentSrc || !normalizedRawSrc || normalizedRawSrc === currentSrc) {
-      return null;
-    }
-  }
-
-  if (
-    !hasRecoverableUrl &&
-    currentSrc &&
-    normalizedRawSrc &&
-    normalizedRawSrc !== currentSrc
-  ) {
-    // Continue into fallback recovery below using the already-normalized img src.
-  } else if (!hasRecoverableUrl) {
-    return null;
-  }
-
-  img.dataset.rssSubstackRecoverAttempted = "true";
-  let replacementElement: HTMLImageElement | null = null;
-  const normalizedCurrentSrc = normalizeSubstackImageUrl(currentSrc);
-
-  if (picture) {
-    for (const source of Array.from(
-      picture.querySelectorAll<HTMLSourceElement>("source[srcset]"),
-    )) {
-      const srcset = source.getAttribute("srcset") || "";
-      const normalizedSrcset = normalizeSubstackImageSrcset(srcset);
-      if (normalizedSrcset && normalizedSrcset !== srcset) {
-        source.setAttribute("srcset", normalizedSrcset);
-      }
-    }
-  }
-
-  if (rawSrcset) {
-    const normalizedSrcset = normalizeSubstackImageSrcset(rawSrcset);
-    if (normalizedSrcset && normalizedSrcset !== rawSrcset) {
-      img.setAttribute("srcset", normalizedSrcset);
-    }
-  }
-
-  const normalizedSrc = normalizeSubstackImageUrl(rawSrc || currentSrc);
-  if (normalizedSrc && normalizedSrc !== (rawSrc || "")) {
-    img.setAttribute("src", normalizedSrc);
-  }
-
-  if (
-    currentSrc.trim() !== "" &&
-    ((normalizedCurrentSrc && normalizedCurrentSrc !== currentSrc) ||
-      (normalizedRawSrc && normalizedRawSrc !== currentSrc))
-  ) {
-    if (picture) {
-      picture.querySelectorAll("source").forEach((source) => source.remove());
-    }
-
-    const replacement = img.cloneNode(true) as HTMLImageElement;
-    replacement.dataset.rssSubstackRecoverAttempted = "true";
-    replacement.removeAttribute("srcset");
-    replacement.removeAttribute("sizes");
-    const recoverySrc =
-      normalizedCurrentSrc && normalizedCurrentSrc !== currentSrc
-        ? normalizedCurrentSrc
-        : normalizedRawSrc;
-    replacement.setAttribute("src", recoverySrc);
-    img.replaceWith(replacement);
-    replacementElement = replacement;
-  }
-
-  return replacementElement;
+  return recoverFailedSubstackImageElementImpl(img, {
+    normalizeSubstackImageUrl,
+    normalizeSubstackImageSrcset,
+    hasRecoverableSubstackImageUrl,
+  });
 }
 
 function normalizeSubstackImageUrlsInRoot(root: ParentNode): void {

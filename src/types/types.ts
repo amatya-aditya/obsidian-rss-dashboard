@@ -286,7 +286,8 @@ export interface FeedIngestionResult {
 
 export interface Tag {
   name: string;
-  color: string;
+  color?: string;
+  textColor?: string;
 }
 
 export interface Folder {
@@ -379,8 +380,20 @@ export interface ArticleSavingSettings {
 export const IMAGE_CACHE_LIMIT_MIN_MIB = 1;
 export const IMAGE_CACHE_LIMIT_MAX_MIB = 1_024;
 
+/** Article title size, as a percentage of each view's normal title size. */
+export const ARTICLE_TITLE_SCALE_MIN = 50;
+export const ARTICLE_TITLE_SCALE_MAX = 200;
+export const ARTICLE_TITLE_SCALE_STEP = 5;
+export const ARTICLE_TITLE_SCALE_DEFAULT = 100;
+
 export interface DisplaySettings {
   showCoverImage: boolean;
+  /**
+   * Shows the header button that fetches cover images for every card on the
+   * page (#1702). The button also needs `showCoverImage`, since a fetched
+   * cover has nowhere to appear otherwise.
+   */
+  showFetchAllCoversButton: boolean;
   allowImageCaching: boolean;
   imageCacheLimitMiB: number;
   imageCacheUnlimited: boolean;
@@ -401,6 +414,8 @@ export interface DisplaySettings {
   mobileShowCardToolbar: boolean;
   mobileShowListToolbar: boolean;
   mobileListToolbarStyle: "left-grid" | "bottom-row" | "minimal";
+  /** Opt-in: horizontal swipes move between sidebar, dashboard, and reader on mobile. */
+  swipeBetweenPanels: boolean;
   /** CSS border-radius shared by every plugin-rendered tag chip (#663). */
   tagChipRadius: string;
   defaultFilter:
@@ -417,6 +432,8 @@ export interface DisplaySettings {
   sidebarItemPaddingRight: number;
   cardColumnsPerRow: number;
   cardSpacing: number;
+  articleTitleScale: number;
+  cardPressAnimation: boolean;
   hideEmptyFeeds: boolean;
   hideFeedFetchErrorBadges: boolean;
 
@@ -655,6 +672,9 @@ export interface RssDashboardSettings {
   savedArticlesPageSize: number;
   starredArticlesPageSize: number;
   availableTags: Tag[];
+  /** Global appearance values used when a tag has no stored override. */
+  defaultTagColor?: string;
+  defaultTagTextColor?: string;
   folderSortOrder?: {
     by: "name" | "created" | "modified" | "custom";
     ascending: boolean;
@@ -852,6 +872,8 @@ export const DEFAULT_SETTINGS: RssDashboardSettings = {
     { name: "Video", color: "#d04747" },
     { name: "Podcast", color: "#8e44ad" },
   ],
+  defaultTagColor: "#8a5cf5",
+  defaultTagTextColor: "#ffffff",
   folderSortOrder: { by: "name", ascending: true },
   feedSortOrder: { by: "name", ascending: true },
   folderFeedSortOrders: {},
@@ -934,6 +956,7 @@ guid: "{{guid}}"
   },
   display: {
     showCoverImage: true,
+    showFetchAllCoversButton: true,
     allowImageCaching: false,
     imageCacheLimitMiB: 100,
     imageCacheUnlimited: false,
@@ -954,6 +977,7 @@ guid: "{{guid}}"
     mobileShowCardToolbar: true,
     mobileShowListToolbar: true,
     mobileListToolbarStyle: "minimal",
+    swipeBetweenPanels: false,
     defaultFilter: "all",
     hiddenFilters: [],
     useDomainIconsPodcast: false,
@@ -967,6 +991,8 @@ guid: "{{guid}}"
     sidebarItemPaddingRight: 2,
     cardColumnsPerRow: 0,
     cardSpacing: 15,
+    articleTitleScale: ARTICLE_TITLE_SCALE_DEFAULT,
+    cardPressAnimation: true,
     hideEmptyFeeds: false,
     hideFeedFetchErrorBadges: false,
     hideIconDashboard: false,

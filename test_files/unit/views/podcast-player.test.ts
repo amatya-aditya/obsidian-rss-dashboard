@@ -129,7 +129,7 @@ describe("PodcastPlayer", () => {
   });
 
   describe("sorting", () => {
-    it("renders a bounded episode list and loads additional episodes without recreating audio", () => {
+    it("renders a bounded episode list and loads additional episodes without recreating audio", async () => {
       const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);
       const app = new App();
@@ -144,6 +144,7 @@ describe("PodcastPlayer", () => {
       player.loadEpisode(episodes[4], episodes);
 
       expect(container.querySelectorAll(".episode-list-row")).toHaveLength(20);
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
       expect(container.querySelector(".episode-list-range")?.textContent).toBe(
         "Showing 20 of 25",
       );
@@ -203,6 +204,93 @@ describe("PodcastPlayer", () => {
   });
 
   describe("live tag updates", () => {
+    it("renders current and playlist tags from the authoritative registry", () => {
+      const container: HTMLDivElement = createDiv();
+      document.body.appendChild(container);
+      const settings = {
+        availableTags: [
+          { name: "Topic", color: "#234567", textColor: "#765432" },
+        ],
+      };
+      const player = new PodcastPlayer(
+        container,
+        new App(),
+        "obsidian",
+        undefined,
+        undefined,
+        undefined,
+        true,
+        1,
+        false,
+        undefined,
+        true,
+        true,
+      );
+      player.setTagAppearanceSettings(settings);
+      const episode = {
+        ...baseEpisode(),
+        tags: [{ name: "Topic", color: "#stale", textColor: "#stale" }],
+      };
+
+      player.loadEpisode(episode, [episode, { ...episode, guid: "other" }]);
+
+      const chips = container.querySelectorAll<HTMLElement>(
+        ".podcast-tag, .episode-list-row-tag",
+      );
+      expect(chips.length).toBeGreaterThan(1);
+      chips.forEach((chip) => {
+        expect(chip.style.getPropertyValue("--tag-color")).toBe("#234567");
+        expect(chip.style.getPropertyValue("--tag-text-color")).toBe("#765432");
+      });
+    });
+
+    it("refreshes inherited colors in the player strip and episode list", () => {
+      const container: HTMLDivElement = createDiv();
+      document.body.appendChild(container);
+      const settings: {
+        availableTags: { name: string; color?: string; textColor?: string }[];
+        defaultTagColor: string;
+        defaultTagTextColor: string;
+      } = {
+        availableTags: [{ name: "Topic" }],
+        defaultTagColor: "#345678",
+        defaultTagTextColor: "#fef3c7",
+      };
+      const player = new PodcastPlayer(container, new App(), "obsidian");
+      player.setTagAppearanceSettings(settings);
+      const episode = { ...baseEpisode(), tags: [{ name: "Topic" }] };
+      player.loadEpisode(episode, [episode, { ...episode, guid: "other" }]);
+
+      const expectResolvedColors = (background: string, text: string) => {
+        const chips = container.querySelectorAll<HTMLElement>(
+          ".podcast-tag, .episode-list-row-tag",
+        );
+        expect(chips.length).toBeGreaterThan(1);
+        chips.forEach((chip) => {
+          expect(chip.style.getPropertyValue("--tag-color")).toBe(background);
+          expect(chip.style.getPropertyValue("--tag-text-color")).toBe(text);
+        });
+      };
+      expectResolvedColors("#345678", "#fef3c7");
+
+      settings.defaultTagColor = "#789abc";
+      settings.defaultTagTextColor = "#111827";
+      player.refreshTags();
+      player.refreshPlaylistTags(episode.guid);
+
+      expectResolvedColors("#789abc", "#111827");
+
+      settings.availableTags[0] = {
+        name: "Topic",
+        color: "#123456",
+        textColor: "#fedcba",
+      };
+      player.refreshTags();
+      player.refreshPlaylistTags(episode.guid);
+
+      expectResolvedColors("#123456", "#fedcba");
+    });
+
     it("refreshTags + refreshPlaylistTags update player strip and episode-list row", () => {
       const container: HTMLDivElement = createDiv();
       document.body.appendChild(container);

@@ -8,6 +8,7 @@
 import { Notice, setIcon, setTooltip, Setting } from "obsidian";
 import type { App, ButtonComponent, WorkspaceLeaf } from "obsidian";
 import type { RssDashboardSettings } from "../../types/types";
+import { applyTagAppearance } from "../../utils/tag-colors";
 import { formatDashboardMultiFiltersSummaryCompact } from "../../utils/filter-title-format";
 import {
   computePopoverPosition,
@@ -324,7 +325,7 @@ function showTagsSubMenu(
     const colorDot = item.createDiv({
       cls: "rss-dashboard-tag-color-dot",
     });
-    colorDot.style.setProperty("--tag-color", tag.color);
+    applyTagAppearance(colorDot, tag, plugin.settings);
 
     item.createDiv({
       cls: "rss-dashboard-filter-menu-text",

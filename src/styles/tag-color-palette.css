@@ -1,0 +1,355 @@
+.rss-dashboard-tag-color-palette-control {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.rss-dashboard-tag-color-palette-control-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.rss-dashboard-tag-color-palette-control-label {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  line-height: 1.2;
+}
+
+.rss-dashboard-tag-color-palette-control select,
+.rss-dashboard-tag-color-palette-control-color-trigger {
+  min-width: 0;
+  min-height: 32px;
+  box-sizing: border-box;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  font: inherit;
+}
+
+.rss-dashboard-tag-color-palette-control-select {
+  position: relative;
+  display: flex;
+  min-width: 0;
+}
+
+.rss-dashboard-tag-color-palette-control select {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
+  padding: 4px 28px 4px 8px;
+  cursor: pointer;
+}
+
+.rss-dashboard-tag-color-palette-control-color-field {
+  position: relative;
+  flex: 1 1 150px;
+}
+
+.rss-dashboard-tag-color-palette-control-color-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 8px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rss-dashboard-tag-color-palette-control-swatch {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 16px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 3px;
+  background: var(--tag-color-swatch, transparent);
+}
+
+.rss-dashboard-tag-color-palette-control-chevron {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  margin-left: auto;
+  color: var(--text-muted);
+}
+
+.rss-dashboard-tag-color-palette-control-chevron svg {
+  width: var(--icon-s);
+  height: var(--icon-s);
+}
+
+/* The select's chevron sits over its right edge and never takes the click. */
+.rss-dashboard-tag-color-palette-control-select-chevron {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  margin-left: 0;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.rss-dashboard-tag-color-palette-control-selected-label {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-normal);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rss-dashboard-tag-color-palette-control-value-readout {
+  color: var(--text-muted);
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+}
+
+.rss-dashboard-tag-color-palette-control-menu {
+  position: absolute;
+  z-index: 1000;
+  top: calc(100% + 4px);
+  right: 0;
+  display: grid;
+  width: max-content;
+  min-width: min(230px, calc(100vw - 40px));
+  max-width: min(300px, calc(100vw - 40px));
+  max-height: min(280px, 50vh);
+  padding: 4px;
+  overflow: auto;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-primary);
+  box-shadow: var(--shadow-s);
+}
+
+.rss-dashboard-tag-color-palette-control-menu-option {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  color: var(--text-normal);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.rss-dashboard-tag-color-palette-control-menu-option[aria-selected="true"] {
+  background: var(--background-modifier-hover);
+}
+
+.rss-dashboard-tag-color-palette-control-option-swatch {
+  width: 16px;
+  height: 16px;
+}
+
+.rss-dashboard-tag-color-palette-control-option-hex {
+  color: var(--text-muted);
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+}
+
+.rss-dashboard-tag-color-palette-control :focus-visible {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 2px;
+}
+
+.rss-dashboard-tag-modal-color-field {
+  display: grid;
+  grid-template-columns: auto minmax(38px, auto) minmax(0, 1fr);
+  align-items: end;
+  gap: 8px 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.rss-dashboard-tag-modal-color-field > label {
+  align-self: center;
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+}
+
+.rss-dashboard-tag-modal-color-field .rss-dashboard-tag-color-palette-control {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.rss-dashboard-tag-modal-color-field .rss-dashboard-tag-modal-color-picker {
+  grid-column: 2;
+}
+
+.rss-dashboard-tag-modal-color-field
+  .rss-dashboard-tag-color-palette-control-value-readout {
+  grid-column: 3;
+}
+
+.rss-dashboard-edit-tag-modal .rss-dashboard-tag-color-palette-control {
+  display: grid;
+  align-items: stretch;
+  gap: 10px;
+  width: 100%;
+}
+
+.rss-dashboard-edit-tag-modal .rss-dashboard-tag-color-palette-control-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+  align-items: center;
+  gap: 12px;
+}
+
+.rss-dashboard-edit-tag-modal
+  .rss-dashboard-tag-color-palette-control-color-field {
+  flex: initial;
+}
+
+.rss-dashboard-edit-tag-modal .rss-dashboard-tag-color-palette-control select,
+.rss-dashboard-edit-tag-modal
+  .rss-dashboard-tag-color-palette-control-color-trigger {
+  width: 100%;
+}
+
+.rss-dashboard-settings .rss-dashboard-tag-color-palette-control {
+  flex-wrap: wrap;
+}
+
+/*
+ * One aligned row for every Background / Text color setting: the row name, the
+ * native picker right after it, then Palette and Color pinned to the right.
+ * The row itself is the grid, and the control and palette wrappers step aside,
+ * so every piece joins it and the rows line up with each other.
+ */
+.rss-dashboard-tag-color-setting.setting-item {
+  display: grid;
+  grid-template-columns:
+    7rem 32px 32px minmax(0, 1fr) minmax(7rem, 9.5rem)
+    minmax(9rem, 14rem);
+  align-items: center;
+  column-gap: 8px;
+}
+
+.rss-dashboard-tag-color-setting .setting-item-control,
+.rss-dashboard-tag-color-setting .rss-dashboard-tag-color-palette-control {
+  display: contents;
+}
+
+.rss-dashboard-tag-color-setting input[type="color"] {
+  grid-column: 2;
+}
+
+.rss-dashboard-tag-color-setting .rss-dashboard-tag-color-randomize {
+  grid-column: 3;
+}
+
+.rss-dashboard-tag-color-setting
+  .rss-dashboard-tag-color-palette-control-palette-field {
+  grid-column: 5;
+}
+
+.rss-dashboard-tag-color-setting
+  .rss-dashboard-tag-color-palette-control-color-field {
+  grid-column: 6;
+}
+
+/* The dice beside a color picker: a quiet icon button, scoped per the native
+ * icon-button pattern so host button styles do not leak in. */
+.rss-dashboard-tag-color-randomize {
+  --icon-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: transparent;
+  box-shadow: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  contain: layout style;
+}
+
+.rss-dashboard-tag-color-randomize:hover {
+  background: var(--background-modifier-hover);
+  color: var(--text-normal);
+}
+
+.rss-dashboard-tag-color-randomize > svg {
+  display: block;
+  width: var(--icon-size);
+  height: var(--icon-size);
+}
+
+.rss-dashboard-tag-color-setting
+  .rss-dashboard-tag-color-palette-control-color-field {
+  flex: initial;
+}
+
+.rss-dashboard-tag-color-setting
+  .rss-dashboard-tag-color-palette-control
+  select,
+.rss-dashboard-tag-color-setting
+  .rss-dashboard-tag-color-palette-control-color-trigger {
+  width: 100%;
+}
+
+/* Hover and keyboard focus show the same soft accent ring on every native
+ * color picker the plugin draws. */
+.rss-dashboard-tag-color-setting input[type="color"]:hover,
+.rss-dashboard-tag-color-setting input[type="color"]:focus-visible,
+body .rss-dashboard-tag-modal-color-picker:hover,
+body .rss-dashboard-tag-modal-color-picker:focus-visible,
+body .rss-dashboard-tag-color-picker:hover,
+body .rss-dashboard-tag-color-picker:focus-visible,
+.import-new-tags-native-color-picker:hover,
+.import-new-tags-native-color-picker:focus-within {
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--interactive-accent) 35%, transparent);
+}
+
+.import-new-tags-native-color-picker {
+  border-radius: 50%;
+}
+
+@media (max-width: 520px) {
+  .rss-dashboard-tag-color-palette-control {
+    flex-wrap: wrap;
+  }
+
+  .rss-dashboard-tag-color-palette-control-field {
+    flex: 1 1 130px;
+  }
+
+  .rss-dashboard-tag-modal-color-field {
+    grid-template-columns: auto minmax(38px, auto);
+  }
+
+  .rss-dashboard-tag-modal-color-field
+    .rss-dashboard-tag-color-palette-control-value-readout {
+    grid-column: 1 / -1;
+  }
+
+  .rss-dashboard-tag-color-setting.setting-item {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .rss-dashboard-tag-color-setting .setting-item-control {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .rss-dashboard-tag-color-setting .rss-dashboard-tag-color-palette-control {
+    display: flex;
+  }
+}

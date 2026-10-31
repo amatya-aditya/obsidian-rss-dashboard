@@ -4,6 +4,7 @@
 import type { FullArticleFetchResult } from "../utils/fetch-helpers";
 import { resolvePageCoverImage } from "../utils/article-metadata";
 import { isHttpUrl } from "../utils/http-url";
+import { fetchPageMetadataWithOutcome } from "../utils/full-article-fetch";
 
 export type PageCoverImageStatus =
   | "found"
@@ -24,6 +25,33 @@ export interface PageCoverImageResult {
 export interface PageCoverImageServiceDeps {
   /** The plugin's page-fetch path, so proxy fallback and the fetch timeout apply. */
   fetchPage(url: string): Promise<FullArticleFetchResult>;
+}
+
+/** The slice of the plugin settings the cover page read depends on. */
+export interface PageCoverFetchSettings {
+  corsProxyEnabled?: boolean;
+  corsProxyUrl?: string;
+  articleSaving: { fetchTimeout?: number };
+}
+
+/**
+ * The page read the cover service uses: the page's head only, through the
+ * plugin's proxy and timeout settings (#1702). The full article read parses the
+ * whole page and costs the main thread about two seconds on a large one.
+ */
+export function createPageCoverFetch(
+  getSettings: () => PageCoverFetchSettings,
+): PageCoverImageServiceDeps["fetchPage"] {
+  return (url) => {
+    const settings = getSettings();
+    return fetchPageMetadataWithOutcome(
+      url,
+      settings.corsProxyEnabled && settings.corsProxyUrl
+        ? settings.corsProxyUrl
+        : undefined,
+      settings.articleSaving.fetchTimeout,
+    );
+  };
 }
 
 export class PageCoverImageService {

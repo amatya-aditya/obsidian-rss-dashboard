@@ -247,10 +247,11 @@ export default defineConfig([
     },
   },
   {
-    // Architecture guardrails (#253, #436). Existing violations are recorded
-    // in scripts/eslint-suppressions.json, kept out of the repo root so the
-    // community directory scanner never loads it; new ones fail the build.
-    // Prune it with `npm run lint:prune` after a refactor removes one.
+    // Architecture guardrails (#253, #436, #1094). The suppression ledger,
+    // scripts/eslint-suppressions.json, is empty: every violation is cleared,
+    // so a new one fails the build. The file stays out of the repo root so the
+    // community directory scanner never loads it, and it must exist because
+    // lint passes it with --suppressions-location.
     files: ["main.ts", "src/**/*.ts"],
     rules: {
       "max-lines-per-function": [

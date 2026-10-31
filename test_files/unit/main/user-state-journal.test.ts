@@ -23,6 +23,7 @@ import {
   UserStateJournal,
   articleStateFromUpdates,
   foldUserStateJournalRecords,
+  parseUserStateJournal,
 } from "../../../src/services/user-state-journal";
 import {
   DEFAULT_SETTINGS,
@@ -62,7 +63,7 @@ interface RepositorySeam extends FeedStorageRepository {
       changes: {
         read?: boolean;
         starred?: boolean;
-        tags?: { name: string; color: string }[];
+        tags?: { name: string; color?: string; textColor?: string }[];
         saved?: boolean;
         savedFilePath?: string;
         playbackProgress?: {
@@ -331,6 +332,23 @@ describe("device-local user-state journal (#1386)", () => {
     expect(starredOf(reloaded)).toBe(true);
   });
 
+  it("validates and replays inheriting tags and explicit orphan appearance", async () => {
+    const tags = [
+      { name: "Inherited" },
+      { name: "Orphan", color: "#123456", textColor: "#654321" },
+    ];
+    const validRecord = journalRecord(1, GUID, { tags });
+    const records = parseUserStateJournal(validRecord);
+    expect(records[0]?.changes.tags).toEqual(tags);
+
+    await seedJournal(app, [validRecord]);
+    const { plugin } = await startPlugin();
+
+    expect(
+      plugin.settings.feeds[0].items.find((entry) => entry.guid === GUID)?.tags,
+    ).toEqual(tags);
+  });
+
   it("ignores a truncated final record and keeps the earlier valid ones", async () => {
     await seedJournal(app, [
       journalRecord(1, GUID, { read: true }),
@@ -574,10 +592,15 @@ describe("device-local user-state journal (#1386)", () => {
 
   it("omits journal records from every export bundle and still round-trips article state", async () => {
     const { plugin } = await startPlugin();
+    const tags = [
+      { name: "Inherited" },
+      { name: "Orphan", color: "#123456", textColor: "#654321" },
+    ];
     await repository(plugin).recordArticleStateChanges([
-      { feedId: "feed-1", guid: GUID, changes: { read: true } },
+      { feedId: "feed-1", guid: GUID, changes: { read: true, tags } },
     ]);
     plugin.settings.feeds[0].items[0].read = true;
+    plugin.settings.feeds[0].items[0].tags = tags;
     void plugin.queueArticleStateSave();
     await plugin.flushPendingWrites();
 
@@ -603,6 +626,7 @@ describe("device-local user-state journal (#1386)", () => {
       JSON.parse(portableJson) as PortableDataBundle,
     );
     expect(roundTripped.shards[0].items[0]?.read).toBe(true);
+    expect(roundTripped.shards[0].items[0]?.tags).toEqual(tags);
   });
 
   it("folds the journal into the snapshot during a storage migration", async () => {

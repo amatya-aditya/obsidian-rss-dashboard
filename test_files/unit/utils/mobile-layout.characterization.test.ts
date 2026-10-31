@@ -48,9 +48,10 @@ describe("mobile-layout call sites before centralization", () => {
       const { win, matchMedia } = viewport(matches);
       vi.stubGlobal("activeWindow", win);
       const popup = new FolderSelectorPopup(
-        { settings: DEFAULT_SETTINGS } as ConstructorParameters<
-          typeof FolderSelectorPopup
-        >[0],
+        {
+          settings: DEFAULT_SETTINGS,
+          register: () => {},
+        } as unknown as ConstructorParameters<typeof FolderSelectorPopup>[0],
         {
           anchorEl: document.body.createDiv(),
           onSelect: vi.fn(),

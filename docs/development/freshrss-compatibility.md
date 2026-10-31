@@ -8,7 +8,7 @@ This page records what the FreshRSS V1 client was tested against, what the tests
 [#1693](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1693).
 
 FreshRSS is part of the plugin itself, not a separate connector. See
-[ADR 0038](../adr/0038-keep-freshrss-in-core.md). To connect over HTTPS, see
+[ADR 0042](../adr/0042-keep-freshrss-in-core.md). To connect over HTTPS, see
 [Connect FreshRSS over HTTPS](../user/freshrss-https-setup.md).
 
 ## Tested combination

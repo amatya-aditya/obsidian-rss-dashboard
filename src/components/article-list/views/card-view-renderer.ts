@@ -1,0 +1,481 @@
+import { setTooltip } from "obsidian";
+import type { FeedItem } from "../../../types/types";
+import { formatArticleDate } from "../../../utils/platform-utils";
+import {
+  getPubDateMs,
+  resolveDisplayDate,
+} from "../../../services/feed-parser/feed-retention";
+import {
+  getArticlePreviewSummaryText,
+  shouldHighlightCardPreviewSummary,
+  resolveArticlePreviewImage,
+} from "../../../utils/article-preview-utils";
+import { renderSingleRowCardTagChips } from "../utils/tag-layout-utils";
+import { resolveCoverImageOffer } from "../utils/cover-image-action";
+import {
+  attachArticleOpenHandler,
+  renderCoverImageControl,
+} from "../utils/cover-image-control";
+import type { BaseViewContext, ViewDeps } from "./view-types";
+import {
+  renderPreviewPlaceholder,
+  shouldShowPreviewPlaceholder,
+} from "./preview-placeholder";
+
+export interface CardViewContext extends BaseViewContext {
+  showCardToolbar: boolean;
+}
+
+function keepTextStopEnterLocal(element: HTMLElement): void {
+  element.addEventListener("keydown", (event: KeyboardEvent) => {
+    if (event.key === "Enter") {
+      event.stopPropagation();
+    }
+  });
+}
+
+const PREVIEWING_CLASS = "is-previewing";
+const NO_HOVER_QUERY = "(hover: none)";
+
+/**
+ * On a device with no hover, tapping the cover toggles the Preview instead of
+ * opening the article (#1530). Hover cannot reveal it there: a touch leaves
+ * `:hover` stuck on whatever sat under the finger, so a cover that arrives from
+ * a fetch rebuild would already be covered. Hover-capable devices keep the
+ * hover and focus reveal, and a click on the cover opens the article.
+ */
+function attachCoverPreviewToggle(
+  coverContainer: HTMLElement,
+  summaryOverlay: HTMLElement,
+): void {
+  coverContainer.addEventListener("click", (event: MouseEvent) => {
+    const view = coverContainer.ownerDocument.defaultView;
+    if (!view?.matchMedia?.(NO_HOVER_QUERY).matches) return;
+    event.stopPropagation();
+    const showing = coverContainer.classList.toggle(PREVIEWING_CLASS);
+    if (!showing && summaryOverlay.matches(":focus-within")) {
+      summaryOverlay.blur();
+    }
+  });
+}
+
+function renderCardPlaceholder(
+  previewRegion: HTMLElement,
+  openButton: HTMLElement,
+  descriptionId: string,
+): void {
+  const placeholder = renderPreviewPlaceholder(
+    previewRegion,
+    "rss-dashboard-cover-summary-only rss-dashboard-card-preview-placeholder",
+    descriptionId,
+  );
+  placeholder.tabIndex = 0;
+  keepTextStopEnterLocal(placeholder);
+  openButton.setAttribute("aria-describedby", descriptionId);
+}
+
+function createCard(
+  container: HTMLElement,
+  article: FeedItem,
+  ctx: CardViewContext,
+  hasTags: boolean,
+): HTMLElement {
+  return container.createDiv({
+    cls:
+      "rss-dashboard-article-card" +
+      (hasTags ? " rss-dashboard-article-card--has-tags" : "") +
+      (ctx.selectedArticle &&
+      article.guid === ctx.selectedArticle.guid &&
+      article.feedUrl === ctx.selectedArticle.feedUrl
+        ? " active"
+        : "") +
+      (article.read ? " read" : " unread") +
+      (article.starred ? " starred" : " unstarred") +
+      (article.saved ? " saved" : "") +
+      (article.mediaType === "video" ? " rss-dashboard-youtube-article" : "") +
+      (article.mediaType === "podcast" ? " rss-dashboard-podcast-article" : ""),
+    attr: {
+      id: `article-${article.guid}`,
+      "data-article-guid": article.guid,
+      "data-feed-url": article.feedUrl,
+    },
+  });
+}
+
+function createOpenButton(card: HTMLElement, article: FeedItem): HTMLElement {
+  const openButton = card.createEl("button", {
+    cls: "rss-dashboard-card-open-button",
+    attr: {
+      type: "button",
+      "aria-label": `Open article: ${article.title}. Feed: ${article.feedTitle}`,
+    },
+  });
+  openButton.addEventListener("keydown", (event: KeyboardEvent) => {
+    if (event.key === "Enter" || event.key === " ") {
+      // Keep dashboard-wide shortcuts from taking over native button activation.
+      event.stopPropagation();
+    }
+  });
+  return openButton;
+}
+
+function renderCardHeader(
+  cardContent: HTMLElement,
+  article: FeedItem,
+  ctx: CardViewContext,
+  deps: ViewDeps,
+): void {
+  const cardHeader = cardContent.createDiv({
+    cls: "rss-dashboard-card-header",
+  });
+  const cardTitleEl = cardHeader.createDiv({
+    cls: "rss-dashboard-article-title",
+    attr: {
+      role: "heading",
+      "aria-level": "3",
+      tabindex: "0",
+    },
+  });
+  keepTextStopEnterLocal(cardTitleEl);
+
+  if (ctx.highlightService && ctx.settings.highlights.highlightInTitles) {
+    ctx.highlightService.setHighlightedText(cardTitleEl, article.title);
+  } else {
+    cardTitleEl.textContent = article.title;
+  }
+  cardTitleEl.dataset.articleTitle = article.title;
+  deps.scheduleMathRendering?.(cardTitleEl);
+
+  if (ctx.showFeedSource) {
+    const articleMeta = cardHeader.createDiv({
+      cls: "rss-dashboard-article-meta",
+    });
+    const feedContainer = articleMeta.createDiv({
+      cls: "rss-dashboard-article-feed-container",
+    });
+    deps.renderFeedIcon(feedContainer, article.feedUrl, article.mediaType);
+    const feedName = feedContainer.createDiv({
+      cls: "rss-dashboard-article-feed",
+      text: article.feedTitle,
+      attr: {
+        "aria-label": `Feed: ${article.feedTitle}`,
+        tabindex: "0",
+      },
+    });
+    keepTextStopEnterLocal(feedName);
+  }
+}
+
+function renderSummaryText(
+  summaryContainer: HTMLElement,
+  previewSummaryText: string,
+  ctx: CardViewContext,
+): void {
+  if (
+    ctx.highlightService &&
+    ctx.settings.highlights.highlightInSummaries &&
+    shouldHighlightCardPreviewSummary(previewSummaryText)
+  ) {
+    ctx.highlightService.setHighlightedText(
+      summaryContainer,
+      previewSummaryText,
+    );
+  } else {
+    summaryContainer.textContent = previewSummaryText;
+  }
+}
+
+function renderFailedImageFallback(
+  previewRegion: HTMLElement,
+  openButton: HTMLElement,
+  card: HTMLElement,
+  ctx: CardViewContext,
+  deps: ViewDeps,
+  previewSummaryText: string,
+  cardDescriptionId: string,
+): void {
+  previewRegion.empty();
+
+  if (previewSummaryText) {
+    const summaryOnlyContainer = previewRegion.createDiv({
+      cls: "rss-dashboard-cover-summary-only",
+      attr: {
+        id: cardDescriptionId,
+        role: "note",
+        tabindex: "0",
+      },
+    });
+    keepTextStopEnterLocal(summaryOnlyContainer);
+    renderSummaryText(summaryOnlyContainer, previewSummaryText, ctx);
+  } else if (
+    shouldShowPreviewPlaceholder(
+      ctx.settings.display.showSummary,
+      previewSummaryText,
+      false,
+    )
+  ) {
+    renderCardPlaceholder(previewRegion, openButton, cardDescriptionId);
+  } else {
+    previewRegion.remove();
+  }
+
+  deps.scheduleCardTagLayout?.(card);
+}
+
+function renderCardImagePreview(
+  cardContent: HTMLElement,
+  card: HTMLElement,
+  article: FeedItem,
+  openButton: HTMLElement,
+  ctx: CardViewContext,
+  deps: ViewDeps,
+  coverImgSrc: string | undefined,
+  displayedCoverImgSrc: string,
+  previewSummaryText: string,
+  cardDescriptionId: string,
+): void {
+  const previewRegion = cardContent.createDiv({
+    cls: "rss-dashboard-card-preview-region",
+  });
+  const coverContainer = previewRegion.createDiv({
+    cls:
+      "rss-dashboard-cover-container" +
+      (previewSummaryText ? " has-summary" : ""),
+  });
+  const coverImg = coverContainer.createEl("img", {
+    cls: "rss-dashboard-cover-image",
+    attr: {
+      src: displayedCoverImgSrc,
+      alt: article.title,
+      loading: "lazy",
+      decoding: "async",
+    },
+  });
+  coverImg.onerror = () => {
+    if (
+      displayedCoverImgSrc !== coverImgSrc &&
+      coverImgSrc &&
+      coverImg.dataset.rssCacheRemoteFallback !== "true"
+    ) {
+      coverImg.dataset.rssCacheRemoteFallback = "true";
+      coverImg.setAttribute("src", coverImgSrc);
+      return;
+    }
+
+    renderFailedImageFallback(
+      previewRegion,
+      openButton,
+      card,
+      ctx,
+      deps,
+      previewSummaryText,
+      cardDescriptionId,
+    );
+  };
+
+  if (previewSummaryText) {
+    const summaryOverlay = coverContainer.createDiv({
+      cls: "rss-dashboard-summary-overlay",
+      attr: {
+        id: cardDescriptionId,
+        role: "note",
+        tabindex: "0",
+      },
+    });
+    keepTextStopEnterLocal(summaryOverlay);
+    renderSummaryText(summaryOverlay, previewSummaryText, ctx);
+    attachCoverPreviewToggle(coverContainer, summaryOverlay);
+  }
+}
+
+function renderCardPreview(
+  cardContent: HTMLElement,
+  card: HTMLElement,
+  article: FeedItem,
+  openButton: HTMLElement,
+  ctx: CardViewContext,
+  deps: ViewDeps,
+): void {
+  const coverImgSrc = ctx.settings.display.showCoverImage
+    ? resolveArticlePreviewImage(article, ["coverImage", "image"])
+    : undefined;
+  const displayedCoverImgSrc =
+    coverImgSrc && ctx.settings.display.allowImageCaching
+      ? (ctx.resolveCachedImageUrl?.(coverImgSrc) ?? coverImgSrc)
+      : coverImgSrc;
+  const previewSummaryText = ctx.settings.display.showSummary
+    ? getArticlePreviewSummaryText(article)
+    : "";
+  const cardDescriptionId = `${card.id}-description`;
+  if (previewSummaryText) {
+    openButton.setAttribute("aria-describedby", cardDescriptionId);
+  }
+
+  if (displayedCoverImgSrc) {
+    renderCardImagePreview(
+      cardContent,
+      card,
+      article,
+      openButton,
+      ctx,
+      deps,
+      coverImgSrc,
+      displayedCoverImgSrc,
+      previewSummaryText,
+      cardDescriptionId,
+    );
+  } else if (previewSummaryText) {
+    const previewRegion = cardContent.createDiv({
+      cls: "rss-dashboard-card-preview-region",
+    });
+    const summaryOnlyContainer = previewRegion.createDiv({
+      cls: "rss-dashboard-cover-summary-only",
+      attr: {
+        id: cardDescriptionId,
+        role: "note",
+        tabindex: "0",
+      },
+    });
+    keepTextStopEnterLocal(summaryOnlyContainer);
+    renderSummaryText(summaryOnlyContainer, previewSummaryText, ctx);
+  } else if (
+    shouldShowPreviewPlaceholder(
+      ctx.settings.display.showSummary,
+      previewSummaryText,
+      false,
+    )
+  ) {
+    const previewRegion = cardContent.createDiv({
+      cls: "rss-dashboard-card-preview-region",
+    });
+    renderCardPlaceholder(previewRegion, openButton, cardDescriptionId);
+  }
+}
+
+function renderCardTags(
+  card: HTMLElement,
+  article: FeedItem,
+  hasTags: boolean,
+  ctx: CardViewContext,
+  deps: ViewDeps,
+): void {
+  const coverImageAction = resolveCoverImageOffer(article, {
+    hasFetcher: !!deps.fetchCoverImage,
+    hasRestorer: !!deps.restoreCoverImage,
+    showCoverImage: ctx.settings.display.showCoverImage,
+  });
+
+  // The tag row doubles as the card's action row (#1314). It is skipped
+  // outright when it would hold nothing, and an untagged card renders it for
+  // the cover control alone.
+  if (hasTags || coverImageAction) {
+    const tagsRegion = card.createDiv({
+      cls: "rss-dashboard-card-tags-region",
+    });
+    const tagsContainer = tagsRegion.createDiv({
+      cls: "rss-dashboard-tag-container",
+    });
+    renderSingleRowCardTagChips(
+      tagsContainer,
+      article.tags ?? [],
+      ctx.tagAppearanceSettings,
+    );
+
+    if (coverImageAction) {
+      renderCoverImageControl({
+        parent: tagsRegion,
+        articleEl: card,
+        article,
+        deps,
+        action: coverImageAction,
+        region: "article-card",
+      });
+    }
+  }
+}
+
+function renderCardFooter(
+  card: HTMLElement,
+  article: FeedItem,
+  ctx: CardViewContext,
+  deps: ViewDeps,
+): void {
+  if (!ctx.showCardToolbar) return;
+
+  // A div, not a <footer>: a footer outside an article or main is exposed
+  // as a `contentinfo` landmark, one per card (WCAG 2.2 1.3.1).
+  const cardFooter = card.createDiv({
+    cls: "rss-dashboard-card-footer",
+  });
+  const actionToolbar = cardFooter.createDiv({
+    cls: "rss-dashboard-action-toolbar rss-dashboard-card-toolbar",
+  });
+  deps.createArticleActionButtons(actionToolbar, article, "full");
+
+  const dateEl = cardFooter.createDiv({
+    cls: "rss-dashboard-article-date",
+  });
+  const displayDate = resolveDisplayDate(
+    article,
+    ctx.settings.useFirstSeenDateFallback,
+  );
+  const dateInfo = formatArticleDate(
+    displayDate,
+    ctx.settings.display.articleDateStyle ?? "relative",
+    {
+      isFirstSeenFallback: getPubDateMs(article.pubDate) <= 0 && !!displayDate,
+    },
+  );
+  dateEl.textContent = dateInfo.text;
+  setTooltip(dateEl, dateInfo.title);
+}
+
+function attachCardInteractions(
+  card: HTMLElement,
+  article: FeedItem,
+  ctx: CardViewContext,
+  deps: ViewDeps,
+): void {
+  attachArticleOpenHandler(card, () => {
+    ctx.callbacks.onArticleClick(article);
+  });
+
+  card.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    deps.showArticleContextMenu(e, article);
+  });
+
+  deps.scheduleCardTagLayout?.(card);
+}
+
+function renderCard(
+  container: HTMLElement,
+  article: FeedItem,
+  ctx: CardViewContext,
+  deps: ViewDeps,
+): void {
+  const hasTags = !!article.tags?.length;
+  const card = createCard(container, article, ctx, hasTags);
+  const openButton = createOpenButton(card, article);
+  const cardContent = card.createDiv({
+    cls: "rss-dashboard-card-content",
+  });
+
+  renderCardHeader(cardContent, article, ctx, deps);
+  renderCardPreview(cardContent, card, article, openButton, ctx, deps);
+  renderCardTags(card, article, hasTags, ctx, deps);
+  renderCardFooter(card, article, ctx, deps);
+  attachCardInteractions(card, article, ctx, deps);
+}
+
+export function renderCardView(
+  container: HTMLElement,
+  articles: FeedItem[],
+  ctx: CardViewContext,
+
+  deps: ViewDeps,
+): void {
+  for (const article of articles) {
+    renderCard(container, article, ctx, deps);
+  }
+}

@@ -11,7 +11,8 @@ import {
   robustFetchDetailed,
   ensureUtf8Meta,
 } from "./platform-utils";
-import { resolveProxyPrefixes } from "./proxy-utils";
+import { AUTO_PROXY_URL, resolveProxyPrefixes } from "./proxy-utils";
+import { proxyHealth, type ProxyOutcome } from "./proxy-health";
 import { stripAdContainers } from "./ad-containers";
 import { promotePictureImageSources } from "./image-url-utils";
 import { extractGitHubIssueContent } from "./github-issue-page";
@@ -358,14 +359,51 @@ export async function fetchAndParse(
   return article?.content ?? "";
 }
 
-function parseArticleContent(
-  html: string,
-  pageUrl: string,
-): {
+interface ParsedPage {
   content: string;
   pageMetadata: RawArticleMetadata;
   pageImage?: string;
-} {
+}
+
+/** How a served page is read: the whole article, or only what its head declares. */
+type PageParser = (html: string, pageUrl: string) => ParsedPage;
+
+export interface PageFetchOptions {
+  /**
+   * Read only the metadata the page's head declares, and return no content.
+   * The cover-image fetch needs nothing else, and the full article parse costs
+   * about two seconds of main-thread time on a large page (#1702).
+   */
+  metadataOnly?: boolean;
+}
+
+/**
+ * The longest start of a page a metadata-only read will parse. Heads run long
+ * with inline CSS and state, so this is generous; a declaration past it is not
+ * seen. A literal `</head>` inside a head script would end the read early.
+ */
+const METADATA_HEAD_LIMIT = 256 * 1024;
+
+/**
+ * Reads a page's declared metadata from its head alone. The head ends at
+ * `</head>`; a page that never closes it, or an unusually long one, is read up
+ * to {@link METADATA_HEAD_LIMIT}. No Readability, no ad stripping, no URL
+ * rewriting: those only serve the article body.
+ */
+function parsePageMetadataOnly(html: string, pageUrl: string): ParsedPage {
+  const start = html.slice(0, METADATA_HEAD_LIMIT);
+  const close = /<\/head\s*>/i.exec(start);
+  const head = close ? start.slice(0, close.index + close[0].length) : start;
+  const doc = new DOMParser().parseFromString(
+    ensureUtf8Meta(head),
+    "text/html",
+  );
+  const pageMetadata = extractPageMetadata(doc);
+  const pageImage = extractPageImage(doc, pageUrl);
+  return { content: "", pageMetadata, ...(pageImage ? { pageImage } : {}) };
+}
+
+function parseArticleContent(html: string, pageUrl: string): ParsedPage {
   const doc = parsePageDocument(html, pageUrl);
   // Readability.parse() mutates the document (it drops scripts, so JSON-LD
   // would be gone), so the page's metadata is read first.
@@ -483,6 +521,20 @@ interface FetchAttempts {
   pageImage: string | undefined;
   lastFailure: FullArticleFetchResult | undefined;
   lastError: Error | undefined;
+  /** How the latest proxied attempt reflects on the proxy itself (#955). */
+  proxyOutcome: ProxyOutcome;
+  /** How a page a proxy serves is read. */
+  parse: PageParser;
+}
+
+/**
+ * Whether a thrown proxy error is the proxy's own fault. Only a network-level
+ * failure or a 5xx counts; a refusal about the page (403, a challenge) and
+ * other 4xx answers (404) are the site's, so they never penalise the proxy.
+ */
+function proxyOutcomeOfError(failure: FetchErrorDetails): ProxyOutcome {
+  if (failure.classification !== "network") return "neutral";
+  return failure.status === 0 || failure.status >= 500 ? "failure" : "neutral";
 }
 
 /**
@@ -494,6 +546,7 @@ interface FetchAttempts {
 async function attemptDirectFetch(
   url: string,
   deadline: number,
+  attempts: FetchAttempts,
 ): Promise<
   | { kind: "page"; result: FullArticleFetchResult }
   | {
@@ -515,7 +568,7 @@ async function attemptDirectFetch(
       );
       return {
         kind: "page",
-        result: { ...parseArticleContent(html, url), failureType: "none" },
+        result: { ...attempts.parse(html, url), failureType: "none" },
       };
     }
     console.warn(
@@ -571,12 +624,15 @@ async function attemptProxyFetch(
       debugLog(
         `[RSS Dashboard] Proxy fetch succeeded for ${url} (${html.length} chars).`,
       );
-      return { ...parseArticleContent(html, url), failureType: "none" };
+      attempts.proxyOutcome = "success";
+      return { ...attempts.parse(html, url), failureType: "none" };
     }
 
     console.warn(
       `[RSS Dashboard] Proxy fetch also returned blocked/empty response for ${url}.`,
     );
+    // The proxy answered; what it relayed is the page's own refusal.
+    attempts.proxyOutcome = "neutral";
     // The direct answer is about the page itself; a proxy's refusal can be the
     // proxy's own, so it only fills in a verdict we lack (#1347).
     attempts.refusal ??= refusalOf(
@@ -595,12 +651,97 @@ async function attemptProxyFetch(
   } catch (proxyError: unknown) {
     if (proxyError instanceof FetchTimeoutError) throw proxyError;
     const failure = describeFetchError(proxyError);
+    attempts.proxyOutcome = proxyOutcomeOfError(failure);
     attempts.refusal ??= refusalOf(failure.classification);
     attempts.lastError =
       proxyError instanceof Error ? proxyError : new Error(failure.message);
     attempts.lastFailure = undefined;
     return undefined;
   }
+}
+
+/**
+ * One proxied attempt that also feeds the proxy health tracker (#955). A
+ * deadline that ends the attempt counts against the proxy only when the
+ * attempt itself used at least half the configured timeout; otherwise the
+ * direct request had already spent the budget and the proxy is not to blame.
+ */
+async function attemptTrackedProxy(
+  prefix: string,
+  url: string,
+  deadline: number,
+  timeoutMs: number,
+  attempts: FetchAttempts,
+): Promise<FullArticleFetchResult | undefined> {
+  const proxyTarget = prefix.replace(/\/$/, "") + encodeURIComponent(url);
+  const startedAt = Date.now();
+  attempts.proxyOutcome = "neutral";
+  try {
+    return await attemptProxyFetch(url, proxyTarget, deadline, attempts);
+  } catch (error: unknown) {
+    attempts.proxyOutcome =
+      Date.now() - startedAt >= timeoutMs / 2 ? "failure" : "neutral";
+    throw error;
+  } finally {
+    const cooldownMs = proxyHealth.record(
+      prefix,
+      attempts.proxyOutcome,
+      Date.now() - startedAt,
+    );
+    if (cooldownMs !== undefined) {
+      debugLog(
+        `[RSS Dashboard] Skipping proxy ${prefix} for ${Math.round(cooldownMs / 60000)} min after repeated failures.`,
+      );
+    }
+  }
+}
+
+/**
+ * Tries the proxies in turn; the first that returns the page wins. `auto`
+ * expands to the built-in list, ordered by how each proxy has been doing and
+ * skipping any in cooldown. A single configured proxy is used as given and is
+ * never benched.
+ */
+async function runProxyFallback(
+  url: string,
+  proxyUrl: string,
+  deadline: number,
+  timeoutMs: number,
+  attempts: FetchAttempts,
+): Promise<FullArticleFetchResult | undefined> {
+  const prefixes = resolveProxyPrefixes(proxyUrl, { rawBodyOnly: true });
+  if (proxyUrl !== AUTO_PROXY_URL) {
+    for (const prefix of prefixes) {
+      const proxyTarget = prefix.replace(/\/$/, "") + encodeURIComponent(url);
+      const page = await attemptProxyFetch(
+        url,
+        proxyTarget,
+        deadline,
+        attempts,
+      );
+      if (page) return page;
+    }
+    return undefined;
+  }
+
+  const candidates = proxyHealth.order(prefixes);
+  let attempted = false;
+  for (const [index, prefix] of candidates.entries()) {
+    // Never end without trying one: a trial held by another fetch is skipped
+    // only while some other proxy remains to try.
+    const force = !attempted && index === candidates.length - 1;
+    if (!proxyHealth.beginAttempt(prefix, { force })) continue;
+    attempted = true;
+    const page = await attemptTrackedProxy(
+      prefix,
+      url,
+      deadline,
+      timeoutMs,
+      attempts,
+    );
+    if (page) return page;
+  }
+  return undefined;
 }
 
 /**
@@ -612,18 +753,25 @@ export async function fetchWithProxyFallbackDetailed(
   url: string,
   proxyUrl?: string,
   fetchTimeoutSeconds?: number,
+  options: PageFetchOptions = {},
 ): Promise<FullArticleFetchResult> {
-  const deadline = Date.now() + resolveFetchTimeoutMs(fetchTimeoutSeconds);
+  const timeoutMs = resolveFetchTimeoutMs(fetchTimeoutSeconds);
+  const deadline = Date.now() + timeoutMs;
+  const parse = options.metadataOnly
+    ? parsePageMetadataOnly
+    : parseArticleContent;
   const attempts: FetchAttempts = {
     refusal: undefined,
     metadata: undefined,
     pageImage: undefined,
     lastFailure: undefined,
     lastError: undefined,
+    proxyOutcome: "neutral",
+    parse,
   };
   try {
     // 1. Direct fetch
-    const direct = await attemptDirectFetch(url, deadline);
+    const direct = await attemptDirectFetch(url, deadline, attempts);
     if (direct.kind === "page") return direct.result;
     attempts.refusal = direct.refusal;
     attempts.metadata = direct.metadata;
@@ -641,19 +789,14 @@ export async function fetchWithProxyFallbackDetailed(
       );
     }
 
-    // "auto" expands to several proxies; the first that returns the page wins.
-    for (const prefix of resolveProxyPrefixes(proxyUrl.trim(), {
-      rawBodyOnly: true,
-    })) {
-      const proxyTarget = prefix.replace(/\/$/, "") + encodeURIComponent(url);
-      const page = await attemptProxyFetch(
-        url,
-        proxyTarget,
-        deadline,
-        attempts,
-      );
-      if (page) return page;
-    }
+    const page = await runProxyFallback(
+      url,
+      proxyUrl.trim(),
+      deadline,
+      timeoutMs,
+      attempts,
+    );
+    if (page) return page;
 
     if (attempts.lastError !== undefined) {
       throw attempts.lastError;

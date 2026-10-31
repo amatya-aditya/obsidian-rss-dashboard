@@ -10,7 +10,8 @@ accepted
 
 ## Date
 
-2026-10-05
+2026-10-05 (filename cap updated 2026-10-24 in
+[Issue #1545](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1545))
 
 ## Context and problem
 
@@ -43,11 +44,21 @@ The settings field is labeled “Filename pattern” and shows this helper text:
 > Leave blank to use the article title. The .md extension is added automatically.
 
 An unset or unusable pattern falls back to the article title, then to
-`Untitled Article`. The existing filename sanitization policy applies, with a
-100-character maximum stem. A numeric collision suffix counts toward that
-limit. When a different note already occupies the generated path, use the
+`Untitled Article`. Filename sanitization removes filesystem-invalid and
+clipper-disallowed characters, strips trailing dots and spaces, and caps the
+stem at 245 Unicode code points and 252 UTF-8 bytes. Including the `.md`
+extension, a saved filename stays within 255 UTF-8 bytes. Truncation preserves
+complete Unicode code points. A numeric collision suffix counts toward both
+stem caps. When a different note already occupies the generated path, use the
 first available suffix (`name 2.md`, `name 3.md`, and so on); never silently
 replace that note.
+
+The 245-code-point cap matches Obsidian Web Clipper. It replaces the earlier
+100-code-point cap while retaining the byte and sanitization contract settled
+in [Issue #1544](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1544).
+Keep this cap fixed rather than deriving it from the vault path length; verify
+long-path behavior in Obsidian itself as specified by
+[Issue #1545](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1545).
 
 Apply this filename behavior to all article-saving paths, including Web
 Viewer. When the same saved article is identified, update its existing note at
@@ -76,8 +87,8 @@ as a product-wide conformance claim.
 
 - Collision suffixes can make the saved filename differ from the requested
   pattern.
-- The 100-character stem limit may truncate a long generated name or its
-  collision suffix.
+- The 245-code-point and 252-byte stem limits may truncate a long generated
+  name or its collision suffix.
 - Changing a template's folder or pattern does not reorganize notes already
   saved with that template.
 
@@ -116,6 +127,8 @@ stay at their recorded paths.
 ## Related
 
 - [ADR 0017 — Select Saved Article Templates by Feed, Then Global Default](0017-select-saved-article-templates-by-feed-then-global-default.md)
+- [GitHub Issue #1545 — Raise the saved-article filename cap from 100 to 245 characters](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1545)
+- [GitHub Issue #1544 — Saved-article filename byte and sanitization rules](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1544)
 - [GitHub Issue #763 — Customize filenames for saved articles](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/763)
 - [GitHub Issue #762 — Manage saved templates in Article Saving settings](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/762)
 - [GitHub Issue #757 — Article saving: coordinate save fixes and template customization](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/757)

@@ -301,6 +301,7 @@ const ARTICLE_LIST_CALLBACK_NAMES = [
   "onArticleSave",
   "onArticleUpdate",
   "onFetchCoverImage",
+  "onFetchCoverImageQuiet",
   "onFilterChange",
   "onFocusedRowRemoval",
   "onGroupChange",
@@ -900,7 +901,7 @@ describe("Dashboard renderFilterSubheader characterization", () => {
     return { text, color, enabled: true } as HighlightWord;
   }
 
-  it("shows only the refresh status row when no stats apply", () => {
+  it("shows the refresh status row without live-region semantics", () => {
     const { container } = strip(() => {});
 
     const rows = container.querySelectorAll(
@@ -913,8 +914,8 @@ describe("Dashboard renderFilterSubheader characterization", () => {
     expect(
       rows[0]
         .querySelector(".rss-dashboard-refresh-status-text")
-        ?.getAttribute("aria-live"),
-    ).toBe("polite");
+        ?.hasAttribute("aria-live"),
+    ).toBe(false);
   });
 
   it("adds no error button while nothing is failing", () => {
@@ -943,7 +944,7 @@ describe("Dashboard renderFilterSubheader characterization", () => {
     expect(button?.getAttribute("aria-label")).toBe(
       "Show details for 1 failing feed",
     );
-    // An interactive control inside `aria-live="polite"` re-announces badly.
+    // Keep the interactive error control outside the visible status text.
     expect(button?.closest('[aria-live="polite"]')).toBeNull();
   });
 

@@ -254,6 +254,12 @@ body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
   gap: 0.5rem;
   padding: 0.8rem;
 }
+
+/* Confirmation modals whose action row is centered, not end-aligned. */
+.rss-dashboard-modal .rss-max-items-apply-buttons,
+.rss-dashboard-modal .rss-retention-change-buttons {
+  justify-content: center;
+}
 .rss-dashboard-modal-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -403,6 +409,19 @@ body .rss-folder-name-modal-input.rss-folder-name-modal-input-error {
   width: auto;
   max-width: 100%;
   min-width: 0;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+/* The storage-upgrade prompt can show three long labels; wrap them inside
+ * their buttons instead of letting the text spill past the edges. */
+.rss-dashboard-storage-migration-modal .rss-dashboard-modal-buttons {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.rss-dashboard-storage-migration-modal .rss-dashboard-modal-buttons button {
+  min-width: 0;
+  max-width: 100%;
+  height: auto;
   white-space: normal;
   overflow-wrap: anywhere;
 }
@@ -817,6 +836,39 @@ body
   align-items: center;
   gap: 30px;
 }
+.rss-dashboard-add-tag-modal .rss-dashboard-tag-modal-form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  width: 100%;
+}
+.rss-dashboard-add-tag-modal
+  .rss-dashboard-tag-modal-form
+  > .rss-dashboard-tag-modal-color-field {
+  display: grid;
+  grid-template-columns: auto minmax(38px, auto) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 12px;
+  width: 100%;
+}
+.rss-dashboard-add-tag-modal .rss-dashboard-tag-modal-color-field > label {
+  color: var(--text-normal);
+  font-size: var(--font-ui-small);
+  white-space: nowrap;
+}
+.rss-dashboard-add-tag-modal
+  .rss-dashboard-tag-modal-color-field
+  > input[type="color"] {
+  grid-column: 2;
+}
+.rss-dashboard-add-tag-modal .rss-dashboard-tag-color-palette-control {
+  grid-column: 1 / -1;
+}
+.rss-dashboard-add-tag-modal .rss-dashboard-tag-modal-name-input {
+  width: 100%;
+  box-sizing: border-box;
+}
 body .rss-dashboard-tag-modal-color-picker {
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -852,6 +904,161 @@ body .rss-dashboard-tag-modal-color-picker::-moz-color-swatch {
   outline: none;
   border-color: var(--interactive-accent);
   box-shadow: 0 0 0 2px var(--interactive-accent-hover);
+}
+
+.rss-dashboard-edit-tag-modal .rss-dashboard-tag-modal-form {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+.rss-dashboard-edit-tag-modal .rss-dashboard-tag-modal-name-section,
+.rss-dashboard-edit-tag-modal .rss-dashboard-tag-modal-section {
+  padding: 14px 0;
+  border-top: 1px solid var(--background-modifier-border);
+}
+.rss-dashboard-edit-tag-modal .rss-dashboard-tag-modal-name-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+.rss-dashboard-edit-tag-modal .rss-dashboard-tag-modal-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.rss-dashboard-edit-tag-modal .rss-dashboard-tag-modal-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.rss-dashboard-edit-tag-modal .rss-dashboard-tag-modal-section-title {
+  color: var(--text-normal);
+  font-size: var(--font-ui-medium);
+  font-weight: var(--font-semibold);
+}
+.rss-dashboard-edit-tag-modal .rss-dashboard-tag-modal-section-body {
+  display: grid;
+  gap: 10px;
+}
+.rss-dashboard-edit-tag-modal .rss-dashboard-tag-modal-custom-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+  align-items: center;
+  gap: 12px;
+}
+.rss-dashboard-edit-tag-modal .rss-dashboard-tag-modal-custom-label {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+.rss-dashboard-edit-tag-modal .rss-dashboard-tag-modal-custom-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.rss-dashboard-edit-tag-modal
+  .rss-dashboard-tag-modal-custom-control
+  .rss-dashboard-tag-modal-color-picker {
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+}
+.rss-dashboard-tag-modal-default-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  cursor: pointer;
+}
+.rss-dashboard-tag-modal-default-label input {
+  margin: 0;
+}
+.rss-dashboard-tag-modal-preview {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: var(--rss-dashboard-tag-chip-radius, 999px);
+  background: var(--tag-color, var(--interactive-accent));
+  color: var(--tag-text-color, var(--text-on-accent));
+}
+.rss-dashboard-edit-tag-modal .rss-dashboard-tag-modal-name-input {
+  min-width: 0;
+  box-sizing: border-box;
+}
+.rss-dashboard-edit-tag-modal .rss-dashboard-tag-modal-preview-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-primary);
+}
+.rss-dashboard-edit-tag-modal .rss-dashboard-tag-modal-preview-label {
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+}
+.rss-dashboard-edit-tag-modal
+  .rss-dashboard-tag-modal-preview-card
+  .rss-dashboard-tag-modal-preview {
+  align-self: auto;
+  margin: 0;
+}
+.rss-dashboard-edit-tag-modal .rss-dashboard-modal-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--background-modifier-border);
+}
+.rss-dashboard-edit-tag-modal .rss-dashboard-modal-buttons button {
+  min-width: 0;
+  min-height: 36px;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0 16px;
+  border-radius: var(--button-radius, 6px);
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .modal-container .modal.rss-dashboard-edit-tag-modal {
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+    max-height: 90vh;
+    box-sizing: border-box;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  .rss-dashboard-edit-tag-modal .rss-dashboard-tag-modal-name-input {
+    font-size: 16px;
+  }
+  /* Obsidian's mobile buttons are pills; Cancel and Save share that shape. */
+  .rss-dashboard-edit-tag-modal .rss-dashboard-modal-buttons button {
+    border-radius: 999px;
+  }
+}
+
+@supports (height: 100dvh) {
+  @media (max-width: 768px) {
+    .modal-container .modal.rss-dashboard-edit-tag-modal {
+      max-height: 90dvh;
+    }
+  }
 }
 
 /* ==========================================================================

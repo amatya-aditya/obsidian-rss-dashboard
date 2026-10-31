@@ -221,6 +221,10 @@ export function createStarToggle(
   if (!starIcon.querySelector("svg")) {
     starIcon.textContent = arg.article.starred ? "*" : "o";
   }
+  const starPreviewIcon = starToggle.createSpan({
+    cls: "rss-dashboard-star-preview-icon",
+  });
+  setIcon(starPreviewIcon, "star");
 
   const toggleStar = (e: Event) => {
     e.stopPropagation();

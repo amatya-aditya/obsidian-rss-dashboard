@@ -127,6 +127,7 @@ describe("renderDisplaySettingsTab() characterization", () => {
     expect(names).toEqual([
       "Dashboard",
       "Show cover images",
+      "Show fetch all covers button",
       "Allow image caching",
       "Image cache limit",
       "No cache size limit",
@@ -134,6 +135,8 @@ describe("renderDisplaySettingsTab() characterization", () => {
       "Show summary",
       "Cards per row",
       "Card spacing",
+      "Article title size",
+      "Card press animation",
       "Show filter status bar",
       "Pagination position",
       'Automatically mark article "read" upon opening',

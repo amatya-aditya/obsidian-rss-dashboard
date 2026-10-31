@@ -68,6 +68,7 @@ async function fixture(options: FixtureOptions = {}) {
   settings.unreadArticlesPageSize = 0;
   settings.readArticlesPageSize = 0;
   settings.starredArticlesPageSize = 0;
+  settings.display.mobileListToolbarStyle = "left-grid";
   settings.keywordRules.rules = [];
   settings.folders = [];
 
@@ -364,44 +365,92 @@ describe("mark read and next", () => {
   });
 });
 
-describe("footer control activation", () => {
+describe("article action activation", () => {
   const click = (el: HTMLElement, detail: number) =>
     el.dispatchEvent(
       new MouseEvent("click", { bubbles: true, cancelable: true, detail }),
     );
 
-  it("selects the card without opening it and hands focus to the dashboard after a click", async () => {
-    const f = await fixture({ viewStyle: "card", folder: null });
-    const star = f.control("a2", ".rss-dashboard-star-toggle");
-    star.focus();
+  const actions = [
+    ".rss-dashboard-read-toggle",
+    ".rss-dashboard-save-toggle",
+    ".rss-dashboard-star-toggle",
+    ".rss-dashboard-tags-toggle",
+  ];
 
-    click(star, 1);
+  it.each(["list", "card", "feed"] as const)(
+    "preserves selection, focus, and scroll when an action is clicked in %s view",
+    async (viewStyle) => {
+      const f = await fixture({ viewStyle, folder: null });
+      f.select("a1");
+      const list = f.view.containerEl.querySelector<HTMLElement>(
+        ".rss-dashboard-articles-list",
+      );
+      if (!list) throw new Error("No article list");
+      list.scrollTop = 120;
+      const scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView");
+      scrollIntoView.mockClear();
 
-    expect(f.selectedGuid()).toBe("a2");
-    expect(f.opened).toEqual([]);
-    expect(document.activeElement).toBe(f.view.containerEl);
-  });
+      for (const selector of actions) {
+        const control = f.control("a2", selector);
+        control.focus();
+        click(control, 1);
 
-  it("keeps focus on the control and opens nothing for Enter", async () => {
-    const f = await fixture({ viewStyle: "card", folder: null });
-    const star = f.control("a2", ".rss-dashboard-star-toggle");
-    star.focus();
+        expect(f.selectedGuid()).toBe("a1");
+        if (selector === ".rss-dashboard-tags-toggle") {
+          // Opening the tag menu transfers focus into its own controls.
+          expect(document.activeElement).not.toBe(f.view.containerEl);
+        } else {
+          expect(document.activeElement).toBe(control);
+        }
+        expect(list.scrollTop).toBe(120);
+        expect(scrollIntoView).not.toHaveBeenCalled();
+      }
 
-    star.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        key: "Enter",
-        bubbles: true,
-        cancelable: true,
-      }),
-    );
+      expect(f.opened).toEqual([]);
+    },
+  );
 
-    expect(document.activeElement).toBe(star);
-    expect(f.opened).toEqual([]);
-  });
+  it.each(["list", "card", "feed"] as const)(
+    "preserves selection, focus, and scroll for Enter and Space in %s view",
+    async (viewStyle) => {
+      const f = await fixture({ viewStyle, folder: null });
+      f.select("a1");
+      const list = f.view.containerEl.querySelector<HTMLElement>(
+        ".rss-dashboard-articles-list",
+      );
+      if (!list) throw new Error("No article list");
+      list.scrollTop = 120;
+      const scrollIntoView = vi.spyOn(Element.prototype, "scrollIntoView");
+      scrollIntoView.mockClear();
+
+      for (const selector of actions) {
+        const control = f.control("a2", selector);
+        for (const key of ["Enter", " "]) {
+          control.focus();
+          control.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              key,
+              bubbles: true,
+              cancelable: true,
+            }),
+          );
+
+          expect(f.selectedGuid()).toBe("a1");
+          expect(document.activeElement).toBe(control);
+          expect(list.scrollTop).toBe(120);
+          expect(scrollIntoView).not.toHaveBeenCalled();
+        }
+      }
+
+      expect(f.opened).toEqual([]);
+    },
+  );
 
   it("still ends with a usable selection and focus when the click removes the card", async () => {
     const f = await fixture();
     const read = f.control("a2", ".rss-dashboard-read-toggle");
+    f.select("a2");
     read.focus();
 
     click(read, 1);

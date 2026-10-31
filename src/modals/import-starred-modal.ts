@@ -20,10 +20,12 @@ import {
 } from "../components/article-list/utils/tag-layout-utils";
 import { createTagsDropdownPortal } from "../utils/tags-dropdown-portal";
 import { DEFAULT_TAG_COLOR, randomTagColors } from "../utils/tag-colors";
+import { mergeTagUpdate } from "../utils/tag-settings";
 import { createIconButton } from "../utils/icon-button";
 import { showEditTagModal, updateTagInSettings } from "../utils/tag-utils";
 import { FolderSuggest } from "../components/folder-suggest";
 import { decorateFolderSelectorInput } from "./feed-manager/folder-selector-field";
+import { addTagColorPaletteControl } from "../components/tag-color-palette-control";
 
 /**
  * Default target folder for every feed created by a starred-article import.
@@ -640,7 +642,7 @@ export class ImportStarredModal extends AccessibleModal {
 
     const list = section.createDiv({ cls: "import-new-tags-list" });
     for (const tag of newTags) {
-      const chip = createTagChip(list, tag, "button");
+      const chip = createTagChip(list, tag, "button", this.plugin.settings);
       chip.addClass("import-new-tags-chip");
       chip.setAttr("type", "button");
       chip.setAttr("aria-label", `Edit "${tag.name}" tag`);
@@ -674,16 +676,22 @@ export class ImportStarredModal extends AccessibleModal {
     const setColor = actions.createDiv({
       cls: "import-new-tags-action clickable-icon import-new-tags-set-color",
     });
-    setIcon(setColor, "palette");
+    const nativePicker = setColor.createDiv({
+      cls: "import-new-tags-native-color-picker",
+    });
+    setIcon(nativePicker, "palette");
     const firstColor = newTags[0]?.color;
     const sharedColor = newTags.every((tag) => tag.color === firstColor)
       ? firstColor
       : undefined;
-    const colorInput = setColor.createEl("input", {
+    const colorInput = nativePicker.createEl("input", {
       cls: "import-new-tags-color-input",
       attr: {
         type: "color",
-        value: sharedColor ?? DEFAULT_TAG_COLOR,
+        value:
+          sharedColor ??
+          this.plugin.settings.defaultTagColor ??
+          DEFAULT_TAG_COLOR,
         "aria-label": "Set one color for all new tags",
       },
     });
@@ -692,6 +700,11 @@ export class ImportStarredModal extends AccessibleModal {
         newTags,
         newTags.map(() => colorInput.value),
       );
+    });
+    addTagColorPaletteControl({
+      container: setColor,
+      input: colorInput,
+      fieldName: "Background",
     });
 
     createIconButton({
@@ -712,10 +725,7 @@ export class ImportStarredModal extends AccessibleModal {
       icon: "rotate-ccw",
       onClick: (e) => {
         e.preventDefault();
-        this.recolorNewTags(
-          newTags,
-          newTags.map(() => DEFAULT_TAG_COLOR),
-        );
+        this.resetNewTagsAppearance(newTags);
       },
     });
   }
@@ -728,6 +738,17 @@ export class ImportStarredModal extends AccessibleModal {
       const color = colors[index];
       if (color) this.applyTagEditToCandidates(tag, { ...tag, color });
     });
+    this.redrawCandidateTags();
+  }
+
+  private resetNewTagsAppearance(tags: readonly Tag[]): void {
+    for (const tag of tags) {
+      this.applyTagEditToCandidates(tag, {
+        name: tag.name,
+        color: undefined,
+        textColor: undefined,
+      });
+    }
     this.redrawCandidateTags();
   }
 
@@ -935,7 +956,7 @@ export class ImportStarredModal extends AccessibleModal {
       setIcon(placeholder, "tag");
       return;
     }
-    renderSingleRowCardTagChips(control, tags);
+    renderSingleRowCardTagChips(control, tags, this.plugin.settings);
   }
 
   /**
@@ -1045,7 +1066,7 @@ export class ImportStarredModal extends AccessibleModal {
         const candidate = model.getCandidate(guid);
         if (!candidate?.item.tags) continue;
         candidate.item.tags = candidate.item.tags.map((tag) =>
-          tag.name === previous.name ? { ...tag, ...updated } : tag,
+          tag.name === previous.name ? mergeTagUpdate(tag, updated) : tag,
         );
         candidate.labelDerivedTagNames = candidate.labelDerivedTagNames?.map(
           (name) =>
@@ -1113,7 +1134,11 @@ export class ImportStarredModal extends AccessibleModal {
         const lowerName = tag.name.toLowerCase();
         if (existingByLowerName.has(lowerName)) continue;
 
-        const newTag: Tag = { name: tag.name, color: tag.color };
+        const newTag: Tag = {
+          name: tag.name,
+          ...(tag.color === undefined ? {} : { color: tag.color }),
+          ...(tag.textColor === undefined ? {} : { textColor: tag.textColor }),
+        };
         availableTags.push(newTag);
         existingByLowerName.set(lowerName, newTag);
       }

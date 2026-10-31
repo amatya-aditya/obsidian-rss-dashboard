@@ -125,4 +125,35 @@ describe("articleHtmlToMarkdown tables (#1193)", () => {
 
     expect(markdown).toBe("Before\n\n| a |\n| --- |\n\nAfter");
   });
+
+  describe("backslashes before a pipe in a cell", () => {
+    const tableWithCell = (cell: string) =>
+      articleHtmlToMarkdown(
+        `<table><tbody><tr><td>${cell}</td><td>c</td></tr></tbody></table>`,
+      );
+    const backslashes = (count: number) => "\\".repeat(count);
+    const row = (cell: string) => `| ${cell} | c |\n| --- | --- |`;
+    // The converter escapes each backslash in text (1 -> 2), so an even run
+    // reaches the table step and the pipe still needs its own backslash.
+
+    it("escapes the pipe after a text backslash without changing what renders", () => {
+      expect(tableWithCell("a\\|b")).toBe(row(`a${backslashes(3)}|b`));
+    });
+
+    it("escapes the pipe after a longer text backslash run", () => {
+      expect(tableWithCell("a\\\\|b")).toBe(row(`a${backslashes(5)}|b`));
+    });
+
+    // Code is not escaped by the converter, so the run is odd: the pipe is
+    // already escaped, and one more backslash would split the cell.
+    it("leaves a pipe that a code span already escapes alone", () => {
+      expect(tableWithCell("<code>a\\|b</code>")).toBe(
+        row("`a" + backslashes(1) + "|b`"),
+      );
+    });
+
+    it("leaves backslashes that are not followed by a pipe alone", () => {
+      expect(tableWithCell("a*b\\c")).toBe(row(`a\\*b${backslashes(2)}c`));
+    });
+  });
 });

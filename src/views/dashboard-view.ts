@@ -12,6 +12,8 @@ import {
 } from "obsidian";
 import { resolveReaderMediaRoute } from "../utils/reader-article-render";
 import { renderReaderTagChips } from "../utils/reader-tag-chips";
+import { refreshTagsDropdownPortalColors } from "../utils/tags-dropdown-portal";
+import { refreshTagMultiSelectMenuColors } from "../components/tag-multi-select-menu";
 import {
   Feed,
   FeedKeywordRulesSettings,
@@ -73,6 +75,11 @@ import {
   shouldUseMobileSidebarLayout,
   setCssProps,
 } from "../utils/platform-utils";
+import {
+  areSwipePanelsEnabled,
+  SwipeNavigator,
+  type SwipeDirection,
+} from "../utils/swipe-gesture";
 import {
   formatArticlesTitle,
   formatDashboardMultiFiltersTitle,
@@ -220,6 +227,14 @@ export class RssDashboardView extends ItemView {
     listener: () => void;
   } | null = null;
   private inlineArticle: FeedItem | null = null;
+  private swipeNavigator: SwipeNavigator | null = null;
+  /** The article most recently opened from this dashboard, for swipe-left. */
+  private lastOpenedArticle: {
+    article: FeedItem;
+    location: ViewLocation;
+    leaf: WorkspaceLeaf | null;
+  } | null = null;
+  private lastOpenedReaderLeaf: WorkspaceLeaf | null = null;
   private articleRenderer: ArticleRenderer | null = null;
   private lastClickAnchorKey: string | null = null;
   /**
@@ -918,6 +933,12 @@ export class RssDashboardView extends ItemView {
     this.listenForHotkeysInHostDocument();
     this.createArticleRenderer();
 
+    this.swipeNavigator = new SwipeNavigator(this.containerEl, {
+      isEnabled: () => areSwipePanelsEnabled(this.settings),
+      onSwipe: (direction) => this.handleSwipe(direction),
+    });
+    this.swipeNavigator.sync();
+
     this.app.workspace.onLayoutReady(() => {
       this.plugin.maybeShowStorageDeprecationPrompt();
     });
@@ -1189,6 +1210,7 @@ export class RssDashboardView extends ItemView {
     this.isRenderInProgress = true;
 
     try {
+      this.swipeNavigator?.sync();
       this.syncCurrentFeedReference();
       this.syncDashboardMultiFiltersFromSettings();
       if (!this.shouldUseMobileSidebarMode()) {
@@ -1420,6 +1442,8 @@ export class RssDashboardView extends ItemView {
       onResolveCachedImageUrl: (remoteUrl) =>
         this.plugin.resolveCachedImageUrl(remoteUrl),
       onFetchCoverImage: (article) => this.handleFetchCoverImage(article),
+      onFetchCoverImageQuiet: (article) =>
+        this.handleFetchCoverImage(article, { quiet: true }),
       onRestoreCoverImage: (article) => this.handleRestoreCoverImage(article),
       onMarkAllAsRead: () => {
         this.actionMarkAllAsRead();
@@ -1630,10 +1654,9 @@ export class RssDashboardView extends ItemView {
   }
 
   /**
-   * The static refresh summary row. Its live-region text span stays untouched;
-   * the error control is a separate button beside it, because an interactive
-   * control inside `aria-live="polite"` re-announces badly, and it is rendered
-   * only while something is failing.
+   * The visible refresh summary is recreated with the view content and has no
+   * live-region semantics. Transient announcements belong to the stable region
+   * mounted by mountRefreshAnnouncer(); the error control stays adjacent.
    */
   private renderRefreshStatusRow(
     subheaderContent: HTMLElement,
@@ -1649,7 +1672,6 @@ export class RssDashboardView extends ItemView {
     refreshStatusRow.createSpan({
       cls: "rss-dashboard-filter-stats-text rss-dashboard-refresh-status-text",
       text: refreshStatusText,
-      attr: { "aria-live": "polite" },
     });
     if (refreshStatus.failingCount > 0) {
       this.renderRefreshErrorButton(refreshStatusRow, refreshStatus);
@@ -1832,12 +1854,19 @@ export class RssDashboardView extends ItemView {
       },
     });
 
-    viewingFilterRow.createSpan({
+    const statsText = viewingFilterRow.createSpan({
       cls: "rss-dashboard-viewing-filter-stats-text",
-      text: hasActiveDashboardMultiFilters
-        ? `Viewing filters: Showing ${shown} | Filtered out ${filteredOut} | Total ${total}`
-        : `No filters applied - Showing ${shown} | Filtered out ${filteredOut} | Total ${total}`,
     });
+    // The label is hidden on mobile widths, where the row needs the room.
+    statsText.createSpan({
+      cls: "rss-dashboard-viewing-filter-stats-label",
+      text: hasActiveDashboardMultiFilters
+        ? "Viewing filters: "
+        : "No filters applied - ",
+    });
+    statsText.appendText(
+      `Showing ${shown} | Filtered out ${filteredOut} | Total ${total}`,
+    );
   }
 
   // --- Highlight match counting ---
@@ -2891,6 +2920,47 @@ export class RssDashboardView extends ItemView {
     modal.open();
   }
 
+  /**
+   * Swipe right closes an inline article or else opens the sidebar; swipe left
+   * returns to the last article.
+   */
+  private handleSwipe(direction: SwipeDirection): void {
+    if (direction === "right") {
+      if (this.inlineArticle) {
+        // Same as the inline reader's back button.
+        this.inlineArticle = null;
+        void this.render();
+        return;
+      }
+      this.openMobileSidebar();
+      return;
+    }
+    void this.reopenLastArticle();
+  }
+
+  private async reopenLastArticle(): Promise<void> {
+    const last = this.lastOpenedArticle;
+    if (!last) return;
+
+    if (last.location === "inline") {
+      if (this.getReaderViewLocation() !== "inline" || this.inlineArticle) {
+        return;
+      }
+      this.inlineArticle = last.article;
+      void this.render();
+      return;
+    }
+
+    // Sidebar reader locations are not part of the swipe flow.
+    if (last.location !== "main" || !last.leaf) return;
+    const { workspace } = this.app;
+    if (!workspace.getLeavesOfType(RSS_READER_VIEW_TYPE).includes(last.leaf)) {
+      return;
+    }
+    await workspace.revealLeaf(last.leaf);
+    workspace.setActiveLeaf(last.leaf, { focus: true });
+  }
+
   /** Decides drawer vs inline sidebar from the window showing this view. */
   private shouldUseMobileSidebarMode(
     viewportWidth = this.containerEl.win.innerWidth,
@@ -2953,6 +3023,11 @@ export class RssDashboardView extends ItemView {
     this.render();
   }
 
+  /** Applies the Card press animation setting without a re-render (#1727). */
+  public refreshCardPressAnimation(): void {
+    this.articleList?.refreshCardPressAnimation();
+  }
+
   private handleToggleSidebar(): void {
     if (this.shouldUseMobileSidebarMode()) {
       this.openMobileSidebar();
@@ -3003,7 +3078,13 @@ export class RssDashboardView extends ItemView {
     if (!article.read && this.settings.display.autoMarkReadOnOpen) {
       await this.updateArticleStatus(article, { read: true }, false);
     }
+    this.lastOpenedReaderLeaf = null;
     await this.openArticleInConfiguredReaderLocation(article);
+    this.lastOpenedArticle = {
+      article,
+      location: readerLocation,
+      leaf: this.lastOpenedReaderLeaf,
+    };
 
     if (shouldForceCardTopAnchor) {
       // Clear any stale ref from a previous rapid click.
@@ -3037,6 +3118,7 @@ export class RssDashboardView extends ItemView {
       });
       await workspace.revealLeaf(leaf);
       workspace.setActiveLeaf(leaf, { focus: true });
+      this.lastOpenedReaderLeaf = leaf;
 
       if (leaf.view instanceof ReaderView) {
         const view = leaf.view;
@@ -3061,6 +3143,7 @@ export class RssDashboardView extends ItemView {
       });
       await this.app.workspace.revealLeaf(leaf);
       this.app.workspace.setActiveLeaf(leaf, { focus: true });
+      this.lastOpenedReaderLeaf = leaf;
 
       if (leaf.view instanceof ReaderView) {
         const view = leaf.view;
@@ -3232,8 +3315,15 @@ export class RssDashboardView extends ItemView {
    * (#1330), and nothing else about the article changed. Warms the disk cache
    * when image caching is on. Resolves true when an image was stored, so the
    * calling card can rebuild itself.
+   *
+   * A `quiet` fetch (the header's fetch-all run, #1702) reports its failures
+   * through the false result alone, because the run ends with one summary
+   * rather than one Notice per card.
    */
-  private async handleFetchCoverImage(article: FeedItem): Promise<boolean> {
+  private async handleFetchCoverImage(
+    article: FeedItem,
+    { quiet = false }: { quiet?: boolean } = {},
+  ): Promise<boolean> {
     const result = await this.plugin.fetchPageCoverImage(article.link);
     if (result.status === "found") {
       const stored = await this.updateArticleStatus(
@@ -3244,7 +3334,9 @@ export class RssDashboardView extends ItemView {
       if (!stored) {
         // The article is no longer in a feed this dashboard can update; say so
         // rather than leaving the reader with a silent no-op.
-        new Notice("Could not save the cover image on this article.");
+        if (!quiet) {
+          new Notice("Could not save the cover image on this article.");
+        }
         return false;
       }
       // The cache itself decides whether caching is on for this image.
@@ -3252,7 +3344,7 @@ export class RssDashboardView extends ItemView {
       return true;
     }
 
-    const notice = coverImageFailureNotice(result);
+    const notice = quiet ? null : coverImageFailureNotice(result);
     if (notice) {
       new Notice(notice);
     }
@@ -3448,11 +3540,20 @@ export class RssDashboardView extends ItemView {
   }
 
   public refreshTagColors(): void {
+    refreshTagMultiSelectMenuColors(
+      this.containerEl.ownerDocument,
+      this.settings,
+    );
+    refreshTagsDropdownPortalColors(
+      this.containerEl.ownerDocument,
+      this.settings,
+    );
     this.refreshInlineArticleTags();
+    this.sidebar?.refreshTagColors();
     this.articleList?.syncVisibleArticlesFromSource((article) =>
       this.findBackingArticleForDisplayItem(article),
     );
-    this.articleList?.refreshVisibleArticleTags();
+    this.articleList?.refreshTagColors();
   }
 
   /**
@@ -3466,18 +3567,13 @@ export class RssDashboardView extends ItemView {
 
     const backing = this.findBackingArticleForDisplayItem(inline);
     const source = backing ?? inline;
-    inline.tags = (source.tags ?? []).map((tag) => {
-      const definition = this.settings.availableTags.find(
-        (available) => available.name === tag.name,
-      );
-      return definition ? { ...tag, color: definition.color } : { ...tag };
-    });
+    inline.tags = (source.tags ?? []).map((tag) => ({ ...tag }));
 
     const header = this.containerEl.querySelector<HTMLElement>(
       ".inline-reader-content .rss-reader-article-header",
     );
     if (header) {
-      renderReaderTagChips(header, inline.tags);
+      renderReaderTagChips(header, inline.tags, this.settings);
     }
     this.articleRenderer?.setVideoTags(inline.tags);
   }
@@ -3951,6 +4047,10 @@ export class RssDashboardView extends ItemView {
    * and chips in sync with latest settings.
    */
   refreshFilterStatusBarOnly(): void {
+    // The inline article view has no filter status bar; render() adds it back
+    // when the list returns.
+    if (this.inlineArticle) return;
+
     const contentContainer = this.containerEl.querySelector<HTMLElement>(
       ".rss-dashboard-content",
     );
@@ -4032,6 +4132,8 @@ export class RssDashboardView extends ItemView {
     this.articleRenderer?.cancelPendingDisplay();
     clearViewReady(this.containerEl);
     this.closeMobileSidebarModal();
+    this.swipeNavigator?.destroy();
+    this.swipeNavigator = null;
     this.unbindViewportResizeListener();
     this.lastViewportMobileSidebarMode = null;
 
