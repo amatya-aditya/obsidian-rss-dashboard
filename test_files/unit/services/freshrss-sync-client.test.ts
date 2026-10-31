@@ -252,6 +252,7 @@ describe("FreshRSS sync client", () => {
           author: null,
           publishedMs: null,
           read: null,
+          categoryIds: null,
         },
       ],
     });
@@ -282,8 +283,45 @@ describe("FreshRSS sync client", () => {
     ).resolves.toMatchObject({
       outcome: "ok",
       data: [
-        { remoteArticleId: "article/1", read: true },
-        { remoteArticleId: "article/2", read: false },
+        {
+          remoteArticleId: "article/1",
+          read: true,
+          categoryIds: ["user/-/state/com.google/read"],
+        },
+        { remoteArticleId: "article/2", read: false, categoryIds: [] },
+      ],
+    });
+  });
+
+  it("reads string and object article categories for state verification", async () => {
+    const client = new FreshRssSyncClient(
+      {
+        request: vi.fn().mockResolvedValue({
+          status: 200,
+          text: JSON.stringify({
+            items: [
+              {
+                id: "article/1",
+                categories: [
+                  "user/-/label/News",
+                  { id: "user/-/state/com.google/read" },
+                ],
+              },
+            ],
+          }),
+        }),
+      },
+      "https://rss.example.test",
+      "session-token",
+    );
+
+    await expect(client.getItemContents(["article/1"])).resolves.toMatchObject({
+      outcome: "ok",
+      data: [
+        {
+          remoteArticleId: "article/1",
+          categoryIds: ["user/-/label/News", "user/-/state/com.google/read"],
+        },
       ],
     });
   });

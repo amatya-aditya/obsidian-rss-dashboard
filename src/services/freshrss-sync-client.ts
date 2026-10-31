@@ -44,6 +44,7 @@ export interface FreshRssRemoteArticle {
   author: string | null;
   publishedMs: number | null;
   read: boolean | null;
+  categoryIds: string[] | null;
 }
 
 const GOOGLE_READER_ITEM_ID_PREFIX = "tag:google.com,2005:reader/item/";
@@ -190,6 +191,21 @@ function firstHref(value: unknown): string | null {
   return first && typeof first.href === "string" ? first.href : null;
 }
 
+function parseArticleCategoryIds(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  const categoryIds: string[] = [];
+  for (const category of value) {
+    if (typeof category === "string") {
+      categoryIds.push(category);
+    } else if (isRecord(category) && typeof category.id === "string") {
+      categoryIds.push(category.id);
+    } else {
+      return null;
+    }
+  }
+  return categoryIds;
+}
+
 function parseItemContentsResponse(
   text: string,
 ): FreshRssRemoteArticle[] | null {
@@ -218,6 +234,7 @@ function parseItemContentsResponse(
         Number.isFinite(new Date(candidatePublishedMs).getTime())
           ? candidatePublishedMs
           : null;
+      const categoryIds = parseArticleCategoryIds(entry.categories);
 
       articles.push({
         remoteArticleId: entry.id,
@@ -235,6 +252,7 @@ function parseItemContentsResponse(
                   category.id === "user/-/state/com.google/read",
             )
           : null,
+        categoryIds,
       });
     }
 
