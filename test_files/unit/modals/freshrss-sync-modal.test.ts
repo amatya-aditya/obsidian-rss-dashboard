@@ -26,10 +26,9 @@ function host(mode: "two-way" | "receive-only"): FreshRssSyncModalHost {
                 link: "https://article.example.test/1",
               },
             ],
-            partial: false,
+            articleLoadStatus: "complete",
           },
         ],
-        partial: false,
       }),
     ),
     getFreshRssPendingMutations: vi.fn(async () => []),
@@ -61,6 +60,72 @@ describe("FreshRSS sync preview modal", () => {
     modal.onClose();
   });
 
+  it("explains that a continuation cursor means more articles are available", async () => {
+    installObsidianDomPolyfills();
+    const api = host("two-way");
+    vi.mocked(api.getFreshRssSyncPreview).mockResolvedValue({
+      outcome: "ready",
+      pendingMutations: [],
+      labelConflicts: [],
+      subscriptions: [
+        {
+          remoteSubscriptionId: "feed/6",
+          title: "Preview feed",
+          url: "https://feed.example.test/rss.xml",
+          articles: Array.from({ length: 50 }, (_, index) => ({
+            remoteArticleId: `article/${index + 1}`,
+            title: `Article ${index + 1}`,
+            link: `https://article.example.test/${index + 1}`,
+          })),
+          articleLoadStatus: "has-more",
+        },
+      ],
+    });
+    const modal = new FreshRssSyncModal({} as App, api);
+
+    modal.onOpen();
+    await vi.waitFor(() => {
+      expect(modal.contentEl.textContent).toContain(
+        "First 50 recent articles loaded; more are available.",
+      );
+    });
+
+    expect(modal.contentEl.textContent).not.toContain(
+      "some recent articles could not be loaded",
+    );
+    modal.onClose();
+  });
+
+  it("keeps an actual preview request failure distinct from a continuation", async () => {
+    installObsidianDomPolyfills();
+    const api = host("two-way");
+    vi.mocked(api.getFreshRssSyncPreview).mockResolvedValue({
+      outcome: "ready",
+      pendingMutations: [],
+      labelConflicts: [],
+      subscriptions: [
+        {
+          remoteSubscriptionId: "feed/6",
+          title: "Unavailable feed",
+          url: "https://feed.example.test/rss.xml",
+          articles: [],
+          articleLoadStatus: "failed",
+        },
+      ],
+    });
+    const modal = new FreshRssSyncModal({} as App, api);
+
+    modal.onOpen();
+    await vi.waitFor(() => {
+      expect(modal.contentEl.textContent).toContain(
+        "Recent articles could not be loaded.",
+      );
+    });
+
+    expect(modal.contentEl.textContent).not.toContain("more are available");
+    modal.onClose();
+  });
+
   it("explains that Receive-only pauses outgoing changes", async () => {
     installObsidianDomPolyfills();
     const modal = new FreshRssSyncModal({} as App, host("receive-only"));
@@ -82,7 +147,6 @@ describe("FreshRSS sync preview modal", () => {
       pendingMutations: [],
       labelConflicts: ["Computing", "News"],
       subscriptions: [],
-      partial: false,
     });
     const modal = new FreshRssSyncModal({} as App, api);
 
