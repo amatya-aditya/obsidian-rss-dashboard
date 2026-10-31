@@ -125,9 +125,7 @@ export class FreshRssSyncModal extends AccessibleModal {
         pendingResult,
         previewResult.value.labelConflicts,
       );
-      status.textContent = previewResult.value.partial
-        ? "Preview ready; some recent articles could not be loaded."
-        : "Preview ready.";
+      status.textContent = this.previewStatusText(previewResult.value);
       start.disabled = false;
     } else {
       incomingList.empty();
@@ -159,23 +157,51 @@ export class FreshRssSyncModal extends AccessibleModal {
       const group = container.createDiv({ cls: "rss-freshrss-preview-feed" });
       group.createEl("h4", { text: subscription.title });
       group.createEl("p", { text: subscription.url });
-      if (subscription.articles.length === 0) {
+      if (subscription.articleLoadStatus === "failed") {
         group.createEl("p", {
-          text: subscription.partial
-            ? "Recent articles could not be loaded."
-            : "No recent articles were found.",
+          text: "Recent articles could not be loaded.",
         });
       } else {
-        const articles = group.createEl("ul");
-        for (const article of subscription.articles) {
-          articles.createEl("li", {
-            text: article.link
-              ? `${article.title} — ${article.link}`
-              : article.title,
+        if (subscription.articles.length === 0) {
+          group.createEl("p", { text: "No recent articles were found." });
+        } else {
+          const articles = group.createEl("ul");
+          for (const article of subscription.articles) {
+            articles.createEl("li", {
+              text: article.link
+                ? `${article.title} — ${article.link}`
+                : article.title,
+            });
+          }
+        }
+        if (subscription.articleLoadStatus === "has-more") {
+          group.createEl("p", {
+            text: "First 50 recent articles loaded; more are available.",
           });
         }
       }
     }
+  }
+
+  private previewStatusText(
+    preview: Extract<FreshRssSyncPreviewOutcome, { outcome: "ready" }>,
+  ): string {
+    const hasMoreArticles = preview.subscriptions.some(
+      (subscription) => subscription.articleLoadStatus === "has-more",
+    );
+    const hasLoadFailures = preview.subscriptions.some(
+      (subscription) => subscription.articleLoadStatus === "failed",
+    );
+    if (hasMoreArticles && hasLoadFailures) {
+      return "Preview ready. Feeds with more than 50 recent articles show the first 50; some other feed requests failed.";
+    }
+    if (hasMoreArticles) {
+      return "Preview ready. Feeds with more than 50 recent articles show the first 50; more are available.";
+    }
+    if (hasLoadFailures) {
+      return "Preview loaded with errors. Some recent articles could not be loaded.";
+    }
+    return "Preview ready.";
   }
 
   private renderOutgoingPreview(
