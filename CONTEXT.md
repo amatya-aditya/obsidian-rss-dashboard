@@ -184,6 +184,10 @@ _Avoid_: YouTube player (unqualified), embedded player
 
 ## Full-article fetch
 
+**Site-specific extractor**:
+Code that builds the [[Fetched content]] of one site's pages from data the fetched page already carries, where Readability finds no usable article. It reads only the page the fetch returned: no extra request, no added header. When the data is absent it returns nothing and the Readability output is used unchanged. Its result is trusted, so the Reader's 200-character substantial-body gate does not apply to it. Current extractors: GitHub issue pages and Bluesky post pages. See [ADR 0037](docs/adr/0037-read-site-specific-content-only-from-the-fetched-page.md).
+_Avoid_: Scraper, site parser, special case
+
 **Blocked fetch**:
 A [[Fetched content]] fetch the site refused with a bot challenge (a WAF or bot check) instead of serving the page, so the Reader keeps [[RSS content]] and offers Try again. Reported as a fetch failure with its own message, never as a paywall. See [ADR 0034](docs/adr/0034-treat-a-bot-challenge-as-a-blocked-fetch.md).
 _Avoid_: Restricted fetch, paywalled, 403 error, bot check
