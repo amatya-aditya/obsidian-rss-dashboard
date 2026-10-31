@@ -229,6 +229,7 @@ describe("FreshRSS sync coordinator", () => {
               link: "https://article.example.test/42",
             },
           ],
+          articleLoadStatus: "complete",
         },
       ],
       pendingMutations: [{ operationId: "queued-read", facet: "read" }],
@@ -278,6 +279,119 @@ describe("FreshRSS sync coordinator", () => {
     });
     expect(write).not.toHaveBeenCalled();
   });
+
+  it("marks a preview with more than 50 recent articles as available beyond the cap", async () => {
+    const settings = makeSettings();
+    const sidecar = createSidecar();
+    const articleRefs = Array.from({ length: 50 }, (_, index) => ({
+      id: `article/${index + 1}`,
+    }));
+    const articles = articleRefs.map(({ id }) => ({
+      id,
+      title: `Article ${id}`,
+      alternate: [{ href: `https://article.example.test/${id}` }],
+    }));
+    const request = vi.fn<FreshRssHttpClient["request"]>(async ({ url }) => {
+      if (url.endsWith("/accounts/ClientLogin"))
+        return { status: 200, text: "Auth=session-token" };
+      if (url.includes("/user-info?"))
+        return {
+          status: 200,
+          text: JSON.stringify({ userId: scope.remoteUserId }),
+        };
+      if (url.endsWith("/subscription/list?output=json"))
+        return { status: 200, text: subscriptionList() };
+      if (url.endsWith("/tag/list?output=json"))
+        return { status: 200, text: JSON.stringify({ tags: [] }) };
+      if (url.includes("/stream/items/ids?")) {
+        const requestUrl = new URL(url);
+        expect(requestUrl.searchParams.get("n")).toBe("50");
+        return {
+          status: 200,
+          text: JSON.stringify({ itemRefs: articleRefs, continuation: "next" }),
+        };
+      }
+      if (url.endsWith("/stream/items/contents"))
+        return { status: 200, text: JSON.stringify({ items: articles }) };
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const coordinator = new FreshRssSyncCoordinator({
+      httpClient: { request },
+      getSettings: () => settings,
+      saveSettings: async () => {},
+      sidecarRepository: {
+        read: async () => sidecar,
+        write: vi.fn(async () => {}),
+      },
+      getView: async () => null,
+    });
+
+    const preview = await coordinator.preview({
+      endpoint,
+      credentials: { username: "reader", apiPassword: "secret" },
+      scope,
+      owner: createOwner(),
+    });
+
+    expect(preview).toMatchObject({ outcome: "ready" });
+    if (preview.outcome !== "ready") throw new Error("Expected a preview");
+    expect(preview.subscriptions[0]?.articles).toHaveLength(50);
+    expect(preview.subscriptions[0]?.articleLoadStatus).toBe("has-more");
+  });
+
+  it.each(["ids", "contents"] as const)(
+    "marks a failed FreshRSS %s request as an article-load failure",
+    async (failedRequest) => {
+      const settings = makeSettings();
+      const sidecar = createSidecar();
+      const request = vi.fn<FreshRssHttpClient["request"]>(async ({ url }) => {
+        if (url.endsWith("/accounts/ClientLogin"))
+          return { status: 200, text: "Auth=session-token" };
+        if (url.includes("/user-info?"))
+          return {
+            status: 200,
+            text: JSON.stringify({ userId: scope.remoteUserId }),
+          };
+        if (url.endsWith("/subscription/list?output=json"))
+          return { status: 200, text: subscriptionList() };
+        if (url.endsWith("/tag/list?output=json"))
+          return { status: 200, text: JSON.stringify({ tags: [] }) };
+        if (url.includes("/stream/items/ids?")) {
+          return failedRequest === "ids"
+            ? { status: 503, text: "temporary server failure" }
+            : {
+                status: 200,
+                text: JSON.stringify({ itemRefs: [{ id: "article/1" }] }),
+              };
+        }
+        if (url.endsWith("/stream/items/contents"))
+          return { status: 503, text: "temporary content failure" };
+        throw new Error(`Unexpected request: ${url}`);
+      });
+      const coordinator = new FreshRssSyncCoordinator({
+        httpClient: { request },
+        getSettings: () => settings,
+        saveSettings: async () => {},
+        sidecarRepository: {
+          read: async () => sidecar,
+          write: vi.fn(async () => {}),
+        },
+        getView: async () => null,
+      });
+
+      const preview = await coordinator.preview({
+        endpoint,
+        credentials: { username: "reader", apiPassword: "secret" },
+        scope,
+        owner: createOwner(),
+      });
+
+      expect(preview).toMatchObject({ outcome: "ready" });
+      if (preview.outcome !== "ready") throw new Error("Expected a preview");
+      expect(preview.subscriptions[0]?.articles).toEqual([]);
+      expect(preview.subscriptions[0]?.articleLoadStatus).toBe("failed");
+    },
+  );
 
   it("does not sync or reuse sidecar state for a different authenticated account", async () => {
     const request = vi.fn<FreshRssHttpClient["request"]>(async (input) =>
@@ -506,6 +620,84 @@ describe("FreshRSS sync coordinator", () => {
     expect(saveSettings).toHaveBeenCalledOnce();
     expect(clearQuarantinedForScope).toHaveBeenCalledOnce();
     expect(clearQuarantinedForScope).toHaveBeenCalledWith(scope);
+  });
+
+  it("keeps the 50-article cap and does not re-import the same page on repeat sync", async () => {
+    const settings = makeSettings();
+    settings.freshRss.stateSyncMode = "receive-only";
+    const sidecar = createSidecar();
+    const articleRefs = Array.from({ length: 50 }, (_, index) => ({
+      id: `article/${index + 1}`,
+    }));
+    const remoteArticles = articleRefs.map(({ id }) => ({
+      id,
+      title: `Article ${id}`,
+      alternate: [{ href: `https://article.example.test/${id}` }],
+      content: { content: `<p>${id}</p>` },
+      published: Math.floor(Date.now() / 1000),
+    }));
+    const contentsRequest = vi.fn();
+    const request = vi.fn<FreshRssHttpClient["request"]>(async ({ url }) => {
+      if (url.endsWith("/accounts/ClientLogin"))
+        return { status: 200, text: "Auth=session-token" };
+      if (url.includes("/user-info?"))
+        return {
+          status: 200,
+          text: JSON.stringify({ userId: scope.remoteUserId }),
+        };
+      if (url.endsWith("/subscription/list?output=json"))
+        return { status: 200, text: subscriptionList() };
+      if (url.endsWith("/tag/list?output=json"))
+        return { status: 200, text: JSON.stringify({ tags: [] }) };
+      if (url.includes("/stream/items/ids?")) {
+        const requestUrl = new URL(url);
+        expect(requestUrl.searchParams.get("n")).toBe("50");
+        return {
+          status: 200,
+          text: JSON.stringify({ itemRefs: articleRefs, continuation: "next" }),
+        };
+      }
+      if (url.endsWith("/stream/items/contents")) {
+        contentsRequest();
+        return { status: 200, text: JSON.stringify({ items: remoteArticles }) };
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const coordinator = new FreshRssSyncCoordinator({
+      httpClient: { request },
+      getSettings: () => settings,
+      saveSettings: async () => {},
+      sidecarRepository: {
+        read: async () => sidecar,
+        write: async (next) => {
+          Object.assign(sidecar, next);
+        },
+      },
+      getView: async () => null,
+    });
+    const input = {
+      endpoint,
+      credentials: { username: "reader", apiPassword: "secret" },
+      scope,
+      owner: createOwner(),
+    };
+
+    const firstSync = await coordinator.run(input);
+    const secondSync = await coordinator.run(input);
+
+    expect(firstSync).toMatchObject({
+      outcome: "synced",
+      importedArticleCount: 50,
+      partial: true,
+    });
+    expect(secondSync).toMatchObject({
+      outcome: "synced",
+      importedArticleCount: 0,
+      partial: true,
+    });
+    expect(settings.feeds[0]?.items).toHaveLength(50);
+    expect(sidecar.articleBindings).toHaveLength(50);
+    expect(contentsRequest).toHaveBeenCalledOnce();
   });
 
   it("does not persist local changes when FreshRSS rejects a request mid-cycle", async () => {
