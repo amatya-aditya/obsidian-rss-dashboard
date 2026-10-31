@@ -110,7 +110,7 @@ describe("Dashboard refresh error icon dismissal", () => {
     return event;
   }
 
-  it("dismisses on right-click, keeping the status text and live region", () => {
+  it("dismisses on right-click while keeping the visible status text", () => {
     const container = renderStrip();
     const button = errorButtonOrThrow(container);
     const statusText = container.querySelector(
@@ -124,7 +124,7 @@ describe("Dashboard refresh error icon dismissal", () => {
     expect(container.querySelector(".rss-dashboard-refresh-status-text")).toBe(
       statusText,
     );
-    expect(statusText?.getAttribute("aria-live")).toBe("polite");
+    expect(statusText?.hasAttribute("aria-live")).toBe(false);
     expect(noticeMessages()).toHaveLength(1);
   });
 

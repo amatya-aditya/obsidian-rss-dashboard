@@ -444,7 +444,12 @@ export class AddFeedModal extends AccessibleModal {
     renderArticleTemplateSetting(perFeedControlsBody, state, savedTemplates);
 
     const availableTags: Tag[] = this.plugin?.settings?.availableTags ?? [];
-    renderAutoTagsSetting(perFeedControlsBody, state, availableTags);
+    renderAutoTagsSetting(
+      perFeedControlsBody,
+      state,
+      availableTags,
+      this.plugin?.settings,
+    );
   }
 
   private createFeedOptionsState(): AddFeedOptionsState {

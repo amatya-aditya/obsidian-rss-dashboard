@@ -500,6 +500,8 @@ export interface ConfirmActionModalOptions {
   message: string;
   /** Label of the destructive confirming button, for example "Delete". */
   confirmLabel: string;
+  /** Fills a block between the message and the buttons, such as a preview of the change. */
+  renderPreview?: (previewEl: HTMLElement) => void;
 }
 
 /**
@@ -523,6 +525,11 @@ export class ConfirmActionModal extends AccessibleModal {
 
     contentEl.createEl("h2", { text: this.options.title });
     contentEl.createEl("p", { text: this.options.message });
+    if (this.options.renderPreview) {
+      this.options.renderPreview(
+        contentEl.createDiv({ cls: "rss-dashboard-confirm-preview" }),
+      );
+    }
 
     new Setting(contentEl)
       .addButton((btn) =>
@@ -679,6 +686,7 @@ export class RetentionChangeConfirmModal extends AccessibleModal {
 
     const buttonsSetting = new Setting(contentEl);
     buttonsSetting.controlEl.addClass("rss-dashboard-modal-buttons");
+    buttonsSetting.controlEl.addClass("rss-retention-change-buttons");
     buttonsSetting
       .addButton((button) =>
         button.setButtonText("Cancel").onClick(() => {
@@ -787,6 +795,79 @@ export class ApplyMaxItemsToExistingFeedsModal extends AccessibleModal {
   }
 
   waitForClose(): Promise<ApplyMaxItemsAction> {
+    return new Promise((resolve) => {
+      this.resolvePromise = resolve;
+    });
+  }
+}
+
+// ── ApplyTagDefaultsModal ───────────────────────────────────────────────────
+
+export type ApplyTagDefaultsAction = "cancel" | "all" | "future";
+
+/**
+ * Asks whether new tag appearance defaults restyle every tag that inherits
+ * them, or only tags created from now on. Closing the dialog any other way
+ * counts as Cancel.
+ */
+export class ApplyTagDefaultsModal extends AccessibleModal {
+  private action: ApplyTagDefaultsAction = "cancel";
+  private resolvePromise: ((value: ApplyTagDefaultsAction) => void) | null =
+    null;
+  private readonly renderPreview?: (previewEl: HTMLElement) => void;
+
+  constructor(
+    app: App,
+    options: { renderPreview?: (previewEl: HTMLElement) => void } = {},
+  ) {
+    super(app);
+    this.renderPreview = options.renderPreview;
+  }
+
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+
+    contentEl.createEl("h2", { text: "Apply new tag defaults?" });
+    contentEl.createEl("p", {
+      text: "Change every tag that uses the defaults now, or keep today's colors on existing tags and use the new defaults only for tags you create from now on.",
+    });
+    if (this.renderPreview) {
+      this.renderPreview(
+        contentEl.createDiv({ cls: "rss-dashboard-confirm-preview" }),
+      );
+    }
+
+    new Setting(contentEl)
+      .addButton((btn) =>
+        btn.setButtonText("Cancel").onClick(() => {
+          this.action = "cancel";
+          this.close();
+        }),
+      )
+      .addButton((btn) =>
+        btn.setButtonText("Future tags only").onClick(() => {
+          this.action = "future";
+          this.close();
+        }),
+      )
+      .addButton((btn) =>
+        btn
+          .setButtonText("All tags")
+          .setCta()
+          .onClick(() => {
+            this.action = "all";
+            this.close();
+          }),
+      );
+  }
+
+  onClose() {
+    this.contentEl.empty();
+    this.resolvePromise?.(this.action);
+  }
+
+  waitForClose(): Promise<ApplyTagDefaultsAction> {
     return new Promise((resolve) => {
       this.resolvePromise = resolve;
     });

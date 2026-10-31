@@ -118,6 +118,11 @@
   top: 0;
   z-index: 10;
   padding: 10px;
+  /* The open status bar above has a fractional height, so the scroll
+     container's top edge lands on a sub-pixel and the sticky header snaps a
+     pixel lower, exposing a 1px sliver of the scrolled card above it. The
+     upward shadow paints the header background over that sliver. */
+  box-shadow: 0 -1px 0 var(--background-primary);
 }
 
 .rss-dashboard-header-left {
@@ -458,7 +463,8 @@
   border-color: var(--interactive-accent);
 }
 
-.rss-dashboard-hamburger-button {
+.rss-dashboard-hamburger-button,
+.rss-dashboard-fetch-all-covers-button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -473,7 +479,8 @@
   padding: 0;
   font: inherit;
 }
-.rss-dashboard-hamburger-button:hover {
+.rss-dashboard-hamburger-button:hover,
+.rss-dashboard-fetch-all-covers-button:hover {
   background: var(--background-modifier-hover);
   border-color: var(--interactive-accent);
 }
@@ -482,7 +489,8 @@
   color: var(--text-on-accent);
   border-color: var(--interactive-accent);
 }
-.rss-dashboard-hamburger-button svg {
+.rss-dashboard-hamburger-button svg,
+.rss-dashboard-fetch-all-covers-button svg {
   width: 20px;
   height: 20px;
   display: block;
@@ -496,7 +504,8 @@
 .rss-dashboard-hamburger-button.active svg {
   transform: rotate(90deg);
 }
-.rss-dashboard-hamburger-button:focus {
+.rss-dashboard-hamburger-button:focus,
+.rss-dashboard-fetch-all-covers-button:focus {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
 }
@@ -541,6 +550,22 @@
 .rss-dashboard-mobile-filter-button:focus {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 2px;
+}
+
+/* Fetch-all-covers button (#1702): the header's cover action for the whole page. */
+.rss-dashboard-fetch-all-covers-button {
+  flex-shrink: 0;
+}
+.rss-dashboard-fetch-all-covers-button[aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.rss-dashboard-fetch-all-covers-button[aria-disabled="true"]:hover {
+  background: var(--background-secondary);
+  border-color: var(--background-modifier-border);
+}
+.rss-dashboard-fetch-all-covers-button.is-running svg {
+  animation: spin 1s linear infinite;
 }
 
 .rss-dashboard-menu-backdrop {
@@ -695,6 +720,10 @@
   }
   .rss-dashboard-sidebar-toggle {
     margin-right: 8px;
+  }
+  .rss-dashboard-viewing-filter-stats-text
+    .rss-dashboard-viewing-filter-stats-label {
+    display: none;
   }
 }
 

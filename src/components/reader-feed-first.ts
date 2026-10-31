@@ -105,7 +105,8 @@ export async function runFeedFirstDisplay(
   const settle = (result: FullArticleFetchResult): boolean => {
     // Metadata belongs to the fetched item even after navigation or close.
     // Keep the substantial-body gate: a short extraction must not lock metadata.
-    if (options.hasMeaningfulContent(result.content)) {
+    // A site-specific extractor's content is trusted and short by design (#1738).
+    if (result.trusted || options.hasMeaningfulContent(result.content)) {
       options.persistMetadata(result);
     }
     // The page's own image is not body metadata: a restricted head declares one

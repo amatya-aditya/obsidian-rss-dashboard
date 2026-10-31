@@ -64,6 +64,7 @@ export class FolderAutoTagModal extends AccessibleModal {
     addTagMultiSelectControl({
       setting: autoTagSetting,
       availableTags: this.plugin.settings.availableTags,
+      tagAppearanceSettings: this.plugin.settings,
       selectedTagNames: this.selectedTagNames,
       triggerEmptyLabel: "None",
       menuTitle: "Select folder auto-tags",

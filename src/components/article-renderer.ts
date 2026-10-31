@@ -428,7 +428,7 @@ export class ArticleRenderer {
         : "Unknown date",
     });
 
-    renderReaderTagChips(headerContainer, item.tags);
+    renderReaderTagChips(headerContainer, item.tags, this.settings);
     const heroSlot = container.createDiv({
       cls: "rss-reader-hero-slot",
     });
@@ -691,9 +691,9 @@ export class ArticleRenderer {
 
   public setVideoTags(tags: Tag[] | undefined): void {
     this.contentVersions?.visitVersions((container) =>
-      refreshReaderHeaderTags(container, tags),
+      refreshReaderHeaderTags(container, tags, this.settings),
     );
-    this.videoPlayer?.setTags(tags);
+    this.videoPlayer?.setTags(tags, this.settings);
   }
 
   public cleanupPlayers(): void {

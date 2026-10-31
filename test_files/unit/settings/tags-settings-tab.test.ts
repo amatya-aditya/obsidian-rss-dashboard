@@ -1,15 +1,31 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
+import { readFileSync } from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import postcss from "postcss";
 import {
   type RssDashboardSettings,
   type Feed,
   type Folder,
+  type Tag,
   DEFAULT_SETTINGS,
 } from "../../../src/types/types";
 import { renderTagsSettingsTab } from "../../../src/settings/tabs/tags-settings-tab";
-import { ConfirmActionModal } from "../../../src/settings/modals/settings-modals";
+import {
+  ApplyTagDefaultsModal,
+  ConfirmActionModal,
+} from "../../../src/settings/modals/settings-modals";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 import type RssDashboardPlugin from "../../../main";
+
+const testDir = path.dirname(fileURLToPath(import.meta.url));
+const settingsStylesheet = postcss.parse(
+  readFileSync(
+    path.resolve(testDir, "../../../src/styles/settings.css"),
+    "utf8",
+  ),
+);
 
 /** Resolve the modal's accessible name from the heading it points at. */
 function dialogName(dialog: Element | null): string | null {
@@ -149,6 +165,79 @@ describe("renderTagsSettingsTab()", () => {
         "Tag color",
       ).querySelector<HTMLInputElement>("input[type='color']")?.value,
     ).toBe("#8a5cf5");
+  });
+
+  it("offers palette controls beside both Add new tag color pickers", () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings: cloneSettings(),
+      saveSettings: vi.fn(async () => {}),
+      refreshOpenTagColorViews: vi.fn(async () => {}),
+    } as unknown as RssDashboardPlugin;
+
+    renderTagsSettingsTab(containerEl, plugin, vi.fn());
+
+    for (const name of ["Tag color", "Tag text color"]) {
+      const setting = getSettingByName(containerEl, name);
+      expect(
+        setting.querySelector(
+          ".rss-dashboard-tag-color-palette-control select",
+        ),
+      ).not.toBeNull();
+      expect(
+        setting.querySelector(
+          ".rss-dashboard-tag-color-palette-control-color-trigger",
+        ),
+      ).not.toBeNull();
+    }
+  });
+
+  it("shows no hex readout in the color rows, with the picker first after the label", () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings: cloneSettings(),
+      saveSettings: vi.fn(async () => {}),
+      refreshOpenTagColorViews: vi.fn(async () => {}),
+    } as unknown as RssDashboardPlugin;
+    renderTagsSettingsTab(containerEl, plugin, vi.fn());
+
+    const rows = containerEl.querySelectorAll<HTMLElement>(
+      ".rss-dashboard-tag-color-setting",
+    );
+    expect(rows).toHaveLength(4);
+    for (const row of Array.from(rows)) {
+      expect(
+        row.querySelector(
+          ".rss-dashboard-tag-color-palette-control-value-readout",
+        ),
+      ).toBeNull();
+      const control = row.querySelector(".setting-item-control")!;
+      expect(control.firstElementChild?.matches("input[type='color']")).toBe(
+        true,
+      );
+      // The dice sits right after the picker, then the palette control.
+      expect(
+        control.children[1]?.classList.contains(
+          "rss-dashboard-tag-color-randomize",
+        ),
+      ).toBe(true);
+      expect(control.children[2]?.className).toContain(
+        "rss-dashboard-tag-color-palette-control",
+      );
+    }
+    for (const selector of [
+      ".rss-dashboard-tag-default-background",
+      ".rss-dashboard-tag-default-text",
+    ]) {
+      expect(
+        containerEl
+          .querySelector(selector)
+          ?.closest(".setting-item")
+          ?.classList.contains("rss-dashboard-tag-default-color-setting"),
+      ).toBe(true);
+    }
   });
 
   it("renders all auto-tag rows as tag multi-select triggers instead of native selects", () => {
@@ -399,7 +488,7 @@ describe("renderTagsSettingsTab()", () => {
 
     const dialog = document.querySelector(".rss-dashboard-edit-tag-modal");
     expect(dialog).not.toBeNull();
-    expect(dialogName(dialog)).toBe("Edit tag");
+    expect(dialogName(dialog)).toBe("Add/edit tag");
 
     const nameInput = dialog?.querySelector<HTMLInputElement>(
       ".rss-dashboard-tag-modal-name-input",
@@ -659,9 +748,33 @@ describe("renderTagsSettingsTab()", () => {
     addBtn.click();
     await flushPromises();
 
-    expect(plugin.settings.availableTags).toEqual([
-      { name: "spaced", color: "#8a5cf5" },
-    ]);
+    expect(plugin.settings.availableTags).toEqual([{ name: "spaced" }]);
+  });
+
+  it("stores only explicitly changed tag appearance values", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const settings = cloneSettings();
+    settings.availableTags = [];
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      refreshOpenTagColorViews: vi.fn(async () => {}),
+    } as unknown as RssDashboardPlugin;
+    renderTagsSettingsTab(containerEl, plugin, vi.fn());
+
+    getSettingByName(containerEl, "Tag name").querySelector<HTMLInputElement>(
+      'input[type="text"]',
+    )!.value = "Inherited";
+    getSettingByName(containerEl, "Tag text color")
+      .querySelector<HTMLInputElement>('input[type="color"]')!
+      .dispatchEvent(new Event("change", { bubbles: true }));
+    Array.from(containerEl.querySelectorAll<HTMLButtonElement>("button"))
+      .find((button) => button.textContent === "Add tag")!
+      .click();
+    await flushPromises();
+
+    expect(settings.availableTags).toEqual([{ name: "Inherited" }]);
   });
 
   it("rejects a whitespace-only tag name", async () => {
@@ -847,10 +960,14 @@ describe("renderTagsSettingsTab()", () => {
 });
 
 describe("renderTagsSettingsTab() tag shape control", () => {
-  function render(radius?: string) {
+  function render(
+    radius?: string,
+    tweak: (settings: RssDashboardSettings) => void = () => {},
+  ) {
     const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();
     if (radius !== undefined) settings.display.tagChipRadius = radius;
+    tweak(settings);
     const app = obsidian.App.createMock();
     const trigger = vi.spyOn(app.workspace, "trigger");
     const saveSettings = vi.fn(async () => {});
@@ -869,22 +986,10 @@ describe("renderTagsSettingsTab() tag shape control", () => {
     Array.from(
       containerEl.querySelectorAll<HTMLButtonElement>("[role='radio']"),
     );
-  const customInput = (containerEl: HTMLElement) =>
-    containerEl.querySelector<HTMLInputElement>(
-      ".rss-dashboard-tag-shape-input",
-    ) as HTMLInputElement;
-  const sampleRadius = (containerEl: HTMLElement) =>
-    containerEl
-      .querySelector<HTMLElement>(".rss-dashboard-tag-shape-sample")
-      ?.style.getPropertyValue("--rss-dashboard-tag-chip-radius");
   const press = (el: HTMLElement, key: string) =>
     el.dispatchEvent(
       new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
     );
-  const type = (input: HTMLInputElement, value: string) => {
-    input.value = value;
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-  };
   const CHANGED = "rss-dashboard:tag-chip-radius-changed";
 
   it("shows Rectangle, Squircle and Pill previews in one radiogroup with Pill checked by default", () => {
@@ -917,7 +1022,9 @@ describe("renderTagsSettingsTab() tag shape control", () => {
     expect(names.indexOf("Tag shape")).toBeGreaterThan(
       names.indexOf("Reset tag names"),
     );
-    expect(names.indexOf("Tag shape")).toBeLessThan(names.indexOf("Tags"));
+    expect(names.indexOf("Tag shape")).toBeLessThan(
+      names.indexOf("Tag appearance defaults"),
+    );
   });
 
   it("marks the selected preview with a check indicator in addition to its accent outline", () => {
@@ -942,7 +1049,6 @@ describe("renderTagsSettingsTab() tag shape control", () => {
     expect(saveSettings).toHaveBeenCalledTimes(1);
     expect(radios(containerEl)[0]?.getAttribute("aria-checked")).toBe("true");
     expect(radios(containerEl)[2]?.getAttribute("aria-checked")).toBe("false");
-    expect(customInput(containerEl).value).toBe("0px");
   });
 
   it("keeps one roving tab stop on the checked preset and moves selection with the arrow keys", () => {
@@ -982,70 +1088,47 @@ describe("renderTagsSettingsTab() tag shape control", () => {
     expect(settings.display.tagChipRadius).toBe("6px");
   });
 
-  it("applies, saves and previews a valid custom radius", () => {
-    const { containerEl, settings, trigger, saveSettings } = render();
-    const input = customInput(containerEl);
+  it("has no custom radius field and no reset button", () => {
+    const { containerEl } = render();
 
-    type(input, "12px 4px / 2px");
+    expect(
+      containerEl.querySelector(".rss-dashboard-tag-shape input"),
+    ).toBeNull();
+    expect(
+      containerEl.querySelector(".rss-dashboard-tag-shape-custom"),
+    ).toBeNull();
+    expect(containerEl.textContent).not.toContain("Custom radius");
+    expect(
+      Array.from(containerEl.querySelectorAll("button")).some((el) =>
+        el.textContent?.startsWith("Reset to"),
+      ),
+    ).toBe(false);
+  });
 
-    expect(settings.display.tagChipRadius).toBe("12px 4px / 2px");
-    expect(trigger).toHaveBeenCalledWith(CHANGED);
-    expect(saveSettings).toHaveBeenCalledTimes(1);
-    expect(input.getAttribute("aria-invalid")).toBe("false");
-    expect(sampleRadius(containerEl)).toBe("12px 4px / 2px");
+  it("ships no styles for the removed custom radius field", () => {
+    const css = settingsStylesheet.toString();
+
+    for (const removed of [
+      "tag-shape-custom",
+      "tag-shape-input",
+      "tag-shape-error",
+      "tag-shape-reset",
+    ]) {
+      expect(css).not.toContain(removed);
+    }
+  });
+
+  it("shows no preset checked for a stored custom radius, keeping the first reachable by Tab", () => {
+    const { containerEl, settings } = render("12px 4px / 2px");
+
     expect(
       radios(containerEl).map((el) => el.getAttribute("aria-checked")),
     ).toEqual(["false", "false", "false"]);
-    // With no preset checked the first radio stays reachable by Tab.
     expect(radios(containerEl)[0]?.tabIndex).toBe(0);
-  });
+    expect(settings.display.tagChipRadius).toBe("12px 4px / 2px");
 
-  it("flags invalid input accessibly and keeps the last valid radius", () => {
-    const { containerEl, settings, trigger, saveSettings } = render("10px");
-    const input = customInput(containerEl);
-
-    type(input, "red");
-
-    expect(input.getAttribute("aria-invalid")).toBe("true");
-    const describedBy = input.getAttribute("aria-describedby") as string;
-    const message = containerEl.querySelector(`#${describedBy}`);
-    expect(message?.textContent).toContain("non-negative");
-    expect(settings.display.tagChipRadius).toBe("10px");
-    expect(trigger).not.toHaveBeenCalled();
-    expect(saveSettings).not.toHaveBeenCalled();
-    expect(sampleRadius(containerEl)).toBe("10px");
-
-    type(input, "-4px");
-    expect(settings.display.tagChipRadius).toBe("10px");
-
-    type(input, "8px");
-    expect(input.getAttribute("aria-invalid")).toBe("false");
-    expect(message?.textContent).toBe("");
-    expect(settings.display.tagChipRadius).toBe("8px");
-  });
-
-  it("selects the matching preset when a custom value equals one", () => {
-    const { containerEl, settings } = render();
-
-    type(customInput(containerEl), "0PX");
-
-    expect(settings.display.tagChipRadius).toBe("0px");
-    expect(radios(containerEl)[0]?.getAttribute("aria-checked")).toBe("true");
-  });
-
-  it("restores Pill and clears an error from the reset button", () => {
-    const { containerEl, settings } = render("0px");
-    const input = customInput(containerEl);
-    type(input, "nope");
-
-    const reset = Array.from(
-      containerEl.querySelectorAll<HTMLButtonElement>("button"),
-    ).find((el) => el.textContent === "Reset to pill");
-    reset?.click();
-
+    radios(containerEl)[2]?.click();
     expect(settings.display.tagChipRadius).toBe("999px");
-    expect(input.value).toBe("999px");
-    expect(input.getAttribute("aria-invalid")).toBe("false");
     expect(radios(containerEl)[2]?.getAttribute("aria-checked")).toBe("true");
   });
 
@@ -1053,6 +1136,712 @@ describe("renderTagsSettingsTab() tag shape control", () => {
     const { containerEl } = render("broken");
 
     expect(radios(containerEl)[2]?.getAttribute("aria-checked")).toBe("true");
-    expect(customInput(containerEl).value).toBe("999px");
+  });
+
+  it("draws every shape preview in the global default tag colors", () => {
+    const { containerEl, settings } = render();
+
+    const chips = Array.from(
+      containerEl.querySelectorAll<HTMLElement>(
+        ".rss-dashboard-tag-shape-chip",
+      ),
+    );
+    expect(chips).toHaveLength(3);
+    for (const chip of chips) {
+      expect(chip.style.getPropertyValue("--tag-color")).toBe(
+        settings.defaultTagColor,
+      );
+      expect(chip.style.getPropertyValue("--tag-text-color")).toBe(
+        settings.defaultTagTextColor,
+      );
+    }
+  });
+
+  it("uses the stored default colors when they differ from the built-in ones", () => {
+    const { containerEl } = render(undefined, (s) => {
+      s.defaultTagColor = "#123456";
+      s.defaultTagTextColor = "#abcdef";
+    });
+
+    const chip = containerEl.querySelector<HTMLElement>(
+      ".rss-dashboard-tag-shape-chip",
+    )!;
+    expect(chip.style.getPropertyValue("--tag-color")).toBe("#123456");
+    expect(chip.style.getPropertyValue("--tag-text-color")).toBe("#abcdef");
+  });
+});
+
+describe("renderTagsSettingsTab() tag appearance defaults", () => {
+  const render = (
+    overrides: (settings: RssDashboardSettings) => void = () => {},
+  ) => {
+    const containerEl = document.body.appendChild(createDiv());
+    const settings = cloneSettings();
+    overrides(settings);
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      refreshOpenTagColorViews: vi.fn(async () => {}),
+    } as unknown as RssDashboardPlugin;
+    renderTagsSettingsTab(containerEl, plugin, vi.fn());
+    return { containerEl, settings, plugin };
+  };
+
+  const backgroundPicker = (containerEl: HTMLElement) =>
+    containerEl.querySelector<HTMLInputElement>(
+      ".rss-dashboard-tag-default-background",
+    )!;
+  const textPicker = (containerEl: HTMLElement) =>
+    containerEl.querySelector<HTMLInputElement>(
+      ".rss-dashboard-tag-default-text",
+    )!;
+  const pick = (input: HTMLInputElement, value: string) => {
+    input.value = value;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  };
+  const applyCard = (containerEl: HTMLElement) =>
+    getSettingByName(containerEl, "Apply tag defaults");
+  const previewCard = (containerEl: HTMLElement) =>
+    getSettingByName(containerEl, "Preview");
+  const defaultsPreviewChip = (containerEl: HTMLElement) =>
+    previewCard(containerEl).querySelector<HTMLElement>(
+      ".rss-dashboard-tag-defaults-preview",
+    )!;
+  const applyButton = (containerEl: HTMLElement) =>
+    Array.from(applyCard(containerEl).querySelectorAll("button")).find(
+      (button) => button.textContent === "Apply",
+    )!;
+  const stubApplyChoice = (choice: "cancel" | "all" | "future") => {
+    vi.spyOn(ApplyTagDefaultsModal.prototype, "open").mockImplementation(
+      () => {},
+    );
+    vi.spyOn(ApplyTagDefaultsModal.prototype, "waitForClose").mockResolvedValue(
+      choice,
+    );
+  };
+  const clickApply = async (containerEl: HTMLElement) => {
+    applyButton(containerEl).click();
+    await flushPromises();
+  };
+
+  it("keeps editing a draft: pickers change nothing saved and recolor no tag", async () => {
+    const { containerEl, settings, plugin } = render((s) => {
+      s.availableTags = [{ name: "Plain" }];
+    });
+    const listChip = containerEl.querySelector<HTMLElement>(
+      ".rss-dashboard-settings-tag-chip",
+    )!;
+    const chipBefore = listChip.style.getPropertyValue("--tag-color");
+
+    pick(backgroundPicker(containerEl), "#123456");
+    pick(textPicker(containerEl), "#abcdef");
+    await flushPromises();
+
+    expect(settings.defaultTagColor).toBe(DEFAULT_SETTINGS.defaultTagColor);
+    expect(settings.defaultTagTextColor).toBe(
+      DEFAULT_SETTINGS.defaultTagTextColor,
+    );
+    expect(plugin.saveSettings).not.toHaveBeenCalled();
+    expect(plugin.refreshOpenTagColorViews).not.toHaveBeenCalled();
+    expect(listChip.style.getPropertyValue("--tag-color")).toBe(chipBefore);
+  });
+
+  it("previews the draft only on the chip in the Preview card", () => {
+    const { containerEl } = render();
+    const chip = defaultsPreviewChip(containerEl);
+    expect(chip.textContent).toBe("Preview");
+
+    pick(backgroundPicker(containerEl), "#123456");
+    pick(textPicker(containerEl), "#abcdef");
+
+    expect(chip.style.getPropertyValue("--tag-color")).toBe("#123456");
+    expect(chip.style.getPropertyValue("--tag-text-color")).toBe("#abcdef");
+  });
+
+  it("enables Apply only while the draft differs from the saved defaults", () => {
+    const { containerEl } = render();
+    expect(applyButton(containerEl).disabled).toBe(true);
+
+    pick(backgroundPicker(containerEl), "#123456");
+    expect(applyButton(containerEl).disabled).toBe(false);
+
+    pick(
+      backgroundPicker(containerEl),
+      DEFAULT_SETTINGS.defaultTagColor!.toUpperCase(),
+    );
+    expect(applyButton(containerEl).disabled).toBe(true);
+  });
+
+  it("puts the Preview card, then the Apply card, directly before 'Reset all tags to defaults'", () => {
+    const { containerEl } = render();
+    const names = Array.from(
+      containerEl.querySelectorAll(".setting-item-name"),
+    ).map((el) => el.textContent?.trim());
+
+    const preview = names.indexOf("Preview");
+    expect(preview).toBeGreaterThan(names.indexOf("Text"));
+    expect(names[preview + 1]).toBe("Apply tag defaults");
+    expect(names[preview + 2]).toBe("Reset all tags to defaults");
+  });
+
+  it("leaves everything alone when the Apply dialog is cancelled", async () => {
+    const { containerEl, settings, plugin } = render();
+    stubApplyChoice("cancel");
+    pick(backgroundPicker(containerEl), "#123456");
+
+    await clickApply(containerEl);
+
+    expect(settings.defaultTagColor).toBe(DEFAULT_SETTINGS.defaultTagColor);
+    expect(plugin.saveSettings).not.toHaveBeenCalled();
+    expect(applyButton(containerEl).disabled).toBe(false);
+  });
+
+  it("saves both defaults and pins nothing when applying to all tags", async () => {
+    const { containerEl, settings, plugin } = render((s) => {
+      s.availableTags = [{ name: "Plain" }, { name: "Own", color: "#111111" }];
+    });
+    stubApplyChoice("all");
+    pick(backgroundPicker(containerEl), "#123456");
+    pick(textPicker(containerEl), "#abcdef");
+
+    await clickApply(containerEl);
+
+    expect(settings.defaultTagColor).toBe("#123456");
+    expect(settings.defaultTagTextColor).toBe("#abcdef");
+    expect(settings.availableTags).toEqual([
+      { name: "Plain" },
+      { name: "Own", color: "#111111" },
+    ]);
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+    expect(plugin.refreshOpenTagColorViews).toHaveBeenCalledTimes(1);
+    expect(applyButton(containerEl).disabled).toBe(true);
+  });
+
+  it("pins existing inheriting tags to the old defaults when applying to future tags only", async () => {
+    const oldBackground = DEFAULT_SETTINGS.defaultTagColor;
+    const oldText = DEFAULT_SETTINGS.defaultTagTextColor;
+    const { containerEl, settings, plugin } = render((s) => {
+      s.availableTags = [
+        { name: "Plain" },
+        { name: "Own", color: "#111111" },
+        { name: "OwnText", textColor: "#222222" },
+      ];
+      s.feeds = [
+        {
+          title: "F",
+          url: "https://f.test",
+          items: [{ title: "A", tags: [{ name: "Plain" }] }],
+        },
+      ] as unknown as RssDashboardSettings["feeds"];
+      s.folders = [
+        {
+          name: "Tech",
+          subfolders: [
+            {
+              name: "Deep",
+              subfolders: [],
+              autoTags: [{ name: "Plain" }],
+            },
+          ],
+          autoTags: [{ name: "Plain" }],
+        },
+      ] as unknown as RssDashboardSettings["folders"];
+    });
+    stubApplyChoice("future");
+    pick(backgroundPicker(containerEl), "#123456");
+    pick(textPicker(containerEl), "#abcdef");
+
+    await clickApply(containerEl);
+
+    expect(settings.availableTags).toEqual([
+      { name: "Plain", color: oldBackground, textColor: oldText },
+      { name: "Own", color: "#111111", textColor: oldText },
+      { name: "OwnText", color: oldBackground, textColor: "#222222" },
+    ]);
+    expect(settings.feeds[0]?.items[0]?.tags).toEqual([
+      { name: "Plain", color: oldBackground, textColor: oldText },
+    ]);
+    expect(settings.folders[0]?.autoTags).toEqual([
+      { name: "Plain", color: oldBackground, textColor: oldText },
+    ]);
+    expect(settings.folders[0]?.subfolders[0]?.autoTags).toEqual([
+      { name: "Plain", color: oldBackground, textColor: oldText },
+    ]);
+    expect(settings.defaultTagColor).toBe("#123456");
+    expect(settings.defaultTagTextColor).toBe("#abcdef");
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("pins only the property whose default is changing", async () => {
+    const oldText = DEFAULT_SETTINGS.defaultTagTextColor;
+    const { containerEl, settings } = render((s) => {
+      s.availableTags = [{ name: "Plain" }];
+    });
+    stubApplyChoice("future");
+    pick(textPicker(containerEl), "#abcdef");
+
+    await clickApply(containerEl);
+
+    expect(settings.availableTags).toEqual([
+      { name: "Plain", textColor: oldText },
+    ]);
+    expect(settings.defaultTagColor).toBe(DEFAULT_SETTINGS.defaultTagColor);
+    expect(settings.defaultTagTextColor).toBe("#abcdef");
+  });
+
+  it("starts Add new tag pickers from the applied defaults, not the draft", async () => {
+    const { containerEl } = render();
+    const addBackground = getSettingByName(
+      containerEl,
+      "Tag color",
+    ).querySelector<HTMLInputElement>("input[type='color']")!;
+    const before = addBackground.value;
+    stubApplyChoice("all");
+
+    pick(backgroundPicker(containerEl), "#123456");
+    expect(addBackground.value).toBe(before);
+
+    await clickApply(containerEl);
+    expect(addBackground.value).toBe("#123456");
+  });
+
+  it("changes only the selected draft color when choosing a palette preset", async () => {
+    const { containerEl, settings, plugin } = render();
+    const backgroundRow =
+      backgroundPicker(containerEl).closest(".setting-item")!;
+    const chip = defaultsPreviewChip(containerEl);
+
+    backgroundRow
+      .querySelector<HTMLButtonElement>(
+        ".rss-dashboard-tag-color-palette-control-color-trigger",
+      )!
+      .click();
+    Array.from(containerEl.querySelectorAll<HTMLButtonElement>("[role=option]"))
+      .find((option) => option.getAttribute("aria-label") === "Red #FF383C")
+      ?.click();
+    await flushPromises();
+
+    expect(chip.style.getPropertyValue("--tag-color")).toBe("#ff383c");
+    expect(chip.style.getPropertyValue("--tag-text-color")).toBe(
+      DEFAULT_SETTINGS.defaultTagTextColor,
+    );
+    expect(settings.defaultTagColor).toBe(DEFAULT_SETTINGS.defaultTagColor);
+    expect(plugin.saveSettings).not.toHaveBeenCalled();
+  });
+
+  describe("Randomize buttons", () => {
+    const dice = (row: Element) =>
+      row.querySelector<HTMLButtonElement>(
+        ".rss-dashboard-tag-color-randomize",
+      )!;
+    const rowFor = (containerEl: HTMLElement, name: string) =>
+      getSettingByName(containerEl, name);
+
+    it("puts one named dice beside the picker in all four color rows", () => {
+      const { containerEl } = render();
+
+      for (const name of [
+        "Background",
+        "Text",
+        "Tag color",
+        "Tag text color",
+      ]) {
+        const button = dice(rowFor(containerEl, name));
+        expect(button.getAttribute("aria-label")).toBe("Randomize");
+        expect(
+          button.previousElementSibling?.matches('input[type="color"]'),
+        ).toBe(true);
+      }
+    });
+
+    it("rolls a color into the draft only, with no readability check", async () => {
+      vi.spyOn(Math, "random").mockReturnValue(0.5);
+      const { containerEl, settings, plugin } = render();
+      const chip = defaultsPreviewChip(containerEl);
+
+      dice(rowFor(containerEl, "Background")).click();
+      expect(backgroundPicker(containerEl).value).toBe("#808080");
+      expect(chip.style.getPropertyValue("--tag-color")).toBe("#808080");
+
+      dice(rowFor(containerEl, "Text")).click();
+      expect(textPicker(containerEl).value).toBe("#808080");
+      expect(chip.style.getPropertyValue("--tag-text-color")).toBe("#808080");
+
+      expect(settings.defaultTagColor).toBe(DEFAULT_SETTINGS.defaultTagColor);
+      expect(plugin.saveSettings).not.toHaveBeenCalled();
+      expect(applyButton(containerEl).disabled).toBe(false);
+    });
+
+    it("rolls the new tag colors and updates its preview", () => {
+      vi.spyOn(Math, "random").mockReturnValue(0.25);
+      const { containerEl } = render();
+      const colorInput = (name: string) =>
+        getSettingByName(containerEl, name).querySelector<HTMLInputElement>(
+          'input[type="color"]',
+        )!;
+      const preview = getSettingByName(
+        containerEl,
+        "Tag name",
+      ).querySelector<HTMLElement>(".rss-dashboard-tag-new-preview")!;
+
+      dice(rowFor(containerEl, "Tag color")).click();
+      dice(rowFor(containerEl, "Tag text color")).click();
+
+      expect(colorInput("Tag color").value).toBe("#404040");
+      expect(colorInput("Tag text color").value).toBe("#404040");
+      expect(preview.style.getPropertyValue("--tag-color")).toBe("#404040");
+      expect(preview.style.getPropertyValue("--tag-text-color")).toBe(
+        "#404040",
+      );
+    });
+  });
+
+  describe("tag shape previews", () => {
+    const shapeChip = (containerEl: HTMLElement) =>
+      containerEl.querySelector<HTMLElement>(".rss-dashboard-tag-shape-chip")!;
+
+    it("keep the applied colors while a draft is being edited", () => {
+      const { containerEl, settings } = render();
+
+      pick(backgroundPicker(containerEl), "#123456");
+      pick(textPicker(containerEl), "#abcdef");
+
+      expect(shapeChip(containerEl).style.getPropertyValue("--tag-color")).toBe(
+        settings.defaultTagColor,
+      );
+    });
+
+    it.each(["all", "future"] as const)(
+      "pick up the new defaults once they are applied to %s tags",
+      async (choice) => {
+        const { containerEl } = render();
+        stubApplyChoice(choice);
+        pick(backgroundPicker(containerEl), "#123456");
+        pick(textPicker(containerEl), "#abcdef");
+
+        await clickApply(containerEl);
+
+        const chips = Array.from(
+          containerEl.querySelectorAll<HTMLElement>(
+            ".rss-dashboard-tag-shape-chip",
+          ),
+        );
+        expect(chips).toHaveLength(3);
+        for (const chip of chips) {
+          expect(chip.style.getPropertyValue("--tag-color")).toBe("#123456");
+          expect(chip.style.getPropertyValue("--tag-text-color")).toBe(
+            "#abcdef",
+          );
+        }
+      },
+    );
+
+    it("keep the old colors when the Apply dialog is cancelled", async () => {
+      const { containerEl, settings } = render();
+      stubApplyChoice("cancel");
+      pick(backgroundPicker(containerEl), "#123456");
+
+      await clickApply(containerEl);
+
+      expect(shapeChip(containerEl).style.getPropertyValue("--tag-color")).toBe(
+        settings.defaultTagColor,
+      );
+    });
+  });
+
+  describe("Add new tag preview", () => {
+    const nameField = (containerEl: HTMLElement) =>
+      getSettingByName(containerEl, "Tag name").querySelector<HTMLInputElement>(
+        'input[type="text"]',
+      )!;
+    const newPreview = (containerEl: HTMLElement) =>
+      getSettingByName(containerEl, "Tag name").querySelector<HTMLElement>(
+        ".rss-dashboard-tag-new-preview",
+      )!;
+    const newColorInput = (containerEl: HTMLElement, name: string) =>
+      getSettingByName(containerEl, name).querySelector<HTMLInputElement>(
+        "input[type='color']",
+      )!;
+
+    it("sits between the name input and the Add tag button", () => {
+      const { containerEl } = render();
+
+      const control = getSettingByName(containerEl, "Tag name").querySelector(
+        ".setting-item-control",
+      )!;
+      const order = Array.from(control.children).map((el) =>
+        el.matches(".rss-input-clear")
+          ? "input"
+          : el.classList.contains("rss-dashboard-tag-new-preview")
+            ? "preview"
+            : (el.textContent ?? ""),
+      );
+      expect(order).toEqual(["input", "preview", "Add tag"]);
+    });
+
+    it("reads Preview while the name is empty and follows what is typed", () => {
+      const { containerEl } = render();
+      expect(newPreview(containerEl).textContent).toBe("Preview");
+
+      const field = nameField(containerEl);
+      field.value = "  Later ";
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      expect(newPreview(containerEl).textContent).toBe("Later");
+
+      field.value = "";
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      expect(newPreview(containerEl).textContent).toBe("Preview");
+    });
+
+    it("shows the colors chosen for the new tag", () => {
+      const { containerEl } = render();
+
+      pick(newColorInput(containerEl, "Tag color"), "#445566");
+      pick(newColorInput(containerEl, "Tag text color"), "#fedcba");
+
+      const chip = newPreview(containerEl);
+      expect(chip.style.getPropertyValue("--tag-color")).toBe("#445566");
+      expect(chip.style.getPropertyValue("--tag-text-color")).toBe("#fedcba");
+    });
+
+    it("is not overridden by an existing tag that has the same name", () => {
+      const { containerEl } = render((s) => {
+        s.availableTags = [{ name: "News", color: "#ff0000" }];
+      });
+
+      const field = nameField(containerEl);
+      field.value = "News";
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      pick(newColorInput(containerEl, "Tag color"), "#445566");
+
+      expect(
+        newPreview(containerEl).style.getPropertyValue("--tag-color"),
+      ).toBe("#445566");
+    });
+
+    it("follows the defaults once they are applied", async () => {
+      const { containerEl } = render();
+      stubApplyChoice("all");
+      pick(backgroundPicker(containerEl), "#123456");
+
+      await clickApply(containerEl);
+
+      expect(
+        newPreview(containerEl).style.getPropertyValue("--tag-color"),
+      ).toBe("#123456");
+    });
+  });
+
+  describe("layout", () => {
+    const renderEl = () => render().containerEl;
+
+    it("keeps the defaults Preview chip and its description in their own card above Apply", () => {
+      const containerEl = renderEl();
+
+      expect(
+        containerEl.querySelector(".rss-dashboard-tag-default-preview"),
+      ).toBeNull();
+      const card = getSettingByName(containerEl, "Preview");
+      expect(
+        card.querySelector(".rss-dashboard-tag-defaults-preview")?.textContent,
+      ).toBe("Preview");
+      expect(card.querySelector(".setting-item-description")?.textContent).toBe(
+        "Preview the new defaults here. Nothing changes until you apply.",
+      );
+      const apply = getSettingByName(containerEl, "Apply tag defaults");
+      expect(apply.querySelector(".rss-dashboard-tag-badge")).toBeNull();
+      expect(
+        apply.querySelector(".setting-item-description")?.textContent,
+      ).toBe("Choose whether existing tags change too, or only new ones.");
+    });
+
+    it("no longer has a 'Tags' heading above the defaults", () => {
+      const containerEl = renderEl();
+      const names = Array.from(
+        containerEl.querySelectorAll(".setting-item-name"),
+      ).map((el) => el.textContent?.trim());
+
+      expect(names).not.toContain("Tags");
+      expect(names).toContain("Tag appearance defaults");
+    });
+
+    it("drops the Palette and Color captions from every Background and Text row", () => {
+      const containerEl = renderEl();
+
+      const rows = containerEl.querySelectorAll(
+        ".rss-dashboard-tag-color-setting",
+      );
+      expect(rows).toHaveLength(4);
+      for (const row of Array.from(rows)) {
+        expect(
+          row.querySelector(".rss-dashboard-tag-color-palette-control"),
+        ).not.toBeNull();
+        expect(
+          row.querySelector(".rss-dashboard-tag-color-palette-control-label"),
+        ).toBeNull();
+        expect(row.querySelector("select")?.getAttribute("aria-label")).toMatch(
+          /^Palette for /,
+        );
+      }
+    });
+
+    it("puts the tag name, its field and Add tag on the last row, below the colors", () => {
+      const containerEl = renderEl();
+
+      const rows = Array.from(
+        containerEl.querySelectorAll(".setting-item"),
+      ).slice(-3);
+      expect(
+        rows.map((row) => row.querySelector(".setting-item-name")?.textContent),
+      ).toEqual(["Tag color", "Tag text color", "Tag name"]);
+      const last = rows[2];
+      expect(last.querySelector('input[type="text"]')).not.toBeNull();
+      expect(
+        Array.from(last.querySelectorAll("button")).some(
+          (button) => button.textContent === "Add tag",
+        ),
+      ).toBe(true);
+      expect(
+        Array.from(containerEl.querySelectorAll("button")).filter(
+          (button) => button.textContent === "Add tag",
+        ),
+      ).toHaveLength(1);
+    });
+
+    it("shows the up/down chevron on every Palette select", () => {
+      const containerEl = renderEl();
+
+      const selects = containerEl.querySelectorAll(
+        ".rss-dashboard-tag-color-palette-control select",
+      );
+      expect(selects.length).toBeGreaterThan(0);
+      for (const select of Array.from(selects)) {
+        const chevron = select.parentElement?.querySelector(
+          ".rss-dashboard-tag-color-palette-control-select-chevron",
+        );
+        expect(chevron?.getAttribute("aria-hidden")).toBe("true");
+        expect(chevron?.querySelector("svg")).not.toBeNull();
+      }
+    });
+  });
+
+  describe("reset confirmation preview", () => {
+    const openReset = async (tags: Tag[], defaults = {}) => {
+      const containerEl = document.body.appendChild(createDiv());
+      const settings = cloneSettings();
+      settings.availableTags = tags;
+      Object.assign(settings, defaults);
+      const plugin = {
+        app: obsidian.App.createMock(),
+        settings,
+        saveSettings: vi.fn(async () => {}),
+        refreshOpenTagColorViews: vi.fn(async () => {}),
+      } as unknown as RssDashboardPlugin;
+      let content: HTMLElement | null = null;
+      vi.spyOn(ConfirmActionModal.prototype, "open").mockImplementation(
+        function (this: ConfirmActionModal) {
+          this.onOpen();
+          content = this.contentEl;
+        },
+      );
+      vi.spyOn(ConfirmActionModal.prototype, "waitForClose").mockResolvedValue(
+        false,
+      );
+      renderTagsSettingsTab(containerEl, plugin, vi.fn());
+      Array.from(containerEl.querySelectorAll("button"))
+        .find((button) => button.textContent === "Reset all tags to defaults")!
+        .click();
+      await flushPromises();
+      return (content as HTMLElement | null)!.querySelector<HTMLElement>(
+        ".rss-dashboard-confirm-preview",
+      );
+    };
+
+    it("lists each overridden tag as it is now and as it will look after the reset", async () => {
+      const preview = await openReset(
+        [
+          { name: "One", color: "#111111", textColor: "#aaaaaa" },
+          { name: "Plain" },
+        ],
+        { defaultTagColor: "#123456", defaultTagTextColor: "#abcdef" },
+      );
+
+      const rows = preview!.querySelectorAll<HTMLElement>(
+        ".rss-dashboard-confirm-preview-row",
+      );
+      expect(rows).toHaveLength(1);
+      const [before, after] = Array.from(
+        rows[0].querySelectorAll<HTMLElement>(".rss-dashboard-tag-badge"),
+      );
+      expect(before?.textContent).toBe("One");
+      expect(before?.style.getPropertyValue("--tag-color")).toBe("#111111");
+      expect(after?.textContent).toBe("One");
+      expect(after?.style.getPropertyValue("--tag-color")).toBe("#123456");
+      expect(after?.style.getPropertyValue("--tag-text-color")).toBe("#abcdef");
+    });
+
+    it("caps a long list and says how many are not shown", async () => {
+      const tags = Array.from({ length: 11 }, (_, index) => ({
+        name: `Tag ${index}`,
+        color: "#111111",
+      }));
+
+      const preview = await openReset(tags);
+
+      expect(
+        preview!.querySelectorAll(".rss-dashboard-confirm-preview-row"),
+      ).toHaveLength(8);
+      expect(
+        preview!.querySelector(".rss-dashboard-confirm-preview-more")
+          ?.textContent,
+      ).toBe("and 3 more");
+    });
+
+    it("says nothing will change when no tag has custom colors", async () => {
+      const preview = await openReset([{ name: "Plain" }]);
+
+      expect(
+        preview!.querySelector(".rss-dashboard-confirm-preview-row"),
+      ).toBeNull();
+      expect(preview!.textContent).toContain("nothing will change");
+    });
+  });
+
+  it("clears every override only when reset is confirmed", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const settings = cloneSettings();
+    settings.availableTags = [
+      { name: "One", color: "#111111", textColor: "#aaaaaa" },
+      { name: "Two", color: "#222222", textColor: "#bbbbbb" },
+    ];
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      refreshOpenTagColorViews: vi.fn(async () => {}),
+    } as unknown as RssDashboardPlugin;
+    renderTagsSettingsTab(containerEl, plugin, vi.fn());
+
+    const resetButton = Array.from(
+      containerEl.querySelectorAll<HTMLButtonElement>("button"),
+    ).find((button) => button.textContent === "Reset all tags to defaults")!;
+    stubConfirm(false);
+    resetButton.click();
+    await flushPromises();
+    expect(settings.availableTags[0]).toEqual({
+      name: "One",
+      color: "#111111",
+      textColor: "#aaaaaa",
+    });
+    expect(plugin.saveSettings).not.toHaveBeenCalled();
+
+    vi.restoreAllMocks();
+    stubConfirm(true);
+    resetButton.click();
+    await flushPromises();
+    expect(settings.availableTags).toEqual([{ name: "One" }, { name: "Two" }]);
+    expect(plugin.saveSettings).toHaveBeenCalledTimes(1);
+    expect(plugin.refreshOpenTagColorViews).toHaveBeenCalledTimes(1);
   });
 });

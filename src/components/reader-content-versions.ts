@@ -20,6 +20,7 @@ export class ReaderContentVersions {
   private active = true;
   private onRequestFetchedContent?: () => void;
   private fetching = false;
+  private pendingStatusTimer?: number;
 
   constructor(
     private readonly container: HTMLElement,
@@ -38,7 +39,12 @@ export class ReaderContentVersions {
     this.parent = container.parentElement;
     this.controls = container.createDiv({ cls: "rss-reader-content-progress" });
     this.status = createLiveRegion(this.controls, "rss-reader-fetch-status");
-    if (!onDemand) this.status.announce("Fetching article content…");
+    if (!onDemand) {
+      this.pendingStatusTimer = window.setTimeout(() => {
+        this.pendingStatusTimer = undefined;
+        if (this.isActive()) this.status.announce("Fetching article content…");
+      }, 0);
+    }
     this.rss = container.createDiv({ cls: "rss-reader-content-version" });
     renderVersion(this.rss, "rss");
     if (shortFeed) {
@@ -56,6 +62,7 @@ export class ReaderContentVersions {
 
   dispose(): void {
     this.active = false;
+    this.clearPendingStatusTimer();
   }
 
   visitVersions(visitor: (container: HTMLElement) => void): void {
@@ -66,6 +73,7 @@ export class ReaderContentVersions {
   /** Eager fetch succeeded: offer the fetched version. */
   ready(): void {
     if (!this.isActive()) return;
+    this.clearPendingStatusTimer();
     this.placeholder?.remove();
     this.removeFetchBanners();
     this.status.announce("Fetched content ready. RSS content is still shown.");
@@ -94,6 +102,7 @@ export class ReaderContentVersions {
 
   failed(result: FullArticleFetchResult): void {
     if (!this.isActive()) return;
+    this.clearPendingStatusTimer();
     this.placeholder?.remove();
     this.fetching = false;
     if (this.button) {
@@ -120,6 +129,12 @@ export class ReaderContentVersions {
     });
     button.addEventListener("click", () => this.toggle());
     return button;
+  }
+
+  private clearPendingStatusTimer(): void {
+    if (this.pendingStatusTimer === undefined) return;
+    window.clearTimeout(this.pendingStatusTimer);
+    this.pendingStatusTimer = undefined;
   }
 
   private removeFetchBanners(): void {

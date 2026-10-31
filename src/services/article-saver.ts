@@ -41,6 +41,13 @@ import {
   applyArticleMetadata,
   feedLanguageFor,
 } from "../utils/article-metadata-persistence";
+import {
+  bodyLeadsWithHero,
+  noteLeadsWithHero,
+  removeTemplateImageFromBody,
+  resolveNoteTemplate,
+  templateImageUrl,
+} from "./article-template/note-template";
 import { renderArticleTemplate } from "./article-template/render-template";
 import {
   ARTICLE_SAVER_FRONTMATTER_STEPS,
@@ -332,19 +339,7 @@ export class ArticleSaver {
   }
 
   private getFallbackHeroUrl(item: FeedItem): string {
-    const enclosureImageUrl =
-      item.enclosure?.type?.startsWith("image/") && item.enclosure.url
-        ? item.enclosure.url
-        : "";
-
-    const heroUrl = firstNonFormulaImageUrl([
-      item.coverImage,
-      item.image,
-      item.itunes?.image?.href,
-      enclosureImageUrl,
-    ]);
-
-    return normalizeSubstackImageUrl((heroUrl || "").trim());
+    return templateImageUrl(item);
   }
 
   /**
@@ -368,6 +363,21 @@ export class ArticleSaver {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * The body HTML a note saves. A template that places `{{image}}` itself
+   * (`leadWithHero` false) also drops the body's own copy of that image, so
+   * the note shows it once, where the template put it.
+   */
+  private bodyHtmlForNote(
+    item: FeedItem,
+    html: string,
+    leadWithHero: boolean,
+  ): string {
+    return leadWithHero
+      ? html
+      : removeTemplateImageFromBody(html, templateImageUrl(item));
   }
 
   private prependFallbackHeroHtml(
@@ -475,7 +485,9 @@ guid: "{{guid}}"
     rawContent: string | undefined,
     writtenVersion: SaveVersion,
   ): string {
-    const content = rawContent ? rawContent : this.feedHtmlAsMarkdown(item);
+    const content = rawContent
+      ? rawContent
+      : this.feedHtmlAsMarkdown(item, bodyLeadsWithHero(template, item));
 
     return renderArticleTemplate(
       template,
@@ -523,11 +535,18 @@ guid: "{{guid}}"
    * A video item with a validated `videoId` leads with its own native embed
    * instead of the fallback hero (#1237), on both the Markdown and HTML-note
    * paths; the content follows.
+   *
+   * `leadWithHero` is false when the template places `{{image}}` itself; the
+   * body then takes no hero, as the prepend helpers treat an empty URL.
    */
-  private feedHtmlAsMarkdown(item: FeedItem): string {
+  private feedHtmlAsMarkdown(item: FeedItem, leadWithHero: boolean): string {
     const feedHtml = this.getPreferredFeedHtml(item);
-    const sanitizedHtml = this.sanitizeFeedHtmlForMarkdown(feedHtml, item.link);
-    const heroUrl = this.getFeedHeroUrl(item);
+    const sanitizedHtml = this.bodyHtmlForNote(
+      item,
+      this.sanitizeFeedHtmlForMarkdown(feedHtml, item.link),
+      leadWithHero,
+    );
+    const heroUrl = leadWithHero ? this.getFeedHeroUrl(item) : "";
 
     if (this.videoItemEmbedId(item)) {
       const markdown = articleHtmlToMarkdown(sanitizedHtml);
@@ -635,7 +654,16 @@ guid: "{{guid}}"
       const markdown = readerContent.markdown?.trim()
         ? readerContent.markdown
         : readerContent.fetchedHtml
-          ? this.convertFetchedHtmlToMarkdown(item, readerContent.fetchedHtml)
+          ? this.convertFetchedHtmlToMarkdown(
+              item,
+              readerContent.fetchedHtml,
+              noteLeadsWithHero(
+                this.settings,
+                customTemplate,
+                savedTemplate,
+                item,
+              ),
+            )
           : "";
       if (markdown.trim()) {
         return this.saveArticle(
@@ -673,19 +701,29 @@ guid: "{{guid}}"
     // Same ad stripping and relative-image fix-up as the RSS-content path, so
     // the fallback and a fetched save match it (#1195).
     const feedContent = this.getPreferredFeedHtml(item);
-    const sanitizedHtml = this.sanitizeFeedHtmlForMarkdown(
-      feedContent,
-      item.link,
+    const leadWithHero = noteLeadsWithHero(
+      this.settings,
+      customTemplate,
+      savedTemplate,
+      item,
+    );
+    const sanitizedHtml = this.bodyHtmlForNote(
+      item,
+      this.sanitizeFeedHtmlForMarkdown(feedContent, item.link),
+      leadWithHero,
     );
     const fallbackMarkdown = feedContent
       ? articleHtmlToMarkdown(sanitizedHtml)
       : "";
+    // A template that places {{image}} itself takes no hero lead (the prepend
+    // treats an empty URL as no hero).
+    const heroUrl = leadWithHero ? this.getFeedHeroUrl(item) : "";
     const fallbackWithHero = fallbackMarkdown
       ? this.prependFallbackHeroMarkdown(
           item,
           fallbackMarkdown,
           sanitizedHtml,
-          this.getFeedHeroUrl(item),
+          heroUrl,
         )
       : "";
     const markedFallback = fallbackWithHero.trim()
@@ -701,20 +739,29 @@ guid: "{{guid}}"
     );
   }
 
-  private convertFetchedHtmlToMarkdown(item: FeedItem, html: string): string {
+  private convertFetchedHtmlToMarkdown(
+    item: FeedItem,
+    html: string,
+    leadWithHero: boolean,
+  ): string {
     // The Fetched content save's hero is the page's own image first (#812),
     // then the saver's full feed chain (which also accepts an image enclosure).
     const fetchedHeroUrl =
       normalizeSubstackImageUrl(
         resolvePageImageHeroUrl(item, this.getFeeds()) || "",
       ).trim() || this.getFallbackHeroUrl(item);
+    // A template that places {{image}} itself takes no hero lead (the prepend
+    // treats an empty URL as no hero); the cleanup below still reads the hero
+    // to drop the page's own repeated lead.
+    const leadHeroUrl = leadWithHero ? fetchedHeroUrl : "";
     const doc = this.parseHtmlBody(html);
     if (!doc) {
+      const bodyHtml = this.bodyHtmlForNote(item, html, leadWithHero);
       return this.prependFallbackHeroMarkdown(
         item,
-        articleHtmlToMarkdown(html),
-        html,
-        fetchedHeroUrl,
+        articleHtmlToMarkdown(bodyHtml),
+        bodyHtml,
+        leadHeroUrl,
       );
     }
 
@@ -731,12 +778,16 @@ guid: "{{guid}}"
       fallbackHeroUrl: fetchedHeroUrl,
     });
 
-    const sanitizedHtml = doc.body.innerHTML;
+    const sanitizedHtml = this.bodyHtmlForNote(
+      item,
+      doc.body.innerHTML,
+      leadWithHero,
+    );
     return this.prependFallbackHeroMarkdown(
       item,
       articleHtmlToMarkdown(sanitizedHtml),
       sanitizedHtml,
-      fetchedHeroUrl,
+      leadHeroUrl,
     );
   }
 
@@ -795,6 +846,7 @@ guid: "{{guid}}"
       const markdownContent = this.convertFetchedHtmlToMarkdown(
         item,
         fetchResult.content,
+        noteLeadsWithHero(this.settings, customTemplate, savedTemplate, item),
       );
       if (!markdownContent.trim()) {
         loadingNotice.hide();
@@ -927,11 +979,7 @@ guid: "{{guid}}"
     customTemplate: string | undefined,
     savedTemplate: SavedTemplate | undefined,
   ): string {
-    return savedTemplate
-      ? (customTemplate ?? savedTemplate.template)
-      : customTemplate ||
-          this.settings.defaultTemplate ||
-          "# {{title}}\n\n{{content}}\n\n[Source]({{link}})";
+    return resolveNoteTemplate(this.settings, customTemplate, savedTemplate);
   }
 
   /** Assembles the note body: optional plugin frontmatter, then the rendered template. */

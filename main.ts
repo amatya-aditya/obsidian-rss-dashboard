@@ -75,9 +75,9 @@ import { OpmlManager } from "./src/services/opml-manager";
 import { PreviewImageCache } from "./src/services/preview-image-cache";
 import {
   PageCoverImageService,
+  createPageCoverFetch,
   type PageCoverImageResult,
 } from "./src/services/page-cover-image-service";
-import { fetchFullArticleContentWithOutcome } from "./src/utils/full-article-fetch";
 import { FeedOperationTracker } from "./src/services/feed-operation-tracker";
 import {
   FeedRefreshRunner,
@@ -318,14 +318,7 @@ export default class RssDashboardPlugin extends Plugin {
       getDashboardView: () => this.getActiveDashboardView(),
     });
     this.pageCoverImageService = new PageCoverImageService({
-      fetchPage: (url) =>
-        fetchFullArticleContentWithOutcome(
-          url,
-          this.settings.corsProxyEnabled && this.settings.corsProxyUrl
-            ? this.settings.corsProxyUrl
-            : undefined,
-          this.settings.articleSaving.fetchTimeout,
-        ),
+      fetchPage: createPageCoverFetch(() => this.settings),
     });
     this.feedRefreshRunner = new FeedRefreshRunner({
       feedOperationTracker: this.feedOperationTracker,

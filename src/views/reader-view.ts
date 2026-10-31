@@ -19,6 +19,7 @@ import {
   setTooltip,
 } from "obsidian";
 import { refreshReaderHeaderTags } from "../utils/reader-tag-chips";
+import { refreshTagMultiSelectMenuColors } from "../components/tag-multi-select-menu";
 import { setIcon, Scope } from "obsidian";
 import {
   addMathTurndownRule,
@@ -59,7 +60,18 @@ import {
 import { HighlightService } from "../services/highlight-service";
 import { resolveDisplayDate } from "../services/feed-parser/feed-retention";
 import { ArticleSaver } from "../services/article-saver";
+import {
+  noteLeadsWithHero,
+  removeTemplateImageFromBody,
+  templateImageUrl,
+} from "../services/article-template/note-template";
 import { setCssProps } from "../utils/platform-utils";
+import {
+  areSwipePanelsEnabled,
+  SwipeNavigator,
+  type SwipeDirection,
+} from "../utils/swipe-gesture";
+import { applyTagAppearance } from "../utils/tag-colors";
 import { createIconButton } from "../utils/icon-button";
 import { attachRovingToolbar } from "../utils/roving-toolbar";
 import { fetchFullArticleContentWithOutcome } from "../utils/full-article-fetch";
@@ -99,6 +111,7 @@ import { WebViewerIntegration } from "../services/web-viewer-integration";
 import { MediaService } from "../services/media-service";
 import {
   createTagsDropdownPortal,
+  refreshTagsDropdownPortalColors,
   tagsPortalHoldsFocus,
 } from "../utils/tags-dropdown-portal";
 import { resolveItemExternalUrl } from "../utils/item-url-utils";
@@ -205,6 +218,7 @@ export class ReaderView extends ItemView {
   private tagsToggleButton: HTMLElement | null = null;
   private saveButton: HTMLElement | null = null;
   private returnLeaf: WorkspaceLeaf | null = null;
+  private swipeNavigator: SwipeNavigator | null = null;
   private tagsDropdownCleanup: (() => void) | null = null;
   private tagsDropdownPortal: HTMLElement | null = null;
 
@@ -255,6 +269,24 @@ export class ReaderView extends ItemView {
         });
       }
     }
+  }
+
+  /** Swipe back is a main-view gesture; a sidebar reader swallows the swipe but does not act on it (DEC-015). */
+  private isInSidebar(): boolean {
+    const root = this.leaf.getRoot?.();
+    if (!root) return false;
+    const { leftSplit, rightSplit } = this.app.workspace;
+    return root === leftSplit || root === rightSplit;
+  }
+
+  /** Attaches or detaches the swipe listeners to match the current setting. */
+  public syncSwipeNavigation(): void {
+    this.swipeNavigator?.sync();
+  }
+
+  private handleSwipe(direction: SwipeDirection): void {
+    if (direction !== "right" || this.isInSidebar()) return;
+    void this.focusDashboardLeaf();
   }
 
   private async navigateBackToDashboard(): Promise<void> {
@@ -803,7 +835,12 @@ export class ReaderView extends ItemView {
     }
   }
 
-  private buildReaderSaveMarkdown(item: FeedItem): string {
+  /**
+   * The Markdown a Reader save hands the saver. `leadWithHero` is false when
+   * the note template places `{{image}}` itself, so the body takes no hero and
+   * drops its own copy of that image.
+   */
+  private buildReaderSaveMarkdown(item: FeedItem, leadWithHero = true): string {
     const htmlToSave =
       this.currentFullContent && this.currentContentIsFullArticle
         ? cleanFetchedArticleHtml(this.currentFullContent, {
@@ -817,10 +854,10 @@ export class ReaderView extends ItemView {
           })
         : this.currentFullContent || item.description || "";
     // Same ad stripping the saver applies on its own paths (#1195).
-    const htmlWithHero = this.prependFallbackHeroForSavedMarkdown(
-      item,
-      stripAdContainersFromHtml(htmlToSave),
-    );
+    const strippedHtml = stripAdContainersFromHtml(htmlToSave);
+    const htmlWithHero = leadWithHero
+      ? this.prependFallbackHeroForSavedMarkdown(item, strippedHtml)
+      : removeTemplateImageFromBody(strippedHtml, templateImageUrl(item));
     const normalizedSaveHtml =
       this.normalizeBlockLinksForSavedMarkdown(htmlWithHero);
     return this.turndownService.turndown(
@@ -856,7 +893,15 @@ export class ReaderView extends ItemView {
       ? {
           fetchAttempted: true,
           markdown: this.currentContentIsFullArticle
-            ? this.buildReaderSaveMarkdown(item)
+            ? this.buildReaderSaveMarkdown(
+                item,
+                noteLeadsWithHero(
+                  this.settings.articleSaving,
+                  template,
+                  savedTemplate,
+                  item,
+                ),
+              )
             : undefined,
           fetchedHtml: this.currentFetchedArticleContent,
         }
@@ -1064,6 +1109,11 @@ export class ReaderView extends ItemView {
     // Make the view container focusable so keyboard events are routed through
     // Obsidian's scope system when this view is active.
     this.containerEl.tabIndex = -1;
+    this.swipeNavigator = new SwipeNavigator(this.containerEl, {
+      isEnabled: () => areSwipePanelsEnabled(this.settings),
+      onSwipe: (direction) => this.handleSwipe(direction),
+    });
+    this.swipeNavigator.sync();
     this.registerDomEvent(this.containerEl, "click", (evt) => {
       // Only grab focus back to the container if the click was not on an
       // interactive element (input, button, select, textarea, link, etc.).
@@ -1078,6 +1128,8 @@ export class ReaderView extends ItemView {
     if (typeof this.app.workspace.on === "function") {
       this.registerEvent(
         this.app.workspace.on("active-leaf-change", (leaf) => {
+          // The setting or viewport may have changed while this tab was hidden.
+          this.swipeNavigator?.sync();
           if (
             leaf === this.leaf &&
             !tagsPortalHoldsFocus(
@@ -1154,7 +1206,7 @@ export class ReaderView extends ItemView {
 
     this.saveButton = createIconButton({
       parent: actions,
-      cls: "rss-reader-action-button",
+      cls: "rss-reader-action-button rss-reader-save-toggle",
       label: "Save article",
       icon: "save",
       action: "save",
@@ -1198,6 +1250,15 @@ export class ReaderView extends ItemView {
         }
       },
     });
+    this.starToggleButton.empty();
+    const starIcon = this.starToggleButton.createSpan({
+      cls: "rss-reader-star-icon",
+    });
+    setIcon(starIcon, "star-off");
+    const starPreviewIcon = this.starToggleButton.createSpan({
+      cls: "rss-reader-star-preview-icon",
+    });
+    setIcon(starPreviewIcon, "star");
 
     // Tags button (same portal menu as dashboard cards)
     const tagsButton = (this.tagsToggleButton = createIconButton({
@@ -1250,6 +1311,8 @@ export class ReaderView extends ItemView {
   }
 
   async onClose(): Promise<void> {
+    this.swipeNavigator?.destroy();
+    this.swipeNavigator = null;
     this.invalidateDisplay();
     this.closeTagsDropdown();
 
@@ -1655,6 +1718,7 @@ export class ReaderView extends ItemView {
         this.settings.media.showPodcastChapterMarkers ?? true,
         this.settings.media.showPodcastSleepTimerBand ?? true,
       );
+      this.podcastPlayer.setTagAppearanceSettings(this.settings);
       this.podcastPlayer.loadEpisode(item, fullFeedEpisodes);
       renderSourceFooter(this.readingContainer, item);
     } else {
@@ -1678,6 +1742,7 @@ export class ReaderView extends ItemView {
           this.settings.media.showPodcastChapterMarkers ?? true,
           this.settings.media.showPodcastSleepTimerBand ?? true,
         );
+        this.podcastPlayer.setTagAppearanceSettings(this.settings);
         this.podcastPlayer.loadEpisode(podcastItem, fullFeedEpisodes);
         renderSourceFooter(this.readingContainer, item);
       } else {
@@ -1899,7 +1964,7 @@ export class ReaderView extends ItemView {
           cls: "rss-reader-tag",
         });
         tagElement.textContent = tag.name;
-        tagElement.style.setProperty("--tag-color", tag.color);
+        applyTagAppearance(tagElement, tag, this.settings);
       }
     }
 
@@ -2423,13 +2488,18 @@ export class ReaderView extends ItemView {
   }
 
   public refreshTagColors(): void {
+    refreshTagMultiSelectMenuColors(
+      this.containerEl.ownerDocument,
+      this.settings,
+    );
+    refreshTagsDropdownPortalColors(
+      this.containerEl.ownerDocument,
+      this.settings,
+    );
     if (!this.currentItem) {
       return;
     }
 
-    this.currentItem.tags = this.syncTagColorsWithSettings(
-      this.currentItem.tags,
-    );
     this.refreshReaderHeaderTags();
 
     if (this.podcastPlayer && this.currentItem.mediaType === "podcast") {
@@ -2621,32 +2691,20 @@ export class ReaderView extends ItemView {
       this.videoPlayer &&
       resolveReaderMediaRoute(this.currentItem) === "video"
     ) {
-      this.videoPlayer.setTags(this.currentItem.tags);
+      this.videoPlayer.setTags(this.currentItem.tags, this.settings);
       return;
     }
 
     visitReaderContent(
       this.contentVersions,
       this.readingContainer,
-      (container) => refreshReaderHeaderTags(container, this.currentItem?.tags),
+      (container) =>
+        refreshReaderHeaderTags(
+          container,
+          this.currentItem?.tags,
+          this.settings,
+        ),
     );
-  }
-
-  private syncTagColorsWithSettings(tags: FeedItem["tags"]): Tag[] {
-    return (tags ?? []).map((tag) => {
-      const matchingTag = this.settings.availableTags.find(
-        (availableTag) => availableTag.name === tag.name,
-      );
-
-      if (!matchingTag || matchingTag.color === tag.color) {
-        return tag;
-      }
-
-      return {
-        ...tag,
-        color: matchingTag.color,
-      };
-    });
   }
 
   private resolveReaderFontFamily(
@@ -2939,10 +2997,15 @@ export class ReaderView extends ItemView {
 
     // Update star toggle
     if (this.starToggleButton) {
-      setIcon(
-        this.starToggleButton,
-        this.currentItem.starred ? "star" : "star-off",
+      const starIcon = this.starToggleButton.querySelector(
+        ".rss-reader-star-icon",
       );
+      if (starIcon) {
+        setIcon(
+          starIcon as HTMLElement,
+          this.currentItem.starred ? "star" : "star-off",
+        );
+      }
       this.starToggleButton.classList.toggle(
         "starred",
         this.currentItem.starred,

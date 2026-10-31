@@ -169,7 +169,7 @@ describe("version status bar setting and command", () => {
     reloaded.feature.dispose();
   });
 
-  describe("accessible name, role, and click", () => {
+  describe("accessible label and click", () => {
     function createEnabledFeature(enabled = true) {
       const statusItems: HTMLElement[] = [];
       const openDashboard = vi.fn();
@@ -188,12 +188,16 @@ describe("version status bar setting and command", () => {
       return { feature, statusItems, openDashboard };
     }
 
-    it("exposes the item as a status with an accessible name carrying the manifest version", () => {
+    it("keeps the version label accessible without exposing a static live status", () => {
       const { feature, statusItems } = createEnabledFeature();
 
-      const item = getByRoleAndName("status", "RSS Dashboard version 2.7.0");
-      expect(item).toBe(statusItems[0]);
+      const item = statusItems[0];
+      expect(item?.getAttribute("aria-label")).toBe(
+        "RSS Dashboard version 2.7.0",
+      );
       expect(item.textContent).toBe("Version 2.7.0 · build unknown");
+      expect(item.getAttribute("role")).toBeNull();
+      expect(item.getAttribute("aria-live")).toBeNull();
       feature.dispose();
     });
 
@@ -238,11 +242,3 @@ describe("version status bar setting and command", () => {
     });
   });
 });
-
-function getByRoleAndName(role: string, name: string): HTMLElement {
-  const match = Array.from(
-    document.body.querySelectorAll<HTMLElement>(`[role="${role}"]`),
-  ).find((element) => element.getAttribute("aria-label") === name);
-  if (!match) throw new Error(`No ${role} named "${name}"`);
-  return match;
-}

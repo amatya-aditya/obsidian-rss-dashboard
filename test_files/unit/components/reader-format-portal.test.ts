@@ -266,4 +266,32 @@ describe("createReaderFormatPortal", () => {
       document.body.querySelector(".rss-reader-format-dropdown-portal"),
     ).toBeNull();
   });
+
+  it("does not install outside-click handling after closing before registration", () => {
+    vi.useFakeTimers();
+    try {
+      setMatchMedia(false);
+      const addListener = vi.spyOn(document, "addEventListener");
+      const handle = createReaderFormatPortal({
+        anchor: (document.body as ObsidianHTMLElement).createDiv(),
+        format: createFormat(),
+        defaults: createFormat(),
+        applyFormat: vi.fn(),
+        scheduleSave: vi.fn(),
+        flushSave: vi.fn(),
+        openReaderDisplaySettings: vi.fn(),
+      });
+
+      handle.close(false);
+      vi.runOnlyPendingTimers();
+
+      expect(addListener).not.toHaveBeenCalledWith(
+        "mousedown",
+        expect.any(Function),
+      );
+    } finally {
+      vi.restoreAllMocks();
+      vi.useRealTimers();
+    }
+  });
 });

@@ -111,6 +111,7 @@ export class FeedPreviewModal extends AccessibleModal {
     try {
       this.isLoading = true;
       this.error = null;
+      this.clearPreviewState();
 
       const xmlString = await fetchFeedXml(
         this.feed.url,
@@ -126,6 +127,53 @@ export class FeedPreviewModal extends AccessibleModal {
     } finally {
       this.isLoading = false;
     }
+  }
+
+  private clearPreviewState(): void {
+    this.contentEl
+      .querySelectorAll(
+        ":scope > .feed-preview-error, :scope > .feed-preview-content, :scope > .feed-preview-empty",
+      )
+      .forEach((el) => el.remove());
+  }
+
+  private getRssItemImage(item: Element, description: string): string {
+    const findChild = (tagName: string): Element | undefined =>
+      Array.from(item.children).find((el) => el.tagName === tagName);
+
+    const content = findChild("content:encoded")?.textContent || description;
+    const imgMatch = content.match(/<img[^>]+src=["']([^"']+)["'][^>]*>/i);
+    if (imgMatch?.[1]) return imgMatch[1];
+
+    // A media:content without medium or type is treated as an image.
+    const media = findChild("media:content");
+    let mediaUrl = "";
+    if (media) {
+      const medium = media.getAttribute("medium");
+      const type = media.getAttribute("type");
+      const isImage = medium
+        ? medium === "image"
+        : !type || type.startsWith("image/");
+      if (isImage) mediaUrl = media.getAttribute("url") || "";
+    }
+    if (mediaUrl) return mediaUrl;
+
+    const enclosure = item.querySelector(':scope > enclosure[type^="image"]');
+    return enclosure?.getAttribute("url") || "";
+  }
+
+  private parseAtomEntry(entry: Element): PreviewArticle {
+    const text = (selector: string): string =>
+      entry.querySelector(selector)?.textContent?.trim() || "";
+
+    const description = text("summary") || text("content");
+    return {
+      title: text("title"),
+      link: entry.querySelector("link")?.getAttribute("href") || "",
+      description: this.sanitizeText(description),
+      pubDate: text("published") || text("updated"),
+      author: text("author > name"),
+    };
   }
 
   private parseFeedXml(xmlString: string): PreviewArticle[] {
@@ -161,31 +209,7 @@ export class FeedPreviewModal extends AccessibleModal {
             item.querySelector(":scope > dc\\:creator")?.textContent?.trim() ||
             "";
 
-          let image = "";
-          const content =
-            item.querySelector(":scope > content\\:encoded")?.textContent ||
-            description;
-          const imgMatch = content.match(
-            /<img[^>]+src=["']([^"']+)["'][^>]*>/i,
-          );
-          if (imgMatch?.[1]) {
-            image = imgMatch[1];
-          } else {
-            const mediaContent = item.querySelector(":scope > media\\:content");
-            if (mediaContent) {
-              const mediaUrl = mediaContent.getAttribute("url");
-              if (mediaUrl) {
-                image = mediaUrl;
-              }
-            } else {
-              const enclosure = item.querySelector(
-                ':scope > enclosure[type^="image"]',
-              );
-              if (enclosure) {
-                image = enclosure.getAttribute("url") || "";
-              }
-            }
-          }
+          const image = this.getRssItemImage(item, description);
 
           articles.push({
             title,
@@ -200,27 +224,7 @@ export class FeedPreviewModal extends AccessibleModal {
         const entries = doc.querySelectorAll("entry");
         entries.forEach((entry, index) => {
           if (index >= 10) return;
-
-          const title = entry.querySelector("title")?.textContent?.trim() || "";
-          const link = entry.querySelector("link")?.getAttribute("href") || "";
-          const description =
-            entry.querySelector("summary")?.textContent?.trim() ||
-            entry.querySelector("content")?.textContent?.trim() ||
-            "";
-          const pubDate =
-            entry.querySelector("published")?.textContent?.trim() ||
-            entry.querySelector("updated")?.textContent?.trim() ||
-            "";
-          const author =
-            entry.querySelector("author > name")?.textContent?.trim() || "";
-
-          articles.push({
-            title,
-            link,
-            description: this.sanitizeText(description),
-            pubDate,
-            author,
-          });
+          articles.push(this.parseAtomEntry(entry));
         });
       }
 

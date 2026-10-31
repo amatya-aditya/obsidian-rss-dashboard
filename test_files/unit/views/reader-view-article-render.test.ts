@@ -37,6 +37,7 @@ const players = vi.hoisted(() => ({
   }>,
   podcasts: [] as Array<{
     args: unknown[];
+    setTagAppearanceSettings: ReturnType<typeof vi.fn>;
     loadEpisode: ReturnType<typeof vi.fn>;
     destroy: ReturnType<typeof vi.fn>;
   }>,
@@ -60,12 +61,14 @@ vi.mock("../../../src/views/video-player", () => ({
 
 vi.mock("../../../src/views/podcast-player", () => ({
   PodcastPlayer: class {
+    setTagAppearanceSettings = vi.fn();
     loadEpisode = vi.fn();
     destroy = vi.fn();
     updateTheme = vi.fn();
     constructor(...args: unknown[]) {
       players.podcasts.push({
         args,
+        setTagAppearanceSettings: this.setTagAppearanceSettings,
         loadEpisode: this.loadEpisode,
         destroy: this.destroy,
       });

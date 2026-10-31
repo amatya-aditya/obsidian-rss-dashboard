@@ -1,5 +1,10 @@
 import type { FeedItem } from "../types/types";
 import { resolveDisplayDate } from "../services/feed-parser/feed-retention";
+import {
+  applyTagAppearance,
+  DEFAULT_TAG_APPEARANCE_SETTINGS,
+  type TagAppearanceSettings,
+} from "../utils/tag-colors";
 
 const EPISODE_BATCH_SIZE = 20;
 
@@ -12,6 +17,7 @@ export interface PodcastEpisodeListOptions {
   isAutoplayEnabled?: boolean;
   visibleCount?: number;
   progressData?: ReadonlyMap<string, { position: number; duration: number }>;
+  tagAppearanceSettings?: TagAppearanceSettings;
   onEpisodeSelected: (episode: FeedItem) => void;
   onSortRequested: (order: "recent" | "oldest") => void;
   onAutoplayChanged?: (enabled: boolean) => void;
@@ -70,11 +76,19 @@ export class PodcastEpisodeList {
     autoplayLabel.createSpan({ text: "Autoplay next episode" });
 
     const statusRow = section.createDiv({ cls: "episode-list-status-row" });
-    statusRow.createDiv({
+    const rangeStatus = statusRow.createDiv({
       cls: "episode-list-range",
-      text: `Showing ${this.visibleCount} of ${this.options.episodes.length}`,
       attr: { role: "status" },
     });
+    const updateRangeStatus = () => {
+      if (!rangeStatus.isConnected) return;
+      rangeStatus.setText(
+        `Showing ${this.visibleCount} of ${this.options.episodes.length}`,
+      );
+    };
+    const ownerWindow = rangeStatus.ownerDocument.defaultView;
+    if (ownerWindow) ownerWindow.setTimeout(updateRangeStatus, 0);
+    else updateRangeStatus();
     this.renderControls(statusRow);
 
     const list = section.createDiv({ cls: "episode-list" });
@@ -180,7 +194,11 @@ export class PodcastEpisodeList {
         cls: "episode-list-row-tag",
         text: tag.name,
       });
-      if (tag.color) tagEl.style.backgroundColor = tag.color;
+      applyTagAppearance(
+        tagEl,
+        tag,
+        this.options.tagAppearanceSettings ?? DEFAULT_TAG_APPEARANCE_SETTINGS,
+      );
     });
     if (tags.length > 3) {
       const remainingTags = tags

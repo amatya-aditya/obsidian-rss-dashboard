@@ -26,6 +26,10 @@ This narrows ADR 0013's "no special-case code path" to Reddit. Reddit stays as d
 
 GitHub issue pages (`github.com/{owner}/{repo}/issues/{n}`) are the first extractor under this rule. Pull requests, discussions, releases, commits and gists are not covered and keep the Readability path.
 
+Bluesky post pages (`bsky.app/profile/{handle}/post/{id}`) are the second ([GitHub Issue #1738](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1738)). `bsky.app` draws a post client-side, so Readability finds nothing, and the page's `og:image` tags hold the author's avatar or a replier's picture. The extractor reads the JSON-LD `mainEntity` and nothing else: its text and its `image` list (never `og:image`, never `comment`), with each feed thumbnail swapped for the full-size image. A post with a video shows its text, its poster and a link to the post; playing it needs hls.js and is a separate decision. A post with no picture and no video returns nothing.
+
+An extractor's result is **trusted**: it is short by design, so the Reader's 200-character substantial-body gate (`hasMeaningfulArticleContent`) does not apply to it. The gate itself is unchanged for every other page.
+
 ## Consequences
 
 ### Benefits
@@ -64,8 +68,10 @@ Costs no request, needs no credentials, and fails back to today's output.
 
 ## Implementation notes
 
-- The extractor is `extractGitHubIssueContent` in `src/utils/github-issue-page.ts`; `parseArticleContent` in `src/utils/fetch-helpers.ts` tries it first.
-- The page's hero image and metadata extraction are unchanged ([ADR 0033](0033-use-the-pages-own-image-as-the-fetched-heros-source.md)).
+- The extractors are `extractGitHubIssueContent` in `src/utils/github-issue-page.ts` and `extractBlueskyPost` in `src/utils/bluesky-post-page.ts`; `parseArticleContent` in `src/utils/fetch-helpers.ts` tries them first.
+- A trusted result sets `trusted` on `FullArticleFetchResult`; `runFeedFirstDisplay` skips the substantial-body gate for it.
+- For a Bluesky post the page image (the card's cover) comes from the extractor in both the full and the metadata-only read, so a post with no picture has no page image rather than an avatar.
+- The page's hero image and metadata extraction are unchanged, except the Bluesky page image above ([ADR 0033](0033-use-the-pages-own-image-as-the-fetched-heros-source.md)).
 - `ArticleSaver` is unchanged: it saves what the fetch returns ([ADR 0022](0022-rss-first-reader-content-selection.md)).
 
 ## Related
@@ -75,3 +81,4 @@ Costs no request, needs no credentials, and fails back to today's output.
 - [ADR 0025: Identify Outbound Requests as Obsidian, Not as a Browser](0025-identify-outbound-requests-as-obsidian.md)
 - [GitHub Issue #1394](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1394): the feature
 - [GitHub Issue #1500](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1500): verification and this record
+- [GitHub Issue #1738](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1738): the Bluesky extractor

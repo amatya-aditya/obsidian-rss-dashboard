@@ -94,7 +94,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   font-weight: 600;
-  font-size: 1.08em;
+  font-size: calc(1.08em * var(--rss-dashboard-article-title-scale, 1));
   margin: 0;
   height: auto;
   line-height: 1.3;

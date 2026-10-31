@@ -372,6 +372,8 @@ export function createReaderFormatPortal(options: ReaderFormatPortalOptions): {
   portalDropdown.style.top = `${top}px`;
 
   targetWindow.setTimeout(() => {
+    if (closed) return;
+
     outsideHandler = (ev: MouseEvent) => {
       if (closed) return;
       if (
