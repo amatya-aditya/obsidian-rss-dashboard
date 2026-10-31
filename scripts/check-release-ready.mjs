@@ -146,6 +146,34 @@ export function findWorkingTreeIssue(porcelainOutput) {
   };
 }
 
+/**
+ * The release workflow runs `npm audit --audit-level=high` after the tag is
+ * pushed, so a finding there means deleting a public tag. Catch it before.
+ */
+export function findAuditIssue(label, exitStatus) {
+  if (exitStatus === 0) {
+    return null;
+  }
+
+  return {
+    filePath: "package-lock.json",
+    reason: `npm audit (${label}) reports a high or critical finding; the release workflow would fail after the tag`,
+  };
+}
+
+function runAudit(args) {
+  try {
+    execFileSync("npm", ["audit", ...args, "--audit-level=high"], {
+      cwd: ROOT_DIR,
+      stdio: "ignore",
+      shell: process.platform === "win32",
+    });
+    return 0;
+  } catch (error) {
+    return error.status ?? 1;
+  }
+}
+
 function escapeForPattern(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -236,10 +264,16 @@ function main() {
       "check:release-ready: origin/master is not available, so the docs audit is skipped. Run git fetch origin first.",
     );
   }
+  // A beta keeps its entries under Unreleased until the stable cut renames the
+  // heading and plans move to their archive folder then, so those checks apply
+  // to stable versions only.
+  const stable = !isPrerelease(targetVersion);
   const issues = [
     ...(docsAudit ? findDocsAuditIssues(docsAudit) : []),
-    findChangelogHeadingIssue(changelogSource, targetVersion),
-    findUnreleasedLeftoverIssue(changelogSource),
+    stable ? findChangelogHeadingIssue(changelogSource, targetVersion) : null,
+    stable ? findUnreleasedLeftoverIssue(changelogSource) : null,
+    findAuditIssue("production", runAudit(["--omit=dev"])),
+    findAuditIssue("all", runAudit([])),
     findPublicReleaseNotesIssue(
       targetVersion,
       listMarkdownFileNames(PUBLIC_RELEASE_NOTES_DIR),
@@ -250,7 +284,9 @@ function main() {
     ),
     findPrematureBumpIssue(targetVersion, readVersionsMap()),
     findWorkingTreeIssue(readWorkingTreeStatus()),
-    ...findUnarchivedPlanIssues(listUnreleasedPlanPaths(), targetVersion),
+    ...(stable
+      ? findUnarchivedPlanIssues(listUnreleasedPlanPaths(), targetVersion)
+      : []),
   ].filter((issue) => issue !== null);
 
   if (issues.length > 0) {
@@ -273,8 +309,8 @@ function main() {
 
   console.log(
     `Release-ready check passed for ${targetVersion} ` +
-      `(changelog heading, public summary, ${noteScope}, ` +
-      `versions.json, clean tree, archived plans).`,
+      `(${stable ? "changelog heading, public summary, " : ""}${noteScope}, ` +
+      `versions.json, clean tree, ${stable ? "archived plans, " : ""}npm audit).`,
   );
 }
 
