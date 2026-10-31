@@ -2762,12 +2762,12 @@ export default class RssDashboardPlugin extends Plugin {
       return "not-started";
     }
 
+    const credentialReference = this.settings.freshRss.credentialReference;
     const secretStorage = this.getFreshRssSecretStorage();
     let credentialBundleText: string | null;
     try {
       credentialBundleText =
-        secretStorage?.getSecret(this.settings.freshRss.credentialReference) ??
-        null;
+        secretStorage?.getSecret(credentialReference) ?? null;
     } catch {
       new Notice(
         "FreshRSS sync is unavailable because SecretStorage could not be read.",
@@ -2811,6 +2811,7 @@ export default class RssDashboardPlugin extends Plugin {
         endpoint,
         credentials,
         scope,
+        credentialReference,
         owner: {
           signal,
           beginCommit: () => this.feedOperationTracker.disableCancellation(),

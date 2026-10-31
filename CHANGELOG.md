@@ -2,6 +2,7 @@
 
 ### Fixes
 
+- FreshRSS sync stops before saving when the selected credential, endpoint, or connection status changes mid-run, preventing account-scoped state from being committed under stale settings.
 - The filter status bar no longer appears underneath an article opened in the inline reader when a feed refresh or read-state change updates the counts; it returns when you go back to the list. [GH Issue #1734](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1734)
 - With the filter status bar open on a phone, a thin line of the scrolled card's cover image no longer shows between the status bar and the dashboard header.
 - Tapping a card's cover image or summary on a touch device no longer draws a second border around the card; keyboard focus still shows a ring. [GH Issue #1723](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1723)
