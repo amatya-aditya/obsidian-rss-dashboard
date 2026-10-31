@@ -94,8 +94,8 @@ beforeEach(() => {
   installObsidianDomPolyfills();
   document.body.empty();
   vi.restoreAllMocks();
-  // 1.8.7 through 1.12.x use the legacy settings controls; pin that branch.
-  obsidian.__setObsidianVersion("1.8.7");
+  // 1.11.5 through 1.12.x use the legacy settings controls; pin that branch.
+  obsidian.__setObsidianVersion("1.11.5");
 });
 
 afterEach(() => {

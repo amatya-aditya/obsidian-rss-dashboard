@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 
-export const MINIMUM_SUPPORTED_APP_VERSION = "1.8.7";
+export const MINIMUM_SUPPORTED_APP_VERSION = "1.11.5";
 
 function compareVersions(left, right) {
   const leftParts = left.split(".").map(Number);
@@ -52,14 +52,21 @@ export function findReleaseCompatibilityViolations(manifest, versions) {
     });
   }
 
-  for (const [version, minAppVersion] of Object.entries(versions)) {
-    if (compareVersions(minAppVersion, MINIMUM_SUPPORTED_APP_VERSION) < 0) {
-      violations.push({
-        rule: "minimum-support-floor",
-        version,
-        message: `versions.json entry ${version} must require Obsidian ${MINIMUM_SUPPORTED_APP_VERSION} or later.`,
-      });
-    }
+  // Older entries remain compatibility records for already released versions.
+  // Only the release in the manifest must meet today's support floor.
+  const currentReleaseMinAppVersion = versions[manifest.version];
+  if (
+    currentReleaseMinAppVersion !== undefined &&
+    compareVersions(
+      currentReleaseMinAppVersion,
+      MINIMUM_SUPPORTED_APP_VERSION,
+    ) < 0
+  ) {
+    violations.push({
+      rule: "minimum-support-floor",
+      version: manifest.version,
+      message: `versions.json entry ${manifest.version} must require Obsidian ${MINIMUM_SUPPORTED_APP_VERSION} or later.`,
+    });
   }
 
   if (versions[manifest.version] !== manifest.minAppVersion) {

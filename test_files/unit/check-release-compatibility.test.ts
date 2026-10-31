@@ -8,29 +8,34 @@ describe("release compatibility metadata", () => {
   it("accepts a release whose map and manifest honor the support floor", () => {
     expect(
       findReleaseCompatibilityViolations(
-        { version: "2.7.0", minAppVersion: "1.8.7" },
+        { version: "2.7.0", minAppVersion: "1.11.5" },
         {
           "2.6.0": "1.8.7",
-          "2.7.0": "1.8.7",
+          "2.7.0": "1.11.5",
         },
       ),
     ).toEqual([]);
   });
 
-  it("rejects mappings below the declared support floor", () => {
+  it("rejects a current release mapping below the declared support floor", () => {
     expect(
       findReleaseCompatibilityViolations(
         { version: "2.7.0", minAppVersion: "1.8.7" },
         {
-          "2.6.0": "1.1.0",
           "2.7.0": "1.8.7",
         },
       ),
-    ).toContainEqual(
-      expect.objectContaining({
-        rule: "minimum-support-floor",
-        version: "2.6.0",
-      }),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          rule: "manifest-support-floor",
+          version: "2.7.0",
+        }),
+        expect.objectContaining({
+          rule: "minimum-support-floor",
+          version: "2.7.0",
+        }),
+      ]),
     );
   });
 
