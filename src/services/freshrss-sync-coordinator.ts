@@ -451,7 +451,10 @@ export class FreshRssSyncCoordinator {
     const syncState: FreshRssSyncAccumulator = {
       feeds: settings.feeds.map((feed) => ({
         ...feed,
-        items: [...feed.items],
+        items: feed.items.map((item) => ({
+          ...item,
+          tags: item.tags?.map((tag) => ({ ...tag })),
+        })),
       })),
       feedBindings: sidecarState.feedBindings.map((binding) => ({
         ...binding,
@@ -872,10 +875,17 @@ function applyRemoteLabelStates(
     for (const articleId of articleIds) aggregate.add(articleId);
     taggedArticleIds.set(key, aggregate);
   }
+  const mappedTagKeys = new Set(
+    syncState.labelMappings.map((mapping) =>
+      normalizedLabelKey(mapping.localTagName),
+    ),
+  );
   for (const binding of syncState.articleBindings) {
     const article = findBoundArticle(syncState.feeds, binding);
     if (!article) continue;
-    const desiredTags: Tag[] = [];
+    const desiredTags: Tag[] = (article.tags ?? []).filter(
+      (tag) => !mappedTagKeys.has(normalizedLabelKey(tag.name)),
+    );
     for (const mapping of syncState.labelMappings) {
       const key = normalizedLabelKey(mapping.localTagName);
       if (

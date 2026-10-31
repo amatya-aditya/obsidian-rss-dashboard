@@ -1091,8 +1091,117 @@ describe("FreshRSS sync coordinator", () => {
 
     expect(settings.feeds[0]?.items[0]).toMatchObject({
       starred: true,
-      tags: [{ name: "News", color: "#123456" }],
+      tags: [
+        { name: "Local", color: "#abcdef" },
+        { name: "News", color: "#123456" },
+      ],
     });
+  });
+
+  it("does not mutate existing article state when settings persistence fails", async () => {
+    const settings = makeSettings();
+    settings.feeds = [
+      {
+        feedId: "local-feed",
+        title: "Remote title",
+        url: "https://feed.example.test/rss.xml",
+        folder: "RSS",
+        lastUpdated: 10,
+        items: [
+          {
+            title: "Article",
+            link: "https://article.example.test/42",
+            description: "",
+            pubDate: "2026-10-24T00:00:00.000Z",
+            guid: "article/42",
+            firstSeenMs: 1_793_000_000_000,
+            read: false,
+            starred: false,
+            tags: [{ name: "Local", color: "#abcdef" }],
+            feedTitle: "Feed",
+            feedUrl: "https://feed.example.test/rss.xml",
+            coverImage: "",
+          },
+        ],
+      },
+    ];
+    const originalFeed = settings.feeds[0];
+    const originalArticle = originalFeed.items[0];
+    const sidecar = createSidecar();
+    sidecar.feedBindings.push({
+      feedId: "local-feed",
+      remoteSubscriptionId: "feed/6",
+    });
+    sidecar.articleBindings.push({
+      feedId: "local-feed",
+      guid: "article/42",
+      remoteArticleId: "article/42",
+    });
+    const saveSettings = vi.fn(async () => {
+      throw new Error("settings persistence failed");
+    });
+    const request = vi.fn<FreshRssHttpClient["request"]>(async ({ url }) => {
+      if (url.endsWith("/accounts/ClientLogin"))
+        return { status: 200, text: "Auth=session-token" };
+      if (url.includes("/user-info?"))
+        return {
+          status: 200,
+          text: JSON.stringify({ userId: scope.remoteUserId }),
+        };
+      if (url.endsWith("/tag/list?output=json"))
+        return { status: 200, text: JSON.stringify({ tags: [] }) };
+      if (url.endsWith("/subscription/list?output=json"))
+        return { status: 200, text: subscriptionList() };
+      if (url.includes("/stream/items/ids?")) {
+        const streamId = new URL(url).searchParams.get("s");
+        return {
+          status: 200,
+          text: JSON.stringify({
+            itemRefs:
+              streamId === "user/-/state/com.google/starred"
+                ? [{ id: "article/42" }]
+                : [],
+          }),
+        };
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const coordinator = new FreshRssSyncCoordinator({
+      httpClient: { request },
+      getSettings: () => settings,
+      saveSettings,
+      sidecarRepository: {
+        read: async () => sidecar,
+        write: async (next) => {
+          Object.assign(sidecar, next);
+        },
+      },
+      getView: async () => null,
+    });
+
+    await expect(
+      coordinator.run({
+        endpoint,
+        credentials: { username: "reader", apiPassword: "secret" },
+        scope,
+        owner: createOwner(),
+      }),
+    ).rejects.toThrow("settings persistence failed");
+
+    expect(saveSettings).toHaveBeenCalledOnce();
+    expect(
+      request.mock.calls.some(
+        ([input]) =>
+          input.url.includes("/stream/items/ids?") &&
+          new URL(input.url).searchParams.get("s") ===
+            "user/-/state/com.google/starred",
+      ),
+    ).toBe(true);
+    expect(settings.feeds[0]).toBe(originalFeed);
+    expect(settings.feeds[0]?.items[0]).toBe(originalArticle);
+    expect(originalArticle.read).toBe(false);
+    expect(originalArticle.starred).toBe(false);
+    expect(originalArticle.tags).toEqual([{ name: "Local", color: "#abcdef" }]);
   });
 
   it("keeps pending starred and label choices over conflicting remote state", async () => {
