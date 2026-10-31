@@ -50,12 +50,15 @@ export interface FreshRssPreviewArticle {
   link: string | null;
 }
 
+export type FreshRssPreviewArticleLoadStatus =
+  "complete" | "has-more" | "failed";
+
 export interface FreshRssPreviewSubscription {
   remoteSubscriptionId: string;
   title: string;
   url: string;
   articles: FreshRssPreviewArticle[];
-  partial: boolean;
+  articleLoadStatus: FreshRssPreviewArticleLoadStatus;
 }
 
 export type FreshRssSyncPreviewOutcome =
@@ -64,7 +67,6 @@ export type FreshRssSyncPreviewOutcome =
       subscriptions: FreshRssPreviewSubscription[];
       pendingMutations: FreshRssPendingFacetMutation[];
       labelConflicts: string[];
-      partial: boolean;
     }
   | {
       outcome: "credentials-rejected" | "scope-mismatch" | "server-unavailable";
@@ -398,7 +400,6 @@ export class FreshRssSyncCoordinator {
       prepared.sidecarState.pendingFacetMutations,
     );
 
-    let partial = false;
     const subscriptions: FreshRssPreviewSubscription[] = [];
     for (const subscription of subscriptionsResult.data) {
       input.owner.throwIfInactive();
@@ -411,8 +412,11 @@ export class FreshRssSyncCoordinator {
         return { outcome: "credentials-rejected" };
       }
       if (idsResult.outcome !== "ok") {
-        partial = true;
-        subscriptions.push({ ...subscription, articles: [], partial: true });
+        subscriptions.push({
+          ...subscription,
+          articles: [],
+          articleLoadStatus: "failed",
+        });
         continue;
       }
 
@@ -424,8 +428,11 @@ export class FreshRssSyncCoordinator {
         return { outcome: "credentials-rejected" };
       }
       if (articlesResult.outcome !== "ok") {
-        partial = true;
-        subscriptions.push({ ...subscription, articles: [], partial: true });
+        subscriptions.push({
+          ...subscription,
+          articles: [],
+          articleLoadStatus: "failed",
+        });
         continue;
       }
 
@@ -438,9 +445,9 @@ export class FreshRssSyncCoordinator {
             link,
           }),
         ),
-        partial: idsResult.data.continuation !== null,
+        articleLoadStatus:
+          idsResult.data.continuation !== null ? "has-more" : "complete",
       });
-      partial ||= idsResult.data.continuation !== null;
     }
 
     return {
@@ -450,7 +457,6 @@ export class FreshRssSyncCoordinator {
         isFreshRssPendingFacetMutation,
       ),
       labelConflicts,
-      partial,
     };
   }
 
