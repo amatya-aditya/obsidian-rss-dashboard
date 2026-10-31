@@ -7,10 +7,12 @@ import {
 } from "../components/sidebar";
 import type RssDashboardPlugin from "../../main";
 import { RssDashboardSettings } from "../types/types";
+import { areSwipePanelsEnabled, SwipeNavigator } from "../utils/swipe-gesture";
 
 export class MobileNavigationModal extends AccessibleModal {
   private sidebar!: Sidebar;
   private sidebarWrapper!: HTMLElement;
+  private swipeNavigator: SwipeNavigator | null = null;
 
   constructor(
     app: App,
@@ -117,6 +119,15 @@ export class MobileNavigationModal extends AccessibleModal {
     );
 
     this.sidebar.render();
+
+    // A swipe left pushes the drawer back off screen.
+    this.swipeNavigator = new SwipeNavigator(this.containerEl, {
+      isEnabled: () => areSwipePanelsEnabled(this.settings),
+      onSwipe: (direction) => {
+        if (direction === "left") this.close();
+      },
+    });
+    this.swipeNavigator.sync();
   }
 
   /**
@@ -159,6 +170,8 @@ export class MobileNavigationModal extends AccessibleModal {
   }
 
   onClose() {
+    this.swipeNavigator?.destroy();
+    this.swipeNavigator = null;
     this.sidebar?.destroy();
     const { contentEl } = this;
     contentEl.empty();

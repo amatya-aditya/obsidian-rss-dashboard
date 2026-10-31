@@ -1,5 +1,5 @@
 /** Focused renderers and helpers for the General settings tab. */
-import { Notice, Setting } from "obsidian";
+import { Notice, Platform, Setting } from "obsidian";
 import { normalizeRefreshIntervalMinutes } from "../../utils/validation";
 import { isPresetRefreshInterval } from "../../utils/refresh-intervals";
 import {
@@ -11,6 +11,7 @@ import {
   RetentionChangeConfirmModal,
 } from "../modals/settings-modals";
 import type { GeneralSettingsPlugin } from "./general-settings-plugin";
+import { RSS_READER_VIEW_TYPE } from "../../views/reader-view";
 import { renderGeneralProxySection } from "./general-settings-proxy-section";
 
 // ── Pure preset helpers (exported for testing) ───────────────────────────────
@@ -37,6 +38,7 @@ export function renderGeneralSettingsSections(
   renderPageSizeSetting(containerEl, plugin);
   renderGlobalFeedsSettings(containerEl, plugin);
   renderDataRetentionSettings(containerEl, plugin);
+  renderMobileNavigationSettings(containerEl, plugin);
   return renderGeneralProxySection(containerEl, plugin);
 }
 
@@ -435,6 +437,38 @@ function renderMaxItemsSetting(
 }
 
 // ── Data retention ────────────────────────────────────────────────────────
+
+function renderMobileNavigationSettings(
+  containerEl: HTMLElement,
+  plugin: GeneralSettingsPlugin,
+): void {
+  if (!Platform.isMobile) return;
+
+  new Setting(containerEl).setName("Mobile navigation").setHeading();
+
+  new Setting(containerEl)
+    .setName("Swipe between panels")
+    .setDesc(
+      "Swipe right to open the sidebar and left to return to the article, and swipe right in the reader to go back to the dashboard. This turns off Obsidian's own swipe gestures, such as swipe-to-open-sidebar, inside this plugin's views and relies on Obsidian internals, so an Obsidian update could change it. It does not apply when the reader opens in the left or right sidebar.",
+    )
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.display.swipeBetweenPanels)
+        .onChange(async (value) => {
+          plugin.settings.display.swipeBetweenPanels = value;
+          await plugin.saveSettings();
+          // Attach or detach the swipe listeners on the open dashboard.
+          (await plugin.getActiveDashboardView())?.render();
+          for (const leaf of plugin.app.workspace.getLeavesOfType(
+            RSS_READER_VIEW_TYPE,
+          )) {
+            (
+              leaf.view as { syncSwipeNavigation?: () => void }
+            ).syncSwipeNavigation?.();
+          }
+        }),
+    );
+}
 
 function renderDataRetentionSettings(
   containerEl: HTMLElement,

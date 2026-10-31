@@ -66,6 +66,11 @@ import {
   templateImageUrl,
 } from "../services/article-template/note-template";
 import { setCssProps } from "../utils/platform-utils";
+import {
+  areSwipePanelsEnabled,
+  SwipeNavigator,
+  type SwipeDirection,
+} from "../utils/swipe-gesture";
 import { applyTagAppearance } from "../utils/tag-colors";
 import { createIconButton } from "../utils/icon-button";
 import { attachRovingToolbar } from "../utils/roving-toolbar";
@@ -213,6 +218,7 @@ export class ReaderView extends ItemView {
   private tagsToggleButton: HTMLElement | null = null;
   private saveButton: HTMLElement | null = null;
   private returnLeaf: WorkspaceLeaf | null = null;
+  private swipeNavigator: SwipeNavigator | null = null;
   private tagsDropdownCleanup: (() => void) | null = null;
   private tagsDropdownPortal: HTMLElement | null = null;
 
@@ -263,6 +269,24 @@ export class ReaderView extends ItemView {
         });
       }
     }
+  }
+
+  /** Swipe back is a main-view gesture; a sidebar reader swallows the swipe but does not act on it (DEC-015). */
+  private isInSidebar(): boolean {
+    const root = this.leaf.getRoot?.();
+    if (!root) return false;
+    const { leftSplit, rightSplit } = this.app.workspace;
+    return root === leftSplit || root === rightSplit;
+  }
+
+  /** Attaches or detaches the swipe listeners to match the current setting. */
+  public syncSwipeNavigation(): void {
+    this.swipeNavigator?.sync();
+  }
+
+  private handleSwipe(direction: SwipeDirection): void {
+    if (direction !== "right" || this.isInSidebar()) return;
+    void this.focusDashboardLeaf();
   }
 
   private async navigateBackToDashboard(): Promise<void> {
@@ -1085,6 +1109,11 @@ export class ReaderView extends ItemView {
     // Make the view container focusable so keyboard events are routed through
     // Obsidian's scope system when this view is active.
     this.containerEl.tabIndex = -1;
+    this.swipeNavigator = new SwipeNavigator(this.containerEl, {
+      isEnabled: () => areSwipePanelsEnabled(this.settings),
+      onSwipe: (direction) => this.handleSwipe(direction),
+    });
+    this.swipeNavigator.sync();
     this.registerDomEvent(this.containerEl, "click", (evt) => {
       // Only grab focus back to the container if the click was not on an
       // interactive element (input, button, select, textarea, link, etc.).
@@ -1099,6 +1128,8 @@ export class ReaderView extends ItemView {
     if (typeof this.app.workspace.on === "function") {
       this.registerEvent(
         this.app.workspace.on("active-leaf-change", (leaf) => {
+          // The setting or viewport may have changed while this tab was hidden.
+          this.swipeNavigator?.sync();
           if (
             leaf === this.leaf &&
             !tagsPortalHoldsFocus(
@@ -1280,6 +1311,8 @@ export class ReaderView extends ItemView {
   }
 
   async onClose(): Promise<void> {
+    this.swipeNavigator?.destroy();
+    this.swipeNavigator = null;
     this.invalidateDisplay();
     this.closeTagsDropdown();
 

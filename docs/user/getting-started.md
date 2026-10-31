@@ -48,6 +48,18 @@ Once you've added feeds, the dashboard displays all articles from your subscript
    - Star articles for later
    - The plugin remembers where you left off in videos and podcasts
 
+### Swiping between panels (phone and tablet)
+
+On a phone or tablet you can move between the sidebar, the dashboard, and the reader with horizontal swipes. Turn on **Settings → General → Mobile navigation → Swipe between panels**; it is off by default and does not appear on desktop.
+
+- On the dashboard, swipe right to open the sidebar and swipe left to return to the article you last opened this session.
+- Inside the open sidebar, swipe left to close it.
+- In the reader, swipe right to go back to the dashboard. A reader that opened as its own tab stays open; an inline article closes.
+
+Swipes that start on a horizontally scrolling table or code block, a text field, a slider such as the podcast seekbar, the sidebar icon row, or the image lightbox are ignored, and vertical scrolling is never treated as a swipe.
+
+While this setting is on, it turns off Obsidian's own swipe gestures, such as swipe-to-open-sidebar, inside RSS Dashboard views. It relies on Obsidian internals, so an Obsidian update could change how it behaves. It does not apply when the reader opens in the left or right sidebar.
+
 ## Organizing Your Feeds
 
 Create a system that works for you using folders, tags, and filters.
