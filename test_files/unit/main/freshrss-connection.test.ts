@@ -22,6 +22,14 @@ function response(text: string): RequestUrlResponse {
   };
 }
 
+function responsePromise(text: string): RequestUrlResponsePromise {
+  const promise = Promise.resolve(response(text)) as RequestUrlResponsePromise;
+  promise.arrayBuffer = promise.then(({ arrayBuffer }) => arrayBuffer);
+  promise.json = promise.then(({ json }) => json);
+  promise.text = promise.then(({ text: responseText }) => responseText);
+  return promise;
+}
+
 function neverCompletingRequest(): RequestUrlResponsePromise {
   const never = new Promise<never>(() => {});
   void never.catch(() => {});
@@ -488,6 +496,47 @@ describe("FreshRSS connection activation", () => {
     );
     expect(sidecar).toContain('"remoteUserId": "remote-user"');
     expect(sidecar).not.toContain("different-user");
+  });
+
+  it("stops a sync when the selected credential reference changes while it is running", async () => {
+    vi.spyOn(obsidian, "requireApiVersion").mockReturnValue(true);
+    let plugin: RssDashboardPlugin;
+    vi.spyOn(obsidian, "requestUrl").mockImplementation((request) => {
+      const url = typeof request === "string" ? request : request.url;
+      if (url.endsWith("/accounts/ClientLogin")) {
+        return responsePromise("Auth=session-token");
+      }
+      if (url.includes("/user-info?")) {
+        return responsePromise('{"userId":"remote-user"}');
+      }
+      if (url.endsWith("/reader/api/0/token")) {
+        return responsePromise("write-token");
+      }
+      if (url.endsWith("/subscription/list?output=json")) {
+        plugin.settings.freshRss.credentialReference = "freshrss-marc";
+        return responsePromise(JSON.stringify({ subscriptions: [] }));
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const app = obsidian.App.createMock();
+    setSecretStorage(app, {
+      getSecret: () => '{"username":"reader","apiPassword":"secret-value"}',
+      listSecrets: () => ["freshrss-primary", "freshrss-marc"],
+    });
+    plugin = createPlugin(app);
+    configureReadyPlugin(plugin);
+    plugin.settings.freshRss.stateSyncMode = "receive-only";
+
+    await expect(plugin.testFreshRssConnection()).resolves.toBe("connected");
+    await expect(plugin.syncFreshRssNow()).resolves.toBe("failed");
+
+    expect(plugin.settings.freshRss.credentialReference).toBe("freshrss-marc");
+    expect(plugin.settings.freshRss.status).toBe("test-required");
+    const sidecar = JSON.parse(
+      await app.vault.adapter.read(".rss-dashboard-data/freshrss-state.json"),
+    ) as { scope: { remoteUserId: string }; feedBindings: unknown[] };
+    expect(sidecar.scope.remoteUserId).toBe("remote-user");
+    expect(sidecar.feedBindings).toEqual([]);
   });
 
   it("stops waiting for an in-flight sync request when the global operation is cancelled", async () => {
