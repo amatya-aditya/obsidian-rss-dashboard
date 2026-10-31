@@ -2,6 +2,7 @@
 
 ### Fixes
 
+- FreshRSS now verifies label changes against the bound article; silently rejected additions stay pending for manual recovery. [GH Issue #1615](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1615)
 - FreshRSS sync stops before saving when the selected credential, endpoint, or connection status changes mid-run, preventing account-scoped state from being committed under stale settings.
 - The FreshRSS sync preview now explains when the first 50 recent articles were loaded and more are available, while identifying actual article-load failures separately. [GH Issue #1608](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1608)
 - The filter status bar no longer appears underneath an article opened in the inline reader when a feed refresh or read-state change updates the counts; it returns when you go back to the list. [GH Issue #1734](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1734)

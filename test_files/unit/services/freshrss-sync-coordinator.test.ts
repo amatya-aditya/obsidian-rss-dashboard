@@ -8,7 +8,10 @@ import type {
   FreshRssHttpClient,
 } from "../../../src/services/freshrss-connection-service";
 import type { FreshRssSidecarFile } from "../../../src/services/freshrss-connection-scope-repository";
-import { queueFreshRssArticleStateChanges } from "../../../src/services/freshrss-article-state";
+import {
+  queueFreshRssArticleStateChanges,
+  retryFreshRssMutation,
+} from "../../../src/services/freshrss-article-state";
 import {
   FreshRssSyncCoordinator,
   type FreshRssSyncOwner,
@@ -165,7 +168,166 @@ function createLabelReconciliationHarness(
   return { coordinator, request };
 }
 
+function createPendingLabelMutationHarness(
+  desiredState: string[],
+  readbackCategoryIds: string[][],
+) {
+  const settings = makeSettings();
+  const sidecar = createSidecar();
+  sidecar.labelMappings = [
+    {
+      remoteLabelId: "user/-/label/News",
+      localTagName: "News",
+      remoteType: "tag",
+    },
+  ];
+  sidecar.pendingFacetMutations.push({
+    operationId: "operation-labels-1",
+    remoteArticleId: "article/42",
+    facet: "labels",
+    desiredState,
+    createdAtMs: 100,
+    attemptCount: 0,
+    lastError: null,
+  });
+  const request = vi.fn<FreshRssHttpClient["request"]>(async ({ url }) => {
+    if (url.endsWith("/accounts/ClientLogin")) {
+      return { status: 200, text: "Auth=session-token" };
+    }
+    if (url.includes("/user-info?")) {
+      return {
+        status: 200,
+        text: JSON.stringify({ userId: scope.remoteUserId }),
+      };
+    }
+    if (url.endsWith("/tag/list?output=json")) {
+      return {
+        status: 200,
+        text: JSON.stringify({
+          tags: [{ id: "user/-/label/News", label: "News", type: "tag" }],
+        }),
+      };
+    }
+    if (url.endsWith("/token")) return { status: 200, text: "write-token" };
+    if (url.endsWith("/edit-tag")) return { status: 200, text: "OK" };
+    if (url.endsWith("/stream/items/contents")) {
+      const categories = readbackCategoryIds.shift();
+      return categories
+        ? {
+            status: 200,
+            text: JSON.stringify({
+              items: [{ id: "article/42", categories }],
+            }),
+          }
+        : { status: 500, text: "Unexpected article readback" };
+    }
+    if (url.endsWith("/subscription/list?output=json")) {
+      return { status: 200, text: JSON.stringify({ subscriptions: [] }) };
+    }
+    if (url.includes("/stream/items/ids?")) {
+      return { status: 200, text: JSON.stringify({ itemRefs: [] }) };
+    }
+    throw new Error(`Unexpected request: ${url}`);
+  });
+  const repository = {
+    readActiveScope: async () => scope,
+    read: async () => sidecar,
+    write: async (next: FreshRssSidecarFile) => {
+      Object.assign(sidecar, next);
+    },
+  };
+  const coordinator = new FreshRssSyncCoordinator({
+    httpClient: { request },
+    getSettings: () => settings,
+    saveSettings: async () => {},
+    sidecarRepository: repository,
+    getView: async () => null,
+  });
+  const run = () =>
+    coordinator.run({
+      endpoint,
+      credentials: { username: "reader", apiPassword: "secret" },
+      scope,
+      owner: createOwner(),
+    });
+  return { request, repository, run, sidecar };
+}
+
 describe("FreshRSS sync coordinator", () => {
+  it("acknowledges a label addition after the bound article confirms it", async () => {
+    const { request, run, sidecar } = createPendingLabelMutationHarness(
+      ["News"],
+      [["user/-/label/News"]],
+    );
+
+    await expect(run()).resolves.toMatchObject({ outcome: "synced" });
+
+    expect(sidecar.pendingFacetMutations).toEqual([]);
+    expect(request).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: `${endpoint}/reader/api/0/stream/items/contents`,
+        body: "output=json&i=article%2F42",
+      }),
+    );
+  });
+
+  it("keeps a silently rejected label addition pending for manual recovery", async () => {
+    const { run, sidecar } = createPendingLabelMutationHarness(["News"], [[]]);
+
+    await expect(run()).resolves.toEqual({ outcome: "server-unavailable" });
+
+    expect(sidecar.pendingFacetMutations).toMatchObject([
+      {
+        operationId: "operation-labels-1",
+        retryDisposition: "manual",
+        lastError: expect.stringContaining('label "News"'),
+      },
+    ]);
+  });
+
+  it("acknowledges an already-absent label removal without recreating it", async () => {
+    const { request, run, sidecar } = createPendingLabelMutationHarness(
+      [],
+      [[]],
+    );
+
+    await expect(run()).resolves.toMatchObject({ outcome: "synced" });
+    expect(sidecar.pendingFacetMutations).toEqual([]);
+    expect(
+      request.mock.calls.some(([input]) =>
+        input.url.endsWith("/stream/items/contents"),
+      ),
+    ).toBe(true);
+
+    await expect(run()).resolves.toMatchObject({ outcome: "synced" });
+    expect(
+      request.mock.calls.filter(([input]) => input.url.endsWith("/edit-tag")),
+    ).toHaveLength(1);
+  });
+
+  it("retries a silently rejected label addition and acknowledges the confirmed recovery", async () => {
+    const { repository, run, sidecar } = createPendingLabelMutationHarness(
+      ["News"],
+      [[], ["user/-/label/News"]],
+    );
+
+    await expect(run()).resolves.toEqual({ outcome: "server-unavailable" });
+    const pending = sidecar.pendingFacetMutations[0];
+    if (
+      !pending ||
+      typeof pending !== "object" ||
+      !("operationId" in pending)
+    ) {
+      throw new Error(
+        "Expected a pending label mutation after failed verification",
+      );
+    }
+    await retryFreshRssMutation(repository, pending.operationId as string);
+
+    await expect(run()).resolves.toMatchObject({ outcome: "synced" });
+    expect(sidecar.pendingFacetMutations).toEqual([]);
+  });
+
   it("does not commit a sync under an account whose credential reference changed mid-run", async () => {
     const settings = makeSettings();
     settings.freshRss.credentialReference = "freshrss-test";
@@ -2078,6 +2240,19 @@ describe("FreshRSS sync coordinator", () => {
             return { status: 503, text: "temporary failure" };
           }
           return { status: 200, text: "OK" };
+        }
+        if (url.endsWith("/stream/items/contents")) {
+          return {
+            status: 200,
+            text: JSON.stringify({
+              items: [
+                {
+                  id: "article/42",
+                  categories: ["user/-/label/News"],
+                },
+              ],
+            }),
+          };
         }
         if (url.endsWith("/subscription/list?output=json"))
           return { status: 200, text: subscriptionList() };

@@ -1288,6 +1288,72 @@ function mapFatalOutcome(
 type FreshRssMutationFlushOutcome =
   "complete" | "credentials-rejected" | "server-unavailable";
 
+type FreshRssLabelVerification =
+  | { outcome: "verified" }
+  | { outcome: "manual-recovery"; reason: string }
+  | { outcome: "credentials-rejected" }
+  | { outcome: "unavailable" };
+
+function getMutationLabelName(
+  remoteLabelId: string,
+  labelMappings: FreshRssLabelMapping[],
+): string {
+  return (
+    labelMappings.find((mapping) => mapping.remoteLabelId === remoteLabelId)
+      ?.localTagName ?? remoteLabelId.slice(remoteLabelId.lastIndexOf("/") + 1)
+  );
+}
+
+async function verifyLabelMutation(input: {
+  client: FreshRssSyncClient;
+  remoteArticleId: string;
+  addTags: string[];
+  removeTags: string[];
+  labelMappings: FreshRssLabelMapping[];
+  owner: FreshRssSyncOwner;
+}): Promise<FreshRssLabelVerification> {
+  const { client, remoteArticleId, addTags, removeTags, labelMappings, owner } =
+    input;
+  if (addTags.length === 0 && removeTags.length === 0) {
+    return { outcome: "verified" };
+  }
+
+  const result = await client.getItemContents([remoteArticleId]);
+  owner.throwIfInactive();
+  if (result.outcome === "auth-rejected") {
+    return { outcome: "credentials-rejected" };
+  }
+  if (result.outcome !== "ok") return { outcome: "unavailable" };
+
+  const article = result.data.find(
+    (candidate) => candidate.remoteArticleId === remoteArticleId,
+  );
+  if (!article || article.categoryIds === null) {
+    return { outcome: "unavailable" };
+  }
+
+  const categories = new Set(article.categoryIds);
+  const missingAddition = addTags.find((tag) => !categories.has(tag));
+  if (missingAddition) {
+    const labelName = getMutationLabelName(missingAddition, labelMappings);
+    return {
+      outcome: "manual-recovery",
+      reason: `FreshRSS accepted the label update, but label "${labelName}" is missing from the bound article. Resolve any tag or category conflict, then retry or cancel this mutation.`,
+    };
+  }
+
+  const remainingRemoval = removeTags.find((tag) => categories.has(tag));
+  if (remainingRemoval) {
+    const labelName = getMutationLabelName(remainingRemoval, labelMappings);
+    return {
+      outcome: "manual-recovery",
+      reason: `FreshRSS accepted the label update, but label "${labelName}" remains on the bound article. Resolve the remote state, then retry or cancel this mutation.`,
+    };
+  }
+
+  return { outcome: "verified" };
+}
+
 async function flushPendingFacetMutations(
   client: FreshRssSyncClient,
   repository: Pick<FreshRssConnectionScopeRepository, "read" | "write">,
@@ -1341,6 +1407,20 @@ async function flushPendingFacetMutations(
     );
     owner.throwIfInactive();
     if (result.outcome === "auth-rejected") return "credentials-rejected";
+    const labelVerification =
+      mutation.facet === "labels" && result.outcome === "ok"
+        ? await verifyLabelMutation({
+            client,
+            remoteArticleId: mutation.remoteArticleId,
+            addTags,
+            removeTags,
+            labelMappings,
+            owner,
+          })
+        : { outcome: "verified" as const };
+    if (labelVerification.outcome === "credentials-rejected") {
+      return "credentials-rejected";
+    }
 
     let mutationOutcome: "acknowledged" | "server-unavailable";
     try {
@@ -1348,7 +1428,10 @@ async function flushPendingFacetMutations(
         const current = await repository.read(scope);
         if (!current) return "server-unavailable" as const;
         const currentPending = current.pendingFacetMutations;
-        if (result.outcome === "ok") {
+        if (
+          result.outcome === "ok" &&
+          labelVerification.outcome === "verified"
+        ) {
           await repository.write({
             ...current,
             labelMappings,
@@ -1369,14 +1452,22 @@ async function flushPendingFacetMutations(
             ) {
               return value;
             }
+            const verificationFailure =
+              labelVerification.outcome === "manual-recovery"
+                ? labelVerification.reason
+                : labelVerification.outcome === "unavailable"
+                  ? "FreshRSS accepted the labels-state update, but the resulting state could not be verified."
+                  : null;
             return {
               ...value,
               attemptCount: value.attemptCount + 1,
               lastError:
-                result.outcome === "terminal-error"
+                verificationFailure ??
+                (result.outcome === "terminal-error"
                   ? `FreshRSS rejected the ${value.facet}-state update (HTTP ${result.status}).`
-                  : `FreshRSS did not acknowledge the ${value.facet}-state update.`,
-              ...(result.outcome === "terminal-error"
+                  : `FreshRSS did not acknowledge the ${value.facet}-state update.`),
+              ...(result.outcome === "terminal-error" ||
+              labelVerification.outcome === "manual-recovery"
                 ? { retryDisposition: "manual" as const }
                 : {}),
             } satisfies FreshRssPendingFacetMutation;
