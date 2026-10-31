@@ -63,6 +63,19 @@
   /* articles.css */
   .rss-dashboard-article-card,
   .rss-dashboard-save-toggle,
+  .rss-dashboard-read-toggle,
+  .rss-dashboard-star-toggle,
+  .rss-dashboard-tags-toggle,
+  body .rss-dashboard-save-toggle svg,
+  body .rss-dashboard-read-toggle svg,
+  body .rss-dashboard-star-toggle svg,
+  body .rss-dashboard-tags-toggle svg,
+  .rss-dashboard-star-icon,
+  .rss-dashboard-star-preview-icon,
+  .rss-reader-action-button,
+  .rss-reader-actions .rss-reader-action-button svg,
+  .rss-reader-star-icon,
+  .rss-reader-star-preview-icon,
   .rss-dashboard-article-card:hover,
   .rss-dashboard-article-item:hover,
   .rss-dashboard-article-card .rss-dashboard-fetch-cover-button,
@@ -97,7 +110,7 @@
   .rss-dashboard-summary-overlay,
   .rss-dashboard-star-toggle,
   .rss-dashboard-article-card,
-  .rss-dashboard-article-card:active,
+  .rss-dashboard-card-press-scale .rss-dashboard-article-card:active,
   .rss-dashboard-card-view
     .rss-dashboard-card-preview-region
     .rss-dashboard-summary-overlay {
@@ -154,6 +167,8 @@
   .rss-dashboard-tag-item-processing,
   .rss-dashboard-hamburger-button,
   .rss-dashboard-hamburger-button svg,
+  .rss-dashboard-fetch-all-covers-button,
+  .rss-dashboard-fetch-all-covers-button svg,
   .rss-dashboard-mobile-filter-button,
   .rss-dashboard-article-group-toggle {
     transition-duration: 0.01ms;
@@ -172,6 +187,7 @@
     .rss-dashboard-refresh-button.refreshing
     .rss-dashboard-refresh-icon
     svg,
+  .rss-dashboard-fetch-all-covers-button.is-running svg,
   .rss-dashboard-view-more.loading::after {
     animation-duration: 3s;
     animation-delay: 0s;

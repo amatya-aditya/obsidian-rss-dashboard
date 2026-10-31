@@ -25,6 +25,7 @@ const players = vi.hoisted(() => ({
 
 vi.mock("../../../src/views/podcast-player", () => ({
   PodcastPlayer: class {
+    setTagAppearanceSettings = vi.fn();
     loadEpisode = vi.fn();
     destroy = vi.fn();
     updateTheme = vi.fn();

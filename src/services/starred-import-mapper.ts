@@ -1,5 +1,4 @@
 import type { Feed, FeedItem, Tag } from "../types/types";
-import { DEFAULT_TAG_COLOR } from "../utils/tag-colors";
 import { isOpenableHttpUrl } from "../utils/url-utils";
 
 /**
@@ -210,12 +209,12 @@ function extractLabelNames(item: StarredJsonItem): string[] {
 }
 
 /**
- * Resolves an item's label names to `Tag` objects, preferring the color of
- * an already-known tag (case-insensitive name match) and otherwise falling
- * back to `DEFAULT_TAG_COLOR`. `newTagsByLowerName` is shared across a
+ * Resolves an item's label names to `Tag` objects, reusing an already-known
+ * registry entry (case-insensitive name match) and leaving a new label's
+ * appearance unset so it inherits the global defaults. `newTagsByLowerName` is shared across a
  * single `mapStarredExportToCandidates` call so that two items referencing
  * the same brand-new label within one import batch get the identical `Tag`
- * object (same color) rather than two independently-colored ones.
+ * object rather than duplicating entries.
  */
 function resolveLabelTags(
   item: StarredJsonItem,
@@ -241,7 +240,7 @@ function resolveLabelTags(
 
     let newTag = newTagsByLowerName.get(lowerName);
     if (!newTag) {
-      newTag = { name, color: DEFAULT_TAG_COLOR };
+      newTag = { name };
       newTagsByLowerName.set(lowerName, newTag);
     }
     tags.push(newTag);
@@ -329,7 +328,7 @@ function toFeedItem(
  * `.../label/X` categories become `Tag` entries on the resulting `FeedItem`
  * (`candidate.item.tags`), reusing the color of a matching entry in
  * `availableTags` (case-insensitive name match) when one exists, or
- * `DEFAULT_TAG_COLOR` otherwise. `.../state/com.google/starred` and
+ * the global default otherwise. `.../state/com.google/starred` and
  * `.../state/com.google/read` only ever set the `starred`/`read` booleans,
  * and `.../state/com.google/reading-list` is ignored entirely — neither
  * produces a tag.
@@ -337,7 +336,7 @@ function toFeedItem(
  * This mapper is pure and has no Obsidian API/plugin-state dependency: it
  * does not mutate `availableTags`. A caller that wants a label not already
  * present in `availableTags` to be added there (so it shows up in the normal
- * tag-filter UI) must do that itself — using the exact `{name, color}` this
+ * tag-filter UI) must do that itself — using the exact tag appearance this
  * function already assigned to the candidate's tags — typically in a modal's
  * execute/import step, once the user has confirmed which candidates to
  * import.

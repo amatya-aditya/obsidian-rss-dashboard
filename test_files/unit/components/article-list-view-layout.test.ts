@@ -70,6 +70,117 @@ describe("ArticleList view layout", () => {
     });
   });
 
+  describe("Card press animation (#1727)", () => {
+    const listEl = (): HTMLElement =>
+      container.querySelector(".rss-dashboard-articles-list") as HTMLElement;
+
+    it("marks the list while the setting is on, which is the default", () => {
+      createArticleListInstance(
+        container,
+        settings,
+        articles,
+        mockCallbacks,
+        null,
+        2,
+      ).render();
+
+      expect(listEl().hasClass("rss-dashboard-card-press-scale")).toBe(true);
+    });
+
+    it("leaves the list unmarked while the setting is off", () => {
+      settings.display.cardPressAnimation = false;
+      createArticleListInstance(
+        container,
+        settings,
+        articles,
+        mockCallbacks,
+        null,
+        2,
+      ).render();
+
+      expect(listEl().hasClass("rss-dashboard-card-press-scale")).toBe(false);
+    });
+
+    it("updates the mark in place, without rebuilding the list", () => {
+      const articleList = createArticleListInstance(
+        container,
+        settings,
+        articles,
+        mockCallbacks,
+        null,
+        2,
+      );
+      articleList.render();
+      const before = listEl();
+
+      settings.display.cardPressAnimation = false;
+      articleList.refreshCardPressAnimation();
+
+      expect(listEl()).toBe(before);
+      expect(before.hasClass("rss-dashboard-card-press-scale")).toBe(false);
+
+      settings.display.cardPressAnimation = true;
+      articleList.refreshCardPressAnimation();
+      expect(before.hasClass("rss-dashboard-card-press-scale")).toBe(true);
+    });
+  });
+
+  describe("Article title scale", () => {
+    const scaleOf = (): string =>
+      (
+        container.querySelector(".rss-dashboard-articles-list") as HTMLElement
+      ).style.getPropertyValue("--rss-dashboard-article-title-scale");
+
+    it.each(["card", "list", "feed"] as const)(
+      "applies the saved title size to %s view as a multiplier",
+      (viewStyle) => {
+        settings.viewStyle = viewStyle;
+        settings.display.articleTitleScale = 150;
+        createArticleListInstance(
+          container,
+          settings,
+          articles,
+          mockCallbacks,
+          null,
+          2,
+        ).render();
+
+        expect(scaleOf()).toBe("1.5");
+      },
+    );
+
+    it("leaves titles at their normal size by default", () => {
+      createArticleListInstance(
+        container,
+        settings,
+        articles,
+        mockCallbacks,
+        null,
+        2,
+      ).render();
+
+      expect(scaleOf()).toBe("1");
+    });
+
+    it.each([
+      [10, "0.5"],
+      [900, "2"],
+      [Number.NaN, "1"],
+    ])("keeps a saved value of %s inside the supported range", (saved, css) => {
+      settings.display.articleTitleScale = saved;
+      createArticleListInstance(
+        container,
+        settings,
+        articles,
+        mockCallbacks,
+        null,
+        2,
+      ).render();
+
+      expect(scaleOf()).toBe(css);
+    });
+  });
+
   describe("Card Spacing Layout", () => {
     it("updates the card gap variable without re-running tag layout on live spacing changes", () => {
       settings.viewStyle = "card";

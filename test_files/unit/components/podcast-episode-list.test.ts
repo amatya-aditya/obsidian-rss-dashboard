@@ -30,7 +30,7 @@ describe("PodcastEpisodeList", () => {
     vi.restoreAllMocks();
   });
 
-  it("renders a bounded episode list and loads another batch on request", () => {
+  it("renders a bounded episode list and loads another batch on request", async () => {
     const container = document.body.createDiv();
     new PodcastEpisodeList(container, {
       episodes: Array.from({ length: 45 }, (_, index) => episode(index + 1)),
@@ -45,9 +45,11 @@ describe("PodcastEpisodeList", () => {
       "More episodes from AI Data",
     );
     expect(container.querySelectorAll(".episode-list-row")).toHaveLength(20);
-    expect(container.querySelector(".episode-list-range")?.textContent).toBe(
-      "Showing 20 of 45",
+    const initialStatus = container.querySelector<HTMLElement>(
+      ".episode-list-range",
     );
+    expect(initialStatus?.getAttribute("role")).toBe("status");
+    expect(initialStatus?.textContent).toBe("");
     const statusRow = container.querySelector(".episode-list-status-row");
     const sort = container.querySelector(".episode-list-sort");
     expect(
@@ -55,15 +57,48 @@ describe("PodcastEpisodeList", () => {
     ).toBe(true);
     expect(statusRow?.contains(sort)).toBe(true);
     expect(sort?.tagName).toBe("SELECT");
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+    expect(initialStatus?.textContent).toBe("Showing 20 of 45");
 
     (
       container.querySelector(".episode-list-load-more") as HTMLButtonElement
     ).click();
 
     expect(container.querySelectorAll(".episode-list-row")).toHaveLength(40);
+    const updatedStatus = container.querySelector<HTMLElement>(
+      ".episode-list-range",
+    );
+    expect(updatedStatus).not.toBe(initialStatus);
+    expect(updatedStatus?.textContent).toBe("");
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
     expect(container.querySelector(".episode-list-range")?.textContent).toBe(
       "Showing 40 of 45",
     );
+    expect(initialStatus?.isConnected).toBe(false);
+  });
+
+  it("renders episode tags using the authoritative registry appearance", () => {
+    const first = {
+      ...episode(1),
+      tags: [{ name: "Topic", color: "#stale", textColor: "#stale" }],
+    };
+    const container = document.body.createDiv();
+    new PodcastEpisodeList(container, {
+      episodes: [first, episode(2)],
+      theme: "obsidian",
+      sortOrder: "recent",
+      tagAppearanceSettings: {
+        availableTags: [
+          { name: "Topic", color: "#234567", textColor: "#765432" },
+        ],
+      },
+      onEpisodeSelected: vi.fn(),
+      onSortRequested: vi.fn(),
+    }).render();
+
+    const tag = container.querySelector<HTMLElement>(".episode-list-row-tag");
+    expect(tag?.style.getPropertyValue("--tag-color")).toBe("#234567");
+    expect(tag?.style.getPropertyValue("--tag-text-color")).toBe("#765432");
   });
 
   it("omits the date row rather than showing 'Invalid Date' for an undated episode, and shows first-seen when the fallback is on", () => {

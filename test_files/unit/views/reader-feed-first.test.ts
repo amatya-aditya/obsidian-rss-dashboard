@@ -163,9 +163,10 @@ describe.each(["ReaderView", "ArticleRenderer"])(
       const article = item("A");
       const opening = harness.render(article);
       expect(harness.container.textContent).toContain("Short feed blurb");
-      expect(
-        harness.container.querySelector('[role="status"]')?.textContent,
-      ).toContain("Fetching article content");
+      const status = harness.container.querySelector('[role="status"]');
+      expect(status?.textContent).toBe("");
+      await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+      expect(status?.textContent).toContain("Fetching article content");
       pending.resolve(result("A"));
       await opening;
       expect(harness.container.textContent).not.toContain(

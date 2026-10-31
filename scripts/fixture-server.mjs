@@ -81,6 +81,56 @@ export function resolveFixtureFile(requestPath) {
     : null;
 }
 
+/**
+ * A synthesized article page that is heavy to parse but light to read: its
+ * `<head>` declares an `og:image` and everything after it is bulk body markup
+ * (nested containers, linked images with srcsets, long paragraphs). It backs the
+ * check that a cover fetch does not parse a whole article page on the main
+ * thread (#1702). Nothing large is committed; the server builds it per request,
+ * and a changing `n` query keeps requests from sharing one in-flight fetch.
+ */
+export const HEAVY_ARTICLE_PATH = "/heavy-article";
+const HEAVY_ARTICLE_DEFAULT_KB = 1500;
+const HEAVY_ARTICLE_MAX_KB = 8192;
+
+/** Whether a request path names the synthesized heavy page. A query is ignored. */
+export function isHeavyArticlePath(requestPath) {
+  const [pathname = ""] = String(requestPath).split(/[?#]/);
+  return pathname === HEAVY_ARTICLE_PATH;
+}
+
+/** The size, in KiB, the request asks for through `?kb=`, bounded. */
+export function heavyArticleSizeKb(requestPath) {
+  const query = String(requestPath).split("?")[1] ?? "";
+  const requested = Number(new URLSearchParams(query).get("kb"));
+  if (!Number.isFinite(requested) || requested <= 0) {
+    return HEAVY_ARTICLE_DEFAULT_KB;
+  }
+  return Math.min(Math.floor(requested), HEAVY_ARTICLE_MAX_KB);
+}
+
+/** The heavy page at about `kb` KiB, its og:image served from `origin`. */
+export function heavyArticleHtml(origin, kb = HEAVY_ARTICLE_DEFAULT_KB) {
+  const head =
+    `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
+    `<title>Heavy article (fixture)</title>` +
+    `<meta property="og:image" content="${origin}/og-image.png">` +
+    `<meta property="og:title" content="Heavy article (fixture)">` +
+    `</head><body>`;
+  const block = (index) =>
+    `<div class="wrap outer-${index % 7}"><div class="inner"><section>` +
+    `<h2>Section ${index}</h2>` +
+    `<p>${"Lantern velvet cedar marble river engine. ".repeat(6)}` +
+    `<a href="/related/${index}">related ${index}</a></p>` +
+    `<figure><img src="/img/${index}.jpg" srcset="/img/${index}-1x.jpg 1x, /img/${index}-2x.jpg 2x" alt="">` +
+    `<figcaption>Figure ${index}</figcaption></figure>` +
+    `</section></div></div>\n`;
+  const target = kb * 1024;
+  let html = head;
+  for (let index = 0; html.length < target; index += 1) html += block(index);
+  return `${html}</body></html>`;
+}
+
 /** The servable files directly inside the pages folder, read per request. */
 function listFixtureFiles() {
   try {
@@ -162,6 +212,17 @@ export function createFixtureServer() {
       response.end(body);
       console.log(`GET ${requestPath} -> 200 (fixture feed)`);
       console.log(describeRequestIdentity(request.headers));
+      return;
+    }
+
+    if (request.method === "GET" && isHeavyArticlePath(requestPath)) {
+      const body = heavyArticleHtml(origin, heavyArticleSizeKb(requestPath));
+      response.writeHead(200, {
+        "content-type": "text/html; charset=utf-8",
+        "content-length": String(Buffer.byteLength(body)),
+      });
+      response.end(body);
+      console.log(`GET ${requestPath} -> 200 (heavy article page)`);
       return;
     }
 

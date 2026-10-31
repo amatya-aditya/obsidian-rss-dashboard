@@ -13,8 +13,9 @@ vi.mock("../../../src/utils/full-article-fetch", async () => ({
   fetchFullArticleContentWithOutcome: fetchMock,
 }));
 
-function item(): FeedItem {
+function item(coverImage = "", pageImage = ""): FeedItem {
   return {
+    ...(pageImage ? { pageImage } : {}),
     title: "Ad page article",
     link: "https://example.com/ad-page",
     description: "<p>Short feed blurb</p>",
@@ -23,7 +24,7 @@ function item(): FeedItem {
     guid: "ad-page",
     feedTitle: "Example",
     feedUrl: "https://example.com/feed",
-    coverImage: "",
+    coverImage,
   };
 }
 
@@ -46,11 +47,19 @@ describe("Reader save strips ad containers from fetched content (#1195)", () => 
 
   const openWithFetched = async (
     fetched: FullArticleFetchResult,
+    options: {
+      defaultTemplate?: string;
+      coverImage?: string;
+      pageImage?: string;
+    } = {},
   ): Promise<ReturnType<typeof vi.fn>> => {
     const app = App.createMock();
     const settings = structuredClone(DEFAULT_SETTINGS);
     settings.useWebViewer = false;
     settings.articleSaving.saveVersion = "fetched";
+    if (options.defaultTemplate !== undefined) {
+      settings.articleSaving.defaultTemplate = options.defaultTemplate;
+    }
     const save = vi.fn().mockResolvedValue(null);
     view = new ReaderView(
       { app, detach: vi.fn() } as never,
@@ -67,7 +76,7 @@ describe("Reader save strips ad containers from fetched content (#1195)", () => 
     await view.onOpen();
     fetchMock.mockResolvedValueOnce(fetched);
 
-    await view.displayItem(item());
+    await view.displayItem(item(options.coverImage, options.pageImage));
     // The Reader only saves its own Markdown once the fetched version is shown.
     const toggle = findContentToggle(container);
     if (!toggle) throw new Error("Missing content toggle");
@@ -101,5 +110,60 @@ describe("Reader save strips ad containers from fetched content (#1195)", () => 
     expect(readerContent.markdown).toContain(
       "https://cdn.example.com/figure-2-1400.jpg",
     );
+  });
+
+  describe("hero lead and a template's {{image}}", () => {
+    const COVER = "https://img.example.com/cover.jpg?quality=85&w=640";
+
+    it("leads the Markdown with the hero when the template never names the image", async () => {
+      const save = await openWithFetched(FETCHED, {
+        defaultTemplate: "{{content}}",
+        coverImage: COVER,
+      });
+
+      const readerContent = save.mock.calls[0]?.[4] as { markdown?: string };
+      expect(readerContent.markdown).toContain(`![Hero image](${COVER})`);
+    });
+
+    it("adds no hero lead when the template places {{image}} in the note body", async () => {
+      const save = await openWithFetched(FETCHED, {
+        defaultTemplate: "![]({{image}})\n\n{{content}}",
+        coverImage: COVER,
+      });
+
+      const readerContent = save.mock.calls[0]?.[4] as { markdown?: string };
+      expect(readerContent.markdown).toContain("A substantial opening");
+      expect(readerContent.markdown).not.toContain("Hero image");
+      expect(readerContent.markdown).not.toContain(COVER);
+    });
+
+    it("leaves the fetched body's copy of the image out when the template places {{image}}", async () => {
+      const save = await openWithFetched(
+        {
+          content: `<p>${"A substantial opening paragraph which differs from the publisher summary. ".repeat(5)}</p><figure><img src="https://img.example.com/cover.jpg?lossy" alt="Cover"></figure>`,
+          failureType: "none",
+        },
+        {
+          defaultTemplate: "![]({{image}})\n\n{{content}}",
+          coverImage: COVER,
+        },
+      );
+
+      const readerContent = save.mock.calls[0]?.[4] as { markdown?: string };
+      expect(readerContent.markdown).toContain("A substantial opening");
+      expect(readerContent.markdown).not.toContain("cover.jpg");
+    });
+
+    it("keeps the hero lead when the template names the image but the article has none for it", async () => {
+      const pageImage = "https://page.example.com/og.jpg";
+      const save = await openWithFetched(FETCHED, {
+        defaultTemplate: "![]({{image}})\n\n{{content}}",
+        coverImage: "",
+        pageImage,
+      });
+
+      const readerContent = save.mock.calls[0]?.[4] as { markdown?: string };
+      expect(readerContent.markdown).toContain(`![Hero image](${pageImage})`);
+    });
   });
 });

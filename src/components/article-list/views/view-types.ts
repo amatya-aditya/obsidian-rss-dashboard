@@ -1,5 +1,6 @@
 import type { FeedItem, RssDashboardSettings } from "../../../types/types";
 import type { HighlightService } from "../../../services/highlight-service";
+import type { TagAppearanceSettings } from "../../../utils/tag-colors";
 
 export interface ViewCallbacks {
   onArticleClick: (article: FeedItem) => void;
@@ -48,6 +49,7 @@ export interface BaseViewContext {
     articleGroupBy?: RssDashboardSettings["articleGroupBy"];
     collapsedFeedSections?: string[];
   };
+  tagAppearanceSettings?: TagAppearanceSettings;
   resolveCachedImageUrl?: (remoteUrl: string) => string | null;
   highlightService: HighlightService | null;
   callbacks: ViewCallbacks;

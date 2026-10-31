@@ -29,6 +29,7 @@ export class StorageMigrationModal extends AccessibleModal {
 
     this.modalEl.addClass("rss-dashboard-modal");
     this.modalEl.addClass("rss-dashboard-modal-container");
+    this.modalEl.addClass("rss-dashboard-storage-migration-modal");
 
     new Setting(contentEl)
       .setName("Storage mode is being retired")

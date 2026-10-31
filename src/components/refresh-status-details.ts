@@ -23,6 +23,18 @@ function releaseRefreshDetailsPopup(
   }
 }
 
+function renderRefreshDetailsPopupNextTask(
+  popup: HTMLElement,
+  render: (popup: HTMLElement) => void,
+): void {
+  const update = () => {
+    if (popup.isConnected) render(popup);
+  };
+  const ownerWindow = popup.ownerDocument.defaultView;
+  if (ownerWindow) ownerWindow.setTimeout(update, 0);
+  else update();
+}
+
 /**
  * Positions a refresh-details popup beside `anchor`, or below it across the
  * window when the space beside it is too narrow to read, as on a phone where
@@ -145,22 +157,23 @@ export function attachRefreshStatusDetails(options: {
     if (popup || !row.isConnected || !hasHoverPointer()) return;
     const rowDocument = row.ownerDocument;
     claimRefreshDetailsPopup(rowDocument, close);
-    popup = rowDocument.body.createDiv({
+    const statusPopup = rowDocument.body.createDiv({
       cls: "rss-dashboard-refresh-details",
       attr: { id: popupId, role: "status" },
     });
-    options.render(popup);
-    positionRefreshDetailsPopup(popup, row);
-    popup.addEventListener("mouseenter", () => {
+    popup = statusPopup;
+    renderRefreshDetailsPopupNextTask(statusPopup, options.render);
+    positionRefreshDetailsPopup(statusPopup, row);
+    statusPopup.addEventListener("mouseenter", () => {
       pointerOverPopup = true;
       clearTimers();
     });
-    popup.addEventListener("mouseleave", () => {
+    statusPopup.addEventListener("mouseleave", () => {
       pointerOverPopup = false;
       scheduleClose();
     });
-    popup.addEventListener("focusin", clearTimers);
-    popup.addEventListener("focusout", scheduleClose);
+    statusPopup.addEventListener("focusin", clearTimers);
+    statusPopup.addEventListener("focusout", scheduleClose);
     rowDocument.addEventListener("keydown", onKeyDown);
   };
   const scheduleShow = () => {

@@ -14,11 +14,11 @@ import {
 import {
   migrateDisplaySettings,
   migrateDefaultFilterToDashboardMultiFilters,
-  migrateKeywordRulesSettings,
   migrateMediaVideoTagSettings,
   migrateMediaDefaultTagArrays,
   removeObsoleteSettingsKeys,
 } from "./settings-migration";
+import { migrateKeywordRulesSettings } from "./keyword-rules-migration";
 import { migrateSaveVersionSetting } from "./save-version";
 import { normalizeTagChipRadius, repairTagChipRadius } from "./tag-chip-radius";
 import { canonicalizeItemIdentityUrl } from "./url-utils";
@@ -254,6 +254,10 @@ function normalizeSettingGroups(settings: RssDashboardSettings): void {
   if (typeof settings.display.imageCacheUnlimited !== "boolean") {
     settings.display.imageCacheUnlimited =
       DEFAULT_SETTINGS.display.imageCacheUnlimited;
+  }
+  if (typeof settings.display.swipeBetweenPanels !== "boolean") {
+    settings.display.swipeBetweenPanels =
+      DEFAULT_SETTINGS.display.swipeBetweenPanels;
   }
   settings.display.tagChipRadius = normalizeTagChipRadius(
     settings.display.tagChipRadius,

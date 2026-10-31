@@ -88,7 +88,7 @@ const INCLUDED_CHIPS: Array<{ className: string }> = [
 ];
 
 // The Tags settings tab previews the chosen shape with its own sample chip.
-const SHARED_VARIABLE_SAMPLE_RULES = 1;
+const SHARED_VARIABLE_SAMPLE_RULES = 2;
 
 // Chips whose shape comes from a base class they are always rendered with.
 const INHERITING_CHIPS = [
@@ -103,7 +103,6 @@ const EXCLUDED_SHAPES: Array<[string, string]> = [
   [".rss-dashboard-tag-color-dot", "50%"],
   [".rss-discover-tag-color-dot", "50%"],
   [".rss-dashboard-tag-multi-select-menu-swatch", "999px"],
-  [".rss-dashboard-tag-inline-color", "4px"],
   ["body .rss-dashboard-tag-color-picker", "50%"],
   [".rss-dashboard-tags-toggle", "12px"],
   [".rss-dashboard-tags-dropdown-content", "4px"],
@@ -152,10 +151,22 @@ describe("Tag chip stylesheet - shared radius", () => {
       "episode-list-row-tag episode-list-row-tag-more",
     );
     expect(read("modals/import-starred-modal.ts")).toMatch(
-      /createTagChip\(list, tag, "button"\)[\s\S]{0,80}import-new-tags-chip/,
+      /createTagChip\(list, tag, "button", this\.plugin\.settings\)[\s\S]{0,100}chip\.addClass\("import-new-tags-chip"\)/,
     );
     expect(read("components/article-list/utils/tag-layout-utils.ts")).toContain(
       '"rss-dashboard-tag-badge"',
+    );
+  });
+
+  it("uses the resolved tag colors for overflow chips", () => {
+    const css = readFileSync(path.join(stylesDir, "card-view.css"), "utf-8");
+    const rule = css.match(/\.rss-dashboard-tag-overflow\s*\{([^}]*)\}/)?.[1];
+
+    expect(rule).toContain(
+      "background: var(--tag-color, var(--interactive-accent))",
+    );
+    expect(rule).toContain(
+      "color: var(--tag-text-color, var(--text-on-accent))",
     );
   });
 
@@ -164,8 +175,8 @@ describe("Tag chip stylesheet - shared radius", () => {
       d.value.includes("--rss-dashboard-tag-chip-radius"),
     );
 
-    // The settings sample chip also reads the shared variable, so it is the
-    // one rule beyond the chips listed above.
+    // The settings and Edit tag sample chips also read the shared variable,
+    // so they are the rules beyond the chips listed above.
     expect(sharedDecls.length).toBe(
       INCLUDED_CHIPS.length + SHARED_VARIABLE_SAMPLE_RULES,
     );

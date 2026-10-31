@@ -501,8 +501,8 @@ author: "{{author}}"
       expect(sanitizeFilename('Hello / World: "Test"')).toBe(
         "Hello World Test",
       );
-      expect(sanitizeFilename(`  ${"a".repeat(98)} /  zzz`)).toBe(
-        `${"a".repeat(98)} z`,
+      expect(sanitizeFilename(`  ${"a".repeat(243)} /  zzz`)).toBe(
+        `${"a".repeat(243)} z`,
       );
     });
 

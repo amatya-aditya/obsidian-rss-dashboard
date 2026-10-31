@@ -792,7 +792,7 @@ describe("ArticleList control activation in a popout window (#1468)", () => {
     vi.restoreAllMocks();
   });
 
-  it("selects the card when the clicked control belongs to another window", () => {
+  it("selects the card when its cover control belongs to another window", () => {
     const onArticleControlActivate = vi.fn();
     const h = createArticleListHarness({
       settings: {
@@ -820,7 +820,9 @@ describe("ArticleList control activation in a popout window (#1468)", () => {
       cls: "rss-dashboard-article-item",
       attr: { id: "article-1" },
     });
-    const control = row.createDiv({ cls: "rss-dashboard-star-toggle" });
+    const control = row.createDiv({
+      cls: "rss-dashboard-fetch-cover-button",
+    });
     expect(control instanceof HTMLElement).toBe(false);
 
     const event = new MouseEvent("click", { bubbles: true, detail: 1 });

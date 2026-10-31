@@ -7,7 +7,6 @@ import {
   mapStarredExportToCandidates,
   type StarredJsonExport,
 } from "../../../src/services/starred-import-mapper";
-import { DEFAULT_TAG_COLOR } from "../../../src/utils/tag-colors";
 import type { Tag } from "../../../src/types/types";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -235,10 +234,7 @@ describe("mapStarredExportToCandidates", () => {
 
     expect(labeled).toBeDefined();
     expect(labeled?.item.author).toBe("Jane Example");
-    expect(labeled?.item.tags).toEqual([
-      { name: "Design", color: DEFAULT_TAG_COLOR },
-      { name: "art", color: DEFAULT_TAG_COLOR },
-    ]);
+    expect(labeled?.item.tags).toEqual([{ name: "Design" }, { name: "art" }]);
   });
 
   it("leaves tags undefined for an item with no label categories", () => {
@@ -278,7 +274,7 @@ describe("mapStarredExportToCandidates", () => {
 
     expect(labeled?.item.tags).toEqual([
       { name: "design", color: "#123456" },
-      { name: "art", color: DEFAULT_TAG_COLOR },
+      { name: "art" },
     ]);
     // The mapper is pure: it never mutates the availableTags it was given.
     expect(availableTags).toHaveLength(2);
@@ -328,10 +324,7 @@ describe("mapStarredExportToCandidates", () => {
     // The labeled item's tags come from its labels only, independent of it
     // also being starred.
     const labeled = candidates.find((c) => c.item.guid.endsWith("0002"));
-    expect(labeled?.item.tags).toEqual([
-      { name: "Design", color: DEFAULT_TAG_COLOR },
-      { name: "art", color: DEFAULT_TAG_COLOR },
-    ]);
+    expect(labeled?.item.tags).toEqual([{ name: "Design" }, { name: "art" }]);
   });
 
   it("groups candidates under the matching local feed's url and title", () => {
@@ -484,7 +477,7 @@ describe("FreshRSS-compatible export shape", () => {
     expect(item.author).toBe("FreshRSS Author");
     expect(item.starred).toBe(true);
     expect(item.read).toBe(true);
-    expect(item.tags).toEqual([{ name: "test_tag", color: DEFAULT_TAG_COLOR }]);
+    expect(item.tags).toEqual([{ name: "test_tag" }]);
   });
 
   it("does not import the unqualified 'Product' category as a tag", () => {

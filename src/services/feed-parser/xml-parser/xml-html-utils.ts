@@ -128,11 +128,19 @@ function decodeEntity(match: string, body: string): string {
   return num >= 0 && num <= 0x10ffff ? String.fromCodePoint(num) : match;
 }
 
-const PAIRED_FORMATTING_TAG =
-  /<(strong|strike|small|span|sub|sup|del|div|ins|mark|em|i|b|s|u|p|a)(?:\s+(?:[^<>"']+|"[^"]*"|'[^']*')*)?>([\s\S]*?)<\/\1\s*>/gi;
+// Attribute text is matched one character at a time so no quantifier is nested
+// inside another; a run of unclosed `<i !!!` input then fails in linear time.
+const TAG_ATTRIBUTES = String.raw`(?:\s(?:[^<>"']|"[^"]*"|'[^']*')*)?`;
 
-const VOID_FORMATTING_TAG =
-  /<(br|wbr)(?:\s+(?:[^<>"']+|"[^"]*"|'[^']*')*)?\/?>/gi;
+const PAIRED_FORMATTING_TAG = new RegExp(
+  String.raw`<(strong|strike|small|span|sub|sup|del|div|ins|mark|em|i|b|s|u|p|a)${TAG_ATTRIBUTES}>([\s\S]*?)<\/\1\s*>`,
+  "gi",
+);
+
+const VOID_FORMATTING_TAG = new RegExp(
+  String.raw`<(br|wbr)${TAG_ATTRIBUTES}\/?>`,
+  "gi",
+);
 
 /**
  * Strips paired formatting markup from a title, such as `<em>Wicker</em>`.

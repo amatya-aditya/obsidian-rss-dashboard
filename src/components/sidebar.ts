@@ -18,13 +18,19 @@ import {
   removeAllTagsFromFeeds,
   syncFolderAutoTagsOnFeeds,
 } from "../utils/folder-tag-sync";
-import { DEFAULT_TAG_COLOR } from "../utils/tag-colors";
+import {
+  applyTagAppearance,
+  createTagWithAppearanceChanges,
+  DEFAULT_TAG_COLOR,
+  DEFAULT_TAG_TEXT_COLOR,
+} from "../utils/tag-colors";
 import { AddTagModal } from "../modals/add-tag-modal";
 import { showEditTagModal } from "../utils/tag-utils";
 import { deleteTagFromSettings } from "../utils/tag-settings";
 import { windowInstanceOf } from "../utils/platform-utils";
 import type { ArticleStateChange } from "../utils/article-update";
 import { addInputClearButton } from "../utils/input-clear-button";
+import { addTagColorPaletteControl } from "./tag-color-palette-control";
 import { markMenuItemDestructive } from "../utils/destructive-menu-item";
 import { isDomNode } from "../utils/dom-node";
 import {
@@ -798,7 +804,7 @@ export class Sidebar {
       tagCheckbox.checked = selected;
 
       const dot = row.createDiv({ cls: "rss-dashboard-tag-color-dot" });
-      dot.style.backgroundColor = tag.color;
+      applyTagAppearance(dot, tag, this.settings);
 
       row.createSpan({
         text: tag.name,
@@ -827,14 +833,68 @@ export class Sidebar {
         this.render();
       });
     });
-    // Inline add-tag row
+    this.renderAddTagForm(tagsSection, revealForSearch);
+  }
+
+  public refreshTagColors(): void {
+    this.container
+      .querySelectorAll<HTMLElement>(
+        ".rss-dashboard-sidebar-tag-row[data-tag-name] .rss-dashboard-tag-color-dot",
+      )
+      .forEach((dot) => {
+        const row = dot.closest<HTMLElement>(
+          ".rss-dashboard-sidebar-tag-row[data-tag-name]",
+        );
+        const tag = this.settings.availableTags.find(
+          (candidate) => candidate.name === row?.dataset.tagName,
+        );
+        if (tag) applyTagAppearance(dot, tag, this.settings);
+      });
+  }
+
+  private renderAddTagForm(
+    tagsSection: HTMLElement,
+    revealForSearch: boolean,
+  ): void {
     if (this.isAddTagExpanded) {
       const addRow = tagsSection.createDiv({
         cls: "rss-dashboard-sidebar-add-tag-row",
       });
-      const cp = addRow.createEl("input", {
-        attr: { type: "color", value: DEFAULT_TAG_COLOR },
+      const defaultTagColor =
+        this.settings.defaultTagColor ?? DEFAULT_TAG_COLOR;
+      const defaultTagTextColor =
+        this.settings.defaultTagTextColor ?? DEFAULT_TAG_TEXT_COLOR;
+      const backgroundColorField = addRow.createDiv({
+        cls: "rss-dashboard-sidebar-add-tag-color-field",
+      });
+      const cp = backgroundColorField.createEl("input", {
+        attr: {
+          type: "color",
+          value: defaultTagColor,
+          "aria-label": "Tag background color",
+        },
         cls: "rss-dashboard-tag-color-picker",
+      });
+      addTagColorPaletteControl({
+        container: backgroundColorField,
+        input: cp,
+        fieldName: "Background",
+      });
+      const textColorField = addRow.createDiv({
+        cls: "rss-dashboard-sidebar-add-tag-color-field",
+      });
+      const textColorInput = textColorField.createEl("input", {
+        attr: {
+          type: "color",
+          value: defaultTagTextColor,
+          "aria-label": "Tag text color",
+        },
+        cls: "rss-dashboard-tag-color-picker rss-dashboard-sidebar-add-tag-text-color",
+      });
+      addTagColorPaletteControl({
+        container: textColorField,
+        input: textColorInput,
+        fieldName: "Text",
       });
       const input = addRow.createEl("input", {
         attr: { type: "text", placeholder: "New tag..." },
@@ -870,7 +930,16 @@ export class Sidebar {
           new Notice("Tag already exists");
           return;
         }
-        this.settings.availableTags.push({ name: val, color: cp.value });
+        this.settings.availableTags.push(
+          createTagWithAppearanceChanges(
+            val,
+            { background: cp.value, text: textColorInput.value },
+            {
+              background: cp.value !== defaultTagColor,
+              text: textColorInput.value !== defaultTagTextColor,
+            },
+          ),
+        );
         void this.plugin.saveSettings();
         this.app.workspace.trigger("rss-dashboard:tags-mutated");
         input.value = "";

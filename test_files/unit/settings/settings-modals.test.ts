@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as obsidian from "obsidian";
 import {
   ApplyMaxItemsToExistingFeedsModal,
+  ApplyTagDefaultsModal,
   ConfirmActionModal,
   ConfirmDeleteModal,
   HighlightWordEditModal,
@@ -135,6 +136,57 @@ describe("ConfirmDeleteModal", () => {
   });
 });
 
+describe("ApplyTagDefaultsModal", () => {
+  const open = () => {
+    const modal = new ApplyTagDefaultsModal(obsidian.App.createMock(), {
+      renderPreview: (previewEl) => {
+        previewEl.createSpan({ text: "Now / After" });
+      },
+    });
+    const result = modal.waitForClose();
+    modal.open();
+    return { modal, result };
+  };
+  const click = (modal: ApplyTagDefaultsModal, label: string) =>
+    Array.from(modal.contentEl.querySelectorAll("button"))
+      .find((button) => button.textContent === label)!
+      .click();
+
+  it("offers Cancel, Future tags only and All tags with the caller's preview", () => {
+    const { modal } = open();
+
+    expect(
+      Array.from(modal.contentEl.querySelectorAll("button")).map(
+        (button) => button.textContent,
+      ),
+    ).toEqual(["Cancel", "Future tags only", "All tags"]);
+    expect(
+      modal.contentEl.querySelector(".rss-dashboard-confirm-preview")
+        ?.textContent,
+    ).toBe("Now / After");
+  });
+
+  it.each([
+    ["Cancel", "cancel"],
+    ["Future tags only", "future"],
+    ["All tags", "all"],
+  ])("resolves %s as %s", async (label, expected) => {
+    const { modal, result } = open();
+
+    click(modal, label);
+
+    await expect(result).resolves.toBe(expected);
+  });
+
+  it("treats closing the dialog any other way as cancel", async () => {
+    const { modal, result } = open();
+
+    modal.close();
+
+    await expect(result).resolves.toBe("cancel");
+  });
+});
+
 describe("ConfirmActionModal", () => {
   const options = {
     title: "Delete this template?",
@@ -154,6 +206,37 @@ describe("ConfirmActionModal", () => {
       modal.contentEl.querySelectorAll("button"),
     ).find((b) => b.textContent === "Delete") as HTMLButtonElement;
     expect(confirmBtn.classList.contains("mod-destructive")).toBe(true);
+  });
+
+  it("renders a caller-supplied preview between the message and the buttons", () => {
+    const modal = new ConfirmActionModal(obsidian.App.createMock(), {
+      ...options,
+      renderPreview: (previewEl) => {
+        previewEl.createSpan({ cls: "sample-preview", text: "Before / after" });
+      },
+    });
+    modal.open();
+
+    const children = Array.from(modal.contentEl.children);
+    const previewIndex = children.findIndex((el) =>
+      el.classList.contains("rss-dashboard-confirm-preview"),
+    );
+    expect(previewIndex).toBeGreaterThan(
+      children.findIndex((el) => el.tagName === "P"),
+    );
+    expect(previewIndex).toBeLessThan(
+      children.findIndex((el) => el.querySelector("button")),
+    );
+    expect(children[previewIndex]?.textContent).toBe("Before / after");
+  });
+
+  it("adds no preview block when none is supplied", () => {
+    const modal = new ConfirmActionModal(obsidian.App.createMock(), options);
+    modal.open();
+
+    expect(
+      modal.contentEl.querySelector(".rss-dashboard-confirm-preview"),
+    ).toBeNull();
   });
 
   it("resolves true when the confirming button is clicked", async () => {

@@ -1,4 +1,4 @@
-# ADR 0038: Keep FreshRSS in Core for v1
+# ADR 0042: Keep FreshRSS in Core for v1
 
 > **What is an ADR?** An Architecture Decision Record explains an important
 > product or technical decision, why it was made, and the alternatives considered.
@@ -96,8 +96,9 @@ product need justifies that added boundary.
 - [#50 — FreshRSS / Google Reader API integration](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/50)
 - [#221 — FreshRSS portable-state behavior contracts](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/221)
 - [#226 — FreshRSS test architecture](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/226)
-- [#341 — FreshRSS Core/Connector integration boundary](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/341)
+- [#341 — Wayfinder: FreshRSS Core/Connector integration boundary](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/341)
 - [#1073 — Research the Obsidian floor candidates](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1073)
 - [#1075 — Pick the 3.0 `minAppVersion` floor](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1075)
 - [#1079 — Choose how FreshRSS returns to the 3.0 line](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1079)
 - [ADR 0023 — Set the 3.0 support floor at Obsidian 1.11.5](0023-set-the-3-0-support-floor-at-obsidian-1-11-5.md)
+- [ADR 0039 — Use User-Managed SecretStorage References for Credentials](0039-use-user-managed-secretstorage-references.md)

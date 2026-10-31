@@ -82,9 +82,10 @@
   white-space: nowrap;
 }
 
+/* Scrolls away with the page like a page header. Kept positioned so the
+   filter menu inside it (z-index 120) still stacks above the feed cards. */
 .rss-discover-controls-container {
-  position: sticky;
-  top: 0;
+  position: relative;
   background: var(--background-primary);
   z-index: 100;
 }
