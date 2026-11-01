@@ -101,6 +101,11 @@ Do not add `!important` declarations. Resolve CSS conflicts with a scoped,
 higher-specificity selector built from an existing plugin root, component, and
 state or element selector. `audit-ok` comments do not create an exception.
 
+## Release branches
+
+For cherry-picks onto, or a PR against, `release/x.y.z`, read
+[docs/agents/release-branch.md](docs/agents/release-branch.md) first.
+
 ## Refactors (#436)
 
 For a refactor ticket (`refactor/<issue>-<slug>` branch, `.github/ISSUE_TEMPLATE/refactor.md`),
