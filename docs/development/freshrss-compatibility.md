@@ -73,9 +73,11 @@ articles are marked partial by design.
   cause is unknown ([#1682](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1682)).
   The warning itself is intended: it marks a feed whose request failed.
 - A silently accepted label addition (HTTP 200 with the label absent) is
-  handled by keeping the change pending. It was verified against a controlled
-  response, not a naturally occurring server case
+  handled by keeping the change pending with a manual-recovery reason. It was
+  verified against the live server on `a837bf1d`: a 200-character label was
+  accepted and stored cut to 191 bytes, so the readback lacked it
   ([#1615](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1615)).
+  The input was engineered, not a spontaneous server event.
 - No real screen reader (NVDA, VoiceOver, TalkBack) was run.
 - No physical Android device was tested; the maintainer waived that
   requirement for closing the Android issues.
