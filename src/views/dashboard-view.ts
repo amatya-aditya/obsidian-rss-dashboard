@@ -24,6 +24,7 @@ import {
   SavedTemplate,
   Folder,
   ViewLocation,
+  ArticleContentFirst,
   FeedEncoding,
   ArticleGroupByOption,
   DEFAULT_SETTINGS,
@@ -2705,6 +2706,7 @@ export class RssDashboardView extends ItemView {
     excludeFromRefresh?: boolean,
     customTags?: string[],
     feedEncoding?: FeedEncoding,
+    articleContentFirst?: ArticleContentFirst,
   ): Promise<void> {
     await this.plugin.addFeed(
       title,
@@ -2717,7 +2719,7 @@ export class RssDashboardView extends ItemView {
       customTemplate,
       excludeFromRefresh,
       customTags,
-      { feedEncoding },
+      { feedEncoding, articleContentFirst },
     );
     void this.render();
   }

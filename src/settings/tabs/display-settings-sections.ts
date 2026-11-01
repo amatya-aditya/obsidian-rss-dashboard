@@ -636,6 +636,20 @@ export function renderReaderSettings(
   }
 
   new Setting(containerEl)
+    .setName("Show fetched content first")
+    .setDesc(
+      "Open articles on the fetched page instead of the RSS content once it loads. An article you have already started reading stays on the RSS content. A feed can override this in its feed options.",
+    )
+    .addToggle((toggle) =>
+      toggle
+        .setValue(plugin.settings.display.showFetchedContentFirst)
+        .onChange(async (value) => {
+          plugin.settings.display.showFetchedContentFirst = value;
+          await plugin.saveSettings();
+        }),
+    );
+
+  new Setting(containerEl)
     .setName("Font size")
     .setDesc("Choose the reader body font size preset")
     .addDropdown((dropdown) =>

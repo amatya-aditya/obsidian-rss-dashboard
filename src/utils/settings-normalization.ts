@@ -218,6 +218,10 @@ function normalizeSettingGroups(settings: RssDashboardSettings): void {
     settings.display.swipeBetweenPanels =
       DEFAULT_SETTINGS.display.swipeBetweenPanels;
   }
+  if (typeof settings.display.showFetchedContentFirst !== "boolean") {
+    settings.display.showFetchedContentFirst =
+      DEFAULT_SETTINGS.display.showFetchedContentFirst;
+  }
   settings.display.tagChipRadius = normalizeTagChipRadius(
     settings.display.tagChipRadius,
   );

@@ -144,6 +144,7 @@ describe("renderDisplaySettingsTab() characterization", () => {
       "Left-handed layout",
       "Startup filters",
       "Reader",
+      "Show fetched content first",
       "Font size",
       "Line height",
       "Font",
