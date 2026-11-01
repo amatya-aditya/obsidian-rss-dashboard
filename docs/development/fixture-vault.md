@@ -503,6 +503,24 @@ which some builds surface as a standalone **Advanced** group; "Allow
 interactions with Obsidian from the command line") is off by default and not
 part of this route yet.
 
+### Android WebView
+
+Obsidian Android's WebView exposes a devtools socket named
+`webview_devtools_remote_<pid>`, and its single page has the url
+`http://localhost/` rather than `app://obsidian.md`. Forward the socket, then
+tell the harness which url prefix marks the Obsidian page:
+
+```sh
+adb shell cat /proc/net/unix | grep devtools
+adb forward tcp:9444 localabstract:webview_devtools_remote_<pid>
+node scripts/obsidian-cdp.mjs --port 9444 --url-prefix http://localhost targets
+```
+
+The pid changes each time the app restarts, so look the socket up and forward
+it again after a restart. `--url-prefix` (or `CDP_URL_PREFIX`) replaces the
+`app://obsidian.md` prefix when the harness picks the vault page; it works with
+`eval`, `shot`, `repl`, and `--expect-vault`.
+
 Reach for full computer control (a mouse-and-keyboard driver) instead of this
 route only when the behaviour needs real input or native chrome — a drag, a
 native dialog, or pixel-level layout. Reading the DOM, clicking, and
