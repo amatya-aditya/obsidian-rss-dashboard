@@ -413,6 +413,92 @@ describe("obsidian-cdp selectTarget", () => {
   });
 });
 
+describe("obsidian-cdp --url-prefix (Android WebView)", () => {
+  const android = page({
+    id: "android",
+    title: "RSS dashboard - Obsidian",
+    url: "http://localhost/",
+  });
+
+  it("reads --url-prefix and CDP_URL_PREFIX, and defaults to none", () => {
+    expect(parseArgs(["targets"], noEnv).urlPrefix).toBeUndefined();
+    expect(
+      parseArgs(["--url-prefix", "http://localhost", "targets"], noEnv)
+        .urlPrefix,
+    ).toBe("http://localhost");
+    expect(
+      parseArgs(["targets"], { CDP_URL_PREFIX: "http://localhost" }).urlPrefix,
+    ).toBe("http://localhost");
+    expect(() => parseArgs(["--url-prefix", "targets"], noEnv)).toThrow(
+      CdpError,
+    );
+  });
+
+  it("selects the Android page by url prefix", () => {
+    const picked = selectTarget(
+      [page({ id: "blank", title: "", url: "about:blank" }), android],
+      { urlPrefix: "http://localhost" },
+    );
+    expect(picked.id).toBe("android");
+  });
+
+  it("ignores the Android url without a prefix, as before", () => {
+    expect(() =>
+      selectTarget(
+        [page({ id: "blank", title: "", url: "about:blank" }), android],
+        {},
+      ),
+    ).toThrow(CdpError);
+    expect(isObsidianVaultTarget({ url: "http://localhost/" })).toBe(false);
+  });
+
+  it("replaces the Obsidian prefix rather than adding to it", () => {
+    const picked = selectTarget([page({ id: "desktop" }), android], {
+      urlPrefix: "http://localhost",
+    });
+    expect(picked.id).toBe("android");
+  });
+
+  it("still handles a Settings about:blank page beside the vault", () => {
+    const picked = selectTarget(
+      [
+        page({
+          id: "settings",
+          title: "Settings - Vault - Obsidian 1.14.0",
+          url: "about:blank",
+        }),
+        android,
+      ],
+      { urlPrefix: "http://localhost" },
+    );
+    expect(picked.id).toBe("android");
+    expect(
+      isObsidianVaultTarget({ url: "about:blank" }, "http://localhost"),
+    ).toBe(false);
+  });
+
+  it("chooses the port holding the Android page", () => {
+    const chosen = choosePort(
+      [
+        { port: 9222, pages: [page({ id: "chrome", url: "https://a.test/" })] },
+        { port: 9444, pages: [android] },
+      ],
+      "http://localhost",
+    );
+    expect(chosen.port).toBe(9444);
+  });
+
+  it("accepts the Android page as the vault window for ownership", () => {
+    const result = assessVaultOwnership({
+      targetUrl: "http://localhost/",
+      vaultPath: "/storage/emulated/0/Vault",
+      expectedVault: "/storage/emulated/0/Vault",
+      urlPrefix: "http://localhost",
+    });
+    expect(result.ok).toBe(true);
+  });
+});
+
 describe("obsidian-cdp choosePort", () => {
   it("prefers a port with an Obsidian window over an earlier other app", () => {
     const chosen = choosePort([
