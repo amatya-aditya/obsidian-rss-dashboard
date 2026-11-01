@@ -33,6 +33,7 @@ const ENV_TARGET = "CDP_TARGET";
 const ENV_EXPECT_VAULT = "CDP_EXPECT_VAULT";
 const ENV_PROFILE = "CDP_PROFILE";
 const ENV_WAIT = "CDP_WAIT";
+const ENV_URL_PREFIX = "CDP_URL_PREFIX";
 const OBSIDIAN_URL_PREFIX = "app://obsidian.md";
 /** The real vault window. The picker (starter.html) opens without a vault. */
 const OBSIDIAN_VAULT_URL = "app://obsidian.md/index.html";
@@ -161,6 +162,9 @@ Options:
   --keep-settings    With prepare-vault, leave the Settings window open (a
                      checklist item that tests a settings feature).
   --keep-left        With prepare-vault, leave the workspace side panes open.
+  --url-prefix <t>   Treat pages whose url starts with <t> as the Obsidian window
+                     instead of app://obsidian.md, for example http://localhost
+                     for Obsidian Android's WebView.
   --wait <ms>        Poll for a ready vault target for up to <ms> before failing
                      (default: 0, fail fast).
   --json             Print machine-readable output where supported.
@@ -171,7 +175,8 @@ Environment:
   ${ENV_TARGET}      Same as --target.
   ${ENV_EXPECT_VAULT}   Same as --expect-vault.
   ${ENV_PROFILE}     Same as --profile.
-  ${ENV_WAIT}        Same as --wait.`;
+  ${ENV_WAIT}        Same as --wait.
+  ${ENV_URL_PREFIX}  Same as --url-prefix.`;
 
 export class CdpError extends Error {
   constructor(message) {
@@ -285,6 +290,7 @@ export function parseArgs(argv, env = process.env) {
     target: env[ENV_TARGET] || undefined,
     expectVault: env[ENV_EXPECT_VAULT] || undefined,
     profile: env[ENV_PROFILE] || undefined,
+    urlPrefix: env[ENV_URL_PREFIX] || undefined,
     settings: false,
     keepSettings: false,
     keepLeft: false,
@@ -338,6 +344,12 @@ export function parseArgs(argv, env = process.env) {
         "--profile",
       );
       if (!arg.includes("=")) i += 1;
+    } else if (arg === "--url-prefix" || arg.startsWith("--url-prefix=")) {
+      options.urlPrefix = nonEmptyValue(
+        optionValue(argv, i, "--url-prefix"),
+        "--url-prefix",
+      );
+      if (!arg.includes("=")) i += 1;
     } else if (arg === "--wait" || arg.startsWith("--wait=")) {
       options.waitMs = parseWait(optionValue(argv, i, "--wait"), "--wait");
       if (!arg.includes("=")) i += 1;
@@ -384,8 +396,8 @@ function isPageTarget(candidate) {
   );
 }
 
-function isObsidianTarget(target) {
-  return String(target.url || "").startsWith(OBSIDIAN_URL_PREFIX);
+function isObsidianTarget(target, urlPrefix = OBSIDIAN_URL_PREFIX) {
+  return String(target.url || "").startsWith(urlPrefix);
 }
 
 function isStarterTarget(target) {
@@ -394,10 +406,12 @@ function isStarterTarget(target) {
 
 /**
  * True only for the real vault window (`index.html`), not the vault picker.
- * Exported for unit tests.
+ * With `urlPrefix` (Obsidian Android serves its WebView from http://localhost),
+ * any page under that prefix is the vault window. Exported for unit tests.
  */
-export function isObsidianVaultTarget(target) {
+export function isObsidianVaultTarget(target, urlPrefix) {
   const url = String(target.url || "");
+  if (urlPrefix) return url.startsWith(urlPrefix);
   return (
     url === OBSIDIAN_VAULT_URL ||
     url.startsWith(`${OBSIDIAN_VAULT_URL}?`) ||
@@ -417,7 +431,7 @@ function describeTargets(pages) {
  * Picks the page target to attach to: the one whose title matches `title`, or
  * the Obsidian app window, or the only page. Exported for unit tests.
  */
-export function selectTarget(pages, { title } = {}) {
+export function selectTarget(pages, { title, urlPrefix } = {}) {
   const candidates = (Array.isArray(pages) ? pages : []).filter(isPageTarget);
   if (candidates.length === 0) {
     throw new CdpError("No debuggable page target found on this port.");
@@ -443,14 +457,16 @@ export function selectTarget(pages, { title } = {}) {
     return matches[0];
   }
 
-  const vaults = candidates.filter(isObsidianVaultTarget);
+  const vaults = candidates.filter((target) =>
+    isObsidianVaultTarget(target, urlPrefix),
+  );
   if (vaults.length > 0) {
     return vaults[0];
   }
   // The picker (starter.html) is not an Obsidian app window with a vault, so
   // never treat it as "the Obsidian target" while other pages are open.
   const apps = candidates.filter(
-    (target) => isObsidianTarget(target) && !isStarterTarget(target),
+    (target) => isObsidianTarget(target, urlPrefix) && !isStarterTarget(target),
   );
   if (apps.length > 0) {
     return apps[0];
@@ -1032,15 +1048,17 @@ function noDebuggablePage(host, ports, detail) {
  * page (for example a picker), over one that only has other pages (such as a
  * Chrome on 9222); falls back to the first reachable port. Exported for tests.
  */
-export function choosePort(candidates) {
+export function choosePort(candidates, urlPrefix) {
   if (candidates.length === 0) {
     return undefined;
   }
   return (
     candidates.find((candidate) =>
-      candidate.pages.some(isObsidianVaultTarget),
+      candidate.pages.some((page) => isObsidianVaultTarget(page, urlPrefix)),
     ) ??
-    candidates.find((candidate) => candidate.pages.some(isObsidianTarget)) ??
+    candidates.find((candidate) =>
+      candidate.pages.some((page) => isObsidianTarget(page, urlPrefix)),
+    ) ??
     candidates[0]
   );
 }
@@ -1067,6 +1085,7 @@ export function assessVaultOwnership({
   targetUrl,
   vaultPath,
   expectedVault,
+  urlPrefix,
 } = {}) {
   const expectation = normalizeVaultPath(expectedVault);
   const found = normalizeVaultPath(vaultPath);
@@ -1074,7 +1093,7 @@ export function assessVaultOwnership({
   if (expectation === undefined) {
     return { ok: true, code: "no-expectation", foundVault: vaultPath };
   }
-  if (!isObsidianVaultTarget({ url: targetUrl })) {
+  if (!isObsidianVaultTarget({ url: targetUrl }, urlPrefix)) {
     return {
       ok: false,
       code: "not-a-vault",
@@ -1434,15 +1453,16 @@ async function tryAttachOnce({
   expectVault,
   pinnedPort,
   settings,
+  urlPrefix,
 }) {
   const { reachable, attempts } = await discoverOnce(host, ports);
   if (reachable.length === 0) {
     return { ok: false, sawTargets: false, reason: attempts.join("\n") };
   }
-  const chosen = choosePort(reachable);
+  const chosen = choosePort(reachable, urlPrefix);
   let target;
   try {
-    target = selectTarget(chosen.pages, { title });
+    target = selectTarget(chosen.pages, { title, urlPrefix });
   } catch (error) {
     return { ok: false, sawTargets: true, reason: errorMessage(error) };
   }
@@ -1464,6 +1484,7 @@ async function tryAttachOnce({
     targetUrl: target.url,
     vaultPath,
     expectedVault: expectVault,
+    urlPrefix,
   });
   if (!ownership.ok) {
     connection.close();
@@ -1514,8 +1535,17 @@ async function openTarget(host, ports, title, options = {}) {
     waitMs = 0,
     pinnedPort = false,
     settings = false,
+    urlPrefix,
   } = options;
-  const request = { host, ports, title, expectVault, pinnedPort, settings };
+  const request = {
+    host,
+    ports,
+    title,
+    expectVault,
+    pinnedPort,
+    settings,
+    urlPrefix,
+  };
 
   if (waitMs > 0) {
     let lastReason = "";
@@ -1553,7 +1583,9 @@ async function runBatch(options, initialConnection, steps) {
   try {
     for (const step of steps) {
       if (step.kind === "target") {
-        const next = await openTarget(options.host, options.ports, step.title);
+        const next = await openTarget(options.host, options.ports, step.title, {
+          urlPrefix: options.urlPrefix,
+        });
         connection.close();
         connection = next.connection;
       } else if (step.kind === "settings") {
@@ -1562,6 +1594,7 @@ async function runBatch(options, initialConnection, steps) {
           waitMs: options.waitMs,
           pinnedPort: Boolean(options.profile),
           settings: true,
+          urlPrefix: options.urlPrefix,
         });
         connection.close();
         connection = next.connection;
@@ -1570,6 +1603,7 @@ async function runBatch(options, initialConnection, steps) {
           expectVault: options.expectVault,
           waitMs: options.waitMs,
           pinnedPort: Boolean(options.profile),
+          urlPrefix: options.urlPrefix,
         });
         connection.close();
         connection = next.connection;
@@ -1790,6 +1824,7 @@ async function main() {
     waitMs: options.waitMs,
     pinnedPort,
     settings: options.settings,
+    urlPrefix: options.urlPrefix,
   });
   try {
     if (options.command === "open-settings") {
