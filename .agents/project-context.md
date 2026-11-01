@@ -66,6 +66,11 @@ Keep fast feedback targeted during implementation. Before handoff, use
 gate. Run the complete unit suite when the skill classifies a change as broad
 or high risk.
 
+Manual validation (Obsidian desktop over CDP, the Android emulator, FreshRSS
+gates): read the CDP section of `docs/development/fixture-vault.md` and
+`docs/development/freshrss-android-validation-runbook.md` first, and drive the
+app with `scripts/obsidian-cdp.mjs` rather than a new helper.
+
 For user-visible work, record the granular issue-linked entry in
 `CHANGELOG.md` when the behavior is complete. Consolidate those entries for a
 wider audience in `docs/releases/<version>.md` only when cutting the release.
