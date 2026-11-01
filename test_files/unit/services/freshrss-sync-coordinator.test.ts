@@ -720,6 +720,133 @@ describe("FreshRSS sync coordinator", () => {
     expect(request).toHaveBeenCalledTimes(5);
   });
 
+  it("drops article bindings of a feed that no longer exists when recovery rebinds the subscription", async () => {
+    const settings = makeSettings();
+    const sidecar = createSidecar();
+    sidecar.feedBindings.push({
+      feedId: "deleted-local-feed",
+      remoteSubscriptionId: "feed/6",
+    });
+    sidecar.articleBindings.push(
+      {
+        feedId: "deleted-local-feed",
+        guid: "article/1",
+        remoteArticleId: "article/1",
+      },
+      {
+        feedId: "deleted-local-feed",
+        guid: "article/2",
+        remoteArticleId: "article/2",
+      },
+    );
+    const { httpClient } = createClient([
+      { status: 200, text: "Auth=session-token" },
+      { status: 200, text: subscriptionList() },
+      { status: 200, text: JSON.stringify({ itemRefs: [] }) },
+    ]);
+    const coordinator = new FreshRssSyncCoordinator({
+      httpClient,
+      getSettings: () => settings,
+      saveSettings: async () => {},
+      sidecarRepository: {
+        read: async () => sidecar,
+        write: async (next) => {
+          Object.assign(sidecar, next);
+        },
+      },
+      getView: async () => null,
+    });
+
+    await coordinator.run({
+      endpoint,
+      credentials: { username: "reader", apiPassword: "secret" },
+      scope,
+      owner: createOwner(),
+    });
+
+    expect(sidecar.articleBindings).toEqual([]);
+  });
+
+  it("keeps bindings for a live feed whose retention dropped the article and does not request it again", async () => {
+    const settings = makeSettings();
+    settings.freshRss.stateSyncMode = "receive-only";
+    settings.feeds = [
+      {
+        feedId: "local-feed",
+        title: "Feed",
+        url: "https://feed.example.test/rss.xml",
+        folder: "RSS",
+        lastUpdated: 10,
+        items: [],
+      },
+    ];
+    const sidecar = createSidecar();
+    sidecar.feedBindings.push({
+      feedId: "local-feed",
+      remoteSubscriptionId: "feed/6",
+    });
+    sidecar.articleBindings.push(
+      {
+        feedId: "local-feed",
+        guid: "article/9",
+        remoteArticleId: "article/9",
+      },
+      {
+        feedId: "deleted-local-feed",
+        guid: "article/1",
+        remoteArticleId: "article/1",
+      },
+    );
+    const contentsRequest = vi.fn();
+    const request = vi.fn<FreshRssHttpClient["request"]>(async ({ url }) => {
+      if (url.endsWith("/accounts/ClientLogin"))
+        return { status: 200, text: "Auth=session-token" };
+      if (url.includes("/user-info?"))
+        return {
+          status: 200,
+          text: JSON.stringify({ userId: scope.remoteUserId }),
+        };
+      if (url.endsWith("/subscription/list?output=json"))
+        return { status: 200, text: subscriptionList() };
+      if (url.endsWith("/tag/list?output=json"))
+        return { status: 200, text: JSON.stringify({ tags: [] }) };
+      if (url.includes("/stream/items/ids?"))
+        return {
+          status: 200,
+          text: JSON.stringify({ itemRefs: [{ id: "article/9" }] }),
+        };
+      if (url.endsWith("/stream/items/contents")) {
+        contentsRequest();
+        return { status: 200, text: JSON.stringify({ items: [] }) };
+      }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    const coordinator = new FreshRssSyncCoordinator({
+      httpClient: { request },
+      getSettings: () => settings,
+      saveSettings: async () => {},
+      sidecarRepository: {
+        read: async () => sidecar,
+        write: async (next) => {
+          Object.assign(sidecar, next);
+        },
+      },
+      getView: async () => null,
+    });
+
+    await coordinator.run({
+      endpoint,
+      credentials: { username: "reader", apiPassword: "secret" },
+      scope,
+      owner: createOwner(),
+    });
+
+    expect(sidecar.articleBindings).toEqual([
+      { feedId: "local-feed", guid: "article/9", remoteArticleId: "article/9" },
+    ]);
+    expect(contentsRequest).not.toHaveBeenCalled();
+  });
+
   it("imports recent articles while keeping feed placement and retention local", async () => {
     const settings = makeSettings();
     settings.feeds = [

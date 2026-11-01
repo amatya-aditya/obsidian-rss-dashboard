@@ -674,6 +674,8 @@ export class FreshRssSyncCoordinator {
       },
     );
 
+    // Bind every imported article, even one retention just dropped, so the next
+    // sync does not request it again.
     for (const article of importedArticles) {
       syncState.articleBindings.push({
         feedId: feed.feedId as string,
@@ -760,12 +762,27 @@ async function commitFreshRssSync(
       version: 2,
       scope: input.scope,
       feedBindings: input.syncState.feedBindings,
-      articleBindings: input.syncState.articleBindings,
+      articleBindings: withoutOrphanedArticleBindings(input.syncState),
       checkpoints: input.syncState.checkpoints,
       labelMappings: input.syncState.labelMappings,
     });
     return "committed";
   });
+}
+
+/**
+ * Drops article bindings whose feed no longer exists, such as those left by
+ * the feed a stale-binding recovery replaced. Bindings of a live feed stay even
+ * when retention dropped the local article: the sync skips already-bound ids,
+ * so keeping them stops those articles from being imported again.
+ */
+function withoutOrphanedArticleBindings(
+  syncState: FreshRssSyncAccumulator,
+): FreshRssArticleBinding[] {
+  const liveFeedIds = new Set(syncState.feeds.map((feed) => feed.feedId));
+  return syncState.articleBindings.filter((binding) =>
+    liveFeedIds.has(binding.feedId),
+  );
 }
 
 async function syncBoundArticleStates(input: {
