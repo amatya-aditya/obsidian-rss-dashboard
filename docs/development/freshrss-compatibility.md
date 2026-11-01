@@ -23,6 +23,17 @@ FreshRSS is part of the plugin itself, not a separate connector. See
 Other FreshRSS versions, other Obsidian versions, iOS, macOS and Linux were not tested.
 The sync preview's mobile layout was fixed after this run and re-verified on the emulator with real touch input. That fix is not part of revision `8d4bb353`.
 
+### Later runs on the dev-port line
+
+Two later runs used the same FreshRSS image digest, Obsidian 1.14.5 on desktop, and the same Android emulator and Obsidian 1.14.4. Credentials were never entered; every connection used an existing SecretStorage reference.
+
+| Build                                                                      | Plugin bundle SHA-256 (`main.js`)                                  | Covered                                                                                                                                                                                                                                                                                                                                             |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `69140aecc4eec6227c6a2069b5ca1ae6e2188098` (`feat/1558-freshrss-dev-port`) | `4f07936c52098657e9e35ceb3bcebc9500d1572c1a1a9d955d4e78a5f8cc6a88` | Android connection and sync modal controls, account-mismatch refusal, same-run stale-binding recovery, [#1693](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1693) retryability, [#1714](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1714), read-state round trip, OPML export and import, label reconciliation |
+| `a837bf1d` (`feat/1558-freshrss-dev-port`)                                 | `24209d3cff0dc645a1fbac36a224bbbcc799d4736403ede55b3b0532bf5e3331` | [#1750](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1750): deleting a bound feed and syncing leaves no article bindings for the old feed id. Android and desktop, 2026-11-01                                                                                                                                                     |
+
+The `a837bf1d` run removed one bound feed per platform (11 article bindings on Android, 23 on desktop), synced, and found 0 bindings left for the old feed id. The feed was recreated under a new id on the same remote subscription, with 0 pending mutations. Server counts and `PRAGMA integrity_check` were unchanged for both test accounts.
+
 ## What was verified
 
 All results below were checked against files on disk and the FreshRSS database,
@@ -52,9 +63,19 @@ articles are marked partial by design.
 - After a sync run that fails inside the sync preview, its list of failed
   updates stays empty until the preview is reopened.
 - A first connection test in a brand-new vault returned
-  `storage-migration-required` once, then `connected` on retry.
-- Same-run stale-binding recovery was last observed on 2026-10-28 and was not
-  repeated for this record.
+  `storage-migration-required` on revision `8d4bb353`. It is fixed on the
+  dev-port line ([#1714](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1714));
+  the first test in a fresh vault returned `connected` on build `69140aec`.
+- Same-run stale-binding recovery was repeated on build `69140aec` and, with
+  the dead-binding fix, on `a837bf1d` on both Android and desktop.
+- A partial-load warning in the sync preview ("Some recent articles could not
+  be loaded") appeared once and did not recur in nine clean previews, so its
+  cause is unknown ([#1682](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1682)).
+  The warning itself is intended: it marks a feed whose request failed.
+- A silently accepted label addition (HTTP 200 with the label absent) is
+  handled by keeping the change pending. It was verified against a controlled
+  response, not a naturally occurring server case
+  ([#1615](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1615)).
 - No real screen reader (NVDA, VoiceOver, TalkBack) was run.
 - No physical Android device was tested; the maintainer waived that
   requirement for closing the Android issues.
