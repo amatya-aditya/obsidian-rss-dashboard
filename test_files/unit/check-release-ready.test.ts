@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  findAuditIssue,
   findChangelogHeadingIssue,
   findPrematureBumpIssue,
   findPublicReleaseNotesIssue,
@@ -21,6 +22,19 @@ describe("isValidTargetVersion", () => {
     expect(isValidTargetVersion("2.7")).toBe(false);
     expect(isValidTargetVersion("v2.7.0")).toBe(false);
     expect(isValidTargetVersion("latest")).toBe(false);
+  });
+});
+
+describe("findAuditIssue", () => {
+  it("passes when npm audit exits clean", () => {
+    expect(findAuditIssue("production", 0)).toBeNull();
+  });
+
+  it("flags a failing audit before the tag is pushed", () => {
+    expect(findAuditIssue("all", 1)).toEqual({
+      filePath: "package-lock.json",
+      reason: expect.stringContaining("npm audit (all)"),
+    });
   });
 });
 
