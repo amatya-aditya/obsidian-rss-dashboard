@@ -25,6 +25,7 @@ import {
   FeedIngestionCandidate,
   FeedIngestionOptions,
   FeedIngestionResult,
+  ArticleContentFirst,
   FeedEncoding,
   FeedShardHealth,
 } from "./src/types/types";
@@ -1324,7 +1325,10 @@ export default class RssDashboardPlugin extends Plugin {
           addRequest.customTemplate,
           addRequest.excludeFromRefresh,
           addRequest.customTags,
-          { feedEncoding: addRequest.feedEncoding },
+          {
+            feedEncoding: addRequest.feedEncoding,
+            articleContentFirst: addRequest.articleContentFirst,
+          },
         ),
       () => {
         void this.refreshDashboardViews();
@@ -2429,6 +2433,7 @@ export default class RssDashboardPlugin extends Plugin {
     options?: {
       showNotice?: boolean;
       feedEncoding?: FeedEncoding;
+      articleContentFirst?: ArticleContentFirst;
       globalOperation?: boolean;
     },
   ): Promise<boolean> {

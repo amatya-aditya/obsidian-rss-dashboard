@@ -2,7 +2,11 @@ import type {
   ReaderContentVersion,
   ReaderContentVersions,
 } from "./reader-content-versions";
-import { resolveFeedFetchPlan, runFeedFirstDisplay } from "./reader-feed-first";
+import {
+  resolveFeedFetchPlan,
+  resolveFetchedFirst,
+  runFeedFirstDisplay,
+} from "./reader-feed-first";
 import { App, type Component, TFile } from "obsidian";
 import {
   refreshReaderHeaderTags,
@@ -192,10 +196,16 @@ export class ArticleRenderer {
       // A rich Substack feed ships the full body, so the automatic fetch is
       // skipped. Still offer the fetched version, fetched on first request.
       const prefersFeedContent = this.prefersFeedContent(item);
+      const fetchedFirst = resolveFetchedFirst(
+        this.settings.feeds,
+        item,
+        this.settings.display.showFetchedContentFirst,
+      );
       const plan = resolveFeedFetchPlan(
         Boolean(item.link),
         prefersFeedContent,
         this.shouldSkipFeedFirstFetch(item, prefersFeedContent),
+        fetchedFirst,
       );
       if (plan === "display") {
         await this.displayArticle(container, item, feedContent);
@@ -207,6 +217,7 @@ export class ArticleRenderer {
         item,
         feedContent,
         onDemand: plan === "onDemand",
+        fetchedFirst,
         renderVersion: (parent, version, content) =>
           this.renderArticle(parent, item, content, version),
         onSelectVersion: (version, fetchedContent) => {

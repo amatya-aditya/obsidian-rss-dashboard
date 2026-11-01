@@ -179,6 +179,48 @@ describe("AddFeedModal", () => {
     );
   });
 
+  it("offers Article content shown first and saves the chosen value", async () => {
+    const app = createMockApp();
+    const onAdd: OnAddFn = vi.fn(async () => true);
+    vi.spyOn(feedPreviewLoader, "resolveAndLoadPreview").mockResolvedValue({
+      detectedType: "rss",
+      inputUrl: "https://example.com/feed.xml",
+      finalUrl: "https://example.com/feed.xml",
+      isMastodonConversion: false,
+      title: "Example feed",
+      latestPubDate: undefined,
+      hasEntries: true,
+    });
+
+    const modal = new AddFeedModal(app, [], onAdd, vi.fn());
+    modal.open();
+
+    const select = getSelectBySettingName(
+      modal.contentEl,
+      "Article content shown first",
+    );
+    expect(select.value).toBe("");
+    expect(Array.from(select.options).map((option) => option.text)).toEqual([
+      "Use global setting",
+      "RSS content",
+      "Fetched content",
+    ]);
+    select.value = "fetched";
+    select.dispatchEvent(new Event("change"));
+
+    const urlInput = getTextInputBySettingName(modal.contentEl, "Feed URL");
+    urlInput.value = "https://example.com/feed.xml";
+    urlInput.dispatchEvent(new Event("input"));
+    getButtonByText(modal.contentEl, "Load").click();
+    await flushPromises();
+    getButtonByText(modal.contentEl, "Save").click();
+    await flushPromises();
+
+    expect(onAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ articleContentFirst: "fetched" }),
+    );
+  });
+
   it("uses the selected feed encoding for preview and save", async () => {
     const app = createMockApp();
     const onAdd: OnAddFn = vi.fn(async () => true);

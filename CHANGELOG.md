@@ -1,5 +1,9 @@
 ## Unreleased
 
+### Features
+
+- You can now choose whether the reader opens an article on its RSS content or on the fetched page. **Settings → Display → Reader → Show fetched content first** turns it on for every feed, and each feed's options have an **Article content shown first** dropdown (**Use global setting**, **RSS content** or **Fetched content**) that overrides it. With fetched content first, the reader switches to the fetched version once it loads, unless you have already started reading (scrolled past a line, used the keyboard, selected text or clicked); then it keeps the RSS content and offers **Show fetched content**. The setting applies to the dedicated reader and the inline article view. [GH Issue #1748](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1748)
+
 ### Fixes
 
 - Unstarring an article on a touch device no longer leaves a filled star showing on the star button in the reader (and on article cards) until you leave the page; the button now shows the unstarred state straight away. Desktop hover and keyboard-focus previews are unchanged. [GH Issue #1759](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1759)

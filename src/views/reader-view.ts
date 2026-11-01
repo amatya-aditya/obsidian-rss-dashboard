@@ -4,6 +4,7 @@ import type {
 } from "../components/reader-content-versions";
 import {
   resolveFeedFetchPlan,
+  resolveFetchedFirst,
   runFeedFirstDisplay,
   visitReaderContent,
 } from "../components/reader-feed-first";
@@ -1510,12 +1511,18 @@ export class ReaderView extends ItemView {
     // A rich Substack feed ships the full body, so the automatic fetch is
     // skipped. Still offer the fetched version, fetched on first request.
     const prefersFeedContent = this.prefersFeedContent(item);
+    const fetchedFirst = resolveFetchedFirst(
+      this.settings.feeds,
+      item,
+      this.settings.display.showFetchedContentFirst,
+    );
     const plan = resolveFeedFetchPlan(
       Boolean(item.link),
       prefersFeedContent,
       isStarredImportCachedPreview(item) ||
         hasActiveFetchFailure(item) ||
         this.isVideoMediaItem(item),
+      fetchedFirst,
     );
     if (plan === "display") {
       await this.displayArticle(item, feedContent);
@@ -1532,6 +1539,7 @@ export class ReaderView extends ItemView {
       item,
       feedContent,
       onDemand: plan === "onDemand",
+      fetchedFirst,
       renderVersion: (parent, version, content) =>
         this.renderArticle(item, content, parent, version),
       onSelectVersion: (version, fetched) => {
@@ -1601,7 +1609,10 @@ export class ReaderView extends ItemView {
     });
     if (!versions) return;
     if (
+      // Fetched first makes a feed-content feed eager, but the web viewer still
+      // skips it as it does under RSS first (#1748).
       plan !== "onDemand" &&
+      !prefersFeedContent &&
       this.settings.useWebViewer &&
       this.webViewerIntegration &&
       identity === this.displayIdentity &&

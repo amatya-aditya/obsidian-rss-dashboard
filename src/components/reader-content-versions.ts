@@ -6,7 +6,15 @@ export type ReaderContentVersion = "rss" | "full";
 const SHOW_FETCHED = "Show fetched content";
 const SHOW_RSS = "Show RSS content";
 
-/** One display's cached DOM and scroll positions. Fetch completion never swaps text. */
+/** Scrolling past about one line counts as having started to read. */
+const READING_SCROLL_THRESHOLD_PX = 24;
+const MODIFIER_KEYS = new Set(["Shift", "Control", "Alt", "Meta"]);
+
+/**
+ * One display's cached DOM and scroll positions. Fetch completion swaps text
+ * only through `readyFetchedFirst`, and only for a reader who has not started
+ * reading.
+ */
 export class ReaderContentVersions {
   private readonly controls: HTMLElement;
   private readonly status: LiveRegion;
@@ -21,6 +29,8 @@ export class ReaderContentVersions {
   private onRequestFetchedContent?: () => void;
   private fetching = false;
   private pendingStatusTimer?: number;
+  private engaged = false;
+  private stopWatching?: () => void;
 
   constructor(
     private readonly container: HTMLElement,
@@ -35,6 +45,8 @@ export class ReaderContentVersions {
      * version through `offerFetchedContent` and runs the fetch on first request.
      */
     private readonly onDemand = false,
+    /** Watch for the reader starting to read, so a fetch can swap the text safely (#1748). */
+    fetchedFirst = false,
   ) {
     this.parent = container.parentElement;
     this.controls = container.createDiv({ cls: "rss-reader-content-progress" });
@@ -45,6 +57,7 @@ export class ReaderContentVersions {
         if (this.isActive()) this.status.announce("Fetching article content…");
       }, 0);
     }
+    if (fetchedFirst && !onDemand) this.watchForReading();
     this.rss = container.createDiv({ cls: "rss-reader-content-version" });
     renderVersion(this.rss, "rss");
     if (shortFeed) {
@@ -63,6 +76,7 @@ export class ReaderContentVersions {
   dispose(): void {
     this.active = false;
     this.clearPendingStatusTimer();
+    this.stopWatching?.();
   }
 
   visitVersions(visitor: (container: HTMLElement) => void): void {
@@ -78,6 +92,27 @@ export class ReaderContentVersions {
     this.removeFetchBanners();
     this.status.announce("Fetched content ready. RSS content is still shown.");
     if (!this.button) this.button = this.createToggle();
+  }
+
+  /**
+   * Eager fetch succeeded under fetched first: show the fetched version, unless
+   * the reader has started reading, in which case only offer it (#1748).
+   */
+  readyFetchedFirst(): void {
+    if (!this.isActive()) return;
+    this.stopWatching?.();
+    if (
+      this.engaged ||
+      this.container.scrollTop > READING_SCROLL_THRESHOLD_PX
+    ) {
+      this.ready();
+      return;
+    }
+    this.clearPendingStatusTimer();
+    this.placeholder?.remove();
+    this.removeFetchBanners();
+    if (!this.button) this.button = this.createToggle();
+    this.showFull();
   }
 
   /**
@@ -102,6 +137,7 @@ export class ReaderContentVersions {
 
   failed(result: FullArticleFetchResult): void {
     if (!this.isActive()) return;
+    this.stopWatching?.();
     this.clearPendingStatusTimer();
     this.placeholder?.remove();
     this.fetching = false;
@@ -119,6 +155,43 @@ export class ReaderContentVersions {
             ? "The site refused the request. Showing available RSS content."
             : "Could not fetch article content. Showing available RSS content.";
     this.status.announce(message);
+  }
+
+  /** Marks the display engaged on the first sign the reader is reading (#1748). */
+  private watchForReading(): void {
+    const doc = this.container.ownerDocument;
+    const engage = (): void => {
+      this.engaged = true;
+      this.stopWatching?.();
+    };
+    const onScroll = (): void => {
+      if (this.container.scrollTop > READING_SCROLL_THRESHOLD_PX) engage();
+    };
+    const onKeydown = (event: KeyboardEvent): void => {
+      if (!MODIFIER_KEYS.has(event.key)) engage();
+    };
+    const onSelectionChange = (): void => {
+      const selection = doc.getSelection();
+      if (
+        selection &&
+        !selection.isCollapsed &&
+        selection.anchorNode &&
+        this.container.contains(selection.anchorNode)
+      ) {
+        engage();
+      }
+    };
+    this.container.addEventListener("scroll", onScroll);
+    this.container.addEventListener("click", engage);
+    doc.addEventListener("keydown", onKeydown);
+    doc.addEventListener("selectionchange", onSelectionChange);
+    this.stopWatching = () => {
+      this.container.removeEventListener("scroll", onScroll);
+      this.container.removeEventListener("click", engage);
+      doc.removeEventListener("keydown", onKeydown);
+      doc.removeEventListener("selectionchange", onSelectionChange);
+      this.stopWatching = undefined;
+    };
   }
 
   private createToggle(): HTMLButtonElement {
