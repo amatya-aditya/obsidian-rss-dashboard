@@ -85,13 +85,13 @@ export function isNonPageContentType(contentType: string | undefined): boolean {
 }
 
 /**
- * The largest page, in characters of decoded text, that is parsed. A larger
- * page is not worth the main-thread parse cost: DOMParser and Readability
- * scale with the document size.
+ * The largest page, in bytes, that is decoded and parsed. A larger page is not
+ * worth the main-thread parse cost: DOMParser and Readability scale with the
+ * document size.
  */
-export const MAX_PAGE_CHARS = 5_000_000;
+export const MAX_PAGE_BYTES = 5_000_000;
 
-/** True when the decoded response is too large to parse. */
-export function isOversizedPage(text: string): boolean {
-  return text.length > MAX_PAGE_CHARS;
+/** True when a response of this many bytes is too large to decode and parse. */
+export function isOversizedPage(byteLength: number): boolean {
+  return byteLength > MAX_PAGE_BYTES;
 }

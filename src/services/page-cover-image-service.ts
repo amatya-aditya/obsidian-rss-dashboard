@@ -4,6 +4,10 @@
 import type { FullArticleFetchResult } from "../utils/fetch-helpers";
 import { resolvePageCoverImage } from "../utils/article-metadata";
 import { isHttpUrl } from "../utils/http-url";
+import {
+  fetchFailureReason,
+  type FullContentFetchFailure,
+} from "../utils/full-article-fetch-failure";
 import { fetchPageMetadataWithOutcome } from "../utils/full-article-fetch";
 
 export type PageCoverImageStatus =
@@ -19,7 +23,7 @@ export interface PageCoverImageResult {
   /** The resolved image, empty unless `status` is `"found"`. */
   url: string;
   /** Why a `"failed"` result failed. */
-  reason?: "timeout" | "network" | "blocked" | "unsupported";
+  reason?: FullContentFetchFailure["reason"];
 }
 
 export interface PageCoverImageServiceDeps {
@@ -91,14 +95,7 @@ export class PageCoverImageService {
       return {
         status: "failed",
         url: "",
-        reason:
-          result.failureReason === "timeout"
-            ? "timeout"
-            : result.failureReason === "blocked"
-              ? "blocked"
-              : result.failureReason === "unsupported"
-                ? "unsupported"
-                : "network",
+        reason: fetchFailureReason(result),
       };
     }
     return { status: "none", url: "" };

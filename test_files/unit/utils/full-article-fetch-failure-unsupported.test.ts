@@ -2,12 +2,12 @@
 // would only skip it again (#1766).
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  FETCH_FAILURE_TTL_MS,
   FETCH_FAILURE_UNSUPPORTED_TEXT,
   applyFetchOutcome,
   hasActiveFetchFailure,
   renderFetchFailureBanner,
 } from "../../../src/utils/full-article-fetch-failure";
-import { coverImageFailureNotice } from "../../../src/services/cover-image-notice";
 import type { FeedItem } from "../../../src/types/types";
 
 const UNSUPPORTED = {
@@ -73,16 +73,25 @@ describe("a remembered unsupported link (#1766)", () => {
       container.querySelector(".rss-reader-fetch-failure-try-again"),
     ).not.toBeNull();
   });
-});
 
-describe("cover image notice for an unsupported link (#1766)", () => {
-  it("says the link is not an article page", () => {
+  it("never expires, since a retry would only skip the file again", () => {
+    const item = makeItem();
+    applyFetchOutcome(item, UNSUPPORTED, () => undefined);
+    const wellPastTtl = Date.now() + FETCH_FAILURE_TTL_MS * 30;
+
+    expect(hasActiveFetchFailure(item, wellPastTtl)).toBe(true);
+  });
+
+  it("lets an ordinary network failure expire after a day", () => {
+    const item = makeItem();
+    applyFetchOutcome(
+      item,
+      { content: "", failureType: "network" },
+      () => undefined,
+    );
+
     expect(
-      coverImageFailureNotice({
-        status: "failed",
-        url: "",
-        reason: "unsupported",
-      }),
-    ).toBe("That link isn't an article page, so no cover image was read.");
+      hasActiveFetchFailure(item, Date.now() + FETCH_FAILURE_TTL_MS + 1000),
+    ).toBe(false);
   });
 });

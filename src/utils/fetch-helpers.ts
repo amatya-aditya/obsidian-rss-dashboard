@@ -13,11 +13,7 @@ import {
 } from "./platform-utils";
 import { AUTO_PROXY_URL, resolveProxyPrefixes } from "./proxy-utils";
 import { proxyHealth, type ProxyOutcome } from "./proxy-health";
-import {
-  isNonPageContentType,
-  isNonPageUrl,
-  isOversizedPage,
-} from "./fetch-target-guard";
+import { isNonPageUrl } from "./fetch-target-guard";
 import { stripAdContainers } from "./ad-containers";
 import { promotePictureImageSources } from "./image-url-utils";
 import { extractGitHubIssueContent } from "./github-issue-page";
@@ -499,7 +495,11 @@ function extractMetadataOfUnparsedResponse(
   };
 }
 
-/** A link that is a file or an oversized page: nothing was parsed (#1766). */
+/**
+ * A link that is a file or an oversized page: nothing was parsed (#1766).
+ * `failureType` stays "network" so callers that only know the two failure
+ * kinds treat it as a failed fetch; `failureReason` tells it apart.
+ */
 function unsupportedResult(): FullArticleFetchResult {
   return {
     ...failureResult("network", undefined),
@@ -618,15 +618,16 @@ async function attemptDirectFetch(
 > {
   try {
     const response = await withFetchDeadline(
-      () => robustFetchDetailed(url, { headers: DEFAULT_HEADERS }),
+      () =>
+        robustFetchDetailed(url, {
+          headers: DEFAULT_HEADERS,
+          pageLimits: { checkType: true },
+        }),
       deadline,
     );
-    // A linked file or an oversized page is not parsed or scanned, and no
-    // proxy is tried (#1766).
-    if (
-      isNonPageContentType(response.contentType) ||
-      isOversizedPage(response.text)
-    ) {
+    // A linked file or an oversized page was left undecoded; no proxy is
+    // tried for it (#1766).
+    if (response.unsupported) {
       console.warn(
         `[RSS Dashboard] Skipping ${url}: it is ${response.contentType || "an oversized page"}, not an article page.`,
       );
@@ -687,11 +688,16 @@ async function attemptProxyFetch(
 ): Promise<FullArticleFetchResult | undefined> {
   try {
     const response = await withFetchDeadline(
-      () => robustFetchDetailed(proxyTarget, { headers: DEFAULT_HEADERS }),
+      () =>
+        robustFetchDetailed(proxyTarget, {
+          headers: DEFAULT_HEADERS,
+          // A proxy may relay a page under any type, so only the size is judged.
+          pageLimits: { checkType: false },
+        }),
       deadline,
     );
     // The proxy relayed an oversized page: stop rather than try the next one.
-    if (isOversizedPage(response.text)) {
+    if (response.unsupported) {
       attempts.proxyOutcome = "neutral";
       return unsupportedResult();
     }

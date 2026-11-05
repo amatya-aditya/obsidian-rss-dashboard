@@ -2,7 +2,7 @@
 // parsing the decoded file froze Obsidian (#1766).
 import { describe, expect, it } from "vitest";
 import {
-  MAX_PAGE_CHARS,
+  MAX_PAGE_BYTES,
   isNonPageContentType,
   isNonPageUrl,
   isOversizedPage,
@@ -62,7 +62,7 @@ describe("isNonPageContentType (#1766)", () => {
 
 describe("isOversizedPage (#1766)", () => {
   it("accepts a page at the cap and rejects one over it", () => {
-    expect(isOversizedPage("x".repeat(MAX_PAGE_CHARS))).toBe(false);
-    expect(isOversizedPage("x".repeat(MAX_PAGE_CHARS + 1))).toBe(true);
+    expect(isOversizedPage(MAX_PAGE_BYTES)).toBe(false);
+    expect(isOversizedPage(MAX_PAGE_BYTES + 1)).toBe(true);
   });
 });

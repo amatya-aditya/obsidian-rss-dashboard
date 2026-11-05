@@ -22,6 +22,20 @@ export type FullContentFetchFailure = NonNullable<
   FeedItem["fullContentFetchFailure"]
 >;
 
+/** Why a failed fetch failed; the one place `failureReason` maps to it. */
+export function fetchFailureReason(
+  result: FullArticleFetchResult,
+): FullContentFetchFailure["reason"] {
+  switch (result.failureReason) {
+    case "timeout":
+    case "blocked":
+    case "unsupported":
+      return result.failureReason;
+    default:
+      return "network";
+  }
+}
+
 /**
  * The failure to remember for an article (#1110), or undefined when the result
  * is not one worth remembering. Restricted pages have their own banner and
@@ -39,25 +53,25 @@ export function buildFetchFailureRecord(
     return undefined;
   }
   return {
-    reason:
-      result.failureReason === "timeout"
-        ? "timeout"
-        : result.failureReason === "blocked"
-          ? "blocked"
-          : result.failureReason === "unsupported"
-            ? "unsupported"
-            : "network",
+    reason: fetchFailureReason(result),
     at: now,
   };
 }
 
-/** True while the article's remembered failure is recent enough to honor. */
+/**
+ * True while the article's remembered failure is recent enough to honor. A
+ * link to a file never expires: the page will not turn into an article, and a
+ * retry would download it again (#1766).
+ */
 export function hasActiveFetchFailure(
   item: FeedItem,
   now: number = Date.now(),
 ): boolean {
   const failure = item.fullContentFetchFailure;
-  return Boolean(failure) && now - (failure?.at ?? 0) < FETCH_FAILURE_TTL_MS;
+  if (!failure) return false;
+  return (
+    failure.reason === "unsupported" || now - failure.at < FETCH_FAILURE_TTL_MS
+  );
 }
 
 type PersistFailurePatch = (patch: Partial<FeedItem>) => void;

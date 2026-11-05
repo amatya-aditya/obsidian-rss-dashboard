@@ -51,4 +51,14 @@ describe("coverImageFailureNotice", () => {
       coverImageFailureNotice({ status: "failed", url: "", reason: "blocked" }),
     ).toBe("The site refused the request, so no cover image was read.");
   });
+
+  it("names a link that is a file, not an article page (#1766)", () => {
+    expect(
+      coverImageFailureNotice({
+        status: "failed",
+        url: "",
+        reason: "unsupported",
+      }),
+    ).toBe("That link isn't an article page, so no cover image was read.");
+  });
 });
