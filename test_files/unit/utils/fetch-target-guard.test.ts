@@ -2,8 +2,10 @@
 // parsing the decoded file froze Obsidian (#1766).
 import { describe, expect, it } from "vitest";
 import {
+  MAX_PAGE_CHARS,
   isNonPageContentType,
   isNonPageUrl,
+  isOversizedPage,
 } from "../../../src/utils/fetch-target-guard";
 
 describe("isNonPageUrl (#1766)", () => {
@@ -55,5 +57,12 @@ describe("isNonPageContentType (#1766)", () => {
   it("allows a response that declares no type", () => {
     expect(isNonPageContentType(undefined)).toBe(false);
     expect(isNonPageContentType("")).toBe(false);
+  });
+});
+
+describe("isOversizedPage (#1766)", () => {
+  it("accepts a page at the cap and rejects one over it", () => {
+    expect(isOversizedPage("x".repeat(MAX_PAGE_CHARS))).toBe(false);
+    expect(isOversizedPage("x".repeat(MAX_PAGE_CHARS + 1))).toBe(true);
   });
 });

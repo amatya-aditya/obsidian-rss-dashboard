@@ -19,7 +19,7 @@ export interface PageCoverImageResult {
   /** The resolved image, empty unless `status` is `"found"`. */
   url: string;
   /** Why a `"failed"` result failed. */
-  reason?: "timeout" | "network" | "blocked";
+  reason?: "timeout" | "network" | "blocked" | "unsupported";
 }
 
 export interface PageCoverImageServiceDeps {
@@ -96,7 +96,9 @@ export class PageCoverImageService {
             ? "timeout"
             : result.failureReason === "blocked"
               ? "blocked"
-              : "network",
+              : result.failureReason === "unsupported"
+                ? "unsupported"
+                : "network",
       };
     }
     return { status: "none", url: "" };

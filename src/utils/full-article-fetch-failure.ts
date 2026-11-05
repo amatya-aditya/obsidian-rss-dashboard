@@ -9,6 +9,9 @@ export const FETCH_FAILURE_NETWORK_TEXT =
 /** The site answered with a bot challenge instead of the page (#1347). */
 export const FETCH_FAILURE_BLOCKED_TEXT =
   "The site refused the request, so the full article could not be loaded.";
+/** The link is a file or an oversized page, not an article (#1766). */
+export const FETCH_FAILURE_UNSUPPORTED_TEXT =
+  "The linked file isn't an article, so it wasn't loaded.";
 export const FETCH_FAILURE_TRY_AGAIN_TEXT = "Try again";
 export const FETCH_FAILURE_OPEN_IN_BROWSER_TEXT = "Open in browser";
 
@@ -41,7 +44,9 @@ export function buildFetchFailureRecord(
         ? "timeout"
         : result.failureReason === "blocked"
           ? "blocked"
-          : "network",
+          : result.failureReason === "unsupported"
+            ? "unsupported"
+            : "network",
     at: now,
   };
 }
@@ -95,6 +100,7 @@ export function clearFetchFailure(
 export function describeFetchFailure(failure: FullContentFetchFailure): string {
   if (failure.reason === "timeout") return FETCH_FAILURE_TIMEOUT_TEXT;
   if (failure.reason === "blocked") return FETCH_FAILURE_BLOCKED_TEXT;
+  if (failure.reason === "unsupported") return FETCH_FAILURE_UNSUPPORTED_TEXT;
   return FETCH_FAILURE_NETWORK_TEXT;
 }
 
@@ -126,17 +132,20 @@ export function renderFetchFailureBanner(
   const actions = banner.createDiv({
     cls: "rss-reader-fetch-failure-banner-actions",
   });
-  const tryAgain = actions.createEl("button", {
-    cls: "rss-reader-fetch-failure-try-again",
-    text: FETCH_FAILURE_TRY_AGAIN_TEXT,
-    attr: { type: "button" },
-  });
-  tryAgain.addEventListener("click", () => {
-    // One retry at a time: the fetch can take the full timeout (#1110).
-    tryAgain.disabled = true;
-    tryAgain.setText("Trying again…");
-    onTryAgain();
-  });
+  // A file would be skipped again, so only "Open in browser" is offered.
+  if (failure.reason !== "unsupported") {
+    const tryAgain = actions.createEl("button", {
+      cls: "rss-reader-fetch-failure-try-again",
+      text: FETCH_FAILURE_TRY_AGAIN_TEXT,
+      attr: { type: "button" },
+    });
+    tryAgain.addEventListener("click", () => {
+      // One retry at a time: the fetch can take the full timeout (#1110).
+      tryAgain.disabled = true;
+      tryAgain.setText("Trying again…");
+      onTryAgain();
+    });
+  }
   const openHref = getOpenableHttpHref(item.link);
   if (openHref) {
     const openLink = actions.createEl("a", {

@@ -13,7 +13,11 @@ import {
 } from "./platform-utils";
 import { AUTO_PROXY_URL, resolveProxyPrefixes } from "./proxy-utils";
 import { proxyHealth, type ProxyOutcome } from "./proxy-health";
-import { isNonPageContentType, isNonPageUrl } from "./fetch-target-guard";
+import {
+  isNonPageContentType,
+  isNonPageUrl,
+  isOversizedPage,
+} from "./fetch-target-guard";
 import { stripAdContainers } from "./ad-containers";
 import { promotePictureImageSources } from "./image-url-utils";
 import { extractGitHubIssueContent } from "./github-issue-page";
@@ -89,8 +93,10 @@ export interface FullArticleFetchResult {
    * "timeout": the shared direct-and-proxy deadline expired. "unexpected": the
    * fetch threw, so the failure says nothing about the page (#1110).
    * "blocked": the site answered with a bot challenge, not a paywall (#1347).
+   * "unsupported": the link is a file or an oversized page, so it was not
+   * parsed and no proxy was tried (#1766).
    */
-  failureReason?: "timeout" | "unexpected" | "blocked";
+  failureReason?: "timeout" | "unexpected" | "blocked" | "unsupported";
   /**
    * Raw signals from the fetched page (#247). Unresolved: callers resolve it
    * against their own feed context. Absent when no page was fetched or the
@@ -493,6 +499,14 @@ function extractMetadataOfUnparsedResponse(
   };
 }
 
+/** A link that is a file or an oversized page: nothing was parsed (#1766). */
+function unsupportedResult(): FullArticleFetchResult {
+  return {
+    ...failureResult("network", undefined),
+    failureReason: "unsupported",
+  };
+}
+
 function failureResult(
   failureType: FullArticleFetchFailureType,
   pageMetadata: RawArticleMetadata | undefined,
@@ -607,10 +621,14 @@ async function attemptDirectFetch(
       () => robustFetchDetailed(url, { headers: DEFAULT_HEADERS }),
       deadline,
     );
-    // A linked file is not parsed or scanned, and no proxy is tried (#1766).
-    if (isNonPageContentType(response.contentType)) {
+    // A linked file or an oversized page is not parsed or scanned, and no
+    // proxy is tried (#1766).
+    if (
+      isNonPageContentType(response.contentType) ||
+      isOversizedPage(response.text)
+    ) {
       console.warn(
-        `[RSS Dashboard] Skipping ${url}: it is ${response.contentType}, not a web page.`,
+        `[RSS Dashboard] Skipping ${url}: it is ${response.contentType || "an oversized page"}, not an article page.`,
       );
       return { kind: "unsupported" };
     }
@@ -672,6 +690,11 @@ async function attemptProxyFetch(
       () => robustFetchDetailed(proxyTarget, { headers: DEFAULT_HEADERS }),
       deadline,
     );
+    // The proxy relayed an oversized page: stop rather than try the next one.
+    if (isOversizedPage(response.text)) {
+      attempts.proxyOutcome = "neutral";
+      return unsupportedResult();
+    }
     const html = response.text;
     if (!isBlockedResponse(html) && !isRestrictedStatus(response.status)) {
       debugLog(
@@ -823,14 +846,12 @@ export async function fetchWithProxyFallbackDetailed(
     parse,
   };
   // A link to a file is not fetched at all (#1766).
-  if (isNonPageUrl(url)) return failureResult("network", undefined);
+  if (isNonPageUrl(url)) return unsupportedResult();
   try {
     // 1. Direct fetch
     const direct = await attemptDirectFetch(url, deadline, attempts);
     if (direct.kind === "page") return direct.result;
-    if (direct.kind === "unsupported") {
-      return failureResult("network", undefined);
-    }
+    if (direct.kind === "unsupported") return unsupportedResult();
     attempts.refusal = direct.refusal;
     attempts.metadata = direct.metadata;
     attempts.pageImage = direct.pageImage;

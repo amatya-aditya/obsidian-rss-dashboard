@@ -83,3 +83,15 @@ export function isNonPageContentType(contentType: string | undefined): boolean {
   if (!mediaType) return false;
   return mediaType !== "text/html" && mediaType !== "application/xhtml+xml";
 }
+
+/**
+ * The largest page, in characters of decoded text, that is parsed. A larger
+ * page is not worth the main-thread parse cost: DOMParser and Readability
+ * scale with the document size.
+ */
+export const MAX_PAGE_CHARS = 5_000_000;
+
+/** True when the decoded response is too large to parse. */
+export function isOversizedPage(text: string): boolean {
+  return text.length > MAX_PAGE_CHARS;
+}

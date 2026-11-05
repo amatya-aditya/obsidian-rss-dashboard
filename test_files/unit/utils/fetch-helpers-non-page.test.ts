@@ -44,7 +44,11 @@ describe("fetch skips linked files (#1766)", () => {
     const result = await fetchWithProxyFallbackDetailed(PDF_URL, PROXY);
 
     expect(detailedMock).not.toHaveBeenCalled();
-    expect(result).toMatchObject({ content: "", failureType: "network" });
+    expect(result).toMatchObject({
+      content: "",
+      failureType: "network",
+      failureReason: "unsupported",
+    });
   });
 
   it("does not parse an extensionless PDF the server declares as application/pdf", async () => {
@@ -57,7 +61,11 @@ describe("fetch skips linked files (#1766)", () => {
 
     const result = await fetchWithProxyFallbackDetailed(BARE_URL, PROXY);
 
-    expect(result).toMatchObject({ content: "", failureType: "network" });
+    expect(result).toMatchObject({
+      content: "",
+      failureType: "network",
+      failureReason: "unsupported",
+    });
     expect(parse).not.toHaveBeenCalled();
     expect(readability.constructed).not.toHaveBeenCalled();
   });
@@ -96,7 +104,49 @@ describe("fetch skips linked files (#1766)", () => {
     const result = await fetchFullArticleContentWithOutcome(PDF_URL, PROXY);
 
     expect(detailedMock).not.toHaveBeenCalled();
-    expect(result).toMatchObject({ content: "", failureType: "network" });
+    expect(result).toMatchObject({
+      content: "",
+      failureType: "network",
+      failureReason: "unsupported",
+    });
+  });
+
+  it("does not parse an HTML page over the size cap, or try a proxy", async () => {
+    const parse = vi.spyOn(DOMParser.prototype, "parseFromString");
+    detailedMock.mockResolvedValue({
+      text: "<p>x</p>".repeat(700_000),
+      status: 200,
+      contentType: "text/html",
+    });
+
+    const result = await fetchWithProxyFallbackDetailed(
+      "https://example.com/posts/huge",
+      PROXY,
+    );
+
+    expect(result.failureReason).toBe("unsupported");
+    expect(parse).not.toHaveBeenCalled();
+    expect(detailedMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not parse an oversized page a proxy relays, or try the next proxy", async () => {
+    const parse = vi.spyOn(DOMParser.prototype, "parseFromString");
+    detailedMock
+      .mockResolvedValueOnce({ text: "Access denied", status: 403 })
+      .mockResolvedValue({
+        text: "<p>x</p>".repeat(700_000),
+        status: 200,
+        contentType: "text/html",
+      });
+
+    const result = await fetchWithProxyFallbackDetailed(
+      "https://example.com/posts/huge",
+      "auto",
+    );
+
+    expect(result.failureReason).toBe("unsupported");
+    expect(parse).not.toHaveBeenCalled();
+    expect(detailedMock).toHaveBeenCalledTimes(2);
   });
 
   it("still reads an HTML page that declares its type", async () => {
