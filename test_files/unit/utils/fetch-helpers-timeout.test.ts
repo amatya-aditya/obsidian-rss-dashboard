@@ -215,8 +215,8 @@ describe("full-article fetch timeout (#928, #954)", () => {
     expect(result.failureReason).toBeUndefined();
     expect(result.content).toContain("Real article text.");
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock.mock.calls[1][1].headers).toEqual(
-      fetchMock.mock.calls[0][1].headers,
+    expect(fetchMock.mock.calls[1]?.[1]?.headers).toEqual(
+      fetchMock.mock.calls[0]?.[1]?.headers,
     );
     expect(vi.getTimerCount()).toBe(0);
   });
