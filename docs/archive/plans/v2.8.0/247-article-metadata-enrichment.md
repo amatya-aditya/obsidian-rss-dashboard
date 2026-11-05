@@ -1,7 +1,7 @@
 ---
 status: implemented
 completed: 2026-10-06
-released_in: unreleased
+released_in: 2.8.0
 issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/247"
 implementation: "Slices 1-7: #691, #808, #810 and the slice PRs listed under Delivery"
 ---

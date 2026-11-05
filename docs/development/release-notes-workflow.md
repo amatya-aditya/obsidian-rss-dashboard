@@ -64,7 +64,12 @@ whichever fit, rather than inventing new ones.
 6. Create or update `docs/releases/<version>.md` as the public-facing summary.
    Consolidate related changelog bullets, lead with user impact, and omit
    implementation detail that does not help the wider audience.
-7. Add or update the release line's curated What's New note at
+7. Derive the release line's curated What's New note from the
+   `docs/releases/<version>.md` summary you just wrote: same section names and
+   wording, with the logo and a Discord/GitHub link line on top. Trim for the
+   popup (drop "Full changelog", whose relative link does not resolve there,
+   and shorten "Notable fixes"), but do not write a separate rewrite. Add or
+   update the release line's curated What's New note at
    `src/release-notes/notes/<major.minor>.md`. For a meaningful bug fix, an
    optional exact patch note may be added at
    `src/release-notes/notes/<major.minor>.<patch>.md`. Follow the
