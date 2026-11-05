@@ -167,9 +167,15 @@
 .rss-reader-actions button.rss-reader-read-toggle:not(.read):focus-visible {
   color: var(--color-green);
 }
-.rss-reader-actions button.rss-reader-star-toggle.unstarred:hover,
 .rss-reader-actions button.rss-reader-star-toggle.unstarred:focus-visible {
   color: var(--color-yellow);
+}
+/* A tap leaves :hover stuck on a touch screen, so the preview is for pointers
+   that can hover; otherwise a just-unstarred button keeps showing a star. */
+@media (hover: hover) {
+  .rss-reader-actions button.rss-reader-star-toggle.unstarred:hover {
+    color: var(--color-yellow);
+  }
 }
 .rss-reader-actions button.rss-reader-save-toggle.saved:hover svg,
 .rss-reader-actions button.rss-reader-read-toggle.read:hover svg,
@@ -181,13 +187,19 @@
 .rss-reader-actions button.rss-reader-star-toggle.starred:focus-visible svg {
   filter: brightness(1.2);
 }
-.rss-reader-star-toggle.unstarred:hover .rss-reader-star-icon,
 .rss-reader-star-toggle.unstarred:focus-visible .rss-reader-star-icon {
   opacity: 0;
 }
-.rss-reader-star-toggle.unstarred:hover .rss-reader-star-preview-icon,
 .rss-reader-star-toggle.unstarred:focus-visible .rss-reader-star-preview-icon {
   opacity: 1;
+}
+@media (hover: hover) {
+  .rss-reader-star-toggle.unstarred:hover .rss-reader-star-icon {
+    opacity: 0;
+  }
+  .rss-reader-star-toggle.unstarred:hover .rss-reader-star-preview-icon {
+    opacity: 1;
+  }
 }
 .rss-reader-star-preview-icon svg {
   color: var(--color-yellow);
