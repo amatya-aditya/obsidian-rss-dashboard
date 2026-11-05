@@ -410,15 +410,25 @@ body .rss-dashboard-tags-toggle svg {
   color: var(--color-yellow);
 }
 
-.rss-dashboard-star-toggle.unstarred:hover .rss-dashboard-star-icon,
 .rss-dashboard-star-toggle.unstarred:focus-visible .rss-dashboard-star-icon {
   opacity: 0;
 }
 
-.rss-dashboard-star-toggle.unstarred:hover .rss-dashboard-star-preview-icon,
 .rss-dashboard-star-toggle.unstarred:focus-visible
   .rss-dashboard-star-preview-icon {
   opacity: 1;
+}
+
+/* A tap leaves :hover stuck on a touch screen, so the preview is for pointers
+   that can hover; otherwise a just-unstarred button keeps showing a star. */
+@media (hover: hover) {
+  .rss-dashboard-star-toggle.unstarred:hover .rss-dashboard-star-icon {
+    opacity: 0;
+  }
+
+  .rss-dashboard-star-toggle.unstarred:hover .rss-dashboard-star-preview-icon {
+    opacity: 1;
+  }
 }
 
 .rss-dashboard-star-preview-icon svg {
