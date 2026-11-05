@@ -1,16 +1,30 @@
 import { requestUrl } from "obsidian";
 import type { RequestUrlParam } from "obsidian";
 import { formatRelativeTime } from "./relative-time";
+import { isNonPageContentType, isOversizedPage } from "./fetch-target-guard";
 
 export { formatRelativeTime } from "./relative-time";
 
 export interface RobustFetchResult {
   text: string;
   status: number;
+  /** The response's `Content-Type` header, when it sent one (#1766). */
+  contentType?: string;
+  /**
+   * Set when `pageLimits` rejected the response: it was not decoded and
+   * `text` is empty (#1766).
+   */
+  unsupported?: true;
 }
 
 export type RobustFetchOptions = Partial<RequestUrlParam> & {
   encodingOverride?: string;
+  /**
+   * For a fetch that will parse the response as an article page (#1766): a
+   * response over the size cap is returned undecoded, and so is one whose
+   * declared type is not a web page when `checkType` is set.
+   */
+  pageLimits?: { checkType: boolean };
 };
 
 export function sleep(ms: number): Promise<void> {
@@ -81,6 +95,26 @@ export async function robustFetch(
   return response.text;
 }
 
+function readContentType(headers: Record<string, string>): string {
+  const entry = Object.entries(headers).find(
+    ([name]) => name.toLowerCase() === "content-type",
+  );
+  return entry?.[1] || "";
+}
+
+/** Whether `pageLimits` rejects a response of this type and size (#1766). */
+function exceedsPageLimits(
+  pageLimits: RobustFetchOptions["pageLimits"],
+  contentType: string,
+  size: number,
+): boolean {
+  if (!pageLimits) return false;
+  return (
+    (pageLimits.checkType && isNonPageContentType(contentType)) ||
+    isOversizedPage(size)
+  );
+}
+
 /**
  * Fetch that preserves HTTP status alongside decoded text.
  * Useful for distinguishing 401/403 responses from generic network failures.
@@ -89,7 +123,7 @@ export async function robustFetchDetailed(
   url: string,
   options: RobustFetchOptions = {},
 ): Promise<RobustFetchResult> {
-  const { encodingOverride, ...requestOptions } = options;
+  const { encodingOverride, pageLimits, ...requestOptions } = options;
   // On desktop, Obsidian's requestUrl forwards `headers` (including any custom
   // User-Agent a caller sets) unmodified: the renderer sends them over IPC to the main
   // process, which applies each one via Electron's net.request().setHeader().
@@ -102,23 +136,29 @@ export async function robustFetchDetailed(
   });
 
   const status = response.status ?? 0;
+  const contentType = readContentType(response.headers);
+  const base = { status, ...(contentType ? { contentType } : {}) };
 
-  if (
-    !response.arrayBuffer ||
-    (response.arrayBuffer.byteLength === 0 && response.text)
-  ) {
-    return { text: response.text || "", status };
+  const buffer =
+    response.arrayBuffer &&
+    !(response.arrayBuffer.byteLength === 0 && response.text)
+      ? response.arrayBuffer
+      : undefined;
+  // Judged before the body is decoded or scanned (#1766).
+  const size = buffer ? buffer.byteLength : (response.text?.length ?? 0);
+  if (exceedsPageLimits(pageLimits, contentType, size)) {
+    return { text: "", unsupported: true, ...base };
   }
 
-  const contentTypeEntry = Object.entries(response.headers).find(
-    ([name]) => name.toLowerCase() === "content-type",
-  );
-  const contentType = contentTypeEntry?.[1] || "";
+  if (!buffer) {
+    return { text: response.text || "", ...base };
+  }
+
   let charset = encodingOverride || detectCharsetFromHeader(contentType);
 
   if (!charset) {
     // Try to detect from body if not in header
-    charset = detectCharsetFromBody(response.arrayBuffer);
+    charset = detectCharsetFromBody(buffer);
   }
 
   // Default to utf-8 if still not found
@@ -126,13 +166,13 @@ export async function robustFetchDetailed(
 
   try {
     const decoder = new TextDecoder(charset);
-    return { text: decoder.decode(response.arrayBuffer), status };
+    return { text: decoder.decode(buffer), ...base };
   } catch (e) {
     void e;
     // [RSS Dashboard] Failed to decode with charset ${charset}, falling back to utf-8
     // Fallback to utf-8 if specified charset fails
     const decoder = new TextDecoder("utf-8");
-    return { text: decoder.decode(response.arrayBuffer), status };
+    return { text: decoder.decode(buffer), ...base };
   }
 }
 

@@ -58,12 +58,14 @@ export async function fetchFullArticleContentWithOutcome(
   const result = await fetchPage(url, fetchTimeoutSeconds);
 
   // A block needs no abstract fallback: the abstract page is on the same host,
-  // so the host's refusal answers for both (#1347).
+  // so the host's refusal answers for both (#1347). Nor does a file or an
+  // oversized page (#1766).
   if (
     served(result) ||
     !isSagepubFull ||
     result.failureReason === "timeout" ||
-    result.failureReason === "blocked"
+    result.failureReason === "blocked" ||
+    result.failureReason === "unsupported"
   ) {
     return result;
   }

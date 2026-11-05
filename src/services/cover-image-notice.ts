@@ -18,6 +18,9 @@ export function coverImageFailureNotice(
   if (result.reason === "blocked") {
     return "The site refused the request, so no cover image was read.";
   }
+  if (result.reason === "unsupported") {
+    return "That link isn't an article page, so no cover image was read.";
+  }
   return result.reason === "timeout"
     ? "The article page timed out, so no cover image was read."
     : "Could not reach the article page, so no cover image was read.";

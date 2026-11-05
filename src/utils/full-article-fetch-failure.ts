@@ -9,6 +9,9 @@ export const FETCH_FAILURE_NETWORK_TEXT =
 /** The site answered with a bot challenge instead of the page (#1347). */
 export const FETCH_FAILURE_BLOCKED_TEXT =
   "The site refused the request, so the full article could not be loaded.";
+/** The link is a file or an oversized page, not an article (#1766). */
+export const FETCH_FAILURE_UNSUPPORTED_TEXT =
+  "The linked file isn't an article, so it wasn't loaded.";
 export const FETCH_FAILURE_TRY_AGAIN_TEXT = "Try again";
 export const FETCH_FAILURE_OPEN_IN_BROWSER_TEXT = "Open in browser";
 
@@ -18,6 +21,20 @@ export const FETCH_FAILURE_TTL_MS = 24 * 60 * 60 * 1000;
 export type FullContentFetchFailure = NonNullable<
   FeedItem["fullContentFetchFailure"]
 >;
+
+/** Why a failed fetch failed; the one place `failureReason` maps to it. */
+export function fetchFailureReason(
+  result: FullArticleFetchResult,
+): FullContentFetchFailure["reason"] {
+  switch (result.failureReason) {
+    case "timeout":
+    case "blocked":
+    case "unsupported":
+      return result.failureReason;
+    default:
+      return "network";
+  }
+}
 
 /**
  * The failure to remember for an article (#1110), or undefined when the result
@@ -36,23 +53,25 @@ export function buildFetchFailureRecord(
     return undefined;
   }
   return {
-    reason:
-      result.failureReason === "timeout"
-        ? "timeout"
-        : result.failureReason === "blocked"
-          ? "blocked"
-          : "network",
+    reason: fetchFailureReason(result),
     at: now,
   };
 }
 
-/** True while the article's remembered failure is recent enough to honor. */
+/**
+ * True while the article's remembered failure is recent enough to honor. A
+ * link to a file never expires: the page will not turn into an article, and a
+ * retry would download it again (#1766).
+ */
 export function hasActiveFetchFailure(
   item: FeedItem,
   now: number = Date.now(),
 ): boolean {
   const failure = item.fullContentFetchFailure;
-  return Boolean(failure) && now - (failure?.at ?? 0) < FETCH_FAILURE_TTL_MS;
+  if (!failure) return false;
+  return (
+    failure.reason === "unsupported" || now - failure.at < FETCH_FAILURE_TTL_MS
+  );
 }
 
 type PersistFailurePatch = (patch: Partial<FeedItem>) => void;
@@ -95,6 +114,7 @@ export function clearFetchFailure(
 export function describeFetchFailure(failure: FullContentFetchFailure): string {
   if (failure.reason === "timeout") return FETCH_FAILURE_TIMEOUT_TEXT;
   if (failure.reason === "blocked") return FETCH_FAILURE_BLOCKED_TEXT;
+  if (failure.reason === "unsupported") return FETCH_FAILURE_UNSUPPORTED_TEXT;
   return FETCH_FAILURE_NETWORK_TEXT;
 }
 
@@ -126,17 +146,20 @@ export function renderFetchFailureBanner(
   const actions = banner.createDiv({
     cls: "rss-reader-fetch-failure-banner-actions",
   });
-  const tryAgain = actions.createEl("button", {
-    cls: "rss-reader-fetch-failure-try-again",
-    text: FETCH_FAILURE_TRY_AGAIN_TEXT,
-    attr: { type: "button" },
-  });
-  tryAgain.addEventListener("click", () => {
-    // One retry at a time: the fetch can take the full timeout (#1110).
-    tryAgain.disabled = true;
-    tryAgain.setText("Trying again…");
-    onTryAgain();
-  });
+  // A file would be skipped again, so only "Open in browser" is offered.
+  if (failure.reason !== "unsupported") {
+    const tryAgain = actions.createEl("button", {
+      cls: "rss-reader-fetch-failure-try-again",
+      text: FETCH_FAILURE_TRY_AGAIN_TEXT,
+      attr: { type: "button" },
+    });
+    tryAgain.addEventListener("click", () => {
+      // One retry at a time: the fetch can take the full timeout (#1110).
+      tryAgain.disabled = true;
+      tryAgain.setText("Trying again…");
+      onTryAgain();
+    });
+  }
   const openHref = getOpenableHttpHref(item.link);
   if (openHref) {
     const openLink = actions.createEl("a", {
