@@ -37,6 +37,7 @@ import {
 } from "./settings-group-merge";
 import { SettingsAncestorStore } from "./settings-ancestor";
 import { isShardBackedMode, normalizeFolderPath } from "./feed-storage-shard";
+import { collapseDuplicateFeedIds } from "../utils/collapse-duplicate-feed-ids";
 
 function storageLog(_message: string, _details?: unknown): void {}
 
@@ -411,18 +412,23 @@ export class SettingsStore {
    * A migration the load applied is written with a forced metadata save: the
    * baseline persist compares against is captured after the migration, so a
    * plain save writes nothing, the stored settings keep their old shape, and
-   * every start would migrate and save again (#1524).
+   * every start would migrate and save again (#1524). A load that collapsed
+   * feeds sharing a feedId is the same case (#1764).
    */
   private loadSaveOptions(
     didMigrate: boolean,
+    didCollapseDuplicateFeeds: boolean,
   ): PersistSettingsOptions | undefined {
-    return didMigrate ? { forceMetadata: true } : undefined;
+    return didMigrate || didCollapseDuplicateFeeds
+      ? { forceMetadata: true }
+      : undefined;
   }
 
   private shouldSaveAfterLoad({
     wasNullLoad,
     hydrated,
     didMigrateKeywordRules,
+    didCollapseDuplicateFeeds,
     didNormalizeAndDedupeItems,
     didClearMissingSavedArticlePaths,
     originalSettingsJson,
@@ -430,6 +436,7 @@ export class SettingsStore {
     wasNullLoad: boolean;
     hydrated: Awaited<ReturnType<FeedStorageRepository["hydrateSettings"]>>;
     didMigrateKeywordRules: boolean;
+    didCollapseDuplicateFeeds: boolean;
     didNormalizeAndDedupeItems: boolean;
     didClearMissingSavedArticlePaths: boolean;
     originalSettingsJson: string;
@@ -448,6 +455,7 @@ export class SettingsStore {
     return (
       this.isTrustedLoad(wasNullLoad, hydrated) &&
       (didMigrateKeywordRules ||
+        didCollapseDuplicateFeeds ||
         hydrated.didChange ||
         didNormalizeAndDedupeItems ||
         didClearMissingSavedArticlePaths ||
@@ -495,6 +503,16 @@ export class SettingsStore {
     } catch (error) {
       console.error("[RSS Dashboard] Backup after load failed:", error);
     }
+  }
+
+  /** Drops all but one of the feeds that share a feedId; true if any went. */
+  private collapseDuplicateFeeds(): boolean {
+    const dropped = collapseDuplicateFeedIds(this.settings.feeds);
+    if (dropped.length === 0) return false;
+    storageLog("Dropped feeds that shared a feedId with another feed", {
+      dropped,
+    });
+    return true;
   }
 
   async loadSettings(): Promise<void> {
@@ -553,6 +571,10 @@ export class SettingsStore {
         this.settings.metadataStorageFolder = `${pluginDir}/data`;
         this.settings.storageFolder = `${pluginDir}/data/feeds`;
       }
+      // Two feeds sharing a feedId cannot both be refreshed or opened, since
+      // lookups take the first match. Heal it before anything reads the list
+      // (#1764).
+      const didCollapseDuplicateFeeds = this.collapseDuplicateFeeds();
       const didMigrateKeywordRules = this.options.migrateLegacySettings();
       await this.options.repairMissingFolderPathsForFeeds();
       const hydrated = await this.feedStorageRepository.hydrateSettings(
@@ -587,6 +609,7 @@ export class SettingsStore {
         wasNullLoad,
         hydrated,
         didMigrateKeywordRules,
+        didCollapseDuplicateFeeds,
         didNormalizeAndDedupeItems,
         didClearMissingSavedArticlePaths:
           savedArticleAssociationUpdates.length > 0,
@@ -599,7 +622,10 @@ export class SettingsStore {
           this.options.initializeSettingsBackedServices();
         }
         await this.options.saveSettings(
-          this.loadSaveOptions(didMigrateKeywordRules),
+          this.loadSaveOptions(
+            didMigrateKeywordRules,
+            didCollapseDuplicateFeeds,
+          ),
         );
       }
       // A load that saved has already taken the baseline; this is a no-op then.
