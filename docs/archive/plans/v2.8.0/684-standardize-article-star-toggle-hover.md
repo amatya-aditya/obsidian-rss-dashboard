@@ -2,7 +2,7 @@
 status: implemented
 created: 2026-10-01
 completed: 2026-10-02
-released_in: unreleased
+released_in: 2.8.0
 issue: "https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/684"
 implementation: "https://github.com/amatya-aditya/obsidian-rss-dashboard/pull/690"
 ---

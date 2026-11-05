@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 2.8.0 - November 5, 2026
+
 ### Fixes
 
 - Unstarring an article on a touch device no longer leaves a filled star showing on the star button in the reader (and on article cards) until you leave the page; the button now shows the unstarred state straight away. Desktop hover and keyboard-focus previews are unchanged. [GH Issue #1759](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1759)
