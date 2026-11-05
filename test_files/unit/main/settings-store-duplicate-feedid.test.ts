@@ -127,6 +127,46 @@ describe("settings load: feeds that share a feedId (#1764)", () => {
     expect(plugin.settings.feeds).toHaveLength(2);
   });
 
+  it("writes the healed list to data.json in shard storage, where an unchanged baseline would skip the write", async () => {
+    const data: RssDashboardSettings = {
+      ...clone(DEFAULT_SETTINGS),
+      lastShownVersion: "2.7.0",
+      storageMode: "vault-shards-v2",
+      startupRefreshDelaySeconds: 3600,
+      feeds: [feed("stale", "dup", 1), feed("fresh", "dup", 2)],
+    };
+    plugin = new RssDashboardPlugin(App.createMock(), manifest);
+    plugin.loadData = vi.fn(() => Promise.resolve(clone(data)));
+    saveData = vi.fn(() => Promise.resolve());
+    plugin.saveData = saveData;
+    // Hydration records the persisted baseline from the settings it is given,
+    // which already hold the healed list; a save that compares against it
+    // finds nothing to write unless the load forces the metadata out.
+    const repository = (
+      plugin as unknown as {
+        feedStorageRepository: {
+          hydrateSettings(...args: unknown[]): Promise<unknown>;
+          capturePersistedState(settings: RssDashboardSettings): void;
+        };
+      }
+    ).feedStorageRepository;
+    vi.spyOn(repository, "hydrateSettings").mockImplementation((settings) => {
+      repository.capturePersistedState(settings as RssDashboardSettings);
+      return Promise.resolve({
+        didChange: false,
+        shardCount: 0,
+        userStateLoaded: true,
+      });
+    });
+
+    await plugin.loadSettings();
+
+    expect(plugin.settings.feeds.map((f) => f.title)).toEqual(["fresh"]);
+    expect(saveData).toHaveBeenCalledTimes(1);
+    const saved = saveData.mock.calls[0]?.[0] as RssDashboardSettings;
+    expect(saved.feeds.filter((f) => f.feedId === "dup")).toHaveLength(1);
+  });
+
   it("finds no duplicate on the next load of the saved settings", async () => {
     await loadWith([feed("stale", "dup", 1), feed("fresh", "dup", 2)]);
     const saved = clone(saveData.mock.calls[0]?.[0] as RssDashboardSettings);

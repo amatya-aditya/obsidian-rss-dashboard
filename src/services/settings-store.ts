@@ -412,12 +412,16 @@ export class SettingsStore {
    * A migration the load applied is written with a forced metadata save: the
    * baseline persist compares against is captured after the migration, so a
    * plain save writes nothing, the stored settings keep their old shape, and
-   * every start would migrate and save again (#1524).
+   * every start would migrate and save again (#1524). A load that collapsed
+   * feeds sharing a feedId is the same case (#1764).
    */
   private loadSaveOptions(
     didMigrate: boolean,
+    didCollapseDuplicateFeeds: boolean,
   ): PersistSettingsOptions | undefined {
-    return didMigrate ? { forceMetadata: true } : undefined;
+    return didMigrate || didCollapseDuplicateFeeds
+      ? { forceMetadata: true }
+      : undefined;
   }
 
   private shouldSaveAfterLoad({
@@ -618,7 +622,10 @@ export class SettingsStore {
           this.options.initializeSettingsBackedServices();
         }
         await this.options.saveSettings(
-          this.loadSaveOptions(didMigrateKeywordRules),
+          this.loadSaveOptions(
+            didMigrateKeywordRules,
+            didCollapseDuplicateFeeds,
+          ),
         );
       }
       // A load that saved has already taken the baseline; this is a no-op then.
