@@ -103,7 +103,7 @@ export interface FeedItem {
    * on open; it shows a banner with "Try again". Cleared by a retry.
    */
   fullContentFetchFailure?: {
-    reason: "timeout" | "network" | "blocked";
+    reason: "timeout" | "network" | "blocked" | "unsupported";
     /** Epoch milliseconds of the failed attempt. */
     at: number;
   };

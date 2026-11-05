@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Obsidian from "obsidian";
 import {
   ensureUtf8Meta,
@@ -12,6 +12,7 @@ import {
   FOLDER_POPUP_MOBILE_MAX_WIDTH_PX,
   isTabletViewport,
   robustFetch,
+  robustFetchDetailed,
   setCssProps,
   shouldUseMobileSidebarLayout,
 } from "../../../src/utils/platform-utils";
@@ -355,5 +356,84 @@ describe("platform-utils.isNarrowViewport", () => {
     expect(isNarrowViewport(win, 480)).toBe(false);
     expect(matchMedia).toHaveBeenNthCalledWith(1, "(max-width: 480px)");
     expect(matchMedia).toHaveBeenNthCalledWith(2, "(max-width: 480px)");
+  });
+});
+
+describe("platform-utils.robustFetchDetailed page limits (#1766)", () => {
+  const pdfBytes = new TextEncoder().encode("%PDF-1.7 binary");
+
+  function respond(
+    contentType: string | undefined,
+    body: Uint8Array,
+  ): ReturnType<typeof vi.spyOn> {
+    return vi.spyOn(Obsidian, "requestUrl").mockResolvedValue({
+      status: 200,
+      headers: contentType ? { "Content-Type": contentType } : {},
+      arrayBuffer: toArrayBuffer(body),
+      text: "",
+    } as unknown as Awaited<ReturnType<typeof Obsidian.requestUrl>>);
+  }
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("returns a declared PDF undecoded when the type is checked", async () => {
+    respond("application/pdf", pdfBytes);
+    const decode = vi.spyOn(TextDecoder.prototype, "decode");
+
+    const result = await robustFetchDetailed("https://example.com/p", {
+      pageLimits: { checkType: true },
+    });
+
+    expect(result).toMatchObject({
+      text: "",
+      unsupported: true,
+      contentType: "application/pdf",
+    });
+    expect(decode).not.toHaveBeenCalled();
+  });
+
+  it("decodes a declared PDF when only the size is checked", async () => {
+    respond("application/pdf", pdfBytes);
+
+    const result = await robustFetchDetailed("https://example.com/p", {
+      pageLimits: { checkType: false },
+    });
+
+    expect(result.unsupported).toBeUndefined();
+    expect(result.text).toContain("%PDF");
+  });
+
+  it("returns a body over the size cap undecoded, whatever its type", async () => {
+    respond("text/html", new Uint8Array(5_000_001));
+    const decode = vi.spyOn(TextDecoder.prototype, "decode");
+
+    const result = await robustFetchDetailed("https://example.com/p", {
+      pageLimits: { checkType: false },
+    });
+
+    expect(result).toMatchObject({ text: "", unsupported: true });
+    expect(decode).not.toHaveBeenCalled();
+  });
+
+  it("reads a page that declares no type", async () => {
+    respond(undefined, new TextEncoder().encode("<p>hello</p>"));
+
+    const result = await robustFetchDetailed("https://example.com/p", {
+      pageLimits: { checkType: true },
+    });
+
+    expect(result.unsupported).toBeUndefined();
+    expect(result.text).toBe("<p>hello</p>");
+  });
+
+  it("decodes any response when no page limits are asked for", async () => {
+    respond("application/pdf", pdfBytes);
+
+    const result = await robustFetchDetailed("https://example.com/p");
+
+    expect(result.unsupported).toBeUndefined();
+    expect(result.text).toContain("%PDF");
   });
 });

@@ -12,6 +12,7 @@ import {
   ensureUtf8Meta,
 } from "./platform-utils";
 import { resolveProxyPrefixes } from "./proxy-utils";
+import { isNonPageUrl } from "./fetch-target-guard";
 import { stripAdContainers } from "./ad-containers";
 import { promotePictureImageSources } from "./image-url-utils";
 import { extractGitHubIssueContent } from "./github-issue-page";
@@ -87,8 +88,10 @@ export interface FullArticleFetchResult {
    * "timeout": the shared direct-and-proxy deadline expired. "unexpected": the
    * fetch threw, so the failure says nothing about the page (#1110).
    * "blocked": the site answered with a bot challenge, not a paywall (#1347).
+   * "unsupported": the link is a file or an oversized page, so it was not
+   * parsed and no proxy was tried (#1766).
    */
-  failureReason?: "timeout" | "unexpected" | "blocked";
+  failureReason?: "timeout" | "unexpected" | "blocked" | "unsupported";
   /**
    * Raw signals from the fetched page (#247). Unresolved: callers resolve it
    * against their own feed context. Absent when no page was fetched or the
@@ -491,6 +494,18 @@ function extractMetadataOfUnparsedResponse(
   };
 }
 
+/**
+ * A link that is a file or an oversized page: nothing was parsed (#1766).
+ * `failureType` stays "network" so callers that only know the two failure
+ * kinds treat it as a failed fetch; `failureReason` tells it apart.
+ */
+function unsupportedResult(): FullArticleFetchResult {
+  return {
+    ...failureResult("network", undefined),
+    failureReason: "unsupported",
+  };
+}
+
 function failureResult(
   failureType: FullArticleFetchFailureType,
   pageMetadata: RawArticleMetadata | undefined,
@@ -580,6 +595,7 @@ async function attemptDirectFetch(
   attempts: FetchAttempts,
 ): Promise<
   | { kind: "page"; result: FullArticleFetchResult }
+  | { kind: "unsupported" }
   | {
       kind: "refused";
       refusal: "blocked" | "restricted" | undefined;
@@ -589,9 +605,21 @@ async function attemptDirectFetch(
 > {
   try {
     const response = await withFetchDeadline(
-      () => robustFetchDetailed(url, { headers: DEFAULT_HEADERS }),
+      () =>
+        robustFetchDetailed(url, {
+          headers: DEFAULT_HEADERS,
+          pageLimits: { checkType: true },
+        }),
       deadline,
     );
+    // A linked file or an oversized page was left undecoded; no proxy is
+    // tried for it (#1766).
+    if (response.unsupported) {
+      console.warn(
+        `[RSS Dashboard] Skipping ${url}: it is ${response.contentType || "an oversized page"}, not an article page.`,
+      );
+      return { kind: "unsupported" };
+    }
     const html = response.text;
     if (!isBlockedResponse(html) && !isRestrictedStatus(response.status)) {
       debugLog(
@@ -647,9 +675,18 @@ async function attemptProxyFetch(
 ): Promise<FullArticleFetchResult | undefined> {
   try {
     const response = await withFetchDeadline(
-      () => robustFetchDetailed(proxyTarget, { headers: DEFAULT_HEADERS }),
+      () =>
+        robustFetchDetailed(proxyTarget, {
+          headers: DEFAULT_HEADERS,
+          // A proxy may relay a page under any type, so only the size is judged.
+          pageLimits: { checkType: false },
+        }),
       deadline,
     );
+    // The proxy relayed an oversized page: stop rather than try the next one.
+    if (response.unsupported) {
+      return unsupportedResult();
+    }
     const html = response.text;
     if (!isBlockedResponse(html) && !isRestrictedStatus(response.status)) {
       debugLog(
@@ -710,10 +747,13 @@ export async function fetchWithProxyFallbackDetailed(
     lastError: undefined,
     parse,
   };
+  // A link to a file is not fetched at all (#1766).
+  if (isNonPageUrl(url)) return unsupportedResult();
   try {
     // 1. Direct fetch
     const direct = await attemptDirectFetch(url, deadline, attempts);
     if (direct.kind === "page") return direct.result;
+    if (direct.kind === "unsupported") return unsupportedResult();
     attempts.refusal = direct.refusal;
     attempts.metadata = direct.metadata;
     attempts.pageImage = direct.pageImage;

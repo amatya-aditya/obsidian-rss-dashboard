@@ -6,6 +6,7 @@
 
 ### Fixes
 
+- Opening an article whose link is a PDF, an archive, an image or another file, or a page too large to read, in the reader no longer freezes or crashes the plugin while it fetches the live version. Such a link is no longer parsed: the reader keeps the RSS content, says the linked file isn't an article, and offers **Open in browser**, and it does not try again on the next open. The cover-image and article-saving fetches skip such links too. [GH Issue #1766](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1766)
 - A feed that appears twice in your settings is no longer written twice when RSS Dashboard merges a synced `data.json`; the merge now keeps the first copy and drops the repeat, which otherwise showed as a second sidebar row that never refreshed. [GH Issue #1763](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1763)
 - Unstarring an article on a touch device no longer leaves a filled star showing on the star button in the reader (and on article cards) until you leave the page; the button now shows the unstarred state straight away. Desktop hover and keyboard-focus previews are unchanged. [GH Issue #1759](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1759)
 - Tapping a card's cover image on a touch device to read its summary no longer makes the cover area change to a different background colour; the summary now appears on the card's own background. Desktop hover is unchanged.
