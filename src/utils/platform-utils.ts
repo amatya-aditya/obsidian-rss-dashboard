@@ -7,6 +7,8 @@ export { formatRelativeTime } from "./relative-time";
 export interface RobustFetchResult {
   text: string;
   status: number;
+  /** The response's `Content-Type` header, when it sent one (#1766). */
+  contentType?: string;
 }
 
 export type RobustFetchOptions = Partial<RequestUrlParam> & {
@@ -102,18 +104,19 @@ export async function robustFetchDetailed(
   });
 
   const status = response.status ?? 0;
+  const contentTypeEntry = Object.entries(response.headers ?? {}).find(
+    ([name]) => name.toLowerCase() === "content-type",
+  );
+  const contentType = contentTypeEntry?.[1] || "";
+  const declaredType = contentType ? { contentType } : {};
 
   if (
     !response.arrayBuffer ||
     (response.arrayBuffer.byteLength === 0 && response.text)
   ) {
-    return { text: response.text || "", status };
+    return { text: response.text || "", status, ...declaredType };
   }
 
-  const contentTypeEntry = Object.entries(response.headers).find(
-    ([name]) => name.toLowerCase() === "content-type",
-  );
-  const contentType = contentTypeEntry?.[1] || "";
   let charset = encodingOverride || detectCharsetFromHeader(contentType);
 
   if (!charset) {
@@ -126,13 +129,21 @@ export async function robustFetchDetailed(
 
   try {
     const decoder = new TextDecoder(charset);
-    return { text: decoder.decode(response.arrayBuffer), status };
+    return {
+      text: decoder.decode(response.arrayBuffer),
+      status,
+      ...declaredType,
+    };
   } catch (e) {
     void e;
     // [RSS Dashboard] Failed to decode with charset ${charset}, falling back to utf-8
     // Fallback to utf-8 if specified charset fails
     const decoder = new TextDecoder("utf-8");
-    return { text: decoder.decode(response.arrayBuffer), status };
+    return {
+      text: decoder.decode(response.arrayBuffer),
+      status,
+      ...declaredType,
+    };
   }
 }
 

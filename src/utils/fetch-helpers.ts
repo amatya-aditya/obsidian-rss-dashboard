@@ -13,6 +13,7 @@ import {
 } from "./platform-utils";
 import { AUTO_PROXY_URL, resolveProxyPrefixes } from "./proxy-utils";
 import { proxyHealth, type ProxyOutcome } from "./proxy-health";
+import { isNonPageContentType, isNonPageUrl } from "./fetch-target-guard";
 import { stripAdContainers } from "./ad-containers";
 import { promotePictureImageSources } from "./image-url-utils";
 import { extractGitHubIssueContent } from "./github-issue-page";
@@ -593,6 +594,7 @@ async function attemptDirectFetch(
   attempts: FetchAttempts,
 ): Promise<
   | { kind: "page"; result: FullArticleFetchResult }
+  | { kind: "unsupported" }
   | {
       kind: "refused";
       refusal: "blocked" | "restricted" | undefined;
@@ -605,6 +607,13 @@ async function attemptDirectFetch(
       () => robustFetchDetailed(url, { headers: DEFAULT_HEADERS }),
       deadline,
     );
+    // A linked file is not parsed or scanned, and no proxy is tried (#1766).
+    if (isNonPageContentType(response.contentType)) {
+      console.warn(
+        `[RSS Dashboard] Skipping ${url}: it is ${response.contentType}, not a web page.`,
+      );
+      return { kind: "unsupported" };
+    }
     const html = response.text;
     if (!isBlockedResponse(html) && !isRestrictedStatus(response.status)) {
       debugLog(
@@ -813,10 +822,15 @@ export async function fetchWithProxyFallbackDetailed(
     proxyOutcome: "neutral",
     parse,
   };
+  // A link to a file is not fetched at all (#1766).
+  if (isNonPageUrl(url)) return failureResult("network", undefined);
   try {
     // 1. Direct fetch
     const direct = await attemptDirectFetch(url, deadline, attempts);
     if (direct.kind === "page") return direct.result;
+    if (direct.kind === "unsupported") {
+      return failureResult("network", undefined);
+    }
     attempts.refusal = direct.refusal;
     attempts.metadata = direct.metadata;
     attempts.pageImage = direct.pageImage;
