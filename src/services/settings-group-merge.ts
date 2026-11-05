@@ -408,16 +408,20 @@ function orderKeys(
     : orderMergedKeys(chosen, memoryOrder, diskOrder);
 }
 
-/** Keys of an array group in the order that side lists them. */
+/**
+ * Keys of an array group in the order that side lists them, each once: a key
+ * listed twice would be written twice, and the merge keeps only the first.
+ */
 function feedOrder(
   list: unknown,
   side: string,
   idByUrl: ReadonlyMap<string, string>,
 ): string[] {
   if (!Array.isArray(list)) return [];
-  return list.flatMap((entry, index) =>
+  const keys = list.flatMap((entry, index) =>
     isRecord(entry) ? [feedKey(entry, side, index, idByUrl).key] : [],
   );
+  return [...new Set(keys)];
 }
 
 /** Per-entry merge for a group that has one, or null for any other group. */
