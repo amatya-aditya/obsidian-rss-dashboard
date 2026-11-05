@@ -2,6 +2,8 @@
 
 ### Fixes
 
+- Unstarring an article on a touch device no longer leaves a filled star showing on the star button in the reader (and on article cards) until you leave the page; the button now shows the unstarred state straight away. Desktop hover and keyboard-focus previews are unchanged. [GH Issue #1759](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1759)
+- Tapping a card's cover image on a touch device to read its summary no longer makes the cover area change to a different background colour; the summary now appears on the card's own background. Desktop hover is unchanged.
 - The filter status bar no longer appears underneath an article opened in the inline reader when a feed refresh or read-state change updates the counts; it returns when you go back to the list. [GH Issue #1734](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1734)
 - With the filter status bar open on a phone, a thin line of the scrolled card's cover image no longer shows between the status bar and the dashboard header.
 - Tapping a card's cover image or summary on a touch device no longer draws a second border around the card; keyboard focus still shows a ring. [GH Issue #1723](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1723)

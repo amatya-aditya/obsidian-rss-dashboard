@@ -737,6 +737,16 @@
   line-height: 1.5;
 }
 
+/* A tap on the cover swaps it for the summary; the card's own background keeps
+   that swap from reading as a colour change on touch screens. */
+@media (hover: none) {
+  .rss-dashboard-card-view
+    .rss-dashboard-card-preview-region
+    .rss-dashboard-summary-overlay {
+    background: var(--background-secondary);
+  }
+}
+
 .rss-dashboard-card-view
   .rss-dashboard-card-preview-region
   .rss-dashboard-cover-summary-only {
