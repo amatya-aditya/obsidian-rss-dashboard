@@ -103,7 +103,7 @@ export interface FeedItem {
    * on open; it shows a banner with "Try again". Cleared by a retry.
    */
   fullContentFetchFailure?: {
-    reason: "timeout" | "network" | "blocked";
+    reason: "timeout" | "network" | "blocked" | "unsupported";
     /** Epoch milliseconds of the failed attempt. */
     at: number;
   };
@@ -149,6 +149,9 @@ export interface FeedItem {
 
 export type FeedEncoding = "auto" | "windows-1251";
 
+/** Which version of an article a feed's reader opens on (#1748). */
+export type ArticleContentFirst = "rss" | "fetched";
+
 export interface Feed {
   feedId?: string;
   title: string;
@@ -174,6 +177,11 @@ export interface Feed {
   customFolder?: string;
   customTags?: string[];
   feedEncoding?: FeedEncoding;
+  /**
+   * Which version the reader opens this feed's articles on. Absent follows the
+   * Show fetched content first setting (#1748).
+   */
+  articleContentFirst?: ArticleContentFirst;
 
   autoDeleteDuration?: number;
   maxItemsLimit?: number;
@@ -434,6 +442,8 @@ export interface DisplaySettings {
   cardSpacing: number;
   articleTitleScale: number;
   cardPressAnimation: boolean;
+  /** Open articles on the fetched page instead of the RSS content (#1748). */
+  showFetchedContentFirst: boolean;
   hideEmptyFeeds: boolean;
   hideFeedFetchErrorBadges: boolean;
 
@@ -973,6 +983,7 @@ guid: "{{guid}}"
     cardSpacing: 15,
     articleTitleScale: ARTICLE_TITLE_SCALE_DEFAULT,
     cardPressAnimation: true,
+    showFetchedContentFirst: false,
     hideEmptyFeeds: false,
     hideFeedFetchErrorBadges: false,
     hideIconDashboard: false,

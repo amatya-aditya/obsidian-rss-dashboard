@@ -1,7 +1,14 @@
 ## Unreleased
 
+### Features
+
+- You can now choose whether the reader opens an article on its RSS content or on the fetched page. **Settings → Display → Reader → Show fetched content first** turns it on for every feed, and each feed's options have an **Article content shown first** dropdown (**Use global setting**, **RSS content** or **Fetched content**) that overrides it. With fetched content first, the reader switches to the fetched version once it loads, unless you have already started reading (scrolled past a line, used the keyboard, selected text or clicked); then it keeps the RSS content and offers **Show fetched content**. The setting applies to the dedicated reader and the inline article view. [GH Issue #1748](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1748)
+
 ### Fixes
 
+- Opening an article whose link is a PDF, an archive, an image or another file, or a page too large to read, in the reader no longer freezes or crashes the plugin while it fetches the live version. Such a link is no longer parsed: the reader keeps the RSS content, says the linked file isn't an article, and offers **Open in browser**, and it does not try again on the next open. The cover-image and article-saving fetches skip such links too. [GH Issue #1766](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1766)
+- A feed that appears twice in your settings is no longer written twice when RSS Dashboard merges a synced `data.json`; the merge now keeps the first copy and drops the repeat, which otherwise showed as a second sidebar row that never refreshed. [GH Issue #1763](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1763)
+- Two feeds that share one internal feed ID no longer both stay in your sidebar. When settings load, RSS Dashboard keeps the copy refreshed most recently and drops the other, so the leftover row that never refreshed or opened is gone; your articles and read state are untouched. [GH Issue #1764](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1764)
 - Unstarring an article on a touch device no longer leaves a filled star showing on the star button in the reader (and on article cards) until you leave the page; the button now shows the unstarred state straight away. Desktop hover and keyboard-focus previews are unchanged. [GH Issue #1759](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1759)
 - Tapping a card's cover image on a touch device to read its summary no longer makes the cover area change to a different background colour; the summary now appears on the card's own background. Desktop hover is unchanged.
 - The filter status bar no longer appears underneath an article opened in the inline reader when a feed refresh or read-state change updates the counts; it returns when you go back to the list. [GH Issue #1734](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1734)

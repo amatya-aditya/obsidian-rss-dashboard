@@ -3,6 +3,7 @@ import { AccessibleModal } from "../../utils/accessible-modal";
 import type RssDashboardPlugin from "../../../main";
 import type {
   Feed,
+  ArticleContentFirst,
   FeedEncoding,
   FeedKeywordRulesSettings,
   SavedTemplate,
@@ -15,6 +16,7 @@ import { removeNativeModalCloseButton } from "../../utils/modal-close-button";
 import { settingsUiCompatibility } from "../../settings/settings-ui-compat";
 import { isValidFeedTitle } from "../../utils/validation";
 import {
+  renderArticleContentFirstSetting,
   renderAutoDeleteSetting,
   renderMaxItemsSetting,
   renderScanIntervalSetting,
@@ -79,6 +81,7 @@ export class EditFeedModal extends AccessibleModal {
   private latestEntry: string = "-";
   private customTags: string[];
   private feedEncoding: FeedEncoding;
+  private articleContentFirst: ArticleContentFirst | undefined;
   private originalCustomTags: string[];
   private autoDeleteDuration: number;
   private maxItemsLimit: number;
@@ -117,6 +120,7 @@ export class EditFeedModal extends AccessibleModal {
     this.originalCustomTags = [...(this.feed.customTags ?? [])];
     this.customTags = [...(this.feed.customTags ?? [])];
     this.feedEncoding = this.feed.feedEncoding ?? "auto";
+    this.articleContentFirst = this.feed.articleContentFirst;
 
     this.autoDeleteDuration = this.feed.autoDeleteDuration || 0;
     this.maxItemsLimit =
@@ -600,6 +604,13 @@ export class EditFeedModal extends AccessibleModal {
         });
       });
 
+    renderArticleContentFirstSetting(perFeedControlsBody, {
+      getArticleContentFirst: () => this.articleContentFirst,
+      setArticleContentFirst: (value) => {
+        this.articleContentFirst = value;
+      },
+    });
+
     // Template selection
     const savedTemplates =
       this.plugin.settings.articleSaving.savedTemplates || [];
@@ -826,6 +837,7 @@ export class EditFeedModal extends AccessibleModal {
         this.feed.excludeFromRefresh = this.excludeFromRefresh;
         this.feed.feedEncoding =
           this.feedEncoding === "windows-1251" ? this.feedEncoding : undefined;
+        this.feed.articleContentFirst = this.articleContentFirst;
         this.feed.customTemplate = this.customTemplate || undefined;
         this.feed.keywordRules = {
           overrideGlobalRules: this.feedKeywordRules.overrideGlobalRules,

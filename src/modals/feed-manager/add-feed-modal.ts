@@ -3,6 +3,7 @@ import { AccessibleModal } from "../../utils/accessible-modal";
 import type RssDashboardPlugin from "../../../main";
 import type {
   FeedKeywordRulesSettings,
+  ArticleContentFirst,
   FeedEncoding,
   Folder,
   Tag,
@@ -31,6 +32,7 @@ import {
   renderAutoTagsSetting,
   renderArticleTemplateSetting,
   renderExcludeFromRefreshSetting,
+  renderArticleContentFirstSetting,
   renderFeedEncodingSetting,
   renderMaxItemsSetting,
   renderScanIntervalSetting,
@@ -53,6 +55,7 @@ export interface AddFeedRequest {
   excludeFromRefresh?: boolean;
   customTags?: string[];
   feedEncoding?: FeedEncoding;
+  articleContentFirst?: ArticleContentFirst;
 }
 
 export class AddFeedModal extends AccessibleModal {
@@ -72,6 +75,7 @@ export class AddFeedModal extends AccessibleModal {
   private latestEntry: string = "-";
   private customTags: string[] = [];
   private feedEncoding: FeedEncoding = "auto";
+  private articleContentFirst: ArticleContentFirst | undefined;
   private autoDeleteDuration: number;
   private maxItemsLimit: number;
   private scanInterval: number = 0;
@@ -438,6 +442,8 @@ export class AddFeedModal extends AccessibleModal {
 
     renderExcludeFromRefreshSetting(perFeedControlsBody, state);
 
+    renderArticleContentFirstSetting(perFeedControlsBody, state);
+
     // Template selection
     const savedTemplates =
       this.plugin?.settings?.articleSaving?.savedTemplates || [];
@@ -457,6 +463,10 @@ export class AddFeedModal extends AccessibleModal {
       getFeedEncoding: () => this.feedEncoding,
       setFeedEncoding: (value) => {
         this.feedEncoding = value;
+      },
+      getArticleContentFirst: () => this.articleContentFirst,
+      setArticleContentFirst: (value) => {
+        this.articleContentFirst = value;
       },
       getAutoDeleteDuration: () => this.autoDeleteDuration,
       setAutoDeleteDuration: (value) => {
@@ -571,6 +581,7 @@ export class AddFeedModal extends AccessibleModal {
             this.feedEncoding === "windows-1251"
               ? this.feedEncoding
               : undefined,
+          articleContentFirst: this.articleContentFirst,
         }).catch(() => {
           return false;
         });

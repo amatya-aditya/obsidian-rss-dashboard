@@ -230,6 +230,35 @@ describe("mergeSettingsGroups per-entry feeds (#1439)", () => {
     expect((result.merged.feeds as { title: string }[])[0].title).toBe("Local");
   });
 
+  it("writes a feed one side lists twice once, when this device edited another feed", () => {
+    const result = mergeSettingsGroups(
+      { feeds: [feed("f0")] },
+      { feeds: [feed("f0"), feed("f1"), feed("f1")] },
+      { feeds: [feed("f0", { title: "edited here" })] },
+    );
+
+    const merged = result.merged.feeds as { feedId: string }[];
+    expect(merged.map((entry) => entry.feedId)).toEqual(["f0", "f1"]);
+  });
+
+  it("heals a feed this device lists twice instead of writing it twice", () => {
+    const result = mergeSettingsGroups(
+      { feeds: [feed("f0"), feed("f1")] },
+      { feeds: [feed("f0"), feed("f1", { title: "synced" })] },
+      {
+        feeds: [
+          feed("f0", { title: "edited here" }),
+          feed("f1"),
+          feed("f1", { lastRefreshAttemptCompletedAt: 1 }),
+        ],
+      },
+    );
+
+    const merged = result.merged.feeds as { feedId: string }[];
+    expect(merged.map((entry) => entry.feedId)).toEqual(["f0", "f1"]);
+    expect(result.duplicateEntries).toEqual([{ group: "feeds", key: "f1" }]);
+  });
+
   it("does not compare article items carried in memory", () => {
     const result = mergeSettingsGroups(
       { feeds: [feed("f1")] },

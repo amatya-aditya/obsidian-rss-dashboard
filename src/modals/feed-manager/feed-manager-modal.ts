@@ -69,7 +69,10 @@ export class FeedManagerModal extends AccessibleModal {
             request.customTemplate,
             request.excludeFromRefresh,
             request.customTags,
-            { feedEncoding: request.feedEncoding },
+            {
+              feedEncoding: request.feedEncoding,
+              articleContentFirst: request.articleContentFirst,
+            },
           ),
         () => this.onOpen(),
         "",

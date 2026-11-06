@@ -1,5 +1,10 @@
 import { Setting } from "obsidian";
-import type { FeedEncoding, SavedTemplate, Tag } from "../../types/types";
+import type {
+  ArticleContentFirst,
+  FeedEncoding,
+  SavedTemplate,
+  Tag,
+} from "../../types/types";
 import {
   FEED_REFRESH_DISABLED_INTERVAL,
   getPerFeedRefreshIntervalDropdownValue,
@@ -14,6 +19,8 @@ import { addTagMultiSelectControl } from "../../components/tag-multi-select-cont
 export interface AddFeedOptionsState {
   getFeedEncoding(): FeedEncoding;
   setFeedEncoding(value: FeedEncoding): void;
+  getArticleContentFirst(): ArticleContentFirst | undefined;
+  setArticleContentFirst(value: ArticleContentFirst | undefined): void;
   getAutoDeleteDuration(): number;
   setAutoDeleteDuration(value: number): void;
   getMaxItemsLimit(): number;
@@ -46,6 +53,32 @@ export function renderFeedEncodingSetting(
           if (value === "auto" || value === "windows-1251") {
             state.setFeedEncoding(value);
           }
+        });
+    });
+}
+
+export function renderArticleContentFirstSetting(
+  perFeedControlsBody: HTMLElement,
+  state: Pick<
+    AddFeedOptionsState,
+    "getArticleContentFirst" | "setArticleContentFirst"
+  >,
+): void {
+  new Setting(perFeedControlsBody)
+    .setName("Article content shown first")
+    .setDesc(
+      "Choose which version the reader opens this feed's articles on. Use global setting follows the reader toggle in the display settings.",
+    )
+    .addDropdown((dropdown) => {
+      dropdown
+        .addOption("", "Use global setting")
+        .addOption("rss", "RSS content")
+        .addOption("fetched", "Fetched content")
+        .setValue(state.getArticleContentFirst() ?? "")
+        .onChange((value) => {
+          state.setArticleContentFirst(
+            value === "rss" || value === "fetched" ? value : undefined,
+          );
         });
     });
 }

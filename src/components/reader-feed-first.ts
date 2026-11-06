@@ -1,4 +1,4 @@
-import type { FeedItem } from "../types/types";
+import type { Feed, FeedItem } from "../types/types";
 import type { FullArticleFetchResult } from "../utils/fetch-helpers";
 import { RESTRICTED_ARTICLE_REASON } from "../utils/full-article-fetch";
 import {
@@ -31,6 +31,11 @@ export interface FeedFirstDisplayOptions {
    * still exists.
    */
   onDemand?: boolean;
+  /**
+   * Switch to the fetched version once it loads, unless the reader has started
+   * reading (#1748). Ignored with `onDemand`.
+   */
+  fetchedFirst?: boolean;
   fetch: () => Promise<FullArticleFetchResult>;
   /** Runs for every settled fetch, even when the display went stale. */
   persistMetadata: (result: FullArticleFetchResult) => void;
@@ -70,10 +75,30 @@ export function resolveFeedFetchPlan(
   hasLink: boolean,
   prefersFeedContent: boolean,
   skipForAnotherReason: boolean,
+  fetchedFirst = false,
 ): FeedFetchPlan {
   if (!hasLink) return "display";
   if (skipForAnotherReason) return "display";
+  if (fetchedFirst) return "eager";
   return prefersFeedContent ? "onDemand" : "eager";
+}
+
+/**
+ * Whether the article opens on its fetched version (#1748). The article's feed
+ * decides when it sets a version; otherwise, and for an article with no current
+ * feed, the Show fetched content first setting does.
+ */
+export function resolveFetchedFirst(
+  feeds: Pick<Feed, "url" | "articleContentFirst">[],
+  item: Pick<FeedItem, "feedUrl">,
+  globalFetchedFirst: boolean,
+): boolean {
+  const choice = item.feedUrl
+    ? feeds.find((feed) => feed.url === item.feedUrl)?.articleContentFirst
+    : undefined;
+  if (choice === "fetched") return true;
+  if (choice === "rss") return false;
+  return globalFetchedFirst;
 }
 
 /**
@@ -99,6 +124,7 @@ export async function runFeedFirstDisplay(
     (version) => options.onSelectVersion(version, fetchedContent),
     !options.hasMeaningfulContent(feedContent),
     onDemand,
+    options.fetchedFirst === true,
   );
   options.onVersions(versions);
 
@@ -125,6 +151,8 @@ export async function runFeedFirstDisplay(
       applyRestrictedReason(item, undefined, options.persistRestrictedReason);
       if (onDemand) {
         versions.showFetchedContent();
+      } else if (options.fetchedFirst === true) {
+        versions.readyFetchedFirst();
       } else {
         versions.ready();
       }
