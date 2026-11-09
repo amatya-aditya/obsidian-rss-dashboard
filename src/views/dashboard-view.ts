@@ -4631,6 +4631,12 @@ export class RssDashboardView extends ItemView {
   private getReaderViewLocation(): ViewLocation {
     const location = this.settings.readerViewLocation;
     if (
+      Platform.isMobile &&
+      (location === "left-sidebar" || location === "right-sidebar")
+    ) {
+      return "main";
+    }
+    if (
       location === "left-sidebar" ||
       location === "right-sidebar" ||
       location === "inline"
