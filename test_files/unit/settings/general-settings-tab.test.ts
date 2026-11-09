@@ -1,4 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Platform } from "obsidian";
 import { DEFAULT_SETTINGS } from "../../../src/types/types";
 import {
   renderGeneralSettingsTab,
@@ -343,6 +344,11 @@ describe("renderGeneralSettingsTab() reader view location", () => {
     installObsidianDomPolyfills();
     document.body.empty();
     vi.restoreAllMocks();
+    Platform.isMobile = false;
+  });
+
+  afterEach(() => {
+    Platform.isMobile = false;
   });
 
   it("does not offer an external browser choice for reader or saved article locations", () => {
@@ -377,6 +383,63 @@ describe("renderGeneralSettingsTab() reader view location", () => {
         "inline",
       ]);
     }
+  });
+
+  it("offers only main and inline reader locations on mobile", () => {
+    Platform.isMobile = true;
+    const containerEl = createDiv();
+    document.body.appendChild(containerEl);
+    const plugin = {
+      app: { workspace: { revealLeaf: vi.fn(async () => {}) } },
+      settings: cloneSettings(),
+      saveSettings: vi.fn(async () => {}),
+      getActiveDashboardView: vi.fn(async () => null),
+      proxyCheckStore: new ProxyCheckStore(),
+      importPortableDataBundleFromFile: vi.fn(async () => {}),
+      exportPortableDataBundle: vi.fn(async () => {}),
+      applyFeedLimitsToAllFeeds: vi.fn(async () => {}),
+      refreshFeeds: vi.fn(async () => {}),
+      settingTab: null,
+    } as unknown as GeneralSettingsPlugin;
+
+    renderGeneralSettingsTab(containerEl, plugin);
+
+    const options = Array.from(
+      getSettingByName(
+        containerEl,
+        "Reader view location",
+      ).querySelectorAll<HTMLOptionElement>("option"),
+    ).map((option) => option.value);
+    expect(options).toEqual(["main", "inline"]);
+  });
+
+  it("shows main on mobile for a saved sidebar location without overwriting it", () => {
+    Platform.isMobile = true;
+    const containerEl = createDiv();
+    document.body.appendChild(containerEl);
+    const settings = cloneSettings();
+    settings.readerViewLocation = "right-sidebar";
+    const plugin = {
+      app: { workspace: { revealLeaf: vi.fn(async () => {}) } },
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      getActiveDashboardView: vi.fn(async () => null),
+      proxyCheckStore: new ProxyCheckStore(),
+      importPortableDataBundleFromFile: vi.fn(async () => {}),
+      exportPortableDataBundle: vi.fn(async () => {}),
+      applyFeedLimitsToAllFeeds: vi.fn(async () => {}),
+      refreshFeeds: vi.fn(async () => {}),
+      settingTab: null,
+    } as unknown as GeneralSettingsPlugin;
+
+    renderGeneralSettingsTab(containerEl, plugin);
+
+    expect(
+      getSettingByName(containerEl, "Reader view location").querySelector(
+        "select",
+      )?.value,
+    ).toBe("main");
+    expect(settings.readerViewLocation).toBe("right-sidebar");
   });
 });
 

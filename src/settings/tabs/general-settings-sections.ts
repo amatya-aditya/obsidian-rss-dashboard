@@ -92,19 +92,28 @@ function renderViewSettings(
   new Setting(containerEl)
     .setName("Reader view location")
     .setDesc("Choose where to open articles/media when clicked")
-    .addDropdown((dropdown) =>
+    .addDropdown((dropdown) => {
+      dropdown.addOption("main", "Main view (split)");
+      if (!Platform.isMobile) {
+        dropdown
+          .addOption("right-sidebar", "Right sidebar")
+          .addOption("left-sidebar", "Left sidebar");
+      }
       dropdown
-        .addOption("main", "Main view (split)")
-        .addOption("right-sidebar", "Right sidebar")
-        .addOption("left-sidebar", "Left sidebar")
         .addOption("inline", "Inline (inside dashboard)")
-        .setValue(plugin.settings.readerViewLocation || "main")
+        .setValue(
+          Platform.isMobile &&
+            (plugin.settings.readerViewLocation === "left-sidebar" ||
+              plugin.settings.readerViewLocation === "right-sidebar")
+            ? "main"
+            : plugin.settings.readerViewLocation || "main",
+        )
         .onChange(async (value: string) => {
           plugin.settings.readerViewLocation =
             value as import("../../types/types").ViewLocation;
           await plugin.saveSettings();
-        }),
-    );
+        });
+    });
 
   new Setting(containerEl)
     .setName("Saved article open location")
@@ -449,7 +458,7 @@ function renderMobileNavigationSettings(
   new Setting(containerEl)
     .setName("Swipe between panels")
     .setDesc(
-      "Swipe right to open the sidebar and left to return to the article, and swipe right in the reader to go back to the dashboard. This turns off Obsidian's own swipe gestures, such as swipe-to-open-sidebar, inside this plugin's views and relies on Obsidian internals, so an Obsidian update could change it. It does not apply when the reader opens in the left or right sidebar.",
+      "Swipe right to open the sidebar and left to return to the article, and swipe right in the reader to go back to the dashboard. This turns off Obsidian's own swipe gestures, such as swipe-to-open-sidebar, inside this plugin's views and relies on Obsidian internals, so an Obsidian update could change it. If a sidebar reader location is saved from desktop use, mobile opens articles in main view instead.",
     )
     .addToggle((toggle) =>
       toggle

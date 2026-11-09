@@ -98,7 +98,7 @@ describe("Swipe between panels setting", () => {
       ".setting-item-description",
     )?.textContent;
     expect(desc).toContain("Obsidian internals");
-    expect(desc).toContain("left or right sidebar");
+    expect(desc).toContain("mobile opens articles in main view instead");
 
     const toggle = setting?.querySelector(
       'input[type="checkbox"]',
