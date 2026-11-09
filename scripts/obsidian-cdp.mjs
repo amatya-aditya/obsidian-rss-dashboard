@@ -67,6 +67,7 @@ const STEP_NAMES = [
   "target",
   "settings",
   "key",
+  "click",
   "ax",
   "axquery",
 ];
@@ -141,6 +142,10 @@ Batch steps (one per line in a repl script):
                      --expect-vault.
   @key <key> [n]     Press a real key n times: Tab, Shift+Tab, Enter, Escape,
                      Shift+F10, ArrowDown, t, \`, and so on.
+  @click [button] <selector>
+                     Send a real mouse click to the visible center of a CSS
+                     selector (button: left, middle, or right; default left).
+                     Needs --profile and --expect-vault.
   @ax <selector>     Print the accessibility node (role, name, state) of the
                      first element matching <selector>.
   @axquery <role> <selector>
@@ -617,7 +622,8 @@ export function summarizeAxQuery(nodes) {
  * Reads a batch script into steps. Each step starts on a line beginning with
  * `@`: `@eval` (with an inline expression or a multi-line body up to the next
  * `@` line), `@shot <path>`, `@wait <ms>`, `@target <title>`, `@settings`,
- * `@vault`, `@key <key> [count]`, `@ax <selector>`, or `@axquery <role> <selector>`.
+ * `@vault`, `@key <key> [count]`, `@click [button] <selector>`,
+ * `@ax <selector>`, or `@axquery <role> <selector>`.
  * Blank lines between steps are ignored. Exported for unit tests.
  */
 export function parseBatch(text) {
@@ -714,6 +720,26 @@ export function parseBatch(text) {
         throw new CdpError(`Line ${stepLine}: ${errorMessage(error)}`);
       }
       steps.push({ kind: "key", key, spec, count });
+    } else if (name === "click") {
+      let button = "left";
+      let selector = inline.trim();
+      const buttonPrefix = /^(left|middle|right)[ \t]+([\s\S]+)$/.exec(
+        selector,
+      );
+      if (buttonPrefix) {
+        button = buttonPrefix[1];
+        selector = buttonPrefix[2].trim();
+      } else if (/^(left|middle|right)$/.test(selector)) {
+        throw new CdpError(
+          `Line ${stepLine}: @click needs a CSS selector after the mouse button.`,
+        );
+      }
+      if (selector === "") {
+        throw new CdpError(
+          `Line ${stepLine}: @click needs a CSS selector, optionally preceded by left, middle, or right.`,
+        );
+      }
+      steps.push({ kind: "click", button, selector });
     } else if (name === "ax") {
       if (inline.trim() === "") {
         throw new CdpError(`Line ${stepLine}: @ax needs a CSS selector.`);
@@ -1382,6 +1408,72 @@ async function pressKey(connection, key) {
   await connection.send("Input.dispatchKeyEvent", { type: "keyUp", ...base });
 }
 
+/** Resolves a visible selector to the center of its bounds in CSS viewport pixels. */
+async function clickPoint(connection, selector) {
+  const expression = `(() => {
+    const selector = ${JSON.stringify(selector)};
+    const element = document.querySelector(selector);
+    if (!element) return { error: "No element matches " + selector + "." };
+    element.scrollIntoView({ block: "center", inline: "center" });
+    for (let node = element; node instanceof Element; node = node.parentElement) {
+      const style = window.getComputedStyle(node);
+      if (style.display === "none" || style.visibility === "hidden" || style.opacity === "0") {
+        return { error: "Element is not visible: " + selector + "." };
+      }
+    }
+    const rect = element.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) {
+      return { error: "Element has no visible bounds: " + selector + "." };
+    }
+    const x = Math.max(0, Math.min(window.innerWidth - 1, rect.left + rect.width / 2));
+    const y = Math.max(0, Math.min(window.innerHeight - 1, rect.top + rect.height / 2));
+    const hit = document.elementFromPoint(x, y);
+    if (!hit || (hit !== element && !element.contains(hit))) {
+      return { error: "Element is covered at its center: " + selector + "." };
+    }
+    return { x, y };
+  })()`;
+  const result = await evaluate(connection, expression);
+  if (result?.value?.error) throw new CdpError(result.value.error);
+  if (
+    !Number.isFinite(result?.value?.x) ||
+    !Number.isFinite(result?.value?.y)
+  ) {
+    throw new CdpError(`Could not resolve a click point for ${selector}.`);
+  }
+  return result.value;
+}
+
+/** Sends a physical mouse-button press and release through Chromium's input pipeline. */
+export async function clickElement(connection, selector, button) {
+  const point = await clickPoint(connection, selector);
+  const buttons = { left: 1, middle: 4, right: 2 }[button];
+  await connection.send("Input.dispatchMouseEvent", {
+    type: "mouseMoved",
+    x: point.x,
+    y: point.y,
+    button: "none",
+    buttons: 0,
+  });
+  await connection.send("Input.dispatchMouseEvent", {
+    type: "mousePressed",
+    x: point.x,
+    y: point.y,
+    button,
+    buttons,
+    clickCount: 1,
+  });
+  await connection.send("Input.dispatchMouseEvent", {
+    type: "mouseReleased",
+    x: point.x,
+    y: point.y,
+    button,
+    buttons: 0,
+    clickCount: 1,
+  });
+  return point;
+}
+
 const axEnabled = new WeakSet();
 
 /** Resolves a CSS selector to a DOM node id, enabling the domains once. */
@@ -1583,7 +1675,16 @@ async function runBatch(options, initialConnection, steps) {
   try {
     for (const step of steps) {
       if (step.kind === "target") {
+        const clickGuard = steps.some(
+          (candidate) => candidate.kind === "click",
+        );
         const next = await openTarget(options.host, options.ports, step.title, {
+          ...(clickGuard
+            ? {
+                expectVault: options.expectVault,
+                pinnedPort: Boolean(options.profile),
+              }
+            : {}),
           urlPrefix: options.urlPrefix,
         });
         connection.close();
@@ -1619,6 +1720,15 @@ async function runBatch(options, initialConnection, steps) {
         console.log(
           `key ${step.spec}${step.count > 1 ? ` x${step.count}` : ""}`,
         );
+      } else if (step.kind === "click") {
+        const point = await clickElement(
+          connection,
+          step.selector,
+          step.button,
+        );
+        console.log(
+          `click ${step.button} ${step.selector} @ ${point.x},${point.y} CSS px`,
+        );
       } else if (step.kind === "ax") {
         console.log(
           JSON.stringify(await readAxNode(connection, step.selector), null, 2),
@@ -1647,6 +1757,20 @@ function assertCompanionGuard(options, pinnedPort) {
     pinned: pinnedPort,
   });
   if (refusal) throw new CdpError(refusal.message);
+}
+
+/** Refuses mouse input unless the target is pinned to the expected vault. */
+export function assertClickGuard(options, pinnedPort) {
+  if (normalizeVaultPath(options.expectVault) === undefined) {
+    throw new CdpError(
+      "Refusing @click: pass --expect-vault so the target can be matched to the vault you meant.",
+    );
+  }
+  if (!pinnedPort) {
+    throw new CdpError(
+      "Refusing @click: pass --profile so the port is pinned to this session's own Obsidian.",
+    );
+  }
 }
 
 /** Refuses prepare-vault before any side effect unless it can only touch our windows. */
@@ -1814,6 +1938,9 @@ async function main() {
     steps.some((step) => step.kind === "settings" || step.kind === "vault")
   ) {
     assertCompanionGuard(options, pinnedPort);
+  }
+  if (steps.some((step) => step.kind === "click")) {
+    assertClickGuard(options, pinnedPort);
   }
   if (options.command === "prepare-vault") {
     assertPrepareVaultGuard(options, pinnedPort);

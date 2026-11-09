@@ -313,7 +313,7 @@ drifts between them. Each step starts with `@`: `@eval` (an inline expression,
 or a multi-line body up to the next `@` line), `@shot <path>`, `@wait <ms>`,
 `@target <text>` (switch to another window, such as the settings window, and
 keep going), or the keyboard and accessibility-tree steps described
-[below](#keyboard-and-accessibility-tree-steps). For example, open the dashboard, wait for it to finish rendering,
+[below](#mouse-keyboard-and-accessibility-tree-steps). For example, open the dashboard, wait for it to finish rendering,
 read the first card previews, and screenshot:
 
 ```text
@@ -338,16 +338,17 @@ Array.from(document.querySelectorAll(".rss-dashboard-card-preview-region"))
 @shot dashboard.png
 ```
 
-### Keyboard and accessibility-tree steps
+### Mouse, keyboard, and accessibility-tree steps
 
-Three more steps check what a keyboard or screen-reader user meets, which DOM
-reads and synthetic events can miss:
+These steps check real pointer and keyboard input and what a screen-reader user
+meets, which DOM reads and synthetic events can miss:
 
-| Step                         | Effect                                                                                                                                                                      |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@key <key> [count]`         | Presses a real key through the browser's input pipeline, `count` times. Examples: `Tab`, `Shift+Tab`, `Enter`, `Escape`, `Space`, `ArrowDown`, `Shift+F10`, `t`, `Shift+s`. |
-| `@ax <selector>`             | Prints the accessibility node of the first matching element: role, name, `ignored`, and properties such as `level`, `checked` or `expanded`.                                |
-| `@axquery <role> <selector>` | Prints the exposed nodes with that role inside the first matching element, with a count. Ignored nodes are left out.                                                        |
+| Step                         | Effect                                                                                                                                                                                                                                         |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@click [button] <selector>` | Sends a real mouse click to the visible center of the first matching element. Buttons are `left` (default), `middle`, and `right` (`right` opens context menus); positions use CSS viewport pixels. Requires `--profile` and `--expect-vault`. |
+| `@key <key> [count]`         | Presses a real key through the browser's input pipeline, `count` times. Examples: `Tab`, `Shift+Tab`, `Enter`, `Escape`, `Space`, `ArrowDown`, `Shift+F10`, `t`, `Shift+s`.                                                                    |
+| `@ax <selector>`             | Prints the accessibility node of the first matching element: role, name, `ignored`, and properties such as `level`, `checked` or `expanded`.                                                                                                   |
+| `@axquery <role> <selector>` | Prints the exposed nodes with that role inside the first matching element, with a count. Ignored nodes are left out.                                                                                                                           |
 
 Use `@key` rather than `element.dispatchEvent(new KeyboardEvent(...))` for
 focus behavior. A synthetic event does not move focus on Tab, does not activate
@@ -522,10 +523,11 @@ it again after a restart. `--url-prefix` (or `CDP_URL_PREFIX`) replaces the
 `eval`, `shot`, `repl`, and `--expect-vault`.
 
 Reach for full computer control (a mouse-and-keyboard driver) instead of this
-route only when the behaviour needs real input or native chrome — a drag, a
-native dialog, or pixel-level layout. Reading the DOM, clicking, and
-screenshotting are cheaper and repeatable over CDP, which is why this is the
-default for automated checks.
+route for drags, native chrome or dialogs, and pixel-level layout. CDP handles
+DOM reads, selector-based clicks, keyboard input, and screenshots, which keeps
+those checks repeatable. Every `@click` batch must pin the session with
+`--profile` and name its vault with `--expect-vault`; `@target` steps in that
+batch also verify vault ownership.
 
 ## Simulating Sync
 
