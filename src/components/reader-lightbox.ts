@@ -229,7 +229,6 @@ export class ReaderLightbox {
     this.fullImgEl = this.stageEl.createEl("img", {
       cls: "rss-reader-lightbox-img rss-reader-lightbox-full-img",
       attr: {
-        src: this.source.fullUrl,
         alt: this.source.altText,
         draggable: "false",
       },
@@ -252,6 +251,7 @@ export class ReaderLightbox {
       this.spinnerEl?.addClass("is-hidden");
       new Notice("Could not load full-size image. Displaying preview.");
       if (this.previewImgEl) {
+        this.previewImgEl.addClass("is-fallback");
         this.previewImgEl.removeClass("is-hidden");
       }
     };
@@ -262,6 +262,10 @@ export class ReaderLightbox {
       this.fullImgEl?.removeEventListener("load", onFullImageLoad);
       this.fullImgEl?.removeEventListener("error", onFullImageError);
     });
+
+    // Listen before assigning src so a fast or cached image cannot finish
+    // before the load/error handlers are attached.
+    this.fullImgEl.src = this.source.fullUrl;
 
     // 4. Caption if altText is present
     if (this.source.altText.trim()) {
