@@ -264,7 +264,7 @@ describe("Dashboard swipe navigation", () => {
     });
 
     it.each(["left-sidebar", "right-sidebar"])(
-      "does nothing after an open in the %s",
+      "re-opens the Main reader after an open with saved %s on mobile",
       async (location) => {
         await openWith(location);
         readerLeaves = [tab];
@@ -272,7 +272,8 @@ describe("Dashboard swipe navigation", () => {
         swipeOn(view.containerEl, -120);
         await flush();
 
-        expect(activate).not.toHaveBeenCalled();
+        expect(reveal).toHaveBeenCalledWith(tab);
+        expect(activate).toHaveBeenCalledWith(tab, { focus: true });
         expect(internals.inlineArticle).toBeNull();
       },
     );

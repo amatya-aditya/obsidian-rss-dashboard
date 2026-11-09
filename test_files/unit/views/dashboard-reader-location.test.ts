@@ -475,6 +475,34 @@ describe("Dashboard reader location", () => {
     });
   });
 
+  it("uses the main reader on mobile for a saved sidebar location", async () => {
+    Platform.isMobile = true;
+    const settings = cloneSettings();
+    const feed = makeFeed("https://example.com/feed", [{}]);
+    settings.feeds = [feed];
+    settings.readerViewLocation = "right-sidebar";
+    const mainLeaf = createReaderLeaf(new App(), "mobile-main");
+    const getLeaf = vi.fn(() => mainLeaf);
+    const getRightLeaf = vi.fn();
+    const { view } = await createDashboardView(settings, {
+      getLeavesOfType: vi.fn(() => []),
+      getLeaf,
+      getLeftLeaf: vi.fn(),
+      getRightLeaf,
+      revealLeaf: vi.fn(async () => {}),
+    });
+
+    await view.handleArticleClick(feed.items[0]);
+
+    expect(getLeaf).toHaveBeenCalledWith("tab");
+    expect(getRightLeaf).not.toHaveBeenCalled();
+    expect(mainLeaf.setViewState).toHaveBeenCalledWith({
+      type: "rss-reader-view",
+      active: true,
+    });
+    expect(settings.readerViewLocation).toBe("right-sidebar");
+  });
+
   it("reuses the reader leaf in the configured target location instead of the first existing reader leaf", async () => {
     const settings = cloneSettings();
     const feed = makeFeed("https://example.com/feed", [{}]);
