@@ -1178,8 +1178,28 @@ describe("EditFeedModal Save (characterization)", () => {
     expect(env.feed.items[0].guid).toBe("g11");
     expect(env.feed.items[9].guid).toBe("g2");
     expect(noticeMessages(debug)).toEqual([
-      "Feed updated and trimmed to 10 articles",
+      "Feed updated; kept protected articles and up to 10 unprotected articles",
     ]);
+  });
+
+  it("preserves unread articles when saving a lower per-feed limit", async () => {
+    const feedItems = items(12).map((item, index) => ({
+      ...item,
+      read: index !== 0,
+    }));
+    const env = openModal({
+      feed: { items: feedItems },
+      settings: { protectUnread: true },
+    });
+    setSelect(selectOf(env.modal, "Max items limit"), "10");
+
+    await save(env);
+
+    expect(env.feed.items).toHaveLength(11);
+    expect(env.feed.items.map((item) => item.guid)).toContain("g0");
+    expect(
+      env.feed.items.filter((item) => item.read).map((item) => item.guid),
+    ).toEqual(["g11", "g10", "g9", "g8", "g7", "g6", "g5", "g4", "g3", "g2"]);
   });
 
   it("keeps every article and says the feed was updated when under the limit or unlimited", async () => {

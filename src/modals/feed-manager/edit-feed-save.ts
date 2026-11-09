@@ -13,7 +13,7 @@ import {
   removeTagsFromItemsByName,
 } from "../../services/tag-applier";
 import { resolveTagObjects } from "../../utils/tag-resolver";
-import { getEffectiveDateMs } from "../../services/feed-parser/feed-retention.js";
+import { applyFeedRetentionLimits } from "../../services/feed-parser/feed-retention.js";
 
 /**
  * The modal state the Save action reads. The modal builds it per call with
@@ -174,13 +174,26 @@ function trimItemsToLimit(
   newMaxItemsLimit: number,
 ): void {
   if (newMaxItemsLimit > 0 && host.feed.items.length > newMaxItemsLimit) {
-    host.feed.items.sort(
-      (a, b) =>
-        getEffectiveDateMs(b, host.plugin.settings.useFirstSeenDateFallback) -
-        getEffectiveDateMs(a, host.plugin.settings.useFirstSeenDateFallback),
+    const retentionLimitedFeed = applyFeedRetentionLimits(
+      {
+        ...host.feed,
+        autoDeleteDuration: 0,
+        maxItemsLimit: newMaxItemsLimit,
+      },
+      {
+        protections: {
+          protectStarred: host.plugin.settings.protectStarred,
+          protectSaved: host.plugin.settings.protectSaved,
+          protectTagged: host.plugin.settings.protectTagged,
+          protectUnread: host.plugin.settings.protectUnread,
+        },
+        useFirstSeenDateFallback: host.plugin.settings.useFirstSeenDateFallback,
+      },
     );
-    host.feed.items = host.feed.items.slice(0, newMaxItemsLimit);
-    new Notice(`Feed updated and trimmed to ${newMaxItemsLimit} articles`);
+    host.feed.items = retentionLimitedFeed.items;
+    new Notice(
+      `Feed updated; kept protected articles and up to ${newMaxItemsLimit} unprotected articles`,
+    );
   } else {
     new Notice("Feed updated");
   }
