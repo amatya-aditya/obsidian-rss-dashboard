@@ -6,9 +6,11 @@ import {
   assessCompanionTarget,
   assessVaultOwnership,
   assertWebSocket,
+  assertClickGuard,
   buildPrepareScript,
   choosePort,
   connect,
+  clickElement,
   isObsidianVaultTarget,
   normalizeVaultPath,
   parseArgs,
@@ -1003,6 +1005,21 @@ describe("obsidian-cdp parseBatch", () => {
     ]);
   });
 
+  it("reads selector clicks and an optional mouse button", () => {
+    expect(parseBatch("@click .feed-row\n@click right .feed-row")).toEqual([
+      { kind: "click", button: "left", selector: ".feed-row" },
+      { kind: "click", button: "right", selector: ".feed-row" },
+    ]);
+  });
+
+  it("rejects a click button without a selector", () => {
+    for (const button of ["left", "middle", "right"]) {
+      expect(() => parseBatch(`@click ${button}`)).toThrow(
+        /@click needs a CSS selector/,
+      );
+    }
+  });
+
   it("reads ax and axquery steps, keeping spaces in the selector", () => {
     const text = [
       '@ax .workspace-leaf-content[data-type="rss-dashboard-view"] .rss-dashboard-feed',
@@ -1025,6 +1042,72 @@ describe("obsidian-cdp parseBatch", () => {
     expect(() => parseBatch("@key Hyper+Tab")).toThrow(CdpError);
     expect(() => parseBatch("@ax")).toThrow(CdpError);
     expect(() => parseBatch("@axquery heading")).toThrow(CdpError);
+  });
+});
+
+describe("obsidian-cdp click guard", () => {
+  it("requires a vault expectation and a pinned profile", () => {
+    expect(() =>
+      assertClickGuard({ expectVault: FIXTURE_VAULT }, false),
+    ).toThrow(/pass --profile/);
+    expect(() => assertClickGuard({ expectVault: "" }, true)).toThrow(
+      /pass --expect-vault/,
+    );
+    expect(() =>
+      assertClickGuard({ expectVault: FIXTURE_VAULT }, true),
+    ).not.toThrow();
+  });
+});
+
+describe("obsidian-cdp click input", () => {
+  it("dispatches a right-button click at the selector's resolved point", async () => {
+    const sent: Array<{ method: string; params?: Record<string, unknown> }> =
+      [];
+    const connection = {
+      send: async (method: string, params?: Record<string, unknown>) => {
+        sent.push({ method, params });
+        return method === "Runtime.evaluate"
+          ? { result: { type: "object", value: { x: 24, y: 42 } } }
+          : {};
+      },
+    };
+
+    await clickElement(connection, ".feed-row", "right");
+
+    expect(sent.map(({ method }) => method)).toEqual([
+      "Runtime.evaluate",
+      "Input.dispatchMouseEvent",
+      "Input.dispatchMouseEvent",
+      "Input.dispatchMouseEvent",
+    ]);
+    expect(sent[0].params?.expression).toContain(
+      'const selector = ".feed-row";',
+    );
+    expect(sent.slice(1).map(({ params }) => params)).toEqual([
+      {
+        type: "mouseMoved",
+        x: 24,
+        y: 42,
+        button: "none",
+        buttons: 0,
+      },
+      {
+        type: "mousePressed",
+        x: 24,
+        y: 42,
+        button: "right",
+        buttons: 2,
+        clickCount: 1,
+      },
+      {
+        type: "mouseReleased",
+        x: 24,
+        y: 42,
+        button: "right",
+        buttons: 0,
+        clickCount: 1,
+      },
+    ]);
   });
 });
 
