@@ -43,15 +43,16 @@ be shared when their scope is explicit.
 
 ## Discover and Reader
 
-| Stylesheet                     | Owner and scope                                    |
-| ------------------------------ | -------------------------------------------------- |
-| `discover.css`                 | Discover view cards and content.                   |
-| `discover-sidebar.css`         | Discover sidebar structure.                        |
-| `discover-sidebar-filters.css` | Discover sidebar filters.                          |
-| `discover-sidebar-nav.css`     | Discover sidebar navigation.                       |
-| `kagi-smallweb.css`            | Kagi Small Web view.                               |
-| `reader.css`                   | Reader content, toolbar, and article presentation. |
-| `reader-lightbox.css`          | Reader image lightbox.                             |
+| Stylesheet                     | Owner and scope                                       |
+| ------------------------------ | ----------------------------------------------------- |
+| `discover.css`                 | Discover view cards and content.                      |
+| `discover-sidebar.css`         | Discover sidebar structure.                           |
+| `discover-sidebar-filters.css` | Discover sidebar filters.                             |
+| `discover-sidebar-nav.css`     | Discover sidebar navigation.                          |
+| `kagi-smallweb.css`            | Kagi Small Web view.                                  |
+| `reader.css`                   | Reader content, toolbar, and article presentation.    |
+| `inline-reader-return.css`     | Inline reader return transition and dashboard reveal. |
+| `reader-lightbox.css`          | Reader image lightbox.                                |
 
 ## Media
 
