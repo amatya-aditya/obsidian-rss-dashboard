@@ -23,6 +23,13 @@
  */
 
 @media (prefers-reduced-motion: reduce) {
+  /* reader.css */
+  .workspace-leaf.rss-reader-returning {
+    animation-duration: 0.01ms;
+    animation-delay: 0s;
+    animation-iteration-count: 1;
+  }
+
   /* layout.css */
   .rss-dashboard-sidebar-resize-handle::before {
     transition-duration: 0.01ms;

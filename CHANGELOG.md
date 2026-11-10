@@ -7,6 +7,7 @@
 
 ### Fixes
 
+- Returning to the dashboard from the Main reader on Android now uses a visible rightward transition while keeping the reader tab available. [GH Issue #1780](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1780)
 - The image lightbox now shows a full-size image even when it loads immediately, and keeps the available preview sharp if the full-size image cannot load. [GH Issue #1773](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1773)
 - Opening an article whose link is a PDF, an archive, an image or another file, or a page too large to read, in the reader no longer freezes or crashes the plugin while it fetches the live version. Such a link is no longer parsed: the reader keeps the RSS content, says the linked file isn't an article, and offers **Open in browser**, and it does not try again on the next open. The cover-image and article-saving fetches skip such links too. [GH Issue #1766](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1766)
 - A feed that appears twice in your settings is no longer written twice when RSS Dashboard merges a synced `data.json`; the merge now keeps the first copy and drops the repeat, which otherwise showed as a second sidebar row that never refreshed. [GH Issue #1763](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1763)

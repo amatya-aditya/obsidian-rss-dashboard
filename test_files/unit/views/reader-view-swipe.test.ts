@@ -25,6 +25,7 @@ describe("ReaderView swipe back to the dashboard", () => {
   };
   let leaf: { app: unknown; detach: ReturnType<typeof vi.fn> };
   let view: ReaderView;
+  let readerLeafRoot: HTMLElement;
 
   async function openView(enabled = true): Promise<void> {
     settings = structuredClone(DEFAULT_SETTINGS);
@@ -37,8 +38,12 @@ describe("ReaderView swipe back to the dashboard", () => {
       vi.fn(),
     );
     // The stub ItemView has no contentEl; the real one provides it.
-    (view as unknown as { contentEl: HTMLElement }).contentEl = createDiv();
-    document.body.appendChild(view.containerEl);
+    const contentEl = createDiv();
+    (view as unknown as { contentEl: HTMLElement }).contentEl = contentEl;
+    readerLeafRoot = createDiv({ cls: "workspace-leaf" });
+    view.containerEl.appendChild(contentEl);
+    readerLeafRoot.appendChild(view.containerEl);
+    document.body.appendChild(readerLeafRoot);
     await view.onOpen();
   }
 
@@ -78,6 +83,9 @@ describe("ReaderView swipe back to the dashboard", () => {
     view.setReturnLeaf(dashboardLeaf as never);
 
     swipeOn(view.containerEl, 120);
+    expect(readerLeafRoot.classList.contains("rss-reader-return-overlay")).toBe(
+      true,
+    );
     await flush();
 
     expect(workspace.revealLeaf).toHaveBeenCalledWith(dashboardLeaf);
@@ -85,6 +93,18 @@ describe("ReaderView swipe back to the dashboard", () => {
       focus: true,
     });
     expect(leaf.detach).not.toHaveBeenCalled();
+    expect(readerLeafRoot.classList.contains("rss-reader-returning")).toBe(
+      true,
+    );
+
+    readerLeafRoot.dispatchEvent(new Event("animationend", { bubbles: true }));
+
+    expect(readerLeafRoot.classList.contains("rss-reader-return-overlay")).toBe(
+      false,
+    );
+    expect(readerLeafRoot.classList.contains("rss-reader-returning")).toBe(
+      false,
+    );
   });
 
   it("falls back to the first dashboard when the return leaf is gone", async () => {
@@ -94,6 +114,44 @@ describe("ReaderView swipe back to the dashboard", () => {
     expect(workspace.setActiveLeaf).toHaveBeenCalledWith(otherDashboardLeaf, {
       focus: true,
     });
+  });
+
+  it("cleans up the swipe-return overlay if the reader closes mid-transition", async () => {
+    swipeOn(view.containerEl, 120);
+    await flush();
+
+    expect(readerLeafRoot.classList.contains("rss-reader-returning")).toBe(
+      true,
+    );
+
+    await view.onClose();
+
+    expect(readerLeafRoot.classList.contains("rss-reader-return-overlay")).toBe(
+      false,
+    );
+    expect(readerLeafRoot.classList.contains("rss-reader-returning")).toBe(
+      false,
+    );
+  });
+
+  it("does not restore the overlay when the reader closes before the dashboard is revealed", async () => {
+    let finishReveal = () => {};
+    const pendingReveal = new Promise<void>((resolve) => {
+      finishReveal = resolve;
+    });
+    workspace.revealLeaf = vi.fn(() => pendingReveal);
+
+    swipeOn(view.containerEl, 120);
+    await view.onClose();
+    finishReveal();
+    await flush();
+
+    expect(readerLeafRoot.classList.contains("rss-reader-return-overlay")).toBe(
+      false,
+    );
+    expect(readerLeafRoot.classList.contains("rss-reader-returning")).toBe(
+      false,
+    );
   });
 
   it("marks the reader so Obsidian skips its own swipe handling", () => {
