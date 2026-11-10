@@ -22,8 +22,6 @@
  *   - infinite loading spinner: the third rule
  */
 
-  /* reader.css and inline-reader-return.css */
-   
 @media (prefers-reduced-motion: reduce) {
   /* reader.css and inline-reader-return.css */
   .workspace-leaf.rss-reader-returning,
