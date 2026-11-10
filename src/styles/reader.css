@@ -10,6 +10,21 @@
   --rss-reader-max-width: none;
   --rss-reader-font-family: inherit;
 }
+.workspace-leaf.rss-reader-return-overlay {
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+.workspace-leaf.rss-reader-returning {
+  animation: rss-reader-swipe-return 0.18s ease-out both;
+  pointer-events: none;
+}
+@keyframes rss-reader-swipe-return {
+  to {
+    transform: translateX(100%);
+  }
+}
 .rss-reader-header {
   display: flex;
   align-items: center;
