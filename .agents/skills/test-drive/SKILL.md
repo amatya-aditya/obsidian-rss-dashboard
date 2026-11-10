@@ -35,6 +35,9 @@ action → expected result → route.
 Read `docs/development/test_coverage/test-execution.md` in full for the routes,
 sandbox setup, evidence rules, statuses, and report format, and follow it. With
 no write authority there is no 🔧 Fixed; a failure is 🔴 Open or ❓ Parked.
+Before handing off an in-scope selected-feed refresh solely because of a
+transient DNS or network error, follow **Before a feed-refresh hand-off** in
+`test-execution.md`.
 
 ## 4. Report as a change request
 

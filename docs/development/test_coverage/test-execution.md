@@ -11,8 +11,12 @@ For each item choose the cheapest route that exercises the real thing:
 - **Script/CLI**: commands, a REPL snippet, reading a written file.
 - **Browser pane**: web UIs and dev servers.
 - **CDP**: a native Electron app already running with a debug port (Obsidian):
-  read the DOM, click, and screenshot through the repo's CDP helper
-  (`scripts/obsidian-cdp.mjs`; see `docs/development/fixture-vault.md`). Probe
+  read the DOM and screenshot through the repo's CDP helper
+  (`scripts/obsidian-cdp.mjs`; see `docs/development/fixture-vault.md`). Use its
+  `@click [left|middle|right] <selector>` step when a real mouse event is
+  needed; it clicks the visible center in CSS viewport pixels. Every batch with
+  `@click` must pass both `--profile` and `--expect-vault`, and clicks after
+  `@target` recheck that the target belongs to the expected vault. Probe
   the common ports 9222, 9333, 9334; launch the app with
   `--remote-debugging-port=<port>` and a disposable `--user-data-dir`.
   Several sessions can share the machine, so guard against attaching to
@@ -24,7 +28,7 @@ For each item choose the cheapest route that exercises the real thing:
   refusal means another session owns that window: never attach to it, close
   it, or kill it. Kill only your own instance, matched by its
   `--user-data-dir`, never Obsidian as a whole.
-- **Computer use**: real mouse/keyboard, drag, native chrome, or OS dialogs.
+- **Computer use**: drags, native chrome, OS dialogs, or pixel-level layout.
   Needs a computer-control capability (Codex `computer`, Claude computer use);
   request `request_access` for every app up front.
 - **A second synced device**: not out of reach wholesale. Arrival orders are
@@ -92,6 +96,18 @@ Work top to bottom. Each item ends in exactly one terminal status:
 A read-only run has no 🔧: a failure is 🔴 or ❓. A run with write authority
 (`/test-drive-and-fix`) may use all five. A read-only run may also sit an item
 out as not applicable to the change; say why.
+
+### Before a feed-refresh hand-off
+
+When a scenario includes manually refreshing one selected feed, and a transient
+DNS or network error is the only reason to hand it off, try that feed's normal
+refresh once in the disposable vault. Record the selected feed and its existing
+unread articles first. After refresh settles, reload and inspect the feed's
+persisted state in the active storage mode; confirm the feed remains present and
+the previously unread articles are still unread. Capture the result as fresh
+evidence. If the attempt fails again, report that observed result. This check
+does not apply to authentication failures, repeated refresh loops, or cases
+where manual refresh is outside the scenario.
 
 **Evidence** is what you observed, not what you expected: a screenshot for
 visual items, the exact text or output for the rest. Take a fresh screenshot

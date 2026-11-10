@@ -89,6 +89,76 @@ describe("ReaderLightbox", () => {
     lightbox.close();
   });
 
+  it("shows the full image when it loads during source assignment", () => {
+    const fullUrl = "https://example.com/full.jpg";
+    const originalSrcSetter = Object.getOwnPropertyDescriptor(
+      HTMLImageElement.prototype,
+      "src",
+    )?.set;
+    if (!originalSrcSetter)
+      throw new Error("HTMLImageElement.src has no setter");
+    vi.spyOn(HTMLImageElement.prototype, "src", "set").mockImplementation(
+      function (this: HTMLImageElement, value: string) {
+        originalSrcSetter.call(this, value);
+        if (value === fullUrl) {
+          this.dispatchEvent(new Event("load"));
+        }
+      },
+    );
+
+    const lightbox = new ReaderLightbox({
+      source: {
+        previewUrl: "https://example.com/thumb.jpg",
+        fullUrl,
+        altText: "",
+      },
+      doc: document,
+    });
+
+    lightbox.open();
+
+    const fullImg = document.body.querySelector<HTMLImageElement>(
+      ".rss-reader-lightbox-full-img",
+    );
+    const previewImg = document.body.querySelector<HTMLImageElement>(
+      ".rss-reader-lightbox-preview-img",
+    );
+    const spinner = document.body.querySelector(".rss-reader-lightbox-spinner");
+
+    expect(fullImg?.classList.contains("is-loaded")).toBe(true);
+    expect(previewImg?.classList.contains("is-hidden")).toBe(true);
+    expect(spinner?.classList.contains("is-hidden")).toBe(true);
+
+    lightbox.close();
+  });
+
+  it("keeps the preview sharp when the full image fails to load", () => {
+    const lightbox = new ReaderLightbox({
+      source: {
+        previewUrl: "https://example.com/thumb.jpg",
+        fullUrl: "https://example.com/full.jpg",
+        altText: "",
+      },
+      doc: document,
+    });
+
+    lightbox.open();
+    const previewImg = document.body.querySelector<HTMLImageElement>(
+      ".rss-reader-lightbox-preview-img",
+    );
+    const spinner = document.body.querySelector(".rss-reader-lightbox-spinner");
+
+    document.body
+      .querySelector(".rss-reader-lightbox-full-img")
+      ?.dispatchEvent(new Event("error"));
+
+    expect(previewImg?.classList.contains("is-hidden")).toBe(false);
+    expect(previewImg?.classList.contains("is-fallback")).toBe(true);
+    expect(spinner?.classList.contains("is-hidden")).toBe(true);
+
+    lightbox.close();
+  });
+
   it("toggles zoom on double-click on stage", () => {
     const lightbox = new ReaderLightbox({
       source: {

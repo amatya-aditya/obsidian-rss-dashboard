@@ -145,6 +145,11 @@ body .rss-reader-lightbox-backdrop.rss-reader-lightbox-above-modal {
   transition: opacity 0.3s ease;
 }
 
+.rss-reader-lightbox-preview-img.is-fallback {
+  filter: none;
+  transform: none;
+}
+
 .rss-reader-lightbox-preview-img.is-hidden {
   opacity: 0;
   pointer-events: none;

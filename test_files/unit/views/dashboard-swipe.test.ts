@@ -32,6 +32,8 @@ interface Internals {
   mobileSidebarModal: MobileNavigationModal | null;
   inlineArticle: FeedItem | null;
   swipeNavigator: { sync(): void } | null;
+  renderInlineArticle(container: HTMLElement): void;
+  closeInlineArticle(): void;
   openSelectedArticle(article: FeedItem): Promise<void>;
   settings: RssDashboardSettings;
 }
@@ -264,7 +266,7 @@ describe("Dashboard swipe navigation", () => {
     });
 
     it.each(["left-sidebar", "right-sidebar"])(
-      "does nothing after an open in the %s",
+      "re-opens the Main reader after an open with saved %s on mobile",
       async (location) => {
         await openWith(location);
         readerLeaves = [tab];
@@ -272,28 +274,85 @@ describe("Dashboard swipe navigation", () => {
         swipeOn(view.containerEl, -120);
         await flush();
 
-        expect(activate).not.toHaveBeenCalled();
+        expect(reveal).toHaveBeenCalledWith(tab);
+        expect(activate).toHaveBeenCalledWith(tab, { focus: true });
         expect(internals.inlineArticle).toBeNull();
       },
     );
   });
 
   describe("inline reader", () => {
-    it("closes the open article and shows the list on a swipe right, without opening the sidebar", () => {
+    it("closes the article when a right swipe starts over the Inline reader", () => {
       const render = vi.mocked(view.render);
       internals.inlineArticle = article("a");
+      const layout = view.containerEl.createDiv({
+        cls: "rss-dashboard-layout",
+      });
+      const pane = layout.createDiv({
+        cls: "rss-dashboard-content rss-inline-reader-pane",
+      });
+      pane.createDiv({ cls: "inline-reader-header" });
+      pane.createDiv({ cls: "inline-reader-content" });
       render.mockClear();
 
-      swipeOn(view.containerEl, 120);
+      swipeOn(pane.querySelector(".inline-reader-content")!, 120);
 
-      expect((view as unknown as Internals).inlineArticle).toBeNull();
+      expect(internals.inlineArticle).toBeNull();
       expect(render).toHaveBeenCalledTimes(1);
       expect(internals.mobileSidebarModal).toBeNull();
+      const overlay = layout.querySelector<HTMLElement>(
+        ".rss-inline-reader-return-overlay",
+      );
+      expect(overlay).not.toBeNull();
+      overlay?.dispatchEvent(new Event("animationend", { bubbles: true }));
+    });
+
+    it("keeps the Inline article open and opens the sidebar for a swipe outside it", () => {
+      const openSidebar = vi.spyOn(view, "openMobileSidebar");
+      internals.inlineArticle = article("a");
+      const layout = view.containerEl.createDiv({
+        cls: "rss-dashboard-layout",
+      });
+      layout.createDiv({ cls: "rss-dashboard-content rss-inline-reader-pane" });
+      const dashboardSidebar = view.containerEl.createDiv({
+        cls: "rss-dashboard-sidebar",
+      });
+
+      swipeOn(dashboardSidebar, 120);
+
+      expect(internals.inlineArticle?.guid).toBe("a");
+      expect(openSidebar).toHaveBeenCalledOnce();
+    });
+
+    it("uses the animated return when the Inline back button is pressed", () => {
+      const render = vi.mocked(view.render);
+      internals.inlineArticle = article("a");
+      const layout = view.containerEl.createDiv({
+        cls: "rss-dashboard-layout",
+      });
+      const pane = layout.createDiv({ cls: "rss-dashboard-content" });
+      internals.renderInlineArticle(pane);
+      render.mockClear();
+
+      pane
+        .querySelector<HTMLButtonElement>('[data-rss-action="back"]')
+        ?.click();
+
+      expect(internals.inlineArticle).toBeNull();
+      expect(render).toHaveBeenCalledOnce();
+      const overlay = layout.querySelector<HTMLElement>(
+        ".rss-inline-reader-return-overlay",
+      );
+      expect(overlay).not.toBeNull();
+      overlay?.dispatchEvent(new Event("animationend", { bubbles: true }));
     });
 
     it("keeps the article when the swipe starts in a horizontally scrolling table", () => {
       internals.inlineArticle = article("a");
-      const table = view.containerEl.createDiv();
+      const pane = view.containerEl.createDiv({
+        cls: "rss-inline-reader-pane",
+      });
+      const table = pane.createDiv();
       setCssProps(table, { "overflow-x": "auto" });
       Object.defineProperty(table, "scrollWidth", { value: 900 });
       Object.defineProperty(table, "clientWidth", { value: 300 });

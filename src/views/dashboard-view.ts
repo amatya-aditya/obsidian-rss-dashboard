@@ -229,6 +229,10 @@ export class RssDashboardView extends ItemView {
   } | null = null;
   private inlineArticle: FeedItem | null = null;
   private swipeNavigator: SwipeNavigator | null = null;
+  private inlineSwipeOriginTrackingBound = false;
+  private swipeStartedInsideInlineReader = false;
+  private inlineReturnOverlay: HTMLElement | null = null;
+  private inlineReturnAnimationTimeout: number | null = null;
   /** The article most recently opened from this dashboard, for swipe-left. */
   private lastOpenedArticle: {
     article: FeedItem;
@@ -933,6 +937,7 @@ export class RssDashboardView extends ItemView {
   onOpen(): Promise<void> {
     this.listenForHotkeysInHostDocument();
     this.createArticleRenderer();
+    this.syncInlineSwipeOriginTracking();
 
     this.swipeNavigator = new SwipeNavigator(this.containerEl, {
       isEnabled: () => areSwipePanelsEnabled(this.settings),
@@ -1180,6 +1185,30 @@ export class RssDashboardView extends ItemView {
     }
   }
 
+  private syncInlineSwipeOriginTracking(): void {
+    if (
+      this.inlineSwipeOriginTrackingBound ||
+      !Platform.isMobile ||
+      !this.settings.display.swipeBetweenPanels
+    ) {
+      return;
+    }
+
+    this.registerDomEvent(this.containerEl, "touchstart", (event) => {
+      const target = event.target as HTMLElement | null;
+      this.swipeStartedInsideInlineReader = Boolean(
+        this.inlineArticle && target?.closest?.(".rss-inline-reader-pane"),
+      );
+    });
+    this.registerDomEvent(this.containerEl, "touchend", () => {
+      this.swipeStartedInsideInlineReader = false;
+    });
+    this.registerDomEvent(this.containerEl, "touchcancel", () => {
+      this.swipeStartedInsideInlineReader = false;
+    });
+    this.inlineSwipeOriginTrackingBound = true;
+  }
+
   /**
    * One polite live region in this view's own root, written by refresh
    * announcements (WCAG 2.2 4.1.3). It sits outside the re-rendered content,
@@ -1211,6 +1240,7 @@ export class RssDashboardView extends ItemView {
     this.isRenderInProgress = true;
 
     try {
+      this.syncInlineSwipeOriginTracking();
       this.swipeNavigator?.sync();
       this.syncCurrentFeedReference();
       this.syncDashboardMultiFiltersFromSettings();
@@ -1271,6 +1301,7 @@ export class RssDashboardView extends ItemView {
         inlineToolbarFocus = this.captureInlineToolbarFocus(contentContainer);
         contentContainer.empty();
       }
+      contentContainer.removeClass("rss-inline-reader-pane");
       // The content area is the dashboard's one `main` landmark (#826).
       markMainLandmark(contentContainer);
 
@@ -2927,11 +2958,12 @@ export class RssDashboardView extends ItemView {
    * returns to the last article.
    */
   private handleSwipe(direction: SwipeDirection): void {
+    const startedInsideInlineReader = this.swipeStartedInsideInlineReader;
+    this.swipeStartedInsideInlineReader = false;
+
     if (direction === "right") {
-      if (this.inlineArticle) {
-        // Same as the inline reader's back button.
-        this.inlineArticle = null;
-        void this.render();
+      if (this.inlineArticle && startedInsideInlineReader) {
+        this.closeInlineArticle();
         return;
       }
       this.openMobileSidebar();
@@ -2939,6 +2971,65 @@ export class RssDashboardView extends ItemView {
     }
     void this.reopenLastArticle();
   }
+
+  private closeInlineArticle(): void {
+    if (!this.inlineArticle || this.inlineReturnOverlay) return;
+
+    const contentContainer = this.containerEl.querySelector<HTMLElement>(
+      ".rss-dashboard-content.rss-inline-reader-pane",
+    );
+    const overlay = contentContainer?.cloneNode(true) as
+      HTMLElement | undefined;
+    const layout = contentContainer?.parentElement;
+
+    this.inlineArticle = null;
+    void this.render();
+
+    if (!overlay || !layout) return;
+
+    overlay.addClass("rss-inline-reader-return-overlay");
+    overlay.setAttribute("aria-hidden", "true");
+    overlay.setAttribute("inert", "");
+    overlay.removeAttribute("id");
+    overlay.querySelectorAll("[id]").forEach((element) => {
+      element.removeAttribute("id");
+    });
+
+    const dashboardContent = layout.querySelector<HTMLElement>(
+      ":scope > .rss-dashboard-content",
+    );
+    if (!dashboardContent) return;
+
+    dashboardContent.addClass("rss-inline-reader-return-container");
+    dashboardContent.appendChild(overlay);
+    this.inlineReturnOverlay = overlay;
+    overlay.addEventListener("animationend", this.finishInlineReturnAnimation);
+    this.inlineReturnAnimationTimeout = window.setTimeout(
+      this.finishInlineReturnAnimation,
+      240,
+    );
+  }
+
+  private readonly finishInlineReturnAnimation = (event?: Event): void => {
+    const overlay = this.inlineReturnOverlay;
+    if (!overlay || (event && event.target !== overlay)) return;
+
+    overlay.removeEventListener(
+      "animationend",
+      this.finishInlineReturnAnimation,
+    );
+    overlay.remove();
+    this.inlineReturnOverlay = null;
+
+    if (this.inlineReturnAnimationTimeout !== null) {
+      window.clearTimeout(this.inlineReturnAnimationTimeout);
+      this.inlineReturnAnimationTimeout = null;
+    }
+
+    this.containerEl
+      .querySelector<HTMLElement>(".rss-inline-reader-return-container")
+      ?.removeClass("rss-inline-reader-return-container");
+  };
 
   private async reopenLastArticle(): Promise<void> {
     const last = this.lastOpenedArticle;
@@ -4133,6 +4224,7 @@ export class RssDashboardView extends ItemView {
   async onClose(): Promise<void> {
     this.articleRenderer?.cancelPendingDisplay();
     clearViewReady(this.containerEl);
+    this.finishInlineReturnAnimation();
     this.closeMobileSidebarModal();
     this.swipeNavigator?.destroy();
     this.swipeNavigator = null;
@@ -4631,6 +4723,12 @@ export class RssDashboardView extends ItemView {
   private getReaderViewLocation(): ViewLocation {
     const location = this.settings.readerViewLocation;
     if (
+      Platform.isMobile &&
+      (location === "left-sidebar" || location === "right-sidebar")
+    ) {
+      return "main";
+    }
+    if (
       location === "left-sidebar" ||
       location === "right-sidebar" ||
       location === "inline"
@@ -4797,6 +4895,7 @@ export class RssDashboardView extends ItemView {
   }
 
   private renderInlineArticle(container: HTMLElement): void {
+    container.addClass("rss-inline-reader-pane");
     const header = container.createDiv({
       cls: "rss-reader-header inline-reader-header",
     });
@@ -4811,8 +4910,7 @@ export class RssDashboardView extends ItemView {
       icon: "arrow-left",
       action: "back",
       onClick: () => {
-        this.inlineArticle = null;
-        void this.render();
+        this.closeInlineArticle();
       },
     });
 
