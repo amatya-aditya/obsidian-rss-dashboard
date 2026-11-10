@@ -167,6 +167,7 @@ const STARRED_IMPORT_OPEN_IN_BROWSER_TEXT = "Open in browser";
 const STARRED_IMPORT_FETCH_FAILED_NOTICE = "Could not fetch article content.";
 
 export const RSS_READER_VIEW_TYPE = "rss-reader-view";
+const READER_SWIPE_RETURN_CLEANUP_DELAY_MS = 250;
 
 export class ReaderView extends ItemView {
   private currentItem: FeedItem | null = null;
@@ -220,6 +221,11 @@ export class ReaderView extends ItemView {
   private saveButton: HTMLElement | null = null;
   private returnLeaf: WorkspaceLeaf | null = null;
   private swipeNavigator: SwipeNavigator | null = null;
+  private swipeReturnAnimationListener:
+    ((event: AnimationEvent) => void) | null = null;
+  private swipeReturnAnimationElement: HTMLElement | null = null;
+  private swipeReturnAnimationTimeout: number | null = null;
+  private swipeReturnAnimationInProgress = false;
   private tagsDropdownCleanup: (() => void) | null = null;
   private tagsDropdownPortal: HTMLElement | null = null;
 
@@ -272,6 +278,59 @@ export class ReaderView extends ItemView {
     }
   }
 
+  private finishSwipeReturnAnimation(): void {
+    if (this.swipeReturnAnimationTimeout !== null) {
+      window.clearTimeout(this.swipeReturnAnimationTimeout);
+      this.swipeReturnAnimationTimeout = null;
+    }
+    if (this.swipeReturnAnimationListener && this.swipeReturnAnimationElement) {
+      this.swipeReturnAnimationElement.removeEventListener(
+        "animationend",
+        this.swipeReturnAnimationListener,
+      );
+      this.swipeReturnAnimationListener = null;
+    }
+    this.swipeReturnAnimationElement?.classList.remove(
+      "rss-reader-return-overlay",
+      "rss-reader-returning",
+    );
+    this.swipeReturnAnimationElement = null;
+    this.swipeReturnAnimationInProgress = false;
+  }
+
+  private async focusDashboardLeafWithSwipeAnimation(): Promise<void> {
+    if (this.swipeReturnAnimationInProgress || !this.getDashboardLeaf()) return;
+
+    this.swipeReturnAnimationInProgress = true;
+    this.swipeReturnAnimationElement =
+      this.containerEl.closest<HTMLElement>(".workspace-leaf") ??
+      this.containerEl;
+    this.swipeReturnAnimationElement.classList.add("rss-reader-return-overlay");
+    await this.focusDashboardLeaf();
+    if (
+      !this.swipeReturnAnimationInProgress ||
+      !this.swipeReturnAnimationElement
+    ) {
+      return;
+    }
+
+    const animationElement = this.swipeReturnAnimationElement;
+
+    this.swipeReturnAnimationListener = (event) => {
+      if (event.target !== animationElement) return;
+      this.finishSwipeReturnAnimation();
+    };
+    animationElement.addEventListener(
+      "animationend",
+      this.swipeReturnAnimationListener,
+    );
+    animationElement.classList.add("rss-reader-returning");
+    this.swipeReturnAnimationTimeout = window.setTimeout(
+      () => this.finishSwipeReturnAnimation(),
+      READER_SWIPE_RETURN_CLEANUP_DELAY_MS,
+    );
+  }
+
   /** Swipe back is a main-view gesture; a sidebar reader swallows the swipe but does not act on it (DEC-015). */
   private isInSidebar(): boolean {
     const root = this.leaf.getRoot?.();
@@ -287,7 +346,7 @@ export class ReaderView extends ItemView {
 
   private handleSwipe(direction: SwipeDirection): void {
     if (direction !== "right" || this.isInSidebar()) return;
-    void this.focusDashboardLeaf();
+    void this.focusDashboardLeafWithSwipeAnimation();
   }
 
   private async navigateBackToDashboard(): Promise<void> {
@@ -1312,6 +1371,7 @@ export class ReaderView extends ItemView {
   }
 
   async onClose(): Promise<void> {
+    this.finishSwipeReturnAnimation();
     this.swipeNavigator?.destroy();
     this.swipeNavigator = null;
     this.invalidateDisplay();
