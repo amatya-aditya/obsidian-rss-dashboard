@@ -23,8 +23,10 @@
  */
 
 @media (prefers-reduced-motion: reduce) {
-  /* reader.css */
-  .workspace-leaf.rss-reader-returning {
+  /* reader.css and inline-reader-return.css */
+  .workspace-leaf.rss-reader-returning,
+  .rss-dashboard-content.rss-inline-reader-return-container
+    > .rss-inline-reader-return-overlay {
     animation-duration: 0.01ms;
     animation-delay: 0s;
     animation-iteration-count: 1;

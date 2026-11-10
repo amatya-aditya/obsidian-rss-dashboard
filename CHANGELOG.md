@@ -7,6 +7,7 @@
 
 ### Fixes
 
+- Closing the Inline reader by swiping right over the article or pressing its back button now slides it away to reveal the dashboard. [GH Issue #1781](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1781)
 - Returning to the dashboard from the Main reader on Android now uses a visible rightward transition while keeping the reader tab available. [GH Issue #1780](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1780)
 - The image lightbox now shows a full-size image even when it loads immediately, and keeps the available preview sharp if the full-size image cannot load. [GH Issue #1773](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1773)
 - Saving a per-feed article limit now keeps articles protected by your General settings, including unread articles when **Protect unread articles** is enabled; the limit applies to unprotected articles, so a feed can retain more than the number you set. [GH Issue #1771](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1771)
