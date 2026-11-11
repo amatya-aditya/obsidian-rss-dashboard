@@ -25,12 +25,25 @@
 //   npm run check:stub-drift -- --help
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { get } from "node:https";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { gunzipSync } from "node:zlib";
 
 import { extractFile } from "@electron/asar";
+
+import {
+  VERSION_PATTERN,
+  asarAssetName,
+  downloadReleaseAsar,
+  fetchNewestRelease,
+} from "./obsidian-release.mjs";
+
+// Re-exported so this check keeps one public surface while the release
+// selection itself lives in obsidian-release.mjs, shared with the harness.
+export {
+  asarAssetName,
+  selectNewestStableRelease,
+  versionFromTag,
+} from "./obsidian-release.mjs";
 
 const ROOT_DIR = join(import.meta.dirname, "..");
 
@@ -52,13 +65,6 @@ export const DEFAULT_CACHE_DIR = join(
 
 /** The release members the fact index reads. */
 export const ASAR_FILES = ["app.css", "app.js"];
-
-const RELEASES_API =
-  "https://api.github.com/repos/obsidianmd/obsidian-releases/releases?per_page=100";
-const RELEASE_DOWNLOAD_BASE =
-  "https://github.com/obsidianmd/obsidian-releases/releases/download";
-const USER_AGENT = "rss-dashboard-stub-drift";
-const VERSION_PATTERN = /^\d+\.\d+\.\d+$/;
 
 const USAGE = `Detect when an Obsidian release drops something the test stub relies on.
 
@@ -156,44 +162,6 @@ export class StubDriftError extends Error {
     super(message);
     this.name = "StubDriftError";
   }
-}
-
-/** The release-asset name that carries the desktop asar for `version`. */
-export function asarAssetName(version) {
-  return `obsidian-${version}.asar.gz`;
-}
-
-/** The bare version behind a release tag (`v1.14.4` -> `1.14.4`). */
-export function versionFromTag(tag) {
-  return String(tag ?? "").replace(/^v/, "");
-}
-
-/**
- * The newest public stable release that ships a desktop asar.
- *
- * `releases` is the GitHub releases API list, newest first. Drafts and
- * prereleases are skipped, and so is a release with no `obsidian-<v>.asar.gz`
- * asset — the real `v1.13.8` is mobile-only (an APK alone), and the version
- * after it, `v1.13.7`, is the one to pick. Returns `null` when none matches.
- */
-export function selectNewestStableRelease(releases) {
-  for (const release of releases ?? []) {
-    if (!release || release.draft || release.prerelease) {
-      continue;
-    }
-    const version = versionFromTag(release.tag_name);
-    const assetName = asarAssetName(version);
-    const assets = release.assets ?? [];
-    if (assets.some((asset) => asset?.name === assetName)) {
-      return {
-        version,
-        tag: release.tag_name,
-        assetName,
-        publishedAt: release.published_at ?? "",
-      };
-    }
-  }
-  return null;
 }
 
 /**
@@ -442,72 +410,6 @@ export function readReleaseSources(asarPath, files = ASAR_FILES) {
   return sources;
 }
 
-/**
- * GETs a URL with Node's `https`, following redirects (GitHub asset downloads
- * redirect to a CDN) and returning the raw body. The Obsidian lint config
- * restricts the browser `fetch` global to `requestUrl`, which does not exist in
- * a Node script, so this uses the built-in module instead.
- */
-function httpsGet(url, redirectsLeft = 5) {
-  return new Promise((resolve, reject) => {
-    const request = get(
-      url,
-      { headers: { "User-Agent": USER_AGENT, Accept: "*/*" } },
-      (response) => {
-        const { statusCode, headers } = response;
-        if (statusCode >= 300 && statusCode < 400 && headers.location) {
-          response.resume();
-          if (redirectsLeft <= 0) {
-            reject(new StubDriftError(`Too many redirects for ${url}.`));
-            return;
-          }
-          resolve(
-            httpsGet(
-              new URL(headers.location, url).toString(),
-              redirectsLeft - 1,
-            ),
-          );
-          return;
-        }
-        if (statusCode !== 200) {
-          response.resume();
-          reject(
-            new StubDriftError(
-              `GET ${url} returned ${statusCode} ${response.statusMessage ?? ""}.`,
-            ),
-          );
-          return;
-        }
-        const chunks = [];
-        response.on("data", (chunk) => chunks.push(chunk));
-        response.on("end", () => resolve(Buffer.concat(chunks)));
-        response.on("error", reject);
-      },
-    );
-    request.on("error", reject);
-    request.setTimeout(60000, () => {
-      request.destroy(new StubDriftError(`Timed out requesting ${url}.`));
-    });
-  });
-}
-
-async function fetchNewestRelease() {
-  const body = await httpsGet(RELEASES_API);
-  let releases;
-  try {
-    releases = JSON.parse(body.toString("utf8"));
-  } catch {
-    throw new StubDriftError("GitHub releases API did not return JSON.");
-  }
-  const selected = selectNewestStableRelease(releases);
-  if (!selected) {
-    throw new StubDriftError(
-      "No public stable Obsidian release ships a desktop asar.",
-    );
-  }
-  return selected;
-}
-
 /** The cached asar path for `version`, downloading and caching it if absent. */
 export async function ensureAsarPath(version, cacheDir, readAsset = fetchAsar) {
   const asarPath = join(cacheDir, `obsidian-${version}.asar`);
@@ -521,8 +423,7 @@ export async function ensureAsarPath(version, cacheDir, readAsset = fetchAsar) {
 }
 
 async function fetchAsar(version) {
-  const url = `${RELEASE_DOWNLOAD_BASE}/v${version}/${asarAssetName(version)}`;
-  return gunzipSync(await httpsGet(url));
+  return downloadReleaseAsar(version);
 }
 
 function readBaseline(path) {

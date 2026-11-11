@@ -60,6 +60,10 @@ export default defineConfig([
     rules: {
       "obsidianmd/no-nodejs-modules": "off",
       "obsidianmd/rule-custom-message": "off",
+      // Maintenance scripts read the checked-in fixture vault on disk. Its
+      // config folder is always `.obsidian`; the user-configurable concern this
+      // rule protects applies to the plugin runtime, not to these tools.
+      "obsidianmd/hardcoded-config-path": "off",
     },
   },
   {
@@ -159,6 +163,9 @@ export default defineConfig([
       // Tests intentionally use jsdom/native DOM, Node fixtures, and same-window
       // assertions. Production code remains covered by these Obsidian rules.
       "obsidianmd/no-nodejs-modules": "off",
+      // A test fixture vault has a fixed `.obsidian` folder; there is no
+      // Vault#configDir to read from inside a Node-side test.
+      "obsidianmd/hardcoded-config-path": "off",
       "obsidianmd/prefer-instanceof": "off",
       "obsidianmd/prefer-window-timers": "off",
       "@typescript-eslint/unbound-method": "off",
