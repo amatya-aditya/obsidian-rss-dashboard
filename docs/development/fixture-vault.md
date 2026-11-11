@@ -174,6 +174,9 @@ GET /user-agent-feed.xml -> 200 (fixture feed)
   sec-ch-ua-platform: (not sent)
 ```
 
+Recorded on the installer's 1.14.4 build. The version in that string follows the
+app archive that loaded, so re-record it after priming a newer profile.
+
 A header the request omitted reads `(not sent)` rather than sitting blank,
 because telling those apart is the point: most tooling shows an absent header and
 an empty one the same way. A user agent that claims `Chrome/…` while all three
@@ -197,18 +200,54 @@ every session its own port and profile — otherwise a session can attach to
 another session's window:
 
 ```powershell
-$profile = "$env:TEMP\rss-dashboard-cdp-profile-$PID"
-# Per-user install: "$env:LOCALAPPDATA\Obsidian\Obsidian.exe"
-# All-users install: "C:\Program Files\Obsidian\Obsidian.exe"
-& "$env:LOCALAPPDATA\Obsidian\Obsidian.exe" `
-  --remote-debugging-port=9333 `
+$profile = "$env:LOCALAPPDATA\Temp\opencode\<worktree>-cdp-profile"
+# All-users install (the path on this machine):
+& "C:\Program Files\Obsidian\Obsidian.exe" `
+  --remote-debugging-port=0 `
   --user-data-dir=$profile
 ```
 
+`--remote-debugging-port=0` lets Chromium choose a free port and write it into
+`$profile\DevToolsActivePort`; every harness call that passes `--profile <dir>`
+reads that port, so two sessions cannot attach to each other's window. Use a
+profile named after the worktree rather than a shared or ad-hoc name: the
+harness trusts a `--profile`'s own recorded port, and a reused profile is a
+reused window.
+
 Then open the fixture vault in that instance (**Open another vault** → **Open
-folder as vault** → `.fixture-vault/`) and trust it. The harness probes ports
-9222, 9333, and 9334, so any of them works; pin one with `--port` or `CDP_PORT`
-when several apps are open.
+folder as vault** → `.fixture-vault/`) and trust it. Pin a port with `--port` or
+`CDP_PORT` only when you need a fixed one; a fresh profile's port is otherwise
+whatever Chromium chose.
+
+### Prime the profile, or you are testing the installer's build
+
+**The installer's version is not the running version.** `Obsidian.exe` on this
+machine reports `ProductVersion` 1.14.4 forever, while the app it launches runs
+1.15.0: Obsidian ships updates as a downloadable app archive
+(`%APPDATA%\obsidian\obsidian-<version>.asar`) and loads it from the _user-data
+directory_ at the next launch. A disposable `--user-data-dir` has no such
+archive, so it boots `resources\obsidian.asar` — the installer's build — and
+every checklist item then describes the wrong app.
+
+Prime the profile before the first launch, then assert what it will load:
+
+```powershell
+node scripts/obsidian-profile.mjs prime --profile $profile
+npm run fixture:doctor -- --profile $profile
+```
+
+`prime` copies the newest archive this machine already has, offline; `--refresh`
+replaces an older one the profile still holds, and `--fetch` downloads one when
+the machine has none (it is opt-in because this path does not verify Obsidian's
+signature). `doctor` compares the archive the profile will load, the
+`Loaded ... app` line in `$profile\obsidian.log`, and the installer's build. It
+fails when the run would be **older** than intended and only warns when it is
+newer, because a stale local archive is not a false claim. Pass
+`--allow-version-mismatch` for an unblocking emergency; the output says so.
+
+`doctor` also compares the repo's `main.js`/`styles.css` with the copies in the
+fixture vault, and reads the plugin's `minAppVersion` floor. It touches no
+window unless asked, so it finishes with no Obsidian running.
 
 A fresh `--user-data-dir` opens Obsidian's **vault picker**
 (`app://obsidian.md/starter.html`), which has no vault loaded and whose **Open
@@ -224,10 +263,12 @@ window.electron.ipcRenderer.sendSync(
 ); // true on success, else an error string
 ```
 
-`--user-data-dir` is Chromium-only. Obsidian still reads its vault registry
-from `%APPDATA%\obsidian\obsidian.json`, so overriding the child's `APPDATA`
-does not redirect it; open the vault with the IPC call above rather than
-pre-seeding the registry.
+`--user-data-dir` is Chromium-only, so Obsidian still reads `%APPDATA%` for
+things outside the profile. A disposable profile nonetheless keeps its **own**
+`obsidian.json` and `obsidian.log`: after a `vault-open` call the profile's
+registry lists exactly the vault that was opened, and its log names the app
+package that loaded. So do not pre-seed either file — open the vault with the
+IPC call above, and read that profile's log when you need to know what ran.
 
 ### Prepare the window
 
@@ -253,6 +294,32 @@ Kill only your own instance. Match the process command line to your
 `--user-data-dir` and stop that tree (`Get-NetTCPConnection -LocalPort <port>`
 names the owning process); never blanket-kill Obsidian, or other sessions lose
 their sandbox.
+
+### Set the canvas
+
+Window size is part of the test, not an accident of launch. A drive that inherits
+the default window can span two layout bands in one run: #732 captured a
+"desktop" row at 1023 CSS px — one pixel inside the stylesheet's `max-width:
+1024px` group — and the next row at 1499 px. Neither capture said which.
+
+```powershell
+node scripts/obsidian-cdp.mjs --profile $profile viewport desktop   # 1440x900
+node scripts/obsidian-cdp.mjs --profile $profile viewport report    # what it is now
+```
+
+`viewport desktop` resizes the real window and prints
+`innerWidth x innerHeight @ devicePixelRatio`, the layout band, and whether the
+width sits on a breakpoint. Record that line beside every screenshot and `@ax`
+log: a row that does not state its viewport is incomplete. The default canvas is
+1440x900 because it sits inside the `1400-1600` band; pick a width deliberately,
+never one that lands on a breakpoint edge.
+
+`phone` (390x844), or an explicit `WxH`, is available too. In a `repl` script,
+`@viewport desktop` sets an **emulation** override instead of resizing the window,
+which is how to reach a band the display cannot physically host: an override
+dies with the CDP connection, so keep it in the same script as the steps it
+applies to. `@viewport window desktop` resizes the real window from inside a
+script. Only the vault window is resized; the Settings window keeps its own size.
 
 ### Guard the session you attach to
 
@@ -287,6 +354,8 @@ node scripts/obsidian-cdp.mjs eval ./probe.js        # one expression, from a fi
 echo "document.title" | node scripts/obsidian-cdp.mjs eval -   # or stdin
 node scripts/obsidian-cdp.mjs shot dashboard.png     # one screenshot
 node scripts/obsidian-cdp.mjs repl ./steps.txt       # many steps, one connection
+node scripts/obsidian-cdp.mjs --profile <dir> --expect-vault <vault> version   # running build
+node scripts/obsidian-cdp.mjs --profile <dir> viewport desktop                # set the canvas
 node scripts/obsidian-cdp.mjs --profile <dir> --expect-vault <vault> prepare-vault  # clean the window
 ```
 
@@ -378,10 +447,10 @@ Gotchas:
 - Scope selectors with `.workspace-leaf-content[data-type="..."]`. The tab
   header carries the same `data-type`, so a bare `[data-type="..."]` can match
   it first.
-- Set the window to desktop width before you test layout-dependent keys. A
-  narrow window switches the dashboard to its compact layout, which hides the
-  sidebar and moves header controls into the ☰ menu, so `Shift+s` and `focus()`
-  on those controls do nothing.
+- Set the canvas before you test layout-dependent keys (`viewport desktop`). A
+  narrow or off-band window switches the dashboard to its compact layout, which
+  hides the sidebar and moves header controls into the ☰ menu, so `Shift+s` and
+  `focus()` on those controls do nothing.
 - `@axquery` on a large subtree with no match (the Reader body, Discover's
   cards) can outlast the call timeout. Point the selector at a smaller element.
 - Dashboard hotkeys answer only while the dashboard leaf is active. Activate it
@@ -441,12 +510,26 @@ Settings layout under the ownership check.
 
 #### Phone width
 
-The Settings window cannot be resized below 599px, so emulate a phone: set the
-device metrics to 390x844 with `Emulation.setDeviceMetricsOverride`, and add the
-`is-mobile` and `is-phone` classes to `<body>` so Obsidian's mobile styles
-apply. The override lasts only while the connection that set it stays open, so
-set it and capture in the same script. `repl` has no step for raw protocol
-calls, so use a short Node 22 script over the same Settings target:
+The Settings window cannot be resized below 599px, so emulate a phone. Inside one
+`repl` script, `@settings` then `@viewport phone` does this with the same guard
+as the rest of the script — the emulation lives in that connection, so the
+capture must stay in it:
+
+```text
+@settings
+@viewport phone
+@shot phone-settings.png
+```
+
+`@viewport phone` sets 390x844 at devicePixelRatio 2 and does not add the
+`is-mobile`/`is-phone` classes; add them only on a Settings-window target when a
+row depends on Obsidian's mobile styles, and never on the vault window (they
+collapse its workspace to 0x0).
+
+For a raw-protocol route outside the harness, set the metrics yourself; the
+override lasts only while the connection that set it stays open, so set it and
+capture in the same script. `repl` has no step for arbitrary protocol calls, so
+this needs a short Node 22 script over the same Settings target:
 
 ```js
 // phone-settings.mjs: node phone-settings.mjs <port> <out.png>
