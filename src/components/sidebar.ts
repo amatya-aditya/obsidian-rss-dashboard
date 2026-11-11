@@ -36,6 +36,7 @@ import { markMenuItemDestructive } from "../utils/destructive-menu-item";
 import { isDomNode } from "../utils/dom-node";
 import {
   SidebarSearchService,
+  type SidebarSearchMatches,
   type SidebarSearchQuery,
 } from "../services/sidebar-search-service";
 import { FolderNameModal } from "../modals/folder-name-modal";
@@ -3343,17 +3344,29 @@ export class Sidebar {
     const searchContainer = searchDock.createDiv({
       cls: "rss-dashboard-search-container",
     });
+    const hintId = `rss-dashboard-sidebar-search-hint-${Math.random()
+      .toString(36)
+      .slice(2)}`;
     const searchInput = searchContainer.createEl("input", {
       cls: "rss-dashboard-search-input",
       attr: {
         type: "text",
-        placeholder: "Search (feed:, folder:, tag:)",
+        placeholder: "Search sidebar",
         "aria-label": "Search sidebar",
+        "aria-describedby": hintId,
         autocomplete: "off",
         spellcheck: "false",
         value: this.searchQuery,
       },
     });
+
+    const hint = searchDock.createDiv({
+      cls: "rss-dashboard-search-hint",
+      attr: { id: hintId },
+    });
+    hint.setText(
+      "Search by name, or try feed:news, folder:tech, or tag:#saved.",
+    );
 
     searchDock.createDiv({
       cls: "rss-dashboard-search-status",
@@ -3387,11 +3400,10 @@ export class Sidebar {
     searchInput.addEventListener("input", (e) => {
       const rawQuery = (e.target as HTMLInputElement)?.value || "";
       this.searchQuery = rawQuery;
-      const query = rawQuery.toLowerCase().trim();
       this.clearSearchTimeout();
       this.searchTimeout = window.setTimeout(() => {
         this.searchTimeout = null;
-        this.filterFeedsAndFolders(query);
+        this.filterFeedsAndFolders(rawQuery);
       }, 150);
     });
 
@@ -4071,18 +4083,6 @@ export class Sidebar {
     await this.plugin.refreshFeeds();
   }
 
-  private collectAncestorFolders(element: HTMLElement): HTMLElement[] {
-    const ancestors: HTMLElement[] = [];
-    let current = element.parentElement;
-    while (current) {
-      if (current.classList.contains("rss-dashboard-feed-folder")) {
-        ancestors.push(current);
-      }
-      current = current.parentElement;
-    }
-    return ancestors;
-  }
-
   private forceExpandFolderForSearch(folderEl: HTMLElement): void {
     const folderHeader = folderEl.querySelector<HTMLElement>(
       ".rss-dashboard-feed-folder-header",
@@ -4168,36 +4168,29 @@ export class Sidebar {
   }
 
   /**
-   * Reveal tag results without changing the user's Tags toggle preference or
-   * rebuilding the search field, which must keep its focus and caret.
+   * Reveal only matching tag rows during filtering, without rebuilding the
+   * search field that must keep its focus and caret. Outside filtering, the
+   * section follows the user's Tags toggle.
    */
-  private filterTagsForSearch(query: SidebarSearchQuery): number {
-    const isTagSearch = query.scope === "tags" && query.term.length > 0;
-    const matchingTags = isTagSearch
-      ? this.settings.availableTags.filter((tag) =>
-          SidebarSearchService.matchesTag(query, tag.name),
-        )
-      : [];
-    this.hasTagSearchResults = matchingTags.length > 0;
-    const showTags = this.isTagsExpanded || this.hasTagSearchResults;
+  private updateTagsForSearch(active: boolean, matchingTags: Tag[]): void {
+    const matchingNames = new Set(matchingTags.map((tag) => tag.name));
+    this.hasTagSearchResults = active && matchingTags.length > 0;
+    const showTags = active ? matchingTags.length > 0 : this.isTagsExpanded;
     const section = this.container.querySelector<HTMLElement>(
       ".rss-dashboard-sidebar-tags-section",
     );
-    const foldersSection = this.container.querySelector<HTMLElement>(
-      ".rss-dashboard-feed-folders-section",
-    );
-    if (showTags && !section && foldersSection) {
-      this.renderTagsSection(foldersSection, true);
-      const newSection = foldersSection.querySelector<HTMLElement>(
-        ".rss-dashboard-sidebar-tags-section",
-      );
-      const allFeeds = foldersSection.querySelector(
-        ".rss-dashboard-all-feeds-button",
-      );
-      if (newSection && allFeeds) allFeeds.after(newSection);
+    if (showTags && !section) {
+      this.insertTagsSection();
     } else if (!showTags) {
       section?.remove();
     }
+
+    this.container
+      .querySelectorAll<HTMLElement>(".rss-dashboard-sidebar-tag-row")
+      .forEach((row) => {
+        const matches = !active || matchingNames.has(row.dataset.tagName ?? "");
+        row.toggleClass("rss-dashboard-search-hidden", !matches);
+      });
 
     const tagsButton = this.iconBtnEls.get("tags");
     tagsButton?.toggleClass("is-active", showTags);
@@ -4214,63 +4207,24 @@ export class Sidebar {
     } else {
       tagsButton?.removeAttribute("aria-description");
     }
-
-    let matches = 0;
-    this.container
-      .querySelectorAll<HTMLElement>(".rss-dashboard-sidebar-tag-row")
-      .forEach((row) => {
-        const matchesTag = SidebarSearchService.matchesTag(
-          query,
-          row.dataset.tagName ?? "",
-        );
-        row.toggleClass(
-          "rss-dashboard-search-hidden",
-          isTagSearch && !matchesTag,
-        );
-        if (matchesTag) matches++;
-      });
-    return matches;
   }
 
-  private announceSearchResults(message: string): void {
-    const status = this.container.querySelector<HTMLElement>(
-      ".rss-dashboard-search-status",
+  private insertTagsSection(): void {
+    const foldersSection = this.container.querySelector<HTMLElement>(
+      ".rss-dashboard-feed-folders-section",
     );
-    if (status) status.setText(message);
-  }
-
-  private announceTagSearchResults(
-    query: SidebarSearchQuery,
-    matchingTags: number,
-    matchingFeeds: number,
-    visibleFeeds: number,
-  ): void {
-    const hiddenFeeds = matchingFeeds - visibleFeeds;
-    const visibility =
-      hiddenFeeds > 0
-        ? ` ${visibleFeeds} shown; ${hiddenFeeds} hidden by sidebar settings.`
-        : "";
-    this.announceSearchResults(
-      `${matchingTags} ${matchingTags === 1 ? "tag" : "tags"} and ${matchingFeeds} ${matchingFeeds === 1 ? "feed" : "feeds"} match ${query.raw}.${visibility}`,
+    if (!foldersSection) return;
+    this.renderTagsSection(foldersSection, true);
+    const section = foldersSection.querySelector<HTMLElement>(
+      ".rss-dashboard-sidebar-tags-section",
     );
+    const allFeeds = foldersSection.querySelector(
+      ".rss-dashboard-all-feeds-button",
+    );
+    if (section && allFeeds) allFeeds.after(section);
   }
 
-  /**
-   * Filter sidebar entities by search query.
-   * Supports scoped queries: feed:, folder:/path:, tag:
-   */
-  private filterFeedsAndFolders(query: string): void {
-    this.applyFeedsAndFoldersFilter(query);
-    // Rows the search hid or revealed change which row can hold the Tab stop.
-    this.syncSidebarTabStop();
-  }
-
-  private applyFeedsAndFoldersFilter(query: string): void {
-    this.resetSidebarSearchPresentation();
-
-    const parsedQuery = SidebarSearchService.parseQuery(query);
-    const matchingTags = this.filterTagsForSearch(parsedQuery);
-
+  private applyFeedAndFolderVisibility(matches: SidebarSearchMatches): void {
     const feedElements = Array.from(
       this.container.querySelectorAll<HTMLElement>(".rss-dashboard-feed"),
     );
@@ -4279,80 +4233,21 @@ export class Sidebar {
         ".rss-dashboard-feed-folder",
       ),
     );
-    const allFeedsButton = this.container.querySelector<HTMLElement>(
-      ".rss-dashboard-all-feeds-button",
-    );
-
-    if (!parsedQuery.term) {
-      allFeedsButton?.removeClass("rss-dashboard-search-hidden");
-      this.announceSearchResults("");
-      return;
-    }
-
-    const tagMatchingFeedUrls = new Set(
-      parsedQuery.scope === "tags"
-        ? this.settings.feeds
-            .filter((feed) =>
-              feed.items.some((item) =>
-                item.tags?.some((tag) =>
-                  SidebarSearchService.matchesTag(parsedQuery, tag.name),
-                ),
-              ),
-            )
-            .map((feed) => feed.url)
-        : [],
-    );
-
-    const folderDirectMatches = new Map<HTMLElement, boolean>();
-    folderElements.forEach((folderEl) => {
-      const header = folderEl.querySelector<HTMLElement>(
-        ".rss-dashboard-feed-folder-header",
-      );
-      const folderPath =
-        folderEl.dataset.folderPath || header?.dataset.folderPath || "";
-      const folderName =
-        header?.dataset.folderName ||
-        header
-          ?.querySelector(".rss-dashboard-feed-folder-name")
-          ?.textContent?.trim() ||
-        "";
-
-      folderDirectMatches.set(
-        folderEl,
-        SidebarSearchService.matchesFolder(parsedQuery, folderName, folderPath),
-      );
-    });
+    const directFolders = new Set(matches.directFolderPaths);
 
     feedElements.forEach((feedEl) => {
-      const feedTitle =
-        feedEl.dataset.feedTitle ||
-        feedEl.querySelector(".rss-dashboard-feed-name")?.textContent?.trim() ||
-        "";
-      const feedFolderPath = feedEl.dataset.feedFolder || "";
-
-      const feedMatch =
-        parsedQuery.scope === "tags"
-          ? tagMatchingFeedUrls.has(feedEl.dataset.feedUrl ?? "")
-          : SidebarSearchService.matchesFeed(
-              parsedQuery,
-              feedTitle,
-              feedFolderPath,
-            );
-
-      const hasMatchedFolderAncestor = this.collectAncestorFolders(feedEl).some(
-        (folderEl) => folderDirectMatches.get(folderEl) === true,
+      feedEl.toggleClass(
+        "rss-dashboard-search-hidden",
+        !matches.matchingFeedUrls.has(feedEl.dataset.feedUrl ?? ""),
       );
-
-      if (feedMatch || hasMatchedFolderAncestor) {
-        feedEl.removeClass("rss-dashboard-search-hidden");
-      } else {
-        feedEl.addClass("rss-dashboard-search-hidden");
-      }
     });
 
     const folderVisible = new Map<HTMLElement, boolean>();
     [...folderElements].reverse().forEach((folderEl) => {
-      const directMatch = folderDirectMatches.get(folderEl) === true;
+      const header = folderEl.querySelector<HTMLElement>(
+        ".rss-dashboard-feed-folder-header",
+      );
+      const directMatch = directFolders.has(header?.dataset.folderPath ?? "");
       const hasVisibleFeeds =
         folderEl.querySelectorAll(
           ".rss-dashboard-feed:not(.rss-dashboard-search-hidden)",
@@ -4373,9 +4268,6 @@ export class Sidebar {
       const shouldShow = directMatch || hasVisibleFeeds || hasVisibleSubfolder;
       folderVisible.set(folderEl, shouldShow);
 
-      const header = folderEl.querySelector<HTMLElement>(
-        ".rss-dashboard-feed-folder-header",
-      );
       if (shouldShow) {
         folderEl.removeClass("rss-dashboard-search-hidden");
         header?.removeClass("rss-dashboard-search-hidden");
@@ -4385,36 +4277,170 @@ export class Sidebar {
         header?.addClass("rss-dashboard-search-hidden");
       }
     });
+  }
 
-    const visibleFeeds = this.container.querySelectorAll(
-      ".rss-dashboard-feed:not(.rss-dashboard-search-hidden)",
+  /** Feeds still standing after filtering, keyed by URL so each counts once. */
+  private getShownFeedUrls(): Set<string> {
+    const urls = new Set<string>();
+    this.container
+      .querySelectorAll<HTMLElement>(
+        ".rss-dashboard-feed:not(.rss-dashboard-search-hidden)",
+      )
+      .forEach((feedEl) => urls.add(feedEl.dataset.feedUrl ?? ""));
+    return urls;
+  }
+
+  private updateAllFeedsButtonVisibility(shownFeeds: number): void {
+    const allFeedsButton = this.container.querySelector<HTMLElement>(
+      ".rss-dashboard-all-feeds-button",
+    );
+    allFeedsButton?.toggleClass(
+      "rss-dashboard-search-hidden",
+      shownFeeds === 0,
+    );
+  }
+
+  private formatSearchSummary(
+    query: SidebarSearchQuery,
+    matchingTags: number,
+    matchingFolders: number,
+    shownFeeds: number,
+    hiddenFeeds: number,
+  ): string {
+    const summary = [
+      `${matchingTags} ${matchingTags === 1 ? "tag" : "tags"}`,
+      `${matchingFolders} ${matchingFolders === 1 ? "folder" : "folders"}`,
+      `${shownFeeds} ${shownFeeds === 1 ? "feed" : "feeds"}`,
+    ].join(", ");
+    if (hiddenFeeds > 0) {
+      return `${summary} shown for "${query.raw}". ${this.formatHiddenFeedsAnnouncement(hiddenFeeds)}`;
+    }
+    return `Found ${summary} for "${query.raw}".`;
+  }
+
+  private formatHiddenFeedsAnnouncement(hiddenFeeds: number): string {
+    const subject =
+      hiddenFeeds === 1 ? "matching feed is" : "matching feeds are";
+    return `${hiddenFeeds} ${subject} hidden by the "Hide empty feeds/no unread articles" sidebar setting.`;
+  }
+
+  private updateSearchFeedback(
+    query: SidebarSearchQuery,
+    matches: SidebarSearchMatches,
+    shownFeedUrls: Set<string>,
+  ): void {
+    const matchingTags = matches.matchingTags.length;
+    const matchingFolders = matches.directFolderPaths.length;
+    const shownFeeds = shownFeedUrls.size;
+    const hiddenFeeds = [...matches.matchingFeedUrls].filter(
+      (url) => !shownFeedUrls.has(url),
     ).length;
-    if (visibleFeeds === 0) {
-      allFeedsButton?.addClass("rss-dashboard-search-hidden");
-    } else {
-      allFeedsButton?.removeClass("rss-dashboard-search-hidden");
+
+    if (
+      matchingTags === 0 &&
+      matchingFolders === 0 &&
+      matches.matchingFeedUrls.size === 0
+    ) {
+      this.renderSearchEmptyState("0 results", "No matches found.");
+      this.announceSearchResults("0 results. No matches found.");
+      return;
     }
 
-    const hasVisibleFolder = Array.from(folderVisible.values()).some(Boolean);
-    const matchingFeeds =
-      parsedQuery.scope === "tags" ? tagMatchingFeedUrls.size : visibleFeeds;
-    if (matchingFeeds === 0 && !hasVisibleFolder && matchingTags === 0) {
-      this.renderSearchEmptyState();
-      this.announceSearchResults("0 results. No matches found.");
-    } else if (parsedQuery.scope === "tags") {
-      this.announceTagSearchResults(
-        parsedQuery,
-        matchingTags,
-        matchingFeeds,
-        visibleFeeds,
-      );
-    } else {
-      this.announceSearchResults("");
+    if (
+      hiddenFeeds > 0 &&
+      matchingTags === 0 &&
+      matchingFolders === 0 &&
+      shownFeeds === 0
+    ) {
+      const explanation = this.formatHiddenFeedsAnnouncement(hiddenFeeds);
+      this.renderSearchEmptyState("0 shown", explanation);
+      this.announceSearchResults(explanation);
+      return;
     }
+
+    this.announceSearchResults(
+      this.formatSearchSummary(
+        query,
+        matchingTags,
+        matchingFolders,
+        shownFeeds,
+        hiddenFeeds,
+      ),
+    );
+  }
+
+  private announceSearchResults(message: string): void {
+    const status = this.container.querySelector<HTMLElement>(
+      ".rss-dashboard-search-status",
+    );
+    if (status) status.setText(message);
+  }
+
+  private getSearchInput(): HTMLInputElement | null {
+    return this.container.querySelector<HTMLInputElement>(
+      ".rss-dashboard-search-input",
+    );
+  }
+
+  private captureFocusedSearchRow(): HTMLElement | null {
+    const active = this.container.ownerDocument.activeElement;
+    if (!windowInstanceOf(active, HTMLElement)) return null;
+    const row = active.closest<HTMLElement>(
+      ".rss-dashboard-feed, .rss-dashboard-feed-folder-header, .rss-dashboard-sidebar-tag-row, .rss-dashboard-all-feeds-button",
+    );
+    return row && this.container.contains(row) ? row : null;
+  }
+
+  private restoreFocusAfterSearch(focusedRow: HTMLElement | null): void {
+    if (!focusedRow) return;
+    // A row removed by the filter, or hidden inside a restored collapsed
+    // folder, no longer exists for the user.
+    const removed =
+      !focusedRow.isConnected ||
+      focusedRow.closest(".rss-dashboard-search-hidden") !== null ||
+      focusedRow.closest(".rss-dashboard-folder-feeds.collapsed") !== null;
+    if (removed) this.getSearchInput()?.focus();
+  }
+
+  /**
+   * Filter sidebar entities by search query.
+   * Supports scoped queries: feed:, folder:/path:, tag:
+   */
+  private filterFeedsAndFolders(query: string): void {
+    const focusedRow = this.captureFocusedSearchRow();
+    this.applyFeedsAndFoldersFilter(query);
+    this.restoreFocusAfterSearch(focusedRow);
+    // Rows the search hid or revealed change which row can hold the Tab stop.
+    this.syncSidebarTabStop();
+  }
+
+  private applyFeedsAndFoldersFilter(query: string): void {
+    this.resetSidebarSearchPresentation();
+
+    const parsedQuery = SidebarSearchService.parseQuery(query);
+    const active = SidebarSearchService.isActive(parsedQuery);
+    const matches = SidebarSearchService.summarize(
+      parsedQuery,
+      this.settings.feeds,
+      this.settings.folders ?? [],
+      this.settings.availableTags,
+    );
+
+    this.updateTagsForSearch(active, matches.matchingTags);
+
+    if (!active) {
+      this.announceSearchResults("");
+      return;
+    }
+
+    this.applyFeedAndFolderVisibility(matches);
+    const shownFeedUrls = this.getShownFeedUrls();
+    this.updateAllFeedsButtonVisibility(shownFeedUrls.size);
+    this.updateSearchFeedback(parsedQuery, matches, shownFeedUrls);
   }
 
   /** Mirrors Obsidian core search's "0 results / No matches found." feedback. */
-  private renderSearchEmptyState(): void {
+  private renderSearchEmptyState(count: string, message: string): void {
     const feedFoldersSection = this.container.querySelector<HTMLElement>(
       ".rss-dashboard-feed-folders-section",
     );
@@ -4426,18 +4452,16 @@ export class Sidebar {
     });
     emptyState.createDiv({
       cls: "rss-dashboard-search-empty-state-count",
-      text: "0 results",
+      text: count,
     });
     emptyState.createDiv({
       cls: "rss-dashboard-search-empty-state-message",
-      text: "No matches found.",
+      text: message,
     });
   }
 
   private applySearchFilterFromState(): void {
-    const query = this.isSearchExpanded
-      ? this.searchQuery.toLowerCase().trim()
-      : "";
+    const query = this.isSearchExpanded ? this.searchQuery : "";
     this.filterFeedsAndFolders(query);
   }
 
