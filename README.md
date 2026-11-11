@@ -34,7 +34,7 @@ Podcast episodes whose description lists timestamped chapters get clickable mark
 
 ## Build Your Reading System
 
-Your feeds, organized your way. Create folders and subfolders, add custom tags, filter by read status or feed, sort by date or category. Automatic refresh keeps your subscriptions current. Discover new feeds from our curated Discover page or browse smaller independent blogs through Kagi Smallweb.
+Your feeds, organized your way. Create folders and subfolders, add custom tags, filter by read status or feed, sort by date or category. Automatic refresh keeps your subscriptions current. Find a feed, folder, or tag fast with [Search the sidebar](docs/user/sidebar-search.md). Discover new feeds from our curated Discover page or browse smaller independent blogs through Kagi Smallweb.
 
 ![RSS Dashboard dashboard and organization](assets/2.2/2.2_Dashboard.jpg)
 
