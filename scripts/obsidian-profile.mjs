@@ -34,7 +34,7 @@ import {
   readFileSync,
   writeFileSync,
 } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { join, posix, resolve, win32 } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
 
@@ -56,7 +56,7 @@ const HARNESS = join(SCRIPT_DIR, "obsidian-cdp.mjs");
 
 const DEFAULT_INSTALLER = "C:\\Program Files\\Obsidian\\Obsidian.exe";
 const LOG_NAME = "obsidian.log";
-const INSTALLER_ASAR = join("resources", "obsidian.asar");
+const INSTALLER_ASAR = "resources/obsidian.asar";
 const FIXTURE_VAULT = ".fixture-vault";
 
 /** The line Obsidian writes when it picks the app package to load. */
@@ -212,9 +212,20 @@ export function parseArgs(argv, env = process.env) {
   return options;
 }
 
+/**
+ * A path's flavour, chosen from the path itself rather than the host. A drive
+ * letter or a backslash means Windows even when the tests run on Linux, where
+ * `dirname("C:\\...")` would otherwise answer ".".
+ */
+export function pathFlavour(value) {
+  const text = String(value ?? "");
+  return /^[A-Za-z]:[\\/]/.test(text) || text.includes("\\") ? win32 : posix;
+}
+
 /** The installed build's app archive, the one a fresh profile boots. */
 export function installerAsarPath(installerPath) {
-  return join(dirname(installerPath), INSTALLER_ASAR);
+  const flavour = pathFlavour(installerPath);
+  return flavour.join(flavour.dirname(String(installerPath)), INSTALLER_ASAR);
 }
 
 /**
@@ -402,6 +413,7 @@ export async function primeProfile({
     throw new ObsidianReleaseError("prime needs a profile directory.");
   }
   mkdirSync(profile, { recursive: true });
+  const flavour = pathFlavour(profile);
 
   const existing = newestLocalAsar(profile);
   const local = newestLocalAsar(appData);
@@ -441,7 +453,7 @@ export async function primeProfile({
     }
     const release = await newestRelease();
     const bytes = await downloadAsar(release.version);
-    const path = join(profile, `obsidian-${release.version}.asar`);
+    const path = flavour.join(profile, `obsidian-${release.version}.asar`);
     writeFileSync(path, bytes);
     const verified = readAsarVersion(path);
     if (verified !== release.version) {
@@ -453,7 +465,7 @@ export async function primeProfile({
     return { version: verified, path, copied: true };
   }
 
-  const target = join(profile, basename(source.path));
+  const target = flavour.join(profile, flavour.basename(String(source.path)));
   copyFileSync(source.path, target);
   const verified = readAsarVersion(target);
   if (verified !== source.version) {

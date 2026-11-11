@@ -6,7 +6,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, posix, win32 } from "node:path";
 
 import { createPackageWithOptions } from "@electron/asar";
 import { afterEach, describe, expect, it } from "vitest";
@@ -20,6 +20,7 @@ import {
   installerAsarPath,
   parseArgs,
   parseLoadedAppLog,
+  pathFlavour,
   primeProfile,
   readPluginFloor,
   selectExpectedVersion,
@@ -119,8 +120,21 @@ describe("parseArgs", () => {
 describe("installerAsarPath", () => {
   it("points at the installer's app archive, not its bootstrapper", () => {
     expect(installerAsarPath("C:\\Program Files\\Obsidian\\Obsidian.exe")).toBe(
-      join("C:\\Program Files\\Obsidian", "resources", "obsidian.asar"),
+      "C:\\Program Files\\Obsidian\\resources\\obsidian.asar",
     );
+  });
+
+  it("reads a POSIX install path on any host, without turning it into a relative one", () => {
+    expect(installerAsarPath("/opt/Obsidian/obsidian")).toBe(
+      "/opt/Obsidian/resources/obsidian.asar",
+    );
+  });
+
+  it("chooses the path flavour from the path, not the host", () => {
+    expect(pathFlavour("C:\\Program Files\\Obsidian\\Obsidian.exe")).toBe(
+      win32,
+    );
+    expect(pathFlavour("/opt/Obsidian/obsidian")).toBe(posix);
   });
 });
 
