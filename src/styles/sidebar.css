@@ -1184,6 +1184,14 @@ body.theme-dark .rss-dashboard-all-feeds-button {
   position: relative;
 }
 
+.rss-dashboard-search-hint {
+  padding: 4px 6px 0;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
 /* Zero-results feedback, styled after Obsidian core search's empty state */
 .rss-dashboard-search-empty-state {
   display: flex;

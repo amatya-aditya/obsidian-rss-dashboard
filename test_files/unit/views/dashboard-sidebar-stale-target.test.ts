@@ -15,7 +15,10 @@ import {
 } from "../../../src/types/types";
 import type RssDashboardPlugin from "../../../main";
 
-vi.mock("../../../src/utils/platform-utils", () => ({
+vi.mock("../../../src/utils/platform-utils", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("../../../src/utils/platform-utils")
+  >()),
   robustFetch: vi.fn(),
   ensureUtf8Meta: (html: string) => html,
   shouldUseMobileSidebarLayout: () => false,

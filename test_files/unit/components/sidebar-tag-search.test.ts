@@ -223,11 +223,11 @@ describe("Sidebar tag search", () => {
     expect(visibleFeeds()).toEqual([]);
     expect(settings.display.hideEmptyFeeds).toBe(true);
     expect(emptyState()).toBeNull();
+    expect(searchStatus()?.textContent).toMatch(/2\s+tags?/i);
     expect(searchStatus()?.textContent).toMatch(
-      /2\s+tags?\s+and\s+2\s+feeds?/i,
+      /2\s+matching\s+feeds\s+are\s+hidden/i,
     );
-    expect(searchStatus()?.textContent).toMatch(/0\s+shown/i);
-    expect(searchStatus()?.textContent).toMatch(/2\s+hidden/i);
+    expect(searchStatus()?.textContent).not.toMatch(/no matches|0 results/i);
   });
 
   it.each([
@@ -267,17 +267,26 @@ describe("Sidebar tag search", () => {
         ).toBeNull();
       }
       expect(settings.display.hideEmptyFeeds).toBe(true);
-      expect(emptyState()).toBeNull();
-      expect(searchStatus()?.textContent).toMatch(
-        /0\s+tags?\s+and\s+2\s+feeds?/i,
-      );
-      expect(searchStatus()?.textContent).toMatch(
-        new RegExp(`${shownTitles.length}\\s+shown`, "i"),
-      );
-      expect(searchStatus()?.textContent).toMatch(
-        new RegExp(`${hiddenTitles.length}\\s+hidden`, "i"),
-      );
-      expect(searchStatus()?.textContent).not.toMatch(/no matches|0 results/i);
+
+      const status = searchStatus()?.textContent ?? "";
+      if (shownTitles.length === 0) {
+        // Every match is hidden, so the sidebar explains why instead of
+        // reporting a true miss.
+        expect(emptyState()?.textContent).toContain("0 shown");
+        expect(emptyState()?.textContent).toMatch(
+          /2 matching feeds are hidden/i,
+        );
+        expect(status).toMatch(/2 matching feeds are hidden/i);
+      } else {
+        expect(emptyState()).toBeNull();
+        expect(status).toMatch(/0\s+tags?/i);
+        expect(status).toMatch(/0\s+folders?/i);
+        expect(status).toMatch(
+          new RegExp(`${shownTitles.length}\\s+feeds?\\s+shown`, "i"),
+        );
+        expect(status).toMatch(/1 matching feed is hidden/i);
+      }
+      expect(status).not.toMatch(/no matches|0 results/i);
     },
   );
 
@@ -292,7 +301,7 @@ describe("Sidebar tag search", () => {
     sidebar.render();
     openSearch();
     typeQuery("tag:Saved");
-    expect(searchStatus()?.textContent).toMatch(/2\s+hidden/i);
+    expect(searchStatus()?.textContent).toMatch(/2 matching feeds are hidden/i);
 
     clearSearch();
 
@@ -323,7 +332,9 @@ describe("Sidebar tag search", () => {
       sidebar.render();
       openSearch();
       typeQuery("tag:Saved");
-      expect(searchStatus()?.textContent).toMatch(/2\s+hidden/i);
+      expect(searchStatus()?.textContent).toMatch(
+        /2 matching feeds are hidden/i,
+      );
 
       typeQuery(query);
 
@@ -334,7 +345,7 @@ describe("Sidebar tag search", () => {
       } else {
         expect(visibleFeeds()).toEqual(["Sibling feed"]);
         expect(emptyState()).toBeNull();
-        expect(searchStatus()?.textContent).toBe("");
+        expect(searchStatus()?.textContent).toMatch(/1\s+feed\b/i);
       }
       expect(searchStatus()?.textContent).not.toMatch(/hidden/i);
       expect(settings.display.hideEmptyFeeds).toBe(true);
@@ -468,16 +479,33 @@ describe("Sidebar tag search", () => {
     expect(document.activeElement).toBe(input());
   });
 
-  it.each(["", "feed:Root", "tag:missing"])(
-    "keeps initially expanded Tags expanded after changing the query to %s",
+  it("keeps initially expanded Tags expanded when filtering stops", () => {
+    button("Tags").click();
+    openSearch();
+    typeQuery("tag:Saved");
+    typeQuery("");
+    expect(tagsSection()).not.toBeNull();
+    expect(button("Tags").getAttribute("aria-pressed")).toBe("true");
+  });
+
+  it.each(["feed:Root", "tag:missing"])(
+    "hides initially expanded Tags during %s and restores them afterwards",
     (query) => {
       button("Tags").click();
       openSearch();
       typeQuery("tag:Saved");
       typeQuery(query);
+
+      expect(tagsSection()).toBeNull();
+      expect(button("Tags").getAttribute("aria-pressed")).toBe("false");
+
+      clearSearch();
+
       expect(tagsSection()).not.toBeNull();
       expect(button("Tags").getAttribute("aria-pressed")).toBe("true");
-      if (query === "tag:missing") expect(visibleTags()).toEqual([]);
+      expect(visibleTags()).toEqual(
+        settings.availableTags.map((item) => item.name).sort(),
+      );
     },
   );
 
