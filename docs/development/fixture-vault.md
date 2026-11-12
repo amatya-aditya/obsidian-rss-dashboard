@@ -321,6 +321,13 @@ dies with the CDP connection, so keep it in the same script as the steps it
 applies to. `@viewport window desktop` resizes the real window from inside a
 script. Only the vault window is resized; the Settings window keeps its own size.
 
+Resizing goes through the renderer's `window.resizeTo`, because Electron
+implements none of the CDP window commands (`Browser.getWindowForTarget`,
+`setWindowBounds`). That sets the viewport rather than the frame, but can return
+a pixel short at devicePixelRatio 2, so the command asks again for whatever the
+last attempt did not deliver and then reports what it measured. A window that
+will not take the size is reported as a failure, never assumed.
+
 ### Guard the session you attach to
 
 By default the harness attaches to the first Obsidian target it finds, which on
