@@ -1,4 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { spawn } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { createServer } from "node:http";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
+import { execPath } from "node:process";
+import { fileURLToPath } from "node:url";
+
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
   CANVASES,
@@ -13,6 +21,7 @@ import {
   choosePort,
   connect,
   clickElement,
+  convergeWindowSize,
   describeViewport,
   isObsidianVaultTarget,
   normalizeVaultPath,
@@ -1433,5 +1442,140 @@ describe("obsidian-cdp @viewport step", () => {
   it("refuses a step with no size", () => {
     expect(() => parseBatch("@viewport")).toThrow(/needs a size/);
     expect(() => parseBatch("@viewport window")).toThrow(/needs a size/);
+  });
+});
+
+const TEST_DIR = dirname(fileURLToPath(import.meta.url));
+const ROOT_DIR = resolve(TEST_DIR, "..", "..");
+const SCRIPT_PATH = join(ROOT_DIR, "scripts", "obsidian-cdp.mjs");
+
+const temporaryProfiles: string[] = [];
+
+afterEach(() => {
+  for (const directory of temporaryProfiles.splice(0)) {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+function makeProfile(): string {
+  const directory = mkdtempSync(join(tmpdir(), "rss-dashboard-cdp-profile-"));
+  temporaryProfiles.push(directory);
+  return directory;
+}
+
+type CliResult = { status: number | null; stdout: string; stderr: string };
+
+function runCli(args: string[]): Promise<CliResult> {
+  return new Promise((done, reject) => {
+    const child = spawn(execPath, [SCRIPT_PATH, ...args], {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout?.setEncoding("utf8");
+    child.stderr?.setEncoding("utf8");
+    child.stdout?.on("data", (chunk: string) => {
+      stdout += chunk;
+    });
+    child.stderr?.on("data", (chunk: string) => {
+      stderr += chunk;
+    });
+    child.on("error", reject);
+    child.on("close", (status) => done({ status, stdout, stderr }));
+  });
+}
+
+describe("convergeWindowSize", () => {
+  it("asks again for the pixel a short resize did not deliver", async () => {
+    const requests: { width: number; height: number }[] = [];
+
+    const viewport = await convergeWindowSize(
+      { width: 1440, height: 900 },
+      async (request) => {
+        requests.push(request);
+        // Electron's resizeTo set the viewport, but returned one CSS pixel
+        // less horizontally at devicePixelRatio 2.
+        return { width: request.width - 1, height: request.height };
+      },
+    );
+
+    expect(viewport).toEqual({ width: 1440, height: 900 });
+    expect(requests).toEqual([
+      { width: 1440, height: 900 },
+      { width: 1441, height: 900 },
+    ]);
+  });
+
+  it("stops after one attempt when the requested size lands", async () => {
+    const apply = vi.fn(async (request: { width: number; height: number }) => ({
+      ...request,
+    }));
+
+    const viewport = await convergeWindowSize(
+      { width: 1440, height: 900 },
+      apply,
+    );
+
+    expect(viewport).toEqual({ width: 1440, height: 900 });
+    expect(apply).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns what it measured instead of looping when the window will not resize", async () => {
+    const apply = vi.fn(async () => ({ width: 799, height: 651 }));
+
+    const viewport = await convergeWindowSize(
+      { width: 1440, height: 900 },
+      apply,
+    );
+
+    expect(viewport).toEqual({ width: 799, height: 651 });
+    expect(apply).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("obsidian-cdp targets follows --profile", () => {
+  it("lists the target on the port the profile recorded", async () => {
+    const profile = makeProfile();
+    const server = createServer((_request, response) => {
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(
+        JSON.stringify([
+          {
+            id: "page-1",
+            type: "page",
+            title: "Obsidian",
+            url: "app://obsidian.md/index.html",
+            webSocketDebuggerUrl: "ws://localhost:1/devtools/page/page-1",
+          },
+        ]),
+      );
+    });
+    await new Promise<void>((ready) => server.listen(0, ready));
+    const address = server.address();
+    const port = typeof address === "object" && address ? address.port : 0;
+    writeFileSync(
+      join(profile, "DevToolsActivePort"),
+      `${port}\n/devtools/browser/test\n`,
+    );
+
+    try {
+      const result = await runCli(["--profile", profile, "targets"]);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain(String(port));
+      expect(result.stdout).toContain("Obsidian");
+    } finally {
+      server.close();
+    }
+  });
+
+  it("names the profile's missing port instead of probing the default ports", async () => {
+    const profile = makeProfile();
+
+    const result = await runCli(["--profile", profile, "targets"]);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("DevToolsActivePort");
+    expect(result.stderr).not.toContain(String(DEFAULT_PORTS[0]));
   });
 });

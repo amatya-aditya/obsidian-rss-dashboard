@@ -1542,19 +1542,46 @@ async function measureViewport(connection) {
   return describeViewport(JSON.parse(result.value));
 }
 
-/** Resizes the real window, which the display must be able to host. */
+/**
+ * Asks the window for `canvas` until the viewport measures what was asked.
+ *
+ * Electron implements no `Browser.getWindowForTarget`/`setWindowBounds`, so the
+ * only lever is the renderer's `window.resizeTo`. That sets the viewport rather
+ * than the frame, but not exactly: at devicePixelRatio 2 it can return one CSS
+ * pixel short (1440 asks for 1439), so the next request adds whatever the last
+ * one did not deliver. `apply` performs one resize-and-measure and is injected
+ * so the convergence is unit-tested without a live app.
+ *
+ * @param {{ width: number, height: number }} canvas
+ * @param {(request: { width: number, height: number }) => Promise<{ width: number, height: number }>} apply
+ * @param {number} [attempts]
+ */
+export async function convergeWindowSize(canvas, apply, attempts = 3) {
+  let request = { width: canvas.width, height: canvas.height };
+  let viewport;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    viewport = await apply(request);
+    if (viewport.width === canvas.width && viewport.height === canvas.height) {
+      return viewport;
+    }
+    request = {
+      width: request.width + (canvas.width - viewport.width),
+      height: request.height + (canvas.height - viewport.height),
+    };
+  }
+  return viewport;
+}
+
+/**
+ * Resizes the real window, which the display must be able to host. A maximized
+ * window is restored to the requested size rather than left maximized.
+ */
 async function resizeWindowTo(connection, canvas) {
-  const { windowId } = await connection.send("Browser.getWindowForTarget");
-  await connection.send("Browser.setWindowBounds", {
-    windowId,
-    bounds: {
-      width: canvas.width,
-      height: canvas.height,
-      windowState: "normal",
-    },
+  return convergeWindowSize(canvas, async ({ width, height }) => {
+    await evaluate(connection, `window.resizeTo(${width}, ${height}); true`);
+    await delay(400);
+    return measureViewport(connection);
   });
-  await delay(400);
-  return measureViewport(connection);
 }
 
 /**
@@ -1582,11 +1609,13 @@ export async function applyCanvas(connection, canvas, mechanism = "emulate") {
     canvas.minWidth !== undefined &&
     (viewport.width < canvas.minWidth || viewport.width > canvas.maxWidth)
   ) {
+    const hint =
+      mechanism === "window"
+        ? `The window did not take that size: the display may be too small for it. Exit fullscreen if it is in it, or emulate with "@viewport ${canvas.name}".`
+        : "Emulation did not take; keep the step in the same connection and retry.";
     throw new CdpError(
       `Asked for ${canvas.width}x${canvas.height} (${canvas.name}) and measured ` +
-        `${viewport.width}x${viewport.height} @ ${viewport.devicePixelRatio}. ` +
-        `The ${mechanism === "window" ? "display may be too small for real window bounds" : "emulation did not take"}; ` +
-        `use "@viewport window ${canvas.name}" or an explicit WxH inside the band.`,
+        `${viewport.width}x${viewport.height} @ ${viewport.devicePixelRatio}. ${hint}`,
     );
   }
   return viewport;
@@ -2151,13 +2180,10 @@ async function main() {
     console.log(USAGE);
     return;
   }
-  if (options.command === "targets") {
-    await listTargets(options);
-    return;
-  }
 
-  assertWebSocket();
-
+  // Resolve `--profile` to its recorded port before anything reads `ports`, so
+  // `targets` cannot fall back to probing the default ports of some other
+  // instance while this session's window is open under it.
   let ports = options.ports;
   let pinnedPort = false;
   if (options.profile) {
@@ -2165,6 +2191,13 @@ async function main() {
     pinnedPort = true;
     options.ports = ports;
   }
+
+  if (options.command === "targets") {
+    await listTargets(options);
+    return;
+  }
+
+  assertWebSocket();
 
   const steps =
     options.command === "repl" ? parseBatch(readInput(options.args[0])) : [];
