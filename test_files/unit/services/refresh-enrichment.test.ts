@@ -723,6 +723,59 @@ describe("refresh enrichment scheduling", () => {
     expect(selected.items[0].metadataFetchedAt).toBeUndefined();
   });
 
+  it("retries a proxy timeout even when the direct response was restricted", async () => {
+    const selected = feed("a");
+    selected.items = selected.items.slice(0, 1);
+    let now = 0;
+    let calls = 0;
+    let stored: unknown = {};
+    const make = () =>
+      new RefreshEnrichment({
+        getFeeds: () => [selected],
+        showCovers: () => true,
+        fetch: async () => {
+          calls++;
+          return calls === 1
+            ? {
+                content: "",
+                failureType: "restricted" as const,
+                failureReason: "timeout" as const,
+              }
+            : { content: "", failureType: "none" as const };
+        },
+        persist: async () => {},
+        redraw: () => {},
+        loadRetries: () => stored,
+        saveRetries: (value) => {
+          stored = structuredClone(value);
+        },
+        now: () => now,
+      });
+
+    const first = make();
+    first.enqueue([selected]);
+    await first.whenIdle();
+    expect(calls).toBe(1);
+    expect(selected.items[0]?.refreshEnrichment).toBeUndefined();
+    expect(
+      Object.values(stored as Record<string, { attempts: number }>),
+    ).toEqual([{ at: 0, attempts: 1 }]);
+
+    now = 86_399_999;
+    const afterReload = make();
+    afterReload.enqueue([selected]);
+    await afterReload.whenIdle();
+    expect(calls).toBe(1);
+
+    now++;
+    afterReload.enqueue([selected]);
+    await afterReload.whenIdle();
+    expect(calls).toBe(2);
+    expect(selected.items[0]?.refreshEnrichment?.url).toBe(
+      selected.items[0]?.link,
+    );
+  });
+
   it("suppresses repeated page values across distinct pages and redraws prior cards", async () => {
     const selected = feed("a");
     selected.items = selected.items.slice(0, 3);

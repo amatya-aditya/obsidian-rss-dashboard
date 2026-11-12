@@ -289,8 +289,9 @@ export class RefreshEnrichment {
     const current = this.current(job);
     if (!current) return;
     if (
-      result.failureType === "network" &&
-      result.failureReason !== "unsupported"
+      result.failureReason === "timeout" ||
+      (result.failureType === "network" &&
+        result.failureReason !== "unsupported")
     ) {
       const prior = this.retries[job.key];
       this.retries[job.key] = {
