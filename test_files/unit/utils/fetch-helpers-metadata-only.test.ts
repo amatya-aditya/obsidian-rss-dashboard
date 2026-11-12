@@ -1,7 +1,7 @@
 // A cover fetch needs only the page's declared image, so it reads the page's
 // head and stops there: no Readability, no body parse (#1702). The full parse
 // ran on the main thread for every page of a bulk run and froze Obsidian.
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const readability = vi.hoisted(() => ({ constructed: vi.fn() }));
 
@@ -42,6 +42,10 @@ describe("metadata-only page read (#1702)", () => {
     detailedMock.mockReset();
     readability.constructed.mockReset();
     vi.restoreAllMocks();
+  });
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
   });
 
   it("reads the declared og:image without running Readability", async () => {
@@ -251,13 +255,16 @@ describe("metadata-only page read (#1702)", () => {
   });
 
   it("returns a timeout from the metadata-only request without starting a proxy retry", async () => {
+    vi.useFakeTimers();
     detailedMock.mockImplementation(() => new Promise(() => undefined));
 
-    const result = await fetchPageMetadataWithOutcome(
+    const pending = fetchPageMetadataWithOutcome(
       URL_,
       "https://proxy.example.com/?url=",
       0.001,
     );
+    await vi.advanceTimersByTimeAsync(1);
+    const result = await pending;
 
     expect(result.failureReason).toBe("timeout");
     expect(detailedMock).toHaveBeenCalledTimes(1);

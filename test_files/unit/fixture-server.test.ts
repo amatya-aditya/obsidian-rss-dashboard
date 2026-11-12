@@ -434,6 +434,41 @@ describe("Feed-advertising fixture page (#1201)", () => {
   });
 });
 
+describe("Refresh-enrichment fixture feed (#1030)", () => {
+  it("serves deterministic article heads for text-only, image-only, and combined outcomes", async () => {
+    const port = await listeningPort();
+    const [feed, textPage, imagePage, combinedPage] = await Promise.all([
+      get(port, FIXTURE_FEED_PATH),
+      get(port, "/echoed/1"),
+      get(port, "/echoed/2"),
+      get(port, "/echoed/3"),
+    ]);
+
+    expect(feed.status).toBe(200);
+    expect(feed.body).toContain("<title>First echoed article</title>");
+    expect(feed.body).toContain("<title>Second echoed article</title>");
+    expect(feed.body).toContain("<title>Third echoed article</title>");
+    const firstItem = /<item>([\s\S]*?)<\/item>/.exec(feed.body)?.[1] ?? "";
+    const secondItem =
+      /<item>[\s\S]*?<\/item>\s*<item>([\s\S]*?)<\/item>/.exec(
+        feed.body,
+      )?.[1] ?? "";
+    expect(firstItem).not.toContain("<description>");
+    expect(secondItem).toContain("<description>");
+    expect(textPage).toMatchObject({ status: 200 });
+    expect(textPage.body).toContain(
+      "A refresh-only description absent from the Reader page history.",
+    );
+    expect(textPage.body).not.toContain('property="og:image"');
+    expect(imagePage).toMatchObject({ status: 200 });
+    expect(imagePage.body).toContain('property="og:image"');
+    expect(imagePage.body).not.toContain('name="description"');
+    expect(combinedPage).toMatchObject({ status: 200 });
+    expect(combinedPage.body).toContain('name="description"');
+    expect(combinedPage.body).toContain('property="og:image"');
+  });
+});
+
 describe("Fixture server file mapping (#1169)", () => {
   it("maps only committed pages and images in the pages folder", () => {
     expect(resolveFixtureFile(`/${EMPTY_DESCRIPTION_PAGE}`)).toMatchObject({
