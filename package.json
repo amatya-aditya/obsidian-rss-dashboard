@@ -30,6 +30,7 @@
     "test:unit": "vitest run --config vitest.config.mjs",
     "test:mutation": "stryker run",
     "fixture:vault": "node scripts/setup-fixture-vault.mjs",
+    "fixture:doctor": "node scripts/obsidian-profile.mjs doctor",
     "vault:backup": "node scripts/vault-storage-backup.mjs",
     "fixture:vault:generate": "node scripts/generate-fixture-vault.mjs",
     "fixture:sync": "node scripts/simulate-sync.mjs",

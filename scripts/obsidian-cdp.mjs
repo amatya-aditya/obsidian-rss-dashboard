@@ -58,6 +58,8 @@ const COMMANDS = [
   "batch",
   "open-settings",
   "prepare-vault",
+  "version",
+  "viewport",
   "help",
 ];
 const STEP_NAMES = [
@@ -70,6 +72,7 @@ const STEP_NAMES = [
   "click",
   "ax",
   "axquery",
+  "viewport",
 ];
 
 /** CDP `Input.dispatchKeyEvent` modifier bits. */
@@ -115,6 +118,27 @@ const PUNCTUATION_KEYS = {
 };
 const STEP_LINE = new RegExp(`^@(?:${STEP_NAMES.join("|")})(?:[ \\t]|$)`);
 
+/**
+ * The `max-width` breakpoints the plugin's stylesheet actually uses. A test
+ * canvas is picked to sit *between* two of them, never on one: 1023px is one
+ * pixel inside the `<=1024` group, which is how #732's "desktop" run landed in a
+ * compact layout and still recorded it as desktop.
+ */
+export const LAYOUT_BREAKPOINTS = [
+  319, 380, 400, 520, 599, 600, 768, 900, 920, 1024, 1100, 1200, 1400, 1600,
+];
+
+/** Named canvases a drive can ask for. */
+export const CANVASES = {
+  desktop: { width: 1440, height: 900, minWidth: 1400, maxWidth: 1599 },
+  phone: {
+    width: 390,
+    height: 844,
+    mobile: true,
+    deviceScaleFactor: 2,
+  },
+};
+
 const USAGE = `Drive a running Obsidian instance over the Chrome DevTools Protocol.
 
 Usage: node scripts/obsidian-cdp.mjs [options] <command> [argument]
@@ -131,6 +155,16 @@ Commands:
                      the workspace side panes, leaving only the vault window.
                      Needs --profile and --expect-vault; --keep-settings and
                      --keep-left leave the named surface open.
+  version            Print the running Obsidian version, read from the renderer.
+                     Use --json for a machine-readable record. This is the
+                     version to quote in evidence; Obsidian.exe's ProductVersion
+                     is the installer's build and never the running one.
+  viewport <size>    Resize the vault window to a stated canvas and print the
+                     measured innerWidth x innerHeight @ devicePixelRatio.
+                     Sizes: desktop (1440x900), phone (390x844), WxH, or
+                     "report" to only print what the window is now. Needs
+                     --profile; window bounds are real, so the display must be
+                     able to host the size.
 
 Batch steps (one per line in a repl script):
   @eval <expr>       Evaluate an expression, or a multi-line body below it.
@@ -151,6 +185,12 @@ Batch steps (one per line in a repl script):
   @axquery <role> <selector>
                      Print the exposed accessibility nodes with <role> inside
                      the first element matching <selector>.
+  @viewport <size>   Emulate <size> in this connection: desktop (1440x900),
+                     phone (390x844), or WxH. Emulation lasts only while the
+                     connection is open, so it must stay in one repl script with
+                     the steps it applies to. "@viewport window <size>" resizes
+                     the real window instead, which the display must be able to
+                     host. Either form prints the measured viewport.
 
 Options:
   --port <n>         Debug port to use (default: probe ${DEFAULT_PORTS.join(", ")}).
@@ -252,6 +292,19 @@ function assertArity(command, args) {
   if (command === "prepare-vault" && args.length > 0) {
     throw new CdpError(`prepare-vault takes no argument, got "${args[0]}".`);
   }
+  if (command === "version" && args.length > 0) {
+    throw new CdpError(`version takes no argument, got "${args[0]}".`);
+  }
+  if (command === "viewport") {
+    if (args.length > 1) {
+      throw new CdpError(
+        `viewport takes at most one argument, got ${args.length}.`,
+      );
+    }
+    if (args.length === 1 && args[0] !== "report") {
+      parseCanvasSpec(args[0]);
+    }
+  }
 }
 
 function assertSettingsFlag(options) {
@@ -259,7 +312,8 @@ function assertSettingsFlag(options) {
   if (
     options.command === "targets" ||
     options.command === "open-settings" ||
-    options.command === "prepare-vault"
+    options.command === "prepare-vault" ||
+    options.command === "viewport"
   ) {
     throw new CdpError(`--settings does not apply to ${options.command}.`);
   }
@@ -623,7 +677,7 @@ export function summarizeAxQuery(nodes) {
  * `@`: `@eval` (with an inline expression or a multi-line body up to the next
  * `@` line), `@shot <path>`, `@wait <ms>`, `@target <title>`, `@settings`,
  * `@vault`, `@key <key> [count]`, `@click [button] <selector>`,
- * `@ax <selector>`, or `@axquery <role> <selector>`.
+ * `@ax <selector>`, `@axquery <role> <selector>`, or `@viewport [window] <size>`.
  * Blank lines between steps are ignored. Exported for unit tests.
  */
 export function parseBatch(text) {
@@ -753,6 +807,30 @@ export function parseBatch(text) {
         );
       }
       steps.push({ kind: "axquery", role: match[1], selector: match[2] });
+    } else if (name === "viewport") {
+      let token = inline.trim();
+      let mechanism = "emulate";
+      if (token === "window") {
+        throw new CdpError(
+          `Line ${stepLine}: @viewport window needs a size: desktop, phone, or WxH.`,
+        );
+      }
+      if (token.startsWith("window ")) {
+        mechanism = "window";
+        token = token.slice("window ".length).trim();
+      }
+      if (token === "") {
+        throw new CdpError(
+          `Line ${stepLine}: @viewport needs a size: desktop, phone, or WxH.`,
+        );
+      }
+      let canvas;
+      try {
+        canvas = parseCanvasSpec(token);
+      } catch (error) {
+        throw new CdpError(`Line ${stepLine}: ${errorMessage(error)}`);
+      }
+      steps.push({ kind: "viewport", canvas, mechanism, spec: token });
     } else {
       throw new CdpError(
         `Line ${stepLine}: unknown step "@${name}". Use ${STEP_NAMES.map((step) => `@${step}`).join(", ")}.`,
@@ -1408,6 +1486,155 @@ async function pressKey(connection, key) {
   await connection.send("Input.dispatchKeyEvent", { type: "keyUp", ...base });
 }
 
+/**
+ * Resolves a viewport argument to a canvas: a named one (`desktop`, `phone`) or
+ * an explicit `WxH`. Exported so the sizes are unit-tested without a live app.
+ */
+export function parseCanvasSpec(token) {
+  const text = String(token ?? "")
+    .trim()
+    .toLowerCase();
+  if (Object.hasOwn(CANVASES, text)) {
+    return { name: text, ...CANVASES[text] };
+  }
+  const match = /^(\d{3,4})x(\d{3,4})$/.exec(text);
+  if (!match) {
+    throw new CdpError(
+      `Unknown viewport "${token}". Use ${Object.keys(CANVASES).join(", ")}, or WIDTHxHEIGHT such as 1440x900.`,
+    );
+  }
+  return { name: text, width: Number(match[1]), height: Number(match[2]) };
+}
+
+/**
+ * Names the layout band a measured viewport sits in, and whether it landed on a
+ * breakpoint. The band is the pair of stylesheet breakpoints around the width,
+ * so "1400-1600" means every `max-width: 1400px` rule is off and the
+ * `max-width: 1600px` one is on. Exported for unit tests.
+ */
+export function describeViewport({ width, height, devicePixelRatio }) {
+  const measured = Math.round(Number(width));
+  const onEdge = LAYOUT_BREAKPOINTS.includes(measured);
+  let lower = 0;
+  let upper;
+  for (const edge of LAYOUT_BREAKPOINTS) {
+    if (edge < measured) {
+      lower = edge;
+    } else if (edge > measured && upper === undefined) {
+      upper = edge;
+    }
+  }
+  return {
+    width: measured,
+    height: Math.round(Number(height)),
+    devicePixelRatio: Number(devicePixelRatio),
+    band: onEdge ? String(measured) : `${lower}-${upper ?? "inf"}`,
+    onEdge,
+  };
+}
+
+/** What the target's viewport is right now, as CSS pixels. */
+async function measureViewport(connection) {
+  const result = await evaluate(
+    connection,
+    "JSON.stringify({ width: innerWidth, height: innerHeight, devicePixelRatio })",
+  );
+  return describeViewport(JSON.parse(result.value));
+}
+
+/** Resizes the real window, which the display must be able to host. */
+async function resizeWindowTo(connection, canvas) {
+  const { windowId } = await connection.send("Browser.getWindowForTarget");
+  await connection.send("Browser.setWindowBounds", {
+    windowId,
+    bounds: {
+      width: canvas.width,
+      height: canvas.height,
+      windowState: "normal",
+    },
+  });
+  await delay(400);
+  return measureViewport(connection);
+}
+
+/**
+ * Emulates a viewport. The override lives only as long as this CDP connection,
+ * which is why it is a repl step and never a separate call before a shot.
+ */
+async function emulateViewport(connection, canvas) {
+  await connection.send("Emulation.setDeviceMetricsOverride", {
+    width: canvas.width,
+    height: canvas.height,
+    deviceScaleFactor: canvas.deviceScaleFactor ?? 1,
+    mobile: Boolean(canvas.mobile),
+  });
+  await delay(150);
+  return measureViewport(connection);
+}
+
+/** Applies a canvas and refuses a result outside the size it asked for. */
+export async function applyCanvas(connection, canvas, mechanism = "emulate") {
+  const viewport =
+    mechanism === "window"
+      ? await resizeWindowTo(connection, canvas)
+      : await emulateViewport(connection, canvas);
+  if (
+    canvas.minWidth !== undefined &&
+    (viewport.width < canvas.minWidth || viewport.width > canvas.maxWidth)
+  ) {
+    throw new CdpError(
+      `Asked for ${canvas.width}x${canvas.height} (${canvas.name}) and measured ` +
+        `${viewport.width}x${viewport.height} @ ${viewport.devicePixelRatio}. ` +
+        `The ${mechanism === "window" ? "display may be too small for real window bounds" : "emulation did not take"}; ` +
+        `use "@viewport window ${canvas.name}" or an explicit WxH inside the band.`,
+    );
+  }
+  return viewport;
+}
+
+/**
+ * Extracts the running version from a renderer probe. `app.version` is not in
+ * `obsidian.d.ts`, so the probe records whatever the build happens to expose and
+ * falls back to the window title, which Obsidian titles
+ * `<vault> - Obsidian <version>`. Exported for unit tests.
+ */
+export function runningVersionFromProbe(probe) {
+  const record = probe ?? {};
+  for (const key of ["version", "appVersion", "currentVersion"]) {
+    const value = record[key];
+    if (typeof value === "string" && VERSION_LIKE.test(value)) {
+      return { version: value.trim(), source: key, probe: record };
+    }
+  }
+  const match = /\bObsidian\s+v?(\d+\.\d+\.\d+)\b/i.exec(
+    String(record.title ?? ""),
+  );
+  if (match) {
+    return { version: match[1], source: "title", probe: record };
+  }
+  return { version: undefined, source: undefined, probe: record };
+}
+
+const VERSION_LIKE = /^\d+\.\d+\.\d+$/;
+
+/** Asks the running renderer which version it is. */
+async function readRunningVersion(connection) {
+  const result = await evaluate(
+    connection,
+    `JSON.stringify((() => {
+      const probe = { title: String(document.title ?? "") };
+      for (const name of ["version", "appVersion", "currentVersion"]) {
+        try {
+          const value = app[name];
+          if (typeof value === "string" && value) probe[name] = value;
+        } catch {}
+      }
+      return probe;
+    })())`,
+  );
+  return runningVersionFromProbe(JSON.parse(result.value));
+}
+
 /** Resolves a visible selector to the center of its bounds in CSS viewport pixels. */
 async function clickPoint(connection, selector) {
   const expression = `(() => {
@@ -1733,6 +1960,15 @@ async function runBatch(options, initialConnection, steps) {
         console.log(
           JSON.stringify(await readAxNode(connection, step.selector), null, 2),
         );
+      } else if (step.kind === "viewport") {
+        const viewport = await applyCanvas(
+          connection,
+          step.canvas,
+          step.mechanism,
+        );
+        console.log(
+          `viewport ${step.spec} (${step.mechanism}) -> ${viewport.width}x${viewport.height} @ ${viewport.devicePixelRatio}, band ${viewport.band}${viewport.onEdge ? ", on a breakpoint" : ""}`,
+        );
       } else if (step.kind === "axquery") {
         console.log(
           JSON.stringify(
@@ -1945,6 +2181,15 @@ async function main() {
   if (options.command === "prepare-vault") {
     assertPrepareVaultGuard(options, pinnedPort);
   }
+  if (
+    (options.command === "viewport" ||
+      steps.some((step) => step.kind === "viewport")) &&
+    !pinnedPort
+  ) {
+    throw new CdpError(
+      "viewport needs --profile: it resizes a window, so the port must be pinned to this session's own instance.",
+    );
+  }
 
   const { connection } = await openTarget(options.host, ports, options.target, {
     expectVault: options.expectVault,
@@ -1960,6 +2205,46 @@ async function main() {
     }
     if (options.command === "prepare-vault") {
       await prepareVault(options, connection);
+      return;
+    }
+    if (options.command === "version") {
+      const running = await readRunningVersion(connection);
+      if (options.json) {
+        console.log(JSON.stringify(running, null, 2));
+      } else if (running.version) {
+        console.log(
+          `Obsidian ${running.version} (from ${running.source}) — quote this in evidence; the exe's ProductVersion is the installer's build.`,
+        );
+      } else {
+        console.log(
+          `Running version not reported (title ${JSON.stringify(running.probe.title)}). Record the Settings window's "Version" row instead.`,
+        );
+      }
+      if (!running.version) process.exitCode = 1;
+      return;
+    }
+    if (options.command === "viewport") {
+      const requested = options.args[0];
+      if (requested === undefined || requested === "report") {
+        const viewport = await measureViewport(connection);
+        console.log(
+          options.json
+            ? JSON.stringify(viewport, null, 2)
+            : `viewport ${viewport.width}x${viewport.height} @ ${viewport.devicePixelRatio}, band ${viewport.band}${viewport.onEdge ? ", on a breakpoint" : ""}`,
+        );
+        return;
+      }
+      const canvas = parseCanvasSpec(requested);
+      const viewport = await applyCanvas(connection, canvas, "window");
+      console.log(
+        options.json
+          ? JSON.stringify(
+              { requested: canvas.name, mechanism: "window", ...viewport },
+              null,
+              2,
+            )
+          : `viewport ${requested} (window bounds) -> ${viewport.width}x${viewport.height} @ ${viewport.devicePixelRatio}, band ${viewport.band}${viewport.onEdge ? ", on a breakpoint" : ""}`,
+      );
       return;
     }
     if (options.command === "eval") {

@@ -64,6 +64,35 @@ plugin folder, reload the plugin, and launch with a debug port and a disposable
 `--user-data-dir` so the CDP route works). Real user data is touched only with
 the user's explicit go-ahead in chat and after a backup.
 
+**Prime the profile, then check it, before item 1.** A disposable
+`--user-data-dir` has no app archive, so Obsidian boots the installer's build,
+which is older than what the maintainer runs and never says so (#732 spent a
+whole drive on 1.14.4 while the app updates to 1.15.0). Prime, launch, then prove
+what loaded:
+
+```sh
+node scripts/obsidian-profile.mjs prime --profile <dir>
+npm run fixture:doctor -- --profile <dir>
+```
+
+`doctor` must not fail before the checklist starts. It names the archive the
+profile will load, the `Loaded ... app` line in the profile's `obsidian.log`, the
+installer's build, and the plugin's `minAppVersion` floor. Quote the build it
+reports in the evidence — never `Obsidian.exe`'s `ProductVersion`, which is the
+installer's.
+
+**Set the canvas.** Window size is test input, not an accident: a drive that
+inherits the default can span two layout bands. Set it before the first
+layout-dependent row and record the line it prints:
+
+```sh
+node scripts/obsidian-cdp.mjs --profile <dir> viewport desktop
+```
+
+That prints `innerWidth x innerHeight @ devicePixelRatio` and the band. A row
+captured without it — or captured at a width on a breakpoint edge — is
+incomplete, and review cannot tell which layout it actually exercised.
+
 **Clean the window once the vault is open.** Run `prepare-vault` (see **Prepare
 the window** in `docs/development/fixture-vault.md`) to close the vault picker
 and the Settings window enabling plugins opens, and to collapse the side panes,

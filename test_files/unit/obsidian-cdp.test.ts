@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CANVASES,
   CdpError,
   DEFAULT_PORTS,
+  LAYOUT_BREAKPOINTS,
   assessCompanionTarget,
   assessVaultOwnership,
   assertWebSocket,
@@ -11,15 +13,18 @@ import {
   choosePort,
   connect,
   clickElement,
+  describeViewport,
   isObsidianVaultTarget,
   normalizeVaultPath,
   parseArgs,
   parseBatch,
+  parseCanvasSpec,
   parseDevToolsActivePort,
   parseKeySpec,
   parseSettingsTitle,
   pollUntilReady,
   renderValue,
+  runningVersionFromProbe,
   selectSettingsTarget,
   selectSettingsTargets,
   selectStarterTargets,
@@ -1284,5 +1289,149 @@ describe("obsidian-cdp connect", () => {
       }),
     });
     await expect(pending).resolves.toEqual({ type: "number", value: 1 });
+  });
+});
+
+describe("obsidian-cdp viewport canvas", () => {
+  it("resolves a named canvas and an explicit size", () => {
+    expect(parseCanvasSpec("desktop")).toMatchObject({
+      name: "desktop",
+      width: 1440,
+      height: 900,
+    });
+    expect(parseCanvasSpec("PHONE")).toMatchObject({
+      name: "phone",
+      width: 390,
+      height: 844,
+    });
+    expect(parseCanvasSpec("1280x800")).toMatchObject({
+      width: 1280,
+      height: 800,
+    });
+  });
+
+  it("refuses a size it cannot use, naming the shapes it accepts", () => {
+    expect(() => parseCanvasSpec("huge")).toThrow(/Unknown viewport/);
+    expect(() => parseCanvasSpec("1440")).toThrow(/WIDTHxHEIGHT/);
+  });
+
+  it("puts the default desktop canvas inside a band, not on a breakpoint", () => {
+    const viewport = describeViewport({
+      width: 1440,
+      height: 900,
+      devicePixelRatio: 2,
+    });
+
+    expect(viewport.band).toBe("1400-1600");
+    expect(viewport.onEdge).toBe(false);
+    expect(LAYOUT_BREAKPOINTS).toContain(1024);
+  });
+
+  it("names the band a narrow desktop capture actually fell into", () => {
+    // #732 captured a "desktop" row at 1023 CSS px, one pixel inside the
+    // <=1024 group, while another row ran at 1499 px.
+    expect(
+      describeViewport({ width: 1023, height: 800, devicePixelRatio: 2 }),
+    ).toMatchObject({
+      band: "920-1024",
+      onEdge: false,
+    });
+    expect(
+      describeViewport({ width: 1024, height: 800, devicePixelRatio: 2 }),
+    ).toMatchObject({
+      band: "1024",
+      onEdge: true,
+    });
+    expect(
+      describeViewport({ width: 1499, height: 1000, devicePixelRatio: 2 }).band,
+    ).toBe("1400-1600");
+  });
+
+  it("keeps the phone canvas in phone territory", () => {
+    expect(CANVASES.phone.width).toBe(390);
+    expect(
+      describeViewport({ width: 390, height: 844, devicePixelRatio: 2 }).band,
+    ).toBe("380-400");
+  });
+});
+
+describe("obsidian-cdp running version", () => {
+  it("prefers a version the app exposes over the window title", () => {
+    expect(
+      runningVersionFromProbe({
+        title: ".fixture-vault - Obsidian v1.14.4",
+        version: "1.15.0",
+      }),
+    ).toMatchObject({ version: "1.15.0", source: "version" });
+  });
+
+  it("falls back to the window title, which Obsidian versions", () => {
+    expect(
+      runningVersionFromProbe({ title: ".fixture-vault - Obsidian v1.15.0" }),
+    ).toMatchObject({ version: "1.15.0", source: "title" });
+    expect(
+      runningVersionFromProbe({
+        title: "Settings - .fixture-vault - Obsidian 1.15.0",
+      }),
+    ).toMatchObject({ version: "1.15.0", source: "title" });
+  });
+
+  it("reports no version rather than inventing one", () => {
+    expect(runningVersionFromProbe({ title: "Obsidian" })).toMatchObject({
+      version: undefined,
+      source: undefined,
+    });
+    expect(runningVersionFromProbe({})).toMatchObject({ version: undefined });
+  });
+});
+
+describe("obsidian-cdp viewport and version commands", () => {
+  it("reads a viewport command and its size", () => {
+    expect(parseArgs(["viewport", "desktop"], noEnv)).toMatchObject({
+      command: "viewport",
+      args: ["desktop"],
+    });
+    expect(parseArgs(["viewport"], noEnv).args).toEqual([]);
+    expect(parseArgs(["version"], noEnv).command).toBe("version");
+  });
+
+  it("rejects an unknown size and a version argument", () => {
+    expect(() => parseArgs(["viewport", "wide"], noEnv)).toThrow(
+      /Unknown viewport/,
+    );
+    expect(() => parseArgs(["viewport", "1.15.0"], noEnv)).toThrow(
+      /Unknown viewport/,
+    );
+    expect(() => parseArgs(["version", "extra"], noEnv)).toThrow(
+      /takes no argument/,
+    );
+  });
+
+  it("rejects --settings where it cannot apply", () => {
+    expect(() =>
+      parseArgs(["--settings", "viewport", "desktop"], noEnv),
+    ).toThrow(/does not apply to viewport/);
+  });
+});
+
+describe("obsidian-cdp @viewport step", () => {
+  it("reads an emulated canvas and a real-window canvas", () => {
+    const steps = parseBatch("@viewport desktop\n@viewport window 1280x800");
+
+    expect(steps[0]).toMatchObject({
+      kind: "viewport",
+      mechanism: "emulate",
+      canvas: { width: 1440, height: 900 },
+    });
+    expect(steps[1]).toMatchObject({
+      kind: "viewport",
+      mechanism: "window",
+      canvas: { width: 1280, height: 800 },
+    });
+  });
+
+  it("refuses a step with no size", () => {
+    expect(() => parseBatch("@viewport")).toThrow(/needs a size/);
+    expect(() => parseBatch("@viewport window")).toThrow(/needs a size/);
   });
 });

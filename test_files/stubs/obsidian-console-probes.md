@@ -69,10 +69,18 @@ real vault:**
    in [Driving the vault over CDP](../../docs/development/fixture-vault.md#driving-the-vault-over-cdp):
 
    ```powershell
-   $profile = "$env:TEMP\rss-dashboard-cdp-profile"
-   & "$env:LOCALAPPDATA\Obsidian\Obsidian.exe" `
-     --remote-debugging-port=9333 `
+   $profile = "$env:LOCALAPPDATA\Temp\opencode\<worktree>-cdp-profile"
+   & "C:\Program Files\Obsidian\Obsidian.exe" `
+     --remote-debugging-port=0 `
      --user-data-dir=$profile
+   ```
+
+   Prime the profile first, or the probes record the installer's build rather
+   than the app version the records were observed on:
+
+   ```powershell
+   node scripts/obsidian-profile.mjs prime --profile $profile
+   npm run fixture:doctor -- --profile $profile
    ```
 
 2. Open a scratch vault in that instance (**Open another vault** → **Open
