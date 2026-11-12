@@ -2,6 +2,7 @@ import { Readability } from "@mozilla/readability";
 import { debugLog } from "./debug-logger";
 import {
   extractPageImage,
+  extractPageImageCandidates,
   extractPageMetadata,
   isEmptyRawMetadata,
   type RawArticleMetadata,
@@ -106,6 +107,8 @@ export interface FullArticleFetchResult {
    * place the page's hero survives.
    */
   pageImage?: string;
+  /** Additional valid declarations so callers can skip unusable placeholders. */
+  pageImageCandidates?: string[];
   /**
    * Set when a site-specific extractor produced `content` from the page's own
    * data (#1738). Such content is deliberately short, so the Reader's
@@ -377,6 +380,7 @@ interface ParsedPage {
   content: string;
   pageMetadata: RawArticleMetadata;
   pageImage?: string;
+  pageImageCandidates?: string[];
   trusted?: true;
 }
 
@@ -414,13 +418,21 @@ function parsePageMetadataOnly(html: string, pageUrl: string): ParsedPage {
     "text/html",
   );
   const pageMetadata = extractPageMetadata(doc);
-  const pageImage = readPageImage(
-    doc,
-    pageUrl,
+  const blueskyPost = extractBlueskyPost(head, pageUrl);
+  let pageImageCandidates: string[];
+  if (isBlueskyPostUrl(pageUrl)) {
+    const cover = readPageImage(doc, pageUrl, pageMetadata, blueskyPost);
+    pageImageCandidates = cover ? [cover] : [];
+  } else {
+    pageImageCandidates = extractPageImageCandidates(doc, pageUrl);
+  }
+  const pageImage = pageImageCandidates[0];
+  return {
+    content: "",
     pageMetadata,
-    extractBlueskyPost(head, pageUrl),
-  );
-  return { content: "", pageMetadata, ...(pageImage ? { pageImage } : {}) };
+    ...(pageImage ? { pageImage } : {}),
+    ...(pageImageCandidates.length ? { pageImageCandidates } : {}),
+  };
 }
 
 /**

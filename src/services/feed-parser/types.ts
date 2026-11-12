@@ -1,3 +1,5 @@
+import type { Feed } from "../../types/types";
+
 export interface ParsedFeed {
   title: string;
   description?: string;
@@ -66,6 +68,8 @@ export interface FeedPreviewData {
 export interface FeedParseOptions {
   allowEmpty?: boolean;
   signal?: AbortSignal;
+  /** Resolve the live feed after the network request, before merging items. */
+  getCurrentFeed?: () => Feed | null | Promise<Feed | null>;
 }
 
 export interface ItunesLookupResponse {

@@ -9,8 +9,14 @@ import type {
 } from "../types/types";
 import { comparableFromText, type OwnWriteRecord } from "./own-write-record";
 import { cloneJson, withSyncNonce } from "./storage-json";
+import { suppressRefreshBoilerplate } from "../utils/refresh-enrichment-suppression";
 import type { ShardBaselines } from "./shard-baselines";
 import type { UserStateStore } from "./user-state-store";
+import {
+  adoptReconciledItems,
+  FeedShardConflict,
+  reconcileFeedShard,
+} from "./feed-shard-reconcile";
 import {
   createComparableFeedShardJson,
   createFeedShard,
@@ -63,6 +69,7 @@ export interface FeedStoragePersistResult {
   metadataSaved: boolean;
   shardWriteCount: number;
   shardDeleteCount: number;
+  suppressionChangedArticleIds?: { feedId: string; guid: string }[];
 }
 
 /** A shard hydration read, kept so its baseline can be built on demand. */
@@ -125,6 +132,7 @@ export interface FeedStorageRunnerState {
   lastPersistedMetadataJson: string | null;
   lastStorageFolderPath: string | null;
   shardFolderHiddenFromSync: boolean;
+  suppressionChangedArticleIdsByFeedId: Map<string, Set<string>>;
 }
 
 /**
@@ -228,6 +236,10 @@ export async function hydrateFeedStorage(
     userStateLoaded = await host.userState.applyToFeeds(settings);
   }
 
+  let suppressionChanged = false;
+  for (const feed of settings.feeds) {
+    if (suppressRefreshBoilerplate(feed).size > 0) suppressionChanged = true;
+  }
   host.capturePersistedState(settings, loadedShards);
   // The on-disk shard still holds the dropped entries; leave its baseline
   // empty so the next save sees a difference and rewrites it.
@@ -235,7 +247,7 @@ export async function hydrateFeedStorage(
     host.state.lastPersistedShardJsonByFeedId.delete(feedId);
   }
   return {
-    didChange: didAssignFeedIds || didDropInvalidItems,
+    didChange: didAssignFeedIds || didDropInvalidItems || suppressionChanged,
     shardCount,
     userStateLoaded,
   };
@@ -431,6 +443,7 @@ export async function persistFeedStorage(
   options: PersistSettingsOptions,
   host: FeedStorageRunnerHost,
 ): Promise<FeedStoragePersistResult> {
+  host.state.suppressionChangedArticleIdsByFeedId.clear();
   host.ensureFeedIds(settings);
   if (options.scope === "article-state") {
     return persistArticleState(settings, saveData, host);
@@ -530,6 +543,11 @@ export async function persistFeedStorage(
     metadataSaved: shouldSaveMetadata,
     shardWriteCount,
     shardDeleteCount,
+    suppressionChangedArticleIds: [
+      ...host.state.suppressionChangedArticleIdsByFeedId,
+    ].flatMap(([feedId, guids]) =>
+      [...guids].map((guid) => ({ feedId, guid })),
+    ),
   };
 }
 
@@ -571,6 +589,191 @@ interface FeedShardWriteContext {
   isV2: boolean;
 }
 
+export interface PersistResolvedShardOptions {
+  expected: FeedItemsShard;
+  isCurrent?: () => boolean;
+  onWriteCommitted?: () => void;
+}
+
+/** Settle locally edited shards before a reload replaces their in-memory items. */
+export async function persistDirtyShardsBeforeReload(
+  settings: RssDashboardSettings,
+  host: FeedStorageRunnerHost,
+  allowEmptyUnbaselinedFeeds = false,
+): Promise<void> {
+  if (!isShardBackedMode(settings.storageMode)) return;
+  while (true) {
+    const before = JSON.stringify(
+      settings.feeds.map((feed) => ({
+        feedId: feed.feedId,
+        url: feed.url,
+        items: feed.items,
+      })),
+    );
+    await persistDirtyShardPass(settings, host, allowEmptyUnbaselinedFeeds);
+    const after = JSON.stringify(
+      settings.feeds.map((feed) => ({
+        feedId: feed.feedId,
+        url: feed.url,
+        items: feed.items,
+      })),
+    );
+    if (before === after) return;
+  }
+}
+
+async function persistDirtyShardPass(
+  settings: RssDashboardSettings,
+  host: FeedStorageRunnerHost,
+  allowEmptyUnbaselinedFeeds = false,
+): Promise<void> {
+  const isV2 = settings.storageMode === "vault-shards-v2";
+  const storageFolder = normalizeFolderPath(settings.storageFolder);
+  for (const feed of settings.feeds) {
+    if (!feed.feedId)
+      throw new Error("An unsaved feed has no storage identity");
+    const baseline = host.state.lastPersistedShardJsonByFeedId.get(feed.feedId);
+    const hasOwnWriteBaseline =
+      host.state.ownWrites.comparableOf(
+        getFeedShardPath(storageFolder, feed.feedId),
+      ) !== undefined;
+    if (
+      allowEmptyUnbaselinedFeeds &&
+      feed.items.length === 0 &&
+      baseline === undefined &&
+      !hasOwnWriteBaseline
+    )
+      continue;
+    if (
+      baseline === undefined &&
+      !hasOwnWriteBaseline &&
+      !(allowEmptyUnbaselinedFeeds && feed.items.length === 0)
+    )
+      throw new Error("An unsaved feed has no storage baseline");
+    if (baseline === createComparableFeedShardJson(feed, isV2)) continue;
+    const written = await writeFeedShard(
+      feed as Feed & { feedId: string },
+      {
+        storageFolder,
+        isV2,
+        forceAllShards: false,
+        storageFolderChanged: false,
+      },
+      host,
+    );
+    if (
+      !written &&
+      host.state.lastPersistedShardJsonByFeedId.get(feed.feedId) !==
+        createComparableFeedShardJson(feed, isV2)
+    )
+      throw new Error("A changed feed could not be saved before reload");
+  }
+}
+
+/** Save an explicitly resolved shard only against the reviewed disk version. */
+export async function persistResolvedShard(
+  settings: RssDashboardSettings,
+  feed: Feed,
+  items: FeedItem[],
+  options: PersistResolvedShardOptions,
+  host: FeedStorageRunnerHost,
+): Promise<boolean> {
+  const {
+    expected,
+    isCurrent = () => true,
+    onWriteCommitted = () => {},
+  } = options;
+  if (
+    !feed.feedId ||
+    !isShardBackedMode(settings.storageMode) ||
+    expected.feedId !== feed.feedId ||
+    expected.feedUrl !== feed.url
+  )
+    return false;
+  const folder = normalizeFolderPath(settings.storageFolder);
+  const path = getFeedShardPath(folder, feed.feedId);
+  const raw = await host.app.vault.adapter.read(path);
+  if (
+    comparableFromText(raw) !== comparableFromText(JSON.stringify(expected)) ||
+    !isCurrent()
+  )
+    return false;
+  const oldBaseline = host.state.lastPersistedShardJsonByFeedId.get(
+    feed.feedId,
+  );
+  const rollbackRecord = host.state.ownWrites.recordPendingWrite(path, raw);
+  const isV2 = settings.storageMode === "vault-shards-v2";
+  host.state.lastPersistedShardJsonByFeedId.set(
+    feed.feedId,
+    createLoadedShardBaseline(feed.feedId, { raw, feedUrl: feed.url }, isV2),
+  );
+  const resolved = { ...feed, feedId: feed.feedId, items: cloneJson(items) };
+  let wrote = false;
+  let verified = false;
+  try {
+    wrote = await writeFeedShard(
+      resolved,
+      {
+        storageFolder: folder,
+        forceAllShards: false,
+        storageFolderChanged: false,
+        isV2,
+      },
+      host,
+      isCurrent,
+    );
+    if (wrote) onWriteCommitted();
+    if (!isCurrent()) return false;
+    const saved = await host.app.vault.adapter.read(path);
+    verified =
+      createLoadedShardBaseline(
+        feed.feedId,
+        { raw: saved, feedUrl: feed.url },
+        isV2,
+      ) === createComparableFeedShardJson(resolved, isV2);
+    return verified;
+  } finally {
+    if (!wrote && !verified) {
+      rollbackRecord();
+      if (oldBaseline === undefined)
+        host.state.lastPersistedShardJsonByFeedId.delete(feed.feedId);
+      else
+        host.state.lastPersistedShardJsonByFeedId.set(feed.feedId, oldBaseline);
+    }
+  }
+}
+
+/** Writes only the opted-in feed when its shard still matches the known copy. */
+export async function persistEnrichmentShard(
+  settings: RssDashboardSettings,
+  feed: Feed,
+  host: FeedStorageRunnerHost,
+  isCurrent: () => boolean = () => true,
+): Promise<boolean> {
+  if (!feed.feedId || !isShardBackedMode(settings.storageMode)) return false;
+  const folder = normalizeFolderPath(settings.storageFolder);
+  const path = getFeedShardPath(folder, feed.feedId);
+  if (host.state.ownWrites.comparableOf(path) === undefined) return false;
+  if (
+    !(await host.state.ownWrites.matchesDisk(path, (name) =>
+      host.app.vault.adapter.read(name),
+    ))
+  )
+    return false;
+  if (!isCurrent()) return false;
+  return writeFeedShard(
+    feed as Feed & { feedId: string },
+    {
+      storageFolder: folder,
+      forceAllShards: false,
+      storageFolderChanged: false,
+      isV2: settings.storageMode === "vault-shards-v2",
+    },
+    host,
+    isCurrent,
+  );
+}
+
 async function writeFeedShards(
   settings: RssDashboardSettings,
   normalizedStorageFolder: string,
@@ -604,10 +807,84 @@ async function writeFeedShards(
   return { shardWriteCount, currentFeedIds };
 }
 
+async function reconcileUnseenShard(
+  feed: Feed & { feedId: string },
+  context: FeedShardWriteContext,
+  host: FeedStorageRunnerHost,
+  previousJson: string | undefined,
+  shardPath: string,
+): Promise<Feed & { feedId: string }> {
+  if (context.forceAllShards) return feed;
+  if (previousJson === undefined) {
+    if (await host.app.vault.adapter.exists(shardPath)) {
+      if (
+        await host.state.ownWrites.matchesDisk(shardPath, (path) =>
+          host.app.vault.adapter.read(path),
+        )
+      )
+        return feed;
+      throw new FeedShardConflict(
+        "Cannot save an existing shard without a baseline",
+      );
+    }
+    return feed;
+  }
+  if (previousJson === createComparableFeedShardJson(feed, context.isV2))
+    return feed;
+  const recorded = host.state.ownWrites.comparableOf(shardPath);
+  if (recorded === undefined) {
+    if (await host.app.vault.adapter.exists(shardPath))
+      throw new FeedShardConflict(
+        "Cannot save a shard without a recorded baseline",
+      );
+    return feed;
+  }
+  let remoteText: string;
+  try {
+    remoteText = await host.app.vault.adapter.read(shardPath);
+  } catch {
+    throw new FeedShardConflict("Cannot check the synced shard before saving");
+  }
+  const remoteComparable = comparableFromText(remoteText);
+  if (remoteComparable === null)
+    throw new FeedShardConflict("Cannot reconcile an invalid synced shard");
+  if (remoteComparable === recorded) return feed;
+  const ancestor = JSON.parse(previousJson) as FeedItemsShard;
+  const incoming = JSON.parse(remoteText) as FeedItemsShard;
+  let items: FeedItem[];
+  try {
+    items = reconcileFeedShard(ancestor, feed.items, incoming, context.isV2);
+  } catch (error) {
+    if (error instanceof FeedShardConflict) {
+      error.context = {
+        feedId: feed.feedId,
+        local: createFeedShard(feed),
+        ancestor,
+        incoming,
+      };
+    }
+    throw error;
+  }
+  const merged = { ...feed, items: cloneJson(items) };
+  const changed = suppressRefreshBoilerplate(merged);
+  if (feed.feedId && changed.size > 0) {
+    const feedChanges =
+      host.state.suppressionChangedArticleIdsByFeedId.get(feed.feedId) ??
+      new Set<string>();
+    for (const item of changed) feedChanges.add(item.guid);
+    host.state.suppressionChangedArticleIdsByFeedId.set(
+      feed.feedId,
+      feedChanges,
+    );
+  }
+  return merged;
+}
+
 async function writeFeedShard(
   feed: Feed & { feedId: string },
   context: FeedShardWriteContext,
   host: FeedStorageRunnerHost,
+  isCurrent: () => boolean = () => true,
 ): Promise<boolean> {
   // Also leaves the shard in a previous storage folder in place: it may
   // be the only copy of this feed's articles.
@@ -632,17 +909,28 @@ async function writeFeedShard(
     return false;
   }
 
-  const shard = createFeedShard(feed, context.isV2);
-  const shardJson = JSON.stringify(shard, null, 2);
-  const currentComparableJson = createComparableFeedShardJson(
-    feed,
-    context.isV2,
-  );
   const previousJson = host.state.lastPersistedShardJsonByFeedId.get(
     feed.feedId,
   );
 
   const shardPath = getFeedShardPath(context.storageFolder, feed.feedId);
+  const writeFeed = await reconcileUnseenShard(
+    feed,
+    context,
+    host,
+    previousJson,
+    shardPath,
+  );
+  if (!isCurrent()) return false;
+  const itemsBeforeWrite = writeFeed === feed ? null : cloneJson(feed.items);
+  const reconciledItems =
+    writeFeed === feed ? null : cloneJson(writeFeed.items);
+  const shard = createFeedShard(writeFeed, context.isV2);
+  const shardJson = JSON.stringify(shard, null, 2);
+  const currentComparableJson = createComparableFeedShardJson(
+    writeFeed,
+    context.isV2,
+  );
   const shardWriteDecision = await getShardWriteDecision(
     host.app,
     shardPath,
@@ -650,6 +938,7 @@ async function writeFeedShard(
     feed.feedId,
   );
 
+  if (!isCurrent()) return false;
   if (shardWriteDecision.needsWrite) {
     const rollbackOwnWrite = host.state.ownWrites.recordPendingWrite(
       shardPath,
@@ -661,6 +950,12 @@ async function writeFeedShard(
       rollbackOwnWrite();
       throw error;
     }
+    if (itemsBeforeWrite && reconciledItems)
+      feed.items = adoptReconciledItems(
+        itemsBeforeWrite,
+        feed.items,
+        reconciledItems,
+      );
     host.state.lastPersistedShardJsonByFeedId.set(
       feed.feedId,
       currentComparableJson,

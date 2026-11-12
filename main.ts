@@ -74,6 +74,11 @@ import {
 import { REFRESH_ANNOUNCEMENT_EVENT } from "./src/services/refresh-announcements";
 import { OpmlManager } from "./src/services/opml-manager";
 import { PreviewImageCache } from "./src/services/preview-image-cache";
+import { RefreshEnrichment } from "./src/services/refresh-enrichment";
+import {
+  loadVaultLocalStorage,
+  saveVaultLocalStorage,
+} from "./src/utils/vault-local-storage";
 import {
   PageCoverImageService,
   createPageCoverFetch,
@@ -98,6 +103,7 @@ import { ImportOpmlModal } from "./src/modals/import-opml-modal";
 import { ImportStarredModal } from "./src/modals/import-starred-modal";
 import { AddFeedModal } from "./src/modals/feed-manager/add-feed-modal";
 import { StorageMigrationModal } from "./src/modals/storage-migration-modal";
+import { FeedConflictRecoveryModal } from "./src/modals/feed-conflict-recovery-modal";
 import { WhatsNewModal } from "./src/modals/whats-new-modal";
 import { ShortcutHelpModal } from "./src/modals/shortcut-help-modal";
 import { shouldShowStorageDeprecationPrompt } from "./src/utils/storage-deprecation-prompt";
@@ -231,10 +237,12 @@ export default class RssDashboardPlugin extends Plugin {
   private autoRefreshScheduler: FeedRefreshScheduler | null = null;
   private readonly feedStorageRepository: FeedStorageRepository;
   private readonly settingsStore: SettingsStore;
+  private conflictNotice: Notice | null = null;
   private readonly uriActionHandler: UriActionHandler;
   private readonly feedOperationTracker: FeedOperationTracker;
   private readonly previewImageCache: PreviewImageCache;
   private readonly pageCoverImageService: PageCoverImageService;
+  private readonly refreshEnrichment: RefreshEnrichment;
   private readonly feedRefreshRunner: FeedRefreshRunner;
   private readonly feedSubscriptionService: FeedSubscriptionService;
   private readonly settingsImportApplier: SettingsImportApplier;
@@ -270,6 +278,10 @@ export default class RssDashboardPlugin extends Plugin {
       autoBackupCoordinator: this.autoBackupCoordinator,
       getSettings: () => this.settings,
       setSettings: (settings) => {
+        this.refreshEnrichment?.reconcileFeeds(
+          this.settings?.feeds ?? [],
+          settings.feeds,
+        );
         this.settings = settings;
       },
       loadData: () => this.loadData(),
@@ -286,6 +298,8 @@ export default class RssDashboardPlugin extends Plugin {
         this.initializeSettingsBackedServices(),
       getAutoRefreshScheduler: () => this.autoRefreshScheduler,
       refreshDashboardViews: () => this.refreshDashboardViews(),
+      onShardConflict: () => this.showShardConflictNotice(),
+      redrawSuppressedArticles: (items) => this.redrawEnrichedArticles(items),
       clearMissingSavedArticlePaths: () =>
         this.savedArticleAssociationService.clearMissingRecordedPaths(
           this.settings.feeds,
@@ -321,6 +335,7 @@ export default class RssDashboardPlugin extends Plugin {
     this.pageCoverImageService = new PageCoverImageService({
       fetchPage: createPageCoverFetch(() => this.settings),
     });
+    this.refreshEnrichment = this.createRefreshEnrichment();
     this.feedRefreshRunner = new FeedRefreshRunner({
       feedOperationTracker: this.feedOperationTracker,
       previewImageCache: this.previewImageCache,
@@ -329,6 +344,8 @@ export default class RssDashboardPlugin extends Plugin {
       getBackgroundImportService: () => this.backgroundImportService,
       getAutoRefreshScheduler: () => this.autoRefreshScheduler,
       saveSettings: () => this.saveSettings(),
+      enqueueEnrichment: (feeds) => this.refreshEnrichment.enqueue(feeds),
+      waitForSettingsReady: () => this.settingsStore.settleLoadGate(),
       clearFeedShardHealth: (feed) => this.clearFeedShardHealth(feed),
       getActiveDashboardView: () => this.getActiveDashboardView(),
       announce: (message) =>
@@ -349,11 +366,19 @@ export default class RssDashboardPlugin extends Plugin {
     this.settingsImportApplier = new SettingsImportApplier({
       getSettings: () => this.settings,
       setSettings: (settings) => {
+        this.refreshEnrichment?.reconcileFeeds(
+          this.settings?.feeds ?? [],
+          settings.feeds,
+        );
         this.settings = settings;
       },
       isSettingsLoadFailed: () => this.settingsLoadFailed,
       getFeedStorageRepository: () => this.feedStorageRepository,
       getMetadataSaveCallback: () => this.getMetadataSaveCallback(),
+      runStorageOperation: (operation) =>
+        this.settingsStore.runStorageOperation(operation),
+      onFeedsReplaced: (previous, current) =>
+        this.refreshEnrichment.reconcileFeeds(previous, current),
       saveSettings: (...args) => this.saveSettings(...args),
       migrateLegacySettings: () => this.migrateLegacySettings(),
       initializeSettingsBackedServices: () =>
@@ -368,6 +393,32 @@ export default class RssDashboardPlugin extends Plugin {
         discoverView?.render();
       },
     });
+  }
+
+  private createRefreshEnrichment(): RefreshEnrichment {
+    return new RefreshEnrichment({
+      getFeeds: () => this.settings.feeds,
+      showCovers: () => this.settings.display.showCoverImage,
+      fetch: createPageCoverFetch(() => this.settings),
+      waitUntilReady: () => this.settingsStore.settleLoadGate(),
+      persist: () => this.saveSettings(),
+      commit: (apply) => this.settingsStore.commitEnrichment(apply),
+      redraw: (items) => this.redrawEnrichedArticles(items),
+      loadRetries: () =>
+        loadVaultLocalStorage(this.app, "refresh-enrichment-retries"),
+      saveRetries: (value) =>
+        saveVaultLocalStorage(this.app, "refresh-enrichment-retries", value),
+      now: () => Date.now(),
+    });
+  }
+
+  private redrawEnrichedArticles(items: FeedItem[]): void {
+    for (const leaf of this.app.workspace.getLeavesOfType(
+      RSS_DASHBOARD_VIEW_TYPE,
+    )) {
+      if (leaf.view instanceof RssDashboardView)
+        leaf.view.redrawEnrichedArticles(items);
+    }
   }
 
   /** Forwards to the settings store, which owns the load-failure flag. */
@@ -724,6 +775,10 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
+  public cancelRefreshEnrichment(feed: Feed): void {
+    this.refreshEnrichment.cancelFeed(feed);
+  }
+
   /** Updates only refresh affordances so active work never resets article scroll. */
   private async notifyRefreshStatusChanged(): Promise<void> {
     const leaves = this.app.workspace.getLeavesOfType(RSS_DASHBOARD_VIEW_TYPE);
@@ -1069,6 +1124,12 @@ export default class RssDashboardPlugin extends Plugin {
       this.registerViews();
       this.registerRibbonIconAndSettingTab();
       this.registerCommands();
+      try {
+        if ((await this.settingsStore.listShardConflicts()).length > 0)
+          this.showShardConflictNotice();
+      } catch {
+        new Notice("Could not read feed conflict recovery files.", 0);
+      }
       this.scheduleStartupRefresh(autoRefreshScheduler);
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -1167,6 +1228,11 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   private registerCommands(): void {
+    this.addCommand({
+      id: "resolve-feed-conflicts",
+      name: "Resolve feed conflicts",
+      callback: () => this.openShardConflictRecovery(),
+    });
     this.addCommand({
       id: "open-dashboard",
       name: "Open dashboard",
@@ -1269,6 +1335,43 @@ export default class RssDashboardPlugin extends Plugin {
     registerPaletteCommands(this);
   }
 
+  private showShardConflictNotice(): void {
+    if (this.conflictNotice) return;
+    const notice = new Notice(
+      "Feed changes conflict with synced data. Review the saved versions before continuing.",
+      0,
+    );
+    notice.messageEl
+      .createEl("button", { text: "Review conflicts" })
+      .addEventListener("click", () => this.openShardConflictRecovery());
+    this.conflictNotice = notice;
+  }
+
+  private openShardConflictRecovery(): void {
+    new FeedConflictRecoveryModal(this.app, {
+      list: () => this.settingsStore.listShardConflicts(),
+      read: (name) => this.settingsStore.readShardConflict(name),
+      stripState: this.settings.storageMode === "vault-shards-v2",
+      resolve: async (name, choices, displayedContext) => {
+        const result = await this.settingsStore.resolveShardConflict(
+          name,
+          choices,
+          displayedContext,
+        );
+        if (
+          result &&
+          (await this.settingsStore.listShardConflicts()).length === 0
+        ) {
+          this.conflictNotice?.hide();
+          this.conflictNotice = null;
+          this.backgroundImportService.resumePendingImports();
+          this.ensureAutoRefreshScheduler().reschedule();
+        }
+        return result;
+      },
+    }).open();
+  }
+
   private scheduleStartupMediaProgressMigration(): void {
     const workspaceWithLayoutReady = this.app
       .workspace as typeof this.app.workspace & {
@@ -1288,6 +1391,7 @@ export default class RssDashboardPlugin extends Plugin {
   private scheduleStartupRefresh(
     autoRefreshScheduler: FeedRefreshScheduler,
   ): void {
+    if (this.settingsStore.hasPendingShardConflicts()) return;
     const delay = Number.isFinite(this.settings.startupRefreshDelaySeconds)
       ? this.settings.startupRefreshDelaySeconds
       : DEFAULT_SETTINGS.startupRefreshDelaySeconds;
@@ -2199,9 +2303,11 @@ export default class RssDashboardPlugin extends Plugin {
       feedCount: this.settings.feeds.length,
     });
     try {
-      await this.feedStorageRepository.migrateToVaultShards(
-        this.settings,
-        this.getMetadataSaveCallback(),
+      await this.settingsStore.runStorageOperation(() =>
+        this.feedStorageRepository.migrateToVaultShards(
+          this.settings,
+          this.getMetadataSaveCallback(),
+        ),
       );
       this.initializeSettingsBackedServices();
       await this.refreshDashboardViews();
@@ -2229,9 +2335,11 @@ export default class RssDashboardPlugin extends Plugin {
       feedCount: this.settings.feeds.length,
     });
     try {
-      await this.feedStorageRepository.migrateToVaultShardsV2(
-        this.settings,
-        this.getMetadataSaveCallback(),
+      await this.settingsStore.runStorageOperation(() =>
+        this.feedStorageRepository.migrateToVaultShardsV2(
+          this.settings,
+          this.getMetadataSaveCallback(),
+        ),
       );
       this.initializeSettingsBackedServices();
       await this.refreshDashboardViews();
@@ -2281,9 +2389,11 @@ export default class RssDashboardPlugin extends Plugin {
       feedCount: this.settings.feeds.length,
     });
     try {
-      const result = await this.feedStorageRepository.repairVaultShards(
-        this.settings,
-        this.getMetadataSaveCallback(),
+      const result = await this.settingsStore.runStorageOperation(() =>
+        this.feedStorageRepository.repairVaultShards(
+          this.settings,
+          this.getMetadataSaveCallback(),
+        ),
       );
       if (this.settingTab) {
         this.settingTab.refresh();
@@ -2320,10 +2430,12 @@ export default class RssDashboardPlugin extends Plugin {
       deleteShardFolder: Boolean(options?.deleteShardFolder),
     });
     try {
-      await this.feedStorageRepository.revertToLegacyJson(
-        this.settings,
-        this.getMetadataSaveCallback(),
-        options,
+      await this.settingsStore.runStorageOperation(() =>
+        this.feedStorageRepository.revertToLegacyJson(
+          this.settings,
+          this.getMetadataSaveCallback(),
+          options,
+        ),
       );
       this.initializeSettingsBackedServices();
       await this.refreshDashboardViews();
@@ -2474,7 +2586,9 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   loadSettings(): Promise<void> {
-    return this.settingsStore.loadSettings();
+    return this.settingsStore.loadSettings().then(() => {
+      if (this.settings) this.refreshEnrichment.retryPending();
+    });
   }
 
   onExternalSettingsChange(): Promise<void> {
@@ -2681,6 +2795,7 @@ export default class RssDashboardPlugin extends Plugin {
   }
 
   onunload() {
+    this.refreshEnrichment.dispose();
     this.tagChipRadiusSync?.dispose();
     this.tagChipRadiusSync = null;
     this.versionStatusBar?.dispose();

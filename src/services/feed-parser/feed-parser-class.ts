@@ -29,6 +29,7 @@ import {
 } from "./feed-retention.js";
 import {
   collectCarriedForwardItems,
+  carryCompletedPagePreviews,
   collectRefreshedItems,
   indexExistingItems,
   type FeedItemContext,
@@ -47,6 +48,21 @@ import { optimizeImageUrl } from "../../utils/image-url-utils.js";
 import { extractCoverImage } from "./feed-cover-image.js";
 
 export type { FeedParseOptions } from "./types.js";
+
+async function resolveCurrentRefreshFeed(
+  options: FeedParseOptions | undefined,
+  url: string,
+  existingFeed: Feed | null,
+): Promise<Feed | null> {
+  if (!options?.getCurrentFeed) return existingFeed;
+  const current = await options.getCurrentFeed();
+  if (options.signal?.aborted)
+    throw new DOMException("Refresh cancelled", "AbortError");
+  if (!current || current.url !== url) throw new FeedNoLongerAvailable();
+  return current;
+}
+class FeedNoLongerAvailable extends Error {}
+
 export class FeedParser {
   private displaySettings: DisplaySettings;
   private mediaSettings: MediaSettings;
@@ -364,6 +380,7 @@ export class FeedParser {
         ? existingFeed.feedEncoding
         : undefined,
     );
+    existingFeed = await resolveCurrentRefreshFeed(options, url, existingFeed);
     const parsed = this.parser.parseString(responseText);
 
     assertParsedFeedHasEntries(parsed, options);
@@ -430,6 +447,7 @@ export class FeedParser {
     );
 
     newFeed.items = mergeFeedHistoryItems(carriedForward, refreshedItems);
+    if (newFeed.refreshEnrichment) carryCompletedPagePreviews(newFeed.items);
     newFeed.lastUpdated = Date.now();
 
     const mergedItemCountBeforeRetention = newFeed.items.length;
@@ -503,7 +521,10 @@ export class FeedParser {
 
   async refreshFeed(
     feed: Feed,
-    options?: { signal?: AbortSignal },
+    options?: {
+      signal?: AbortSignal;
+      getCurrentFeed?: () => Feed | null | Promise<Feed | null>;
+    },
   ): Promise<Feed> {
     let timeoutId: number | null = null;
     const abortController = new AbortController();
@@ -524,7 +545,10 @@ export class FeedParser {
     }
     try {
       const refreshedFeed = await Promise.race([
-        this.parseFeed(feed.url, feed, { signal: abortController.signal }),
+        this.parseFeed(feed.url, feed, {
+          signal: abortController.signal,
+          getCurrentFeed: options?.getCurrentFeed,
+        }),
         new Promise<Feed>((_, reject) => {
           timeoutId = window.setTimeout(() => {
             abortController.abort();
@@ -540,13 +564,12 @@ export class FeedParser {
       delete refreshedFeed.importStatus;
       return refreshedFeed;
     } catch (error) {
+      if (error instanceof FeedNoLongerAvailable) return feed;
+      if (options?.signal?.aborted) throw error;
       console.error(
         `[RSS dashboard] Error parsing feed ${feed.title} (${feed.url}):`,
         error,
       );
-      if (options?.signal?.aborted) {
-        throw error;
-      }
       // Persist the clean error message so the sidebar can show the badge
       feed.lastFetchError = parseFetchErrorMessage(error);
       return feed;

@@ -35,10 +35,14 @@ import {
   createLoadedShardBaseline,
   hydrateFeedStorage,
   persistFeedStorage,
+  persistEnrichmentShard,
+  persistResolvedShard,
+  persistDirtyShardsBeforeReload,
   type FeedStorageHydrationResult,
   type FeedStoragePersistResult,
   type FeedStorageRunnerHost,
   type FeedStorageRunnerState,
+  type PersistResolvedShardOptions,
   type LoadedShard,
   type PersistSettingsOptions,
 } from "./feed-storage-runner";
@@ -142,6 +146,7 @@ export class FeedStorageRepository {
     feedShardHealthById: new Map<string, FeedShardHealth>(),
     retainedMissingFeedIds: new Set<string>(),
     shardFolderHiddenFromSync: false,
+    suppressionChangedArticleIdsByFeedId: new Map(),
     /**
      * Feed IDs whose shard was successfully read and structurally validated
      * in this plugin session, with the GUIDs present in that validated read.
@@ -352,6 +357,41 @@ export class FeedStorageRepository {
     options: PersistSettingsOptions = {},
   ): Promise<FeedStoragePersistResult> {
     return persistFeedStorage(settings, saveData, options, this.runnerHost);
+  }
+
+  /** Persist one enrichment result only if its shard has no unseen change. */
+  public persistEnrichmentShard(
+    settings: RssDashboardSettings,
+    feed: Feed,
+    isCurrent?: () => boolean,
+  ): Promise<boolean> {
+    return persistEnrichmentShard(settings, feed, this.runnerHost, isCurrent);
+  }
+
+  public persistResolvedShard(
+    settings: RssDashboardSettings,
+    feed: Feed,
+    items: FeedItem[],
+    options: PersistResolvedShardOptions,
+  ): Promise<boolean> {
+    return persistResolvedShard(
+      settings,
+      feed,
+      items,
+      options,
+      this.runnerHost,
+    );
+  }
+
+  public persistDirtyShardsBeforeReload(
+    settings: RssDashboardSettings,
+    allowEmptyUnbaselinedFeeds = false,
+  ): Promise<void> {
+    return persistDirtyShardsBeforeReload(
+      settings,
+      this.runnerHost,
+      allowEmptyUnbaselinedFeeds,
+    );
   }
 
   public async migrateToVaultShards(
@@ -635,6 +675,7 @@ export class FeedStorageRepository {
           : undefined;
         return {
           ...feed,
+          refreshEnrichment: false,
           items: Array.isArray(feedItems) ? feedItems : [],
         };
       });
@@ -747,6 +788,7 @@ export class FeedStorageRepository {
           : undefined;
         return {
           ...feed,
+          refreshEnrichment: false,
           items: Array.isArray(feedItems) ? feedItems : [],
         };
       });

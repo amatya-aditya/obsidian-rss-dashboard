@@ -14,6 +14,24 @@ import { getEffectiveDateMs, isProtectedItem } from "./feed-retention.js";
 import { extractCoverImage } from "./feed-cover-image.js";
 import type { ParsedFeed, ParsedItem } from "./types.js";
 
+/** Reuse a completed page lookup for another retained item at the same URL. */
+export function carryCompletedPagePreviews(items: FeedItem[]): void {
+  const completed = new Map<
+    string,
+    NonNullable<FeedItem["refreshEnrichment"]>
+  >();
+  for (const item of items) {
+    const value = item.refreshEnrichment;
+    if (value?.url === item.link && !completed.has(item.link))
+      completed.set(item.link, value);
+  }
+  for (const item of items) {
+    if (item.refreshEnrichment?.url === item.link) continue;
+    const value = completed.get(item.link);
+    if (value) item.refreshEnrichment = { ...value };
+  }
+}
+
 /**
  * The `FeedParser` helpers the item pipeline calls. They stay methods of
  * `FeedParser` because they read its XML parser, so the pipeline receives

@@ -378,6 +378,20 @@ export function extractPageImage(doc: Document, pageUrl: string): string {
   return absoluteHttpUrl(jsonLdImage(doc), pageUrl);
 }
 
+/** Every usable page image declaration in the existing source precedence. */
+export function extractPageImageCandidates(
+  doc: Document,
+  pageUrl: string,
+): string[] {
+  return [
+    metaContent(doc, "og:image"),
+    metaContent(doc, "twitter:image"),
+    jsonLdImage(doc),
+  ]
+    .map((declared) => absoluteHttpUrl(declared, pageUrl))
+    .filter((url) => url.length > 0);
+}
+
 /** `declared` resolved against `pageUrl`, or "" when it is not absolute http(s). */
 function absoluteHttpUrl(declared: string, pageUrl: string): string {
   if (!declared) return "";

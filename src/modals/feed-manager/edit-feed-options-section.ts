@@ -25,6 +25,8 @@ const PER_FEED_HIGHLIGHT_DURATION_MS = 3000;
  * plus the plugin, the edited feed, and which section to expand or highlight.
  */
 export interface EditFeedOptionsHost extends AddFeedOptionsState {
+  getRefreshEnrichment(): boolean;
+  setRefreshEnrichment(value: boolean): void;
   app: App;
   plugin: EditFeedPlugin;
   feed: Feed;
@@ -74,6 +76,16 @@ export function renderEditFeedOptionsSection(
   renderLocalStorageAddressSetting(perFeedControlsBody, host);
   renderPerFeedLimitSettings(perFeedControlsBody, host);
   renderExcludeFromRefreshSetting(perFeedControlsBody, host);
+  new Setting(perFeedControlsBody)
+    .setName("Fetch page previews during refresh")
+    .setDesc(
+      "When enabled, synced devices may contact article publishers during refresh to fill missing previews. If fallback is needed, the article URL is sent through your configured proxy.",
+    )
+    .addToggle((toggle) =>
+      toggle
+        .setValue(host.getRefreshEnrichment())
+        .onChange((value) => host.setRefreshEnrichment(value)),
+    );
   renderArticleContentFirstSetting(perFeedControlsBody, host);
   renderEditArticleTemplateSetting(perFeedControlsBody, host);
   renderAutoTagsSetting(

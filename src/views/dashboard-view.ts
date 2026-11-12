@@ -3649,6 +3649,13 @@ export class RssDashboardView extends ItemView {
     this.articleList?.refreshTagColors();
   }
 
+  /** Redraw changed card previews without replacing the dashboard. */
+  public redrawEnrichedArticles(items: FeedItem[]): void {
+    this.articleList?.redrawArticlesFromSource(items, (article) =>
+      this.findBackingArticleForDisplayItem(article),
+    );
+  }
+
   /**
    * Brings the open inline Reader's tag chips up to date with the stored
    * article and tag definitions, touching only the chip container so the

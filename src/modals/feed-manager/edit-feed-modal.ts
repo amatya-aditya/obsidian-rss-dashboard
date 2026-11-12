@@ -60,6 +60,7 @@ export class EditFeedModal extends AccessibleModal {
   private maxItemsLimit: number;
   private scanInterval: number;
   private excludeFromRefresh: boolean;
+  private refreshEnrichment: boolean;
   private customTemplate: string;
   private feedKeywordRules: FeedKeywordRulesSettings;
 
@@ -100,6 +101,7 @@ export class EditFeedModal extends AccessibleModal {
       this.feed.maxItemsLimit ?? this.plugin.settings.maxItems;
     this.scanInterval = this.feed.scanInterval ?? 0;
     this.excludeFromRefresh = !!this.feed.excludeFromRefresh;
+    this.refreshEnrichment = !!this.feed.refreshEnrichment;
     this.customTemplate = this.feed.customTemplate || "";
 
     this.feedKeywordRules = this.feed.keywordRules
@@ -430,6 +432,10 @@ export class EditFeedModal extends AccessibleModal {
       plugin: this.plugin,
       feed: this.feed,
       options: this.options,
+      getRefreshEnrichment: () => this.refreshEnrichment,
+      setRefreshEnrichment: (value) => {
+        this.refreshEnrichment = value;
+      },
       getFeedEncoding: () => this.feedEncoding,
       setFeedEncoding: (value) => {
         this.feedEncoding = value;

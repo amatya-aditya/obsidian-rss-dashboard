@@ -1,8 +1,8 @@
 # Article Enrichment: Previews, Pages, and Fetch-on-Open
 
 How RSS Dashboard builds the preview text and card image for an article, where
-that data comes from, and why the plugin deliberately fetches an article page
-only when it is opened. It records the trade-off behind a preview-less card
+that data comes from, and why page fetching normally waits until an article is
+opened. It records the trade-off behind a preview-less card
 ([#964](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/964)) so
 the comparison against other readers does not have to be re-derived.
 
@@ -20,7 +20,14 @@ and the first `<img>` in the blurb — into the item's `summary`, `description`,
 time, and never sees the article page
 ([ADR 0007](../adr/0007-article-metadata-pipeline-seam.md)).
 
-A refresh fetches only the feed. It never fetches article pages.
+A refresh fetches only the feed unless page previews are enabled for that feed.
+The opt-in reads metadata from eligible article pages after a successful refresh;
+it does not run Readability or store a page body. It checks the 20 newest
+retained items, with up to three jobs per feed, twelve per refresh and two in
+flight. A hidden cover alone does not trigger a request. Completed results and
+card-only fallbacks follow article storage; transient retry timing stays local.
+Normal card values win independently, and repeated page values are suppressed
+when three distinct article pages from the same feed declare them.
 
 ### On open: the article page
 
@@ -39,7 +46,7 @@ A restricted or blocked response's `<head>` declares one too, so the image is
 read from that head as well; a formula image, a tracking pixel, the feed's own
 icon, and a known avatar host are refused.
 
-Page-derived data therefore exists only for articles that have been opened.
+Reader metadata remains separate from refresh-derived card fallbacks.
 
 The Reader labels the two sources **RSS content** (the feed-provided version,
 including Atom and JSON Feed) and **Fetched content** (the extracted article
@@ -147,7 +154,7 @@ suffix, or else the same distinctive file name. A generic name such as
 `image.jpg` never matches, and only that first image goes. Each save path applies
 it to the HTML before conversion, as the hero decision itself is made.
 
-## Why the plugin fetches pages only on open
+## Why refresh-time page fetching is opt-in
 
 Fetching a page per item per feed at refresh would reverse a deliberate choice.
 The reasons:
@@ -164,9 +171,11 @@ The reasons:
 - **Local-first storage.** Only articles that were opened carry page metadata,
   keeping the stored data proportional to what was read.
 
-The one exception is manual: the per-card cover-image fetch contacts the article
-page when the reader asks for it, for one item at a time, and stores only the
-image. A refresh still never fetches article pages.
+The per-card cover-image fetch is manual. The separate per-feed refresh option
+is off by default; opted-in devices can contact publishers and send article
+URLs to the configured proxy when fallback is needed. The bounded background
+queue keeps feed refresh independent and turning the option off retains saved
+previews while discarding pending results.
 
 ## How other readers do it
 
@@ -187,14 +196,14 @@ For an unopened item with no feed text and no feed image — the case in the
 reference fixture below — there is nothing to preview and the card is blank
 ([#964](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/964)). A
 placeholder is the local fix. Fetching pages at refresh to fill these cards is a
-separate, opt-in idea
+separate opt-in
 ([#1030](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1030)).
 
 A placeholder fixes a _blank_ preview, not a _wrong_ one. A page's site-wide
 `<meta name="description">` can pass the resolver's degenerate-value guard and be
 stored as `publisherDescription` even though it does not describe the article;
-the Stack Overflow pages are the example. Rejecting that boilerplate is separate
-work.
+the Stack Overflow pages are the example. Refresh-derived values use the
+per-feed repetition rule above to suppress this boilerplate.
 
 ## Reference fixture
 

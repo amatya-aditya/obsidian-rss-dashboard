@@ -22,6 +22,7 @@ import { migrateSaveVersionSetting } from "./save-version";
 import { normalizeTagChipRadius, repairTagChipRadius } from "./tag-chip-radius";
 import { canonicalizeItemIdentityUrl } from "./url-utils";
 import { normalizeRefreshIntervalMinutes } from "./validation";
+import { normalizeRefreshEnrichmentValue } from "./refresh-enrichment-value";
 import {
   getEffectiveDateMs,
   compareGuidOrdinal,
@@ -695,11 +696,77 @@ function mergeTags(a: FeedItem["tags"], b: FeedItem["tags"]): FeedItem["tags"] {
  * @param {string} canonicalKey Canonical identity key for the pair
  * @returns {FeedItem} The merged item
  */
+function matchingSuppression(
+  value: string | undefined,
+  first: string | undefined,
+  firstSuppressed: boolean | undefined,
+  second: string | undefined,
+  secondSuppressed: boolean | undefined,
+): boolean {
+  return Boolean(
+    (firstSuppressed && first === value) ||
+    (secondSuppressed && second === value),
+  );
+}
+
+function mergeRefreshEnrichment(
+  existing: FeedItem,
+  item: FeedItem,
+  link: string,
+): FeedItem["refreshEnrichment"] {
+  const first =
+    existing.refreshEnrichment?.url === link
+      ? existing.refreshEnrichment
+      : undefined;
+  const second =
+    item.refreshEnrichment?.url === link ? item.refreshEnrichment : undefined;
+  return combineRefreshEnrichment(first, second, link);
+}
+
+function combineRefreshEnrichment(
+  first: FeedItem["refreshEnrichment"],
+  second: FeedItem["refreshEnrichment"],
+  link: string,
+): FeedItem["refreshEnrichment"] {
+  const description = first?.description ?? second?.description;
+  const image = first?.image ?? second?.image;
+  const normalizeDescription = (value: string | undefined) =>
+    value === undefined
+      ? undefined
+      : normalizeRefreshEnrichmentValue("description", value);
+  const normalizeImage = (value: string | undefined) =>
+    value === undefined
+      ? undefined
+      : normalizeRefreshEnrichmentValue("image", value);
+  return first || second
+    ? {
+        url: link,
+        description,
+        image,
+        suppressDescription: matchingSuppression(
+          normalizeDescription(description),
+          normalizeDescription(first?.description),
+          first?.suppressDescription,
+          normalizeDescription(second?.description),
+          second?.suppressDescription,
+        ),
+        suppressImage: matchingSuppression(
+          normalizeImage(image),
+          normalizeImage(first?.image),
+          first?.suppressImage,
+          normalizeImage(second?.image),
+          second?.suppressImage,
+        ),
+      }
+    : undefined;
+}
+
 function mergeFeedItemPair(
   existing: FeedItem,
   item: FeedItem,
   canonicalKey: string,
 ): FeedItem {
+  const link = existing.link || item.link;
   return {
     ...existing,
     guid: canonicalKey || existing.guid,
@@ -709,7 +776,8 @@ function mergeFeedItemPair(
     tags: mergeTags(existing.tags, item.tags),
     savedFilePath: existing.savedFilePath || item.savedFilePath,
     title: pickLonger(existing.title, item.title),
-    link: existing.link || item.link,
+    link,
+    refreshEnrichment: mergeRefreshEnrichment(existing, item, link),
     description: pickLonger(existing.description, item.description),
     content: pickLongerOptional(existing.content, item.content),
     summary: pickLongerOptional(existing.summary, item.summary),

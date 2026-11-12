@@ -63,6 +63,32 @@ describe("metadata-only page read (#1702)", () => {
     expect(readability.constructed).not.toHaveBeenCalled();
   });
 
+  it("retains later image declarations for refresh placeholder rejection", async () => {
+    const twitter = "https://cdn.example.com/twitter.jpg";
+    const jsonLd = "https://cdn.example.com/jsonld.jpg";
+    detailedMock.mockResolvedValue({
+      text: page(
+        `<meta property="og:image" content="https://avatars.githubusercontent.com/u/1"><meta name="twitter:image" content="${twitter}"><script type="application/ld+json">{"@type":"NewsArticle","image":"${jsonLd}"}</script>`,
+      ),
+      status: 200,
+    });
+
+    const result = await fetchWithProxyFallbackDetailed(
+      URL_,
+      undefined,
+      undefined,
+      { metadataOnly: true },
+    );
+
+    expect(result.pageImage).toBe("https://avatars.githubusercontent.com/u/1");
+    expect(result.pageImageCandidates).toEqual([
+      "https://avatars.githubusercontent.com/u/1",
+      twitter,
+      jsonLd,
+    ]);
+    expect(readability.constructed).not.toHaveBeenCalled();
+  });
+
   it("parses only the head of a large page", async () => {
     const parse = vi.spyOn(DOMParser.prototype, "parseFromString");
     detailedMock.mockResolvedValue({
@@ -201,6 +227,40 @@ describe("metadata-only page read (#1702)", () => {
     expect(detailedMock).toHaveBeenCalledTimes(2);
     expect(result.failureType).toBe("none");
     expect(resolvePageCoverImage(result.pageMetadata!, URL_)).toBe(OG);
+    expect(readability.constructed).not.toHaveBeenCalled();
+  });
+
+  it("uses the configured proxy for the metadata-only page and keeps the same outcome", async () => {
+    const proxy = "https://proxy.example.com/?url=";
+    detailedMock
+      .mockResolvedValueOnce({ text: "", status: 403 })
+      .mockResolvedValueOnce({
+        text: page(`<meta property="og:image" content="${OG}">`, 1),
+        status: 200,
+      });
+
+    const result = await fetchPageMetadataWithOutcome(URL_, proxy, 10);
+
+    expect(detailedMock.mock.calls.map(([requested]) => requested)).toEqual([
+      URL_,
+      `${proxy}${encodeURIComponent(URL_)}`,
+    ]);
+    expect(result.failureType).toBe("none");
+    expect(resolvePageCoverImage(result.pageMetadata!, URL_)).toBe(OG);
+    expect(readability.constructed).not.toHaveBeenCalled();
+  });
+
+  it("returns a timeout from the metadata-only request without starting a proxy retry", async () => {
+    detailedMock.mockImplementation(() => new Promise(() => undefined));
+
+    const result = await fetchPageMetadataWithOutcome(
+      URL_,
+      "https://proxy.example.com/?url=",
+      0.001,
+    );
+
+    expect(result.failureReason).toBe("timeout");
+    expect(detailedMock).toHaveBeenCalledTimes(1);
     expect(readability.constructed).not.toHaveBeenCalled();
   });
 

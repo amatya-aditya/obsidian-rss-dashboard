@@ -45,6 +45,14 @@ export interface FeedItem {
    * over it. Written once, with the other metadata fields below.
    */
   publisherDescription?: string;
+  /** Card-only page metadata acquired during an opted-in refresh. */
+  refreshEnrichment?: {
+    url: string;
+    description?: string;
+    image?: string;
+    suppressDescription?: boolean;
+    suppressImage?: boolean;
+  };
   /** BCP-47 language code from the article page or feed; unset when unresolved. */
   language?: string;
   languageSource?: "page" | "feed";
@@ -154,6 +162,8 @@ export type ArticleContentFirst = "rss" | "fetched";
 
 export interface Feed {
   feedId?: string;
+  /** Whether refresh may read article-page metadata for card fallbacks. */
+  refreshEnrichment?: boolean;
   title: string;
   url: string;
   /**
