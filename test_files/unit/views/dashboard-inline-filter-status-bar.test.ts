@@ -30,6 +30,7 @@ vi.mock("../../../src/components/article-list", () => ({
     }
     removeArticleInPlace(..._args: unknown[]): void {}
     updateArticleInPlace(..._args: unknown[]): void {}
+    redrawArticlesFromSource(..._args: unknown[]): void {}
   },
 }));
 
@@ -103,6 +104,7 @@ interface DashboardViewInternal {
   selectedArticle: FeedItem | null;
   render(): void;
   refreshFilterStatusBarOnly(): void;
+  redrawEnrichedArticles(items: FeedItem[]): void;
 }
 
 function makeView(settings: RssDashboardSettings): DashboardViewInternal {
@@ -143,6 +145,15 @@ describe("Dashboard filter status bar with an inline article", () => {
     view.render();
     return view;
   }
+
+  it("refreshes highlight statistics when enriched cards change", () => {
+    const settings = cloneSettings();
+    const feed = makeFeed("https://example.com/feed", [{}]);
+    const view = makeView(settings);
+    const refresh = vi.spyOn(view, "refreshFilterStatusBarOnly");
+    view.redrawEnrichedArticles([feed.items[0]]);
+    expect(refresh).toHaveBeenCalledOnce();
+  });
 
   it("does not add the filter status bar under the open article", () => {
     const view = openInline();

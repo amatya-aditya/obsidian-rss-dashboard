@@ -3654,6 +3654,7 @@ export class RssDashboardView extends ItemView {
     this.articleList?.redrawArticlesFromSource(items, (article) =>
       this.findBackingArticleForDisplayItem(article),
     );
+    if (items.length > 0) this.refreshFilterStatusBarOnly();
   }
 
   /**

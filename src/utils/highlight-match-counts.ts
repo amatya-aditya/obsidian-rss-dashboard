@@ -18,6 +18,7 @@ interface MatchCacheEntry {
     summary: string,
     description: string,
     publisherDescription: string,
+    refreshDescription: string,
   ];
   scopeKey: string;
   // Built on the first word that needs it: resolving it converts HTML to text.
@@ -127,6 +128,10 @@ function getEntry(
     article.summary ?? "",
     article.description ?? "",
     article.publisherDescription ?? "",
+    article.refreshEnrichment?.url === article.link &&
+    !article.refreshEnrichment?.suppressDescription
+      ? (article.refreshEnrichment?.description ?? "")
+      : "",
   ];
   const scopeKey = `${scope.titles}|${scope.summaries}|${scope.content}|${scope.showSummary}`;
 

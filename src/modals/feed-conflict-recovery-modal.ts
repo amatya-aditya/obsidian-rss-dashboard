@@ -51,7 +51,7 @@ export class FeedConflictRecoveryModal extends AccessibleModal {
       content.createEl("p", {
         text: "Choose which version to keep for each conflict. Other independent edits will be merged.",
       });
-      const choices: Record<string, "local" | "synced"> = {};
+      const choices = Object.create(null) as Record<string, "local" | "synced">;
       const controls = content.createDiv();
       const save = content.createEl("button", {
         text: "Save choices",

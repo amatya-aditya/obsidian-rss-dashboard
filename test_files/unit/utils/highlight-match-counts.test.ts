@@ -186,6 +186,23 @@ describe("computeHighlightMatchCounts", () => {
       expect(counts([a], hs)).toEqual([1]);
     });
 
+    it("recounts when refresh previews appear, are suppressed, or no longer match the URL", () => {
+      const hs = highlights([word("zebra")], {
+        highlightInTitles: false,
+        highlightInContent: false,
+      });
+      const a = article({ link: "https://example.com/a" });
+      expect(counts([a], hs)).toEqual([0]);
+      a.refreshEnrichment = { url: a.link, description: "zebra" };
+      expect(counts([a], hs)).toEqual([1]);
+      a.refreshEnrichment.suppressDescription = true;
+      expect(counts([a], hs)).toEqual([0]);
+      a.refreshEnrichment.suppressDescription = false;
+      expect(counts([a], hs)).toEqual([1]);
+      a.link = "https://example.com/b";
+      expect(counts([a], hs)).toEqual([0]);
+    });
+
     it("recounts when a word is added, edited or toggled", () => {
       const a = article({ title: "zebra and quokka" });
       const zebra = word("zebra");
