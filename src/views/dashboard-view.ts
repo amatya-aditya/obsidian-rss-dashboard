@@ -3590,6 +3590,19 @@ export class RssDashboardView extends ItemView {
     }
 
     this.syncArticleListAfterUpdate(originalArticle, feed);
+    this.redrawReaderPreviewIfEnriched(originalArticle, updates);
+  }
+
+  private redrawReaderPreviewIfEnriched(
+    article: FeedItem,
+    updates: Partial<FeedItem>,
+  ): void {
+    if (
+      updates.publisherDescription !== undefined &&
+      article.refreshEnrichment?.url === article.link
+    ) {
+      this.redrawEnrichedArticles([article]);
+    }
   }
 
   public setSelectedArticleFromExternal(article: FeedItem): void {

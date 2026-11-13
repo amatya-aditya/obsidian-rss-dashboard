@@ -136,6 +136,30 @@ function fixture(configure?: (settings: RssDashboardSettings) => void) {
   return { settings, blocked, view, rows, status, update, updates };
 }
 
+it("replaces a refresh fallback when Reader metadata arrives without a full render", () => {
+  const f = fixture((settings) => {
+    settings.viewStyle = "card";
+    settings.keywordRules.rules = [];
+    const item = settings.feeds[0].items[0];
+    item.refreshEnrichment = {
+      url: item.link,
+      description: "Refresh fallback description",
+    };
+  });
+  f.view.render();
+  const card = () =>
+    f.view.containerEl.querySelector<HTMLElement>(
+      '[data-article-guid="blocked"]',
+    );
+  expect(card()?.textContent).toContain("Refresh fallback description");
+  f.blocked.publisherDescription = "Reader page description";
+  f.view.applyExternalArticleUpdate(f.blocked.guid, f.blocked.feedUrl, {
+    publisherDescription: "Reader page description",
+  });
+  expect(card()?.textContent).toContain("Reader page description");
+  expect(card()?.textContent).not.toContain("Refresh fallback description");
+});
+
 const ruleSources = [
   {
     name: "global",
