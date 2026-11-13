@@ -8,6 +8,8 @@
 
 ### Fixes
 
+- Inline Reader now uses the same article body text size as Main Reader, including the Reader font-size preference. [GH Issue #1792](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1792)
+- On Android, swiping right from Main Reader now keeps the outgoing Reader visible during its return animation even when Obsidian hides its leaf, then restores the hidden leaf so the tab remains available. [GH Issue #1793](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1793)
 - Closing the Inline reader by swiping right over the article or pressing its back button now slides it away to reveal the dashboard. [GH Issue #1781](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1781)
 - Returning to the dashboard from the Main reader on Android now uses a visible rightward transition while keeping the reader tab available. [GH Issue #1780](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1780)
 - The image lightbox now shows a full-size image even when it loads immediately, and keeps the available preview sharp if the full-size image cannot load. [GH Issue #1773](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1773)
