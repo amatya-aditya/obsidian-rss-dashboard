@@ -107,6 +107,29 @@ describe("ReaderView swipe back to the dashboard", () => {
     );
   });
 
+  it("shows the outgoing reader while it animates after the host hides its leaf", async () => {
+    view.setReturnLeaf(dashboardLeaf as never);
+    workspace.revealLeaf = vi.fn(async () => {
+      setCssProps(readerLeafRoot, { display: "none" });
+    });
+
+    swipeOn(view.containerEl, 120);
+    await flush();
+
+    expect(readerLeafRoot.classList.contains("rss-reader-returning")).toBe(
+      true,
+    );
+    expect(readerLeafRoot.style.getPropertyValue("display")).toBe("");
+    expect(leaf.detach).not.toHaveBeenCalled();
+
+    readerLeafRoot.dispatchEvent(new Event("animationend", { bubbles: true }));
+
+    expect(readerLeafRoot.classList.contains("rss-reader-returning")).toBe(
+      false,
+    );
+    expect(readerLeafRoot.style.getPropertyValue("display")).toBe("none");
+  });
+
   it("falls back to the first dashboard when the return leaf is gone", async () => {
     swipeOn(view.containerEl, 120);
     await flush();
