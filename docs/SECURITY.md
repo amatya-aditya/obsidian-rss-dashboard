@@ -109,7 +109,7 @@ RSS feeds are hosted on external servers — the plugin must fetch feed content 
 
 - Users choose which feeds to subscribe to
 - Users can block/unsubscribe from any feed at any time
-- Feed requests have no configurable timeout or retry limit. The **Fetch timeout** in **Article saving** settings (default 10 seconds) limits full-article fetches only, including each proxy attempt.
+- Feed requests have no configurable timeout or retry limit. The **Fetch timeout** in **Article saving** settings (default 10 seconds) also applies to article-page metadata reads, including proxy fallback.
 - The CORS proxy fallback can be turned off in **Settings → RSS Dashboard → General → Proxy**, and Google favicon requests for RSS feeds stop when **Use site icons/favicons for RSS feeds** is off in the Sidebar tab
 - Feeds can be tested before adding to verify content is appropriate
 
@@ -117,6 +117,7 @@ RSS feeds are hosted on external servers — the plugin must fetch feed content 
 
 Beyond the feeds you subscribe to, RSS Dashboard makes these requests. None of them sends vault content or credentials.
 
+- **Opt-in page previews during refresh.** A feed's Edit feed option lets synced devices contact article publishers for missing card previews. Article URLs may also be sent to the configured proxy on fallback. The option defaults off, including on import; requests are bounded and read page metadata without saving page bodies.
 - **CORS proxy fallback (on by default, set to `auto`).** When a direct fetch fails, the plugin retries through a third-party proxy, so the feed or article URL is sent to that proxy. `auto` tries AllOrigins, CodeTabs, isomorphic-git, ThingProxy and RSS2JSON in turn (`src/utils/proxy-utils.ts`). For full-article fetches, `auto` tries the proxies that have been working first and skips one for a few minutes after it fails three times in a row. That record is kept in memory for the session only and sends no extra requests (`src/utils/proxy-health.ts`, [ADR 0038](adr/0038-rank-cors-proxies-from-passive-session-health.md)). Turn it off in **Settings → RSS Dashboard → General → Proxy**, or pick a single proxy
 - **On-demand proxy check (Settings → RSS Dashboard → General → Proxy).** **Test all proxies** and **Test selected proxy** send one request per proxy to the fixed neutral page `https://example.com/`, and nothing at all until you press a button. The target is never a configured feed URL, an article URL, or browsing history, so repeated presses send the same synthetic request rather than a reading target. Results are held in memory for the session only (`src/utils/proxy-check.ts`, `src/settings/proxy-check-controls.ts`)
 - **RSS2JSON preview fallback.** When a feed preview cannot be fetched directly, the Add feed dialog sends the feed URL to `api.rss2json.com`. This fallback ignores the CORS proxy toggle (`src/services/feed-parser/feed-preview.ts`)

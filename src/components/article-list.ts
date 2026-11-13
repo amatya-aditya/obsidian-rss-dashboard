@@ -76,6 +76,7 @@ import type {
 } from "./article-list/views/view-types";
 import { isDomNode } from "../utils/dom-node";
 import { prefersReducedMotion } from "../utils/motion-preference";
+import { RSS_ACTION_ATTRIBUTE } from "../utils/icon-button";
 import {
   LEFT_HANDED_LAYOUT_ROOT_CLASS,
   loadLeftHandedLayout,
@@ -429,6 +430,23 @@ export class ArticleList {
       article.tags = sourceArticle.tags?.map((tag) => ({ ...tag })) ?? [];
       this.articles[index] = article;
     });
+  }
+
+  /** Rebuild changed previews using the list's current display identities. */
+  public redrawArticlesFromSource(
+    changed: readonly FeedItem[],
+    resolveSourceArticle: (article: FeedItem) => FeedItem | null,
+  ): void {
+    const changedSet = new Set(changed);
+    for (const article of this.articles) {
+      const source = resolveSourceArticle(article);
+      if (!source || !changedSet.has(source)) continue;
+      Object.assign(article, source, {
+        feedTitle: article.feedTitle,
+        feedUrl: article.feedUrl,
+      });
+      this.replaceArticleInPlace(article);
+    }
   }
 
   private persistSettings(): void {
@@ -2007,9 +2025,21 @@ export class ArticleList {
     this.refreshFetchAllCoversState();
 
     if (hadFocus) {
-      // The element is new, so focus returns to its cover control, or to the
-      // card's opener when the control is no longer offered.
+      // Preserve the same action when possible; its accessible name may change,
+      // so prefer its stable action hook and otherwise match its current label.
+      const action = focused?.getAttribute(RSS_ACTION_ATTRIBUTE);
+      const label = focused?.getAttribute("aria-label");
+      const matchingControl = Array.from(
+        newEl.querySelectorAll<HTMLElement>(
+          `[${RSS_ACTION_ATTRIBUTE}], [aria-label]`,
+        ),
+      ).find((element) =>
+        action
+          ? element.getAttribute(RSS_ACTION_ATTRIBUTE) === action
+          : Boolean(label && element.getAttribute("aria-label") === label),
+      );
       const focusTarget =
+        matchingControl ??
         newEl.querySelector<HTMLElement>(
           `.${COVER_IMAGE_FETCH_BUTTON_CLASS}`,
         ) ??

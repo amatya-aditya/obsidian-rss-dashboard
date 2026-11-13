@@ -33,6 +33,7 @@ export interface EditFeedSaveHost {
   readonly maxItemsLimit: number;
   readonly scanInterval: number;
   readonly excludeFromRefresh: boolean;
+  readonly refreshEnrichment: boolean;
   readonly feedEncoding: FeedEncoding;
   readonly articleContentFirst: ArticleContentFirst | undefined;
   readonly customTemplate: string;
@@ -156,6 +157,9 @@ function applyOptionFields(host: EditFeedSaveHost, oldTitle: string): number {
   host.feed.maxItemsLimit = newMaxItemsLimit;
   host.feed.scanInterval = host.scanInterval;
   host.feed.excludeFromRefresh = host.excludeFromRefresh;
+  if (host.feed.refreshEnrichment && !host.refreshEnrichment)
+    host.plugin.cancelRefreshEnrichment?.(host.feed);
+  host.feed.refreshEnrichment = host.refreshEnrichment;
   host.feed.feedEncoding =
     host.feedEncoding === "windows-1251" ? host.feedEncoding : undefined;
   host.feed.articleContentFirst = host.articleContentFirst;

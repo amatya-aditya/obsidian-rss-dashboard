@@ -23,6 +23,9 @@ import {
   FIXTURE_PAGES_DIR,
   FIXTURE_SERVER_HOST,
   FIXTURE_SERVER_PORT,
+  OG_IMAGE_NO_FEED_IMAGE_PAGE,
+  REFRESH_ENRICHMENT_BOTH_PAGE,
+  REFRESH_ENRICHMENT_TEXT_PAGE,
 } from "./generate-fixture-vault.mjs";
 
 // The committed files the server answers for, by extension, with the content
@@ -33,6 +36,12 @@ const CONTENT_TYPES = new Map([
   [".html", "text/html; charset=utf-8"],
   [".gif", "image/gif"],
   [".png", "image/png"],
+]);
+
+const REFRESH_ENRICHMENT_ARTICLE_FILES = new Map([
+  ["/echoed/1", REFRESH_ENRICHMENT_TEXT_PAGE],
+  ["/echoed/2", OG_IMAGE_NO_FEED_IMAGE_PAGE],
+  ["/echoed/3", REFRESH_ENRICHMENT_BOTH_PAGE],
 ]);
 
 // One file name with an allowed extension, at the folder root: no slashes, so
@@ -182,7 +191,6 @@ export function fixtureFeedXml(origin) {
       <link>${origin}/echoed/1</link>
       <guid>${origin}/echoed/1</guid>
       <pubDate>Wed, 02 Sep 2026 12:00:00 GMT</pubDate>
-      <description>Refresh this feed with the fixture server running and read the terminal.</description>
     </item>
     <item>
       <title>Second echoed article</title>
@@ -190,6 +198,12 @@ export function fixtureFeedXml(origin) {
       <guid>${origin}/echoed/2</guid>
       <pubDate>Tue, 01 Sep 2026 12:00:00 GMT</pubDate>
       <description>The second item, so the feed has more than one entry.</description>
+    </item>
+    <item>
+      <title>Third echoed article</title>
+      <link>${origin}/echoed/3</link>
+      <guid>${origin}/echoed/3</guid>
+      <pubDate>Mon, 31 Aug 2026 12:00:00 GMT</pubDate>
     </item>
   </channel>
 </rss>`;
@@ -211,6 +225,29 @@ export function createFixtureServer() {
       });
       response.end(body);
       console.log(`GET ${requestPath} -> 200 (fixture feed)`);
+      console.log(describeRequestIdentity(request.headers));
+      return;
+    }
+
+    const refreshArticleFile = REFRESH_ENRICHMENT_ARTICLE_FILES.get(
+      requestPath.split(/[?#]/)[0] ?? "",
+    );
+    if (request.method === "GET" && refreshArticleFile) {
+      const file = resolveFixtureFile(`/${refreshArticleFile}`);
+      if (!file) {
+        response.writeHead(404, {
+          "content-type": "text/plain; charset=utf-8",
+        });
+        response.end("Not found\n");
+        return;
+      }
+      const body = readFileSync(file.file);
+      response.writeHead(200, {
+        "content-type": file.contentType,
+        "content-length": String(body.byteLength),
+      });
+      response.end(body);
+      console.log(`GET ${requestPath} -> 200 (refresh-enrichment fixture)`);
       console.log(describeRequestIdentity(request.headers));
       return;
     }

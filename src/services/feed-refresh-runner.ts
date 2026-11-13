@@ -25,6 +25,7 @@ import {
   type FeedRefreshOutcome,
 } from "./refresh-announcements";
 import { isFeedImportFailed } from "../utils/feed-import-status";
+import { reconcileRefreshedFeed } from "./feed-refresh-reconcile";
 
 /** The dashboard view methods the runner redraws through. main.ts supplies the view. */
 export interface RefreshDashboardViewLike {
@@ -61,6 +62,8 @@ export interface FeedRefreshRunnerOptions {
   getBackgroundImportService: () => BackgroundImportService | undefined;
   getAutoRefreshScheduler: () => FeedRefreshScheduler | null;
   saveSettings: () => Promise<void>;
+  waitForSettingsReady?: () => Promise<void>;
+  enqueueEnrichment?: (feeds: Feed[]) => void;
   clearFeedShardHealth: (feed: Feed) => void;
   getActiveDashboardView: () => Promise<RefreshDashboardViewLike | null>;
   /** Says one refresh event to every open dashboard's live region. */
@@ -256,9 +259,15 @@ export class FeedRefreshRunner {
     );
   }
 
-  private mergeRefreshedFeed(updatedFeed: Feed): void {
+  private mergeRefreshedFeed(
+    sourceFeed: Feed,
+    updatedFeed: Feed,
+    guidsBeforeFetch?: Set<string>,
+  ): void {
     const index = this.settings.feeds.findIndex(
-      (f) => f.url === updatedFeed.url,
+      (f) =>
+        f.url === updatedFeed.url &&
+        (!sourceFeed.feedId || f.feedId === sourceFeed.feedId),
     );
     if (index >= 0) {
       const storedFeed = this.settings.feeds[index];
@@ -267,9 +276,19 @@ export class FeedRefreshRunner {
       }
       this.settings.feeds[index] = {
         ...updatedFeed,
+        items:
+          storedFeed !== sourceFeed && guidsBeforeFetch
+            ? reconcileRefreshedFeed(
+                storedFeed,
+                updatedFeed,
+                guidsBeforeFetch,
+                this.settings,
+              )
+            : updatedFeed.items,
         feedId: updatedFeed.feedId ?? storedFeed.feedId,
         excludeFromRefresh:
           updatedFeed.excludeFromRefresh ?? storedFeed.excludeFromRefresh,
+        refreshEnrichment: storedFeed.refreshEnrichment,
       };
     }
   }
@@ -295,11 +314,15 @@ export class FeedRefreshRunner {
         ? updatedFeed.items.filter((item) => !guidsBeforeFetch.has(item.guid))
             .length
         : 0;
-      this.mergeRefreshedFeed({
-        ...updatedFeed,
-        lastRefreshAttemptCompletedAt: completedAt,
-        lastFetchError: updatedFeed.lastFetchError,
-      });
+      this.mergeRefreshedFeed(
+        feed,
+        {
+          ...updatedFeed,
+          lastRefreshAttemptCompletedAt: completedAt,
+          lastFetchError: updatedFeed.lastFetchError,
+        },
+        guidsBeforeFetch,
+      );
       if (!updatedFeed.lastFetchError) {
         this.options.clearFeedShardHealth(feed);
       }
@@ -309,7 +332,10 @@ export class FeedRefreshRunner {
 
     const failedOutcome: FeedRefreshOutcome = { newArticles: 0, failed: true };
     const index = this.settings.feeds.findIndex(
-      (storedFeed) => storedFeed === feed || storedFeed.url === feed.url,
+      (storedFeed) =>
+        storedFeed === feed ||
+        (storedFeed.url === feed.url &&
+          (!feed.feedId || storedFeed.feedId === feed.feedId)),
     );
     if (index < 0) {
       return failedOutcome;
@@ -337,6 +363,7 @@ export class FeedRefreshRunner {
     const operation = this.feedOperationTracker.trackOperation();
     const cancelSignal = operation.signal;
     const tally = new RefreshRunTally();
+    let succeeded = false;
     try {
       if (!quiet) {
         this.options.announce(refreshStartedMessage(feedNoticeText));
@@ -352,6 +379,9 @@ export class FeedRefreshRunner {
         const updatedFeed = await this.refreshFeedWithTimeout(feed, {
           signal: cancelSignal,
         });
+        await this.options.waitForSettingsReady?.();
+        if (cancelSignal.aborted) return;
+        succeeded = !updatedFeed.lastFetchError;
         tally.recordFeed(
           this.finalizeRefreshAttempt(
             feed,
@@ -387,6 +417,7 @@ export class FeedRefreshRunner {
         view.refresh();
         new Notice(`Feeds refreshed: ${feedNoticeText}`);
       }
+      if (succeeded) this.options.enqueueEnrichment?.([feed]);
       if (shouldAnnounceFinish(tally, quiet)) {
         this.options.announce(refreshFinishedMessage(tally));
       }
@@ -455,6 +486,7 @@ export class FeedRefreshRunner {
     };
 
     const backgroundPromises: Promise<void>[] = [];
+    const succeeded: Feed[] = [];
 
     const worker = async (): Promise<void> => {
       while (true) {
@@ -476,6 +508,7 @@ export class FeedRefreshRunner {
           currentFeed,
           tally,
           refreshView,
+          succeeded,
           cancelSignal,
         ).finally(() => {
           globalFetchSemaphore.release();
@@ -516,6 +549,8 @@ export class FeedRefreshRunner {
       if (view) {
         view.refresh();
       }
+      if (!this.feedOperationTracker.isCancelled)
+        this.options.enqueueEnrichment?.(succeeded);
 
       if (!this.feedOperationTracker.isCancelled) {
         const failureSuffix = this.buildRefreshFailureSummary(
@@ -560,6 +595,7 @@ export class FeedRefreshRunner {
     currentFeed: Feed,
     tally: RefreshRunTally,
     refreshView: () => Promise<void>,
+    succeeded: Feed[],
     signal?: AbortSignal,
   ): Promise<void> {
     this.feedOperationTracker.setFeedStatus(currentFeed.url, {
@@ -573,8 +609,10 @@ export class FeedRefreshRunner {
       const updatedFeed = await this.refreshFeedWithTimeout(currentFeed, {
         signal,
       });
+      await this.options.waitForSettingsReady?.();
       this.feedOperationTracker.recordSettled();
       if (!this.feedOperationTracker.isCancelled) {
+        if (!updatedFeed.lastFetchError) succeeded.push(currentFeed);
         tally.recordFeed(
           this.finalizeRefreshAttempt(
             currentFeed,
@@ -633,7 +671,19 @@ export class FeedRefreshRunner {
     options?: { signal?: AbortSignal },
   ): Promise<Feed> {
     if (typeof this.feedParser.refreshFeed === "function") {
-      return await this.feedParser.refreshFeed(feed, options);
+      return await this.feedParser.refreshFeed(feed, {
+        ...options,
+        getCurrentFeed: async () => {
+          await this.options.waitForSettingsReady?.();
+          return (
+            this.settings.feeds.find(
+              (current) =>
+                current.url === feed.url &&
+                (!feed.feedId || current.feedId === feed.feedId),
+            ) ?? null
+          );
+        },
+      });
     }
 
     const updatedFeeds = await this.feedParser.refreshAllFeeds([feed]);

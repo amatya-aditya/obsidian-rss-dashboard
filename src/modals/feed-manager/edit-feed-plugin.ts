@@ -9,6 +9,7 @@ export interface EditFeedPlugin {
   getFeedLocalStorageAddress?(feed: Feed): FeedLocalStorageAddress;
   ensureFolderExists(folderPath: string): Promise<boolean>;
   saveSettings(): Promise<void>;
+  cancelRefreshEnrichment?(feed: Feed): void;
   notifyFiltersUpdated(payload: {
     source: string;
     feedUrl?: string;

@@ -187,15 +187,18 @@ describe("background import orchestration", () => {
         folder: "Discover",
       },
     ]);
-    await flushMicrotasks();
+    await vi.waitFor(() => expect(resolveInitialSave).toBeDefined());
     expect(mockParseFeed).not.toHaveBeenCalled();
 
     const refreshPromise = plugin.refreshFeeds();
     await flushMicrotasks();
 
-    expect(mockRefreshFeed).toHaveBeenCalledWith(existingFeed, {
-      signal: expect.any(AbortSignal),
-    });
+    expect(mockRefreshFeed).toHaveBeenCalledWith(
+      existingFeed,
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+      }),
+    );
 
     resolveInitialSave?.();
     await ingestPromise;

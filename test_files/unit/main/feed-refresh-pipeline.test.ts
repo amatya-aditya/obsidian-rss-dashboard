@@ -6,6 +6,8 @@ import {
   type Feed,
   type FeedItem,
 } from "../../../src/types/types";
+import type { FullArticleFetchResult } from "../../../src/utils/fetch-helpers";
+import { emptyRawMetadata } from "../../../src/utils/article-metadata";
 
 let consoleLogSpy: ReturnType<typeof vi.spyOn>;
 
@@ -46,6 +48,16 @@ function createItem(overrides: Partial<FeedItem> = {}): FeedItem {
   };
 }
 
+function mockRefreshFeed(
+  plugin: { feedParser: { refreshFeed: unknown } },
+  implementation: (feed: Feed) => Promise<Feed>,
+): void {
+  const refreshFeed = plugin.feedParser.refreshFeed as {
+    mockImplementation(callback: (feed: Feed) => Promise<Feed>): void;
+  };
+  refreshFeed.mockImplementation(implementation);
+}
+
 function createFeed(overrides: Partial<Feed> = {}): Feed {
   return {
     title: "Feed A",
@@ -69,7 +81,7 @@ interface TestPlugin {
   feedParser: TestFeedParser;
   refreshFeeds: (
     selectedFeeds?: Feed[],
-    intent?: "global" | "targeted" | "due" | "failed",
+    intent?: "global" | "scheduled" | "targeted" | "due" | "failed",
   ) => Promise<void>;
   refreshFailedFeeds: () => Promise<void>;
   getActiveDashboardView: ReturnType<typeof vi.fn>;
@@ -125,6 +137,173 @@ beforeEach(() => {
 });
 
 describe("refreshFeeds() pipeline behavior", () => {
+  it.each(["targeted", "scheduled"] as const)(
+    "stores text-only, image-only, and combined outcomes after %s refresh",
+    async (intent) => {
+      const outcomes = [
+        {
+          description: "A useful publisher description long enough to qualify.",
+        },
+        { image: "https://images.example/article.jpg" },
+        {
+          description: "A useful publisher description long enough to qualify.",
+          image: "https://images.example/article.jpg",
+        },
+      ];
+      for (const outcome of outcomes) {
+        const selected = createFeed({
+          feedId: `feed-${intent}`,
+          refreshEnrichment: true,
+          items: [createItem({ description: "", summary: "", content: "" })],
+        });
+        const plugin = createPluginWithSettings([selected]);
+        mockRefreshFeed(plugin, async (feed) => ({
+          ...feed,
+          lastUpdated: 777,
+        }));
+        const enrichment = (
+          plugin as unknown as {
+            refreshEnrichment: {
+              deps: {
+                fetch(url: string): Promise<FullArticleFetchResult>;
+                commit?: (apply: () => unknown) => Promise<boolean>;
+                persist(): Promise<void>;
+              };
+              whenIdle(): Promise<void>;
+            };
+          }
+        ).refreshEnrichment;
+        enrichment.deps.commit = undefined;
+        enrichment.deps.persist = async () => {};
+        const pageFetch = vi.fn(async () => ({
+          content: "",
+          failureType: "none" as const,
+          pageMetadata: {
+            ...emptyRawMetadata(),
+            metaDescription: outcome.description ?? "",
+          },
+          pageImage: outcome.image,
+        }));
+        enrichment.deps.fetch = pageFetch;
+
+        await plugin.refreshFeeds(
+          intent === "targeted" ? [selected] : undefined,
+          intent,
+        );
+        await enrichment.whenIdle();
+
+        expect(pageFetch).toHaveBeenCalledTimes(1);
+        const saved = plugin.settings.feeds[0]?.items[0]?.refreshEnrichment;
+        expect(saved?.description).toBe(outcome.description);
+        expect(saved?.image).toBe(outcome.image);
+        expect(saved?.url).toBe(selected.items[0]?.link);
+      }
+    },
+  );
+
+  it("keeps newer article state when a feed snapshot is replaced during refresh", async () => {
+    const first = createItem({
+      guid: "first",
+      link: "https://example.com/first",
+      description: "",
+    });
+    const oldFeed = createFeed({ feedId: "feed-one", items: [first] });
+    const plugin = createPluginWithSettings([oldFeed]);
+    let release!: (feed: Feed) => void;
+    mockRefreshFeed(
+      plugin,
+      () =>
+        new Promise<Feed>((resolve) => {
+          release = resolve;
+        }),
+    );
+    const refresh = plugin.refreshFeeds([oldFeed]);
+    await vi.waitFor(() =>
+      expect(plugin.feedParser.refreshFeed).toHaveBeenCalled(),
+    );
+    const latest = structuredClone(oldFeed);
+    latest.items[0].read = true;
+    latest.items[0].refreshEnrichment = {
+      url: first.link,
+      description: "Newer page preview",
+    };
+    plugin.settings.feeds = [latest];
+    release({
+      ...oldFeed,
+      items: [
+        first,
+        createItem({ guid: "second", link: "https://example.com/second" }),
+      ],
+      lastUpdated: 777,
+    });
+    await refresh;
+    const result = plugin.settings.feeds[0];
+    expect(
+      result.items.find((item) => item.guid === "first")?.refreshEnrichment
+        ?.description,
+    ).toBe("Newer page preview");
+    expect(result.items.find((item) => item.guid === "first")?.read).toBe(true);
+    expect(result.items.some((item) => item.guid === "second")).toBe(true);
+  });
+  it("does not overwrite a replacement feed with a late result for the old feed", async () => {
+    const oldFeed = createFeed({ feedId: "old-feed", title: "Old" });
+    const plugin = createPluginWithSettings([oldFeed]);
+    let release!: (feed: Feed) => void;
+    mockRefreshFeed(
+      plugin,
+      () =>
+        new Promise<Feed>((resolve) => {
+          release = resolve;
+        }),
+    );
+    const refresh = plugin.refreshFeeds([oldFeed]);
+    await vi.waitFor(() =>
+      expect(plugin.feedParser.refreshFeed).toHaveBeenCalled(),
+    );
+    const replacement = createFeed({
+      feedId: "new-feed",
+      title: "Replacement",
+      items: [createItem({ guid: "new-item" })],
+    });
+    plugin.settings.feeds = [replacement];
+    release({ ...oldFeed, lastFetchError: "Feed no longer available" });
+    await refresh;
+    expect(plugin.settings.feeds[0]).toBe(replacement);
+    expect(replacement.items.map((item) => item.guid)).toEqual(["new-item"]);
+    expect(replacement.lastFetchError).toBeUndefined();
+  });
+  it.each(["targeted", "scheduled"] as const)(
+    "queues successful %s refreshes after the feed view updates",
+    async (intent) => {
+      const selected = createFeed({ refreshEnrichment: true });
+      const plugin = createPluginWithSettings([selected]);
+      mockRefreshFeed(plugin, async (feed: Feed) => ({
+        ...feed,
+        lastUpdated: 777,
+      }));
+      const view = { refresh: vi.fn() };
+      plugin.getActiveDashboardView.mockResolvedValue(view);
+      const scheduler = (
+        plugin as unknown as {
+          refreshEnrichment: { enqueue(feeds: Feed[]): void };
+        }
+      ).refreshEnrichment;
+      const enqueue = vi
+        .spyOn(scheduler, "enqueue")
+        .mockImplementation(() => {});
+
+      await plugin.refreshFeeds(
+        intent === "targeted" ? [selected] : undefined,
+        intent,
+      );
+
+      expect(enqueue).toHaveBeenCalledWith([selected]);
+      expect(view.refresh).toHaveBeenCalled();
+      expect(view.refresh.mock.invocationCallOrder[0]).toBeLessThan(
+        enqueue.mock.invocationCallOrder[0],
+      );
+    },
+  );
   it("retries the current failed, non-excluded feeds and includes feeds with automatic refresh off", async () => {
     const failed = createFeed({
       title: "Failed Feed",
@@ -528,9 +707,12 @@ describe("refreshFeeds() pipeline behavior", () => {
 
     await plugin.refreshFeeds([feedB]);
 
-    expect(plugin.feedParser.refreshFeed).toHaveBeenCalledWith(feedB, {
-      signal: expect.any(AbortSignal),
-    });
+    expect(plugin.feedParser.refreshFeed).toHaveBeenCalledWith(
+      feedB,
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+      }),
+    );
     expect(plugin.feedParser.refreshAllFeeds).not.toHaveBeenCalled();
     expect(plugin.settings.feeds[0].lastUpdated).toBe(100);
     expect(plugin.settings.feeds[1].lastUpdated).toBe(777);

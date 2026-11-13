@@ -31,6 +31,11 @@ export interface SettingsImportApplierOptions {
   /** Read on every call. */
   getFeedStorageRepository: () => FeedStorageRepository;
   getMetadataSaveCallback: () => (data: unknown) => Promise<void>;
+  runStorageOperation?: <T>(operation: () => Promise<T>) => Promise<T>;
+  onFeedsReplaced?: (
+    previous: readonly Feed[],
+    current: readonly Feed[],
+  ) => void;
   saveSettings: (options?: PersistSettingsOptions) => Promise<void>;
   migrateLegacySettings: () => boolean;
   initializeSettingsBackedServices: () => void;
@@ -55,6 +60,10 @@ export class SettingsImportApplier {
     return this.options.getFeedStorageRepository();
   }
 
+  private runStorageOperation<T>(operation: () => Promise<T>): Promise<T> {
+    return this.options.runStorageOperation?.(operation) ?? operation();
+  }
+
   public async applyUserPreferencesImport(
     parsed: DeepPartial<RssDashboardSettings>,
     kind: ImportKind,
@@ -68,21 +77,23 @@ export class SettingsImportApplier {
 
     if (kind === "replacing") {
       const { folders, availableTags } = this.settings;
-      this.options.setSettings(
-        Object.assign(
-          {},
-          DEFAULT_SETTINGS,
-          this.settings,
-          mergeImportedSettingsGroups(this.settings, parsed),
-        ),
+      const importedFeeds = parsedWithCollections.feeds as Feed[] | undefined;
+      const replacesFeedList = Array.isArray(importedFeeds);
+      const nextSettings = Object.assign(
+        {},
+        DEFAULT_SETTINGS,
+        this.settings,
+        mergeImportedSettingsGroups(this.settings, parsed),
       );
       // A file without a feed list keeps the current feeds, as it keeps
       // the current folders and tags (issue #386).
-      const importedFeeds = parsedWithCollections.feeds;
-      const replacesFeedList = Array.isArray(importedFeeds);
       if (replacesFeedList) {
-        this.settings.feeds = importedFeeds;
+        nextSettings.feeds = importedFeeds.map((feed) => ({
+          ...feed,
+          refreshEnrichment: false,
+        }));
       }
+      this.options.setSettings(nextSettings);
       this.settings.folders = Array.isArray(parsedWithCollections.folders)
         ? parsedWithCollections.folders
         : folders;
@@ -191,11 +202,15 @@ export class SettingsImportApplier {
       feedCount: this.settings.feeds.length,
     });
     try {
-      await this.feedStorageRepository.importPortableDataBundle(
-        bundle,
-        this.settings,
-        this.options.getMetadataSaveCallback(),
-      );
+      await this.runStorageOperation(async () => {
+        const previous = this.settings.feeds;
+        await this.feedStorageRepository.importPortableDataBundle(
+          bundle,
+          this.settings,
+          this.options.getMetadataSaveCallback(),
+        );
+        this.options.onFeedsReplaced?.(previous, this.settings.feeds);
+      });
       this.options.migrateLegacySettings();
       this.options.initializeSettingsBackedServices();
       this.options.refreshSettingTab();
@@ -224,11 +239,15 @@ export class SettingsImportApplier {
       feedCount: this.settings.feeds.length,
     });
     try {
-      await this.feedStorageRepository.importFeedBundle(
-        bundle,
-        this.settings,
-        this.options.getMetadataSaveCallback(),
-      );
+      await this.runStorageOperation(async () => {
+        const previous = this.settings.feeds;
+        await this.feedStorageRepository.importFeedBundle(
+          bundle,
+          this.settings,
+          this.options.getMetadataSaveCallback(),
+        );
+        this.options.onFeedsReplaced?.(previous, this.settings.feeds);
+      });
       this.options.migrateLegacySettings();
       this.options.initializeSettingsBackedServices();
       this.options.refreshSettingTab();
@@ -254,10 +273,12 @@ export class SettingsImportApplier {
       folder: this.settings.storageFolder,
     });
     try {
-      await this.feedStorageRepository.importSettingsBundle(
-        bundle,
-        this.settings,
-        this.options.getMetadataSaveCallback(),
+      await this.runStorageOperation(() =>
+        this.feedStorageRepository.importSettingsBundle(
+          bundle,
+          this.settings,
+          this.options.getMetadataSaveCallback(),
+        ),
       );
       this.options.migrateLegacySettings();
       this.options.initializeSettingsBackedServices();

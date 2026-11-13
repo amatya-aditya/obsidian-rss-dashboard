@@ -89,6 +89,14 @@ export function resolveArticlePreviewImage(
     if (enclosureImage) return enclosureImage;
   }
 
+  const enrichment = article.refreshEnrichment;
+  if (
+    enrichment &&
+    enrichment.url === article.link &&
+    !enrichment.suppressImage
+  ) {
+    return getEligiblePreviewImageUrl(enrichment.image) || undefined;
+  }
   return undefined;
 }
 
@@ -167,6 +175,7 @@ interface PreviewCacheEntry {
   description: string;
   content: string;
   publisherDescription: string;
+  refreshDescription: string;
   text: string;
   feedOnlyText: string;
 }
@@ -199,6 +208,13 @@ function getPreviewEntry(article: FeedItem): PreviewCacheEntry {
   const description = article.description || "";
   const content = article.content || "";
   const publisherDescription = article.publisherDescription || "";
+  const enrichment = article.refreshEnrichment;
+  const refreshDescription =
+    enrichment &&
+    enrichment.url === article.link &&
+    !enrichment.suppressDescription
+      ? enrichment.description || ""
+      : "";
 
   const cached = previewCache.get(article);
   if (
@@ -207,7 +223,8 @@ function getPreviewEntry(article: FeedItem): PreviewCacheEntry {
     cached.summary === summary &&
     cached.description === description &&
     cached.content === content &&
-    cached.publisherDescription === publisherDescription
+    cached.publisherDescription === publisherDescription &&
+    cached.refreshDescription === refreshDescription
   ) {
     return cached;
   }
@@ -218,6 +235,7 @@ function getPreviewEntry(article: FeedItem): PreviewCacheEntry {
     description,
     content,
     publisherDescription,
+    refreshDescription,
     text: resolveArticlePreviewSummaryText(article),
     feedOnlyText: resolveArticleFeedPreviewSummaryText(article),
   };
@@ -235,6 +253,11 @@ function resolveArticlePreviewSummaryText(article: FeedItem): string {
   const candidates = [
     article.publisherDescription || "",
     ...feedPreviewCandidates(article),
+    article.refreshEnrichment &&
+    article.refreshEnrichment.url === article.link &&
+    !article.refreshEnrichment.suppressDescription
+      ? article.refreshEnrichment.description || ""
+      : "",
   ];
 
   return firstUsablePreviewText(candidates);

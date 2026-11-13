@@ -36,10 +36,18 @@ function makeFeed(): Feed {
  * Persists `folders` on a desktop vault, syncs it to a second vault, and
  * hydrates the second device from the synced plugin data.json.
  */
-async function setUpSecondDevice(folders: {
-  storageFolder: string;
-  metadataStorageFolder: string;
-}): Promise<{
+async function setUpSecondDevice(
+  folders: {
+    storageFolder: string;
+    metadataStorageFolder: string;
+  },
+  enrichment?: {
+    description?: string;
+    image?: string;
+    suppressDescription?: boolean;
+    suppressImage?: boolean;
+  },
+): Promise<{
   mobile: MockApp;
   mobileSettings: RssDashboardSettings;
   mobileRepository: FeedStorageRepository;
@@ -52,6 +60,14 @@ async function setUpSecondDevice(folders: {
   ) as RssDashboardSettings;
   Object.assign(desktopSettings, folders);
   desktopSettings.feeds = [makeFeed()];
+  if (enrichment) {
+    const feed = desktopSettings.feeds[0];
+    feed.refreshEnrichment = true;
+    feed.items[0].refreshEnrichment = {
+      url: feed.items[0].link,
+      ...enrichment,
+    };
+  }
 
   // Plugin-default metadata lands in the plugin's own data.json, which
   // Obsidian Sync carries inside `.obsidian/plugins/`.
@@ -76,6 +92,33 @@ async function setUpSecondDevice(folders: {
 }
 
 describe("Shard storage v2 - cross-device sync", () => {
+  it.each([
+    {
+      description: "Page preview",
+      image: "https://example.com/cover.jpg",
+      suppressDescription: true,
+      suppressImage: true,
+    },
+    { description: "Page preview" },
+    {},
+  ])(
+    "carries the opt-in and completed page outcome to a second device: %j",
+    async (enrichment) => {
+      const { mobileSettings } = await setUpSecondDevice(
+        {
+          storageFolder: "rss-dashboard-data/feeds",
+          metadataStorageFolder: "rss-dashboard-data",
+        },
+        enrichment,
+      );
+      const feed = mobileSettings.feeds[0];
+      expect(feed.refreshEnrichment).toBe(true);
+      expect(feed.items[0].refreshEnrichment).toEqual({
+        url: feed.items[0].link,
+        ...enrichment,
+      });
+    },
+  );
   it("shows the desktop's articles and article state on a second device when the storage folders are visible", async () => {
     const { mobileSettings, mobileRepository } = await setUpSecondDevice({
       storageFolder: "rss-dashboard-data/feeds",

@@ -8,7 +8,9 @@ import {
 } from "obsidian";
 import {
   DEFAULT_SETTINGS,
+  type Feed,
   type FeedItem,
+  type FeedItemsShard,
   type RssDashboardSettings,
 } from "../types/types";
 import {
@@ -36,8 +38,19 @@ import {
   mergeSettingsGroups,
 } from "./settings-group-merge";
 import { SettingsAncestorStore } from "./settings-ancestor";
-import { isShardBackedMode, normalizeFolderPath } from "./feed-storage-shard";
+import {
+  createComparableFeedShardJson,
+  createFeedShard,
+  isShardBackedMode,
+  normalizeFolderPath,
+} from "./feed-storage-shard";
 import { collapseDuplicateFeedIds } from "../utils/collapse-duplicate-feed-ids";
+import {
+  FeedShardConflict,
+  resolveConflictingArticles,
+  type FeedShardConflictContext,
+} from "./feed-shard-reconcile";
+import { FeedShardConflictRecovery } from "./feed-shard-conflict-recovery";
 
 function storageLog(_message: string, _details?: unknown): void {}
 
@@ -46,6 +59,8 @@ function storageError(
   _error: unknown,
   _details?: unknown,
 ): void {}
+
+class EnrichmentWriteCancelled extends Error {}
 
 /**
  * How long a queued article-state change waits for the next one before it is
@@ -97,6 +112,13 @@ interface SettingsBeforeReload {
   itemsBefore: Map<string, FeedItem[]>;
 }
 
+/** A tentative card fallback, reversible if it cannot be persisted. */
+export interface EnrichmentMutation {
+  feed: Feed;
+  rollback(): void;
+  isCurrent?(): boolean;
+}
+
 export interface SettingsStoreOptions {
   /** Never changes. */
   manifest: PluginManifest;
@@ -127,6 +149,8 @@ export interface SettingsStoreOptions {
   notifySavedArticleAssociationUpdates: (
     updates: SavedArticleAssociationUpdate[],
   ) => Promise<void>;
+  onShardConflict?: () => void;
+  redrawSuppressedArticles?: (items: FeedItem[]) => void;
 }
 
 /**
@@ -208,6 +232,12 @@ export class SettingsStore {
    * snapshot, so a change is either folded in or replayed, never lost (#1387).
    */
   private journalAppendChain: Promise<void> = Promise.resolve();
+  /** Serialize full settings saves so older snapshots cannot finish last. */
+  private settingsSaveChain: Promise<void> = Promise.resolve();
+  private pendingSettingsSaves = 0;
+  private readonly conflictRecovery: FeedShardConflictRecovery;
+  private conflictRecoveryFailed = false;
+  private hasUnresolvedConflict = false;
 
   /** The `data.json` state this device last knew to be shared (ADR 0036). */
   private readonly ancestor: SettingsAncestorStore;
@@ -219,6 +249,7 @@ export class SettingsStore {
     private readonly options: SettingsStoreOptions,
   ) {
     this.ancestor = new SettingsAncestorStore(app);
+    this.conflictRecovery = new FeedShardConflictRecovery(app);
     // The journal is device-local and obeys this store's one write gate, so
     // the store that owns the plugin folder and the gate configures it.
     this.options.feedStorageRepository.configureDeviceLocalJournal({
@@ -516,6 +547,12 @@ export class SettingsStore {
   }
 
   async loadSettings(): Promise<void> {
+    // A load must not hydrate a snapshot while an earlier save is writing it.
+    // Capture before closing the load gate so the load's own follow-up save
+    // is never part of the chain it waits for.
+    const precedingSave = this.pendingSettingsSaves
+      ? this.settingsSaveChain
+      : null;
     const loadGeneration = ++this.settingsLoadGeneration;
     const isInitialLoad = !this.hasStartedSettingsLoad;
     this.hasStartedSettingsLoad = true;
@@ -523,6 +560,14 @@ export class SettingsStore {
     this.loadDepth += 1;
     const releaseLoadGate = this.closeLoadGate();
     try {
+      if (
+        !(await this.prepareSettingsLoad(
+          loadGeneration,
+          isInitialLoad,
+          precedingSave,
+        ))
+      )
+        return;
       // A synced reload replaces the in-memory snapshot. Pending local changes
       // must already be in the journal before it is read, or this load would
       // drop them; replay then applies them over the reloaded snapshot
@@ -533,16 +578,12 @@ export class SettingsStore {
       this.settingsLoadFailed = true;
       await this.settleJournalAppends();
       storageLog("Loading plugin settings");
-      const { data, vaultMetadataUnreadable, keepCurrentSettings } =
-        await this.readBootstrapSettings(isInitialLoad);
-      if (loadGeneration !== this.settingsLoadGeneration) return;
-      if (keepCurrentSettings) {
-        // A reload could not read the folder its new pointer names. Keep the
-        // live settings and close the write gate so nothing overwrites them
-        // with a fallback; a later successful load opens the gate again.
-        this.settingsLoadFailed = true;
-        return;
-      }
+      const bootstrap = await this.readBootstrapForLoad(
+        loadGeneration,
+        isInitialLoad,
+      );
+      if (!bootstrap) return;
+      const { data, vaultMetadataUnreadable } = bootstrap;
       // Track whether we bootstrapped from null (possible pending sync)
       const wasNullLoad = data === null || vaultMetadataUnreadable;
       this.wasNullSettingsLoad = wasNullLoad;
@@ -554,23 +595,15 @@ export class SettingsStore {
       // in memory so the first real save stores it, and What's New does not
       // treat a brand-new user as upgrading on their next launch. A synced
       // data.json that arrives later replaces these settings entirely.
-      if (data === null) {
-        this.settings.lastShownVersion = this.options.manifest.version;
-      }
+      this.applyFreshInstallVersion(data);
       // A reload after startup (e.g. a synced data.json) replaces the settings
       // object, so services built from the previous one must follow it.
-      if (this.options.hasFolderService()) {
-        this.options.bindSettingsBackedServices();
-      }
+      this.rebindInitializedServices();
       // A fresh install keeps its feed shards and article state inside the
       // plugin folder, so uninstalling the plugin removes them too. Only a
       // null load is changed: existing installs keep the vault folder they
       // already use, and a synced data.json that arrives later replaces this.
-      if (data === null) {
-        const pluginDir = normalizePath(this.resolvePluginDir());
-        this.settings.metadataStorageFolder = `${pluginDir}/data`;
-        this.settings.storageFolder = `${pluginDir}/data/feeds`;
-      }
+      this.applyFreshInstallFolders(data);
       // Two feeds sharing a feedId cannot both be refreshed or opened, since
       // lookups take the first match. Heal it before anything reads the list
       // (#1764).
@@ -599,13 +632,100 @@ export class SettingsStore {
       if (!vaultMetadataUnreadable)
         this.hasNotifiedVaultMetadataFailure = false;
       this.settingsLoadFailed = vaultMetadataUnreadable;
+      // A reload has several asynchronous stages after its first shard
+      // preflight. Persist edits accepted against the hydrated snapshot one
+      // last time immediately before finalizing the replacement.
+      if (!isInitialLoad && !this.isConflictRecoveryPending()) {
+        const shardsCurrent = await this.enqueueSettingsSave(() =>
+          this.prepareShardsForReload(loadGeneration, true),
+        );
+        if (!shardsCurrent && !this.isConflictRecoveryPending()) {
+          if (loadGeneration === this.settingsLoadGeneration)
+            this.settingsLoadFailed = true;
+          return;
+        }
+        if (loadGeneration !== this.settingsLoadGeneration) return;
+      }
       // The gate is open again, so the load can drop the journal records the
       // snapshot it read at the start already covers. Hydration could not do it
       // itself: it runs while the write gate is still closed (#1520).
       await this.feedStorageRepository.completeUserStateLoad();
       this.seedAncestor(wasNullLoad, isInitialLoad);
       releaseLoadGate();
-      const shouldSave = this.shouldSaveAfterLoad({
+      await this.finishSettingsLoad({
+        wasNullLoad,
+        hydrated,
+        didMigrateKeywordRules,
+        didCollapseDuplicateFeeds,
+        didNormalizeAndDedupeItems,
+        savedArticleAssociationUpdates,
+        originalSettingsJson,
+      });
+    } catch (error) {
+      await this.handleLoadFailure(error, loadGeneration);
+    } finally {
+      this.loadDepth -= 1;
+      releaseLoadGate();
+    }
+  }
+
+  private async prepareSettingsLoad(
+    loadGeneration: number,
+    isInitialLoad: boolean,
+    precedingSave: Promise<void> | null,
+  ): Promise<boolean> {
+    if (precedingSave) await precedingSave;
+    if (loadGeneration !== this.settingsLoadGeneration) return false;
+    await this.refreshConflictRecoveryStatus();
+    if (this.isConflictRecoveryPending() && !isInitialLoad) return false;
+    if (
+      !isInitialLoad &&
+      !(await this.enqueueSettingsSave(() =>
+        this.prepareShardsForReload(loadGeneration, true),
+      ))
+    )
+      return false;
+    return loadGeneration === this.settingsLoadGeneration;
+  }
+
+  private async readBootstrapForLoad(
+    loadGeneration: number,
+    isInitialLoad: boolean,
+  ): Promise<Awaited<
+    ReturnType<SettingsStore["readBootstrapSettings"]>
+  > | null> {
+    const bootstrap = await this.readBootstrapSettings(isInitialLoad);
+    if (loadGeneration !== this.settingsLoadGeneration) return null;
+    if (bootstrap.keepCurrentSettings) {
+      // A reload could not read the folder its new pointer names. Keep the
+      // live settings and close the write gate so nothing overwrites them
+      // with a fallback; a later successful load opens the gate again.
+      this.settingsLoadFailed = true;
+      return null;
+    }
+    return bootstrap;
+  }
+
+  private async finishSettingsLoad({
+    wasNullLoad,
+    hydrated,
+    didMigrateKeywordRules,
+    didCollapseDuplicateFeeds,
+    didNormalizeAndDedupeItems,
+    savedArticleAssociationUpdates,
+    originalSettingsJson,
+  }: {
+    wasNullLoad: boolean;
+    hydrated: Awaited<ReturnType<FeedStorageRepository["hydrateSettings"]>>;
+    didMigrateKeywordRules: boolean;
+    didCollapseDuplicateFeeds: boolean;
+    didNormalizeAndDedupeItems: boolean;
+    savedArticleAssociationUpdates: SavedArticleAssociationUpdate[];
+    originalSettingsJson: string;
+  }): Promise<void> {
+    const shouldSave =
+      !this.isConflictRecoveryPending() &&
+      this.shouldSaveAfterLoad({
         wasNullLoad,
         hydrated,
         didMigrateKeywordRules,
@@ -615,49 +735,143 @@ export class SettingsStore {
           savedArticleAssociationUpdates.length > 0,
         originalSettingsJson,
       });
-      if (shouldSave) {
-        // On the first load, onload() has not initialized the services yet,
-        // and this save's backup snapshot needs the backup service.
-        if (!this.options.hasBackupService()) {
-          this.options.initializeSettingsBackedServices();
-        }
-        await this.options.saveSettings(
-          this.loadSaveOptions(
-            didMigrateKeywordRules,
-            didCollapseDuplicateFeeds,
-          ),
-        );
+    if (shouldSave) {
+      // On the first load, onload() has not initialized the services yet,
+      // and this save's backup snapshot needs the backup service.
+      if (!this.options.hasBackupService()) {
+        this.options.initializeSettingsBackedServices();
       }
-      // A load that saved has already taken the baseline; this is a no-op then.
-      await this.recordRecoveryBaseline(wasNullLoad, hydrated);
-      if (savedArticleAssociationUpdates.length > 0) {
-        await this.options.notifySavedArticleAssociationUpdates(
-          savedArticleAssociationUpdates,
-        );
-      }
-      this.options.getAutoRefreshScheduler()?.reschedule();
-      // A successful load ends any recovery from an unreadable pointer.
-      this.pendingMetadataFolder = null;
-    } catch (error) {
-      if (loadGeneration !== this.settingsLoadGeneration) return;
-      storageError("Error loading plugin settings", error);
-      new Notice(
-        `Error loading settings: ${
-          error instanceof Error ? error.message : "Unknown error"
-        }`,
+      await this.options.saveSettings(
+        this.loadSaveOptions(didMigrateKeywordRules, didCollapseDuplicateFeeds),
       );
-      this.options.setSettings(structuredClone(DEFAULT_SETTINGS));
-      if (this.options.hasFolderService()) {
-        this.options.bindSettingsBackedServices();
-      }
-      this.settingsLoadFailed = true;
-      // Drop the checkpoint the failed load may have remembered without
-      // truncating anything: its gate is closed (#1520).
-      await this.feedStorageRepository.completeUserStateLoad();
-    } finally {
-      this.loadDepth -= 1;
-      releaseLoadGate();
     }
+    // A load that saved has already taken the baseline; this is a no-op then.
+    await this.recordRecoveryBaseline(wasNullLoad, hydrated);
+    if (savedArticleAssociationUpdates.length > 0) {
+      await this.options.notifySavedArticleAssociationUpdates(
+        savedArticleAssociationUpdates,
+      );
+    }
+    if (!this.isConflictRecoveryPending())
+      this.options.getAutoRefreshScheduler()?.reschedule();
+    // A successful load ends any recovery from an unreadable pointer.
+    this.pendingMetadataFolder = null;
+  }
+
+  private async prepareShardsForReload(
+    generation: number,
+    allowEmptyUnbaselinedFeeds = false,
+  ): Promise<boolean> {
+    if (!this.settings?.feeds)
+      return generation === this.settingsLoadGeneration;
+    try {
+      await this.feedStorageRepository.persistDirtyShardsBeforeReload(
+        this.settings,
+        allowEmptyUnbaselinedFeeds,
+      );
+      return generation === this.settingsLoadGeneration;
+    } catch (error) {
+      if (error instanceof FeedShardConflict && error.context)
+        await this.preserveShardConflict(error);
+      else
+        new Notice(
+          "Could not preserve local feed changes before reload. Keep this vault open and retry saving.",
+          0,
+        );
+      return false;
+    }
+  }
+
+  private isConflictRecoveryPending(): boolean {
+    return this.conflictRecoveryFailed || this.hasUnresolvedConflict;
+  }
+
+  /** Startup must discover device-local recovery before any load can save. */
+  private async refreshConflictRecoveryStatus(): Promise<void> {
+    try {
+      this.hasUnresolvedConflict =
+        (await this.conflictRecovery.list()).length > 0;
+    } catch (error) {
+      this.conflictRecoveryFailed = true;
+      this.hasUnresolvedConflict = true;
+      new Notice(
+        "Could not read feed conflict recovery. Settings are loaded read-only until recovery is available.",
+        0,
+      );
+      storageError("Could not read feed conflict recovery", error);
+    }
+  }
+
+  hasPendingShardConflicts(): boolean {
+    return this.isConflictRecoveryPending();
+  }
+
+  private async preserveShardConflict(error: FeedShardConflict): Promise<void> {
+    if (!error.context) return;
+    this.hasUnresolvedConflict = true;
+    this.conflictRecoveryFailed = true;
+    try {
+      let snapshot = error.context;
+      while (true) {
+        await this.conflictRecovery.record(snapshot);
+        const current = this.settings.feeds.find(
+          (feed) => feed.feedId === snapshot.feedId,
+        );
+        if (
+          !current ||
+          (current.url === snapshot.local.feedUrl &&
+            JSON.stringify(current.items) ===
+              JSON.stringify(snapshot.local.items))
+        )
+          break;
+        snapshot = { ...snapshot, local: createFeedShard(current) };
+      }
+      this.conflictRecoveryFailed = false;
+      this.options.onShardConflict?.();
+    } catch (recoveryError) {
+      new Notice(
+        "RSS dashboard could not preserve a conflicting local edit. Keep this vault open and retry saving.",
+        0,
+      );
+      throw recoveryError;
+    }
+  }
+
+  private async handleLoadFailure(
+    error: unknown,
+    loadGeneration: number,
+  ): Promise<void> {
+    if (loadGeneration !== this.settingsLoadGeneration) return;
+    if (this.hasUnresolvedConflict || this.conflictRecoveryFailed) {
+      this.settingsLoadFailed = false;
+      await this.feedStorageRepository.completeUserStateLoad();
+      return;
+    }
+    storageError("Error loading plugin settings", error);
+    new Notice(
+      `Error loading settings: ${error instanceof Error ? error.message : "Unknown error"}`,
+    );
+    this.options.setSettings(structuredClone(DEFAULT_SETTINGS));
+    this.rebindInitializedServices();
+    this.settingsLoadFailed = true;
+    await this.feedStorageRepository.completeUserStateLoad();
+  }
+
+  private applyFreshInstallVersion(data: unknown): void {
+    if (data === null)
+      this.settings.lastShownVersion = this.options.manifest.version;
+  }
+
+  private rebindInitializedServices(): void {
+    if (this.options.hasFolderService())
+      this.options.bindSettingsBackedServices();
+  }
+
+  private applyFreshInstallFolders(data: unknown): void {
+    if (data !== null) return;
+    const pluginDir = normalizePath(this.resolvePluginDir());
+    this.settings.metadataStorageFolder = `${pluginDir}/data`;
+    this.settings.storageFolder = `${pluginDir}/data/feeds`;
   }
 
   /**
@@ -1100,6 +1314,7 @@ export class SettingsStore {
   private async savePluginData(
     data: unknown,
     guardUnseenChanges = true,
+    isCurrent: () => boolean = () => true,
   ): Promise<void> {
     if (this.settingsLoadFailed) return;
     let toWrite = data;
@@ -1115,6 +1330,7 @@ export class SettingsStore {
         null,
       );
     }
+    if (!isCurrent()) throw new EnrichmentWriteCancelled();
     // Record what this save writes before it lands, so the external callback
     // treats the file it produces as our own write, not a synced change.
     const previousBaseline = this.pluginDataBaseline;
@@ -1310,7 +1526,9 @@ export class SettingsStore {
     return adopted;
   }
 
-  getMetadataSaveCallback(): (data: unknown) => Promise<void> {
+  getMetadataSaveCallback(
+    isCurrent: () => boolean = () => true,
+  ): (data: unknown) => Promise<void> {
     return async (data: unknown): Promise<void> => {
       if (this.isPersistenceSuppressed()) return;
       let settingsData = data as RssDashboardSettings;
@@ -1336,12 +1554,16 @@ export class SettingsStore {
             )) as unknown as RssDashboardSettings;
           }
           const jsonContent = JSON.stringify(settingsData, null, 2);
+          if (!isCurrent()) throw new EnrichmentWriteCancelled();
           await this.writeMetadataFile(
             dataFilePath,
             jsonContent,
             async () =>
               await this.app.vault.adapter.write(dataFilePath, jsonContent),
           );
+          // The watcher can start a reload while the vault copy is landing.
+          // Do not publish a pointer to that in-flight snapshot afterward.
+          if (this.loadDepth > 0 || this.loadGate) return;
           if (isRecord(settingsData)) {
             this.vaultDataBaselines.set(dataKey, structuredClone(settingsData));
           }
@@ -1365,13 +1587,373 @@ export class SettingsStore {
           throw error;
         }
       } else {
-        await this.savePluginData(settingsData);
+        await this.savePluginData(settingsData, true, isCurrent);
         storageLog("Metadata saved to plugin default location");
       }
     };
   }
 
   async saveSettings(options: PersistSettingsOptions = {}): Promise<void> {
+    // A direct save requested during hydration remains suppressed (#1418).
+    if (this.isPersistenceSuppressed() || this.loadGate) return;
+    await this.enqueueSettingsSave(() => this.saveSettingsNow(options));
+  }
+
+  private enqueueSettingsSave<T>(operation: () => Promise<T>): Promise<T> {
+    this.pendingSettingsSaves += 1;
+    const save = this.settingsSaveChain.then(operation);
+    this.settingsSaveChain = save.then(
+      () => {
+        this.pendingSettingsSaves -= 1;
+      },
+      () => {
+        this.pendingSettingsSaves -= 1;
+      },
+    );
+    return save;
+  }
+
+  /** Serializes repository imports and migrations with ordinary saves. */
+  async runStorageOperation<T>(operation: () => Promise<T>): Promise<T> {
+    await this.settleLoadGate();
+    return this.enqueueSettingsSave(async () => {
+      if (this.loadGate || this.isPersistenceSuppressed())
+        throw new Error("Settings are unavailable during reload");
+      return operation();
+    });
+  }
+
+  async listShardConflicts(): Promise<string[]> {
+    try {
+      const names = await this.conflictRecovery.list();
+      if (names.length > 0) this.hasUnresolvedConflict = true;
+      return names;
+    } catch (error) {
+      this.conflictRecoveryFailed = true;
+      throw error;
+    }
+  }
+
+  async readShardConflict(name: string) {
+    const context = await this.conflictRecovery.read(name);
+    return this.rebaseConflictToCurrentShard(context);
+  }
+
+  async resolveShardConflict(
+    name: string,
+    choices: Readonly<Record<string, "local" | "synced">>,
+    displayedContext?: FeedShardConflictContext,
+  ): Promise<boolean> {
+    return this.enqueueSettingsSave(async () => {
+      if (this.loadGate || this.isPersistenceSuppressed()) return false;
+      const storedContext = await this.conflictRecovery.read(name);
+      const context = await this.rebaseConflictToCurrentShard(storedContext);
+      if (
+        !displayedContext &&
+        comparableSnapshotJson(context) !==
+          comparableSnapshotJson(storedContext)
+      )
+        return false;
+      if (
+        displayedContext &&
+        comparableSnapshotJson(context) !==
+          comparableSnapshotJson(displayedContext)
+      )
+        return false;
+      const feed = this.settings.feeds.find(
+        (candidate) => candidate.feedId === context.feedId,
+      );
+      if (!feed || feed.url !== context.incoming.feedUrl) return false;
+      const isV2 = this.settings.storageMode === "vault-shards-v2";
+      const describe = (items: FeedItem[]) =>
+        createComparableFeedShardJson({ ...feed, items }, isV2);
+      const current = describe(feed.items);
+      if (
+        current !== describe(context.local.items) &&
+        current !== describe(context.incoming.items) &&
+        current !== describe(storedContext.local.items) &&
+        current !== describe(storedContext.incoming.items)
+      )
+        return false;
+      const originalItems = JSON.stringify(feed.items);
+      const originalUrl = feed.url;
+      const mode = this.settings.storageMode;
+      const folder = this.settings.storageFolder;
+      let resolutionWriteCommitted = false;
+      const isCurrent = () =>
+        !this.loadGate &&
+        !this.isPersistenceSuppressed() &&
+        this.settings.feeds.includes(feed) &&
+        feed.url === context.incoming.feedUrl &&
+        this.settings.storageMode === mode &&
+        this.settings.storageFolder === folder &&
+        JSON.stringify(feed.items) === originalItems;
+      const items = resolveConflictingArticles(context, choices, isV2);
+      if (
+        !(await this.feedStorageRepository.persistResolvedShard(
+          this.settings,
+          feed,
+          items,
+          {
+            expected: context.incoming,
+            isCurrent,
+            onWriteCommitted: () => {
+              resolutionWriteCommitted = true;
+            },
+          },
+        ))
+      ) {
+        await this.preserveEditAfterStaleResolution({
+          context,
+          feed,
+          originalItems,
+          originalUrl,
+          mode,
+          folder,
+          isV2,
+          writeCommitted: resolutionWriteCommitted,
+        });
+        return false;
+      }
+      if (!isCurrent()) return false;
+      if (isV2) this.keepCurrentArticleState(items, feed.items);
+      feed.items = items;
+      await this.removeResolvedConflictCopies(name, context);
+      this.hasUnresolvedConflict =
+        (await this.conflictRecovery.list()).length > 0;
+      this.conflictRecoveryFailed = false;
+      await this.options.refreshDashboardViews();
+      return true;
+    });
+  }
+
+  private async rebaseConflictToCurrentShard(
+    context: FeedShardConflictContext,
+  ): Promise<FeedShardConflictContext> {
+    const feed = this.settings.feeds.find(
+      (candidate) => candidate.feedId === context.feedId,
+    );
+    if (!feed || feed.url !== context.incoming.feedUrl) return context;
+    const address = this.feedStorageRepository.getFeedLocalStorageAddress(
+      this.settings,
+      feed,
+    );
+    if (!address.address) return context;
+    const raw = await this.app.vault.adapter.read(address.address);
+    const latest = JSON.parse(raw) as FeedItemsShard;
+    if (
+      latest.feedId !== context.feedId ||
+      latest.feedUrl !== feed.url ||
+      !Array.isArray(latest.items)
+    )
+      return context;
+    return { ...context, incoming: latest };
+  }
+
+  private async preserveEditAfterStaleResolution({
+    context,
+    feed,
+    originalItems,
+    originalUrl,
+    mode,
+    folder,
+    isV2,
+    writeCommitted,
+  }: {
+    context: FeedShardConflictContext;
+    feed: Feed;
+    originalItems: string;
+    originalUrl: string;
+    mode: RssDashboardSettings["storageMode"];
+    folder: string;
+    isV2: boolean;
+    writeCommitted: boolean;
+  }): Promise<void> {
+    const latest = this.settings.feeds.find(
+      (candidate) => candidate.feedId === context.feedId,
+    );
+    if (
+      !writeCommitted ||
+      latest !== feed ||
+      latest.url !== originalUrl ||
+      this.settings.storageMode !== mode ||
+      this.settings.storageFolder !== folder ||
+      JSON.stringify(latest.items) === originalItems
+    )
+      return;
+    try {
+      const address = this.feedStorageRepository.getFeedLocalStorageAddress(
+        this.settings,
+        latest,
+      );
+      const raw = await this.app.vault.adapter.read(address.address);
+      const disk = JSON.parse(raw) as FeedItemsShard;
+      if (
+        disk.feedId !== context.feedId ||
+        disk.feedUrl !== originalUrl ||
+        !Array.isArray(disk.items)
+      )
+        throw new Error("Resolved shard readback was not valid");
+      const baseline = structuredClone(disk);
+      const retryContext: FeedShardConflictContext = {
+        feedId: context.feedId,
+        ancestor: baseline,
+        incoming: structuredClone(baseline),
+        local: createFeedShard(latest, isV2),
+      };
+      const retryName = await this.conflictRecovery.record(retryContext);
+      const verified = await this.conflictRecovery.read(retryName);
+      if (JSON.stringify(verified) !== JSON.stringify(retryContext))
+        throw new Error("Retry recovery readback did not match");
+      this.hasUnresolvedConflict = true;
+      this.conflictRecoveryFailed = false;
+      this.options.onShardConflict?.();
+    } catch (error) {
+      this.hasUnresolvedConflict = true;
+      this.conflictRecoveryFailed = true;
+      new Notice(
+        "RSS dashboard could not preserve a newer edit during conflict recovery. Keep this vault open and retry.",
+        0,
+      );
+      throw error;
+    }
+  }
+
+  private async removeResolvedConflictCopies(
+    name: string,
+    context: FeedShardConflictContext,
+  ): Promise<void> {
+    const names = await this.conflictRecovery.list();
+    for (const older of names) {
+      if (older === name) break;
+      const candidate = await this.conflictRecovery.read(older);
+      if (
+        candidate.feedId === context.feedId &&
+        comparableSnapshotJson(candidate.ancestor) ===
+          comparableSnapshotJson(context.ancestor) &&
+        comparableSnapshotJson(candidate.incoming) ===
+          comparableSnapshotJson(context.incoming) &&
+        comparableSnapshotJson(candidate.local) ===
+          comparableSnapshotJson(context.local)
+      ) {
+        await this.conflictRecovery.remove(older);
+      }
+    }
+    await this.conflictRecovery.remove(name);
+  }
+
+  private keepCurrentArticleState(
+    items: FeedItem[],
+    current: FeedItem[],
+  ): void {
+    const byId = new Map(current.map((item) => [item.guid, item]));
+    const keys = [
+      "read",
+      "starred",
+      "tags",
+      "saved",
+      "savedFilePath",
+      "playbackProgress",
+    ] as const;
+    for (const item of items) {
+      const previous = byId.get(item.guid);
+      if (!previous) continue;
+      const target = item as unknown as Record<string, unknown>;
+      const source = previous as unknown as Record<string, unknown>;
+      for (const key of keys) {
+        if (key in source) target[key] = source[key];
+        else delete target[key];
+      }
+    }
+  }
+
+  /** Apply and persist a result against current settings, behind prior saves. */
+  async commitEnrichment(
+    apply: () => EnrichmentMutation | null,
+  ): Promise<boolean> {
+    await this.settleLoadGate();
+    if (this.isPersistenceSuppressed()) return false;
+    return this.enqueueSettingsSave(async () => {
+      if (this.loadGate || this.isPersistenceSuppressed()) return false;
+      await this.loadUnseenChangesBeforeSave();
+      if (
+        this.loadGate ||
+        this.isPersistenceSuppressed() ||
+        !(await this.metadataIsCurrent())
+      )
+        return false;
+      if (this.loadGate || this.isPersistenceSuppressed()) return false;
+      const mutation = apply();
+      if (!mutation) return false;
+      try {
+        const isCurrent = () =>
+          !this.loadGate &&
+          !this.isPersistenceSuppressed() &&
+          this.settings.feeds.includes(mutation.feed) &&
+          mutation.feed.refreshEnrichment === true &&
+          (mutation.isCurrent?.() ?? true);
+        const written = isShardBackedMode(this.settings.storageMode)
+          ? await this.feedStorageRepository.persistEnrichmentShard(
+              this.settings,
+              mutation.feed,
+              isCurrent,
+            )
+          : await this.persistLegacyEnrichment(isCurrent);
+        if (!written) mutation.rollback();
+        return written;
+      } catch (error) {
+        mutation.rollback();
+        throw error;
+      }
+    });
+  }
+
+  private async metadataIsCurrent(): Promise<boolean> {
+    try {
+      if (
+        this.pluginDataBaseline === null ||
+        this.describePluginData(await this.options.loadData()) !==
+          this.pluginDataBaseline
+      )
+        return false;
+      const path = getMetadataPath(this.settings);
+      if (path) {
+        const metadataFile = `${path}/data.json`;
+        return (
+          this.ownWrites.comparableOf(metadataFile) !== undefined &&
+          (await this.ownWrites.matchesDisk(metadataFile, (file) =>
+            this.readWatchedFile(file),
+          ))
+        );
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  private async persistLegacyEnrichment(
+    isCurrent: () => boolean,
+  ): Promise<boolean> {
+    await this.settleJournalAppends();
+    if (!isCurrent() || !(await this.metadataIsCurrent()) || !isCurrent())
+      return false;
+    try {
+      await this.feedStorageRepository.persistSettings(
+        this.settings,
+        this.getMetadataSaveCallback(isCurrent),
+        {},
+      );
+      return true;
+    } catch (error) {
+      if (error instanceof EnrichmentWriteCancelled) return false;
+      throw error;
+    }
+  }
+
+  private async saveSettingsNow(
+    options: PersistSettingsOptions,
+  ): Promise<void> {
     await this.loadUnseenChangesBeforeSave();
     if (this.isPersistenceSuppressed()) return;
     // Any queued change must be on disk before this write folds the journal
@@ -1390,6 +1972,21 @@ export class SettingsStore {
         this.getMetadataSaveCallback(),
         options,
       );
+      if (result.suppressionChangedArticleIds?.length) {
+        const changedItems = result.suppressionChangedArticleIds.flatMap(
+          ({ feedId, guid }) => {
+            const feed = this.settings.feeds.find(
+              (candidate) => candidate.feedId === feedId,
+            );
+            const item = feed?.items.find(
+              (candidate) => candidate.guid === guid,
+            );
+            return item ? [item] : [];
+          },
+        );
+        if (changedItems.length)
+          this.options.redrawSuppressedArticles?.(changedItems);
+      }
       storageLog("saveSettings completed", result);
       try {
         await this.autoBackupCoordinator.recordPersistedChange();
@@ -1398,6 +1995,9 @@ export class SettingsStore {
       }
       this.options.getAutoRefreshScheduler()?.reschedule();
     } catch (error) {
+      if (error instanceof FeedShardConflict && error.context) {
+        await this.preserveShardConflict(error);
+      }
       storageError("saveSettings failed", error, {
         mode: this.settings.storageMode,
         folder: this.settings.storageFolder,
@@ -1584,6 +2184,12 @@ export class SettingsStore {
    */
   async migrateMetadataToVaultLocation(): Promise<void> {
     if (this.settingsLoadFailed) return;
+    await this.runStorageOperation(() =>
+      this.migrateMetadataToVaultLocationNow(),
+    );
+  }
+
+  private async migrateMetadataToVaultLocationNow(): Promise<void> {
     if (this.settings.metadataStorageMode === "vault-location") {
       new Notice("Already using vault location for metadata storage");
       return;
@@ -1615,7 +2221,7 @@ export class SettingsStore {
 
       // Update mode and persist using the dual-mode save callback
       this.settings.metadataStorageMode = "vault-location";
-      await this.options.saveSettings();
+      await this.saveSettingsNow({});
 
       new Notice(`Metadata migrated to vault location: ${metadataPath}`);
     } catch (error) {
@@ -1639,6 +2245,12 @@ export class SettingsStore {
    */
   async revertMetadataToPluginDefault(): Promise<void> {
     if (this.settingsLoadFailed) return;
+    await this.runStorageOperation(() =>
+      this.revertMetadataToPluginDefaultNow(),
+    );
+  }
+
+  private async revertMetadataToPluginDefaultNow(): Promise<void> {
     if (this.settings.metadataStorageMode === "plugin-default") {
       new Notice("Already using plugin default for metadata storage");
       return;
@@ -1668,7 +2280,7 @@ export class SettingsStore {
         }
       }
 
-      await this.options.saveSettings();
+      await this.saveSettingsNow({});
       new Notice("Metadata reverted to plugin default location");
     } catch (error) {
       storageError("Metadata revert failed", error);

@@ -161,6 +161,24 @@ template, and reset the vault. With the server stopped the article still opens;
 the preview stays blank because the fetch fails, as it would for any unreachable
 page, and the seeded User-Agent feed shows a fetch error.
 
+### Refresh-time enrichment (#1030)
+
+The seeded **User-Agent echo (fixture)** feed also supplies three stable
+articles for exercising refresh-time page enrichment. With the feed opted in
+under **Edit feed → Feed options → Fetch page previews during refresh**, refresh
+the feed while the fixture server is running:
+
+| Article               | Feed data                  | Local article page                             | Expected card result                                       |
+| --------------------- | -------------------------- | ---------------------------------------------- | ---------------------------------------------------------- |
+| First echoed article  | No description or image    | `/echoed/1` has a unique head description only | The card gains that refresh-only text.                     |
+| Second echoed article | Feed description, no image | `/echoed/2` has an Open Graph image only       | The feed description remains and the card gains the image. |
+| Third echoed article  | No description or image    | `/echoed/3` has both head fields               | The card gains both text and image.                        |
+
+The server logs each `GET /echoed/N` separately from the RSS feed request.
+Refresh again after the outcomes are saved: only `/user-agent-feed.xml` should
+be requested; completed page lookups should not repeat. The feed remains
+unopted by default in a freshly created fixture vault.
+
 ### Checking the outbound User-Agent
 
 The seeded **User-Agent echo (fixture)** feed points at the server's feed

@@ -686,6 +686,7 @@ describe("settings store (issue #563)", () => {
         );
 
         const older = plugin.loadSettings();
+        await vi.waitFor(() => expect(loadData).toHaveBeenCalledTimes(1));
         storedData = savedSettings({ refreshInterval: 20 });
         await plugin.loadSettings();
         releaseOlder?.(savedSettings({ refreshInterval: 10 }));

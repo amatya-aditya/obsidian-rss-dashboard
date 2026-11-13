@@ -9,6 +9,38 @@ describe("Phase 7 - ArticleList in-place updates", () => {
     vi.useRealTimers();
   });
 
+  it("retains updated backing previews after rebuilding the list", () => {
+    const visible = buildArticle({ guid: "1", title: "One", coverImage: "" });
+    const backing = {
+      ...visible,
+      coverImage: "https://cdn.example.com/photo.jpg",
+    };
+    const h = createArticleListHarness({
+      settings: {
+        viewStyle: "card",
+        articleGroupBy: "none",
+        articleSort: "newest",
+      },
+      articles: [visible],
+    });
+    h.list.render();
+    h.list.redrawArticlesFromSource([backing], () => backing);
+    expect(
+      h
+        .getArticleEl("1")
+        ?.querySelector(".rss-dashboard-cover-image")
+        ?.getAttribute("src"),
+    ).toBe(backing.coverImage);
+    h.list.render();
+    expect(
+      h
+        .getArticleEl("1")
+        ?.querySelector(".rss-dashboard-cover-image")
+        ?.getAttribute("src"),
+    ).toBe(backing.coverImage);
+    h.cleanup();
+  });
+
   it("updateArticleInPlace should sync read/saved/starred classes and toggle tooltips", () => {
     const h = createArticleListHarness({
       settings: {
@@ -701,6 +733,33 @@ describe("ArticleList in-place updates honor reduced motion (#867)", () => {
       "fetch-cover-image",
     );
 
+    h.cleanup();
+  });
+
+  it("keeps focus on the starred action when a card preview is rebuilt", () => {
+    const container = createDiv();
+    document.body.appendChild(container);
+    const h = createArticleListHarness({
+      container,
+      settings: {
+        viewStyle: "card",
+        articleGroupBy: "none",
+        articleSort: "newest",
+      },
+      articles: [buildArticle({ guid: "1", title: "One", coverImage: "" })],
+    });
+    h.list.render();
+    const star = h
+      .getArticleEl("1")
+      ?.querySelector<HTMLElement>(".rss-dashboard-star-toggle");
+    expect(star).not.toBeNull();
+    star?.focus();
+    expect(document.activeElement).toBe(star);
+    h.articles[0].coverImage = "https://cdn.example.com/hero.jpg";
+    h.list.replaceArticleInPlace(h.articles[0]);
+    expect(document.activeElement).toBe(
+      h.getArticleEl("1")?.querySelector(".rss-dashboard-star-toggle"),
+    );
     h.cleanup();
   });
 

@@ -3590,6 +3590,19 @@ export class RssDashboardView extends ItemView {
     }
 
     this.syncArticleListAfterUpdate(originalArticle, feed);
+    this.redrawReaderPreviewIfEnriched(originalArticle, updates);
+  }
+
+  private redrawReaderPreviewIfEnriched(
+    article: FeedItem,
+    updates: Partial<FeedItem>,
+  ): void {
+    if (
+      updates.publisherDescription !== undefined &&
+      article.refreshEnrichment?.url === article.link
+    ) {
+      this.redrawEnrichedArticles([article]);
+    }
   }
 
   public setSelectedArticleFromExternal(article: FeedItem): void {
@@ -3647,6 +3660,14 @@ export class RssDashboardView extends ItemView {
       this.findBackingArticleForDisplayItem(article),
     );
     this.articleList?.refreshTagColors();
+  }
+
+  /** Redraw changed card previews without replacing the dashboard. */
+  public redrawEnrichedArticles(items: FeedItem[]): void {
+    this.articleList?.redrawArticlesFromSource(items, (article) =>
+      this.findBackingArticleForDisplayItem(article),
+    );
+    if (items.length > 0) this.refreshFilterStatusBarOnly();
   }
 
   /**

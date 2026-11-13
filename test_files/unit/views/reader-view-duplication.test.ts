@@ -1081,6 +1081,27 @@ describe("ReaderView – summary de-duplication", () => {
       expect(onArticleUpdate).not.toHaveBeenCalled();
     });
 
+    it("keeps Reader's first metadata write available after an empty refresh lookup", async () => {
+      const item = makeItem({
+        description: "<p>Short feed blurb</p>",
+        refreshEnrichment: { url: "https://example.com/article" },
+      });
+      fetchReturning(FETCHED, rawPage({ metaDescription: PAGE_DESCRIPTION }));
+
+      await readerView.displayItem(item);
+
+      expect(item.publisherDescription).toBe(PAGE_DESCRIPTION);
+      expect(item.metadataFetchedAt).toEqual(expect.any(Number));
+      expect(onArticleUpdate).toHaveBeenCalledWith(
+        item,
+        expect.objectContaining({
+          publisherDescription: PAGE_DESCRIPTION,
+          metadataFetchedAt: expect.any(Number),
+        }),
+        false,
+      );
+    });
+
     it("hides a stored description that the article opens with", async () => {
       const item = makeItem({
         description: "<p>Short feed blurb</p>",

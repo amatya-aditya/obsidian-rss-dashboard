@@ -555,6 +555,44 @@ describe("settings-loader", () => {
   // ── dedupeAndNormalizeFeedItems ──────────────────────────────────────────────
 
   describe("dedupeAndNormalizeFeedItems", () => {
+    it("keeps suppression tied to the matching fallback value", async () => {
+      const { dedupeAndNormalizeFeedItems } =
+        await import("../../../src/utils/settings-loader");
+      const url = "https://example.com/article";
+      const feeds: Feed[] = [
+        createFeed({
+          items: [
+            createFeedItem({
+              guid: "same",
+              link: url,
+              refreshEnrichment: {
+                url,
+                description: "Unique description",
+                image: "https://example.com/unique.jpg",
+              },
+            }),
+            createFeedItem({
+              guid: "same",
+              link: url,
+              refreshEnrichment: {
+                url,
+                description: "Repeated description",
+                image: "https://example.com/repeated.jpg",
+                suppressDescription: true,
+                suppressImage: true,
+              },
+            }),
+          ],
+        }),
+      ];
+      dedupeAndNormalizeFeedItems(feeds);
+      expect(feeds[0].items[0].refreshEnrichment).toMatchObject({
+        description: "Unique description",
+        image: "https://example.com/unique.jpg",
+        suppressDescription: false,
+        suppressImage: false,
+      });
+    });
     it("merges duplicate GUIDs, preferring longer content", async () => {
       const { dedupeAndNormalizeFeedItems } =
         await import("../../../src/utils/settings-loader");

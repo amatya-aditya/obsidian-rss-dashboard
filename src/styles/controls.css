@@ -416,6 +416,10 @@
 }
 
 /* Modal specific inputs */
+.rss-dashboard-modal label[for^="rss-conflict-"] > select {
+  margin-inline-start: 0.5em;
+}
+
 .rss-dashboard-modal .setting-item select {
   background-color: var(--background-primary);
   border: 1px solid var(--background-modifier-border);

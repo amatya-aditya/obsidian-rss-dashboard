@@ -90,3 +90,4 @@ export function createIconButton(
 
   return button;
 }
+export const RSS_ACTION_ATTRIBUTE = "data-rss-action";
