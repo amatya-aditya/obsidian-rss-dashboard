@@ -5011,6 +5011,12 @@ export class RssDashboardView extends ItemView {
     const body = container.createDiv({
       cls: "rss-reader-content inline-reader-content",
     });
+    const readerFontScalePct =
+      this.settings.readerFormat?.fontScalePct ??
+      DEFAULT_SETTINGS.readerFormat.fontScalePct;
+    setCssProps(body, {
+      "--rss-reader-body-font-size": `${readerFontScalePct / 100}em`,
+    });
     markNamedLandmark(body, "region", titleEl);
 
     if (this.articleRenderer && this.inlineArticle) {

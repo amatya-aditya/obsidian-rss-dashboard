@@ -1092,6 +1092,7 @@ mark.rss-highlight {
   flex-grow: 1;
   overflow-y: auto;
   padding: 10px;
+  font-size: var(--font-text-size, 16px);
 }
 
 .rss-reader-content .rss-reader-content-progress {
