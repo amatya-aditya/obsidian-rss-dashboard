@@ -3,8 +3,17 @@ export const TRANSPARENT_PIXEL =
 
 export const failedFeedIconUrls = new Set<string>();
 
+/**
+ * Consecutive failed loads per URL. A URL is blacklisted for the session only
+ * after it fails this many times in a row; a successful load clears the count.
+ */
+const FEED_ICON_FAILURES_BEFORE_BLACKLIST = 2;
+
+const feedIconFailureCounts = new Map<string, number>();
+
 export function resetFeedIconFailureCache(): void {
   failedFeedIconUrls.clear();
+  feedIconFailureCounts.clear();
 }
 
 export function createSafeIconImage(
@@ -19,9 +28,24 @@ export function createSafeIconImage(
     cls: cssClass ?? "rss-dashboard-feed-icon-img",
   });
 
+  img.onload = () => {
+    feedIconFailureCounts.delete(src);
+  };
+
   img.onerror = () => {
-    failedFeedIconUrls.add(src);
+    // Detach both handlers before swapping in the transparent pixel, so its
+    // load cannot clear the failure count this handler is about to record.
+    img.onload = null;
     img.onerror = null;
+
+    const failures = (feedIconFailureCounts.get(src) ?? 0) + 1;
+    if (failures >= FEED_ICON_FAILURES_BEFORE_BLACKLIST) {
+      failedFeedIconUrls.add(src);
+      feedIconFailureCounts.delete(src);
+    } else {
+      feedIconFailureCounts.set(src, failures);
+    }
+
     img.src = TRANSPARENT_PIXEL;
     onErrorFallback();
   };

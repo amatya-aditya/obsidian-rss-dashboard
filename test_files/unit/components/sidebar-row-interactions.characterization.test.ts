@@ -1203,21 +1203,36 @@ describe("Sidebar row interactions (characterization)", () => {
       expect(img.getAttribute("alt")).toBe("Alpha");
     });
 
-    it("falls back to the RSS icon when the feed's own icon fails to load, and remembers the failure", () => {
+    // Regression test (#1796): a feed's own icon is retried once before it is
+    // blacklisted for the session. This replaces the #1795 characterization pin
+    // that asserted one failure hid the icon until Obsidian restarted.
+    it("retries the feed's own icon after one failed load, then falls back when it fails again", () => {
       settings.display.useDomainIconsRss = true;
       settings.feeds[0].iconUrl = "https://a.test/icon.png";
       build();
-      const img = icon("https://a.test/feed").querySelector(
-        "img",
+      const first = icon("https://a.test/feed").querySelector(
+        "img.rss-dashboard-feed-icon-img",
       ) as HTMLImageElement;
 
-      img.onerror?.(new Event("error"));
+      first.onerror?.(new Event("error"));
 
-      expect(failedFeedIconUrls.has("https://a.test/icon.png")).toBe(true);
+      // One failure shows the fallback for this render but is not remembered.
+      expect(failedFeedIconUrls.has("https://a.test/icon.png")).toBe(false);
       expect(icon("https://a.test/feed").querySelector("img")).toBeNull();
       expect(lucideIconId(icon("https://a.test/feed"))).toBe("rss");
 
-      // A rebuilt row skips the image that failed.
+      // A rebuilt row asks for the icon again instead of pinning the fallback.
+      container.empty();
+      sidebar.render();
+      const second = icon("https://a.test/feed").querySelector(
+        "img.rss-dashboard-feed-icon-img",
+      ) as HTMLImageElement;
+      expect(second.getAttribute("src")).toBe("https://a.test/icon.png");
+
+      second.onerror?.(new Event("error"));
+
+      // A repeated failure is remembered; later rows skip the request.
+      expect(failedFeedIconUrls.has("https://a.test/icon.png")).toBe(true);
       container.empty();
       sidebar.render();
       expect(icon("https://a.test/feed").querySelector("img")).toBeNull();
