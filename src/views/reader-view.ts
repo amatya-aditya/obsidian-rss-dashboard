@@ -226,6 +226,10 @@ export class ReaderView extends ItemView {
   private swipeReturnAnimationElement: HTMLElement | null = null;
   private swipeReturnAnimationTimeout: number | null = null;
   private swipeReturnAnimationInProgress = false;
+  private swipeReturnPreviousDisplay: {
+    value: string;
+    priority: string;
+  } | null = null;
   private tagsDropdownCleanup: (() => void) | null = null;
   private tagsDropdownPortal: HTMLElement | null = null;
 
@@ -294,6 +298,14 @@ export class ReaderView extends ItemView {
       "rss-reader-return-overlay",
       "rss-reader-returning",
     );
+    if (this.swipeReturnPreviousDisplay && this.swipeReturnAnimationElement) {
+      this.swipeReturnAnimationElement.style.setProperty(
+        "display",
+        this.swipeReturnPreviousDisplay.value,
+        this.swipeReturnPreviousDisplay.priority,
+      );
+      this.swipeReturnPreviousDisplay = null;
+    }
     this.swipeReturnAnimationElement = null;
     this.swipeReturnAnimationInProgress = false;
   }
@@ -315,6 +327,13 @@ export class ReaderView extends ItemView {
     }
 
     const animationElement = this.swipeReturnAnimationElement;
+    if (animationElement.style.getPropertyValue("display") === "none") {
+      this.swipeReturnPreviousDisplay = {
+        value: animationElement.style.getPropertyValue("display"),
+        priority: animationElement.style.getPropertyPriority("display"),
+      };
+      animationElement.style.removeProperty("display");
+    }
 
     this.swipeReturnAnimationListener = (event) => {
       if (event.target !== animationElement) return;
