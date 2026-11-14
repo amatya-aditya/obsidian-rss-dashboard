@@ -15,6 +15,7 @@ import {
   DisplaySettings,
 } from "../../../src/types/types";
 import type RssDashboardPlugin from "../../../main";
+import { failedFeedIconUrls } from "../../../src/utils/favicon-utils";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
 installObsidianDomPolyfills();
@@ -510,6 +511,57 @@ describe("Sidebar Rendering", () => {
     ) as HTMLImageElement;
     expect(img).not.toBeNull();
     expect(img.src).toBe("https://example.com/feed-icon.png");
+  });
+
+  it("retries a feed icon on the next render after one failed load, then stops after a repeated failure", () => {
+    const iconUrl = "https://example.com/feed-icon.png";
+    settings.display = {
+      useDomainIconsRss: true,
+    } as unknown as DisplaySettings;
+    settings.feeds = [
+      {
+        title: "RSS Feed",
+        url: "https://example.com/rss",
+        folder: "Folder 1",
+        items: [{ read: false }],
+        iconUrl,
+      } as Feed,
+    ];
+
+    const sidebar = new Sidebar(
+      app as unknown as import("obsidian").App,
+      container,
+      plugin as unknown as RssDashboardPlugin,
+      settings,
+      options,
+      callbacks,
+    );
+    sidebar.render();
+
+    const firstAttempt = container.querySelector(
+      ".rss-dashboard-feed-icon-img",
+    ) as HTMLImageElement;
+    firstAttempt.onerror?.(new Event("error"));
+
+    // A transient failure must not disable the icon for the rest of the session.
+    expect(failedFeedIconUrls.has(iconUrl)).toBe(false);
+
+    // The next render tries the icon again instead of pinning the fallback.
+    container.empty();
+    sidebar.render();
+    const secondAttempt = container.querySelector(
+      ".rss-dashboard-feed-icon-img",
+    ) as HTMLImageElement;
+    expect(secondAttempt).not.toBeNull();
+    expect(secondAttempt.src).toBe(iconUrl);
+
+    secondAttempt.onerror?.(new Event("error"));
+
+    // A repeated failure is remembered, so dead URLs stop being re-requested.
+    expect(failedFeedIconUrls.has(iconUrl)).toBe(true);
+    container.empty();
+    sidebar.render();
+    expect(container.querySelector(".rss-dashboard-feed-icon-img")).toBeNull();
   });
 
   it("falls back to generic RSS icon if useDomainIconsRss is false", () => {

@@ -32,13 +32,66 @@ describe("favicon-utils (failure cache infrastructure)", () => {
     expect(img.getAttribute("alt")).toBe("alt text");
   });
 
-  it("createSafeIconImage onerror adds src to failure cache", () => {
+  it("does not add a URL to the failure cache after one failed load", () => {
     const container = createDiv();
     const src = "https://broken.example/icon.png";
     createSafeIconImage(container, src, "", () => {});
     const img = container.querySelector("img") as HTMLImageElement;
     img.onerror!(new Event("error"));
+    expect(failedFeedIconUrls.has(src)).toBe(false);
+  });
+
+  it("adds a URL to the failure cache after a second consecutive failed load", () => {
+    const container = createDiv();
+    const src = "https://broken.example/icon.png";
+
+    createSafeIconImage(container, src, "", () => {});
+    (container.querySelector("img") as HTMLImageElement).onerror!(
+      new Event("error"),
+    );
+    expect(failedFeedIconUrls.has(src)).toBe(false);
+
+    createSafeIconImage(container, src, "", () => {});
+    container.querySelectorAll("img").item(1).onerror!(new Event("error"));
     expect(failedFeedIconUrls.has(src)).toBe(true);
+  });
+
+  it("counts two concurrent failures for the same URL toward the session cache", () => {
+    const container = createDiv();
+    const src = "https://broken.example/shared-icon.png";
+
+    // Two rows rendering the same feed before either icon load settles.
+    const first = createSafeIconImage(container, src, "", () => {});
+    const second = createSafeIconImage(container, src, "", () => {});
+
+    first.onerror!(new Event("error"));
+    expect(failedFeedIconUrls.has(src)).toBe(false);
+
+    // The counter is keyed by URL, not by element, so the second element's
+    // failure is the URL's second failure and blacklists it for the session.
+    // The Set is the observable cache; no third render is needed to see it.
+    second.onerror!(new Event("error"));
+    expect(failedFeedIconUrls.has(src)).toBe(true);
+    expect(container.querySelectorAll("img")).toHaveLength(2);
+  });
+
+  it("clears the consecutive failure count when the icon loads", () => {
+    const container = createDiv();
+    const src = "https://flaky.example/icon.png";
+
+    createSafeIconImage(container, src, "", () => {});
+    (container.querySelector("img") as HTMLImageElement).onerror!(
+      new Event("error"),
+    );
+
+    createSafeIconImage(container, src, "", () => {});
+    container.querySelectorAll("img").item(1).onload!(new Event("load"));
+
+    createSafeIconImage(container, src, "", () => {});
+    container.querySelectorAll("img").item(2).onerror!(new Event("error"));
+
+    // The earlier success reset the count, so this is a first failure again.
+    expect(failedFeedIconUrls.has(src)).toBe(false);
   });
 
   it("createSafeIconImage onerror sets src to TRANSPARENT_PIXEL", () => {
@@ -82,10 +135,25 @@ describe("favicon-utils (failure cache infrastructure)", () => {
     expect(onErrorFallback).toHaveBeenCalledOnce();
   });
 
-  it("resetFeedIconFailureCache empties the failure cache", () => {
-    failedFeedIconUrls.add("https://example.com/icon.png");
+  it("resetFeedIconFailureCache clears the cache and the retry counters", () => {
+    const container = createDiv();
+    const src = "https://broken.example/icon.png";
+
+    createSafeIconImage(container, src, "", () => {});
+    (container.querySelector("img") as HTMLImageElement).onerror!(
+      new Event("error"),
+    );
+    createSafeIconImage(container, src, "", () => {});
+    container.querySelectorAll("img").item(1).onerror!(new Event("error"));
+    expect(failedFeedIconUrls.has(src)).toBe(true);
+
     resetFeedIconFailureCache();
     expect(failedFeedIconUrls.size).toBe(0);
+
+    // A surviving count would make this single new failure blacklist the URL.
+    createSafeIconImage(container, src, "", () => {});
+    container.querySelectorAll("img").item(2).onerror!(new Event("error"));
+    expect(failedFeedIconUrls.has(src)).toBe(false);
   });
 });
 
