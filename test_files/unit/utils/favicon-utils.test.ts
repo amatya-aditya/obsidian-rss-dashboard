@@ -56,6 +56,25 @@ describe("favicon-utils (failure cache infrastructure)", () => {
     expect(failedFeedIconUrls.has(src)).toBe(true);
   });
 
+  it("counts two concurrent failures for the same URL toward the session cache", () => {
+    const container = createDiv();
+    const src = "https://broken.example/shared-icon.png";
+
+    // Two rows rendering the same feed before either icon load settles.
+    const first = createSafeIconImage(container, src, "", () => {});
+    const second = createSafeIconImage(container, src, "", () => {});
+
+    first.onerror!(new Event("error"));
+    expect(failedFeedIconUrls.has(src)).toBe(false);
+
+    // The counter is keyed by URL, not by element, so the second element's
+    // failure is the URL's second failure and blacklists it for the session.
+    // The Set is the observable cache; no third render is needed to see it.
+    second.onerror!(new Event("error"));
+    expect(failedFeedIconUrls.has(src)).toBe(true);
+    expect(container.querySelectorAll("img")).toHaveLength(2);
+  });
+
   it("clears the consecutive failure count when the icon loads", () => {
     const container = createDiv();
     const src = "https://flaky.example/icon.png";
