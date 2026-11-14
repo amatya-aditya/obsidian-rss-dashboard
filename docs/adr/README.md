@@ -1,3 +1,12 @@
+---
+id: decisions
+type: architecture-design
+status: active
+title: Architecture decision records — index of durable decisions
+parent: architecture
+tags: [adr]
+---
+
 # Architecture Decision Records
 
 Documentation explains **how RSS Dashboard works**. Architecture Decision Records (ADRs) preserve **why it works that way**.

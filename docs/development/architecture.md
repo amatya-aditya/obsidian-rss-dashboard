@@ -1,3 +1,13 @@
+---
+id: architecture
+type: architecture-design
+status: draft
+title: Architecture guardrails, module map, and enforced invariants
+parent: goals
+references: [decisions]
+tags: [architecture]
+---
+
 # Architecture Guardrails
 
 `main.ts` is the plugin composition root. Its long-term role is Obsidian
@@ -12,6 +22,30 @@ They are not extraction mandates. The function-length and complexity backlog
 is cleared
 ([#1094](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1094)),
 so those two rules now hold with no recorded exceptions.
+
+## Module map
+
+This document owns the rules every module obeys. Each module spec owns its own
+responsibility and boundary, and is linked here rather than summarised twice.
+
+- **Composition root:** `main.ts` ([spec](../specs/module-composition-root.md)).
+- **Service areas:** [feed ingestion and refresh](../specs/module-feed-ingestion.md),
+  [storage and user state](../specs/module-storage.md),
+  [article enrichment](../specs/module-enrichment.md),
+  [saving to notes](../specs/module-saving.md),
+  [portability](../specs/module-portability.md),
+  [integrations](../specs/module-integrations.md),
+  [sidebar and filtering](../specs/module-sidebar-filtering.md), and the
+  [shared kernel](../specs/module-shared-kernel.md).
+- **Presentation packages:** [views](../specs/module-views.md),
+  [components](../specs/module-components.md), [modals](../specs/module-modals.md),
+  [settings UI](../specs/module-settings-ui.md), [discover](../specs/module-discover.md),
+  [hotkeys and commands](../specs/module-hotkeys-commands.md), and
+  [styles](../specs/module-styles.md).
+- **Shared floor:** [utils](../specs/module-utils.md) and [types](../specs/module-types.md).
+- **Cross-cutting records:** the [feed data lifecycle](./data-flow.md),
+  the [domain vocabulary](../../CONTEXT.md), the [UI design spec](./design-spec.md),
+  and the [decision index](../adr/README.md).
 
 ## Architecture Preflight
 
@@ -206,6 +240,29 @@ these questions:
 File size alone cannot answer those questions. A cohesive type catalog may be
 large without being a god object, while several small modules in a runtime
 cycle still represent architectural debt.
+
+## Known gaps and limits
+
+Confirmed limits of the current shape. They are recorded here because each one
+spans several modules; a module-local gap lives in that module's spec.
+
+- **Tests run against a hand-written Obsidian stub.** Real-Obsidian behavior is
+  verified by attended manual passes, not by CI
+  ([ADR 0014](../adr/0014-obsidian-test-stub-fidelity.md),
+  [ADR 0035](../adr/0035-test-real-obsidian-sync-in-the-real-vault.md)).
+  Coverage thresholds are 55% lines, 45% branches, 50% functions.
+- **The `main.ts` couplings are ratcheted, not gone.** 23 modules may import the
+  plugin class: 7 at runtime (the settings tab and its render tabs), 16 as
+  types. Two runtime cycles are allowed — `dashboard-view ↔ reader-view` and
+  `main ↔ settings-tab ↔ the settings tabs`. The lists may shrink, never grow.
+- **Storage is mid-migration.** `legacy-json`, `vault-shards`, and
+  `vault-shards-v2` are all live; ADR 0006 freezes the first two read-only for
+  3.0 with a one-way importer. Until then every persistence change has to hold
+  in all three modes.
+- **Integrations are deliberately partial.** YouTube Data API metadata
+  ([ADR 0040](../adr/0040-defer-youtube-data-api-pending-compliance.md)), Reddit
+  feed authentication, and the FreshRSS return path are not built; FreshRSS is
+  reachable only through starred import.
 
 ## Architectural Lessons
 

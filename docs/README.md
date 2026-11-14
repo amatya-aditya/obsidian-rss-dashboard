@@ -8,6 +8,7 @@ Welcome to RSS Dashboard's documentation. Find guides, workflows, references, an
 | ----------------------------------------- | ---------------------------------------------------------------------- |
 | [`user/`](./user/)                        | Guides for people using the plugin                                     |
 | [`development/`](./development/README.md) | How the plugin is built, tested, designed, and released                |
+| [`specs/`](./specs/README.md)             | The spec graph: product goal, architecture, and one spec per module    |
 | [`adr/`](./adr/)                          | Architecture decision records: why the code is shaped the way it is    |
 | [`planning/`](./planning/)                | Supporting documents that serve several issues, and the public roadmap |
 | [`releases/`](./releases/)                | Release notes, announcements, and their templates                      |
@@ -70,6 +71,7 @@ Want to contribute or understand how the plugin works internally?
 
 - **[Contributing Guide](../CONTRIBUTING.md)** — How to set up development, run tests, follow branching strategy, and open a pull request. Before you start, read the compliance declarations.
 - **[Development Docs](./development/README.md)** — Internal architecture, data flows, design specifications, testing guides, and release workflow. For plugin developers and maintainers.
+- **[Spec Graph](./specs/README.md)** — The product goal, the architecture guardrails, and one spec per module: the boundaries and decisions a change has to respect.
 - **[Plugin Scorecard](./development/plugin-scorecard.md)** — Plugin audit and compliance status (for developers and auditors).
 - **[Release Notes & Changelog](../CHANGELOG.md)** — What's new in each version and the complete history of changes.
 
