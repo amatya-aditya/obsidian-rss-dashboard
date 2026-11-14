@@ -1,3 +1,12 @@
+---
+id: vocabulary
+type: architecture-design
+status: active
+title: Domain vocabulary — the plugin's user-facing terms
+parent: goals
+tags: [domain, vocabulary]
+---
+
 # RSS Dashboard
 
 The vocabulary used for user-facing RSS Dashboard behavior, including its podcast player.

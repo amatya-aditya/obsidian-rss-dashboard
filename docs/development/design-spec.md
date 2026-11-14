@@ -1,5 +1,9 @@
 ---
+id: ui-design
+type: architecture-design
 status: active
+title: UI design spec — surfaces, controls, and visual rules
+parent: architecture
 owner: maintainers
 last_reviewed: 2026-10-28
 obsidian_reference: "1.13.7 desktop"

@@ -1,3 +1,13 @@
+---
+id: feed-lifecycle
+type: architecture-design
+status: draft
+title: Feed data lifecycle — fetch, merge, retention, persistence
+parent: architecture
+references: [decisions]
+tags: [storage, retention]
+---
+
 # Feed Data Lifecycle: Fetch, Merge, Retention, and Persistence
 
 Traces the full journey of a feed item — from the first remote fetch through local merge, retention pruning, disk persistence, and dashboard display. Covers what is actually stored, when items are permanently deleted vs. visually filtered, and how retention setting changes affect stored data.
@@ -51,7 +61,7 @@ Remote RSS/Atom feed (XML)
                          │  trimmed FeedItem[]
                          ▼
   ┌─────────────┐
-  │   PERSIST   │  saveSettings() → data.json
+  │   PERSIST   │  save into the active storage mode
   └──────┬──────┘
          │
          ▼
@@ -63,31 +73,55 @@ Remote RSS/Atom feed (XML)
   └─────────────┘
 ```
 
-Key point: **retention happens before the write to disk**, not at display time. Items removed by retention are gone from `data.json` after the next save.
+Key point: **retention happens before the write to disk**, not at display time. Items removed by retention are gone from the stored history after the next save.
 
 ---
 
 ## 2. Storage
 
-The plugin saves its entire settings object to `.obsidian/plugins/obsidian-rss-dashboard/data.json`. This includes:
+The plugin does not store its state in one file. Which file holds feed
+history depends on the storage mode (`storageMode`), and where the metadata
+file lives depends on `metadataStorageMode`:
 
-- All feed configuration (URL, folder, per-feed retention settings, scan interval, keyword rules, etc.)
-- All article items (`FeedItem[]`) for every feed
-- Global plugin settings (display preferences, tag definitions, highlight words, sidebar state, icon ordering, etc.)
+| Mode              | Feed history                                                                        | User state                                                                                               |
+| :---------------- | :---------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------- |
+| `vault-shards-v2` | one shard file per feed under `storageFolder` (default `.rss-dashboard-data/feeds`) | separate `user-state.json` under `metadataStorageFolder` (default `.rss-dashboard-data/user-state.json`) |
+| `vault-shards`    | one shard file per feed, user state embedded in each shard                          | embedded in the shard                                                                                    |
+| `legacy-json`     | `FeedItem[]` inside the metadata file                                               | inside the metadata file                                                                                 |
+
+`vault-shards-v2` is the default for a new installation. The user-state file
+follows `metadataStorageFolder` and is independent of `metadataStorageMode`. The metadata file holds the plain settings
+object (feed configuration, display preferences, tag definitions, highlight
+words, sidebar state, icon ordering, and — in `legacy-json` only — the article
+items), either at `<vault>/.obsidian/plugins/rss-dashboard/data.json`
+(`metadataStorageMode: "plugin-default"`, through `Plugin.saveData()`) or in a
+vault folder such as `<vault>/.rss-dashboard-data/data.json`
+(`metadataStorageMode: "vault-location"`).
+
+The split between the two shard generations is [ADR 0004](../adr/0004-split-article-state-from-feed-content-in-shard-storage-v2.md):
+Shard v2 keeps frequently changing user state out of the shard, so a synced
+shard conflicts less. [ADR 0006](../adr/0006-deprecate-legacy-json-and-shard-storage-v1.md)
+freezes `legacy-json` and `vault-shards` as read-only in 3.0 while keeping a
+one-way importer to v2. Until that lands, all three modes are live and a
+change to persistence behavior must hold in every mode.
 
 Not stored: raw RSS/XML documents. There is no hidden local XML archive.
 
-- On startup: the entire settings object is loaded into memory.
-- On every save: `saveSettings()` overwrites `data.json` with the full current in-memory state.
-- Single-feed refresh: saves immediately after that feed's merge + retention step.
-- Multi-feed batch refresh: one save at the end of the entire batch, not per-feed.
+- On startup: the stored state is loaded into memory, shards hydrated per
+  feed.
+- On every save: the metadata file is overwritten with the current settings,
+  and shard-backed modes write the affected shards and the user-state file.
+- Single-feed refresh: saves immediately after that feed's merge + retention
+  step.
+- Multi-feed batch refresh: one save at the end of the entire batch, not
+  per-feed.
 - While a multi-feed batch is running, completed feeds update the existing global
   progress label in place. The sidebar and article list are not rebuilt between
   feed completions, and image-cache completions produced by the batch do not
   schedule extra dashboard renders. The batch performs one final dashboard
   refresh after all feed attempts settle.
 
-> SQLite was trialled in 2.2.0-beta.2 and reverted in 2.2.0-beta.4 for cross-platform stability. JSON has been the sole persistence mechanism since then.
+> SQLite was trialled in 2.2.0-beta.2 and reverted in 2.2.0-beta.4 for cross-platform stability. JSON has been the only serialization format since then, in every storage mode.
 
 ---
 
@@ -264,12 +298,12 @@ any enabled protection is retained by both passes.
 
 ## 6. Display and View Filters
 
-The dashboard reads articles from the in-memory settings object (which mirrors `data.json`). View filters — unread, read, starred, saved, folder, tags — are applied at render time to decide which articles to show.
+The dashboard reads articles from the in-memory settings object, which mirrors the active storage mode. View filters — unread, read, starred, saved, folder, tags — are applied at render time to decide which articles to show.
 
-View filters are **not** retention. They do not remove articles from storage. An article hidden by the unread filter is still in `data.json`; switching the filter back reveals it.
+View filters are **not** retention. They do not remove articles from storage. An article hidden by the unread filter is still stored; switching the filter back reveals it.
 
 ```
-data.json (all stored articles)
+stored feed history (active storage mode)
         │
         ▼
   in-memory settings
@@ -292,14 +326,14 @@ The answer depends on _where_ you change the setting.
 
 When you change `autoDeleteDuration` in the Edit Feed modal and click **Save**, the plugin:
 
-1. Writes the new value to the in-memory feed object and saves to `data.json`.
-2. **Immediately triggers a single-feed refresh** (`refreshSelectedFeed`) — the full fetch + merge + retention pipeline runs right away.
+1. Writes the new value to the in-memory feed object and saves it.
+2. **Immediately triggers a single-feed refresh** (`FeedRefreshRunner.refreshSelectedFeed`) — the full fetch + merge + retention pipeline runs right away.
 
 The new cutoff is enforced before you close the modal. You do not need to wait for the next scheduled refresh.
 
 ### Global Default Auto-Delete Duration (Settings tab)
 
-Changing `defaultAutoDeleteDuration` in the plugin settings tab saves the new value to `data.json`. A longer duration or disabled auto-deletion applies immediately and affects future refreshes. Shortening an active duration, or changing from disabled to an active duration, opens a confirmation dialog.
+Changing `defaultAutoDeleteDuration` in the plugin settings tab saves the new value. A longer duration or disabled auto-deletion applies immediately and affects future refreshes. Shortening an active duration, or changing from disabled to an active duration, opens a confirmation dialog.
 
 ### Tightening (e.g. 90 days → 30 days) or Re-enabling
 
@@ -307,7 +341,7 @@ For a global setting, users can choose **Apply now**, **Apply on next refresh**,
 
 ### Loosening (e.g. 30 days → 90 days) or Disabling
 
-The setting change alone does not restore any articles. Articles that were already pruned from `data.json` are gone. On the next refresh, the plugin will carry forward whatever is still in local storage and will no longer remove items that are now within the wider window — but nothing is un-deleted.
+The setting change alone does not restore any articles. Articles that were already pruned from the stored history are gone. On the next refresh, the plugin will carry forward whatever is still in local storage and will no longer remove items that are now within the wider window — but nothing is un-deleted.
 
 ### Global Retention Protections
 
@@ -319,25 +353,27 @@ states, and to both age- and count-based retention.
 Old articles only reappear if:
 
 - The remote feed still publishes them and returns them on the next fetch, **or**
-- They were still present in `data.json` when the setting was changed (i.e. they had not yet been pruned).
+- They were still stored when the setting was changed (i.e. they had not yet been pruned).
 
 ---
 
 ## 8. Implementation Reference
 
-| Concern                             | Location                                                                             |
-| :---------------------------------- | :----------------------------------------------------------------------------------- |
-| Merge (all three paths)             | `parseFeed()` — `src/services/feed-parser.ts`                                        |
-| Carry-forward pre-filter (pass 1)   | inline inside `parseFeed()` — `src/services/feed-parser.ts`                          |
-| Final dedup + concat                | `mergeFeedHistoryItems()` — `src/services/feed-parser.ts`                            |
-| Retention pass 2                    | `applyFeedRetentionLimits()` via `applyFeedLimits()` — `src/services/feed-parser.ts` |
-| Refresh orchestration (single feed) | `refreshSingleFeed()` — `main.ts`                                                    |
-| Refresh orchestration (batch)       | `refreshFeedBatch()` — `main.ts`                                                     |
-| Exclude from refresh                | `getRefreshableFeeds()` — `main.ts`                                                  |
-| Persist to disk                     | `saveSettings()` → `this.saveData(this.settings)` — `main.ts`                        |
-| Metadata storage (vault location)   | `loadMetadata()`, `ensureMetadataFolderExists()` — `main.ts`                         |
-| Metadata migration                  | `migrateMetadataToVaultLocation()`, `revertMetadataToPluginDefault()` — `main.ts`    |
-| View filter application             | `getFilteredArticles()` / `getUnfilteredArticles()` — `src/views/dashboard-view.ts`  |
+| Concern                             | Location                                                                               |
+| :---------------------------------- | :------------------------------------------------------------------------------------- |
+| Merge (all three paths)             | `FeedParser.parseFeed()` — `src/services/feed-parser/feed-parser-class.ts`             |
+| Carry-forward pre-filter (pass 1)   | `collectCarriedForwardItems()` — `src/services/feed-parser/feed-item-builder.ts`       |
+| Final dedup + concat                | `mergeFeedHistoryItems()` — `src/services/feed-parser/feed-retention.ts`               |
+| Retention pass 2                    | `applyFeedRetentionLimits()` — `src/services/feed-parser/feed-retention.ts`            |
+| Refresh orchestration (single feed) | `FeedRefreshRunner` — `src/services/feed-refresh-runner.ts`                            |
+| Refresh orchestration (batch)       | `FeedRefreshRunner` — `src/services/feed-refresh-runner.ts`                            |
+| Automatic scheduling                | `FeedRefreshScheduler` — `src/services/feed-refresh-scheduler.ts`                      |
+| Exclude from refresh                | `FeedRefreshRunner.getRefreshableFeeds()` — `src/services/feed-refresh-runner.ts`      |
+| Persist to disk                     | `SettingsStore.saveSettings()` — `src/services/settings-store.ts`                      |
+| Shard write and hydrate             | `src/services/feed-storage-runner.ts`, `src/services/feed-storage-repository.ts`       |
+| Metadata storage (vault location)   | `loadMetadata()`, `ensureMetadataFolderExists()` — `src/services/metadata-location.ts` |
+| Metadata migration                  | `SettingsStore.migrateMetadataToVaultLocation()`, `revertMetadataToPluginDefault()`    |
+| View filter application             | `getFilteredArticles()` / `getUnfilteredArticles()` — `src/views/dashboard-view.ts`    |
 
 ---
 
