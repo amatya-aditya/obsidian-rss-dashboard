@@ -16,6 +16,11 @@ vi.mock("../../../src/utils/platform-utils", () => ({
   robustFetch: vi.fn(),
   ensureUtf8Meta: (html: string) => html,
   shouldUseMobileSidebarLayout: () => false,
+  setCssProps: (element: HTMLElement, props: Record<string, string>) => {
+    for (const [property, value] of Object.entries(props)) {
+      element.style.setProperty(property, value);
+    }
+  },
 }));
 
 vi.mock("../../../src/components/article-list", () => ({
@@ -214,6 +219,29 @@ describe("Dashboard reader location", () => {
     document.body.empty();
     Platform.isMobile = false;
   });
+
+  it.each([
+    ["default", 100, "1em"],
+    ["custom", 125, "1.25em"],
+  ])(
+    "applies the %s Reader body size to Inline Reader content",
+    async (_label, fontScalePct, expectedReaderBodyFontSize) => {
+      const settings = cloneSettings();
+      settings.readerFormat.fontScalePct = fontScalePct;
+      const { view } = await createDashboardView(settings);
+      view.inlineArticle = makeFeed("https://example.com/feed", [{}]).items[0];
+
+      const container = createDiv();
+      view.renderInlineArticle(container);
+      const body = container.querySelector<HTMLElement>(
+        ".inline-reader-content",
+      );
+
+      expect(body?.style.getPropertyValue("--rss-reader-body-font-size")).toBe(
+        expectedReaderBodyFontSize,
+      );
+    },
+  );
 
   it("opens article clicks in the main split when readerViewLocation is main", async () => {
     const settings = cloneSettings();
