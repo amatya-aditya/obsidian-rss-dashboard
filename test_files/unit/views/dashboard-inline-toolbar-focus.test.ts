@@ -13,6 +13,11 @@ vi.mock("../../../src/utils/platform-utils", () => ({
   robustFetch: vi.fn(),
   ensureUtf8Meta: (html: string) => html,
   shouldUseMobileSidebarLayout: () => false,
+  setCssProps: (element: HTMLElement, props: Record<string, string>) => {
+    for (const [property, value] of Object.entries(props)) {
+      element.style.setProperty(property, value);
+    }
+  },
 }));
 
 vi.mock("../../../src/components/article-list", () => ({
