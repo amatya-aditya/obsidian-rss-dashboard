@@ -4,6 +4,7 @@ import {
   renderFeedIcon,
   renderHeaderFeedIcon,
 } from "../../../../../src/components/article-list/utils/feed-icon";
+import { failedFeedIconUrls } from "../../../../../src/utils/favicon-utils";
 
 const BASE_CONTEXT = {
   feeds: [] as Feed[],
@@ -93,6 +94,47 @@ describe("feed-icon utils", () => {
       );
       expect(iconEl?.classList.contains("video")).toBe(true);
     });
+
+    it("retries the feed icon after one failed load, then stops after a second", () => {
+      const iconUrl = "https://example.com/logo.png";
+      const feeds: Feed[] = [
+        {
+          url: "https://example.com/feed",
+          title: "Example",
+          folder: "",
+          items: [],
+          lastUpdated: 0,
+          iconUrl,
+        },
+      ];
+      const context = { ...BASE_CONTEXT, feeds };
+
+      renderFeedIcon(container, "https://example.com/feed", undefined, context);
+      const first = container.querySelector(
+        ".rss-dashboard-article-feed-icon-img",
+      ) as HTMLImageElement;
+      first.onerror?.(new Event("error"));
+
+      expect(failedFeedIconUrls.has(iconUrl)).toBe(false);
+
+      container.empty();
+      renderFeedIcon(container, "https://example.com/feed", undefined, context);
+      const second = container.querySelector(
+        ".rss-dashboard-article-feed-icon-img",
+      ) as HTMLImageElement;
+      expect(second).not.toBeNull();
+      expect(second.getAttribute("src")).toBe(iconUrl);
+
+      second.onerror?.(new Event("error"));
+
+      expect(failedFeedIconUrls.has(iconUrl)).toBe(true);
+
+      container.empty();
+      renderFeedIcon(container, "https://example.com/feed", undefined, context);
+      expect(
+        container.querySelector(".rss-dashboard-article-feed-icon-img"),
+      ).toBeNull();
+    });
   });
 
   describe("renderHeaderFeedIcon", () => {
@@ -170,6 +212,47 @@ describe("feed-icon utils", () => {
       expect(
         container.querySelector(".rss-dashboard-header-favicon"),
       ).toBeTruthy();
+    });
+
+    it("retries the header feed icon after one failed load, then stops after a second", () => {
+      const iconUrl = "https://example.com/logo.png";
+      const feeds: Feed[] = [
+        {
+          url: "https://example.com/feed",
+          title: "Example",
+          folder: "",
+          items: [],
+          lastUpdated: 0,
+          iconUrl,
+        },
+      ];
+      const context = { ...BASE_CONTEXT, feeds };
+
+      renderHeaderFeedIcon(container, "https://example.com/feed", context);
+      const first = container.querySelector(
+        ".rss-dashboard-header-feed-icon-img",
+      ) as HTMLImageElement;
+      first.onerror?.(new Event("error"));
+
+      expect(failedFeedIconUrls.has(iconUrl)).toBe(false);
+
+      container.empty();
+      renderHeaderFeedIcon(container, "https://example.com/feed", context);
+      const second = container.querySelector(
+        ".rss-dashboard-header-feed-icon-img",
+      ) as HTMLImageElement;
+      expect(second).not.toBeNull();
+      expect(second.getAttribute("src")).toBe(iconUrl);
+
+      second.onerror?.(new Event("error"));
+
+      expect(failedFeedIconUrls.has(iconUrl)).toBe(true);
+
+      container.empty();
+      renderHeaderFeedIcon(container, "https://example.com/feed", context);
+      expect(
+        container.querySelector(".rss-dashboard-header-feed-icon-img"),
+      ).toBeNull();
     });
   });
 });
