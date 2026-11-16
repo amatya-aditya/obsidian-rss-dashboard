@@ -241,13 +241,14 @@ describe("renderDisplaySettingsTab() reader section", () => {
     document.body.appendChild(containerEl);
     const settings = cloneSettings();
     const applyReaderFormat = vi.fn();
+    const applyInlineReaderFormat = vi.fn();
     const saveSettings = vi.fn(async () => {});
 
     const plugin = {
       app: {},
       settings,
       saveSettings,
-      getActiveDashboardView: vi.fn(async () => null),
+      getActiveDashboardView: vi.fn(async () => ({ applyInlineReaderFormat })),
       getActiveReaderView: vi.fn(async () => ({ applyReaderFormat })),
     } as unknown as RssDashboardPlugin;
 
@@ -263,6 +264,32 @@ describe("renderDisplaySettingsTab() reader section", () => {
     expect(plugin.settings.readerFormat.fontFamily).toBe("serif");
     expect(saveSettings).toHaveBeenCalled();
     expect(applyReaderFormat).toHaveBeenCalled();
+    expect(applyInlineReaderFormat).toHaveBeenCalled();
+  });
+
+  it("updates an open Inline Reader when no Main Reader is open", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const applyInlineReaderFormat = vi.fn();
+    const plugin = {
+      app: {},
+      settings: cloneSettings(),
+      saveSettings: vi.fn(async () => {}),
+      getActiveDashboardView: vi.fn(async () => ({ applyInlineReaderFormat })),
+      getActiveReaderView: vi.fn(async () => null),
+    } as unknown as RssDashboardPlugin;
+
+    renderDisplaySettingsTab(containerEl, plugin, () => {});
+
+    const alignmentSetting = getSettingByName(containerEl, "Alignment");
+    const alignmentSelect = alignmentSetting.querySelector(
+      "select",
+    ) as HTMLSelectElement;
+    alignmentSelect.value = "left";
+    alignmentSelect.dispatchEvent(new Event("change"));
+    await flushPromises();
+
+    expect(plugin.settings.readerFormat.textAlign).toBe("left");
+    expect(applyInlineReaderFormat).toHaveBeenCalledTimes(1);
   });
 
   it("resets reader format settings back to defaults", async () => {
