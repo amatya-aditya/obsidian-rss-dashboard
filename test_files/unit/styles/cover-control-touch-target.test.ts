@@ -69,6 +69,19 @@ describe("Cover control touch target (#1529)", () => {
     }
   });
 
+  it("applies the Android WebView SVG sizing and paint-layer fix", () => {
+    for (const selector of [CARD_CONTROL, FEED_CONTROL]) {
+      const control = declarationsFor(selector);
+      const icon = declarationsFor(`${selector} > svg`);
+
+      expect(control.get("contain")).toBe("layout style");
+      expect(control.get("--icon-size")).toBe("16px");
+      expect(icon.get("width")).toBe("var(--icon-size, 16px)");
+      expect(icon.get("height")).toBe("var(--icon-size, 16px)");
+      expect(icon.get("will-change")).toBe("transform");
+    }
+  });
+
   it("expands the no-hover target to 40x40 with an overhanging pseudo-element", () => {
     for (const selector of [CARD_CONTROL, FEED_CONTROL]) {
       const hitArea = declarationsInNoHoverMedia(`${selector}::after`);
