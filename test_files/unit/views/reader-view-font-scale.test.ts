@@ -98,6 +98,25 @@ describe("ReaderView font scaling", () => {
     );
   });
 
+  it.each([
+    ["default", "justify", 160, "1.6"],
+    ["custom", "left", 180, "1.8"],
+  ] as const)(
+    "applies the %s Reader alignment and line height to Main Reader content",
+    (_label, textAlign, lineHeightPct, expectedLineHeight) => {
+      mockSettings.readerFormat.textAlign = textAlign;
+      mockSettings.readerFormat.lineHeightPct = lineHeightPct;
+
+      getInternals(readerView).applyReaderFormat();
+
+      const contentEl = getInternals(readerView).contentEl;
+      expect(contentEl.dataset.rssReaderAlign).toBe(textAlign);
+      expect(contentEl.style.getPropertyValue("--rss-reader-line-height")).toBe(
+        expectedLineHeight,
+      );
+    },
+  );
+
   it("updates the article headline font when the reader font changes", async () => {
     mockSettings.readerFormat.fontFamily = "serif";
     getInternals(readerView).applyReaderFormat();

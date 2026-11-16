@@ -102,6 +102,7 @@ type TestDashboardView = {
     article?: import("../../../src/types/types").FeedItem,
   ) => Promise<void>;
   renderInlineArticle: (container: HTMLElement) => void;
+  applyInlineReaderFormat: () => void;
   applyExternalArticleUpdate: (
     articleGuid: string,
     feedUrl: string,
@@ -242,6 +243,56 @@ describe("Dashboard reader location", () => {
       );
     },
   );
+
+  it.each([
+    ["default", "justify", 160, "1.6"],
+    ["custom", "left", 180, "1.8"],
+  ] as const)(
+    "applies the %s Reader alignment and line height to Inline Reader content",
+    async (_label, textAlign, lineHeightPct, expectedLineHeight) => {
+      const settings = cloneSettings();
+      settings.readerFormat.textAlign = textAlign;
+      settings.readerFormat.lineHeightPct = lineHeightPct;
+      const { view } = await createDashboardView(settings);
+      view.inlineArticle = makeFeed("https://example.com/feed", [{}]).items[0];
+
+      const container = createDiv();
+      view.renderInlineArticle(container);
+      const body = container.querySelector<HTMLElement>(
+        ".inline-reader-content",
+      );
+
+      expect(body?.dataset.rssReaderAlign).toBe(textAlign);
+      expect(body?.style.getPropertyValue("--rss-reader-line-height")).toBe(
+        expectedLineHeight,
+      );
+    },
+  );
+
+  it("updates formatting in place when Reader preferences change", async () => {
+    const settings = cloneSettings();
+    const { view } = await createDashboardView(settings);
+    view.inlineArticle = makeFeed("https://example.com/feed", [{}]).items[0];
+
+    const container = createDiv();
+    view.containerEl.appendChild(container);
+    view.renderInlineArticle(container);
+    const body = container.querySelector<HTMLElement>(".inline-reader-content");
+    expect(body?.dataset.rssReaderAlign).toBe("justify");
+    expect(body?.style.getPropertyValue("--rss-reader-line-height")).toBe(
+      "1.6",
+    );
+
+    settings.readerFormat.textAlign = "left";
+    settings.readerFormat.lineHeightPct = 180;
+    view.applyInlineReaderFormat();
+
+    expect(container.querySelector(".inline-reader-content")).toBe(body);
+    expect(body?.dataset.rssReaderAlign).toBe("left");
+    expect(body?.style.getPropertyValue("--rss-reader-line-height")).toBe(
+      "1.8",
+    );
+  });
 
   it("opens article clicks in the main split when readerViewLocation is main", async () => {
     const settings = cloneSettings();
