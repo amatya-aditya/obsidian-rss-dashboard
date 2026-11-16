@@ -169,6 +169,10 @@ _Avoid_: Left Reader, sidebar preview
 The article-reading presentation rendered inside the dashboard view instead of a separate Obsidian view. It is also available as a Saved article open location.
 _Avoid_: Inline article preview, inline reader (when a precise term is needed)
 
+**Reader reading position**:
+The current location within the article body shown by a [[Reader view]], distinct from the dashboard article-list position. Preserving it keeps the reader on the same part of the article while read, star, or tag state changes are applied.
+_Avoid_: Scroll position (when referring to the article rather than the dashboard list)
+
 **Saved article open location**:
 The setting that chooses where a saved article opens: [[Reader view (main)]], [[Reader view (right sidebar)]], [[Reader view (left sidebar)]], or [[Reader view (inline)]]. It does not offer the external browser destination.
 _Avoid_: Reader view location (when referring to this separate setting)
