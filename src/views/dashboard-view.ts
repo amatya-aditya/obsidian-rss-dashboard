@@ -791,7 +791,12 @@ export class RssDashboardView extends ItemView {
 
     if (count > 0) {
       void this.plugin.queueArticleStateSave(changes);
-      this.scheduleRender();
+      if (this.inlineArticle) {
+        this.sidebar?.render();
+        this.syncInlineReaderState({ read: true });
+      } else {
+        this.scheduleRender();
+      }
       new Notice(
         `Marked ${count} items as read in ${this.getArticlesTitleInfo().title}`,
       );
@@ -809,7 +814,12 @@ export class RssDashboardView extends ItemView {
 
     if (count > 0) {
       void this.plugin.queueArticleStateSave(changes);
-      this.scheduleRender();
+      if (this.inlineArticle) {
+        this.sidebar?.render();
+        this.syncInlineReaderState({ read: false });
+      } else {
+        this.scheduleRender();
+      }
       new Notice(
         `Marked ${count} items as unread in ${this.getArticlesTitleInfo().title}`,
       );
@@ -830,6 +840,12 @@ export class RssDashboardView extends ItemView {
       if (backingArticle && backingArticle.read !== read) {
         backingArticle.read = read;
         article.read = read;
+        if (
+          this.inlineArticle?.guid === backingArticle.guid &&
+          this.inlineArticle.feedUrl === backingArticle.feedUrl
+        ) {
+          this.inlineArticle.read = read;
+        }
         count++;
         const feed = this.findFeedForBackingArticle(article, backingArticle);
         if (feed) {
@@ -3535,15 +3551,32 @@ export class RssDashboardView extends ItemView {
     Object.assign(originalArticle, normalizedUpdates);
     Object.assign(article, normalizedUpdates);
 
+    if (
+      this.inlineArticle?.guid === originalArticle.guid &&
+      this.inlineArticle.feedUrl === feed.url
+    ) {
+      Object.assign(this.inlineArticle, normalizedUpdates);
+    }
+
     if (normalizedUpdates.tags) {
       originalArticle.tags = normalizedUpdates.tags;
       article.tags = normalizedUpdates.tags;
+      if (
+        this.inlineArticle?.guid === originalArticle.guid &&
+        this.inlineArticle.feedUrl === feed.url
+      ) {
+        this.inlineArticle.tags = normalizedUpdates.tags;
+      }
     }
+    this.syncInlineReaderState(normalizedUpdates);
 
     // Reflect the change in the list, sidebar, and filter counts first. The
     // plugin facade owns persistence and its coalesced queue, so the write is
     // requested after this interaction and never awaited here (#1385).
-    if (shouldRerender) {
+    if (
+      shouldRerender &&
+      !this.preservesInlineReaderPosition(normalizedUpdates)
+    ) {
       void this.render();
     } else {
       if (
@@ -3612,16 +3645,14 @@ export class RssDashboardView extends ItemView {
       this.inlineArticle.feedUrl === feedUrl
     ) {
       Object.assign(this.inlineArticle, updates);
-      if (updates.tags) {
-        this.inlineArticle.tags = updates.tags;
-        this.refreshInlineArticleTags();
-      }
+      if (updates.tags) this.inlineArticle.tags = updates.tags;
+      this.syncInlineReaderState(updates);
       if (updates.saved !== undefined) {
         this.applyInlineReaderSaveState(updates.saved);
       }
     }
 
-    if (shouldRerender) {
+    if (shouldRerender && !this.preservesInlineReaderPosition(updates)) {
       void this.render();
       return;
     }
@@ -3710,6 +3741,52 @@ export class RssDashboardView extends ItemView {
       renderReaderTagChips(header, inline.tags, this.settings);
     }
     this.articleRenderer?.setVideoTags(inline.tags);
+  }
+
+  private syncInlineReaderState(updates: Partial<FeedItem>): void {
+    const inline = this.inlineArticle;
+    if (!inline) return;
+
+    if (updates.read !== undefined) {
+      const readButton = this.containerEl.querySelector<HTMLElement>(
+        ".inline-reader-header .rss-reader-read-toggle",
+      );
+      if (readButton) {
+        setIcon(readButton, inline.read ? "check-circle" : "circle");
+        readButton.classList.toggle("read", inline.read);
+        readButton.classList.toggle("unread", !inline.read);
+        setTooltip(readButton, inline.read ? "Mark as unread" : "Mark as read");
+      }
+    }
+
+    if (updates.starred !== undefined) {
+      const starButton = this.containerEl.querySelector<HTMLElement>(
+        ".inline-reader-header .rss-reader-star-toggle",
+      );
+      if (starButton) {
+        setIcon(starButton, inline.starred ? "star" : "star-off");
+        starButton.classList.toggle("starred", inline.starred);
+        starButton.classList.toggle("unstarred", !inline.starred);
+        starButton.setAttribute("aria-pressed", String(inline.starred));
+      }
+    }
+
+    if (updates.tags !== undefined) {
+      this.refreshInlineArticleTags();
+    }
+  }
+
+  private preservesInlineReaderPosition(updates: Partial<FeedItem>): boolean {
+    const updateKeys = Object.keys(updates);
+    const stateKeys = new Set(["read", "starred", "tags"]);
+    return (
+      this.inlineArticle !== null &&
+      updateKeys.length > 0 &&
+      updateKeys.every((key) => stateKeys.has(key)) &&
+      (updates.read !== undefined ||
+        updates.starred !== undefined ||
+        updates.tags !== undefined)
+    );
   }
 
   private syncArticleListAfterUpdate(article: FeedItem, feed: Feed): void {
@@ -3823,6 +3900,10 @@ export class RssDashboardView extends ItemView {
         this.moveSelectionTo(pageArticles[pageArticles.length - 1] ?? null);
       }
     }
+    // The list is hidden while an Inline Reader article is open. Its page
+    // metadata and selection are already updated above; rebuilding the whole
+    // Dashboard here would recreate the article body and lose its position.
+    if (this.inlineArticle) return;
     // The rebuild below replaces the list. Remember whether the keyboard user
     // was in it and hand focus back to the dashboard afterwards, never to a
     // card's inner control (#1387, #1468).
@@ -3880,6 +3961,18 @@ export class RssDashboardView extends ItemView {
     if (updatedArticles.length === 0) {
       new Notice("No unread items on current page");
       return;
+    }
+
+    if (
+      this.inlineArticle &&
+      updatedArticles.some(
+        (article) =>
+          article.guid === this.inlineArticle?.guid &&
+          article.feedUrl === this.inlineArticle.feedUrl,
+      )
+    ) {
+      this.inlineArticle.read = true;
+      this.syncInlineReaderState({ read: true });
     }
 
     void this.plugin.queueArticleStateSave(changes);
@@ -5173,7 +5266,7 @@ export class RssDashboardView extends ItemView {
             void this.handleArticleUpdate(
               this.inlineArticle,
               { read: !this.inlineArticle.read },
-              true,
+              false,
             );
           }
         },
@@ -5192,7 +5285,7 @@ export class RssDashboardView extends ItemView {
             void this.handleArticleUpdate(
               this.inlineArticle,
               { starred: !this.inlineArticle.starred },
-              true,
+              false,
             );
           }
         },
