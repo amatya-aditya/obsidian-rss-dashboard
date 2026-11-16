@@ -125,6 +125,15 @@ Follow the testing guide for every test change:
 
 Before handing off a code change, run the relevant checks and report their results:
 
+`npm run build` is the combined local gate: it runs `check:compliance`
+(including architecture, CSS scope, platform, and `format:check`), repository-wide
+lint, production TypeScript checking, test type-checking, and the production
+bundle. If you run it, count those included checks as passed from its result
+instead of rerunning each command. Run an individual check separately when you
+need focused feedback or are diagnosing a failure. Run `npm run format` first
+to apply formatting, and run the focused unit tests separately because the
+build does not run tests.
+
 - Run `npm run format` for every change; `npm run format:check` must pass. The policy lives in **Formatting** in `CONTRIBUTING.md`.
 - Run ESLint for every changed TypeScript file, or `npm run lint` when practical.
 - Run `npm run check:platform` whenever a `src/` TypeScript file changes.
