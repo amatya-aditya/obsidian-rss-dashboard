@@ -240,16 +240,16 @@ describe("renderDisplaySettingsTab() reader section", () => {
     const containerEl = createDiv();
     document.body.appendChild(containerEl);
     const settings = cloneSettings();
-    const applyReaderFormat = vi.fn();
-    const applyInlineReaderFormat = vi.fn();
+    const applyReaderFormatToOpenViews = vi.fn(async () => {});
     const saveSettings = vi.fn(async () => {});
 
     const plugin = {
       app: {},
       settings,
       saveSettings,
-      getActiveDashboardView: vi.fn(async () => ({ applyInlineReaderFormat })),
-      getActiveReaderView: vi.fn(async () => ({ applyReaderFormat })),
+      applyReaderFormatToOpenViews,
+      getActiveDashboardView: vi.fn(async () => null),
+      getActiveReaderView: vi.fn(async () => null),
     } as unknown as RssDashboardPlugin;
 
     renderDisplaySettingsTab(containerEl, plugin, () => {});
@@ -263,18 +263,18 @@ describe("renderDisplaySettingsTab() reader section", () => {
 
     expect(plugin.settings.readerFormat.fontFamily).toBe("serif");
     expect(saveSettings).toHaveBeenCalled();
-    expect(applyReaderFormat).toHaveBeenCalled();
-    expect(applyInlineReaderFormat).toHaveBeenCalled();
+    expect(applyReaderFormatToOpenViews).toHaveBeenCalledTimes(1);
   });
 
-  it("updates an open Inline Reader when no Main Reader is open", async () => {
+  it("applies reader formatting to open views when settings change", async () => {
     const containerEl = document.body.appendChild(createDiv());
-    const applyInlineReaderFormat = vi.fn();
+    const applyReaderFormatToOpenViews = vi.fn(async () => {});
     const plugin = {
       app: {},
       settings: cloneSettings(),
       saveSettings: vi.fn(async () => {}),
-      getActiveDashboardView: vi.fn(async () => ({ applyInlineReaderFormat })),
+      applyReaderFormatToOpenViews,
+      getActiveDashboardView: vi.fn(async () => null),
       getActiveReaderView: vi.fn(async () => null),
     } as unknown as RssDashboardPlugin;
 
@@ -289,7 +289,7 @@ describe("renderDisplaySettingsTab() reader section", () => {
     await flushPromises();
 
     expect(plugin.settings.readerFormat.textAlign).toBe("left");
-    expect(applyInlineReaderFormat).toHaveBeenCalledTimes(1);
+    expect(applyReaderFormatToOpenViews).toHaveBeenCalledTimes(1);
   });
 
   it("resets reader format settings back to defaults", async () => {
@@ -307,6 +307,7 @@ describe("renderDisplaySettingsTab() reader section", () => {
       app: {},
       settings,
       saveSettings,
+      applyReaderFormatToOpenViews: vi.fn(async () => {}),
       getActiveDashboardView: vi.fn(async () => null),
       getActiveReaderView: vi.fn(async () => null),
     } as unknown as RssDashboardPlugin;

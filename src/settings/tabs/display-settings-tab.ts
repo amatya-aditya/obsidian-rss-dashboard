@@ -38,32 +38,9 @@ export function renderDisplaySettingsTab(
   onRefresh: () => void,
   targetSection?: string,
 ): () => void {
-  const applyReaderFormatToOpenViews = async (): Promise<void> => {
-    const readerView = await plugin.getActiveReaderView?.();
-    if (readerView) {
-      try {
-        const viewState = readerView as unknown as {
-          applyReaderFormat?: () => void;
-        };
-        viewState.applyReaderFormat?.();
-      } catch {
-        // Best-effort refresh for settings-driven format changes.
-      }
-    }
-
-    const dashboardView = await plugin.getActiveDashboardView?.();
-    if (dashboardView) {
-      try {
-        dashboardView.applyInlineReaderFormat();
-      } catch {
-        // Best-effort refresh for settings-driven format changes.
-      }
-    }
-  };
-
   const persistReaderFormat = async (): Promise<void> => {
     await plugin.saveSettings();
-    await applyReaderFormatToOpenViews();
+    await plugin.applyReaderFormatToOpenViews();
   };
 
   const rerenderActiveDashboardView = async (): Promise<void> => {
