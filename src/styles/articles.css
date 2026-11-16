@@ -510,6 +510,8 @@ body .rss-dashboard-star-toggle svg {
   flex: 0 0 auto;
   width: 24px;
   height: 24px;
+  --icon-size: 16px;
+  contain: layout style;
   padding: 0;
   border: 1px solid var(--background-modifier-border);
   border-radius: 4px;
@@ -518,6 +520,20 @@ body .rss-dashboard-star-toggle svg {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.15s ease;
+}
+
+.rss-dashboard-article-card .rss-dashboard-fetch-cover-button > svg,
+.rss-dashboard-feed-item .rss-dashboard-fetch-cover-button > svg {
+  display: block;
+  width: var(--icon-size, 16px);
+  height: var(--icon-size, 16px);
+  overflow: visible;
+  will-change: transform;
+}
+
+.rss-dashboard-article-card .rss-dashboard-fetch-cover-button > svg *,
+.rss-dashboard-feed-item .rss-dashboard-fetch-cover-button > svg * {
+  pointer-events: none;
 }
 
 .rss-dashboard-article-card:hover .rss-dashboard-fetch-cover-button,

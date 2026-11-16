@@ -8,6 +8,7 @@
 
 ### Fixes
 
+- The cover-image action icon now renders in Card and Feed views on Android tablets. [GH Issue #1802](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1802)
 - Inline Reader now uses the same article body text size as Main Reader, including the Reader font-size preference. [GH Issue #1792](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1792)
 - On Android, swiping right from Main Reader now keeps the outgoing Reader visible during its return animation even when Obsidian hides its leaf, then restores the hidden leaf so the tab remains available. [GH Issue #1793](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1793)
 - A feed icon that fails to load once is no longer hidden until Obsidian restarts: the next render, folder toggle or list redraw tries it again. An icon that fails twice in a row is still remembered and skipped for the rest of the session, and every failure immediately shows the existing fallback icon. This applies to sidebar feed rows, article-list rows and the reader header. [GH Issue #1796](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1796)
