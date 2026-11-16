@@ -9,6 +9,7 @@
 
 ### Fixes
 
+- Settings rows now stack above their controls at tablet widths, free-text fields use the full available width, and input clear buttons stay at the field's trailing edge. [GH Issue #1813](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1813)
 - Inline Reader now has the **Manage tags** action, so you can add or remove an article's tags while reading it inline. [GH Issue #1809](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1809)
 - Inline Reader now has the **Reader settings** action, and formatting changes there apply the same preferences as Main Reader. [GH Issue #1808](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1808)
 - Read, star, and tag changes now keep the Inline Reader on the same article position, including when a filter removes the article. [GH Issue #1809](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1809)

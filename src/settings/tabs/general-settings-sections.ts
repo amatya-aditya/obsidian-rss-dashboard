@@ -310,7 +310,8 @@ function renderStartupDelaySetting(
     .setDesc(
       "Delay before the first refresh after Obsidian opens, in seconds. The default is 5. A value that is not a number of zero or more is ignored.",
     )
-    .addText((text) =>
+    .addText((text) => {
+      text.inputEl.addClass("rss-dashboard-settings-number-input");
       text
         .setValue(String(plugin.settings.startupRefreshDelaySeconds))
         .onChange(async (value) => {
@@ -318,8 +319,8 @@ function renderStartupDelaySetting(
           if (!Number.isFinite(parsed) || parsed < 0) return;
           plugin.settings.startupRefreshDelaySeconds = Math.floor(parsed);
           await plugin.saveSettings();
-        }),
-    );
+        });
+    });
 }
 
 // ── Max items ─────────────────────────────────────────────────────────────
