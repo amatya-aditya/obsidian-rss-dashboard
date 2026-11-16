@@ -6,6 +6,7 @@ import {
   type Feed,
   type FeedItem,
   type RssDashboardSettings,
+  type Tag,
 } from "../../../src/types/types";
 import { RssDashboardView } from "../../../src/views/dashboard-view";
 
@@ -193,7 +194,28 @@ describe("Dashboard inline Reader toolbar focus", () => {
       (button) => button.getAttribute("data-rss-action"),
     );
 
-    expect(actions).toEqual(["save", "read", "star", "format", "open"]);
+    expect(actions).toEqual(["save", "read", "star", "tags", "format", "open"]);
+  });
+
+  it("manages the inline article's tags with the Reader tag picker", async () => {
+    const view = openInline();
+    const tag: Tag = { name: "Reading", color: "#ff0000" };
+    view.settings.availableTags = [tag];
+
+    const tagsButton = toolbarButton(view, "tags");
+    tagsButton.click();
+    const checkbox = document.body.querySelector<HTMLInputElement>(
+      ".rss-dashboard-tags-dropdown-content-portal .rss-dashboard-tag-checkbox",
+    );
+    expect(checkbox).not.toBeNull();
+    if (!checkbox) return;
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+    await flush();
+
+    expect(view.inlineArticle?.tags).toEqual([tag]);
+    expect(view.settings.feeds[0]?.items[0]?.tags).toEqual([tag]);
+    tagsButton.click();
   });
 
   it("applies the shared Reader settings from the inline toolbar", () => {

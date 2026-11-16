@@ -12,7 +12,11 @@ import {
 } from "obsidian";
 import { resolveReaderMediaRoute } from "../utils/reader-article-render";
 import { renderReaderTagChips } from "../utils/reader-tag-chips";
-import { refreshTagsDropdownPortalColors } from "../utils/tags-dropdown-portal";
+import {
+  createTagsDropdownPortal,
+  refreshTagsDropdownPortalColors,
+  tagsPortalHoldsFocus,
+} from "../utils/tags-dropdown-portal";
 import { refreshTagMultiSelectMenuColors } from "../components/tag-multi-select-menu";
 import {
   Feed,
@@ -26,6 +30,7 @@ import {
   ViewLocation,
   ArticleContentFirst,
   ReaderFormatSettings,
+  Tag,
   FeedEncoding,
   ArticleGroupByOption,
   DEFAULT_SETTINGS,
@@ -234,6 +239,9 @@ export class RssDashboardView extends ItemView {
     listener: () => void;
   } | null = null;
   private inlineArticle: FeedItem | null = null;
+  private inlineTagsDropdownCleanup: (() => void) | null = null;
+  private inlineTagsDropdownPortal: HTMLElement | null = null;
+  private inlineTagsDropdownAnchor: HTMLElement | null = null;
   private inlineReaderFormatPortal: {
     close: (flushSave: boolean) => void;
   } | null = null;
@@ -1032,6 +1040,10 @@ export class RssDashboardView extends ItemView {
         if (
           leaf === this.leaf &&
           !this.articleList?.tagsMenuHoldsFocus() &&
+          !tagsPortalHoldsFocus(
+            this.inlineTagsDropdownPortal,
+            this.inlineTagsDropdownAnchor,
+          ) &&
           !this.containerEl.contains(
             this.containerEl.ownerDocument.activeElement,
           )
@@ -1246,6 +1258,7 @@ export class RssDashboardView extends ItemView {
       return;
     }
 
+    this.closeInlineTagsDropdown();
     this.closeInlineReaderFormatPortal(true);
     this.articleRenderer?.cancelPendingDisplay();
     this.isRenderInProgress = true;
@@ -4250,6 +4263,7 @@ export class RssDashboardView extends ItemView {
   }
 
   async onClose(): Promise<void> {
+    this.closeInlineTagsDropdown();
     this.closeInlineReaderFormatPortal(true);
     this.articleRenderer?.cancelPendingDisplay();
     clearViewReady(this.containerEl);
@@ -4971,6 +4985,70 @@ export class RssDashboardView extends ItemView {
     content.dataset.rssReaderParagraph = format.paragraphSpacing;
   }
 
+  private toggleInlineTagsDropdown(anchor: HTMLElement): void {
+    if (this.inlineTagsDropdownCleanup) {
+      this.closeInlineTagsDropdown();
+      return;
+    }
+
+    const item = this.inlineArticle;
+    if (!item) return;
+
+    let cleanup: (() => void) | null = null;
+    cleanup = createTagsDropdownPortal({
+      app: this.app,
+      anchor,
+      settings: this.settings,
+      item,
+      onTagAssignmentChange: (tag, checked) => {
+        this.toggleInlineArticleTag(item, tag, checked);
+      },
+      onPersistSettings: () => this.plugin.saveSettings(),
+      onAfterSettingsTagsMutated: () => {
+        this.refreshInlineArticleTags();
+        void this.plugin.refreshOpenTagColorViews();
+        this.app.workspace.trigger("rss-dashboard:tags-mutated");
+      },
+      onOpenTagsSettings: () => this.plugin.openTagsSettings(),
+      appContainer: this.containerEl,
+      containTab: true,
+      onOpen: (portal) => {
+        this.inlineTagsDropdownPortal = portal;
+      },
+      onClosed: () => {
+        if (this.inlineTagsDropdownCleanup === cleanup) {
+          this.inlineTagsDropdownCleanup = null;
+          this.inlineTagsDropdownPortal = null;
+          this.inlineTagsDropdownAnchor = null;
+        }
+      },
+    });
+    this.inlineTagsDropdownCleanup = cleanup;
+    this.inlineTagsDropdownAnchor = anchor;
+  }
+
+  private closeInlineTagsDropdown(): void {
+    const cleanup = this.inlineTagsDropdownCleanup;
+    this.inlineTagsDropdownCleanup = null;
+    this.inlineTagsDropdownPortal = null;
+    this.inlineTagsDropdownAnchor = null;
+    cleanup?.();
+  }
+
+  private toggleInlineArticleTag(item: FeedItem, tag: Tag, add: boolean): void {
+    const previousTags = item.tags ?? [];
+    const alreadyAssigned = previousTags.some(
+      (currentTag) => currentTag.name === tag.name,
+    );
+    if (alreadyAssigned === add) return;
+
+    const nextTags = add
+      ? [...previousTags, { ...tag }]
+      : previousTags.filter((currentTag) => currentTag.name !== tag.name);
+    void this.updateArticleStatus(item, { tags: nextTags }, false);
+    this.refreshInlineArticleTags();
+  }
+
   private toggleInlineReaderFormatDropdown(anchor: HTMLElement): void {
     if (this.inlineReaderFormatPortal) {
       this.closeInlineReaderFormatPortal(true);
@@ -5117,6 +5195,21 @@ export class RssDashboardView extends ItemView {
               true,
             );
           }
+        },
+      });
+
+      const tagsButton = createIconButton({
+        parent: actions,
+        cls: "rss-reader-action-button",
+        label: "Manage tags",
+        icon: "tag",
+        action: "tags",
+        region,
+        hasPopup: true,
+        expanded: false,
+        onClick: (event) => {
+          event.stopPropagation();
+          this.toggleInlineTagsDropdown(tagsButton);
         },
       });
 

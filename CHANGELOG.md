@@ -8,6 +8,7 @@
 
 ### Fixes
 
+- Inline Reader now has the **Manage tags** action, so you can add or remove an article's tags while reading it inline. [GH Issue #1809](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1809)
 - Inline Reader now has the **Reader settings** action, and formatting changes there apply the same preferences as Main Reader. [GH Issue #1808](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1808)
 - The cover-image action icon now renders in Card and Feed views on Android tablets. [GH Issue #1802](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1802)
 - Inline Reader now applies the Reader alignment and line-height preferences to extracted article text and description fallback, updating an open article immediately when either preference changes. [GH Issue #1804](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1804)
