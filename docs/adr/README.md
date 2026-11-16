@@ -89,6 +89,7 @@ See the [ADR Policy](POLICY.md) for the complete lifecycle, authoring, and maint
 | [0040](0040-defer-youtube-data-api-pending-compliance.md)                      | Defer YouTube Data API Feeds Pending Compliance Clearance                | accepted | Keep RSS and IFrame behavior; defer API keys until credential, retention, cross-channel, and 50-item gates are cleared.                                                          |
 | [0042](0042-keep-freshrss-in-core.md)                                          | Keep FreshRSS in Core for v1                                             | accepted | Keep FreshRSS v1 in the main plugin's build and release lifecycle; defer a separate connector boundary until a concrete need exists.                                             |
 | [0043](0043-derive-the-tested-obsidian-version.md)                             | Derive the tested Obsidian version; never pin one                        | accepted | Resolve the expected app build from the archive that will load, check it against the log and the renderer, and record the viewport a row was captured at.                        |
+| [0044](0044-reopen-the-last-closed-main-reader-on-swipe.md)                    | Reopen the Last Closed Main Reader on Swipe                              | accepted | Close Main Reader on swipe-return and let dashboard swipe-left reopen the most recently closed article for the current session.                                                  |
 
 ## Creating a new ADR
 

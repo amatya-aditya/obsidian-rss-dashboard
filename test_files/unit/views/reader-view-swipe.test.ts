@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Platform } from "obsidian";
-import { ReaderView } from "../../../src/views/reader-view";
+import {
+  getLastClosedMainReaderArticle,
+  ReaderView,
+} from "../../../src/views/reader-view";
 import { DEFAULT_SETTINGS } from "../../../src/types/types";
 import type { RssDashboardSettings } from "../../../src/types/types";
 import { setCssProps } from "../../../src/utils/platform-utils";
@@ -79,8 +82,23 @@ describe("ReaderView swipe back to the dashboard", () => {
     vi.unstubAllGlobals();
   });
 
-  it("focuses the dashboard leaf on a swipe right and leaves the reader tab open", async () => {
+  it("returns to the dashboard and closes the reader after the animation", async () => {
     view.setReturnLeaf(dashboardLeaf as never);
+    const item = {
+      title: "Article",
+      link: "",
+      description: "",
+      pubDate: "2026-11-16T00:00:00.000Z",
+      guid: "swipe-closed-article",
+      feedTitle: "Feed",
+      feedUrl: "https://example.com/feed.xml",
+      coverImage: "",
+      content: "Article body",
+    };
+    await view.displayItem(item);
+    leaf.detach = vi.fn(() => {
+      void view.onClose();
+    });
 
     swipeOn(view.containerEl, 120);
     expect(readerLeafRoot.classList.contains("rss-reader-return-overlay")).toBe(
@@ -105,6 +123,48 @@ describe("ReaderView swipe back to the dashboard", () => {
     expect(readerLeafRoot.classList.contains("rss-reader-returning")).toBe(
       false,
     );
+    expect(leaf.detach).toHaveBeenCalledTimes(1);
+    await flush();
+    expect(getLastClosedMainReaderArticle(leaf.app as never)).toBe(item);
+  });
+
+  it("remembers a closed main-reader article for dashboard swipe-left", async () => {
+    const item = {
+      title: "Article",
+      link: "",
+      description: "",
+      pubDate: "2026-11-16T00:00:00.000Z",
+      guid: "article-guid",
+      feedTitle: "Feed",
+      feedUrl: "https://example.com/feed.xml",
+      coverImage: "",
+      content: "Article body",
+    };
+
+    await view.displayItem(item);
+    await view.onClose();
+
+    expect(getLastClosedMainReaderArticle(leaf.app as never)).toBe(item);
+  });
+
+  it("does not remember a sidebar Reader article when it closes", async () => {
+    root = leftSplit;
+    const item = {
+      title: "Sidebar article",
+      link: "",
+      description: "",
+      pubDate: "2026-11-16T00:00:00.000Z",
+      guid: "sidebar-article-guid",
+      feedTitle: "Feed",
+      feedUrl: "https://example.com/feed.xml",
+      coverImage: "",
+      content: "Article body",
+    };
+
+    await view.displayItem(item);
+    await view.onClose();
+
+    expect(getLastClosedMainReaderArticle(leaf.app as never)).toBeNull();
   });
 
   it("shows the outgoing reader while it animates after the host hides its leaf", async () => {
