@@ -468,7 +468,10 @@ guid: "{{guid}}"
       const injection = `mediaType: video\nvideoId: "${escapeYamlDoubleQuoted(item.videoId)}"\n`;
       frontmatter = frontmatter.replace(/^---\r?\n/, (m) => `${m}${injection}`);
     } else if (item.mediaType === "podcast" && item.audioUrl) {
-      const injection = `mediaType: podcast\naudioUrl: "${escapeYamlDoubleQuoted(item.audioUrl)}"\n`;
+      const audioUrlField = /^[ \t]*audioUrl[ \t]*:/m.test(frontmatter)
+        ? ""
+        : `audioUrl: "${escapeYamlDoubleQuoted(item.audioUrl)}"\n`;
+      const injection = `mediaType: podcast\n${audioUrlField}`;
       frontmatter = frontmatter.replace(/^---\r?\n/, (m) => `${m}${injection}`);
     }
 

@@ -3646,6 +3646,31 @@ describe("ArticleSaver audio URL template variable (#1757)", () => {
     expect(await app.vault.read(file)).toContain(`audioUrl: "${audioUrl}"`);
   });
 
+  it("does not duplicate the podcast audio URL when frontmatter uses the variable", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(
+      app,
+      createSettings({
+        includeFrontmatter: true,
+        frontmatterTemplate: '---\naudioUrl: "{{audioUrl}}"\n---',
+        defaultTemplate: "{{title}}",
+      }),
+    );
+
+    const file = await saver.saveArticle(
+      createItem({ audioUrl, mediaType: "podcast" }),
+      undefined,
+      undefined,
+      "",
+    );
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected a saved TFile");
+    const note = await app.vault.read(file);
+    expect(note.match(/^audioUrl:/gm)).toHaveLength(1);
+    expect(note).toContain("mediaType: podcast");
+  });
+
   it("fills the publisher audio URL in a filename pattern", () => {
     const saver = new ArticleSaver(App.createMock(), createSettings());
 
