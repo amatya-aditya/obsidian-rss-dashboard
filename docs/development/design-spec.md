@@ -15,6 +15,7 @@ related:
 
 ## Update History
 
+- 2026-11-16: Clarify Android SVG sizing and paint-layer coverage for plugin-owned icon controls, including custom native-button resets, and require device evidence for the reported form factor
 - 2026-10-28: Add **Dropdown Controls**: every dropdown trigger and select shows Obsidian's up/down chevron (`chevrons-up-down`) at its right edge, and every native color picker shows the same hover and focus ring. Settings color rows put the picker right after the row name with no hex readout; Tag appearance defaults are a draft, previewed in their own card, until the user applies them; Tag shape previews are drawn in the applied default colors, and Add new tag shows a live preview chip; native color pickers get a Randomize dice button that rolls any color
 - 2026-10-26: Define shared article action icon hover previews and semantic colors across Dashboard and Reader surfaces, with responsive borders on Dashboard controls only
 - 2026-10-20: Folder fields use Obsidian's `AbstractInputSuggest` list, styled only through `.rss-folder-suggest-container`, replacing the hand-built dropdown (#1377)
@@ -520,6 +521,10 @@ Verified:
 - **Android** (Pixel 10a emulator, API v37.2, 420 DPI; Obsidian 1.14.4; default
   theme; plugin build 401e203): every icon renders with the explicit SVG sizing
   and paint-layer fixes above, and the buttons activate by touch and keyboard.
+  That record is evidence for the tested build and device. The current Reader
+  toolbar stylesheet uses its scoped button reset but has no local direct-child
+  SVG sizing or paint-layer rule; verify the current build again before using
+  Reader as a source example for the Android CSS pattern.
 
 Known unknown: Shift+Tab reverses the tab target on desktop but not on the
 Android emulator. That is a host/WebView difference, not plugin logic — the
@@ -654,6 +659,15 @@ right after the picker; in the Add/edit tag modal it sits before "Use default".
 
 **This section supersedes the `!important` guidance previously listed under Styling Guidelines.** The prior pattern worked but conflicted with the v2.3.0 remediation goal of eliminating `!important` from the codebase. The approach below solves the same Android WebView failures without it.
 
+**Coverage:** Give a direct-child SVG explicit pixel dimensions when its icon
+control is a flex container. Add `contain: layout style` to the wrapper and
+`will-change: transform` to the SVG when the icon or an ancestor participates
+in opacity/transform transitions, or when WebView has shown a paint-layer
+drop. These rules apply whether the control uses Obsidian's `clickable-icon`
+class or a plugin-scoped native-button reset. `clickable-icon` is the default
+button class, not a prerequisite for the Android fix. A visual reset does not
+provide the SVG sizing or paint-layer rules.
+
 #### Why WebView Fails
 
 Android WebView has two distinct SVG-in-icon failure modes:
@@ -674,7 +688,7 @@ The fix addresses both failure modes at source rather than overriding them with 
 ```css
 /*
  * Android WebView Icon Rendering Fix
- * Scoped to component ancestor to avoid Obsidian core collisions.
+ * Scoped to the component and its own icon control to avoid Obsidian core collisions.
  *
  * Problem: WebView fails to resolve % SVG sizing inside flex containers,
  * and drops SVG children from the paint layer during layout recalculation
@@ -685,7 +699,7 @@ The fix addresses both failure modes at source rather than overriding them with 
  *
  * Ref: design-spec §Icon Rendering Standards
  */
-.your-component-scope .clickable-icon {
+.your-component-scope .your-icon-control {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -695,7 +709,7 @@ The fix addresses both failure modes at source rather than overriding them with 
   height: var(--icon-size, 20px);
 }
 
-.your-component-scope .clickable-icon > svg {
+.your-component-scope .your-icon-control > svg {
   display: block;
   width: var(--icon-size, 20px);
   height: var(--icon-size, 20px);
@@ -703,7 +717,7 @@ The fix addresses both failure modes at source rather than overriding them with 
   will-change: transform;
 }
 
-.your-component-scope .clickable-icon > svg * {
+.your-component-scope .your-icon-control > svg * {
   pointer-events: none;
 }
 ```
@@ -776,7 +790,15 @@ but jsdom doesn't lay out or paint anything. Split checks accordingly:
   (`npm run fixture:vault`, see `docs/development/fixture-vault.md`) at
   desktop width, at tablet width (a window of 1200px or less), and with
   `app.emulateMobile(true)`. Test real devices for the Android WebView SVG
-  fixes.
+  fixes. For an Android rendering investigation, inspect the button box and
+  its direct-child SVG separately so a missing paint layer is not mistaken for
+  a hidden control. Verify the affected control on an Android tablet when the
+  report is tablet-specific; phone or iOS evidence does not substitute for
+  that check. Record the device, Obsidian version, surface, and plugin build.
+  For a broader icon pass, audit each distinct component-owned icon styling
+  path and its shared callers; repeated `setIcon` call sites using the same
+  owner stylesheet do not need separate CSS audits. Unit tests can pin those
+  CSS and DOM contracts, but cannot certify WebView painting.
 
 See `docs/development/test_coverage/testing-guide.md` for the testing rules.
 
