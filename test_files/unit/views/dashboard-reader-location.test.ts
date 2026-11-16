@@ -829,6 +829,7 @@ describe("Dashboard reader location", () => {
       "Save fetched content to notes",
       "Mark as read/unread",
       "Star/unstar article",
+      "Reader settings",
       "Open in browser",
     ]);
     expect(
