@@ -13,6 +13,7 @@ function createValues(
   return {
     title: "Title",
     link: "https://example.com/a",
+    audioUrl: "https://cdn.example/episode.mp3",
     author: "Ann",
     source: "Feed",
     feedTitle: "Feed",

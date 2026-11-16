@@ -113,6 +113,7 @@ export function buildArticleTemplateValues(
   return {
     title: item.title,
     link: item.link,
+    audioUrl: item.audioUrl ?? "",
     author: itemAuthorText(item),
     source: item.feedTitle,
     feedTitle: item.feedTitle,
