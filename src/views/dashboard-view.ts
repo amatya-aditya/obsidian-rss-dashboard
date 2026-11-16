@@ -12,7 +12,11 @@ import {
 } from "obsidian";
 import { resolveReaderMediaRoute } from "../utils/reader-article-render";
 import { renderReaderTagChips } from "../utils/reader-tag-chips";
-import { refreshTagsDropdownPortalColors } from "../utils/tags-dropdown-portal";
+import {
+  createTagsDropdownPortal,
+  refreshTagsDropdownPortalColors,
+  tagsPortalHoldsFocus,
+} from "../utils/tags-dropdown-portal";
 import { refreshTagMultiSelectMenuColors } from "../components/tag-multi-select-menu";
 import {
   Feed,
@@ -25,6 +29,8 @@ import {
   Folder,
   ViewLocation,
   ArticleContentFirst,
+  ReaderFormatSettings,
+  Tag,
   FeedEncoding,
   ArticleGroupByOption,
   DEFAULT_SETTINGS,
@@ -94,6 +100,7 @@ import { articleTitleMatchesSearch } from "../utils/article-search";
 import { computeHighlightMatchCounts } from "../utils/highlight-match-counts";
 import { removeFolderByPath } from "../utils/folder-tree";
 import { createIconButton, getIconButtonAction } from "../utils/icon-button";
+import { createReaderFormatPortal } from "../utils/reader-format-portal";
 import { createLiveRegion } from "../utils/live-region";
 import { markMainLandmark, markNamedLandmark } from "../utils/landmarks";
 import { SIDEBAR_ROW_SELECTOR } from "../utils/sidebar-row-interactions";
@@ -232,6 +239,13 @@ export class RssDashboardView extends ItemView {
     listener: () => void;
   } | null = null;
   private inlineArticle: FeedItem | null = null;
+  private inlineTagsDropdownCleanup: (() => void) | null = null;
+  private inlineTagsDropdownPortal: HTMLElement | null = null;
+  private inlineTagsDropdownAnchor: HTMLElement | null = null;
+  private inlineReaderFormatPortal: {
+    close: (flushSave: boolean) => void;
+  } | null = null;
+  private inlineReaderFormatSaveTimeout: number | null = null;
   private swipeNavigator: SwipeNavigator | null = null;
   private inlineSwipeOriginTrackingBound = false;
   private swipeStartedInsideInlineReader = false;
@@ -1026,6 +1040,10 @@ export class RssDashboardView extends ItemView {
         if (
           leaf === this.leaf &&
           !this.articleList?.tagsMenuHoldsFocus() &&
+          !tagsPortalHoldsFocus(
+            this.inlineTagsDropdownPortal,
+            this.inlineTagsDropdownAnchor,
+          ) &&
           !this.containerEl.contains(
             this.containerEl.ownerDocument.activeElement,
           )
@@ -1240,6 +1258,8 @@ export class RssDashboardView extends ItemView {
       return;
     }
 
+    this.closeInlineTagsDropdown();
+    this.closeInlineReaderFormatPortal(true);
     this.articleRenderer?.cancelPendingDisplay();
     this.isRenderInProgress = true;
 
@@ -4243,6 +4263,8 @@ export class RssDashboardView extends ItemView {
   }
 
   async onClose(): Promise<void> {
+    this.closeInlineTagsDropdown();
+    this.closeInlineReaderFormatPortal(true);
     this.articleRenderer?.cancelPendingDisplay();
     clearViewReady(this.containerEl);
     this.finishInlineReturnAnimation();
@@ -4915,6 +4937,175 @@ export class RssDashboardView extends ItemView {
       ?.focus({ preventScroll: true });
   }
 
+  private getInlineReaderFormat(): ReaderFormatSettings {
+    if (!this.settings.readerFormat) {
+      this.settings.readerFormat = { ...DEFAULT_SETTINGS.readerFormat };
+    }
+    return this.settings.readerFormat;
+  }
+
+  private applyInlineReaderFormatToContent(
+    content = this.containerEl.querySelector<HTMLElement>(
+      ".rss-reader-content.inline-reader-content",
+    ),
+  ): void {
+    if (!content) return;
+
+    const format = this.getInlineReaderFormat();
+    let fontFamily: string;
+    switch (format.fontFamily) {
+      case "serif":
+        fontFamily =
+          'ui-serif, Georgia, Cambria, "Times New Roman", Times, serif';
+        break;
+      case "sans":
+        fontFamily =
+          'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif';
+        break;
+      case "mono":
+        fontFamily =
+          'var(--font-monospace), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+        break;
+      case "default":
+      default:
+        fontFamily = "inherit";
+    }
+    const paragraphWidth = format.paragraphWidth || 100;
+
+    setCssProps(content, {
+      "--rss-reader-body-font-size": `${format.fontScalePct / 100}em`,
+      "--rss-reader-font-scale": String(format.fontScalePct / 100),
+      "--rss-reader-line-height": String(format.lineHeightPct / 100),
+      "--rss-reader-max-width":
+        paragraphWidth === 100 ? "calc(100% - 4px)" : `${paragraphWidth}%`,
+      "--rss-reader-font-family": fontFamily,
+    });
+    content.dataset.rssReaderAlign = format.textAlign;
+    content.dataset.rssReaderFont = format.fontFamily;
+    content.dataset.rssReaderParagraph = format.paragraphSpacing;
+  }
+
+  private toggleInlineTagsDropdown(anchor: HTMLElement): void {
+    if (this.inlineTagsDropdownCleanup) {
+      this.closeInlineTagsDropdown();
+      return;
+    }
+
+    const item = this.inlineArticle;
+    if (!item) return;
+
+    let cleanup: (() => void) | null = null;
+    cleanup = createTagsDropdownPortal({
+      app: this.app,
+      anchor,
+      settings: this.settings,
+      item,
+      onTagAssignmentChange: (tag, checked) => {
+        this.toggleInlineArticleTag(item, tag, checked);
+      },
+      onPersistSettings: () => this.plugin.saveSettings(),
+      onAfterSettingsTagsMutated: () => {
+        this.refreshInlineArticleTags();
+        void this.plugin.refreshOpenTagColorViews();
+        this.app.workspace.trigger("rss-dashboard:tags-mutated");
+      },
+      onOpenTagsSettings: () => this.plugin.openTagsSettings(),
+      appContainer: this.containerEl,
+      containTab: true,
+      onOpen: (portal) => {
+        this.inlineTagsDropdownPortal = portal;
+      },
+      onClosed: () => {
+        if (this.inlineTagsDropdownCleanup === cleanup) {
+          this.inlineTagsDropdownCleanup = null;
+          this.inlineTagsDropdownPortal = null;
+          this.inlineTagsDropdownAnchor = null;
+        }
+      },
+    });
+    this.inlineTagsDropdownCleanup = cleanup;
+    this.inlineTagsDropdownAnchor = anchor;
+  }
+
+  private closeInlineTagsDropdown(): void {
+    const cleanup = this.inlineTagsDropdownCleanup;
+    this.inlineTagsDropdownCleanup = null;
+    this.inlineTagsDropdownPortal = null;
+    this.inlineTagsDropdownAnchor = null;
+    cleanup?.();
+  }
+
+  private toggleInlineArticleTag(item: FeedItem, tag: Tag, add: boolean): void {
+    const previousTags = item.tags ?? [];
+    const alreadyAssigned = previousTags.some(
+      (currentTag) => currentTag.name === tag.name,
+    );
+    if (alreadyAssigned === add) return;
+
+    const nextTags = add
+      ? [...previousTags, { ...tag }]
+      : previousTags.filter((currentTag) => currentTag.name !== tag.name);
+    void this.updateArticleStatus(item, { tags: nextTags }, false);
+    this.refreshInlineArticleTags();
+  }
+
+  private toggleInlineReaderFormatDropdown(anchor: HTMLElement): void {
+    if (this.inlineReaderFormatPortal) {
+      this.closeInlineReaderFormatPortal(true);
+      return;
+    }
+
+    const portal = createReaderFormatPortal({
+      anchor,
+      format: this.getInlineReaderFormat(),
+      defaults: DEFAULT_SETTINGS.readerFormat,
+      applyFormat: () => this.applyInlineReaderFormat(),
+      scheduleSave: () => this.scheduleInlineReaderFormatSave(),
+      flushSave: () => this.flushInlineReaderFormatSave(),
+      openReaderDisplaySettings: () => {
+        void this.plugin.openSettingsToTab("Display", "Reader");
+      },
+      onClosed: () => {
+        if (this.inlineReaderFormatPortal === portal) {
+          this.inlineReaderFormatPortal = null;
+        }
+        anchor.setAttribute("aria-expanded", "false");
+      },
+    });
+
+    this.inlineReaderFormatPortal = portal;
+    anchor.setAttribute("aria-expanded", "true");
+  }
+
+  private closeInlineReaderFormatPortal(flushSave: boolean): void {
+    const portal = this.inlineReaderFormatPortal;
+    this.inlineReaderFormatPortal = null;
+    portal?.close(flushSave);
+  }
+
+  private scheduleInlineReaderFormatSave(): void {
+    if (this.inlineReaderFormatSaveTimeout !== null) {
+      window.clearTimeout(this.inlineReaderFormatSaveTimeout);
+    }
+
+    this.inlineReaderFormatSaveTimeout = window.setTimeout(() => {
+      void this.flushInlineReaderFormatSave();
+    }, 300);
+  }
+
+  private async flushInlineReaderFormatSave(): Promise<void> {
+    if (this.inlineReaderFormatSaveTimeout !== null) {
+      window.clearTimeout(this.inlineReaderFormatSaveTimeout);
+      this.inlineReaderFormatSaveTimeout = null;
+    }
+
+    try {
+      await this.plugin.saveSettings();
+    } catch {
+      // Formatting still applies for this session when persistence fails.
+    }
+  }
+
   private renderInlineArticle(container: HTMLElement): void {
     container.addClass("rss-inline-reader-pane");
     const header = container.createDiv({
@@ -5007,6 +5198,36 @@ export class RssDashboardView extends ItemView {
         },
       });
 
+      const tagsButton = createIconButton({
+        parent: actions,
+        cls: "rss-reader-action-button",
+        label: "Manage tags",
+        icon: "tag",
+        action: "tags",
+        region,
+        hasPopup: true,
+        expanded: false,
+        onClick: (event) => {
+          event.stopPropagation();
+          this.toggleInlineTagsDropdown(tagsButton);
+        },
+      });
+
+      const readerFormatButton = createIconButton({
+        parent: actions,
+        cls: "rss-reader-action-button rss-reader-format-button",
+        label: "Reader settings",
+        icon: "type",
+        action: "format",
+        region,
+        hasPopup: true,
+        expanded: false,
+        onClick: (event) => {
+          event.stopPropagation();
+          this.toggleInlineReaderFormatDropdown(readerFormatButton);
+        },
+      });
+
       createIconButton({
         parent: actions,
         cls: "rss-reader-action-button",
@@ -5032,13 +5253,13 @@ export class RssDashboardView extends ItemView {
     const body = container.createDiv({
       cls: "rss-reader-content inline-reader-content",
     });
-    this.applyReaderFormatToInlineContent(body);
     markNamedLandmark(body, "region", titleEl);
 
     if (this.articleRenderer && this.inlineArticle) {
       const related = this.getRelatedItems(this.inlineArticle);
       void this.articleRenderer.render(body, this.inlineArticle, related);
     }
+    this.applyInlineReaderFormatToContent(body);
   }
 
   /** Refreshes the formatting of an already-open inline Reader without rebuilding its article. */
@@ -5046,18 +5267,7 @@ export class RssDashboardView extends ItemView {
     const body = this.containerEl.querySelector<HTMLElement>(
       ".inline-reader-content",
     );
-    if (body) {
-      this.applyReaderFormatToInlineContent(body);
-    }
-  }
-
-  private applyReaderFormatToInlineContent(body: HTMLElement): void {
-    const format = this.settings.readerFormat ?? DEFAULT_SETTINGS.readerFormat;
-    setCssProps(body, {
-      "--rss-reader-body-font-size": `${format.fontScalePct / 100}em`,
-      "--rss-reader-line-height": String(format.lineHeightPct / 100),
-    });
-    body.dataset.rssReaderAlign = format.textAlign;
+    if (body) this.applyInlineReaderFormatToContent(body);
   }
 
   private scheduleCardLayoutSave(): void {
