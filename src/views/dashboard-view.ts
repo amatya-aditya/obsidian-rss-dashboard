@@ -62,7 +62,11 @@ import {
   type ArticleScopeState,
 } from "../services/article-scope";
 import { ArticleRenderer } from "../components/article-renderer";
-import { ReaderView, RSS_READER_VIEW_TYPE } from "./reader-view";
+import {
+  getLastClosedMainReaderArticle,
+  ReaderView,
+  RSS_READER_VIEW_TYPE,
+} from "./reader-view";
 import { FeedManagerModal } from "../modals/feed-manager-modal";
 import { MobileNavigationModal } from "../modals/mobile-navigation-modal";
 import { ShortcutHelpModal } from "../modals/shortcut-help-modal";
@@ -3033,9 +3037,8 @@ export class RssDashboardView extends ItemView {
 
   private async reopenLastArticle(): Promise<void> {
     const last = this.lastOpenedArticle;
-    if (!last) return;
 
-    if (last.location === "inline") {
+    if (last?.location === "inline") {
       if (this.getReaderViewLocation() !== "inline" || this.inlineArticle) {
         return;
       }
@@ -3044,8 +3047,26 @@ export class RssDashboardView extends ItemView {
       return;
     }
 
+    if (last && last.location !== "main") return;
+
+    const lastClosedMainReaderArticle = getLastClosedMainReaderArticle(
+      this.app,
+    );
+    if (lastClosedMainReaderArticle) {
+      const feed = this.settings.feeds.find(
+        (candidate) => candidate.url === lastClosedMainReaderArticle.feedUrl,
+      );
+      const article = feed?.items.find(
+        (item) => item.guid === lastClosedMainReaderArticle.guid,
+      );
+      if (!article) return;
+
+      await this.openArticleInNewTab(article);
+      return;
+    }
+
     // Sidebar reader locations are not part of the swipe flow.
-    if (last.location !== "main" || !last.leaf) return;
+    if (!last?.leaf) return;
     const { workspace } = this.app;
     if (!workspace.getLeavesOfType(RSS_READER_VIEW_TYPE).includes(last.leaf)) {
       return;

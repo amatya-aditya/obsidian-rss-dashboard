@@ -138,6 +138,10 @@ _Avoid_: Reader view (unqualified when a location matters), article location
 A dedicated Reader view opened in Obsidian's main view area. This corresponds to the "Main view (split)" option in Reader view location settings.
 _Avoid_: Main Reader (when the setting label matters)
 
+**Last closed Main Reader article**:
+The most recently closed article from a [[Reader view (main)]], remembered for the current plugin session so a dashboard swipe-left can reopen it in a new Reader tab. Closing another Main Reader replaces it; the close route does not matter.
+_Avoid_: Last Reader (ambiguous about location and whether the view or article is remembered)
+
 **Reader view (right sidebar)**:
 The Reader view presentation opened in Obsidian's right sidebar.
 _Avoid_: Right Reader, sidebar preview

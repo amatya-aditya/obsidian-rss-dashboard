@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { App, Platform, type WorkspaceLeaf } from "obsidian";
 import type RssDashboardPlugin from "../../../main";
 import { RssDashboardView } from "../../../src/views/dashboard-view";
+import { ReaderView } from "../../../src/views/reader-view";
 import type { MobileNavigationModal } from "../../../src/modals/mobile-navigation-modal";
 import {
   DEFAULT_SETTINGS,
@@ -200,11 +201,21 @@ describe("Dashboard swipe navigation", () => {
     let readerLeaves: unknown[];
     let reveal: ReturnType<typeof vi.spyOn>;
     let activate: ReturnType<typeof vi.spyOn>;
-    let tab: { setViewState: ReturnType<typeof vi.fn>; view: object };
+    let tab: {
+      app: App;
+      detach: ReturnType<typeof vi.fn>;
+      setViewState: ReturnType<typeof vi.fn>;
+      view: object;
+    };
 
     beforeEach(() => {
       readerLeaves = [];
-      tab = { setViewState: vi.fn(async () => {}), view: {} };
+      tab = {
+        app,
+        detach: vi.fn(),
+        setViewState: vi.fn(async () => {}),
+        view: {},
+      };
       vi.spyOn(app.workspace, "getLeaf").mockReturnValue(tab as never);
       vi.spyOn(app.workspace, "getLeftLeaf").mockReturnValue(tab as never);
       vi.spyOn(app.workspace, "getRightLeaf").mockReturnValue(tab as never);
@@ -250,6 +261,112 @@ describe("Dashboard swipe navigation", () => {
       swipeOn(view.containerEl, -120);
       await flush();
 
+      expect(activate).not.toHaveBeenCalled();
+    });
+
+    it("opens the last closed Main Reader article in a new tab", async () => {
+      const closedArticle = {
+        ...article("closed"),
+        link: "",
+        content: "Article body",
+      };
+      const dashboardLeaf = view.leaf;
+      vi.mocked(app.workspace.getLeavesOfType).mockImplementation(
+        (type) =>
+          (type === "rss-dashboard-view"
+            ? [dashboardLeaf]
+            : readerLeaves) as never,
+      );
+      settings.readerViewLocation = "inline";
+      settings.feeds = [
+        {
+          url: closedArticle.feedUrl,
+          items: [closedArticle],
+        },
+      ] as never;
+      const closingLeaf = {
+        app,
+        getRoot: () => null,
+        detach: vi.fn(),
+      };
+      const closingReader = new ReaderView(
+        closingLeaf as never,
+        settings,
+        { saveArticle: vi.fn() } as never,
+        vi.fn(),
+        vi.fn(),
+      );
+      const contentEl = createDiv();
+      (closingReader as unknown as { contentEl: HTMLElement }).contentEl =
+        contentEl;
+      document.body.appendChild(closingReader.containerEl);
+      const reopenedReader = new ReaderView(
+        tab as never,
+        settings,
+        { saveArticle: vi.fn() } as never,
+        vi.fn(),
+        vi.fn(),
+      );
+      const reopenedContentEl = createDiv();
+      (reopenedReader as unknown as { contentEl: HTMLElement }).contentEl =
+        reopenedContentEl;
+      reopenedReader.containerEl.appendChild(reopenedContentEl);
+      document.body.appendChild(reopenedReader.containerEl);
+      await reopenedReader.onOpen();
+      tab.view = reopenedReader;
+      await closingReader.onOpen();
+      await closingReader.displayItem({ ...closedArticle, link: "" });
+      await closingReader.onClose();
+
+      swipeOn(view.containerEl, -120);
+      await flush();
+
+      expect(app.workspace.getLeaf).toHaveBeenCalledWith("tab");
+      expect(tab.setViewState).toHaveBeenCalledWith({
+        type: "rss-reader-view",
+        active: true,
+      });
+      expect(reveal).toHaveBeenCalledWith(tab);
+      expect(activate).toHaveBeenCalledWith(tab, { focus: true });
+      expect(
+        reopenedReader.containerEl.querySelector(".rss-reader-title")
+          ?.textContent,
+      ).toContain("closed");
+      expect(internals.inlineArticle).toBeNull();
+
+      swipeOn(reopenedReader.containerEl, 120);
+      await flush();
+
+      expect(reveal).toHaveBeenCalledWith(dashboardLeaf);
+      await reopenedReader.onClose();
+    });
+
+    it("quietly ignores a closed article that is no longer available", async () => {
+      const closedArticle = { ...article("removed"), content: "Article body" };
+      const closingLeaf = {
+        app,
+        getRoot: () => null,
+        detach: vi.fn(),
+      };
+      const closingReader = new ReaderView(
+        closingLeaf as never,
+        settings,
+        { saveArticle: vi.fn() } as never,
+        vi.fn(),
+        vi.fn(),
+      );
+      const contentEl = createDiv();
+      (closingReader as unknown as { contentEl: HTMLElement }).contentEl =
+        contentEl;
+      document.body.appendChild(closingReader.containerEl);
+      await closingReader.onOpen();
+      await closingReader.displayItem({ ...closedArticle, link: "" });
+      await closingReader.onClose();
+
+      swipeOn(view.containerEl, -120);
+      await flush();
+
+      expect(app.workspace.getLeaf).not.toHaveBeenCalled();
       expect(activate).not.toHaveBeenCalled();
     });
 
