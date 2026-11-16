@@ -306,7 +306,11 @@
 }
 
 .rss-reader-view[data-rss-reader-align="left"] .rss-reader-article-content,
-.rss-reader-view[data-rss-reader-align="left"] .rss-reader-description-body {
+.rss-reader-view[data-rss-reader-align="left"] .rss-reader-description-body,
+.inline-reader-content[data-rss-reader-align="left"]
+  .rss-reader-article-content,
+.inline-reader-content[data-rss-reader-align="left"]
+  .rss-reader-description-body {
   text-align: left;
 }
 

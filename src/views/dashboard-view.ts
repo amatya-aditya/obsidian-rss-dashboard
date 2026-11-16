@@ -5032,18 +5032,32 @@ export class RssDashboardView extends ItemView {
     const body = container.createDiv({
       cls: "rss-reader-content inline-reader-content",
     });
-    const readerFontScalePct =
-      this.settings.readerFormat?.fontScalePct ??
-      DEFAULT_SETTINGS.readerFormat.fontScalePct;
-    setCssProps(body, {
-      "--rss-reader-body-font-size": `${readerFontScalePct / 100}em`,
-    });
+    this.applyReaderFormatToInlineContent(body);
     markNamedLandmark(body, "region", titleEl);
 
     if (this.articleRenderer && this.inlineArticle) {
       const related = this.getRelatedItems(this.inlineArticle);
       void this.articleRenderer.render(body, this.inlineArticle, related);
     }
+  }
+
+  /** Refreshes the formatting of an already-open inline Reader without rebuilding its article. */
+  public applyInlineReaderFormat(): void {
+    const body = this.containerEl.querySelector<HTMLElement>(
+      ".inline-reader-content",
+    );
+    if (body) {
+      this.applyReaderFormatToInlineContent(body);
+    }
+  }
+
+  private applyReaderFormatToInlineContent(body: HTMLElement): void {
+    const format = this.settings.readerFormat ?? DEFAULT_SETTINGS.readerFormat;
+    setCssProps(body, {
+      "--rss-reader-body-font-size": `${format.fontScalePct / 100}em`,
+      "--rss-reader-line-height": String(format.lineHeightPct / 100),
+    });
+    body.dataset.rssReaderAlign = format.textAlign;
   }
 
   private scheduleCardLayoutSave(): void {

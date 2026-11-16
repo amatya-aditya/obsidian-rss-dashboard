@@ -9,6 +9,7 @@
 ### Fixes
 
 - The cover-image action icon now renders in Card and Feed views on Android tablets. [GH Issue #1802](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1802)
+- Inline Reader now applies the Reader alignment and line-height preferences to extracted article text and description fallback, updating an open article immediately when either preference changes. [GH Issue #1804](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1804)
 - Inline Reader now uses the same article body text size as Main Reader, including the Reader font-size preference. [GH Issue #1792](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1792)
 - On Android, swiping right from Main Reader now keeps the outgoing Reader visible during its return animation even when Obsidian hides its leaf, then restores the hidden leaf so the tab remains available. [GH Issue #1793](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1793)
 - Swiping right from Main Reader now closes its tab after returning to the dashboard; swipe-left reopens the most recently closed Main Reader article in a new tab during the session. [GH Issue #1803](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1803)
