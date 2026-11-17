@@ -249,7 +249,7 @@ function renderModeAndFolderSettings(
   storageModeSetting.descEl.empty();
   storageModeSetting.descEl.appendChild(descFragment);
 
-  new Setting(containerEl)
+  const storageFolderSetting = new Setting(containerEl)
     .setName("Feed storage folder")
     .setDesc(
       "Vault folder for per-feed shard files. A change takes effect only after you apply it. Adding a '.' prefix to the path will hide the folder. The '.' must be removed for Obsidian sync to work properly.",
@@ -268,6 +268,7 @@ function renderModeAndFolderSettings(
         });
       addInputClearButton(text.inputEl, { label: "Clear folder" });
     });
+  storageFolderSetting.settingEl.addClass("rss-dashboard-storage-path-setting");
 
   new Setting(containerEl)
     .setName("Storage status")
@@ -757,7 +758,7 @@ function renderMetadataSettings(
   state: StorageSettingsState,
 ): void {
   new Setting(containerEl).setName("Metadata storage").setHeading();
-  new Setting(containerEl)
+  const metadataStorageFolderSetting = new Setting(containerEl)
     .setName("Metadata data.json location")
     .setDesc(
       "Optional vault folder for metadata data.json. Leave empty to keep metadata in the plugin folder. A change takes effect only when you click Apply metadata location. Article state (user-state.json) is always stored in this folder, or in .rss-dashboard-data when the field is empty, and Shard storage v2 is the only mode that reads it. After you move to a new folder, you can delete the previous data.json and, in v2, user-state.json, or keep them as a backup. Outside v2, an orphaned user-state.json is kept as a backup. Clearing the field moves the vault data.json to the trash after you confirm. Use a folder without a '.' prefix for Obsidian Sync.",
@@ -773,6 +774,9 @@ function renderMetadataSettings(
         });
       addInputClearButton(text.inputEl, { label: "Clear folder" });
     });
+  metadataStorageFolderSetting.settingEl.addClass(
+    "rss-dashboard-storage-path-setting",
+  );
 
   const hiddenStateHint = getHiddenUserStateHint(plugin.settings);
   if (hiddenStateHint) {

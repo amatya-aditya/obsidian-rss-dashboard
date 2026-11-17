@@ -100,11 +100,80 @@ function hasTouchFirstStackRule(
   return found && !hasWidthOnlyStack;
 }
 
+function hasCssDeclarations(
+  file: string,
+  selector: string,
+  declarations: ReadonlyArray<Readonly<[string, string]>>,
+): boolean {
+  const css = readFileSync(
+    path.resolve(testDir, `../../../src/styles/${file}`),
+    "utf8",
+  );
+  const root = postcss.parse(css);
+  let found = false;
+
+  root.walkRules((rule) => {
+    const normalizedSelectors = rule.selectors?.map((value) =>
+      value.replace(/\s+/g, " ").trim(),
+    );
+    if (!normalizedSelectors?.includes(selector)) return;
+
+    const hasAllDeclarations = declarations.every(([prop, value]) =>
+      rule.nodes?.some(
+        (node) =>
+          node.type === "decl" && node.prop === prop && node.value === value,
+      ),
+    );
+    if (hasAllDeclarations) found = true;
+  });
+
+  return found;
+}
+
 describe("responsive settings row layout", () => {
   it.each(responsiveSettingsRows)(
     "stacks $selector only for touch-first devices at its narrow-width breakpoint",
     ({ file, selector, maxWidth }) => {
       expect(hasTouchFirstStackRule(file, selector, maxWidth)).toBe(true);
+    },
+  );
+
+  it.each([
+    {
+      selector:
+        ".rss-dashboard-settings-tab-content .rss-dashboard-storage-path-setting.setting-item",
+      declarations: [
+        ["flex-direction", "column"],
+        ["align-items", "stretch"],
+      ],
+    },
+    {
+      selector:
+        ".rss-dashboard-settings-tab-content .rss-dashboard-storage-path-setting .setting-item-control",
+      declarations: [["width", "100%"]],
+    },
+    {
+      selector:
+        ".rss-dashboard-settings-tab-content .rss-dashboard-storage-path-setting .setting-item-control > .rss-input-clear-wrap",
+      declarations: [
+        ["display", "flex"],
+        ["width", "100%"],
+      ],
+    },
+    {
+      selector:
+        ".rss-dashboard-settings-tab-content .rss-dashboard-storage-path-setting .setting-item-control > .rss-input-clear-wrap > input",
+      declarations: [
+        ["flex", "1 1 auto"],
+        ["width", "100%"],
+      ],
+    },
+  ] as const)(
+    "gives Storage path rows full width: $selector",
+    ({ selector, declarations }) => {
+      expect(hasCssDeclarations("settings.css", selector, declarations)).toBe(
+        true,
+      );
     },
   );
 });

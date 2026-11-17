@@ -302,6 +302,9 @@ input mode (`hover: none` and `pointer: coarse`).
   fill the available control width at tablet and phone sizes. Long values may
   scroll inside the field; the field itself must not stop at an arbitrary
   fraction of the row.
+- Storage > Feed storage folder and Metadata data.json location are intentional
+  full-row exceptions at every width: keep their labels and help above a
+  full-width path input, including on desktop.
 - Numeric values and color-value fields such as hex inputs stay compact. A
   text input that stores a number is still a numeric control and must carry an
   explicit compact class rather than inheriting the free-text width rule.

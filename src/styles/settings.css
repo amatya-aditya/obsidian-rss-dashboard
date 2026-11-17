@@ -323,6 +323,50 @@
   width: 72px;
 }
 
+.rss-dashboard-settings-tab-content
+  .rss-dashboard-storage-path-setting.setting-item {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.rss-dashboard-settings-tab-content
+  .rss-dashboard-storage-path-setting
+  .setting-item-info {
+  width: 100%;
+  padding-inline-end: 0;
+}
+
+.rss-dashboard-settings-tab-content
+  .rss-dashboard-storage-path-setting
+  .setting-item-control {
+  width: 100%;
+  max-width: 100%;
+  margin-inline-start: 0;
+}
+
+.rss-dashboard-settings-tab-content
+  .rss-dashboard-storage-path-setting
+  .setting-item-control
+  > .rss-input-clear-wrap {
+  display: flex;
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.rss-dashboard-settings-tab-content
+  .rss-dashboard-storage-path-setting
+  .setting-item-control
+  > .rss-input-clear-wrap
+  > input {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
 .rss-dashboard-startup-filters-button {
   max-width: 220px;
   min-width: 0;
