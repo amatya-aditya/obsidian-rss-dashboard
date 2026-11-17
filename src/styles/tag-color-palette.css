@@ -340,7 +340,7 @@ body .rss-dashboard-tag-color-picker:focus-visible,
   }
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1200px) and (hover: none) and (pointer: coarse) {
   .rss-dashboard-settings-tab-content
     .rss-dashboard-tag-color-setting.setting-item {
     display: flex;

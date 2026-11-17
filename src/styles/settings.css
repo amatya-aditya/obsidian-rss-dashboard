@@ -335,7 +335,7 @@
  * 5. Responsive Overrides
  * ============================================ */
 
-@media (max-width: 1200px) {
+@media (max-width: 1200px) and (hover: none) and (pointer: coarse) {
   .rss-dashboard-settings-tab-content .setting-item:not(.setting-item-heading) {
     flex-direction: column;
     align-items: stretch;
@@ -360,6 +360,34 @@
     gap: 8px;
   }
 
+  /*
+   * iOS WebView/Safari can fail to apply flex gap in some settings contexts.
+   * Add explicit sibling spacing so slider/color controls do not collapse.
+   */
+  .rss-dashboard-settings-tab-content
+    .rss-dashboard-settings-two-row
+    .setting-item-control
+    > *
+    + * {
+    margin-top: 8px;
+  }
+
+  .rss-dashboard-settings-tab-content
+    .rss-dashboard-settings-two-row
+    .setting-item-control
+    .dropdown {
+    width: 100%;
+  }
+
+  .rss-dashboard-settings-tab-content
+    .rss-dashboard-sidebar-badge-setting
+    .setting-item-control {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 1200px) {
   .rss-dashboard-settings-tab-content
     .setting-item-control
     > .rss-input-clear-wrap:not(
@@ -429,35 +457,9 @@
     max-width: 100%;
     min-width: 0;
   }
-
-  /*
-   * iOS WebView/Safari can fail to apply flex gap in some settings contexts.
-   * Add explicit sibling spacing so slider/color controls do not collapse.
-   */
-  .rss-dashboard-settings-tab-content
-    .rss-dashboard-settings-two-row
-    .setting-item-control
-    > *
-    + * {
-    margin-top: 8px;
-  }
-
-  .rss-dashboard-settings-tab-content
-    .rss-dashboard-settings-two-row
-    .setting-item-control
-    .dropdown {
-    width: 100%;
-  }
-
-  .rss-dashboard-settings-tab-content
-    .rss-dashboard-sidebar-badge-setting
-    .setting-item-control {
-    width: 100%;
-    justify-content: flex-start;
-  }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 768px) and (hover: none) and (pointer: coarse) {
   .rss-dashboard-import-export-actions.setting-item,
   .rss-dashboard-storage-actions.setting-item {
     flex-direction: column;
@@ -786,7 +788,7 @@
 
 /* On a phone the name card stacks into four rows: the label, the name field,
  * the live preview and the Add tag button. */
-@media (max-width: 520px) {
+@media (max-width: 520px) and (hover: none) and (pointer: coarse) {
   .rss-dashboard-tag-new-name-setting.setting-item {
     flex-direction: column;
     align-items: stretch;

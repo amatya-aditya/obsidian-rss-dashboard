@@ -263,7 +263,7 @@ Rules:
 4. Any breakpoint-specific overrides for nav controls must be declared in one place per component and referenced here.
 5. Mobile sidebar modal header top spacing must be status-bar aware and may include platform-scoped overrides.
 6. The keyboard shortcut help header is a single row above the mobile tier and stacks to two rows at the mobile tier (`<= 768px`); that override lives with the rest of the shortcut-help rules in `src/styles/modals.css`.
-7. RSS Dashboard settings rows stack their name/help above their controls at tablet width and below (`<= 1200px`); intentional exceptions must be documented.
+7. RSS Dashboard settings rows stack their name/help above their controls at tablet width and below (`<= 1200px`) on touch-first devices (`hover: none` and `pointer: coarse`). Narrow mouse-driven desktop Settings windows retain the horizontal row layout. Intentional exceptions must be documented.
 
 ### Desktop Intent
 
@@ -286,13 +286,18 @@ Rules:
 
 ### Settings Rows and Inputs
 
-The settings responsive rules follow the width of the window that contains the
-settings surface, not the device model.
+The settings responsive rules use the width of the window that contains the
+settings surface and the primary input mode. Width alone does not identify a
+tablet: Obsidian's separate desktop Settings window may be narrow even on a wide
+monitor. Row stacking therefore requires both a narrow window and a touch-first
+input mode (`hover: none` and `pointer: coarse`).
 
-- At `<= 1200px`, each RSS Dashboard settings row places its name and help text
-  above its controls. Apply this by default to rows across every settings tab;
-  do not rely on per-row classes to opt in. Keep a compact horizontal row only
-  when the component has a documented reason.
+- On touch-first devices at `<= 1200px`, each RSS Dashboard settings row places
+  its name and help text above its controls. Apply this by default to rows across
+  every settings tab; do not rely on per-row classes to opt in. Mouse-driven
+  desktop windows keep the horizontal layout, even when the Settings window is
+  narrower than 1200px. Keep a compact horizontal row only when the component
+  has a documented reason.
 - Free-text fields, including search, names, URLs, phrases, and folder paths,
   fill the available control width at tablet and phone sizes. Long values may
   scroll inside the field; the field itself must not stop at an arbitrary
@@ -300,8 +305,8 @@ settings surface, not the device model.
 - Numeric values and color-value fields such as hex inputs stay compact. A
   text input that stores a number is still a numeric control and must carry an
   explicit compact class rather than inheriting the free-text width rule.
-- The Tag appearance defaults Background and Text rows leave their aligned
-  desktop grid at tablet widths and stack the row name above the color and
+- On touch-first devices, the Tag appearance defaults Background and Text rows
+  leave their aligned desktop grid at tablet widths and stack the row name above the color and
   palette controls. The controls may stay grouped within that full-width
   control row.
 - A clear affordance belongs inside its input at the logical trailing edge.
