@@ -28,6 +28,10 @@ _Avoid_: Left-handed mode, RTL layout, flipped footer
 The episode currently loaded in the podcast player's audio element. It anchors the visible episode-list range whenever the player selects or advances to an episode.
 _Avoid_: Current article, selected row
 
+**Audio URL**:
+The publisher-provided URL for an article's audio media. In templates, `{{audioUrl}}` expands to this URL when available and is empty when unavailable; it identifies the source address, not a downloaded local copy.
+_Avoid_: Downloaded audio, local audio file
+
 **Episode list**:
 A bounded, ordered set of episode rows from one feed. It is read-only and does not imply a saved or customizable playlist.
 _Avoid_: Playlist, queue
