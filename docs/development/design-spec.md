@@ -19,6 +19,7 @@ related:
 
 ## Update History
 
+- 2026-11-16: Set the default settings-row layout to stack at tablet widths, require full-width free-text fields and trailing-edge clear buttons, and document compact numeric/color-value exceptions (#1813)
 - 2026-11-16: Clarify Android SVG sizing and paint-layer coverage for plugin-owned icon controls, including custom native-button resets, and require device evidence for the reported form factor
 - 2026-10-28: Add **Dropdown Controls**: every dropdown trigger and select shows Obsidian's up/down chevron (`chevrons-up-down`) at its right edge, and every native color picker shows the same hover and focus ring. Settings color rows put the picker right after the row name with no hex readout; Tag appearance defaults are a draft, previewed in their own card, until the user applies them; Tag shape previews are drawn in the applied default colors, and Add new tag shows a live preview chip; native color pickers get a Randomize dice button that rolls any color
 - 2026-10-26: Define shared article action icon hover previews and semantic colors across Dashboard and Reader surfaces, with responsive borders on Dashboard controls only
@@ -43,6 +44,7 @@ This document defines the UI design rules for the plugin so visual changes are c
 
 - Dashboard sidebar and header controls
 - Discover sidebar controls
+- RSS Dashboard settings tabs and settings dialogs
 - Modal/mobile navigation surfaces
 - Branding guidance for logo typography and logo asset organization
 - Common CTA, neutral, destructive, and icon-button patterns
@@ -64,6 +66,8 @@ Styles live in `src/styles/`, one file per surface, imported in order by
 - `src/styles/discover-sidebar.css`, `discover-sidebar-nav.css`, `discover-sidebar-filters.css`: Discover sidebar, secondary tabs, and filters
 - `src/styles/kagi-smallweb.css`: Kagi Small Web view
 - `src/styles/reader.css`: Reader, including the format menu and status banners
+- `src/styles/settings.css`, `settings-keyword-filters.css`, `settings-icon-proxy.css`, and `tag-color-palette.css`: settings rows and their specialized control groups
+- `src/styles/input-clear-button.css`: shared clear-button placement and sizing
 
 Breakpoint values come from `src/utils/platform-utils.ts` (see
 **Responsive Intent by Breakpoint**).
@@ -259,6 +263,7 @@ Rules:
 4. Any breakpoint-specific overrides for nav controls must be declared in one place per component and referenced here.
 5. Mobile sidebar modal header top spacing must be status-bar aware and may include platform-scoped overrides.
 6. The keyboard shortcut help header is a single row above the mobile tier and stacks to two rows at the mobile tier (`<= 768px`); that override lives with the rest of the shortcut-help rules in `src/styles/modals.css`.
+7. RSS Dashboard settings rows stack their name/help above their controls at tablet width and below (`<= 1200px`) on touch-first devices (`hover: none` and `pointer: coarse`). Narrow mouse-driven desktop Settings windows retain the horizontal row layout. Intentional exceptions must be documented.
 
 ### Desktop Intent
 
@@ -278,6 +283,46 @@ Rules:
 - Header spacing must be safe-area aware and platform-scoped where needed.
 - Primary nav and close affordances must remain easy to hit without oversized vertical chrome.
 - Content cards may stack to a single column, but card actions and labels should remain readable without text truncation regressions beyond existing intentional ellipsis patterns.
+
+### Settings Rows and Inputs
+
+The settings responsive rules use the width of the window that contains the
+settings surface and the primary input mode. Width alone does not identify a
+tablet: Obsidian's separate desktop Settings window may be narrow even on a wide
+monitor. Row stacking therefore requires both a narrow window and a touch-first
+input mode (`hover: none` and `pointer: coarse`).
+
+- On touch-first devices at `<= 1200px`, each RSS Dashboard settings row places
+  its name and help text above its controls. Apply this by default to rows across
+  every settings tab; do not rely on per-row classes to opt in. Mouse-driven
+  desktop windows keep the horizontal layout, even when the Settings window is
+  narrower than 1200px. Keep a compact horizontal row only when the component
+  has a documented reason.
+- Free-text fields, including search, names, URLs, phrases, and folder paths,
+  fill the available control width at tablet and phone sizes. Long values may
+  scroll inside the field; the field itself must not stop at an arbitrary
+  fraction of the row.
+- Storage > Feed storage folder and Metadata data.json location are intentional
+  full-row exceptions at every width: keep their labels and help above a
+  full-width path input, including on desktop.
+- Numeric values and color-value fields such as hex inputs stay compact. A
+  text input that stores a number is still a numeric control and must carry an
+  explicit compact class rather than inheriting the free-text width rule.
+- On touch-first devices, the Tag appearance defaults Background and Text rows
+  leave their aligned desktop grid at tablet widths and stack the row name above the color and
+  palette controls. The controls may stay grouped within that full-width
+  control row.
+- A clear affordance belongs inside its input at the logical trailing edge.
+  Position it against the input wrapper, reserve text padding while it is
+  visible, and keep it inside the field on touch devices.
+- Scope settings rules to `.rss-dashboard-settings-tab-content` or a
+  plugin-owned dialog. Never add a global `.setting-item` rule that changes
+  Obsidian's own settings.
+
+The settings audit covers every tab and settings dialog. Current intentional
+compact input exceptions are `.rss-dashboard-settings-number-input` and
+`.rss-dashboard-color-hex-input`; custom control groups may keep their own
+internal layout when it does not put a setting label beside its controls.
 
 ### Modal Header Inset Ownership
 
@@ -559,16 +604,18 @@ Every free-text input has a clear button inside it, at its end: Obsidian's
 own control, not a Lucide `x`. Obsidian draws it the same way on desktop,
 iPhone, and Android (Android checked by hand, 2026-10-13): a filled circle
 with the x cut out, in `--text-muted`, turning `--text-normal` on hover, shown
-only while the input holds text.
+only while the input holds text. The plugin positions the button at the
+wrapper's logical trailing edge so it stays aligned on Android tablets as well
+as phones and desktop.
 
 - **Build it with `addInputClearButton`** (`src/utils/input-clear-button.ts`).
   It puts the input in a `.rss-input-clear` container (wrapping it, or using
   a `container` you pass) and appends
   `<button type="button" class="search-input-clear-button" aria-label="Clear">`.
   Obsidian's app.css styles that class, so the icon, size (13px desktop,
-  16px or text-scaled on mobile), position, and color follow Obsidian and its
-  themes. `src/styles/input-clear-button.css` adds only what Obsidian scopes
-  to its own `.search-input-container`, and resets the native button pill.
+  16px or text-scaled on mobile), and color follow Obsidian and its themes.
+  `src/styles/input-clear-button.css` positions the button at the wrapper's
+  logical trailing edge and resets the native button pill.
   The button also carries `rss-input-clear-button` so that reset outranks
   host button rules, including Obsidian's phone rule that stretches buttons
   in modal setting rows to the full width (Settings is a modal on phones).
@@ -585,7 +632,9 @@ only while the input holds text.
   `onClear` to run your own handler instead.
 - **Layout.** A created wrapper is `inline-flex`, as wide as its input. Pass
   `fill: true` for an input that spans its row. Sizing that sat on the input
-  (`flex`, `max-width`) moves to the wrapper.
+  (`flex`, `max-width`) moves to the wrapper. In RSS Dashboard settings, free
+  text fields fill the control row at tablet width and below; see **Settings
+  Rows and Inputs**. Numeric and color-value fields remain compact.
 - **Which inputs.** Free-text inputs: search, filters, names, titles, URLs,
   folder paths, patterns, keywords. Not number inputs or text fields that
   hold a number (clearing would save 0 or an invalid value), color, file,

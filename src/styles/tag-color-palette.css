@@ -218,7 +218,7 @@
   width: 100%;
 }
 
-.rss-dashboard-settings .rss-dashboard-tag-color-palette-control {
+.rss-dashboard-settings-tab-content .rss-dashboard-tag-color-palette-control {
   flex-wrap: wrap;
 }
 
@@ -338,18 +338,32 @@ body .rss-dashboard-tag-color-picker:focus-visible,
     .rss-dashboard-tag-color-palette-control-value-readout {
     grid-column: 1 / -1;
   }
+}
 
-  .rss-dashboard-tag-color-setting.setting-item {
+@media (max-width: 1200px) and (hover: none) and (pointer: coarse) {
+  .rss-dashboard-settings-tab-content
+    .rss-dashboard-tag-color-setting.setting-item {
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
   }
 
-  .rss-dashboard-tag-color-setting .setting-item-control {
+  .rss-dashboard-settings-tab-content
+    .rss-dashboard-tag-color-setting
+    .setting-item-control {
     display: flex;
     flex-wrap: wrap;
+    width: 100%;
+    gap: 8px;
   }
 
-  .rss-dashboard-tag-color-setting .rss-dashboard-tag-color-palette-control {
+  .rss-dashboard-settings-tab-content
+    .rss-dashboard-tag-color-setting
+    .rss-dashboard-tag-color-palette-control {
     display: flex;
+    flex: 1 1 100%;
+    width: 100%;
+    flex-wrap: wrap;
   }
 }

@@ -323,6 +323,50 @@
   width: 72px;
 }
 
+.rss-dashboard-settings-tab-content
+  .rss-dashboard-storage-path-setting.setting-item {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.rss-dashboard-settings-tab-content
+  .rss-dashboard-storage-path-setting
+  .setting-item-info {
+  width: 100%;
+  padding-inline-end: 0;
+}
+
+.rss-dashboard-settings-tab-content
+  .rss-dashboard-storage-path-setting
+  .setting-item-control {
+  width: 100%;
+  max-width: 100%;
+  margin-inline-start: 0;
+}
+
+.rss-dashboard-settings-tab-content
+  .rss-dashboard-storage-path-setting
+  .setting-item-control
+  > .rss-input-clear-wrap {
+  display: flex;
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.rss-dashboard-settings-tab-content
+  .rss-dashboard-storage-path-setting
+  .setting-item-control
+  > .rss-input-clear-wrap
+  > input {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
 .rss-dashboard-startup-filters-button {
   max-width: 220px;
   min-width: 0;
@@ -335,20 +379,26 @@
  * 5. Responsive Overrides
  * ============================================ */
 
-@media (max-width: 1024px) {
-  .rss-dashboard-settings-two-row.setting-item {
+@media (max-width: 1200px) and (hover: none) and (pointer: coarse) {
+  .rss-dashboard-settings-tab-content .setting-item:not(.setting-item-heading) {
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
   }
 
-  .rss-dashboard-settings-two-row .setting-item-info {
+  .rss-dashboard-settings-tab-content
+    .setting-item:not(.setting-item-heading)
+    .setting-item-info {
     width: 100%;
-    padding-right: 0;
+    padding-inline-end: 0;
   }
 
-  .rss-dashboard-settings-two-row .setting-item-control {
+  .rss-dashboard-settings-tab-content
+    .setting-item:not(.setting-item-heading)
+    .setting-item-control {
     width: 100%;
+    max-width: 100%;
+    margin-inline-start: 0;
     justify-content: flex-start;
     flex-wrap: wrap;
     gap: 8px;
@@ -358,29 +408,102 @@
    * iOS WebView/Safari can fail to apply flex gap in some settings contexts.
    * Add explicit sibling spacing so slider/color controls do not collapse.
    */
-  .rss-dashboard-settings-two-row .setting-item-control > * + * {
+  .rss-dashboard-settings-tab-content
+    .rss-dashboard-settings-two-row
+    .setting-item-control
+    > *
+    + * {
     margin-top: 8px;
   }
 
-  .rss-dashboard-settings-two-row .dropdown {
+  .rss-dashboard-settings-tab-content
+    .rss-dashboard-settings-two-row
+    .setting-item-control
+    .dropdown {
     width: 100%;
   }
 
-  .rss-dashboard-sidebar-badge-setting .setting-item-control {
+  .rss-dashboard-settings-tab-content
+    .rss-dashboard-sidebar-badge-setting
+    .setting-item-control {
     width: 100%;
     justify-content: flex-start;
   }
+}
 
-  .rss-dashboard-sidebar-badge-setting
+@media (max-width: 1200px) {
+  .rss-dashboard-settings-tab-content
     .setting-item-control
-    .rss-dashboard-color-hex-input {
+    > .rss-input-clear-wrap:not(
+      :has(> input.rss-dashboard-settings-number-input),
+      :has(> input.rss-dashboard-color-hex-input)
+    ),
+  .rss-dashboard-settings-tab-content
+    .setting-item-control
+    > .rss-input-clear-fill {
+    display: flex;
+    flex: 1 1 100%;
     width: 100%;
-    min-width: 120px;
-    flex: 1 1 140px;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .rss-dashboard-settings-tab-content
+    .setting-item-control
+    > .rss-input-clear-wrap
+    > input:not(
+      .rss-dashboard-settings-number-input,
+      .rss-dashboard-color-hex-input
+    ),
+  .rss-dashboard-settings-tab-content
+    .setting-item-control
+    > .rss-input-clear-fill
+    > input,
+  .rss-dashboard-settings-tab-content
+    .setting-item-control
+    > input:is([type="text"], [type="search"], [type="url"]):not(
+      .rss-dashboard-settings-number-input,
+      .rss-dashboard-color-hex-input
+    ),
+  .rss-dashboard-settings-tab-content
+    .setting-item-control
+    > input:not([type]):not(
+      .rss-dashboard-settings-number-input,
+      .rss-dashboard-color-hex-input
+    ) {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .rss-dashboard-modal
+    .setting-item-control
+    > .rss-input-clear-wrap:not(
+      :has(> input.rss-dashboard-settings-number-input),
+      :has(> input.rss-dashboard-color-hex-input)
+    ) {
+    display: flex;
+    flex: 1 1 100%;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .rss-dashboard-modal
+    .rss-input-clear-wrap
+    > input:not(
+      .rss-dashboard-settings-number-input,
+      .rss-dashboard-color-hex-input
+    ) {
+    flex: 1 1 auto;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 768px) and (hover: none) and (pointer: coarse) {
   .rss-dashboard-import-export-actions.setting-item,
   .rss-dashboard-storage-actions.setting-item {
     flex-direction: column;
@@ -709,7 +832,7 @@
 
 /* On a phone the name card stacks into four rows: the label, the name field,
  * the live preview and the Add tag button. */
-@media (max-width: 520px) {
+@media (max-width: 520px) and (hover: none) and (pointer: coarse) {
   .rss-dashboard-tag-new-name-setting.setting-item {
     flex-direction: column;
     align-items: stretch;

@@ -108,6 +108,20 @@ beforeEach(() => {
 });
 
 describe("General settings storage section", () => {
+  it("renders storage folder paths as full-width rows", () => {
+    const containerEl = createTestContainer();
+    const plugin = createPlugin();
+
+    renderStorageSettingsTab(containerEl, plugin as never);
+
+    for (const name of ["Feed storage folder", "Metadata data.json location"]) {
+      const setting = getSettingByName(containerEl, name);
+      expect(
+        setting.classList.contains("rss-dashboard-storage-path-setting"),
+      ).toBe(true);
+    }
+  });
+
   it("renders the Storage mode description as rich text, not a stringified fragment", () => {
     const containerEl = createTestContainer();
     const plugin = createPlugin();

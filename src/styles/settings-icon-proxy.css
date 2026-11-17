@@ -143,7 +143,7 @@
   padding: 4px 8px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 768px) and (hover: none) and (pointer: coarse) {
   .rss-proxy-setting-item.setting-item {
     flex-direction: column;
     align-items: stretch;

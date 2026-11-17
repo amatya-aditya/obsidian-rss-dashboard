@@ -3,10 +3,9 @@
  *
  * Clear (circle-x) button inside text inputs, built by addInputClearButton in
  * src/utils/input-clear-button.ts. The button carries Obsidian's own
- * `.search-input-clear-button` class, so Obsidian's app.css draws the icon,
- * positions it at the input's end, and sizes it per platform (13px desktop,
- * 16px or text-scaled on mobile). These rules only add what Obsidian scopes to
- * its `.search-input-container`, and reset the native button defaults.
+ * `.search-input-clear-button` class, so Obsidian's app.css draws the icon and
+ * sizes/colors it per platform. The plugin positions it at the wrapper's
+ * logical end and resets native button defaults.
  * =============================================================================
  */
 
@@ -57,9 +56,13 @@
   background-color: transparent;
   box-shadow: none;
   padding: 0;
+  position: absolute;
+  inset-inline-end: 0;
+  top: 50%;
+  transform: translateY(-50%);
   width: 28px;
   min-height: 0;
-  margin: auto;
+  margin: 0;
   color: var(--search-clear-button-color);
 }
 
@@ -74,7 +77,7 @@
   padding: 0;
   width: 28px;
   min-height: 0;
-  margin: auto;
+  margin: 0;
 }
 
 @media (hover: hover) {
