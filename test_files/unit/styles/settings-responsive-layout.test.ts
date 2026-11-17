@@ -57,6 +57,7 @@ function hasTouchFirstStackRule(
   );
   const root = postcss.parse(css);
   let found = false;
+  let hasWidthOnlyStack = false;
 
   root.walkRules((rule) => {
     const selectors = rule.selectors?.map((value) =>
@@ -70,6 +71,7 @@ function hasTouchFirstStackRule(
     );
     if (!selectors?.includes(selector) || !stacksRow) return;
 
+    let isTouchFirstStack = false;
     let ancestor:
       | {
           type: string;
@@ -78,7 +80,7 @@ function hasTouchFirstStackRule(
           parent?: unknown;
         }
       | undefined = rule.parent;
-    while (ancestor && !found) {
+    while (ancestor && !isTouchFirstStack) {
       if (
         ancestor.type === "atrule" &&
         ancestor.name === "media" &&
@@ -86,13 +88,16 @@ function hasTouchFirstStackRule(
         /\(hover:\s*none\)/.test(ancestor.params ?? "") &&
         /\(pointer:\s*coarse\)/.test(ancestor.params ?? "")
       ) {
-        found = true;
+        isTouchFirstStack = true;
       }
       ancestor = ancestor.parent as typeof ancestor;
     }
+
+    found = true;
+    if (!isTouchFirstStack) hasWidthOnlyStack = true;
   });
 
-  return found;
+  return found && !hasWidthOnlyStack;
 }
 
 describe("responsive settings row layout", () => {
