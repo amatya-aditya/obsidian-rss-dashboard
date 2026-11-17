@@ -131,6 +131,17 @@ describe("web viewer saves with the templates it already filled", () => {
 });
 
 describe("web viewer note template placeholders (#932)", () => {
+  it("fills {{audioUrl}} in a web-viewer note template", async () => {
+    const audioUrl = "https://cdn.example/episode.mp3";
+    const note = await save(
+      createItem({ audioUrl }),
+      "Audio: {{audioUrl}}",
+      false,
+    );
+
+    expect(note).toBe(`Audio: ${audioUrl}`);
+  });
+
   it("fills {{description}}, {{excerpt}} and {{language}}", async () => {
     const note = await save(
       createItem(),
@@ -179,6 +190,16 @@ describe("web viewer frontmatter template placeholders (#932)", () => {
     expect(note).not.toContain("{{");
     expect(note).toContain('summary: ""');
     expect(note).not.toContain("language:");
+  });
+
+  it("fills {{audioUrl}} in web-viewer frontmatter", async () => {
+    const audioUrl = "https://cdn.example/episode.mp3";
+    const note = await save(createItem({ audioUrl }), "BODY", true, {
+      addSavedTag: false,
+      frontmatterTemplate: '---\naudioUrl: "{{audioUrl}}"\n---',
+    });
+
+    expect(note).toBe(`---\naudioUrl: "${audioUrl}"\n---\nBODY`);
   });
 });
 

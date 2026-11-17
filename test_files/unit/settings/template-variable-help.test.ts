@@ -25,7 +25,7 @@ const EXPECTED_GROUPS: Record<string, string[]> = {
     "language",
   ],
   Content: ["summary", "description", "excerpt", "content", "contentSource"],
-  "Links and media": ["link", "image"],
+  "Links and media": ["link", "audioUrl", "image"],
 };
 
 const DATE_EXAMPLES = [
@@ -111,6 +111,8 @@ describe("renderTemplateVariableHelp", () => {
       "the version written, not the one requested",
     );
     expect(text("contentSource")).toContain("{{source}}");
+    expect(text("audioUrl")).toContain("publisher-provided audio URL");
+    expect(text("audioUrl")).toContain("not a downloaded file");
   });
 
   describe("copy chips", () => {
@@ -145,7 +147,7 @@ describe("renderTemplateVariableHelp", () => {
 
     it("renders each leading placeholder as a button wrapping a code, named Copy <value>", () => {
       const buttons = leading();
-      expect(buttons).toHaveLength(24);
+      expect(buttons).toHaveLength(25);
       for (const button of buttons) {
         expect(button.tagName).toBe("BUTTON");
         expect(button.getAttribute("type")).toBe("button");
@@ -227,7 +229,7 @@ describe("renderTemplateVariableHelp", () => {
       for (const example of DATE_EXAMPLES) {
         expect(chipFor(example).hasAttribute("tabindex")).toBe(false);
       }
-      expect(allChips().filter((b) => b.tabIndex !== -1)).toHaveLength(29);
+      expect(allChips().filter((b) => b.tabIndex !== -1)).toHaveLength(30);
     });
 
     it("makes the inline {{date:YYYY/MM/DD}} in the {{date}} description a skipped duplicate", () => {

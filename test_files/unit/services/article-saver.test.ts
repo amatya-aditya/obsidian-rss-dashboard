@@ -3588,6 +3588,102 @@ describe("ArticleSaver sanitises fetched-content saves (#1195)", () => {
   });
 });
 
+describe("ArticleSaver audio URL template variable (#1757)", () => {
+  const audioUrl = "https://cdn.example/episode.mp3";
+
+  it("writes the publisher audio URL into the saved note template", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(app, createSettings());
+
+    const file = await saver.saveArticle(
+      createItem({ audioUrl }),
+      undefined,
+      "Audio: {{audioUrl}}",
+      "",
+    );
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected a saved TFile");
+    expect(await app.vault.read(file)).toBe(`Audio: ${audioUrl}`);
+  });
+
+  it("leaves an empty value in the note template when the article has no audio URL", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(app, createSettings());
+
+    const file = await saver.saveArticle(
+      createItem(),
+      undefined,
+      "Audio: [{{audioUrl}}]",
+      "",
+    );
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected a saved TFile");
+    expect(await app.vault.read(file)).toBe("Audio: []");
+  });
+
+  it("writes the publisher audio URL into saved-note frontmatter", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(
+      app,
+      createSettings({
+        includeFrontmatter: true,
+        frontmatterTemplate: '---\naudioUrl: "{{audioUrl}}"\n---',
+        defaultTemplate: "{{title}}",
+      }),
+    );
+
+    const file = await saver.saveArticle(
+      createItem({ audioUrl }),
+      undefined,
+      undefined,
+      "",
+    );
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected a saved TFile");
+    expect(await app.vault.read(file)).toContain(`audioUrl: "${audioUrl}"`);
+  });
+
+  it("does not duplicate the podcast audio URL when frontmatter uses the variable", async () => {
+    const app = App.createMock();
+    const saver = new ArticleSaver(
+      app,
+      createSettings({
+        includeFrontmatter: true,
+        frontmatterTemplate: '---\naudioUrl: "{{audioUrl}}"\n---',
+        defaultTemplate: "{{title}}",
+      }),
+    );
+
+    const file = await saver.saveArticle(
+      createItem({ audioUrl, mediaType: "podcast" }),
+      undefined,
+      undefined,
+      "",
+    );
+
+    expect(file).toBeInstanceOf(TFile);
+    if (!(file instanceof TFile)) throw new Error("expected a saved TFile");
+    const note = await app.vault.read(file);
+    expect(note.match(/^audioUrl:/gm)).toHaveLength(1);
+    expect(note).toContain("mediaType: podcast");
+  });
+
+  it("fills the publisher audio URL in a filename pattern", () => {
+    const saver = new ArticleSaver(App.createMock(), createSettings());
+
+    expect(
+      saver.getFilenamePreview(
+        createItem({ audioUrl }),
+        "",
+        "audio-{{audioUrl}}",
+      ),
+    ).toBe("audio-httpscdn.exampleepisode.mp3.md");
+  });
+});
+
 describe("ArticleSaver contentSource (#1248)", () => {
   async function readNote(app: App, file: TFile | null): Promise<string> {
     if (!(file instanceof TFile)) throw new Error("expected a saved TFile");

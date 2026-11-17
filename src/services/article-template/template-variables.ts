@@ -24,6 +24,7 @@ const VARIABLES = {
   saveTime12: { placeholder: /{{saveTime12}}/g, omitIfEmpty: false },
   saveTime24: { placeholder: /{{saveTime24}}/g, omitIfEmpty: false },
   link: { placeholder: /{{link}}/g, omitIfEmpty: false },
+  audioUrl: { placeholder: /{{audioUrl}}/g, omitIfEmpty: false },
   author: { placeholder: /{{author}}/g, omitIfEmpty: false },
   source: { placeholder: /{{source}}/g, omitIfEmpty: false },
   feedTitle: { placeholder: /{{feedTitle}}/g, omitIfEmpty: false },
