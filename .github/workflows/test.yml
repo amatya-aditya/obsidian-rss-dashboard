@@ -32,7 +32,7 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
 
       - name: Audit all dependencies
-        run: npm audit --audit-level=high
+        run: node scripts/check-npm-audit.mjs
 
       - name: Build and validate
         run: npm run build
