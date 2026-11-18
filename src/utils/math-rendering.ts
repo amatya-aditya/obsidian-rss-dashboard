@@ -366,7 +366,7 @@ function normalizeWordPressFormulaImages(container: HTMLElement): void {
   }
 }
 
-function protectRawMathTextNodes(container: HTMLElement): void {
+function getUnprotectedArticleTextNodes(container: HTMLElement): Text[] {
   const doc = container.ownerDocument || activeDocument;
   const walker = doc.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
     acceptNode: (node) =>
@@ -381,7 +381,12 @@ function protectRawMathTextNodes(container: HTMLElement): void {
     textNodes.push(currentNode as Text);
   }
 
-  for (const textNode of textNodes) {
+  return textNodes;
+}
+
+function protectRawMathTextNodes(container: HTMLElement): void {
+  const doc = container.ownerDocument || activeDocument;
+  for (const textNode of getUnprotectedArticleTextNodes(container)) {
     const text = textNode.nodeValue || "";
     if (!hasMathDelimiter(text)) continue;
 
@@ -416,20 +421,7 @@ function protectRawMathTextNodes(container: HTMLElement): void {
 
 function protectCurrencyTextNodes(container: HTMLElement): void {
   const doc = container.ownerDocument || activeDocument;
-  const walker = doc.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
-    acceptNode: (node) =>
-      isInsideSkippedNode(node)
-        ? NodeFilter.FILTER_REJECT
-        : NodeFilter.FILTER_ACCEPT,
-  });
-
-  const textNodes: Text[] = [];
-  let currentNode: Node | null = null;
-  while ((currentNode = walker.nextNode())) {
-    textNodes.push(currentNode as Text);
-  }
-
-  for (const textNode of textNodes) {
+  for (const textNode of getUnprotectedArticleTextNodes(container)) {
     const text = textNode.nodeValue || "";
     if (!text.includes("$")) continue;
 
@@ -564,21 +556,8 @@ export async function processMathElements(
     pendingRenders.push({ host, fallback: span, rawMath: rawText });
   });
 
-  // 3. Walk all text nodes to find raw MathJax
-  const walker = ownerDoc.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
-    acceptNode: (node) =>
-      isInsideSkippedNode(node)
-        ? NodeFilter.FILTER_REJECT
-        : NodeFilter.FILTER_ACCEPT,
-  });
-
-  const textNodes: Text[] = [];
-  let currentNode: Node | null = null;
-  while ((currentNode = walker.nextNode())) {
-    textNodes.push(currentNode as Text);
-  }
-
-  for (const textNode of textNodes) {
+  // 3. Walk unprotected text nodes to find raw MathJax
+  for (const textNode of getUnprotectedArticleTextNodes(container)) {
     const text = textNode.nodeValue || "";
     if (!hasMathDelimiter(text)) continue;
 
