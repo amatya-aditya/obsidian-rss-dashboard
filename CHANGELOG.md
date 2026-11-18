@@ -9,6 +9,7 @@
 
 ### Fixes
 
+- Currency amounts remain text in Main and Inline Reader and in saved articles, while valid inline math still renders. [GH Issue #1818](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1818)
 - Feed storage folder and Metadata data.json location now use their own full-width row at every size. On touch-first devices, other settings rows stack above their controls at tablet widths. [GH Issue #1813](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1813)
 - Inline Reader now has the **Manage tags** action, so you can add or remove an article's tags while reading it inline. [GH Issue #1809](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1809)
 - Inline Reader now has the **Reader settings** action, and formatting changes there apply the same preferences as Main Reader. [GH Issue #1808](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1808)

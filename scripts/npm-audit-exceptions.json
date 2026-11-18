@@ -1,0 +1,10 @@
+{
+  "exceptions": [
+    {
+      "id": "GHSA-fc5q-39xc-vjpf",
+      "package": "picomatch",
+      "expires": "2026-12-02",
+      "reason": "No patched npm release is available yet; this exception covers the development-only dependency graph while the upstream fix is pending."
+    }
+  ]
+}

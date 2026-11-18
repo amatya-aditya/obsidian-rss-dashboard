@@ -5,7 +5,11 @@
  */
 import TurndownService from "turndown";
 import { stripNonContentHtmlNodes } from "./html-text";
-import { addMathTurndownRule, protectMathForMarkdown } from "./math-rendering";
+import {
+  addCurrencyTurndownRule,
+  addMathTurndownRule,
+  protectMathForMarkdown,
+} from "./math-rendering";
 import { normalizeSubstackImageUrl } from "./substack-image-url";
 import { addTableTurndownRule } from "./table-markdown";
 import {
@@ -102,6 +106,7 @@ function normalizeBlockLinksForMarkdown(html: string): string {
 export function articleHtmlToMarkdown(html: string): string {
   const turndownService = new TurndownService();
   addMathTurndownRule(turndownService);
+  addCurrencyTurndownRule(turndownService);
   addTableTurndownRule(turndownService);
   addYouTubeEmbedTurndownRule(turndownService);
 

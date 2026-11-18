@@ -163,10 +163,15 @@ export function findAuditIssue(label, exitStatus) {
 
 function runAudit(args) {
   try {
-    execFileSync("npm", ["audit", ...args, "--audit-level=high"], {
+    const productionOnly = args.includes("--omit=dev");
+    const executable = productionOnly ? "npm" : process.execPath;
+    const command = productionOnly
+      ? ["audit", ...args, "--audit-level=high"]
+      : [join(ROOT_DIR, "scripts", "check-npm-audit.mjs")];
+    execFileSync(executable, command, {
       cwd: ROOT_DIR,
       stdio: "ignore",
-      shell: process.platform === "win32",
+      shell: productionOnly && process.platform === "win32",
     });
     return 0;
   } catch (error) {
