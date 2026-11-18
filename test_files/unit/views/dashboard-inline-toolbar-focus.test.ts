@@ -6,12 +6,14 @@ import {
   type Feed,
   type FeedItem,
   type RssDashboardSettings,
+  type Tag,
 } from "../../../src/types/types";
 import { RssDashboardView } from "../../../src/views/dashboard-view";
 
 vi.mock("../../../src/utils/platform-utils", () => ({
   robustFetch: vi.fn(),
   ensureUtf8Meta: (html: string) => html,
+  isNarrowViewport: () => false,
   shouldUseMobileSidebarLayout: () => false,
   setCssProps: (element: HTMLElement, props: Record<string, string>) => {
     for (const [property, value] of Object.entries(props)) {
@@ -106,6 +108,7 @@ interface DashboardViewInternal {
   containerEl: HTMLElement;
   inlineArticle: FeedItem | null;
   selectedArticle: FeedItem | null;
+  settings: RssDashboardSettings;
   render(): void;
 }
 
@@ -181,6 +184,62 @@ describe("Dashboard inline Reader toolbar focus", () => {
       expect(toolbarButton(view, "save").getAttribute("tabindex")).toBe("-1");
     },
   );
+
+  it("shows the expected user-visible actions in order", () => {
+    const view = openInline();
+    const actions = Array.from(
+      view.containerEl.querySelectorAll<HTMLElement>(
+        ".inline-reader-header [role='toolbar'] button",
+      ),
+      (button) => button.getAttribute("data-rss-action"),
+    );
+
+    expect(actions).toEqual(["save", "read", "star", "tags", "format", "open"]);
+  });
+
+  it("manages the inline article's tags with the Reader tag picker", async () => {
+    const view = openInline();
+    const tag: Tag = { name: "Reading", color: "#ff0000" };
+    view.settings.availableTags = [tag];
+
+    const tagsButton = toolbarButton(view, "tags");
+    tagsButton.click();
+    const checkbox = document.body.querySelector<HTMLInputElement>(
+      ".rss-dashboard-tags-dropdown-content-portal .rss-dashboard-tag-checkbox",
+    );
+    expect(checkbox).not.toBeNull();
+    if (!checkbox) return;
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+    await flush();
+
+    expect(view.inlineArticle?.tags).toEqual([tag]);
+    expect(view.settings.feeds[0]?.items[0]?.tags).toEqual([tag]);
+    tagsButton.click();
+  });
+
+  it("applies the shared Reader settings from the inline toolbar", () => {
+    const view = openInline();
+    const formatButton = toolbarButton(view, "format");
+    formatButton.click();
+    expect(formatButton.getAttribute("aria-expanded")).toBe("true");
+
+    const increaseFontSize = document.body.querySelector<HTMLElement>(
+      ".rss-reader-format-stepper-increase",
+    );
+    expect(increaseFontSize).not.toBeNull();
+    increaseFontSize?.click();
+
+    expect(view.settings.readerFormat.fontScalePct).toBe(110);
+    expect(
+      view.containerEl
+        .querySelector<HTMLElement>(".inline-reader-content")
+        ?.style.getPropertyValue("--rss-reader-body-font-size"),
+    ).toBe("1.1em");
+
+    formatButton.click();
+    expect(formatButton.getAttribute("aria-expanded")).toBe("false");
+  });
 
   it("does not take focus when focus was outside the toolbar", async () => {
     const view = openInline();

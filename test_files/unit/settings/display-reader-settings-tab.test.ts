@@ -240,15 +240,16 @@ describe("renderDisplaySettingsTab() reader section", () => {
     const containerEl = createDiv();
     document.body.appendChild(containerEl);
     const settings = cloneSettings();
-    const applyReaderFormat = vi.fn();
+    const applyReaderFormatToOpenViews = vi.fn(async () => {});
     const saveSettings = vi.fn(async () => {});
 
     const plugin = {
       app: {},
       settings,
       saveSettings,
+      applyReaderFormatToOpenViews,
       getActiveDashboardView: vi.fn(async () => null),
-      getActiveReaderView: vi.fn(async () => ({ applyReaderFormat })),
+      getActiveReaderView: vi.fn(async () => null),
     } as unknown as RssDashboardPlugin;
 
     renderDisplaySettingsTab(containerEl, plugin, () => {});
@@ -262,7 +263,33 @@ describe("renderDisplaySettingsTab() reader section", () => {
 
     expect(plugin.settings.readerFormat.fontFamily).toBe("serif");
     expect(saveSettings).toHaveBeenCalled();
-    expect(applyReaderFormat).toHaveBeenCalled();
+    expect(applyReaderFormatToOpenViews).toHaveBeenCalledTimes(1);
+  });
+
+  it("applies reader formatting to open views when settings change", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const applyReaderFormatToOpenViews = vi.fn(async () => {});
+    const plugin = {
+      app: {},
+      settings: cloneSettings(),
+      saveSettings: vi.fn(async () => {}),
+      applyReaderFormatToOpenViews,
+      getActiveDashboardView: vi.fn(async () => null),
+      getActiveReaderView: vi.fn(async () => null),
+    } as unknown as RssDashboardPlugin;
+
+    renderDisplaySettingsTab(containerEl, plugin, () => {});
+
+    const alignmentSetting = getSettingByName(containerEl, "Alignment");
+    const alignmentSelect = alignmentSetting.querySelector(
+      "select",
+    ) as HTMLSelectElement;
+    alignmentSelect.value = "left";
+    alignmentSelect.dispatchEvent(new Event("change"));
+    await flushPromises();
+
+    expect(plugin.settings.readerFormat.textAlign).toBe("left");
+    expect(applyReaderFormatToOpenViews).toHaveBeenCalledTimes(1);
   });
 
   it("resets reader format settings back to defaults", async () => {
@@ -280,6 +307,7 @@ describe("renderDisplaySettingsTab() reader section", () => {
       app: {},
       settings,
       saveSettings,
+      applyReaderFormatToOpenViews: vi.fn(async () => {}),
       getActiveDashboardView: vi.fn(async () => null),
       getActiveReaderView: vi.fn(async () => null),
     } as unknown as RssDashboardPlugin;

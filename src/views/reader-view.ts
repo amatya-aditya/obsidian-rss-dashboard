@@ -10,6 +10,7 @@ import {
 } from "../components/reader-feed-first";
 import {
   ItemView,
+  type App,
   WorkspaceLeaf,
   Menu,
   MenuItem,
@@ -168,6 +169,12 @@ const STARRED_IMPORT_FETCH_FAILED_NOTICE = "Could not fetch article content.";
 
 export const RSS_READER_VIEW_TYPE = "rss-reader-view";
 const READER_SWIPE_RETURN_CLEANUP_DELAY_MS = 250;
+/** Per-Obsidian-session return target; navigation state is never persisted. */
+const lastClosedMainReaderArticles = new WeakMap<App, FeedItem>();
+
+export function getLastClosedMainReaderArticle(app: App): FeedItem | null {
+  return lastClosedMainReaderArticles.get(app) ?? null;
+}
 
 export class ReaderView extends ItemView {
   private currentItem: FeedItem | null = null;
@@ -310,6 +317,12 @@ export class ReaderView extends ItemView {
     this.swipeReturnAnimationInProgress = false;
   }
 
+  private finishSwipeReturnAndClose(): void {
+    if (!this.swipeReturnAnimationInProgress) return;
+    this.finishSwipeReturnAnimation();
+    this.leaf.detach();
+  }
+
   private async focusDashboardLeafWithSwipeAnimation(): Promise<void> {
     if (this.swipeReturnAnimationInProgress || !this.getDashboardLeaf()) return;
 
@@ -337,7 +350,7 @@ export class ReaderView extends ItemView {
 
     this.swipeReturnAnimationListener = (event) => {
       if (event.target !== animationElement) return;
-      this.finishSwipeReturnAnimation();
+      this.finishSwipeReturnAndClose();
     };
     animationElement.addEventListener(
       "animationend",
@@ -345,7 +358,7 @@ export class ReaderView extends ItemView {
     );
     animationElement.classList.add("rss-reader-returning");
     this.swipeReturnAnimationTimeout = window.setTimeout(
-      () => this.finishSwipeReturnAnimation(),
+      () => this.finishSwipeReturnAndClose(),
       READER_SWIPE_RETURN_CLEANUP_DELAY_MS,
     );
   }
@@ -1390,6 +1403,9 @@ export class ReaderView extends ItemView {
   }
 
   async onClose(): Promise<void> {
+    if (this.currentItem && !this.isInSidebar()) {
+      lastClosedMainReaderArticles.set(this.app, this.currentItem);
+    }
     this.finishSwipeReturnAnimation();
     this.swipeNavigator?.destroy();
     this.swipeNavigator = null;

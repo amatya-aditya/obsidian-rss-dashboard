@@ -859,6 +859,24 @@ export default class RssDashboardPlugin extends Plugin {
     }
   }
 
+  /** Applies reader formatting to every open Reader and Dashboard view. */
+  public async applyReaderFormatToOpenViews(): Promise<void> {
+    await this.forEachPlayerHostView((view) => {
+      try {
+        if (view instanceof ReaderView) {
+          const readerView = view as unknown as {
+            applyReaderFormat?: () => void;
+          };
+          readerView.applyReaderFormat?.();
+        } else {
+          view.applyInlineReaderFormat();
+        }
+      } catch {
+        // Best-effort refresh for settings-driven format changes.
+      }
+    });
+  }
+
   public async applyVideoFocusMode(hide: boolean): Promise<void> {
     await this.forEachPlayerHostView((view) => view.setVideoFocusMode(hide));
   }

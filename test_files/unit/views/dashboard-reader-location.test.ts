@@ -88,6 +88,7 @@ type TestDashboardView = {
   containerEl: HTMLElement;
   render: ReturnType<typeof vi.fn>;
   inlineArticle: import("../../../src/types/types").FeedItem | null;
+  currentFolder: string | null;
   handleArticleClick: (
     item: import("../../../src/types/types").FeedItem,
   ) => Promise<void>;
@@ -102,6 +103,7 @@ type TestDashboardView = {
     article?: import("../../../src/types/types").FeedItem,
   ) => Promise<void>;
   renderInlineArticle: (container: HTMLElement) => void;
+  applyInlineReaderFormat: () => void;
   applyExternalArticleUpdate: (
     articleGuid: string,
     feedUrl: string,
@@ -113,6 +115,7 @@ type TestDashboardView = {
     updates: Partial<FeedItem>,
     shouldRerender?: boolean,
   ) => Promise<void>;
+  actionMarkAllAsRead: () => void;
   articleList: {
     setSelectedArticle: ReturnType<typeof vi.fn>;
     scheduleCardTopAnchorOnResize: ReturnType<typeof vi.fn>;
@@ -195,6 +198,7 @@ async function createDashboardView(
     settings,
     saveSettings: vi.fn(async () => {}),
     updateArticle: vi.fn(async () => {}),
+    queueArticleStateSave: vi.fn(),
   };
   const dashboardLeaf = {
     app,
@@ -242,6 +246,56 @@ describe("Dashboard reader location", () => {
       );
     },
   );
+
+  it.each([
+    ["default", "justify", 160, "1.6"],
+    ["custom", "left", 180, "1.8"],
+  ] as const)(
+    "applies the %s Reader alignment and line height to Inline Reader content",
+    async (_label, textAlign, lineHeightPct, expectedLineHeight) => {
+      const settings = cloneSettings();
+      settings.readerFormat.textAlign = textAlign;
+      settings.readerFormat.lineHeightPct = lineHeightPct;
+      const { view } = await createDashboardView(settings);
+      view.inlineArticle = makeFeed("https://example.com/feed", [{}]).items[0];
+
+      const container = createDiv();
+      view.renderInlineArticle(container);
+      const body = container.querySelector<HTMLElement>(
+        ".inline-reader-content",
+      );
+
+      expect(body?.dataset.rssReaderAlign).toBe(textAlign);
+      expect(body?.style.getPropertyValue("--rss-reader-line-height")).toBe(
+        expectedLineHeight,
+      );
+    },
+  );
+
+  it("updates formatting in place when Reader preferences change", async () => {
+    const settings = cloneSettings();
+    const { view } = await createDashboardView(settings);
+    view.inlineArticle = makeFeed("https://example.com/feed", [{}]).items[0];
+
+    const container = createDiv();
+    view.containerEl.appendChild(container);
+    view.renderInlineArticle(container);
+    const body = container.querySelector<HTMLElement>(".inline-reader-content");
+    expect(body?.dataset.rssReaderAlign).toBe("justify");
+    expect(body?.style.getPropertyValue("--rss-reader-line-height")).toBe(
+      "1.6",
+    );
+
+    settings.readerFormat.textAlign = "left";
+    settings.readerFormat.lineHeightPct = 180;
+    view.applyInlineReaderFormat();
+
+    expect(container.querySelector(".inline-reader-content")).toBe(body);
+    expect(body?.dataset.rssReaderAlign).toBe("left");
+    expect(body?.style.getPropertyValue("--rss-reader-line-height")).toBe(
+      "1.8",
+    );
+  });
 
   it("opens article clicks in the main split when readerViewLocation is main", async () => {
     const settings = cloneSettings();
@@ -778,6 +832,8 @@ describe("Dashboard reader location", () => {
       "Save fetched content to notes",
       "Mark as read/unread",
       "Star/unstar article",
+      "Manage tags",
+      "Reader settings",
       "Open in browser",
     ]);
     expect(
@@ -825,13 +881,19 @@ describe("Dashboard reader location", () => {
     settings.feeds = [feed];
     const { view } = await createDashboardView(settings);
     view.inlineArticle = feed.items[0];
-    view.handleArticleUpdate = vi.fn(async () => {});
 
     const container = createDiv();
+    view.containerEl.appendChild(container);
     view.renderInlineArticle(container);
     const starButton = container.querySelector<HTMLElement>(
       ".rss-reader-star-toggle",
     );
+    const body = container.querySelector<HTMLElement>(
+      ".inline-reader-content",
+    )!;
+    body.scrollTop = 144;
+    body.createDiv({ cls: "rss-reader-body", text: "Article text" });
+    view.render.mockClear();
 
     // A native button is keyboard-operable on its own (Enter and Space click it
     // in a browser), so it carries no role, tabindex or keydown handler.
@@ -850,16 +912,17 @@ describe("Dashboard reader location", () => {
 
       // Not handled here: the browser's own click is the only activation.
       expect(event.defaultPrevented).toBe(false);
-      expect(view.handleArticleUpdate).not.toHaveBeenCalled();
+      expect(feed.items[0].starred).toBe(false);
     }
 
     // The click a browser synthesizes for Enter or Space.
     starButton?.click();
-    expect(view.handleArticleUpdate).toHaveBeenLastCalledWith(
-      feed.items[0],
-      { starred: true },
-      true,
-    );
+    await vi.waitFor(() => expect(feed.items[0].starred).toBe(true));
+
+    expect(view.render).not.toHaveBeenCalled();
+    expect(container.querySelector(".inline-reader-content")).toBe(body);
+    expect(body.scrollTop).toBe(144);
+    expect(starButton?.getAttribute("aria-pressed")).toBe("true");
 
     container.remove();
     view.inlineArticle = { ...feed.items[0], starred: true };
@@ -871,6 +934,154 @@ describe("Dashboard reader location", () => {
         ?.getAttribute("aria-pressed"),
     ).toBe("true");
     starredContainer.remove();
+  });
+
+  it("updates an external read or star change without rebuilding the inline article", async () => {
+    const settings = cloneSettings();
+    const feed = makeFeed("https://example.com/feed", [{}]);
+    settings.feeds = [feed];
+    const { view } = await createDashboardView(settings);
+    view.inlineArticle = feed.items[0];
+
+    const container = createDiv();
+    view.containerEl.appendChild(container);
+    view.renderInlineArticle(container);
+    const body = container.querySelector<HTMLElement>(
+      ".inline-reader-content",
+    )!;
+    body.scrollTop = 208;
+    body.createDiv({ cls: "rss-reader-body", text: "Article text" });
+    view.render.mockClear();
+
+    view.applyExternalArticleUpdate(
+      feed.items[0].guid,
+      feed.url,
+      { read: true, starred: true },
+      true,
+    );
+
+    expect(view.render).not.toHaveBeenCalled();
+    expect(container.querySelector(".inline-reader-content")).toBe(body);
+    expect(body.scrollTop).toBe(208);
+    expect(
+      container
+        .querySelector(".rss-reader-read-toggle svg")
+        ?.classList.contains("lucide-check-circle"),
+    ).toBe(true);
+    expect(
+      container
+        .querySelector(".rss-reader-star-toggle")
+        ?.getAttribute("aria-pressed"),
+    ).toBe("true");
+    container.remove();
+  });
+
+  it("updates the inline read action in place", async () => {
+    const settings = cloneSettings();
+    const feed = makeFeed("https://example.com/feed", [{}]);
+    settings.feeds = [feed];
+    const { view } = await createDashboardView(settings);
+    view.inlineArticle = feed.items[0];
+
+    const container = createDiv();
+    view.containerEl.appendChild(container);
+    view.renderInlineArticle(container);
+    const body = container.querySelector<HTMLElement>(
+      ".inline-reader-content",
+    )!;
+    body.scrollTop = 176;
+    body.createDiv({ cls: "rss-reader-body", text: "Article text" });
+    const readButton = container.querySelector<HTMLElement>(
+      ".rss-reader-read-toggle",
+    )!;
+    view.render.mockClear();
+
+    readButton.click();
+    await vi.waitFor(() => expect(feed.items[0].read).toBe(true));
+
+    expect(view.render).not.toHaveBeenCalled();
+    expect(container.querySelector(".inline-reader-content")).toBe(body);
+    expect(body.scrollTop).toBe(176);
+    expect(readButton.getAttribute("aria-label")).toBe("Mark as unread");
+    expect(
+      readButton
+        .querySelector("svg")
+        ?.classList.contains("lucide-check-circle"),
+    ).toBe(true);
+    container.remove();
+  });
+
+  it("keeps the inline article open when read status empties the active page", async () => {
+    const settings = cloneSettings();
+    const feed = makeFeed("https://example.com/feed", [{}]);
+    settings.feeds = [feed];
+    const { view } = await createDashboardView(settings);
+    view.currentFolder = "unread";
+    view.inlineArticle = feed.items[0];
+
+    const removeArticleInPlace = vi.fn();
+    const articleList = {
+      hasArticle: vi.fn(() => true),
+      getRenderedNeighbour: vi.fn(() => null),
+      removeArticleInPlace,
+      setSelectedArticle: vi.fn(),
+    };
+    (view as unknown as { articleList: typeof articleList }).articleList =
+      articleList;
+
+    const container = createDiv();
+    view.containerEl.appendChild(container);
+    view.renderInlineArticle(container);
+    const body = container.querySelector<HTMLElement>(
+      ".inline-reader-content",
+    )!;
+    body.scrollTop = 96;
+    body.createDiv({ cls: "rss-reader-body", text: "Article text" });
+    view.render.mockClear();
+
+    await view.handleArticleUpdate(feed.items[0], { read: true });
+
+    expect(removeArticleInPlace).toHaveBeenCalledWith(
+      feed.items[0].guid,
+      feed.items[0].feedUrl,
+    );
+    expect(view.render).not.toHaveBeenCalled();
+    expect(view.inlineArticle).toBe(feed.items[0]);
+    expect(container.querySelector(".inline-reader-content")).toBe(body);
+    expect(body.scrollTop).toBe(96);
+    container.remove();
+  });
+
+  it("keeps the inline article in place when the dashboard marks all filtered articles read", async () => {
+    const settings = cloneSettings();
+    const feed = makeFeed("https://example.com/feed", [{}]);
+    settings.feeds = [feed];
+    const { view } = await createDashboardView(settings);
+    view.currentFolder = "unread";
+    view.inlineArticle = feed.items[0];
+
+    const container = createDiv();
+    view.containerEl.appendChild(container);
+    view.renderInlineArticle(container);
+    const body = container.querySelector<HTMLElement>(
+      ".inline-reader-content",
+    )!;
+    body.scrollTop = 64;
+    body.createDiv({ cls: "rss-reader-body", text: "Article text" });
+    view.render.mockClear();
+
+    view.actionMarkAllAsRead();
+
+    expect(feed.items[0].read).toBe(true);
+    expect(view.render).not.toHaveBeenCalled();
+    expect(container.querySelector(".inline-reader-content")).toBe(body);
+    expect(body.scrollTop).toBe(64);
+    expect(
+      container
+        .querySelector(".rss-reader-read-toggle")
+        ?.getAttribute("aria-label"),
+    ).toBe("Mark as unread");
+    container.remove();
   });
 
   it("clears the inline Reader save control in place for a matching feed article", async () => {
@@ -1009,6 +1220,10 @@ describe("Dashboard reader location", () => {
 
     it("adds a chip when an assignment arrives from another tag-edit surface", async () => {
       const { view, feed, container } = await openInlineWithChips([]);
+      const body = container.querySelector<HTMLElement>(
+        ".inline-reader-content",
+      )!;
+      body.scrollTop = 112;
       container.querySelector(".rss-reader-tags")?.remove();
 
       view.applyExternalArticleUpdate(feed.items[0].guid, feed.url, {
@@ -1016,6 +1231,7 @@ describe("Dashboard reader location", () => {
       });
 
       expect(chips(container)).toEqual([["Fresh", "#123456"]]);
+      expect(body.scrollTop).toBe(112);
     });
 
     it("keeps a saved article's chips current the same way", async () => {

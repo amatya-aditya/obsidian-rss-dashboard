@@ -28,6 +28,10 @@ _Avoid_: Left-handed mode, RTL layout, flipped footer
 The episode currently loaded in the podcast player's audio element. It anchors the visible episode-list range whenever the player selects or advances to an episode.
 _Avoid_: Current article, selected row
 
+**Audio URL**:
+The publisher-provided URL for an article's audio media. In templates, `{{audioUrl}}` expands to this URL when available and is empty when unavailable; it identifies the source address, not a downloaded local copy.
+_Avoid_: Downloaded audio, local audio file
+
 **Episode list**:
 A bounded, ordered set of episode rows from one feed. It is read-only and does not imply a saved or customizable playlist.
 _Avoid_: Playlist, queue
@@ -138,6 +142,10 @@ _Avoid_: Reader view (unqualified when a location matters), article location
 A dedicated Reader view opened in Obsidian's main view area. This corresponds to the "Main view (split)" option in Reader view location settings.
 _Avoid_: Main Reader (when the setting label matters)
 
+**Last closed Main Reader article**:
+The most recently closed article from a [[Reader view (main)]], remembered for the current plugin session so a dashboard swipe-left can reopen it in a new Reader tab. Closing another Main Reader replaces it; the close route does not matter.
+_Avoid_: Last Reader (ambiguous about location and whether the view or article is remembered)
+
 **Reader view (right sidebar)**:
 The Reader view presentation opened in Obsidian's right sidebar.
 _Avoid_: Right Reader, sidebar preview
@@ -149,6 +157,10 @@ _Avoid_: Left Reader, sidebar preview
 **Reader view (inline)**:
 The article-reading presentation rendered inside the dashboard view instead of a separate Obsidian view. It is also available as a Saved article open location.
 _Avoid_: Inline article preview, inline reader (when a precise term is needed)
+
+**Reader reading position**:
+The current location within the article body shown by a [[Reader view]], distinct from the dashboard article-list position. Preserving it keeps the reader on the same part of the article while read, star, or tag state changes are applied.
+_Avoid_: Scroll position (when referring to the article rather than the dashboard list)
 
 **Saved article open location**:
 The setting that chooses where a saved article opens: [[Reader view (main)]], [[Reader view (right sidebar)]], [[Reader view (left sidebar)]], or [[Reader view (inline)]]. It does not offer the external browser destination.

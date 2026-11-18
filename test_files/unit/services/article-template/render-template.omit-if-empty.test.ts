@@ -10,6 +10,7 @@ function createValues(language: string): ArticleTemplateValues {
   return {
     title: "Title",
     link: "",
+    audioUrl: "",
     author: "",
     source: "",
     feedTitle: "",
