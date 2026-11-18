@@ -120,13 +120,14 @@ export function extractWordPressLatexFormula(
  * We use a regex that helps avoid matching currency by ensuring:
  * 1. Inside `$...$`, there is no leading or trailing whitespace
  * 2. It isn't empty
+ * 3. A closing `$` isn't followed by a digit, which indicates another amount
  *
  * The inline branch avoids lookbehind (unsupported on iOS before 16.4) by
  * requiring the last inner character to be a non-space, non-dollar character
  * instead of asserting it with `(?<!\s)`.
  */
 const MATH_REGEX =
-  /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|\$(?!\s)[^$]*[^$\s]\$)/g;
+  /(\$\$[\s\S]+?\$\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\)|\$(?!\s)[^$]*[^$\s]\$(?!\d))/g;
 
 const DEFAULT_ATTACH_ATTEMPTS = 5;
 const MAX_CACHED_MATH_FRAGMENTS = 500;
@@ -365,7 +366,7 @@ function normalizeWordPressFormulaImages(container: HTMLElement): void {
   }
 }
 
-function protectRawMathTextNodes(container: HTMLElement): void {
+function getUnprotectedArticleTextNodes(container: HTMLElement): Text[] {
   const doc = container.ownerDocument || activeDocument;
   const walker = doc.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
     acceptNode: (node) =>
@@ -380,7 +381,12 @@ function protectRawMathTextNodes(container: HTMLElement): void {
     textNodes.push(currentNode as Text);
   }
 
-  for (const textNode of textNodes) {
+  return textNodes;
+}
+
+function protectRawMathTextNodes(container: HTMLElement): void {
+  const doc = container.ownerDocument || activeDocument;
+  for (const textNode of getUnprotectedArticleTextNodes(container)) {
     const text = textNode.nodeValue || "";
     if (!hasMathDelimiter(text)) continue;
 
@@ -413,6 +419,59 @@ function protectRawMathTextNodes(container: HTMLElement): void {
   }
 }
 
+function protectCurrencyTextNodes(container: HTMLElement): void {
+  const doc = container.ownerDocument || activeDocument;
+  for (const textNode of getUnprotectedArticleTextNodes(container)) {
+    const text = textNode.nodeValue || "";
+    if (!text.includes("$")) continue;
+
+    const fragment = doc.win.createFragment();
+    let lastIndex = 0;
+    let precedingBackslashes = 0;
+
+    for (let index = 0; index < text.length; index += 1) {
+      const character = text[index];
+      const nextCharacter = text[index + 1] || "";
+      const isCurrencyDollar =
+        character === "$" && nextCharacter >= "0" && nextCharacter <= "9";
+
+      if (isCurrencyDollar && precedingBackslashes % 2 === 0) {
+        if (index > lastIndex) {
+          fragment.appendChild(
+            doc.createTextNode(text.slice(lastIndex, index)),
+          );
+        }
+
+        const currencyDollar = doc.win.createSpan();
+        currencyDollar.className = "rss-currency-dollar";
+        currencyDollar.textContent = "$";
+        fragment.appendChild(currencyDollar);
+        lastIndex = index + 1;
+      }
+
+      precedingBackslashes = character === "\\" ? precedingBackslashes + 1 : 0;
+    }
+
+    if (lastIndex > 0) {
+      if (lastIndex < text.length) {
+        fragment.appendChild(doc.createTextNode(text.slice(lastIndex)));
+      }
+      textNode.parentNode?.replaceChild(fragment, textNode);
+    }
+  }
+}
+
+export function addCurrencyTurndownRule(
+  turndownService: MathTurndownService,
+): void {
+  turndownService.addRule("currency-dollar", {
+    filter: (node: Node) =>
+      node.nodeName === "SPAN" &&
+      (node as Element).classList.contains("rss-currency-dollar"),
+    replacement: () => String.raw`\$`,
+  });
+}
+
 export function addMathTurndownRule(
   turndownService: MathTurndownService,
 ): void {
@@ -442,6 +501,7 @@ export function protectMathForMarkdown(html: string): string {
   normalizeWordPressFormulaImages(doc.body);
   normalizeExistingMathSpans(doc.body);
   protectRawMathTextNodes(doc.body);
+  protectCurrencyTextNodes(doc.body);
 
   return doc.body.innerHTML;
 }
@@ -496,21 +556,8 @@ export async function processMathElements(
     pendingRenders.push({ host, fallback: span, rawMath: rawText });
   });
 
-  // 3. Walk all text nodes to find raw MathJax
-  const walker = ownerDoc.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
-    acceptNode: (node) =>
-      isInsideSkippedNode(node)
-        ? NodeFilter.FILTER_REJECT
-        : NodeFilter.FILTER_ACCEPT,
-  });
-
-  const textNodes: Text[] = [];
-  let currentNode: Node | null = null;
-  while ((currentNode = walker.nextNode())) {
-    textNodes.push(currentNode as Text);
-  }
-
-  for (const textNode of textNodes) {
+  // 3. Walk unprotected text nodes to find raw MathJax
+  for (const textNode of getUnprotectedArticleTextNodes(container)) {
     const text = textNode.nodeValue || "";
     if (!hasMathDelimiter(text)) continue;
 

@@ -32,9 +32,7 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
 
       - name: Audit all dependencies
-        env:
-          RSS_DASHBOARD_BETA6_AUDIT_EXCEPTION: ${{ github.base_ref == 'release/2.8.0' && (github.head_ref == 'codex/beta-6-integration' || github.head_ref == 'codex/beta-6-bump') }}
-        run: node scripts/audit-dependencies.mjs
+        run: node scripts/check-npm-audit.mjs
 
       - name: Build and validate
         run: npm run build
