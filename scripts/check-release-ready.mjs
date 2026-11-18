@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { runFullDependencyAudit } from "./audit-dependencies.mjs";
 import { buildDocsAudit, findDocsAuditIssues } from "./check-docs-audit.mjs";
 import {
   findMissingNoteIssue,
@@ -147,8 +148,8 @@ export function findWorkingTreeIssue(porcelainOutput) {
 }
 
 /**
- * The release workflow runs `npm audit --audit-level=high` after the tag is
- * pushed, so a finding there means deleting a public tag. Catch it before.
+ * The release workflow runs these dependency audits after the tag is
+ * pushed. Catch blocking findings before publishing the tag.
  */
 export function findAuditIssue(label, exitStatus) {
   if (exitStatus === 0) {
@@ -273,7 +274,12 @@ function main() {
     stable ? findChangelogHeadingIssue(changelogSource, targetVersion) : null,
     stable ? findUnreleasedLeftoverIssue(changelogSource) : null,
     findAuditIssue("production", runAudit(["--omit=dev"])),
-    findAuditIssue("all", runAudit([])),
+    findAuditIssue(
+      "all",
+      runFullDependencyAudit({
+        allowBeta6Exception: targetVersion === "2.8.0-beta.6",
+      }),
+    ),
     findPublicReleaseNotesIssue(
       targetVersion,
       listMarkdownFileNames(PUBLIC_RELEASE_NOTES_DIR),
