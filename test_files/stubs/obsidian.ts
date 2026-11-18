@@ -3000,6 +3000,7 @@ export const finishRenderMath: typeof ObsidianApi.finishRenderMath =
   finishRenderMathImpl;
 export type ObsidianProtocolData = ObsidianApi.ObsidianProtocolData;
 export type ButtonComponent = ObsidianApi.ButtonComponent;
+export type SliderComponent = ObsidianApi.SliderComponent;
 export type { MenuItemStub };
 
 export type MarkdownRenderer = ObsidianApi.MarkdownRenderer;

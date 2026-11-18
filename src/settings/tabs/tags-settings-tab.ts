@@ -5,9 +5,11 @@
  * Exports:
  *   - renderTagsSettingsTab(containerEl, plugin, onRefresh)
  */
+import { createSettingsGroup } from "../settings-layout";
 import { type ButtonComponent, Notice, Setting, setIcon } from "obsidian";
 import RssDashboardPlugin from "../../../main";
-import { addTagMultiSelectControl } from "../../components/tag-multi-select-control";
+import { settingsUiCompatibility } from "../settings-ui-compat";
+import { addAutoTagControl } from "../auto-tag-setting";
 import {
   DEFAULT_SETTINGS,
   type Folder,
@@ -308,7 +310,8 @@ function renderTagAppearanceDefaults(
   containerEl: HTMLElement,
   plugin: RssDashboardPlugin,
 ): void {
-  new Setting(containerEl).setName("Tag appearance defaults").setHeading();
+  const appearance = createSettingsGroup(containerEl);
+  new Setting(appearance).setName("Tag appearance defaults").setHeading();
   refreshRenderedTagChips(containerEl, plugin);
 
   // The pickers edit this draft only. Nothing is saved or recolored until the
@@ -325,7 +328,7 @@ function renderTagAppearanceDefaults(
     );
   };
 
-  const backgroundSetting = new Setting(containerEl).setName("Background");
+  const backgroundSetting = new Setting(appearance).setName("Background");
   backgroundSetting.settingEl.addClass(
     "rss-dashboard-tag-default-color-setting",
     "rss-dashboard-tag-color-setting",
@@ -355,7 +358,7 @@ function renderTagAppearanceDefaults(
     addRandomizeColorButton({ input: backgroundInput });
   }
 
-  const textSetting = new Setting(containerEl).setName("Text");
+  const textSetting = new Setting(appearance).setName("Text");
   textSetting.settingEl.addClass(
     "rss-dashboard-tag-default-color-setting",
     "rss-dashboard-tag-color-setting",
@@ -384,7 +387,7 @@ function renderTagAppearanceDefaults(
     addRandomizeColorButton({ input: textInput });
   }
 
-  const previewSetting = new Setting(containerEl)
+  const previewSetting = new Setting(appearance)
     .setName("Preview")
     .setDesc("Preview the new defaults here. Nothing changes until you apply.");
   previewSetting.settingEl.addClass("rss-dashboard-tag-defaults-preview-card");
@@ -393,7 +396,7 @@ function renderTagAppearanceDefaults(
     text: "Preview",
   });
 
-  const applySetting = new Setting(containerEl)
+  const applySetting = new Setting(appearance)
     .setName("Apply tag defaults")
     .setDesc("Choose whether existing tags change too, or only new ones.");
   applySetting.settingEl.addClass("rss-dashboard-tag-apply-defaults");
@@ -408,7 +411,7 @@ function renderTagAppearanceDefaults(
   });
   syncDraft();
 
-  new Setting(containerEl)
+  new Setting(appearance)
     .setName("Reset all tags to defaults")
     .setDesc("Clear every tag's background and text overrides.")
     .addButton((button) =>
@@ -491,7 +494,8 @@ function renderTagSettingsRow(
           });
         }),
     )
-    .addButton((button) =>
+    .addButton((button) => {
+      settingsUiCompatibility.markDestructive(button);
       button
         .setIcon("trash")
         .setTooltip("Delete tag")
@@ -511,8 +515,8 @@ function renderTagSettingsRow(
             plugin.app.workspace.trigger("rss-dashboard:tags-mutated");
             onRefresh();
           })();
-        }),
-    );
+        });
+    });
 }
 
 /**
@@ -666,7 +670,8 @@ export function renderTagsSettingsTab(
   onRefresh: () => void,
 ): void {
   // Auto Tagging settings
-  new Setting(containerEl).setName("Auto tagging").setHeading();
+  const autoTags = createSettingsGroup(containerEl);
+  new Setting(autoTags).setName("Auto tagging").setHeading();
 
   const autoTagSettings: AutoTagSettingConfig[] = [
     {
@@ -729,25 +734,23 @@ export function renderTagsSettingsTab(
   ];
 
   for (const autoTagSetting of autoTagSettings) {
-    const setting = new Setting(containerEl)
+    const setting = new Setting(autoTags)
       .setName(autoTagSetting.name)
       .setDesc(autoTagSetting.description);
 
-    addTagMultiSelectControl({
-      setting,
-      availableTags: plugin.settings.availableTags ?? [],
-      tagAppearanceSettings: plugin.settings,
-      selectedTagNames: autoTagSetting.getSelectedTagNames(),
-      triggerEmptyLabel: "None",
-      menuTitle: autoTagSetting.menuTitle,
-      onChange: async (selected: string[]) => {
+    addAutoTagControl(setting, {
+      app: plugin.app,
+      appearance: plugin.settings,
+      selectedNames: autoTagSetting.getSelectedTagNames(),
+      pickerTitle: autoTagSetting.menuTitle,
+      onApply: async (selected) => {
         autoTagSetting.setSelectedTagNames(selected);
         await plugin.saveSettings();
       },
     });
   }
 
-  new Setting(containerEl)
+  new Setting(autoTags)
     .setName("Reset tag names")
     .setDesc("Restore all tag names to their out-of-the-box defaults.")
     .addButton((button) => {
@@ -770,12 +773,12 @@ export function renderTagsSettingsTab(
       });
     });
 
-  renderTagShapeControl(containerEl, plugin);
+  renderTagShapeControl(createSettingsGroup(containerEl), plugin);
 
   renderTagAppearanceDefaults(containerEl, plugin);
 
   const tagsContainer = containerEl.createDiv({
-    cls: "rss-dashboard-tags-container",
+    cls: "rss-dashboard-tags-container rss-dashboard-settings-group",
   });
 
   for (let i = 0; i < plugin.settings.availableTags.length; i++) {
@@ -784,5 +787,5 @@ export function renderTagsSettingsTab(
     renderTagSettingsRow(tagsContainer, plugin, tag, onRefresh);
   }
 
-  renderAddTagSection(containerEl, plugin, onRefresh);
+  renderAddTagSection(createSettingsGroup(containerEl), plugin, onRefresh);
 }

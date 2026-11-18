@@ -286,43 +286,54 @@ Rules:
 
 ### Settings Rows and Inputs
 
-The settings responsive rules use the width of the window that contains the
-settings surface and the primary input mode. Width alone does not identify a
-tablet: Obsidian's separate desktop Settings window may be narrow even on a wide
-monitor. Row stacking therefore requires both a narrow window and a touch-first
-input mode (`hover: none` and `pointer: coarse`).
+Settings layout responds to the available settings pane width. Use the primary
+input mode to select touch cards. A narrow mouse-driven settings pane retains the
+desktop presentation while wrapping controls that need more room.
 
-- On touch-first devices at `<= 1200px`, each RSS Dashboard settings row places
-  its name and help text above its controls. Apply this by default to rows across
-  every settings tab; do not rely on per-row classes to opt in. Mouse-driven
-  desktop windows keep the horizontal layout, even when the Settings window is
-  narrower than 1200px. Keep a compact horizontal row only when the component
-  has a documented reason.
-- Free-text fields, including search, names, URLs, phrases, and folder paths,
-  fill the available control width at tablet and phone sizes. Long values may
-  scroll inside the field; the field itself must not stop at an arbitrary
-  fraction of the row.
-- Storage > Feed storage folder and Metadata data.json location are intentional
-  full-row exceptions at every width: keep their labels and help above a
-  full-width path input, including on desktop.
-- Numeric values and color-value fields such as hex inputs stay compact. A
-  text input that stores a number is still a numeric control and must carry an
-  explicit compact class rather than inheriting the free-text width rule.
-- On touch-first devices, the Tag appearance defaults Background and Text rows
-  leave their aligned desktop grid at tablet widths and stack the row name above the color and
-  palette controls. The controls may stay grouped within that full-width
-  control row.
-- A clear affordance belongs inside its input at the logical trailing edge.
-  Position it against the input wrapper, reserve text padding while it is
-  visible, and keep it inside the field on touch devices.
-- Scope settings rules to `.rss-dashboard-settings-tab-content` or a
-  plugin-owned dialog. Never add a global `.setting-item` rule that changes
-  Obsidian's own settings.
+- Group related settings by purpose in rounded cards with subtle dividers on
+  touch devices. General, Display, Sidebar, Media, Article saving, Highlights,
+  Import/Export, and Tags use this layout. Keep the existing Storage, Rules,
+  and About presentation. Keep Storage action placement and its full-width
+  Feed storage folder and Metadata data.json location fields.
+- Position simple switches at the trailing edge beside the label and help. Let
+  descriptions wrap with a clear gap to the switch. Keep ordinary text inputs,
+  folder paths, and template editors full width where the layout calls for it.
+  Numeric and hex fields stay compact and legible.
+- Give sliders a wide row below the label and help. Show the value and units and
+  keep any existing exact numeric field beside the slider when space permits.
+  Cards per row shows **Auto** at zero and keeps numeric entry. Each slider has
+  one accessible reset that names the setting and default, stays visible when
+  disabled, and uses the slider's existing save path. **No cache size limit**
+  disables Image cache limit, its numeric field, and its reset.
+- Stack long dropdowns or actions below their description when needed. Related
+  buttons may share a row and wrap as a group. Match keyboard order to visual
+  order and label icon-only buttons for assistive technology.
+- Keep the unread badge switch beside its description, with the compact color
+  swatch and editable hex field together beneath it. Both color controls stay
+  usable while the badge is off. Keep Sidebar icon reordering, arrows, and
+  visibility controls usable at narrower widths.
+- Keep the Article saving Markdown editor and save path full width and the
+  template actions wrapped on phones. Keep **Template variables** collapsed
+  by default while making the reference available. Apply the shared destructive
+  treatment to the template **Clear**, Highlights and Tags **Delete**, Media
+  **Clear progress**, and Import/Export **Factory reset** actions.
+- Put a highlight's trailing switch beside its text and its color and matching
+  controls below. Give **Edit** and **Delete** a dedicated line on phones.
+  Keep Import/Export **Copy** paired with **Export**, with **Import** on a
+  separate row on phones.
+- Keep tag shape and draft appearance previews. Let the palette and color
+  selectors wrap without clipping custom colors. Use the existing draft and
+  apply scopes. In **Auto tagging**, each **Add tag** opens the available-tag
+  multi-select. Apply shows the selected tags in their actual appearance.
+  Keep the add button pinned at the trailing edge and align all six fields in
+  one shared desktop control column.
+- Position each clear affordance at the logical trailing edge of its field and
+  reserve space for text. Scope the settings styles to the plugin's settings
+  pane or dialog.
 
-The settings audit covers every tab and settings dialog. Current intentional
-compact input exceptions are `.rss-dashboard-settings-number-input` and
-`.rss-dashboard-color-hex-input`; custom control groups may keep their own
-internal layout when it does not put a setting label beside its controls.
+The [2.8 settings prototype](./prototypes/README.md) records the design review.
+Validate the actual settings in Obsidian in light and dark themes on phone,
+touch tablet, and narrow mouse-driven desktop.
 
 ### Modal Header Inset Ownership
 

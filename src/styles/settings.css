@@ -189,14 +189,17 @@
 }
 
 .rss-dashboard-template-btn {
-  background: var(--background-modifier-border);
-  color: var(--text-normal);
   padding: 6px 12px;
   border-radius: 4px;
   font-size: 13px;
   transition: all 0.2s ease;
   border: 1px solid var(--background-modifier-border);
   cursor: pointer;
+}
+
+.rss-dashboard-template-btn:not(:is(.mod-warning, .mod-destructive)) {
+  background: var(--background-modifier-border);
+  color: var(--text-normal);
 }
 
 .rss-dashboard-template-status {
@@ -244,7 +247,7 @@
   outline-offset: 2px;
 }
 
-.rss-dashboard-template-btn:hover {
+.rss-dashboard-template-btn:not(:is(.mod-warning, .mod-destructive)):hover {
   background: var(--background-modifier-hover);
   border-color: var(--interactive-accent);
 }
@@ -380,20 +383,27 @@
  * ============================================ */
 
 @media (max-width: 1200px) and (hover: none) and (pointer: coarse) {
-  .rss-dashboard-settings-tab-content .setting-item:not(.setting-item-heading) {
+  .rss-dashboard-settings-tab-content:where(
+      :not(.rss-dashboard-settings-reviewed)
+    )
+    .setting-item:not(.setting-item-heading) {
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
   }
 
-  .rss-dashboard-settings-tab-content
+  .rss-dashboard-settings-tab-content:where(
+      :not(.rss-dashboard-settings-reviewed)
+    )
     .setting-item:not(.setting-item-heading)
     .setting-item-info {
     width: 100%;
     padding-inline-end: 0;
   }
 
-  .rss-dashboard-settings-tab-content
+  .rss-dashboard-settings-tab-content:where(
+      :not(.rss-dashboard-settings-reviewed)
+    )
     .setting-item:not(.setting-item-heading)
     .setting-item-control {
     width: 100%;
@@ -408,7 +418,9 @@
    * iOS WebView/Safari can fail to apply flex gap in some settings contexts.
    * Add explicit sibling spacing so slider/color controls do not collapse.
    */
-  .rss-dashboard-settings-tab-content
+  .rss-dashboard-settings-tab-content:where(
+      :not(.rss-dashboard-settings-reviewed)
+    )
     .rss-dashboard-settings-two-row
     .setting-item-control
     > *
@@ -416,14 +428,18 @@
     margin-top: 8px;
   }
 
-  .rss-dashboard-settings-tab-content
+  .rss-dashboard-settings-tab-content:where(
+      :not(.rss-dashboard-settings-reviewed)
+    )
     .rss-dashboard-settings-two-row
     .setting-item-control
     .dropdown {
     width: 100%;
   }
 
-  .rss-dashboard-settings-tab-content
+  .rss-dashboard-settings-tab-content:where(
+      :not(.rss-dashboard-settings-reviewed)
+    )
     .rss-dashboard-sidebar-badge-setting
     .setting-item-control {
     width: 100%;
@@ -855,5 +871,374 @@
   .rss-dashboard-tag-new-name-setting .rss-dashboard-tag-new-preview {
     align-self: flex-start;
     max-width: 100%;
+  }
+}
+
+/* Purpose-based settings layout for the tabs reviewed in #1819. */
+.rss-dashboard-settings-reviewed {
+  container: rss-dashboard-settings / inline-size;
+}
+
+.rss-dashboard-settings-reviewed .setting-item-info {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.rss-dashboard-settings-reviewed .setting-item-control {
+  min-width: 0;
+  max-width: 60%;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rss-dashboard-settings-reviewed
+  .setting-item-control
+  > :is(select, button, input) {
+  max-width: 100%;
+}
+
+.rss-dashboard-settings-reviewed .setting-item-control > select {
+  min-width: min(100%, 7rem);
+}
+
+.rss-dashboard-settings-reviewed .setting-item-control > .checkbox-container {
+  flex: 0 0 auto;
+}
+
+.rss-dashboard-settings-reviewed
+  .setting-item:has(> .setting-item-control > .checkbox-container:only-child) {
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+.rss-dashboard-settings-reviewed
+  .setting-item-control:has(> .checkbox-container:only-child) {
+  flex: 0 0 auto;
+  width: auto;
+  margin-inline-start: 0;
+}
+
+.rss-dashboard-settings-reviewed .rss-dashboard-settings-number-input {
+  width: 86px;
+  flex: 0 0 auto;
+}
+
+.rss-dashboard-settings-reviewed
+  :is(
+    .rss-dashboard-settings-slider,
+    .rss-dashboard-settings-full-width
+  ).setting-item {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.rss-dashboard-settings-reviewed
+  :is(.rss-dashboard-settings-slider, .rss-dashboard-settings-full-width)
+  .setting-item-control {
+  width: 100%;
+  max-width: 100%;
+  justify-content: flex-start;
+}
+
+.rss-dashboard-settings-reviewed
+  .rss-dashboard-settings-full-width
+  .rss-input-clear-wrap,
+.rss-dashboard-settings-reviewed
+  .rss-dashboard-settings-full-width
+  .rss-input-clear-wrap
+  > input {
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.rss-dashboard-settings-reviewed
+  .rss-dashboard-settings-slider
+  input[type="range"] {
+  flex: 1 1 112px;
+  min-width: min(100%, 112px);
+  width: auto;
+}
+
+.rss-dashboard-settings-reviewed .rss-dashboard-settings-slider-reset {
+  flex: 0 0 auto;
+}
+
+.rss-dashboard-settings-reviewed
+  :is(
+    .rss-dashboard-sidebar-badge-setting,
+    .rss-dashboard-highlight-word-setting
+  ).setting-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 14px;
+}
+
+.rss-dashboard-settings-reviewed
+  :is(
+    .rss-dashboard-sidebar-badge-setting,
+    .rss-dashboard-highlight-word-setting
+  )
+  .setting-item-control {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  width: 100%;
+  max-width: 100%;
+  margin-inline-start: 0;
+  justify-content: flex-start;
+}
+
+.rss-dashboard-settings-reviewed
+  :is(
+    .rss-dashboard-sidebar-badge-setting,
+    .rss-dashboard-highlight-word-setting
+  )
+  .setting-item-info {
+  grid-column: 1;
+}
+
+.rss-dashboard-settings-reviewed
+  :is(
+    .rss-dashboard-sidebar-badge-setting,
+    .rss-dashboard-highlight-word-setting
+  )
+  > .checkbox-container {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.rss-dashboard-settings-reviewed .rss-dashboard-badge-colors,
+.rss-dashboard-settings-reviewed .rss-dashboard-highlight-word-actions,
+.rss-dashboard-settings-reviewed .rss-dashboard-settings-export-pair {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.rss-dashboard-settings-reviewed
+  :is(.rss-dashboard-badge-colors, .rss-dashboard-highlight-word-setting)
+  input[type="color"] {
+  flex: 0 0 auto;
+  width: 36px;
+  max-width: 36px;
+}
+
+.rss-dashboard-settings-reviewed
+  .rss-dashboard-badge-colors
+  .rss-input-clear-wrap {
+  flex: 0 1 7rem;
+  width: 7rem;
+  min-width: 0;
+}
+
+.rss-dashboard-settings-reviewed
+  .rss-dashboard-badge-colors
+  .rss-dashboard-color-hex-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.rss-dashboard-settings-reviewed
+  .rss-dashboard-import-export-actions
+  .setting-item-control {
+  max-width: 100%;
+}
+
+.rss-dashboard-settings-reviewed .rss-dashboard-settings-export-pair > button {
+  max-width: 100%;
+}
+
+.rss-dashboard-settings-reviewed .rss-dashboard-auto-tag-setting.setting-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 58%);
+  gap: 8px 14px;
+  align-items: start;
+}
+
+.rss-dashboard-settings-reviewed
+  .rss-dashboard-auto-tag-setting
+  .setting-item-control {
+  max-width: 100%;
+  width: 100%;
+  margin-inline-start: 0;
+}
+
+.rss-dashboard-auto-tag-field.rss-dashboard-tag-multi-select {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  width: 100%;
+  padding: 6px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+}
+
+.rss-dashboard-auto-tag-field .rss-dashboard-auto-tag-selected:not([hidden]) {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rss-dashboard-auto-tag-selected > li,
+.rss-dashboard-auto-tag-selected .rss-dashboard-settings-tag-chip {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.rss-dashboard-auto-tag-field .rss-dashboard-auto-tag-add {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+  width: auto;
+  white-space: nowrap;
+}
+
+.rss-dashboard-auto-tag-options {
+  display: grid;
+  gap: 8px;
+}
+
+.rss-dashboard-auto-tag-options > label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+
+.rss-dashboard-template-variables {
+  margin-block: 10px;
+}
+
+.rss-dashboard-template-variables > summary {
+  cursor: pointer;
+  font-weight: var(--font-semibold);
+}
+
+@container rss-dashboard-settings (max-width: 660px) {
+  .rss-dashboard-settings-reviewed
+    .setting-item:has(> .setting-item-control > select) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .rss-dashboard-settings-reviewed
+    .setting-item:has(> .setting-item-control > select)
+    .setting-item-control {
+    width: 100%;
+    max-width: 100%;
+    justify-content: flex-start;
+  }
+
+  .rss-dashboard-settings-reviewed .setting-item-control > select {
+    flex: 1 1 auto;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .rss-dashboard-settings-reviewed .rss-dashboard-settings-group:not(:empty) {
+    margin-block: 12px;
+    padding: 0 12px;
+    border-radius: var(--radius-l, 12px);
+    background: var(--background-secondary);
+  }
+
+  .rss-dashboard-settings-reviewed .rss-dashboard-settings-group .setting-item {
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .rss-dashboard-settings-reviewed
+    .rss-dashboard-settings-group
+    .setting-item
+    + .setting-item {
+    border-top: 1px solid var(--background-modifier-border);
+  }
+
+  .rss-dashboard-settings-reviewed
+    .setting-item:not(.setting-item-heading):has(
+      > .setting-item-control > select
+    ) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .rss-dashboard-settings-reviewed
+    .setting-item:has(> .setting-item-control > select)
+    .setting-item-control {
+    width: 100%;
+    max-width: 100%;
+    justify-content: flex-start;
+  }
+
+  .rss-dashboard-settings-reviewed .setting-item-control > select {
+    flex: 1 1 auto;
+  }
+
+  .rss-dashboard-settings-reviewed
+    .rss-dashboard-auto-tag-setting.setting-item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rss-dashboard-settings-reviewed .rss-dashboard-auto-tag-add {
+    min-height: 44px;
+  }
+}
+
+@container rss-dashboard-settings (max-width: 400px) {
+  .rss-dashboard-settings-reviewed
+    .setting-item:has(> .setting-item-control > button:only-child) {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .rss-dashboard-settings-reviewed
+    .setting-item-control:has(> button:only-child) {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .rss-dashboard-settings-reviewed .setting-item-control > button:only-child {
+    flex: 1 1 auto;
+  }
+
+  .rss-dashboard-settings-reviewed .rss-dashboard-highlight-word-actions {
+    flex-basis: 100%;
+  }
+
+  .rss-dashboard-settings-reviewed
+    .rss-dashboard-import-export-actions
+    .setting-item-control {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .rss-dashboard-settings-reviewed
+    .rss-dashboard-settings-export-pair
+    > button {
+    width: auto;
+  }
+
+  .rss-dashboard-settings-reviewed
+    .rss-dashboard-settings-export-pair
+    > :first-child {
+    flex: 1 1 auto;
   }
 }

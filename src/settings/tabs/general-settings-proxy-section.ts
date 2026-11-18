@@ -62,7 +62,9 @@ function renderCorsProxyToggle(
           await plugin.saveSettings();
           // Re-render the full settings tab to show/hide the URL input.
           // The tab instance calls this renderer so we use a custom event.
-          containerEl.dispatchEvent(new CustomEvent("rss-settings-refresh"));
+          containerEl.dispatchEvent(
+            new CustomEvent("rss-settings-refresh", { bubbles: true }),
+          );
         });
     });
 }
@@ -241,7 +243,9 @@ function configureProxySaveButton(
         await plugin.saveSettings();
         new Notice("Proxy URL saved");
         syncProxyRowToSetting(plugin, state);
-        containerEl.dispatchEvent(new CustomEvent("rss-settings-refresh"));
+        containerEl.dispatchEvent(
+          new CustomEvent("rss-settings-refresh", { bubbles: true }),
+        );
       } else {
         new Notice(validation.error || "Invalid URL");
       }

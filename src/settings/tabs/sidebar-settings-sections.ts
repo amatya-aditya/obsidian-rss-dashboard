@@ -1,4 +1,5 @@
 /** Focused renderers and helpers for the Sidebar settings tab. */
+import { createSettingsGroup } from "../settings-layout";
 import { Setting, setIcon } from "obsidian";
 import { isDomNode } from "../../utils/dom-node";
 import {
@@ -7,7 +8,7 @@ import {
   SIDEBAR_ICONS,
 } from "../../utils/sidebar-icon-registry";
 import type { DisplaySettings, SidebarIconConfig } from "../../types/types";
-import { settingsUiCompatibility } from "../settings-ui-compat";
+import { addSettingsSlider } from "../settings-slider";
 import { addInputClearButton } from "../../utils/input-clear-button";
 import { renderFeedIconSettings } from "./sidebar-feed-icon-settings";
 import type { SidebarSettingsPlugin } from "./sidebar-settings-plugin";
@@ -76,12 +77,25 @@ export function renderSidebarSettingsSections(
   new Setting(containerEl).setName("Sidebar").setHeading();
 
   renderHideDefaultRssIconSetting(containerEl, plugin);
-  renderUnreadBadgeSettings(containerEl, plugin);
-  renderFeedVisibilitySettings(containerEl, plugin);
-  renderIconVisibilitySettings(containerEl, plugin, onRefresh, targetSection);
-  renderSidebarPaddingSettings(containerEl, plugin, targetSection);
-  renderRowSpacingSettings(containerEl, plugin, targetSection);
-  renderFeedIconSettings(containerEl, plugin);
+  renderUnreadBadgeSettings(createSettingsGroup(containerEl), plugin);
+  renderFeedVisibilitySettings(createSettingsGroup(containerEl), plugin);
+  renderIconVisibilitySettings(
+    createSettingsGroup(containerEl),
+    plugin,
+    onRefresh,
+    targetSection,
+  );
+  renderSidebarPaddingSettings(
+    createSettingsGroup(containerEl),
+    plugin,
+    targetSection,
+  );
+  renderRowSpacingSettings(
+    createSettingsGroup(containerEl),
+    plugin,
+    targetSection,
+  );
+  renderFeedIconSettings(createSettingsGroup(containerEl), plugin);
 
   containerEl.createEl("hr", { cls: "rss-dashboard-settings-separator" });
 }
@@ -221,6 +235,16 @@ function renderBadgeSetting(
       addInputClearButton(text.inputEl, { label: "Clear color" });
       text.inputEl.setAttribute("aria-label", `${label} hex color`);
     });
+  const badgeControls = badgeSetting.controlEl;
+  const toggle = badgeControls.querySelector(".checkbox-container");
+  if (toggle) badgeControls.before(toggle);
+  const colorControls = badgeControls.createDiv({
+    cls: "rss-dashboard-badge-colors",
+  });
+  for (const child of Array.from(badgeControls.children)) {
+    if (child !== colorControls) colorControls.append(child);
+  }
+
   // The color picker component exposes no element, so name its input here.
   badgeSetting.controlEl
     .querySelector('input[type="color"]')
@@ -705,61 +729,16 @@ function renderPaddingSetting(
   settingKey: "sidebarItemPaddingLeft" | "sidebarItemPaddingRight",
   defaultValue: number,
 ): void {
-  const paddingSetting = new Setting(containerEl).setName(name).setDesc(desc);
-  const paddingMin = 0;
-  const paddingMax = 40;
-  const paddingStep = 1;
-  let isSyncing = false;
-  let paddingSlider: { setValue: (value: number) => void } | null = null;
-  let paddingInput: import("obsidian").TextComponent | null = null;
-
-  const apply = async (value: number): Promise<void> => {
-    plugin.settings.display[settingKey] = value;
-    await plugin.saveSettings();
-    const view = await plugin.getActiveDashboardView();
-    if (view?.sidebar) view.sidebar.render();
-  };
-
-  paddingSetting
-    .addSlider((slider) => {
-      paddingSlider = slider;
-      slider
-        .setLimits(paddingMin, paddingMax, paddingStep)
-        .setValue(plugin.settings.display[settingKey] ?? defaultValue)
-        .onChange(async (value) => {
-          if (isSyncing) return;
-          isSyncing = true;
-          paddingInput?.setValue(String(value));
-          isSyncing = false;
-          await apply(value);
-        });
-      settingsUiCompatibility.presentSliderValue(
-        slider,
-        (value) => `${value}px`,
-      );
-    })
-    .addText((text) => {
-      paddingInput = text;
-      text
-        .setValue(String(plugin.settings.display[settingKey] ?? defaultValue))
-        .onChange(async (value) => {
-          if (isSyncing) return;
-          const parsed = Number.parseInt(value, 10);
-          if (Number.isNaN(parsed)) return;
-          const clamped = Math.max(paddingMin, Math.min(paddingMax, parsed));
-          isSyncing = true;
-          text.setValue(String(clamped));
-          paddingSlider?.setValue(clamped);
-          isSyncing = false;
-          await apply(clamped);
-        });
-      text.inputEl.type = "number";
-      text.inputEl.min = String(paddingMin);
-      text.inputEl.max = String(paddingMax);
-      text.inputEl.step = String(paddingStep);
-      text.inputEl.addClass("rss-dashboard-settings-number-input");
-    });
-  paddingSetting.settingEl.addClass("rss-dashboard-settings-two-row");
+  renderSpacingSetting(
+    containerEl,
+    plugin,
+    name,
+    desc,
+    settingKey,
+    0,
+    40,
+    defaultValue,
+  );
 }
 
 // ── Row spacing ───────────────────────────────────────────────────────────────
@@ -809,61 +788,28 @@ function renderSpacingSetting(
   plugin: SidebarSettingsPlugin,
   name: string,
   desc: string,
-  settingKey: "sidebarRowSpacing" | "sidebarRowIndentation",
+  settingKey:
+    | "sidebarRowSpacing"
+    | "sidebarRowIndentation"
+    | "sidebarItemPaddingLeft"
+    | "sidebarItemPaddingRight",
   min: number,
   max: number,
   defaultValue: number,
 ): void {
-  const spacingSetting = new Setting(containerEl).setName(name).setDesc(desc);
-  let isSyncing = false;
-  let spacingSlider: { setValue: (value: number) => void } | null = null;
-  let spacingInput: import("obsidian").TextComponent | null = null;
-
-  const apply = async (value: number): Promise<void> => {
-    plugin.settings.display[settingKey] = value;
-    await plugin.saveSettings();
-    const view = await plugin.getActiveDashboardView();
-    if (view?.sidebar) view.sidebar.render();
-  };
-
-  spacingSetting
-    .addSlider((slider) => {
-      spacingSlider = slider;
-      slider
-        .setLimits(min, max, 1)
-        .setValue(plugin.settings.display[settingKey] ?? defaultValue)
-        .onChange(async (value) => {
-          if (isSyncing) return;
-          isSyncing = true;
-          spacingInput?.setValue(String(value));
-          isSyncing = false;
-          await apply(value);
-        });
-      settingsUiCompatibility.presentSliderValue(
-        slider,
-        (value) => `${value}px`,
-      );
-    })
-    .addText((text) => {
-      spacingInput = text;
-      text
-        .setValue(String(plugin.settings.display[settingKey] ?? defaultValue))
-        .onChange(async (value) => {
-          if (isSyncing) return;
-          const parsed = Number.parseInt(value, 10);
-          if (Number.isNaN(parsed)) return;
-          const clamped = Math.max(min, Math.min(max, parsed));
-          isSyncing = true;
-          text.setValue(String(clamped));
-          spacingSlider?.setValue(clamped);
-          isSyncing = false;
-          await apply(clamped);
-        });
-      text.inputEl.type = "number";
-      text.inputEl.min = String(min);
-      text.inputEl.max = String(max);
-      text.inputEl.step = "1";
-      text.inputEl.addClass("rss-dashboard-settings-number-input");
-    });
-  spacingSetting.settingEl.addClass("rss-dashboard-settings-two-row");
+  const setting = new Setting(containerEl).setName(name).setDesc(desc);
+  addSettingsSlider(setting, {
+    value: plugin.settings.display[settingKey] ?? defaultValue,
+    defaultValue,
+    min,
+    max,
+    exactInput: "clamp",
+    format: (value) => `${value}px`,
+    apply: async (value) => {
+      plugin.settings.display[settingKey] = value;
+      await plugin.saveSettings();
+      const view = await plugin.getActiveDashboardView();
+      if (view?.sidebar) view.sidebar.render();
+    },
+  });
 }

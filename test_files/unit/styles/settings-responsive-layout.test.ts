@@ -10,7 +10,7 @@ const responsiveSettingsRows = [
   {
     file: "settings.css",
     selector:
-      ".rss-dashboard-settings-tab-content .setting-item:not(.setting-item-heading)",
+      ".rss-dashboard-settings-tab-content:where( :not(.rss-dashboard-settings-reviewed) ) .setting-item:not(.setting-item-heading)",
     maxWidth: 1200,
   },
   {
@@ -29,20 +29,9 @@ const responsiveSettingsRows = [
     maxWidth: 520,
   },
   {
-    file: "settings-keyword-filters.css",
-    selector: ".rss-dashboard-highlight-word-setting.setting-item",
-    maxWidth: 1024,
-  },
-  {
     file: "settings-icon-proxy.css",
     selector: ".rss-proxy-setting-item.setting-item",
     maxWidth: 768,
-  },
-  {
-    file: "tag-color-palette.css",
-    selector:
-      ".rss-dashboard-settings-tab-content .rss-dashboard-tag-color-setting.setting-item",
-    maxWidth: 1200,
   },
 ] as const;
 
@@ -104,6 +93,7 @@ function hasCssDeclarations(
   file: string,
   selector: string,
   declarations: ReadonlyArray<Readonly<[string, string]>>,
+  containerWidth?: number,
 ): boolean {
   const css = readFileSync(
     path.resolve(testDir, `../../../src/styles/${file}`),
@@ -137,6 +127,64 @@ describe("responsive settings row layout", () => {
       expect(hasTouchFirstStackRule(file, selector, maxWidth)).toBe(true);
     },
   );
+
+  it("keeps Highlights and badge toggles next to wrapping help", () => {
+    expect(
+      hasCssDeclarations(
+        "settings.css",
+        ".rss-dashboard-settings-reviewed :is( .rss-dashboard-sidebar-badge-setting, .rss-dashboard-highlight-word-setting ).setting-item",
+        [
+          ["display", "grid"],
+          ["grid-template-columns", "minmax(0, 1fr) auto"],
+        ],
+      ),
+    ).toBe(true);
+  });
+
+  it("gives Highlights actions their own line in a telephone-width pane", () => {
+    expect(
+      hasCssDeclarations(
+        "settings.css",
+        ".rss-dashboard-settings-reviewed .rss-dashboard-highlight-word-actions",
+        [["flex-basis", "100%"]],
+        400,
+      ),
+    ).toBe(true);
+  });
+
+  it("wraps both tag palette controls together based on pane width", () => {
+    expect(
+      hasCssDeclarations(
+        "tag-color-palette.css",
+        ".rss-dashboard-settings-reviewed .rss-dashboard-tag-color-setting .rss-dashboard-tag-color-palette-control",
+        [
+          ["display", "grid"],
+          ["flex", "1 1 18rem"],
+        ],
+        660,
+      ),
+    ).toBe(true);
+  });
+
+  it("reserves a shared auto-tag column and pins the button beside wrapping chips", () => {
+    expect(
+      hasCssDeclarations(
+        "settings.css",
+        ".rss-dashboard-settings-reviewed .rss-dashboard-auto-tag-setting.setting-item",
+        [["grid-template-columns", "minmax(0, 1fr) minmax(0, 58%)"]],
+      ),
+    ).toBe(true);
+    expect(
+      hasCssDeclarations(
+        "settings.css",
+        ".rss-dashboard-auto-tag-field .rss-dashboard-auto-tag-add",
+        [
+          ["grid-column", "2"],
+          ["grid-row", "1"],
+        ],
+      ),
+    ).toBe(true);
+  });
 
   it.each([
     {

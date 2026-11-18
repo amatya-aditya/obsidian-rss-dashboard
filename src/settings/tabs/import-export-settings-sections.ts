@@ -1,4 +1,5 @@
 /** Focused renderers for the Import/Export settings tab. */
+import { createSettingsGroup } from "../settings-layout";
 import { App, Notice, Setting } from "obsidian";
 import { AccessibleModal } from "../../utils/accessible-modal";
 import { ImportOpmlModal } from "../../modals/import-opml-modal";
@@ -74,7 +75,7 @@ function renderLegacyDataSection(
   plugin: ImportExportSettingsPlugin,
 ): void {
   // ── data.json ─────────────────────────────────────────────────────────────
-  const dataSection = containerEl.createDiv();
+  const dataSection = createSettingsGroup(containerEl);
   new Setting(dataSection)
     .setName("Backup & restore (data.json)")
     .setDesc(
@@ -147,7 +148,7 @@ function renderPortableBundleSection(
   plugin: ImportExportSettingsPlugin,
 ): void {
   // ── Portable data bundle ────────────────────────────────────────────────────────────
-  const portableBundleSection = containerEl.createDiv();
+  const portableBundleSection = createSettingsGroup(containerEl);
   new Setting(portableBundleSection)
     .setName("Portable data bundle")
     .setDesc(
@@ -213,7 +214,7 @@ function renderFeedBundleSection(
   plugin: ImportExportSettingsPlugin,
 ): void {
   // ── Feed bundle ───────────────────────────────────────────────────────────
-  const feedBundleSection = containerEl.createDiv();
+  const feedBundleSection = createSettingsGroup(containerEl);
   new Setting(feedBundleSection)
     .setName("Feed bundle")
     .setDesc(
@@ -276,7 +277,7 @@ function renderSettingsBundleSection(
   plugin: ImportExportSettingsPlugin,
 ): void {
   // ── Settings bundle ───────────────────────────────────────────────────────
-  const settingsBundleSection = containerEl.createDiv();
+  const settingsBundleSection = createSettingsGroup(containerEl);
   new Setting(settingsBundleSection)
     .setName("App preferences")
     .setDesc(
@@ -341,7 +342,7 @@ function renderUserPreferencesSection(
   plugin: ImportExportSettingsPlugin,
 ): void {
   // ── rss-dashboard-user-preferences.json ──────────────────────────────────────────────────
-  const userSettingsSection = containerEl.createDiv();
+  const userSettingsSection = createSettingsGroup(containerEl);
   new Setting(userSettingsSection)
     .setName("User preferences file")
     .setDesc(
@@ -405,7 +406,7 @@ function renderOpmlSection(
   plugin: ImportExportSettingsPlugin & ImportModalPlugin,
 ): void {
   // ── OPML ──────────────────────────────────────────────────────────────────
-  const opmlSection = containerEl.createDiv();
+  const opmlSection = createSettingsGroup(containerEl);
   new Setting(opmlSection)
     .setName("OPML")
     .setDesc(
@@ -445,7 +446,7 @@ function renderStarredSection(
   plugin: ImportExportSettingsPlugin & ImportModalPlugin,
 ): void {
   // ── Starred imports ──────────────────────────────────────────────────────
-  const starredSection = containerEl.createDiv();
+  const starredSection = createSettingsGroup(containerEl);
   new Setting(starredSection)
     .setName("Starred imports")
     .setDesc(
@@ -472,7 +473,7 @@ function renderAutoBackupSection(
   plugin: ImportExportSettingsPlugin,
 ): void {
   // ── Auto Backups ──────────────────────────────────────────────────────────
-  const backupSection = containerEl.createDiv();
+  const backupSection = createSettingsGroup(containerEl);
   new Setting(backupSection)
     .setName("Automatic backups")
     .setDesc(
@@ -528,7 +529,7 @@ function renderFactoryResetSection(
   plugin: ImportExportSettingsPlugin,
 ): void {
   // ── Factory Reset ─────────────────────────────────────────────────────────
-  const factoryResetSection = containerEl.createDiv();
+  const factoryResetSection = createSettingsGroup(containerEl);
   new Setting(factoryResetSection)
     .setName("Factory reset")
     .setDesc(
@@ -569,4 +570,14 @@ export function renderImportExportSettingsSections(
   renderStarredSection(containerEl, plugin);
   renderAutoBackupSection(containerEl, plugin);
   renderFactoryResetSection(containerEl, plugin);
+  for (const controls of containerEl.querySelectorAll<HTMLElement>(
+    ".rss-dashboard-import-export-actions .setting-item-control",
+  )) {
+    const [, exportButton, copyButton] = Array.from(controls.children);
+    if (!exportButton || !copyButton) continue;
+    const pair = controls.createDiv({
+      cls: "rss-dashboard-settings-export-pair",
+    });
+    pair.append(exportButton, copyButton);
+  }
 }
