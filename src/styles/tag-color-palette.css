@@ -340,8 +340,13 @@ body .rss-dashboard-tag-color-picker:focus-visible,
   }
 }
 
-@media (max-width: 1200px) and (hover: none) and (pointer: coarse) {
-  .rss-dashboard-settings-tab-content
+/* The tag appearance rows keep their six-column alignment only where that grid
+ * can show every value: it needs about 465px to fit without scrolling and about
+ * 560px before `Purple #8A5CF5` / `Custom #FFFFFF` stop truncating (measured in
+ * Obsidian 1.15.1 at the default font scale). Narrower panes stack the row and
+ * pair palette with color, which keeps both values readable. */
+@container rss-dashboard-settings (max-width: 560px) {
+  .rss-dashboard-settings-reviewed
     .rss-dashboard-tag-color-setting.setting-item {
     display: flex;
     flex-direction: column;
@@ -349,21 +354,38 @@ body .rss-dashboard-tag-color-picker:focus-visible,
     gap: 8px;
   }
 
-  .rss-dashboard-settings-tab-content
+  .rss-dashboard-settings-reviewed
     .rss-dashboard-tag-color-setting
     .setting-item-control {
     display: flex;
     flex-wrap: wrap;
     width: 100%;
+    max-width: 100%;
+    justify-content: flex-start;
     gap: 8px;
   }
 
-  .rss-dashboard-settings-tab-content
+  .rss-dashboard-settings-reviewed
     .rss-dashboard-tag-color-setting
     .rss-dashboard-tag-color-palette-control {
-    display: flex;
-    flex: 1 1 100%;
-    width: 100%;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+    flex: 1 1 18rem;
+    min-width: 0;
+    gap: 8px;
+  }
+
+  .rss-dashboard-settings-reviewed
+    .rss-dashboard-tag-color-setting
+    .rss-dashboard-tag-color-palette-control-selected-label {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .rss-dashboard-settings-reviewed
+    .rss-dashboard-tag-color-setting
+    :is(input[type="color"], .rss-dashboard-tag-color-randomize) {
+    flex: 0 0 auto;
+    width: 36px;
   }
 }

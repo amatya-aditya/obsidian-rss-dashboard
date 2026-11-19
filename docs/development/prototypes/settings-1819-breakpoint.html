@@ -1,0 +1,573 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Settings row breakpoint — RSS Dashboard 2.8</title>
+    <style>
+      :root {
+        --surface: #202024;
+        --card: #29282e;
+        --field: #37353d;
+        --text: #f3f0f7;
+        --muted: #c3bccb;
+        --line: #45424b;
+        --accent: #ac89ff;
+        color-scheme: dark;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --surface: #faf9fc;
+          --card: #f0edf5;
+          --field: #e7e2ee;
+          --text: #211a29;
+          --muted: #57505f;
+          --line: #d6cede;
+          --accent: #6941b5;
+          color-scheme: light;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 32px 28px 56px;
+        background: var(--surface);
+        color: var(--text);
+        font-family:
+          Inter,
+          -apple-system,
+          "Segoe UI",
+          sans-serif;
+        font-size: 14px;
+        line-height: 1.45;
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 22px;
+        letter-spacing: -0.02em;
+      }
+      .intro {
+        max-width: 74ch;
+        margin: 0 0 26px;
+        color: var(--muted);
+      }
+      .intro code {
+        padding: 1px 5px;
+        border-radius: 5px;
+        background: var(--card);
+        font-size: 12.5px;
+      }
+      section {
+        margin-bottom: 34px;
+      }
+      section > h2 {
+        margin: 0 0 4px;
+        font-size: 16px;
+      }
+      section > p {
+        margin: 0 0 16px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .panes {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+      }
+      .frame {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .frame > figcaption {
+        color: var(--muted);
+        font-size: 12.5px;
+      }
+      .frame > figcaption strong {
+        color: var(--text);
+        font-weight: 600;
+      }
+      .window {
+        display: flex;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--surface);
+        overflow: hidden;
+      }
+      .host {
+        flex: 0 0 132px;
+        padding: 14px 10px;
+        border-inline-end: 1px solid var(--line);
+        background: var(--card);
+        color: var(--muted);
+        font-size: 12.5px;
+      }
+      .host span {
+        display: block;
+        padding: 4px 6px;
+        border-radius: 6px;
+      }
+      .host .current {
+        background: var(--field);
+        color: var(--text);
+      }
+      .pane {
+        /* content-box so `width` is the pane width the container query sees */
+        box-sizing: content-box;
+        min-width: 0;
+        padding: 14px;
+        container-type: inline-size;
+      }
+      .pane.before {
+        container-name: pane-before;
+      }
+      .pane.after {
+        container-name: pane-after;
+      }
+      .pane h3 {
+        margin: 0 0 10px;
+        font-size: 13px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 8px 14px;
+        padding: 9px 0;
+        border-top: 1px solid var(--line);
+      }
+      .row:first-of-type {
+        border-top: 0;
+      }
+      .row-info {
+        min-width: min(8rem, 100%);
+        flex: 1 1 0;
+      }
+      .row-name {
+        font-size: 13.5px;
+      }
+      .row-help {
+        margin: 2px 0 0;
+        color: var(--muted);
+        font-size: 12.5px;
+      }
+      .row-control {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex: 0 0 auto;
+        max-width: 100%;
+        min-width: 0;
+        justify-content: flex-end;
+      }
+      .row-control select,
+      .row-control input {
+        min-width: 0;
+        max-width: 100%;
+        padding: 4px 6px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--field);
+        color: var(--text);
+        font: inherit;
+        font-size: 13px;
+      }
+      .row-control > :is(select, button) {
+        flex: 0 0 auto;
+      }
+      .row-control button {
+        padding: 4px 10px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--field);
+        color: var(--text);
+        font: inherit;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+      /* Mirrors the shipped rule before the calibration: stack below 660px. */
+      @container pane-before (max-width: 660px) {
+        .row-stackable {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 8px;
+        }
+        .row-stackable .row-control {
+          width: 100%;
+          max-width: 100%;
+          justify-content: flex-start;
+        }
+        .row-stackable .row-control select {
+          flex: 1 1 auto;
+        }
+      }
+      /* The calibrated rule: stack below a 400px pane, matching core. */
+      @container pane-after (max-width: 400px) {
+        .row-stackable {
+          flex-direction: column;
+          align-items: stretch;
+          gap: 8px;
+        }
+        .row-stackable .row-control {
+          width: 100%;
+          max-width: 100%;
+          justify-content: flex-start;
+        }
+        .row-stackable .row-control select {
+          flex: 1 1 auto;
+        }
+      }
+      .verdict {
+        margin: 10px 0 0;
+        font-size: 12.5px;
+        color: var(--muted);
+      }
+      .verdict b {
+        color: var(--text);
+      }
+      table {
+        width: 100%;
+        max-width: 720px;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      th,
+      td {
+        padding: 7px 10px;
+        text-align: start;
+        border-bottom: 1px solid var(--line);
+      }
+      th {
+        color: var(--muted);
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Settings row breakpoint</h1>
+    <p class="intro">
+      The reviewed settings rows switch to the stacked layout when the
+      <strong>settings pane</strong> is narrower than the breakpoint. This page
+      previews the calibration that replaced the 660px rule: rows now stack
+      below <code>400px</code> of pane width, so a tablet-sized pane keeps the
+      two-column layout and only a phone-sized pane stacks. Every pane below
+      uses a live container query; nothing is simulated by device flags.
+    </p>
+
+    <section>
+      <h2>Before — stacks below a 660px pane</h2>
+      <p>
+        A 526px pane (an 800px settings window) still stacked, which is the
+        report in issue #1819: dropdowns and buttons spanned the pane on a
+        tablet-sized window.
+      </p>
+      <div class="panes">
+        <figure class="frame">
+          <div class="window">
+            <div class="host" aria-hidden="true">
+              <span>General</span>
+              <span class="current">Display</span>
+              <span>Tags</span>
+            </div>
+            <div class="pane before" style="width: 365px">
+              <h3>Display</h3>
+              <div class="row row-stackable">
+                <div class="row-info">
+                  <div class="row-name">Article&nbsp;title size</div>
+                  <p class="row-help">Applies to Main and Reader.</p>
+                </div>
+                <div class="row-control">
+                  <select aria-label="Article title size">
+                    <option>Medium</option>
+                  </select>
+                </div>
+              </div>
+              <div class="row row-stackable">
+                <div class="row-info">
+                  <div class="row-name">Folders</div>
+                  <p class="row-help">Manage saved folders.</p>
+                </div>
+                <div class="row-control">
+                  <button type="button">Manage</button>
+                </div>
+              </div>
+              <div class="row">
+                <div class="row-info">
+                  <div class="row-name">Show unread badge</div>
+                </div>
+                <div class="row-control"><button type="button">On</button></div>
+              </div>
+            </div>
+          </div>
+          <figcaption><strong>365px pane</strong> · stacked</figcaption>
+        </figure>
+        <figure class="frame">
+          <div class="window">
+            <div class="host" aria-hidden="true">
+              <span>General</span>
+              <span class="current">Display</span>
+              <span>Tags</span>
+            </div>
+            <div class="pane before" style="width: 526px">
+              <h3>Display</h3>
+              <div class="row row-stackable">
+                <div class="row-info">
+                  <div class="row-name">Article&nbsp;title size</div>
+                  <p class="row-help">Applies to Main and Reader.</p>
+                </div>
+                <div class="row-control">
+                  <select aria-label="Article title size">
+                    <option>Medium</option>
+                  </select>
+                </div>
+              </div>
+              <div class="row row-stackable">
+                <div class="row-info">
+                  <div class="row-name">Folders</div>
+                  <p class="row-help">Manage saved folders.</p>
+                </div>
+                <div class="row-control">
+                  <button type="button">Manage</button>
+                </div>
+              </div>
+              <div class="row">
+                <div class="row-info">
+                  <div class="row-name">Show unread badge</div>
+                </div>
+                <div class="row-control"><button type="button">On</button></div>
+              </div>
+            </div>
+          </div>
+          <figcaption><strong>526px pane</strong> · stacked</figcaption>
+        </figure>
+        <figure class="frame">
+          <div class="window">
+            <div class="host" aria-hidden="true">
+              <span>General</span>
+              <span class="current">Display</span>
+              <span>Tags</span>
+            </div>
+            <div class="pane before" style="width: 688px">
+              <h3>Display</h3>
+              <div class="row row-stackable">
+                <div class="row-info">
+                  <div class="row-name">Article&nbsp;title size</div>
+                  <p class="row-help">Applies to Main and Reader.</p>
+                </div>
+                <div class="row-control">
+                  <select aria-label="Article title size">
+                    <option>Medium</option>
+                  </select>
+                </div>
+              </div>
+              <div class="row row-stackable">
+                <div class="row-info">
+                  <div class="row-name">Folders</div>
+                  <p class="row-help">Manage saved folders.</p>
+                </div>
+                <div class="row-control">
+                  <button type="button">Manage</button>
+                </div>
+              </div>
+              <div class="row">
+                <div class="row-info">
+                  <div class="row-name">Show unread badge</div>
+                </div>
+                <div class="row-control"><button type="button">On</button></div>
+              </div>
+            </div>
+          </div>
+          <figcaption><strong>688px pane</strong> · two columns</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section>
+      <h2>After — stacks below a 400px pane</h2>
+      <p>
+        The tablet-sized pane keeps the label beside its control, and only the
+        phone-sized pane stacks. Switches stay beside their label at every
+        width.
+      </p>
+      <div class="panes">
+        <figure class="frame">
+          <div class="window">
+            <div class="host" aria-hidden="true">
+              <span>General</span>
+              <span class="current">Display</span>
+              <span>Tags</span>
+            </div>
+            <div class="pane after" style="width: 365px">
+              <h3>Display</h3>
+              <div class="row row-stackable">
+                <div class="row-info">
+                  <div class="row-name">Article&nbsp;title size</div>
+                  <p class="row-help">Applies to Main and Reader.</p>
+                </div>
+                <div class="row-control">
+                  <select aria-label="Article title size">
+                    <option>Medium</option>
+                  </select>
+                </div>
+              </div>
+              <div class="row row-stackable">
+                <div class="row-info">
+                  <div class="row-name">Folders</div>
+                  <p class="row-help">Manage saved folders.</p>
+                </div>
+                <div class="row-control">
+                  <button type="button">Manage</button>
+                </div>
+              </div>
+              <div class="row">
+                <div class="row-info">
+                  <div class="row-name">Show unread badge</div>
+                </div>
+                <div class="row-control"><button type="button">On</button></div>
+              </div>
+            </div>
+          </div>
+          <figcaption><strong>365px pane</strong> · stacked</figcaption>
+        </figure>
+        <figure class="frame">
+          <div class="window">
+            <div class="host" aria-hidden="true">
+              <span>General</span>
+              <span class="current">Display</span>
+              <span>Tags</span>
+            </div>
+            <div class="pane after" style="width: 526px">
+              <h3>Display</h3>
+              <div class="row row-stackable">
+                <div class="row-info">
+                  <div class="row-name">Article&nbsp;title size</div>
+                  <p class="row-help">Applies to Main and Reader.</p>
+                </div>
+                <div class="row-control">
+                  <select aria-label="Article title size">
+                    <option>Medium</option>
+                  </select>
+                </div>
+              </div>
+              <div class="row row-stackable">
+                <div class="row-info">
+                  <div class="row-name">Folders</div>
+                  <p class="row-help">Manage saved folders.</p>
+                </div>
+                <div class="row-control">
+                  <button type="button">Manage</button>
+                </div>
+              </div>
+              <div class="row">
+                <div class="row-info">
+                  <div class="row-name">Show unread badge</div>
+                </div>
+                <div class="row-control"><button type="button">On</button></div>
+              </div>
+            </div>
+          </div>
+          <figcaption><strong>526px pane</strong> · two columns</figcaption>
+        </figure>
+        <figure class="frame">
+          <div class="window">
+            <div class="host" aria-hidden="true">
+              <span>General</span>
+              <span class="current">Display</span>
+              <span>Tags</span>
+            </div>
+            <div class="pane after" style="width: 688px">
+              <h3>Display</h3>
+              <div class="row row-stackable">
+                <div class="row-info">
+                  <div class="row-name">Article&nbsp;title size</div>
+                  <p class="row-help">Applies to Main and Reader.</p>
+                </div>
+                <div class="row-control">
+                  <select aria-label="Article title size">
+                    <option>Medium</option>
+                  </select>
+                </div>
+              </div>
+              <div class="row row-stackable">
+                <div class="row-info">
+                  <div class="row-name">Folders</div>
+                  <p class="row-help">Manage saved folders.</p>
+                </div>
+                <div class="row-control">
+                  <button type="button">Manage</button>
+                </div>
+              </div>
+              <div class="row">
+                <div class="row-info">
+                  <div class="row-name">Show unread badge</div>
+                </div>
+                <div class="row-control"><button type="button">On</button></div>
+              </div>
+            </div>
+          </div>
+          <figcaption><strong>688px pane</strong> · two columns</figcaption>
+        </figure>
+      </div>
+      <p class="verdict">
+        <b>Transition:</b> the two-column layout holds until the pane drops
+        below 400px, which is a settings window of roughly
+        <b>665 CSS px</b> (≈1330 device px on a 2× display — where core's own
+        settings switch was measured).
+      </p>
+    </section>
+
+    <section>
+      <h2>Pane width by settings window</h2>
+      <p>
+        Measured in Obsidian 1.15.1 with the plugin build from this branch: the
+        pane is core's setting-group column, so it saturates at 688px.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Settings window</th>
+            <th>Pane (container)</th>
+            <th>Before (660px)</th>
+            <th>After (400px)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>500 CSS px</td>
+            <td>224px</td>
+            <td>stacked</td>
+            <td>stacked</td>
+          </tr>
+          <tr>
+            <td>640 CSS px</td>
+            <td>365px</td>
+            <td>stacked</td>
+            <td>stacked</td>
+          </tr>
+          <tr>
+            <td>800 CSS px</td>
+            <td>524px</td>
+            <td>stacked</td>
+            <td>two columns</td>
+          </tr>
+          <tr>
+            <td>966 CSS px</td>
+            <td>649px</td>
+            <td>two columns</td>
+            <td>two columns</td>
+          </tr>
+          <tr>
+            <td>1085 CSS px and wider</td>
+            <td>688px</td>
+            <td>two columns</td>
+            <td>two columns</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </body>
+</html>

@@ -79,4 +79,5 @@ status.
 ### Design and Bug References
 
 - [RSS Dashboard Design Spec](./design-spec.md)
+- [Settings Design Prototypes](./prototypes/README.md)
 - [Why YouTube Shorts Auto-Tagging Is Fundamentally Brittle](../archive/investigations/2026/youtube-shorts-tagging-failure.md)

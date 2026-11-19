@@ -23,8 +23,9 @@ import {
   showDomainIconToggleConfirm,
 } from "../../utils/domain-icon-helpers";
 import { FeedItem, Feed } from "../../types/types";
-import { settingsUiCompatibility } from "../settings-ui-compat";
 import { addInputClearButton } from "../../utils/input-clear-button";
+import { createSettingsGroup } from "../settings-layout";
+import { addSettingsSlider } from "../settings-slider";
 
 // ── Pure helpers (exported for unit tests) ────────────────────────────────────
 
@@ -109,6 +110,8 @@ export function renderSidebarSettingsTab(
     text: " This also hides the fallback icon on Mastodon feeds.",
   });
 
+  const badgeSettings = createSettingsGroup(containerEl);
+
   // Badge settings helper (reused 3×)
   const renderBadgeSetting = (
     label: string,
@@ -131,7 +134,7 @@ export function renderSidebarSettingsTab(
       }
     };
 
-    const badgeSetting = new Setting(containerEl)
+    const badgeSetting = new Setting(badgeSettings)
       .setName(label)
       .setDesc(
         `Show the unread count badge on ${rowsDesc}. Use the switch to turn it on or off, then pick its color or type a hex value.`,
@@ -183,6 +186,15 @@ export function renderSidebarSettingsTab(
         text.inputEl.setAttribute("aria-label", `${label} hex color`);
       });
     // The color picker component exposes no element, so name its input here.
+    const badgeControls = badgeSetting.controlEl;
+    const toggle = badgeControls.querySelector(".checkbox-container");
+    if (toggle) badgeControls.before(toggle);
+    const colorControls = badgeControls.createDiv({
+      cls: "rss-dashboard-badge-colors",
+    });
+    for (const child of Array.from(badgeControls.children)) {
+      if (child !== colorControls) colorControls.append(child);
+    }
     badgeSetting.controlEl
       .querySelector('input[type="color"]')
       ?.setAttribute("aria-label", `${label} color`);
@@ -210,7 +222,8 @@ export function renderSidebarSettingsTab(
     "feed rows",
   );
 
-  new Setting(containerEl)
+  const feedVisibilitySettings = createSettingsGroup(containerEl);
+  new Setting(feedVisibilitySettings)
     .setName("Hide empty feeds/no unread articles")
     .setDesc(
       "Hide feeds in the sidebar if they have zero articles or zero unread articles",
@@ -229,7 +242,7 @@ export function renderSidebarSettingsTab(
         }),
     );
 
-  new Setting(containerEl)
+  new Setting(feedVisibilitySettings)
     .setName("Show feed fetch error badges")
     .setDesc(
       "Show a warning icon in the sidebar for feeds that failed to fetch",
@@ -249,7 +262,8 @@ export function renderSidebarSettingsTab(
     );
 
   // ── Icon Visibility & Order ───────────────────────────────────────────────
-  const iconHeading = new Setting(containerEl)
+  const iconVisibilitySettings = createSettingsGroup(containerEl);
+  const iconHeading = new Setting(iconVisibilitySettings)
     .setName("Icon visibility")
     .setDesc(
       "Choose which icons appear in the sidebar header toolbar and in what order.",
@@ -272,7 +286,7 @@ export function renderSidebarSettingsTab(
   const isToolbarHidden = (): boolean =>
     plugin.settings.display.hideToolbarEntirely ?? false;
 
-  new Setting(containerEl)
+  new Setting(iconVisibilitySettings)
     .setName("Hide toolbar entirely")
     .setDesc("Hide all icons in the sidebar header")
     .addToggle((toggle) =>
@@ -295,7 +309,7 @@ export function renderSidebarSettingsTab(
         }),
     );
 
-  const iconRowsContainer = containerEl.createDiv({
+  const iconRowsContainer = iconVisibilitySettings.createDiv({
     cls: "rss-dashboard-icon-visibility-rows",
   });
 
@@ -523,7 +537,7 @@ export function renderSidebarSettingsTab(
   };
   renderIconRows();
 
-  new Setting(containerEl)
+  new Setting(iconVisibilitySettings)
     .setName("Reset icon order & visibility")
     .addButton((btn) =>
       btn.setButtonText("Reset").onClick(() => {
@@ -544,7 +558,8 @@ export function renderSidebarSettingsTab(
     );
 
   // ── Sidebar padding ───────────────────────────────────────────────────────
-  const paddingHeading = new Setting(containerEl)
+  const paddingSettings = createSettingsGroup(containerEl);
+  const paddingHeading = new Setting(paddingSettings)
     .setName("Sidebar padding")
     .setHeading();
   paddingHeading.settingEl.dataset.rssSettingsSection = "sidebar-padding";
@@ -563,61 +578,23 @@ export function renderSidebarSettingsTab(
     settingKey: "sidebarItemPaddingLeft" | "sidebarItemPaddingRight",
     defaultValue: number,
   ) => {
-    const paddingSetting = new Setting(containerEl).setName(name).setDesc(desc);
-    const paddingMin = 0;
-    const paddingMax = 40;
-    const paddingStep = 1;
-    let isSyncing = false;
-    let paddingSlider: { setValue: (value: number) => void } | null = null;
-    let paddingInput: import("obsidian").TextComponent | null = null;
-
-    const apply = async (value: number): Promise<void> => {
-      plugin.settings.display[settingKey] = value;
-      await plugin.saveSettings();
-      const view = await plugin.getActiveDashboardView();
-      if (view?.sidebar) view.sidebar.render();
-    };
-
-    paddingSetting
-      .addSlider((slider) => {
-        paddingSlider = slider;
-        slider
-          .setLimits(paddingMin, paddingMax, paddingStep)
-          .setValue(plugin.settings.display[settingKey] ?? defaultValue)
-          .onChange(async (value) => {
-            if (isSyncing) return;
-            isSyncing = true;
-            paddingInput?.setValue(String(value));
-            isSyncing = false;
-            await apply(value);
-          });
-        settingsUiCompatibility.presentSliderValue(
-          slider,
-          (value) => `${value}px`,
-        );
-      })
-      .addText((text) => {
-        paddingInput = text;
-        text
-          .setValue(String(plugin.settings.display[settingKey] ?? defaultValue))
-          .onChange(async (value) => {
-            if (isSyncing) return;
-            const parsed = Number.parseInt(value, 10);
-            if (Number.isNaN(parsed)) return;
-            const clamped = Math.max(paddingMin, Math.min(paddingMax, parsed));
-            isSyncing = true;
-            text.setValue(String(clamped));
-            paddingSlider?.setValue(clamped);
-            isSyncing = false;
-            await apply(clamped);
-          });
-        text.inputEl.type = "number";
-        text.inputEl.min = String(paddingMin);
-        text.inputEl.max = String(paddingMax);
-        text.inputEl.step = String(paddingStep);
-        text.inputEl.addClass("rss-dashboard-settings-number-input");
-      });
-    paddingSetting.settingEl.addClass("rss-dashboard-settings-two-row");
+    const paddingSetting = new Setting(paddingSettings)
+      .setName(name)
+      .setDesc(desc);
+    addSettingsSlider(paddingSetting, {
+      value: plugin.settings.display[settingKey] ?? defaultValue,
+      defaultValue,
+      min: 0,
+      max: 40,
+      exactInput: "clamp",
+      format: (value) => `${value}px`,
+      apply: async (value) => {
+        plugin.settings.display[settingKey] = value;
+        await plugin.saveSettings();
+        const view = await plugin.getActiveDashboardView();
+        if (view?.sidebar) view.sidebar.render();
+      },
+    });
   };
 
   renderPaddingSetting(
@@ -634,7 +611,8 @@ export function renderSidebarSettingsTab(
   );
 
   // ── Row spacing ───────────────────────────────────────────────────────────
-  const spacingHeading = new Setting(containerEl)
+  const spacingSettings = createSettingsGroup(containerEl);
+  const spacingHeading = new Setting(spacingSettings)
     .setName("Row spacing")
     .setHeading();
   spacingHeading.settingEl.dataset.rssSettingsSection = "row-spacing";
@@ -655,58 +633,23 @@ export function renderSidebarSettingsTab(
     max: number,
     defaultValue: number,
   ) => {
-    const spacingSetting = new Setting(containerEl).setName(name).setDesc(desc);
-    let isSyncing = false;
-    let spacingSlider: { setValue: (value: number) => void } | null = null;
-    let spacingInput: import("obsidian").TextComponent | null = null;
-
-    const apply = async (value: number): Promise<void> => {
-      plugin.settings.display[settingKey] = value;
-      await plugin.saveSettings();
-      const view = await plugin.getActiveDashboardView();
-      if (view?.sidebar) view.sidebar.render();
-    };
-
-    spacingSetting
-      .addSlider((slider) => {
-        spacingSlider = slider;
-        slider
-          .setLimits(min, max, 1)
-          .setValue(plugin.settings.display[settingKey] ?? defaultValue)
-          .onChange(async (value) => {
-            if (isSyncing) return;
-            isSyncing = true;
-            spacingInput?.setValue(String(value));
-            isSyncing = false;
-            await apply(value);
-          });
-        settingsUiCompatibility.presentSliderValue(
-          slider,
-          (value) => `${value}px`,
-        );
-      })
-      .addText((text) => {
-        spacingInput = text;
-        text
-          .setValue(String(plugin.settings.display[settingKey] ?? defaultValue))
-          .onChange(async (value) => {
-            if (isSyncing) return;
-            const parsed = Number.parseInt(value, 10);
-            if (Number.isNaN(parsed)) return;
-            const clamped = Math.max(min, Math.min(max, parsed));
-            isSyncing = true;
-            text.setValue(String(clamped));
-            spacingSlider?.setValue(clamped);
-            isSyncing = false;
-            await apply(clamped);
-          });
-        text.inputEl.type = "number";
-        text.inputEl.min = String(min);
-        text.inputEl.max = String(max);
-        text.inputEl.step = "1";
-        text.inputEl.addClass("rss-dashboard-settings-number-input");
-      });
-    spacingSetting.settingEl.addClass("rss-dashboard-settings-two-row");
+    const spacingSetting = new Setting(spacingSettings)
+      .setName(name)
+      .setDesc(desc);
+    addSettingsSlider(spacingSetting, {
+      value: plugin.settings.display[settingKey] ?? defaultValue,
+      defaultValue,
+      min,
+      max,
+      exactInput: "clamp",
+      format: (value) => `${value}px`,
+      apply: async (value) => {
+        plugin.settings.display[settingKey] = value;
+        await plugin.saveSettings();
+        const view = await plugin.getActiveDashboardView();
+        if (view?.sidebar) view.sidebar.render();
+      },
+    });
   };
 
   renderSpacingSetting(
@@ -727,10 +670,11 @@ export function renderSidebarSettingsTab(
   );
 
   // ── Feed icons ───────────────────────────────────────────────────────────
-  new Setting(containerEl).setName("Feed icons").setHeading();
+  const feedIconsSettings = createSettingsGroup(containerEl);
+  new Setting(feedIconsSettings).setName("Feed icons").setHeading();
 
   // YouTube info message
-  new Setting(containerEl)
+  new Setting(feedIconsSettings)
     .setName("YouTube profile images")
     .setDesc(
       "YouTube RSS feeds do not provide channel profile images. Videos will always use the default video play icon.",
@@ -773,7 +717,7 @@ export function renderSidebarSettingsTab(
       clearIconOnDisable,
     } = options;
 
-    new Setting(containerEl)
+    new Setting(feedIconsSettings)
       .setName(settingName)
       .setDesc(settingDesc)
       .addToggle((toggle) =>

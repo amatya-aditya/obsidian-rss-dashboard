@@ -14,6 +14,7 @@ import { ImportSuccessModal } from "../../modals/import-success-modal";
 import { AutoBackupSettings, RssDashboardSettings } from "../../types/types";
 import type { DeepPartial } from "../../types/deep-partial";
 import { settingsUiCompatibility } from "../settings-ui-compat";
+import { createSettingsGroup } from "../settings-layout";
 
 export class FactoryResetConfirmModal extends AccessibleModal {
   private confirmed = false;
@@ -93,7 +94,7 @@ export function renderImportExportSettingsTab(
   plugin: RssDashboardPlugin,
 ): void {
   // ── data.json ─────────────────────────────────────────────────────────────
-  const dataSection = containerEl.createDiv();
+  const dataSection = createSettingsGroup(containerEl);
   new Setting(dataSection)
     .setName("Backup & restore (data.json)")
     .setDesc(
@@ -161,7 +162,7 @@ export function renderImportExportSettingsTab(
     );
 
   // ── Portable data bundle ────────────────────────────────────────────────────────────
-  const portableBundleSection = containerEl.createDiv();
+  const portableBundleSection = createSettingsGroup(containerEl);
   new Setting(portableBundleSection)
     .setName("Portable data bundle")
     .setDesc(
@@ -222,7 +223,7 @@ export function renderImportExportSettingsTab(
     );
 
   // ── Feed bundle ───────────────────────────────────────────────────────────
-  const feedBundleSection = containerEl.createDiv();
+  const feedBundleSection = createSettingsGroup(containerEl);
   new Setting(feedBundleSection)
     .setName("Feed bundle")
     .setDesc(
@@ -280,7 +281,7 @@ export function renderImportExportSettingsTab(
     );
 
   // ── Settings bundle ───────────────────────────────────────────────────────
-  const settingsBundleSection = containerEl.createDiv();
+  const settingsBundleSection = createSettingsGroup(containerEl);
   new Setting(settingsBundleSection)
     .setName("App preferences")
     .setDesc(
@@ -340,7 +341,7 @@ export function renderImportExportSettingsTab(
     );
 
   // ── rss-dashboard-user-preferences.json ──────────────────────────────────────────────────
-  const userSettingsSection = containerEl.createDiv();
+  const userSettingsSection = createSettingsGroup(containerEl);
   new Setting(userSettingsSection)
     .setName("User preferences file")
     .setDesc(
@@ -399,7 +400,7 @@ export function renderImportExportSettingsTab(
     );
 
   // ── OPML ──────────────────────────────────────────────────────────────────
-  const opmlSection = containerEl.createDiv();
+  const opmlSection = createSettingsGroup(containerEl);
   new Setting(opmlSection)
     .setName("OPML")
     .setDesc(
@@ -434,7 +435,7 @@ export function renderImportExportSettingsTab(
     );
 
   // ── Starred imports ──────────────────────────────────────────────────────
-  const starredSection = containerEl.createDiv();
+  const starredSection = createSettingsGroup(containerEl);
   new Setting(starredSection)
     .setName("Starred imports")
     .setDesc(
@@ -456,7 +457,7 @@ export function renderImportExportSettingsTab(
   );
 
   // ── Auto Backups ──────────────────────────────────────────────────────────
-  const backupSection = containerEl.createDiv();
+  const backupSection = createSettingsGroup(containerEl);
   new Setting(backupSection)
     .setName("Automatic backups")
     .setDesc(
@@ -507,7 +508,7 @@ export function renderImportExportSettingsTab(
   });
 
   // ── Factory Reset ─────────────────────────────────────────────────────────
-  const factoryResetSection = containerEl.createDiv();
+  const factoryResetSection = createSettingsGroup(containerEl);
   new Setting(factoryResetSection)
     .setName("Factory reset")
     .setDesc(
@@ -533,4 +534,15 @@ export function renderImportExportSettingsTab(
       })();
     });
   });
+
+  for (const controls of containerEl.querySelectorAll<HTMLElement>(
+    ".rss-dashboard-import-export-actions .setting-item-control",
+  )) {
+    const [, exportButton, copyButton] = Array.from(controls.children);
+    if (!exportButton || !copyButton) continue;
+    const pair = controls.createDiv({
+      cls: "rss-dashboard-settings-export-pair",
+    });
+    pair.append(exportButton, copyButton);
+  }
 }

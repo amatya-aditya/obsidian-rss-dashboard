@@ -19,6 +19,7 @@ import { isPresetRefreshInterval } from "../../utils/refresh-intervals";
 import { pageRequestHeaders } from "../../utils/request-headers";
 import { RSS_READER_VIEW_TYPE } from "../../views/reader-view";
 import { renderProxyCheckControls } from "../proxy-check-controls";
+import { createSettingsGroup } from "../settings-layout";
 export {
   REFRESH_INTERVAL_PRESETS,
   isPresetRefreshInterval,
@@ -74,14 +75,15 @@ export function renderGeneralSettingsTab(
   containerEl: HTMLElement,
   plugin: GeneralSettingsPlugin,
 ): (() => void) | undefined {
-  new Setting(containerEl)
+  const viewSettings = createSettingsGroup(containerEl);
+  new Setting(viewSettings)
     .setName("Keyboard shortcuts")
     .setDesc("Open the reference of the plugin's keyboard shortcuts")
     .addButton((button) =>
       button.setButtonText("View").onClick(() => plugin.openShortcutHelp()),
     );
 
-  new Setting(containerEl)
+  new Setting(viewSettings)
     .setName("View style")
     .setDesc("Choose between list, card, and feed view for articles")
     .addDropdown((dropdown) =>
@@ -101,7 +103,7 @@ export function renderGeneralSettingsTab(
         }),
     );
 
-  new Setting(containerEl)
+  new Setting(viewSettings)
     .setName("Dashboard view location")
     .setDesc("Choose where to open the RSS dashboard")
     .addDropdown((dropdown) =>
@@ -117,7 +119,7 @@ export function renderGeneralSettingsTab(
         }),
     );
 
-  new Setting(containerEl)
+  new Setting(viewSettings)
     .setName("Reader view location")
     .setDesc("Choose where to open articles/media when clicked")
     .addDropdown((dropdown) => {
@@ -143,7 +145,7 @@ export function renderGeneralSettingsTab(
         });
     });
 
-  new Setting(containerEl)
+  new Setting(viewSettings)
     .setName("Saved article open location")
     .setDesc("Choose where to open saved article files")
     .addDropdown((dropdown) =>
@@ -160,7 +162,7 @@ export function renderGeneralSettingsTab(
         }),
     );
 
-  new Setting(containerEl)
+  new Setting(viewSettings)
     .setName("Use web viewer")
     .setDesc("Use web viewer core plugin for articles when available")
     .addToggle((toggle) =>
@@ -172,7 +174,7 @@ export function renderGeneralSettingsTab(
         }),
     );
 
-  new Setting(containerEl)
+  new Setting(viewSettings)
     .setName("Results shown per page")
     .setDesc(
       "Number of articles shown per page across all dashboard views. All shows every article on one page. Mixed appears when the views have different sizes from an earlier version; choosing a size sets them all to it.",
@@ -233,10 +235,11 @@ export function renderGeneralSettingsTab(
       });
     });
 
-  new Setting(containerEl).setName("Global feeds").setHeading();
+  const globalFeedsSettings = createSettingsGroup(containerEl);
+  new Setting(globalFeedsSettings).setName("Global feeds").setHeading();
 
   // ── Refresh interval ──────────────────────────────────────────────────────
-  const refreshIntervalSetting = new Setting(containerEl)
+  const refreshIntervalSetting = new Setting(globalFeedsSettings)
     .setName("Auto-refresh interval")
     .setDesc(
       "How often to refresh all feeds automatically, in minutes. Off by default. A feed can override this in its edit dialog. On mobile, an interval under 60 minutes is raised to 60 when the plugin loads.",
@@ -308,7 +311,7 @@ export function renderGeneralSettingsTab(
       });
   });
 
-  new Setting(containerEl)
+  new Setting(globalFeedsSettings)
     .setName("Startup refresh delay")
     .setDesc(
       "Delay before the first refresh after Obsidian opens, in seconds. The default is 5. A value that is not a number of zero or more is ignored.",
@@ -390,7 +393,7 @@ export function renderGeneralSettingsTab(
     })();
   };
 
-  const maxItemsSetting = new Setting(containerEl)
+  const maxItemsSetting = new Setting(globalFeedsSettings)
     .setName("Max item limit")
     .setDesc(
       "Most articles to keep per feed, counted in items. Used for new feeds and as the fallback for feeds without their own limit. The default is 50, and the unlimited option means no limit. Protected articles do not count against it. On mobile, a limit above 50 is lowered to 50 when the plugin loads.",
@@ -443,9 +446,12 @@ export function renderGeneralSettingsTab(
   });
 
   if (Platform.isMobile) {
-    new Setting(containerEl).setName("Mobile navigation").setHeading();
+    const mobileNavigationSettings = createSettingsGroup(containerEl);
+    new Setting(mobileNavigationSettings)
+      .setName("Mobile navigation")
+      .setHeading();
 
-    new Setting(containerEl)
+    new Setting(mobileNavigationSettings)
       .setName("Swipe between panels")
       .setDesc(
         "Swipe right to open the sidebar and left to return to the article, and swipe right in the reader to go back to the dashboard. This turns off Obsidian's own swipe gestures, such as swipe-to-open-sidebar, inside this plugin's views and relies on Obsidian internals, so an Obsidian update could change it. If a sidebar reader location is saved from desktop use, mobile opens articles in main view instead.",
@@ -469,7 +475,8 @@ export function renderGeneralSettingsTab(
       );
   }
 
-  new Setting(containerEl).setName("Data retention").setHeading();
+  const dataRetentionSettings = createSettingsGroup(containerEl);
+  new Setting(dataRetentionSettings).setName("Data retention").setHeading();
 
   const confirmRetentionChange = (
     applyChange: () => void,
@@ -519,7 +526,7 @@ export function renderGeneralSettingsTab(
   };
 
   // ── Auto-delete duration ──────────────────────────────────────────────────
-  const defaultAutoDeleteSetting = new Setting(containerEl)
+  const defaultAutoDeleteSetting = new Setting(dataRetentionSettings)
     .setName("Default auto delete duration (new feeds)")
     .setDesc(
       "Days to keep articles before auto-delete, for new feeds. The default is 30, and a feed can override it. Auto-delete removes every article older than this cutoff, read or unread, unless a retention protection below applies. This also limits the timeframe window for shown articles.",
@@ -616,9 +623,11 @@ export function renderGeneralSettingsTab(
       });
   });
 
-  new Setting(containerEl).setName("Protected from auto-deletion").setHeading();
+  new Setting(dataRetentionSettings)
+    .setName("Protected from auto-deletion")
+    .setHeading();
 
-  new Setting(containerEl)
+  new Setting(dataRetentionSettings)
     .setName("Protect starred articles")
     .setDesc("Keep starred articles when retention limits are applied")
     .addToggle((toggle) =>
@@ -631,7 +640,7 @@ export function renderGeneralSettingsTab(
         }),
     );
 
-  new Setting(containerEl)
+  new Setting(dataRetentionSettings)
     .setName("Protect saved articles")
     .setDesc(
       "Keep articles saved to your vault when retention limits are applied",
@@ -644,7 +653,7 @@ export function renderGeneralSettingsTab(
       }),
     );
 
-  new Setting(containerEl)
+  new Setting(dataRetentionSettings)
     .setName("Protect tagged articles")
     .setDesc(
       "Keep articles that have at least one tag when retention limits are applied",
@@ -657,7 +666,7 @@ export function renderGeneralSettingsTab(
       }),
     );
 
-  new Setting(containerEl)
+  new Setting(dataRetentionSettings)
     .setName("Protect unread articles")
     .setDesc("Keep unread articles when retention limits are applied")
     .addToggle((toggle) =>
@@ -668,7 +677,7 @@ export function renderGeneralSettingsTab(
       }),
     );
 
-  new Setting(containerEl)
+  new Setting(dataRetentionSettings)
     .setName("Use first-seen date for undated items")
     .setDesc(
       "When an article has no publish date (common with some proxied feeds), use the date it was first seen instead of hiding it from sorting and auto-delete. Off by default. Display and filters follow the setting right away; auto-delete uses it on the next feed refresh.",
@@ -683,9 +692,10 @@ export function renderGeneralSettingsTab(
     );
 
   // ── Proxy ─────────────────────────────────────────────────────────────────
-  new Setting(containerEl).setName("Proxy").setHeading();
+  const proxySettings = createSettingsGroup(containerEl);
+  new Setting(proxySettings).setName("Proxy").setHeading();
 
-  new Setting(containerEl)
+  new Setting(proxySettings)
     .setName("Enable CORS proxy")
     .setDesc(
       "On by default, set to auto. When a direct fetch fails (for example a block on iOS), the plugin retries through a third-party CORS proxy, so the feed or article URL is sent to that proxy. Turn this off to keep fetches direct.",
@@ -698,14 +708,16 @@ export function renderGeneralSettingsTab(
           await plugin.saveSettings();
           // Re-render the full settings tab to show/hide the URL input.
           // The tab instance calls this renderer so we use a custom event.
-          containerEl.dispatchEvent(new CustomEvent("rss-settings-refresh"));
+          containerEl.dispatchEvent(
+            new CustomEvent("rss-settings-refresh", { bubbles: true }),
+          );
         });
     });
 
   let disposeProxyCheck: (() => void) | undefined;
 
   if (plugin.settings.corsProxyEnabled) {
-    const proxySetting = new Setting(containerEl)
+    const proxySetting = new Setting(proxySettings)
       .setName("Proxy URL")
       .setDesc(
         "Base URL of the CORS proxy. The default, auto, tries each built-in proxy in turn when a direct fetch fails, relaying the URL to those third-party services. Pick one proxy or enter your own to use only that.",
@@ -879,7 +891,7 @@ export function renderGeneralSettingsTab(
               new Notice("Proxy URL saved");
               syncProxyRowToSetting();
               containerEl.dispatchEvent(
-                new CustomEvent("rss-settings-refresh"),
+                new CustomEvent("rss-settings-refresh", { bubbles: true }),
               );
             } else {
               new Notice(validation.error || "Invalid URL");
