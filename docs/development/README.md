@@ -17,6 +17,7 @@ Internal developer documentation for the RSS Dashboard plugin.
 - [FreshRSS Android and Desktop Validation Runbook](./freshrss-android-validation-runbook.md)
 - [Issue Labels and Milestones](./labels.md)
 - [Obsidian Alignment Audit](./obsidian-alignment-audit.md)
+- [Obsidian Core CSS, Reading](./obsidian-core-css.md)
 - [Obsidian Settings Reference](./obsidian-settings-reference.md)
 - [Obsidian Test Stub Probes](../../test_files/stubs/obsidian-console-probes.md)
 - [Plugin Load Benchmark](./plugin-load-benchmark.md)
