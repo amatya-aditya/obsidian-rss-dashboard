@@ -167,6 +167,56 @@ function declarationsFor(
   return values;
 }
 
+/** Reviewed selectors, ignoring the class when it only appears in `:not(...)`. */
+function isReviewedSelector(selector: string): boolean {
+  return /(^|[^(\w-])\.rss-dashboard-settings-reviewed\b/.test(selector);
+}
+
+/**
+ * Declarations for the given properties that the touch media query still sets on
+ * a reviewed element, as `selector prop: value` strings.
+ */
+function reviewedDeclarationsInTouchMedia(
+  file: string,
+  props: readonly string[],
+): string[] {
+  const css = readFileSync(
+    path.resolve(testDir, `../../../src/styles/${file}`),
+    "utf8",
+  );
+  const root = postcss.parse(css);
+  const found: string[] = [];
+
+  root.walkRules((rule) => {
+    const normalized = rule.selector.replace(/\s+/g, " ").trim();
+    if (!isReviewedSelector(normalized)) return;
+
+    let ancestor:
+      | { type: string; name?: string; params?: string; parent?: unknown }
+      | undefined = rule.parent;
+    let inTouchMedia = false;
+    while (ancestor && !inTouchMedia) {
+      if (
+        ancestor.type === "atrule" &&
+        ancestor.name === "media" &&
+        /\(hover:\s*none\)/.test(ancestor.params ?? "")
+      ) {
+        inTouchMedia = true;
+      }
+      ancestor = ancestor.parent as typeof ancestor;
+    }
+    if (!inTouchMedia) return;
+
+    rule.walkDecls((decl) => {
+      if (props.includes(decl.prop)) {
+        found.push(`${normalized} ${decl.prop}: ${decl.value}`);
+      }
+    });
+  });
+
+  return found;
+}
+
 /** Reviewed-row stacking rules that the touch media query still forces. */
 function reviewedStackRulesInTouchMedia(file: string): string[] {
   const css = readFileSync(
@@ -308,6 +358,18 @@ describe("responsive settings row layout", () => {
         "flex",
       ),
     ).toEqual(["0 0 auto"]);
+  });
+
+  it("leaves the row background to core on touch", () => {
+    expect(
+      reviewedDeclarationsInTouchMedia("settings.css", [
+        "background",
+        "background-color",
+        "border-top",
+        "border-radius",
+        "padding",
+      ]),
+    ).toEqual([]);
   });
 
   it("leaves reviewed rows unstacked on a tablet-sized touch pane", () => {

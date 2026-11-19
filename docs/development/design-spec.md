@@ -19,7 +19,7 @@ related:
 
 ## Update History
 
-- 2026-11-19: Calibrate the reviewed settings rows to a 400px settings-pane breakpoint (about a 665px settings window, matching where core stacks its own rows), so the two-column layout holds at tablet widths on mouse and touch alike and stacked rows come from pane width instead of the touch query; size the control column by the text it holds and let the name/help column flex, so no dropdown or button clips its value (#1819)
+- 2026-11-19: Calibrate the reviewed settings rows to a 400px settings-pane breakpoint (about a 665px settings window, matching where core stacks its own rows), so the two-column layout holds at tablet widths on mouse and touch alike and stacked rows come from pane width instead of the touch query; size the control column by the text it holds and let the name/help column flex, so no dropdown or button clips its value; keep core's row background on touch instead of an invisible group card, and open **Template variables** by default (#1819)
 - 2026-11-16: Set the default settings-row layout to stack at tablet widths, require full-width free-text fields and trailing-edge clear buttons, and document compact numeric/color-value exceptions (#1813)
 - 2026-11-16: Clarify Android SVG sizing and paint-layer coverage for plugin-owned icon controls, including custom native-button resets, and require device evidence for the reported form factor
 - 2026-10-28: Add **Dropdown Controls**: every dropdown trigger and select shows Obsidian's up/down chevron (`chevrons-up-down`) at its right edge, and every native color picker shows the same hover and focus ring. Settings color rows put the picker right after the row name with no hex readout; Tag appearance defaults are a draft, previewed in their own card, until the user applies them; Tag shape previews are drawn in the applied default colors, and Add new tag shows a live preview chip; native color pickers get a Randomize dice button that rolls any color
@@ -303,9 +303,15 @@ that is shrinking and clip the value.
 - Keep number, hex and duration fields compact, and free-text fields full
   width; the content-sized rule applies to dropdowns and buttons.
 
-- Group related settings by purpose in rounded cards with subtle dividers on
-  touch devices. General, Display, Sidebar, Media, Article saving, Highlights,
-  Import/Export, and Tags use this layout. Keep the existing Storage, Rules,
+- Group related settings by purpose and keep each row on core's own
+  `setting-item` background on every device, so the grouping matches the rest of
+  the Settings window on that device. Do not paint a group card with
+  `--background-secondary`: mobile sets `--settings-background` to the same
+  token, so the card and the page were indistinguishable and the grouping
+  vanished on phones. The purpose wrappers still group the rows and carry the
+  section headings. General, Display, Sidebar, Media, Article saving,
+  Highlights, Import/Export, and Tags use this layout. Touch adds roomier
+  targets only. Keep the existing Storage, Rules,
   and About presentation. Keep Storage action placement and its full-width
   Feed storage folder and Metadata data.json location fields.
 - Position simple switches at the trailing edge beside the label and help. Let
@@ -326,8 +332,10 @@ that is shrinking and clip the value.
   usable while the badge is off. Keep Sidebar icon reordering, arrows, and
   visibility controls usable at narrower widths.
 - Keep the Article saving Markdown editor and save path full width and the
-  template actions wrapped on phones. Keep **Template variables** collapsed
-  by default while making the reference available. Apply the shared destructive
+  template actions wrapped on phones. Keep **Template variables** expanded by
+  default, so a first-time reader meets the variable reference without guessing
+  that the summary opens; it stays collapsible for readers who want it out of
+  the way. Apply the shared destructive
   treatment to the template **Clear**, Highlights and Tags **Delete**, Media
   **Clear progress**, and Import/Export **Factory reset** actions.
 - Put a highlight's trailing switch beside its text and its color and matching

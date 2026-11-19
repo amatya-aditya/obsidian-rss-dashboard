@@ -306,8 +306,14 @@ function renderDefaultTemplateSection(
     void saveBoxAsTemplate(plugin, onRefresh);
   };
 
+  renderTemplateVariables(containerEl);
+}
+
+/** The collapsible variable reference, expanded when the section first renders. */
+function renderTemplateVariables(containerEl: HTMLElement): void {
   const details = containerEl.createEl("details", {
     cls: "rss-dashboard-template-variables",
+    attr: { open: "true" },
   });
   details.createEl("summary", { text: "Template variables" });
   const helpText = details.createDiv({

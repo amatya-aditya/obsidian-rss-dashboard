@@ -1141,28 +1141,11 @@
   font-weight: var(--font-semibold);
 }
 
-/* Cards, dividers, and roomier targets follow the input mode. The row layout
- * itself follows the pane width, in the container query below. */
+/* Touch changes two things only: roomier targets and, via the pane width below,
+ * the row layout. Rows keep core's own setting-item background so the grouping
+ * matches every other Settings tab on the same device - a card painted with the
+ * page colour made the grouping vanish on mobile. */
 @media (hover: none) and (pointer: coarse) {
-  .rss-dashboard-settings-reviewed .rss-dashboard-settings-group:not(:empty) {
-    margin-block: 12px;
-    padding: 0 12px;
-    border-radius: var(--radius-l, 12px);
-    background: var(--background-secondary);
-  }
-
-  .rss-dashboard-settings-reviewed .rss-dashboard-settings-group .setting-item {
-    border-radius: 0;
-    background: transparent;
-  }
-
-  .rss-dashboard-settings-reviewed
-    .rss-dashboard-settings-group
-    .setting-item
-    + .setting-item {
-    border-top: 1px solid var(--background-modifier-border);
-  }
-
   .rss-dashboard-settings-reviewed .rss-dashboard-auto-tag-add {
     min-height: 44px;
   }
