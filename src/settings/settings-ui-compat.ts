@@ -16,6 +16,7 @@ export interface SettingsSliderControl {
 
 export interface SettingsUiCompatibility {
   markDestructive(button: SettingsButtonControl): void;
+  markDestructiveElement(button: HTMLButtonElement): void;
   presentSliderValue(
     slider: SettingsSliderControl,
     format: (value: number) => string,
@@ -48,6 +49,12 @@ export function createSettingsUiCompatibility(
       }
 
       button.buttonEl.addClass("mod-warning");
+    },
+
+    markDestructiveElement(button): void {
+      button.addClass(
+        supportsModernControls() ? "mod-destructive" : "mod-warning",
+      );
     },
 
     presentSliderValue(slider, format): void {

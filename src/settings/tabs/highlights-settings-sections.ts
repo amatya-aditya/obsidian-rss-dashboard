@@ -1,9 +1,11 @@
 /** Focused renderers and helpers for the Highlights settings tab. */
+import { createSettingsGroup } from "../settings-layout";
 import { Notice, Setting, setTooltip } from "obsidian";
 import {
   HighlightWordEditModal,
   ConfirmDeleteModal,
 } from "../modals/settings-modals";
+import { settingsUiCompatibility } from "../settings-ui-compat";
 import { addInputClearButton } from "../../utils/input-clear-button";
 import type { HighlightWord as StoredHighlightWord } from "../../types/types";
 import type { HighlightsSettingsPlugin } from "./highlights-settings-plugin";
@@ -334,20 +336,30 @@ function renderHighlightWordRow(
         await rerenderHighlightViews();
       });
     })
-    .addExtraButton((button) =>
+    .addButton((button) =>
       button
         .setIcon("pencil")
         .setTooltip(`Edit "${word.text}"`)
         .onClick(openEditModal),
     )
-    .addExtraButton((button) =>
+    .addButton((button) => {
+      settingsUiCompatibility.markDestructive(button);
       button
         .setIcon("trash")
         .setTooltip(`Delete "${word.text}"`)
         .onClick(async () => {
           await deleteHighlightWord(plugin, word, index, onRefresh, refreshers);
-        }),
-    );
+        });
+    });
+
+  const controls = wordSetting.controlEl;
+  const enabled = controls.querySelector(".checkbox-container");
+  if (enabled) controls.before(enabled);
+  const actions = Array.from(controls.children).slice(-2);
+  const actionGroup = controls.createDiv({
+    cls: "rss-dashboard-highlight-word-actions",
+  });
+  actionGroup.append(...actions);
 
   wordSetting.nameEl.addClass("rss-dashboard-highlight-word-name-click");
   setTooltip(wordSetting.nameEl, `Edit "${word.text}"`);
@@ -485,8 +497,18 @@ export function renderHighlightsSettingsSections(
   onRefresh: () => void,
 ): void {
   const refreshers = createHighlightViewRefreshers(plugin);
-  renderMainToggle(containerEl, plugin, refreshers);
-  renderLocationSection(containerEl, plugin, refreshers);
-  renderWordsSection(containerEl, plugin, onRefresh, refreshers);
-  renderAddWordSection(containerEl, plugin, onRefresh, refreshers);
+  renderMainToggle(createSettingsGroup(containerEl), plugin, refreshers);
+  renderLocationSection(createSettingsGroup(containerEl), plugin, refreshers);
+  renderWordsSection(
+    createSettingsGroup(containerEl),
+    plugin,
+    onRefresh,
+    refreshers,
+  );
+  renderAddWordSection(
+    createSettingsGroup(containerEl),
+    plugin,
+    onRefresh,
+    refreshers,
+  );
 }

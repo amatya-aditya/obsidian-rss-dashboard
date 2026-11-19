@@ -176,11 +176,11 @@ function buttonByText(root: HTMLElement, text: string): HTMLButtonElement {
   return match;
 }
 
-function extraButton(root: HTMLElement, tooltip: string): HTMLElement {
+function wordAction(root: HTMLElement, tooltip: string): HTMLElement {
   const match = Array.from(
-    root.querySelectorAll<HTMLElement>(".extra-setting-button"),
+    root.querySelectorAll<HTMLButtonElement>("button"),
   ).find((el) => el.getAttribute("aria-label") === tooltip);
-  if (!match) throw new Error(`Extra button not found: ${tooltip}`);
+  if (!match) throw new Error(`Word action not found: ${tooltip}`);
   return match;
 }
 
@@ -516,8 +516,8 @@ describe("Highlights settings tab characterization: word rows", () => {
     expect(betaCase.getAttribute("aria-pressed")).toBe("true");
     expect(betaCase.classList.contains("mod-cta")).toBe(true);
 
-    expect(extraButton(alpha, 'Edit "alpha"')).toBeTruthy();
-    expect(extraButton(alpha, 'Delete "alpha"')).toBeTruthy();
+    expect(wordAction(alpha, 'Edit "alpha"')).toBeTruthy();
+    expect(wordAction(alpha, 'Delete "alpha"')).toBeTruthy();
     const name = alpha.querySelector<HTMLElement>(".setting-item-name");
     expect(
       name?.classList.contains("rss-dashboard-highlight-word-name-click"),
@@ -623,7 +623,7 @@ describe("Highlights settings tab characterization: editing a word", () => {
     );
     const row = getWordRow(fixture.containerEl, "alpha");
     if (via === "pencil") {
-      extraButton(row, 'Edit "alpha"').click();
+      wordAction(row, 'Edit "alpha"').click();
     } else {
       row.querySelector<HTMLElement>(".setting-item-name")?.click();
     }
@@ -705,7 +705,7 @@ describe("Highlights settings tab characterization: deleting a word", () => {
       fixture.plugin,
       fixture.onRefresh,
     );
-    extraButton(
+    wordAction(
       getWordRow(fixture.containerEl, "alpha"),
       'Delete "alpha"',
     ).click();
@@ -746,7 +746,7 @@ describe("Highlights settings tab characterization: deleting a word", () => {
     });
     renderHighlightsSettingsTab(containerEl, plugin, onRefresh);
 
-    extraButton(getWordRow(containerEl, "alpha"), 'Delete "alpha"').click();
+    wordAction(getWordRow(containerEl, "alpha"), 'Delete "alpha"').click();
     await flushPromises();
 
     expect(calls).toEqual(["save", "onRefresh"]);

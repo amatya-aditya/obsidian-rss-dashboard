@@ -1,4 +1,5 @@
 /** Focused renderers and helpers for the General settings tab. */
+import { createSettingsGroup } from "../settings-layout";
 import { Notice, Platform, Setting } from "obsidian";
 import { normalizeRefreshIntervalMinutes } from "../../utils/validation";
 import { isPresetRefreshInterval } from "../../utils/refresh-intervals";
@@ -34,12 +35,13 @@ export function renderGeneralSettingsSections(
   containerEl: HTMLElement,
   plugin: GeneralSettingsPlugin,
 ): (() => void) | undefined {
-  renderViewSettings(containerEl, plugin);
-  renderPageSizeSetting(containerEl, plugin);
-  renderGlobalFeedsSettings(containerEl, plugin);
-  renderDataRetentionSettings(containerEl, plugin);
-  renderMobileNavigationSettings(containerEl, plugin);
-  return renderGeneralProxySection(containerEl, plugin);
+  const view = createSettingsGroup(containerEl);
+  renderViewSettings(view, plugin);
+  renderPageSizeSetting(view, plugin);
+  renderGlobalFeedsSettings(createSettingsGroup(containerEl), plugin);
+  renderDataRetentionSettings(createSettingsGroup(containerEl), plugin);
+  renderMobileNavigationSettings(createSettingsGroup(containerEl), plugin);
+  return renderGeneralProxySection(createSettingsGroup(containerEl), plugin);
 }
 
 function renderViewSettings(

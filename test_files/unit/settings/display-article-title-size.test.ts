@@ -129,7 +129,7 @@ describe("Display settings: Article title size", () => {
     const containerEl = renderTab(plugin);
 
     const reset = titleSizeSetting(containerEl).querySelector(
-      ".extra-setting-button",
+      'button[aria-label="Reset Article title size to 100%"]',
     ) as HTMLElement;
     reset.click();
     await vi.runAllTimersAsync();
