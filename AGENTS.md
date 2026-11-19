@@ -126,9 +126,11 @@ Follow the testing guide for every test change:
 Before handing off a code change, run the relevant checks and report their results:
 
 `npm run build` is the combined local gate: it runs `check:compliance`
-(including architecture, CSS scope, platform, and `format:check`), repository-wide
+(including architecture, CSS scope, platform, dependency audit, and
+`format:check`), repository-wide
 lint, production TypeScript checking, test type-checking, and the production
-bundle. If you run it, count those included checks as passed from its result
+bundle. The audit step queries the npm advisory database, so the gate needs
+network access. If you run it, count those included checks as passed from its result
 instead of rerunning each command. Run an individual check separately when you
 need focused feedback or are diagnosing a failure. Run `npm run format` first
 to apply formatting, and run the focused unit tests separately because the
