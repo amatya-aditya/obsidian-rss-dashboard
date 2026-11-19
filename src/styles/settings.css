@@ -1129,27 +1129,8 @@
   font-weight: var(--font-semibold);
 }
 
-@container rss-dashboard-settings (max-width: 660px) {
-  .rss-dashboard-settings-reviewed
-    .setting-item:has(> .setting-item-control > select) {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-  }
-
-  .rss-dashboard-settings-reviewed
-    .setting-item:has(> .setting-item-control > select)
-    .setting-item-control {
-    width: 100%;
-    max-width: 100%;
-    justify-content: flex-start;
-  }
-
-  .rss-dashboard-settings-reviewed .setting-item-control > select {
-    flex: 1 1 auto;
-  }
-}
-
+/* Cards, dividers, and roomier targets follow the input mode. The row layout
+ * itself follows the pane width, in the container query below. */
 @media (hover: none) and (pointer: coarse) {
   .rss-dashboard-settings-reviewed .rss-dashboard-settings-group:not(:empty) {
     margin-block: 12px;
@@ -1170,10 +1151,19 @@
     border-top: 1px solid var(--background-modifier-border);
   }
 
+  .rss-dashboard-settings-reviewed .rss-dashboard-auto-tag-add {
+    min-height: 44px;
+  }
+}
+
+/* One pane-width breakpoint for the reviewed rows. A 400px pane is a settings
+ * window of roughly 665 CSS px, close to where core's own settings rows stack
+ * (core tests a 400px container that includes the pane's 32px side padding).
+ * Wider panes - including a tablet-sized one - keep label and control beside
+ * each other, on mouse and touch alike. */
+@container rss-dashboard-settings (max-width: 400px) {
   .rss-dashboard-settings-reviewed
-    .setting-item:not(.setting-item-heading):has(
-      > .setting-item-control > select
-    ) {
+    .setting-item:has(> .setting-item-control > select) {
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
@@ -1196,12 +1186,6 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .rss-dashboard-settings-reviewed .rss-dashboard-auto-tag-add {
-    min-height: 44px;
-  }
-}
-
-@container rss-dashboard-settings (max-width: 400px) {
   .rss-dashboard-settings-reviewed
     .setting-item:has(> .setting-item-control > button:only-child) {
     flex-direction: column;

@@ -5,7 +5,7 @@ status: active
 title: UI design spec — surfaces, controls, and visual rules
 parent: architecture
 owner: maintainers
-last_reviewed: 2026-10-28
+last_reviewed: 2026-11-19
 obsidian_reference: "1.13.7 desktop"
 min_app_version: "1.8.7"
 related:
@@ -19,6 +19,7 @@ related:
 
 ## Update History
 
+- 2026-11-19: Calibrate the reviewed settings rows to a 400px settings-pane breakpoint (about a 665px settings window, matching where core stacks its own rows), so the two-column layout holds at tablet widths on mouse and touch alike and stacked rows come from pane width instead of the touch query (#1819)
 - 2026-11-16: Set the default settings-row layout to stack at tablet widths, require full-width free-text fields and trailing-edge clear buttons, and document compact numeric/color-value exceptions (#1813)
 - 2026-11-16: Clarify Android SVG sizing and paint-layer coverage for plugin-owned icon controls, including custom native-button resets, and require device evidence for the reported form factor
 - 2026-10-28: Add **Dropdown Controls**: every dropdown trigger and select shows Obsidian's up/down chevron (`chevrons-up-down`) at its right edge, and every native color picker shows the same hover and focus ring. Settings color rows put the picker right after the row name with no hex readout; Tag appearance defaults are a draft, previewed in their own card, until the user applies them; Tag shape previews are drawn in the applied default colors, and Add new tag shows a live preview chip; native color pickers get a Randomize dice button that rolls any color
@@ -263,7 +264,7 @@ Rules:
 4. Any breakpoint-specific overrides for nav controls must be declared in one place per component and referenced here.
 5. Mobile sidebar modal header top spacing must be status-bar aware and may include platform-scoped overrides.
 6. The keyboard shortcut help header is a single row above the mobile tier and stacks to two rows at the mobile tier (`<= 768px`); that override lives with the rest of the shortcut-help rules in `src/styles/modals.css`.
-7. RSS Dashboard settings rows stack their name/help above their controls at tablet width and below (`<= 1200px`) on touch-first devices (`hover: none` and `pointer: coarse`). Narrow mouse-driven desktop Settings windows retain the horizontal row layout. Intentional exceptions must be documented.
+7. RSS Dashboard settings rows stack their name/help above their controls at tablet width and below (`<= 1200px`) on touch-first devices (`hover: none` and `pointer: coarse`). Narrow mouse-driven desktop Settings windows retain the horizontal row layout. The tabs reviewed in #1819 instead use one pane-width rule: rows keep the two-column layout until the settings pane is narrower than `400px` (about a `665px` settings window, where core's own rows stack), on mouse and touch alike. Intentional exceptions must be documented.
 
 ### Desktop Intent
 
@@ -287,8 +288,12 @@ Rules:
 ### Settings Rows and Inputs
 
 Settings layout responds to the available settings pane width. Use the primary
-input mode to select touch cards. A narrow mouse-driven settings pane retains the
-desktop presentation while wrapping controls that need more room.
+input mode to select touch cards. Reviewed rows keep the label beside their
+control until the pane is narrower than `400px`, which is about a `665px`
+settings window matching where core's own rows stack; below that they stack
+above their control on every input mode. The pane is core's setting-group
+column, so it saturates near `688px` and the rule never fires on a wider
+window.
 
 - Group related settings by purpose in rounded cards with subtle dividers on
   touch devices. General, Display, Sidebar, Media, Article saving, Highlights,
@@ -331,9 +336,12 @@ desktop presentation while wrapping controls that need more room.
   reserve space for text. Scope the settings styles to the plugin's settings
   pane or dialog.
 
-The [2.8 settings prototype](./prototypes/README.md) records the design review.
-Validate the actual settings in Obsidian in light and dark themes on phone,
-touch tablet, and narrow mouse-driven desktop.
+The [2.8 settings prototype](./prototypes/README.md) records the design review,
+and the [settings row breakpoint
+preview](./prototypes/settings-1819-breakpoint.html) shows the `400px` pane
+transition beside the previous `660px` one. Validate the actual settings in
+Obsidian in light and dark themes on phone, touch tablet, and narrow
+mouse-driven desktop.
 
 ### Modal Header Inset Ownership
 

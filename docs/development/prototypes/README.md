@@ -9,3 +9,7 @@ Open [settings-1819.html](./settings-1819.html) from a local checkout in a brows
 - Preview edits last for the page session. The prototype simulates settings actions with sample data. Follow the issue for implementation and real-device validation.
 
 Keep this file as the 2.8 design snapshot. For later settings changes, maintain [Settings Rows and Inputs](../design-spec.md#settings-rows-and-inputs) and the relevant Obsidian verification evidence. Start a new prototype from this file when a future review needs one, and refresh the Before reference for the tabs under review.
+
+## Settings row breakpoint
+
+[settings-1819-breakpoint.html](./settings-1819-breakpoint.html) previews the pane-width breakpoint alone: the same rows at three pane widths under the previous `660px` rule and the shipped `400px` one, using live container queries rather than device flags. Open it beside a build when changing the reviewed rows' stacking rule.

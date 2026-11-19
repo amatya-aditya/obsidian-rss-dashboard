@@ -108,6 +108,27 @@ function hasCssDeclarations(
     );
     if (!normalizedSelectors?.includes(selector)) return;
 
+    if (containerWidth !== undefined) {
+      let ancestor:
+        | { type: string; name?: string; params?: string; parent?: unknown }
+        | undefined = rule.parent;
+      let insideContainer = false;
+      while (ancestor && !insideContainer) {
+        if (
+          ancestor.type === "atrule" &&
+          ancestor.name === "container" &&
+          /rss-dashboard-settings/.test(ancestor.params ?? "") &&
+          new RegExp(`max-width:\\s*${containerWidth}px`).test(
+            ancestor.params ?? "",
+          )
+        ) {
+          insideContainer = true;
+        }
+        ancestor = ancestor.parent as typeof ancestor;
+      }
+      if (!insideContainer) return;
+    }
+
     const hasAllDeclarations = declarations.every(([prop, value]) =>
       rule.nodes?.some(
         (node) =>
@@ -118,6 +139,51 @@ function hasCssDeclarations(
   });
 
   return found;
+}
+
+/** Reviewed-row stacking rules that the touch media query still forces. */
+function reviewedStackRulesInTouchMedia(file: string): string[] {
+  const css = readFileSync(
+    path.resolve(testDir, `../../../src/styles/${file}`),
+    "utf8",
+  );
+  const root = postcss.parse(css);
+  const selectors: string[] = [];
+
+  root.walkRules((rule) => {
+    const stacksRow = rule.nodes?.some(
+      (node) =>
+        node.type === "decl" &&
+        (node.prop === "flex-direction" ||
+          node.prop === "grid-template-columns") &&
+        (node.value === "column" || node.value === "minmax(0, 1fr)"),
+    );
+    if (!stacksRow) return;
+
+    let ancestor:
+      | { type: string; name?: string; params?: string; parent?: unknown }
+      | undefined = rule.parent;
+    let inTouchMedia = false;
+    while (ancestor && !inTouchMedia) {
+      if (
+        ancestor.type === "atrule" &&
+        ancestor.name === "media" &&
+        /\(hover:\s*none\)/.test(ancestor.params ?? "")
+      ) {
+        inTouchMedia = true;
+      }
+      ancestor = ancestor.parent as typeof ancestor;
+    }
+    if (!inTouchMedia) return;
+
+    const normalized = rule.selector.replace(/\s+/g, " ").trim();
+    // Ignore the reviewed class when it appears inside `:not(...)`.
+    if (/(^|[^(\w-])\.rss-dashboard-settings-reviewed\b/.test(normalized)) {
+      selectors.push(normalized);
+    }
+  });
+
+  return selectors;
 }
 
 describe("responsive settings row layout", () => {
@@ -161,9 +227,28 @@ describe("responsive settings row layout", () => {
           ["display", "grid"],
           ["flex", "1 1 18rem"],
         ],
-        660,
+        400,
       ),
     ).toBe(true);
+  });
+
+  it("stacks reviewed dropdown rows only at the phone-width pane breakpoint", () => {
+    expect(
+      hasCssDeclarations(
+        "settings.css",
+        ".rss-dashboard-settings-reviewed .setting-item:has(> .setting-item-control > select)",
+        [
+          ["flex-direction", "column"],
+          ["align-items", "stretch"],
+        ],
+        400,
+      ),
+    ).toBe(true);
+  });
+
+  it("leaves reviewed rows unstacked on a tablet-sized touch pane", () => {
+    expect(reviewedStackRulesInTouchMedia("settings.css")).toEqual([]);
+    expect(reviewedStackRulesInTouchMedia("tag-color-palette.css")).toEqual([]);
   });
 
   it("reserves a shared auto-tag column and pins the button beside wrapping chips", () => {
