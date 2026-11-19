@@ -19,7 +19,7 @@ related:
 
 ## Update History
 
-- 2026-11-19: Calibrate the reviewed settings rows to a 400px settings-pane breakpoint (about a 665px settings window, matching where core stacks its own rows), so the two-column layout holds at tablet widths on mouse and touch alike and stacked rows come from pane width instead of the touch query (#1819)
+- 2026-11-19: Calibrate the reviewed settings rows to a 400px settings-pane breakpoint (about a 665px settings window, matching where core stacks its own rows), so the two-column layout holds at tablet widths on mouse and touch alike and stacked rows come from pane width instead of the touch query; size the control column by the text it holds and let the name/help column flex, so no dropdown or button clips its value (#1819)
 - 2026-11-16: Set the default settings-row layout to stack at tablet widths, require full-width free-text fields and trailing-edge clear buttons, and document compact numeric/color-value exceptions (#1813)
 - 2026-11-16: Clarify Android SVG sizing and paint-layer coverage for plugin-owned icon controls, including custom native-button resets, and require device evidence for the reported form factor
 - 2026-10-28: Add **Dropdown Controls**: every dropdown trigger and select shows Obsidian's up/down chevron (`chevrons-up-down`) at its right edge, and every native color picker shows the same hover and focus ring. Settings color rows put the picker right after the row name with no hex readout; Tag appearance defaults are a draft, previewed in their own card, until the user applies them; Tag shape previews are drawn in the applied default colors, and Add new tag shows a live preview chip; native color pickers get a Randomize dice button that rolls any color
@@ -293,7 +293,15 @@ control until the pane is narrower than `400px`, which is about a `665px`
 settings window matching where core's own rows stack; below that they stack
 above their control on every input mode. The pane is core's setting-group
 column, so it saturates near `688px` and the rule never fires on a wider
-window.
+window. The control column is sized by the text it holds, core's own model: a
+dropdown or button never shrinks below its label, the name/help column flexes to
+the remaining width, and a row wraps its control to a second line only when the
+two cannot share one. Do not cap the control with a percentage `max-width` or a
+percentage `min-width` on the dropdown - both resolve against the very column
+that is shrinking and clip the value.
+
+- Keep number, hex and duration fields compact, and free-text fields full
+  width; the content-sized rule applies to dropdowns and buttons.
 
 - Group related settings by purpose in rounded cards with subtle dividers on
   touch devices. General, Display, Sidebar, Media, Article saving, Highlights,

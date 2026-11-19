@@ -144,8 +144,8 @@
         border-top: 0;
       }
       .row-info {
-        min-width: 0;
-        flex: 1 1 auto;
+        min-width: min(8rem, 100%);
+        flex: 1 1 0;
       }
       .row-name {
         font-size: 13.5px;
@@ -160,13 +160,13 @@
         align-items: center;
         gap: 8px;
         flex: 0 0 auto;
-        max-width: 60%;
+        max-width: 100%;
         min-width: 0;
         justify-content: flex-end;
       }
       .row-control select,
       .row-control input {
-        min-width: 7rem;
+        min-width: 0;
         max-width: 100%;
         padding: 4px 6px;
         border: 1px solid var(--line);
@@ -175,6 +175,9 @@
         color: var(--text);
         font: inherit;
         font-size: 13px;
+      }
+      .row-control > :is(select, button) {
+        flex: 0 0 auto;
       }
       .row-control button {
         padding: 4px 10px;

@@ -879,14 +879,23 @@
   container: rss-dashboard-settings / inline-size;
 }
 
+/* The control column is sized by its own text and the label gives way, the way
+ * core lays out its settings rows; the row wraps only when the pair cannot fit
+ * beside each other. */
+.rss-dashboard-settings-reviewed .setting-item {
+  flex-wrap: wrap;
+}
+
 .rss-dashboard-settings-reviewed .setting-item-info {
-  min-width: 0;
+  flex: 1 1 0;
+  min-width: min(12rem, 100%);
   overflow-wrap: anywhere;
 }
 
 .rss-dashboard-settings-reviewed .setting-item-control {
+  flex: 0 0 auto;
   min-width: 0;
-  max-width: 60%;
+  max-width: 100%;
   flex-wrap: wrap;
   gap: 8px;
 }
@@ -897,8 +906,10 @@
   max-width: 100%;
 }
 
-.rss-dashboard-settings-reviewed .setting-item-control > select {
-  min-width: min(100%, 7rem);
+/* Selects and buttons keep the width their text needs, so a percentage-based or
+ * shrinking floor cannot clip the value. */
+.rss-dashboard-settings-reviewed .setting-item-control > :is(select, button) {
+  flex: 0 0 auto;
 }
 
 .rss-dashboard-settings-reviewed .setting-item-control > .checkbox-container {
@@ -999,6 +1010,7 @@
   )
   .setting-item-info {
   grid-column: 1;
+  min-width: 0;
 }
 
 .rss-dashboard-settings-reviewed

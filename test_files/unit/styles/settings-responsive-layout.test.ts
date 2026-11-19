@@ -141,6 +141,32 @@ function hasCssDeclarations(
   return found;
 }
 
+/** Every value declared for `prop` on rules with exactly this selector. */
+function declarationsFor(
+  file: string,
+  selector: string,
+  prop: string,
+): string[] {
+  const css = readFileSync(
+    path.resolve(testDir, `../../../src/styles/${file}`),
+    "utf8",
+  );
+  const root = postcss.parse(css);
+  const values: string[] = [];
+
+  root.walkRules((rule) => {
+    const normalizedSelectors = rule.selectors?.map((value) =>
+      value.replace(/\s+/g, " ").trim(),
+    );
+    if (!normalizedSelectors?.includes(selector)) return;
+    rule.walkDecls(prop, (decl) => {
+      values.push(decl.value);
+    });
+  });
+
+  return values;
+}
+
 /** Reviewed-row stacking rules that the touch media query still forces. */
 function reviewedStackRulesInTouchMedia(file: string): string[] {
   const css = readFileSync(
@@ -244,6 +270,44 @@ describe("responsive settings row layout", () => {
         400,
       ),
     ).toBe(true);
+  });
+
+  it("sizes reviewed controls by their text and lets the label flex", () => {
+    expect(
+      declarationsFor(
+        "settings.css",
+        ".rss-dashboard-settings-reviewed .setting-item",
+        "flex-wrap",
+      ),
+    ).toContain("wrap");
+    expect(
+      declarationsFor(
+        "settings.css",
+        ".rss-dashboard-settings-reviewed .setting-item-control",
+        "flex",
+      ),
+    ).toEqual(["0 0 auto"]);
+    expect(
+      declarationsFor(
+        "settings.css",
+        ".rss-dashboard-settings-reviewed .setting-item-control",
+        "max-width",
+      ),
+    ).toEqual(["100%"]);
+    expect(
+      declarationsFor(
+        "settings.css",
+        ".rss-dashboard-settings-reviewed .setting-item-control > select",
+        "min-width",
+      ),
+    ).toEqual([]);
+    expect(
+      declarationsFor(
+        "settings.css",
+        ".rss-dashboard-settings-reviewed .setting-item-control > :is(select, button)",
+        "flex",
+      ),
+    ).toEqual(["0 0 auto"]);
   });
 
   it("leaves reviewed rows unstacked on a tablet-sized touch pane", () => {
