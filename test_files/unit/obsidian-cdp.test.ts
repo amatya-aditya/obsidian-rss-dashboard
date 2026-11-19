@@ -22,6 +22,7 @@ import {
   connect,
   clickElement,
   convergeWindowSize,
+  touchQuerySummary,
   describeViewport,
   isObsidianVaultTarget,
   normalizeVaultPath,
@@ -1354,6 +1355,24 @@ describe("obsidian-cdp viewport canvas", () => {
     expect(
       describeViewport({ width: 1499, height: 1000, devicePixelRatio: 2 }).band,
     ).toBe("1400-1600");
+  });
+
+  it("reads back the hover and pointer media features a capture had", () => {
+    // A phone reports hover: none / pointer: coarse; setEmulatedMedia alone
+    // cannot fake them, so the viewport line has to report what was measured.
+    const viewport = describeViewport({
+      width: 390,
+      height: 844,
+      devicePixelRatio: 1,
+      hover: "none",
+      pointer: "coarse",
+    });
+
+    expect(viewport).toMatchObject({ hover: "none", pointer: "coarse" });
+    expect(touchQuerySummary(viewport)).toBe(", hover none, pointer coarse");
+    expect(
+      touchQuerySummary({ width: 1440, height: 900, devicePixelRatio: 1 }),
+    ).toBe("");
   });
 
   it("keeps the phone canvas in phone territory", () => {

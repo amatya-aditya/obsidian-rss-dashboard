@@ -517,10 +517,16 @@ Settings layout under the ownership check.
 
 #### Phone width
 
-The Settings window cannot be resized below 599px, so emulate a phone. Inside one
-`repl` script, `@settings` then `@viewport phone` does this with the same guard
-as the rest of the script — the emulation lives in that connection, so the
-capture must stay in it:
+A phone is two things: a narrow viewport **and** Obsidian's mobile platform
+classes, which carry a different token set (see
+[Reading Obsidian's own CSS](./obsidian-core-css.md)). A width-only emulation
+misses the second, and a settings surface can look right at 390px while being
+invisible on the phone.
+
+**Width only (fast, layout only).** Inside one `repl` script, `@settings` then
+`@viewport phone` narrows the Settings window and turns on touch emulation, so
+`(hover: none)` and `(pointer: coarse)` match. The emulation lives in that
+connection, so the capture must stay in it:
 
 ```text
 @settings
@@ -528,71 +534,50 @@ capture must stay in it:
 @shot phone-settings.png
 ```
 
-`@viewport phone` sets 390x844 at devicePixelRatio 2 and does not add the
-`is-mobile`/`is-phone` classes; add them only on a Settings-window target when a
-row depends on Obsidian's mobile styles, and never on the vault window (they
-collapse its workspace to 0x0).
+This does not add `is-mobile`/`is-phone`, so tokens still resolve to their
+desktop values. The Settings popout is also `about:blank` with no viewport meta,
+where `mobile: true` in `Emulation.setDeviceMetricsOverride` lays the page out at
+the 980px default viewport; the harness keeps `mobile: false` for that target and
+relies on touch emulation alone.
 
-For a raw-protocol route outside the harness, set the metrics yourself; the
-override lasts only while the connection that set it stays open, so set it and
-capture in the same script. `repl` has no step for arbitrary protocol calls, so
-this needs a short Node 22 script over the same Settings target:
+**Full phone (the real thing).** Drive the **vault** window instead:
+`app.emulateMobile(true)` switches the app to its mobile platform, and Settings
+then opens in that same window, so the mobile tokens apply. This is the state the
+#1819 invisible-group bug reproduced in:
 
-```js
-// phone-settings.mjs: node phone-settings.mjs <port> <out.png>
-import { writeFileSync } from "node:fs";
-
-const [port, out] = process.argv.slice(2);
-const pages = await (await fetch(`http://localhost:${port}/json/list`)).json();
-const settings = pages.find(
-  (page) =>
-    page.type === "page" && /^Settings - .+ - Obsidian \S+$/.test(page.title),
-);
-const socket = new WebSocket(settings.webSocketDebuggerUrl);
-await new Promise((resolve) => socket.addEventListener("open", resolve));
-let nextId = 1;
-const pending = new Map();
-socket.addEventListener("message", ({ data }) => {
-  const message = JSON.parse(String(data));
-  pending.get(message.id)?.(message);
-});
-const send = (method, params = {}) =>
-  new Promise((resolve) => {
-    const id = nextId++;
-    pending.set(id, resolve);
-    socket.send(JSON.stringify({ id, method, params }));
-  });
-
-await send("Emulation.setDeviceMetricsOverride", {
-  width: 390,
-  height: 844,
-  deviceScaleFactor: 2,
-  mobile: true,
-});
-await send("Runtime.evaluate", {
-  expression: "document.body.classList.add('is-mobile', 'is-phone')",
-});
-await new Promise((resolve) => setTimeout(resolve, 500));
-const { result } = await send("Page.captureScreenshot", { format: "png" });
-writeFileSync(out, Buffer.from(result.data, "base64"));
-socket.close();
+```sh
+node scripts/check-settings-layout.mjs --profile "$env:TEMP\<profile>" \
+  --expect-vault "$PWD\.fixture-vault" --mobile
 ```
 
-Pass the port from your own profile's `DevToolsActivePort` file, so the script
-cannot pick up another session's Settings window; run `open-settings` first so
-the window is open and on the tab you want. It is a hand-written script, so it
-does not carry the ownership guard itself.
+`app.emulateMobile` persists in the profile, so run it against a disposable one.
+`--mobile` switches it back at the end, and a relaunch is the reliable reset.
 
-A release build (`npm run build`) is byte-for-byte reproducible: its `main.js`
-embeds no commit or timestamp, so its hash is stable. A local dev/watch build
-embeds a fresh commit and build time, so compare those by their **build stamp**,
-not by file hash; the status bar label (Display setting **Show version in
-status bar**, also shown in About) names the build.
+#### Checking the settings layout
 
-Obsidian's own **Command line interface** (**Settings → General → Advanced**,
-which some builds surface as a standalone **Advanced** group; "Allow
-interactions with Obsidian from the command line") is off by default and not
-part of this route yet.
+`scripts/check-settings-layout.mjs` owns the checks that used to be a hand-run
+sweep: no settings pane or control clips its content, every dropdown row follows
+the 400px pane rule, and every reviewed row keeps a visible fill from the
+platform's own tokens. It covers the eight reviewed tabs at five window widths.
+
+```sh
+# desktop and touch, against the Settings window
+node scripts/obsidian-cdp.mjs --profile "$env:TEMP\<profile>" \
+  --expect-vault "$PWD\.fixture-vault" open-settings rss-dashboard
+node scripts/check-settings-layout.mjs --profile "$env:TEMP\<profile>" \
+  --expect-vault "$PWD\.fixture-vault"
+node scripts/check-settings-layout.mjs --profile "$env:TEMP\<profile>" \
+  --expect-vault "$PWD\.fixture-vault" --touch
+
+# the phone token set
+node scripts/check-settings-layout.mjs --profile "$env:TEMP\<profile>" \
+  --expect-vault "$PWD\.fixture-vault" --mobile
+```
+
+Run the desktop, touch and mobile passes before a pull request that changes
+settings layout, and report them in its evidence. The check tolerates 2px of
+rounding; the regressions it exists for lost 15px and more. Both the touch and
+mobile passes were verified red against the #1819 rule before it was fixed.
 
 ### Android WebView
 

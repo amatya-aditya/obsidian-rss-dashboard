@@ -1134,7 +1134,7 @@ async function fetchTargets(host, port) {
   return payload;
 }
 
-async function pageTargetsOn(host, port) {
+export async function pageTargetsOn(host, port) {
   return (await fetchTargets(host, port)).filter(isPageTarget);
 }
 
@@ -1249,7 +1249,7 @@ export function parseDevToolsActivePort(text) {
   return port;
 }
 
-function readDevToolsActivePort(profileDir) {
+export function readDevToolsActivePort(profileDir) {
   const file = join(profileDir, DEVTOOLS_ACTIVE_PORT_FILE);
   let text;
   try {
@@ -1407,7 +1407,7 @@ export function connect(
   return { opened, send, close: () => socket.close() };
 }
 
-async function evaluate(connection, expression) {
+export async function evaluate(connection, expression) {
   // replMode lets a batch redeclare `const`/`let` across steps and use
   // top-level `await`, the way the developer console does.
   const result = await connection.send("Runtime.evaluate", {
@@ -1510,9 +1510,14 @@ export function parseCanvasSpec(token) {
  * Names the layout band a measured viewport sits in, and whether it landed on a
  * breakpoint. The band is the pair of stylesheet breakpoints around the width,
  * so "1400-1600" means every `max-width: 1400px` rule is off and the
- * `max-width: 1600px` one is on. Exported for unit tests.
+ * `max-width: 1600px` one is on. `hover` and `pointer` are optional: a desktop
+ * render measures them as `hover`/`fine`, a phone as `none`/`coarse`. Exported
+ * for unit tests.
+ *
+ * @param {{ width: number | string, height: number | string, devicePixelRatio: number | string, hover?: string, pointer?: string }} input
  */
-export function describeViewport({ width, height, devicePixelRatio }) {
+export function describeViewport(input) {
+  const { width, height, devicePixelRatio, hover, pointer } = input;
   const measured = Math.round(Number(width));
   const onEdge = LAYOUT_BREAKPOINTS.includes(measured);
   let lower = 0;
@@ -1530,14 +1535,27 @@ export function describeViewport({ width, height, devicePixelRatio }) {
     devicePixelRatio: Number(devicePixelRatio),
     band: onEdge ? String(measured) : `${lower}-${upper ?? "inf"}`,
     onEdge,
+    // A phone reports `hover: none` and `pointer: coarse`; a desktop canvas does
+    // not, so a checklist item about touch needs these read back.
+    hover,
+    pointer,
   };
+}
+
+/** `hover`/`pointer` as the renderer reports them, for the viewport line. */
+export function touchQuerySummary(viewport) {
+  return viewport?.hover && viewport?.pointer
+    ? `, hover ${viewport.hover}, pointer ${viewport.pointer}`
+    : "";
 }
 
 /** What the target's viewport is right now, as CSS pixels. */
 async function measureViewport(connection) {
   const result = await evaluate(
     connection,
-    "JSON.stringify({ width: innerWidth, height: innerHeight, devicePixelRatio })",
+    "JSON.stringify({ width: innerWidth, height: innerHeight, devicePixelRatio, " +
+      "hover: matchMedia('(hover: none)').matches ? 'none' : 'hover', " +
+      "pointer: matchMedia('(pointer: coarse)').matches ? 'coarse' : 'fine' })",
   );
   return describeViewport(JSON.parse(result.value));
 }
@@ -1594,6 +1612,13 @@ async function emulateViewport(connection, canvas) {
     height: canvas.height,
     deviceScaleFactor: canvas.deviceScaleFactor ?? 1,
     mobile: Boolean(canvas.mobile),
+  });
+  // `setEmulatedMedia` cannot turn on `hover: none`/`pointer: coarse`; touch
+  // emulation is what makes a phone canvas behave like a phone. Without it a
+  // checklist item about touch silently measures a mouse.
+  await connection.send("Emulation.setTouchEmulationEnabled", {
+    enabled: Boolean(canvas.mobile),
+    maxTouchPoints: 5,
   });
   await delay(150);
   return measureViewport(connection);
@@ -1996,7 +2021,7 @@ async function runBatch(options, initialConnection, steps) {
           step.mechanism,
         );
         console.log(
-          `viewport ${step.spec} (${step.mechanism}) -> ${viewport.width}x${viewport.height} @ ${viewport.devicePixelRatio}, band ${viewport.band}${viewport.onEdge ? ", on a breakpoint" : ""}`,
+          `viewport ${step.spec} (${step.mechanism}) -> ${viewport.width}x${viewport.height} @ ${viewport.devicePixelRatio}, band ${viewport.band}${viewport.onEdge ? ", on a breakpoint" : ""}${touchQuerySummary(viewport)}`,
         );
       } else if (step.kind === "axquery") {
         console.log(
@@ -2263,7 +2288,7 @@ async function main() {
         console.log(
           options.json
             ? JSON.stringify(viewport, null, 2)
-            : `viewport ${viewport.width}x${viewport.height} @ ${viewport.devicePixelRatio}, band ${viewport.band}${viewport.onEdge ? ", on a breakpoint" : ""}`,
+            : `viewport ${viewport.width}x${viewport.height} @ ${viewport.devicePixelRatio}, band ${viewport.band}${viewport.onEdge ? ", on a breakpoint" : ""}${touchQuerySummary(viewport)}`,
         );
         return;
       }
@@ -2276,7 +2301,7 @@ async function main() {
               null,
               2,
             )
-          : `viewport ${requested} (window bounds) -> ${viewport.width}x${viewport.height} @ ${viewport.devicePixelRatio}, band ${viewport.band}${viewport.onEdge ? ", on a breakpoint" : ""}`,
+          : `viewport ${requested} (window bounds) -> ${viewport.width}x${viewport.height} @ ${viewport.devicePixelRatio}, band ${viewport.band}${viewport.onEdge ? ", on a breakpoint" : ""}${touchQuerySummary(viewport)}`,
       );
       return;
     }
