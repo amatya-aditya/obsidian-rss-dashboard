@@ -1056,7 +1056,7 @@ async function fetchTargets(host, port) {
   return payload;
 }
 
-async function pageTargetsOn(host, port) {
+export async function pageTargetsOn(host, port) {
   return (await fetchTargets(host, port)).filter(isPageTarget);
 }
 
@@ -1171,7 +1171,7 @@ export function parseDevToolsActivePort(text) {
   return port;
 }
 
-function readDevToolsActivePort(profileDir) {
+export function readDevToolsActivePort(profileDir) {
   const file = join(profileDir, DEVTOOLS_ACTIVE_PORT_FILE);
   let text;
   try {
@@ -1329,7 +1329,7 @@ export function connect(
   return { opened, send, close: () => socket.close() };
 }
 
-async function evaluate(connection, expression) {
+export async function evaluate(connection, expression) {
   // replMode lets a batch redeclare `const`/`let` across steps and use
   // top-level `await`, the way the developer console does.
   const result = await connection.send("Runtime.evaluate", {
