@@ -139,6 +139,7 @@ build does not run tests.
 - Run `npm run format` for every change; `npm run format:check` must pass. The policy lives in **Formatting** in `CONTRIBUTING.md`.
 - Run ESLint for every changed TypeScript file, or `npm run lint` when practical.
 - Run `npm run check:platform` whenever a `src/` TypeScript file changes.
+- Run `npm run check:settings-layout` (desktop and `--mobile`) for a settings layout change, with the fixture vault open; see [Fixture Vault](./docs/development/fixture-vault.md#checking-the-settings-layout).
 - Run `npm run check:architecture` for meaningful production TypeScript changes.
 - Run the focused unit tests covering the change (`npm exec -- vitest related --run <changed files>` selects them from the import graph); run `npm run test:unit` when the change has broad impact.
 - The pre-commit hook lints only staged files and runs only their related tests. The pre-push hook skips local full checks; GitHub Actions runs `npm run build` and the full unit suite on pull requests and pushes to `dev` or `master`. See **Git Hooks** in `CONTRIBUTING.md`.
