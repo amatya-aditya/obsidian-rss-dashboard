@@ -244,7 +244,7 @@ describe("responsive settings row layout", () => {
     ).toBe(true);
   });
 
-  it("wraps both tag palette controls together based on pane width", () => {
+  it("wraps both tag palette controls together below the width that fits the value", () => {
     expect(
       hasCssDeclarations(
         "tag-color-palette.css",
@@ -253,7 +253,7 @@ describe("responsive settings row layout", () => {
           ["display", "grid"],
           ["flex", "1 1 18rem"],
         ],
-        400,
+        560,
       ),
     ).toBe(true);
   });

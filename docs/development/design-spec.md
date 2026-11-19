@@ -336,7 +336,12 @@ that is shrinking and clip the value.
   separate row on phones.
 - Keep tag shape and draft appearance previews. Let the palette and color
   selectors wrap without clipping custom colors. Use the existing draft and
-  apply scopes. In **Auto tagging**, each **Add tag** opens the available-tag
+  apply scopes. The Background and Text rows share one six-column alignment
+  only while the pane can show every value, so they stack below `560px` of pane
+  even though the other rows hold their two-column layout down to `400px`; the
+  grid needs about `465px` to avoid horizontal scrolling and about `560px`
+  before `Purple #8A5CF5` / `Custom #FFFFFF` truncate. In **Auto tagging**, each
+  **Add tag** opens the available-tag
   multi-select. Apply shows the selected tags in their actual appearance.
   Keep the add button pinned at the trailing edge and align all six fields in
   one shared desktop control column.

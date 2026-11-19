@@ -340,7 +340,12 @@ body .rss-dashboard-tag-color-picker:focus-visible,
   }
 }
 
-@container rss-dashboard-settings (max-width: 400px) {
+/* The tag appearance rows keep their six-column alignment only where that grid
+ * can show every value: it needs about 465px to fit without scrolling and about
+ * 560px before `Purple #8A5CF5` / `Custom #FFFFFF` stop truncating (measured in
+ * Obsidian 1.15.1 at the default font scale). Narrower panes stack the row and
+ * pair palette with color, which keeps both values readable. */
+@container rss-dashboard-settings (max-width: 560px) {
   .rss-dashboard-settings-reviewed
     .rss-dashboard-tag-color-setting.setting-item {
     display: flex;
