@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as obsidian from "obsidian";
 import { DEFAULT_SETTINGS } from "../../../src/types/types";
 import {
   renderArticleTitleSizeSetting,
@@ -6,7 +7,7 @@ import {
   renderCardSpacingSetting,
   renderImageCacheLimitSettings,
 } from "../../../src/settings/tabs/display-settings-sections";
-import { renderSidebarSettingsSections } from "../../../src/settings/tabs/sidebar-settings-sections";
+import { renderSidebarSettingsTab } from "../../../src/settings/tabs/sidebar-settings-tab";
 import { renderArticleSavingSettingsTab } from "../../../src/settings/tabs/article-saving-settings-tab";
 import { installObsidianDomPolyfills } from "../test-dom-polyfills";
 
@@ -39,9 +40,11 @@ function fixture() {
     },
   );
   return {
+    app: obsidian.App.createMock(),
     settings,
     saveSettings,
     setImageCacheLimit,
+    clearPlaybackProgress: vi.fn(async () => 0),
     getActiveDashboardView: vi.fn(async () => null),
   };
 }
@@ -116,9 +119,9 @@ describe("settings slider resets", () => {
   it("resets each Sidebar slider and the Article saving timeout independently", () => {
     const settingsRoot = document.body.createDiv();
     const plugin = fixture();
-    renderSidebarSettingsSections(
+    renderSidebarSettingsTab(
       settingsRoot,
-      plugin as unknown as Parameters<typeof renderSidebarSettingsSections>[1],
+      plugin as unknown as Parameters<typeof renderSidebarSettingsTab>[1],
       vi.fn(),
     );
     renderArticleSavingSettingsTab(
