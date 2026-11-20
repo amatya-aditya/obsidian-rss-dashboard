@@ -1,0 +1,4380 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RSS Dashboard settings review</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      [hidden],
+      .preview .row[hidden] {
+        display: none;
+      }
+      body {
+        margin: 0;
+        background: #15141a;
+        color: #f0edf5;
+        font:
+          15px/1.45 system-ui,
+          sans-serif;
+      }
+      main {
+        max-width: 1280px;
+        margin: auto;
+        padding: clamp(12px, 3vw, 36px);
+      }
+      h1,
+      h2,
+      h3,
+      p {
+        margin: 0;
+      }
+      h1 {
+        font-size: clamp(24px, 5vw, 36px);
+        letter-spacing: -0.035em;
+        line-height: 1.15;
+      }
+      a {
+        color: #d3beff;
+      }
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+      button,
+      select,
+      summary {
+        cursor: pointer;
+      }
+      :focus-visible {
+        outline: 2px solid #a988f9;
+        outline-offset: 3px;
+      }
+      .intro {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px 24px;
+      }
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: end;
+        gap: 12px 20px;
+        margin: 20px 0 12px;
+      }
+      .choice {
+        display: grid;
+        gap: 5px;
+      }
+      .choice > span {
+        font-size: 12px;
+        font-weight: 650;
+        color: #c8c0d1;
+      }
+      .segments {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px;
+        padding: 3px;
+        border: 1px solid #423b50;
+        border-radius: 10px;
+        background: #211d2a;
+      }
+      .toolbar button,
+      .toolbar select {
+        background: #211d2a;
+        color: inherit;
+        border: 1px solid #423b50;
+        border-radius: 8px;
+        padding: 7px 11px;
+        min-height: 38px;
+      }
+      .segments button {
+        border-color: transparent;
+        min-height: 30px;
+        padding-block: 3px;
+      }
+      .segments button[aria-pressed="true"] {
+        background: #d8c6ff;
+        color: #241636;
+        font-weight: 650;
+      }
+      .report {
+        color: #c8c0d1;
+        margin-bottom: 12px;
+      }
+      .stage {
+        display: grid;
+        justify-items: center;
+        min-width: 0;
+        padding: clamp(5px, 2vw, 20px);
+        border: 1px solid #393243;
+        border-radius: 14px;
+        background: #1c1923;
+      }
+      .preview,
+      dialog {
+        --surface: #202024;
+        --card: #29282e;
+        --field: #37353d;
+        --text: #f3f0f7;
+        --muted: #c3bccb;
+        --line: #45424b;
+        --accent: #ac89ff;
+        --danger: #a12d47;
+        color-scheme: dark;
+      }
+      .preview {
+        display: grid;
+        grid-template-columns: 1fr;
+        overflow: hidden;
+        width: var(--device-width);
+        height: var(--device-height);
+        border: 1px solid var(--line);
+        border-radius: 19px;
+        background: var(--surface);
+        color: var(--text);
+      }
+      .preview[data-theme="light"],
+      dialog[data-theme="light"] {
+        --surface: #faf9fc;
+        --card: #f0edf5;
+        --field: #e7e2ee;
+        --text: #211a29;
+        --muted: #57505f;
+        --line: #d6cede;
+        --accent: #6941b5;
+        color-scheme: light;
+      }
+      .preview[data-device="tablet"] {
+        grid-template-columns: 230px minmax(0, 1fr);
+      }
+      .preview[data-device="desktop"] {
+        grid-template-columns: 186px minmax(0, 1fr);
+      }
+      .host {
+        background: var(--card);
+        padding: 20px 14px;
+        border-inline-end: 1px solid var(--line);
+      }
+      .host p {
+        color: var(--muted);
+        font-size: 13px;
+        margin-bottom: 14px;
+      }
+      .host strong {
+        display: block;
+        background: var(--field);
+        padding: 10px;
+        border-radius: 9px;
+      }
+      .preview[data-device="phone"] .host {
+        display: none;
+      }
+      .pane {
+        min-width: 0;
+        overflow: auto;
+        padding: 22px;
+        scrollbar-gutter: stable;
+      }
+      .preview[data-device="phone"] .pane {
+        padding: 14px;
+      }
+      .pane h2 {
+        font-size: 21px;
+        letter-spacing: -0.02em;
+      }
+      .plugin-tabs {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 5px 11px;
+        margin: 8px 0 16px;
+        padding-bottom: 9px;
+        border-block-end: 1px solid var(--line);
+      }
+      .plugin-tabs :is(span, button) {
+        color: var(--muted);
+        font-size: 13px;
+        padding: 5px 2px;
+      }
+      .plugin-tabs button {
+        background: transparent;
+        border: 0;
+        border-bottom: 2px solid transparent;
+      }
+      .plugin-tabs button:hover {
+        color: var(--text);
+      }
+      .plugin-tabs [aria-current] {
+        color: var(--text);
+        border-bottom: 2px solid var(--accent);
+        font-weight: 700;
+      }
+      .group {
+        margin-bottom: 17px;
+        scroll-margin-top: 14px;
+      }
+      .group :is(h3, h4) {
+        font-size: 15px;
+        margin: 0 0 7px;
+        color: var(--muted);
+      }
+      .group-help {
+        margin-bottom: 9px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .preview:not([data-device="desktop"])[data-mode="after"]
+        .group[data-transfer] {
+        padding: 13px 14px;
+        border-radius: 16px;
+        background: var(--card);
+      }
+      .transfer-actions.controls {
+        justify-content: flex-start;
+        gap: 8px;
+        max-width: none;
+      }
+      .transfer-actions > button,
+      .transfer-export {
+        flex: 0 1 auto;
+      }
+      .transfer-export {
+        display: flex;
+        align-items: stretch;
+        gap: 8px;
+      }
+      .transfer-export button {
+        min-block-size: 34px;
+        padding: 5px 9px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--field);
+        color: var(--text);
+      }
+      .transfer-copy {
+        flex: none;
+        min-inline-size: 44px;
+        font-size: 18px;
+        line-height: 1;
+      }
+      .tag-chip {
+        display: inline-block;
+        max-inline-size: 100%;
+        padding: 3px 9px;
+        border-radius: var(--tag-radius, 999px);
+        background: var(--tag-background, #8a5cf5);
+        color: var(--tag-text, #fff);
+        font-weight: 650;
+        overflow-wrap: anywhere;
+      }
+      .tag-shape-options {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 10px 14px;
+      }
+      .tag-shape-options button,
+      .tag-colors :is(button, select) {
+        min-block-size: 36px;
+        padding: 6px 9px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--field);
+        color: var(--text);
+      }
+      .tag-shape-options button[aria-checked="true"] {
+        border-color: var(--accent);
+      }
+      .tag-shape-options button[aria-checked="true"]::after {
+        content: " ✓";
+        color: var(--accent);
+      }
+      .row[data-kind="tag-color"] .controls {
+        max-inline-size: 78%;
+        flex: 1 1 410px;
+      }
+      .preview:not([data-device="desktop"]) .row[data-kind="tag-color"] {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+      }
+      .preview:not([data-device="desktop"])
+        .row[data-kind="tag-color"]
+        .controls {
+        max-inline-size: none;
+        flex: none;
+      }
+      .tag-colors {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+        inline-size: 100%;
+        min-inline-size: 0;
+      }
+      .tag-color-tools {
+        display: flex;
+        flex: none;
+        align-items: center;
+        gap: 6px;
+      }
+      .tag-color-tools button {
+        inline-size: 40px;
+        font-size: 20px;
+        line-height: 1;
+      }
+      .tag-color-tools input[type="color"] {
+        inline-size: 44px;
+      }
+      .tag-palettes {
+        display: grid;
+        flex: 1 1 285px;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+        align-items: center;
+        gap: 8px;
+        min-inline-size: 0;
+      }
+      .tag-palettes select {
+        inline-size: 100%;
+        min-inline-size: 0;
+        text-overflow: ellipsis;
+      }
+      .preview:not([data-device="desktop"]) .tag-colors :is(button, select),
+      .preview:not([data-device="desktop"]) .tag-shape-options button {
+        min-block-size: 44px;
+      }
+      .preview[data-device="tablet"][data-mode="before"]
+        .tag-colors:has([data-custom="true"]) {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+      }
+      .preview[data-device="tablet"][data-mode="before"]
+        .tag-colors:has([data-custom="true"])
+        .tag-palettes {
+        flex: 0 0 445px;
+      }
+      .row[data-kind="tag-select"] .controls button {
+        overflow-wrap: anywhere;
+      }
+      .preview[data-device="desktop"][data-mode="after"]
+        .row[data-kind="tag-select"] {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 58%);
+        align-items: start;
+      }
+      .preview[data-mode="after"] .row[data-kind="tag-select"] .controls {
+        max-inline-size: none;
+      }
+      .auto-tag-box {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 8px;
+        inline-size: 100%;
+        min-inline-size: 0;
+        padding: 6px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+      .auto-tag-items:not([hidden]) {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+        min-inline-size: 0;
+        padding: 0;
+        margin: 0;
+        list-style: none;
+      }
+      .auto-tag-items li {
+        max-inline-size: 100%;
+      }
+      .auto-tag-add {
+        grid-column: 2;
+        grid-row: 1;
+        align-self: start;
+        min-block-size: 34px;
+        padding: 5px 10px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--field);
+        color: var(--text);
+      }
+      .auto-tag-add:disabled {
+        opacity: 0.65;
+        cursor: default;
+      }
+      .preview[data-mode="before"] .auto-tag-box,
+      .preview[data-mode="after"] .auto-tag-summary {
+        display: none;
+      }
+      .preview:not([data-device="desktop"])[data-mode="after"]
+        .row:is([data-kind="tag-select"], [data-kind="tag-new"]) {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+      }
+      .preview:not([data-device="desktop"])[data-mode="after"]
+        .row[data-kind="tag-new"]
+        .controls {
+        max-inline-size: none;
+      }
+      .preview:not([data-device="desktop"]) .auto-tag-add {
+        min-block-size: 44px;
+      }
+      .tag-choice-list label {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        min-block-size: 34px;
+      }
+      .tag-default-comparison {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+      }
+      .preview:not([data-device="desktop"]) .transfer-export button {
+        min-block-size: 44px;
+      }
+      .preview[data-device="phone"] .transfer-actions {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .preview[data-device="phone"] .transfer-export > :first-child {
+        flex: 1 1 auto;
+      }
+      .preview[data-device="phone"][data-mode="before"] .transfer-export {
+        flex-direction: column;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        min-width: 0;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line);
+        scroll-margin-top: 12px;
+      }
+      .info {
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      .name {
+        font-weight: 660;
+      }
+      .help {
+        margin-top: 3px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .help a {
+        color: var(--accent);
+      }
+      .action-feedback:empty {
+        margin: 0;
+      }
+      .controls > .path-field {
+        inline-size: 280px;
+        max-inline-size: 100%;
+      }
+      .preview:not([data-device="desktop"]) .controls > .path-field,
+      .preview[data-mode="after"] .controls > .path-field {
+        inline-size: 100%;
+      }
+      .path-field input,
+      .template-form :is(input:not([type="checkbox"]), select, textarea),
+      .template-body {
+        inline-size: 100%;
+        min-inline-size: 0;
+        min-block-size: 36px;
+        padding: 7px 10px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--field);
+        color: var(--text);
+      }
+      .path-field input {
+        padding-inline-end: 33px;
+      }
+      .preview:not([data-device="desktop"]) .path-field input {
+        min-block-size: 44px;
+      }
+      .template-body,
+      .template-form textarea {
+        resize: vertical;
+        font:
+          13px/1.5 ui-monospace,
+          Consolas,
+          monospace;
+      }
+      .template-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 4px;
+      }
+      .template-actions button,
+      .saved-template-actions button,
+      .template-chip {
+        padding: 6px 10px;
+        min-block-size: 34px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--field);
+        color: var(--text);
+      }
+      .preview:not([data-device="desktop"])
+        :is(.template-actions, .saved-template-actions)
+        button {
+        min-block-size: 44px;
+      }
+      .preview[data-device="phone"][data-mode="after"]
+        .template-actions
+        button {
+        flex: 1 1 max(120px, calc(50% - 4px));
+      }
+      .template-actions button:is(:disabled, [aria-disabled="true"]) {
+        opacity: 0.65;
+        cursor: default;
+      }
+      .template-actions button[aria-disabled="true"] {
+        opacity: 1;
+        border-color: var(--accent);
+      }
+      .preview .row[data-kind="template"] {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+      }
+      .row[data-kind="template"] .controls {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        justify-content: stretch;
+        max-width: none;
+      }
+      .row[data-kind="template"] .controls > textarea {
+        color: var(--text);
+      }
+      .template-reference summary {
+        padding: 12px 14px;
+        font-weight: 650;
+      }
+      .preview[data-mode="before"] .template-reference summary {
+        display: none;
+      }
+      .template-reference-body {
+        padding: 4px 14px 12px;
+        color: var(--muted);
+        overflow-wrap: anywhere;
+      }
+      .template-reference-body h4 {
+        margin-top: 12px;
+      }
+      .template-reference-body ul {
+        margin: 0;
+        padding-inline-start: 18px;
+      }
+      .template-reference-body li {
+        margin-block: 4px;
+      }
+      .template-chip {
+        min-block-size: 24px;
+        padding: 1px 5px;
+        white-space: normal;
+      }
+      .saved-template-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .template-form {
+        display: grid;
+        gap: 10px;
+      }
+      .template-form > label {
+        display: grid;
+        gap: 4px;
+      }
+      .template-form > .template-default-field {
+        display: flex;
+        align-items: center;
+      }
+      .template-form .help {
+        margin: 0;
+      }
+      dialog.template-dialog {
+        width: min(94%, 520px);
+        max-height: 90vh;
+      }
+      dialog:has(.template-form) h2 {
+        margin-bottom: 14px;
+      }
+      .controls {
+        display: flex;
+        /* Let the label and help wrap before squeezing the controls. */
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 8px;
+        min-width: 0;
+        max-width: 48%;
+      }
+      .controls
+        > :is(button, input:not([role="switch"], [type="range"]), select) {
+        min-height: 34px;
+        min-width: 0;
+        max-width: 100%;
+        border: 1px solid var(--line);
+        padding: 5px 9px;
+        border-radius: 7px;
+        background: var(--field);
+        color: var(--text);
+      }
+      .controls > select {
+        width: max-content;
+        text-overflow: ellipsis;
+      }
+      .controls > input[type="number"] {
+        width: 86px;
+      }
+      .controls > input[type="url"] {
+        flex: 1 1 150px;
+      }
+      .controls > button:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      .switch {
+        appearance: none;
+        flex: none;
+        margin: 0;
+        width: 44px;
+        height: 25px;
+        border: 1px solid var(--line);
+        border-radius: 99px;
+        background: var(--field);
+        cursor: pointer;
+        display: grid;
+        align-items: center;
+        padding: 3px;
+      }
+      .switch::before {
+        content: "";
+        width: 17px;
+        height: 17px;
+        border-radius: 50%;
+        background: var(--muted);
+      }
+      .switch:checked {
+        background: var(--accent);
+      }
+      .switch:checked::before {
+        margin-inline-start: auto;
+        background: var(--surface);
+      }
+      .row[data-kind="range"] .controls {
+        min-inline-size: min(100%, 185px);
+      }
+      .controls > .range-track {
+        flex: 1 1 112px;
+        margin: 0;
+        min-inline-size: 112px;
+        min-block-size: 34px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        accent-color: var(--accent);
+      }
+      .range-value {
+        min-inline-size: 6ch;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .range-editor {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+      .range-editor input {
+        inline-size: 76px;
+        min-block-size: 34px;
+        padding: 5px 8px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--field);
+        color: var(--text);
+      }
+      .range-unit {
+        color: var(--muted);
+        font-size: 13px;
+      }
+      .range-reset {
+        display: grid;
+        place-items: center;
+        flex: none;
+        inline-size: 44px;
+        font-size: 21px;
+        line-height: 1;
+      }
+      .preview[data-mode="before"] .proposed-control,
+      .preview[data-mode="before"] .range-unit,
+      .preview[data-mode="after"] .range-value[data-exact] {
+        display: none;
+      }
+      .preview:not([data-device="desktop"])[data-mode="before"]
+        .row[data-kind="range"]:has(.range-editor)
+        .controls {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .preview:not([data-device="desktop"])[data-mode="before"]
+        .row[data-kind="range"]:has(.range-editor)
+        .range-track {
+        flex: none;
+        inline-size: min(100%, 190px);
+      }
+      .preview:not([data-device="desktop"]) .range-editor input {
+        min-block-size: 44px;
+      }
+      .preview:not([data-device="desktop"]) .range-track {
+        min-block-size: 44px;
+      }
+      .range-editor input:disabled,
+      .range-track:disabled,
+      .switch:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      .badge-color {
+        display: flex;
+        flex: none;
+        align-items: center;
+        gap: 8px;
+      }
+      .badge-swatch {
+        inline-size: 44px;
+        block-size: 36px;
+        padding: 4px;
+        cursor: pointer;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--field);
+      }
+      .hex-field {
+        position: relative;
+        flex: none;
+        inline-size: 122px;
+      }
+      .hex-field input {
+        inline-size: 100%;
+        min-block-size: 36px;
+        padding: 5px 31px 5px 8px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--field);
+        color: var(--text);
+        font-size: 14px;
+        font-variant-numeric: tabular-nums;
+      }
+      .hex-field input[aria-invalid="true"] {
+        border-color: #d46376;
+      }
+      .hex-field button {
+        position: absolute;
+        inset-block: 0;
+        inset-inline-end: 2px;
+        inline-size: 28px;
+        border: 0;
+        background: transparent;
+        color: var(--muted);
+      }
+      .preview:not([data-device="desktop"])
+        :is(.badge-swatch, .hex-field input) {
+        min-block-size: 44px;
+      }
+      .preview:not([data-device="desktop"])[data-mode="before"] .badge-color {
+        flex-basis: 100%;
+        flex-wrap: wrap;
+      }
+      .preview:not([data-device="desktop"])[data-mode="before"] .badge-swatch {
+        flex-basis: 100%;
+      }
+      .preview[data-mode="after"] .row[data-kind="badge"] {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px 14px;
+      }
+      .preview[data-mode="after"] .row[data-kind="badge"] .controls {
+        display: contents;
+      }
+      .preview[data-mode="after"] .badge-color {
+        grid-column: 1 / -1;
+      }
+      .row[data-kind="icon"] .name {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .icon-grip {
+        flex: none;
+        min-inline-size: 22px;
+        min-block-size: 26px;
+        padding: 0;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: var(--muted);
+        cursor: grab;
+      }
+      .icon-grip:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      .icon-glyph {
+        flex: none;
+        inline-size: 16px;
+        text-align: center;
+        color: var(--muted);
+      }
+      .controls > .icon-move {
+        flex: none;
+        inline-size: 28px;
+        min-inline-size: 28px;
+        padding-inline: 0;
+      }
+      .preview:not([data-device="desktop"])[data-mode="before"]
+        .controls
+        > .icon-move {
+        flex: none;
+      }
+      .preview[data-device="phone"][data-mode="after"]
+        .row[data-kind="icon"]
+        .controls {
+        max-width: none;
+        gap: 6px;
+      }
+      .row[data-drop="before"] {
+        box-shadow: inset 0 2px var(--accent);
+      }
+      .row[data-drop="after"] {
+        box-shadow: inset 0 -2px var(--accent);
+      }
+      .row[data-dragging] {
+        opacity: 0.65;
+      }
+      .highlight-name {
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: var(--text);
+        text-align: start;
+        font-weight: 660;
+        overflow-wrap: anywhere;
+      }
+      .highlight-name:hover {
+        color: var(--accent);
+        text-decoration: underline;
+      }
+      .preview[data-mode="after"] .row[data-kind="highlight"] {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px 14px;
+      }
+      .preview[data-mode="after"] .row[data-kind="highlight"] .controls {
+        display: contents;
+      }
+      .preview[data-mode="after"] .highlight-details {
+        display: flex;
+        grid-column: 1 / -1;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+      .highlight-options,
+      .highlight-actions {
+        display: flex;
+        flex: none;
+        align-items: center;
+        gap: 6px;
+      }
+      .preview[data-device="phone"][data-mode="after"] .highlight-actions {
+        flex-basis: 100%;
+      }
+      .preview[data-mode="before"] .highlight-details {
+        display: contents;
+      }
+      .preview[data-device="desktop"][data-mode="before"]
+        .highlight-details
+        .badge-swatch {
+        order: -1;
+      }
+      .highlight-details button {
+        min-block-size: 34px;
+        padding: 5px 9px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--field);
+        color: var(--text);
+      }
+      .highlight-details button[aria-pressed="true"] {
+        border-color: var(--accent);
+      }
+      .preview:not([data-device="desktop"]) .highlight-details button {
+        min-block-size: 44px;
+      }
+      .preview:not([data-device="desktop"])[data-mode="before"]
+        .row[data-kind="highlight"]
+        .controls {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        grid-template-areas: "enabled edit delete" "color color color" "whole whole whole" "case case case";
+      }
+      .preview:not([data-device="desktop"])[data-mode="before"]
+        :is(.highlight-options, .highlight-actions) {
+        display: contents;
+      }
+      .preview:not([data-device="desktop"])[data-mode="before"]
+        .row[data-kind="highlight"]
+        .switch {
+        grid-area: enabled;
+      }
+      .preview:not([data-device="desktop"])[data-mode="before"]
+        .highlight-details
+        .badge-swatch {
+        grid-area: color;
+        inline-size: 100%;
+      }
+      .preview:not([data-device="desktop"])[data-mode="before"]
+        .highlight-whole {
+        grid-area: whole;
+      }
+      .preview:not([data-device="desktop"])[data-mode="before"]
+        .highlight-case {
+        grid-area: case;
+      }
+      .preview:not([data-device="desktop"])[data-mode="before"]
+        .highlight-edit {
+        grid-area: edit;
+      }
+      .preview:not([data-device="desktop"])[data-mode="before"]
+        .highlight-delete {
+        grid-area: delete;
+      }
+      .row[data-kind="action"] .info[hidden] + .controls {
+        margin-inline-start: auto;
+      }
+      .preview:not([data-device="desktop"])
+        .row[data-kind="action"]
+        .info[hidden]
+        + .controls {
+        margin-inline-start: 0;
+      }
+
+      .preview[data-device]:not([data-device="desktop"]) .row {
+        background: var(--card);
+        border-radius: 16px;
+        border: 0;
+        margin-bottom: 6px;
+      }
+      .preview:not([data-device="desktop"])[data-mode="before"] .row,
+      .preview[data-mode="after"]
+        .row:is([data-layout="wide"], [data-kind="range"], [data-kind="path"]) {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+      }
+      .preview:not([data-device="desktop"])[data-mode="before"] .controls,
+      .preview[data-mode="after"]
+        .row:is([data-layout="wide"], [data-kind="range"], [data-kind="path"])
+        .controls {
+        justify-content: flex-start;
+        max-width: none;
+        min-width: 0;
+      }
+      .preview:not([data-device="desktop"])
+        .controls
+        > :is(button, select, input:not([role="switch"], [type="range"])) {
+        min-height: 44px;
+      }
+      .preview:not([data-device="desktop"]) .switch {
+        margin-block: 9px;
+      }
+      .preview:not([data-device="desktop"])[data-mode="before"]
+        .controls
+        > button {
+        flex: 1 1 auto;
+      }
+      .preview[data-device="phone"][data-mode="before"]
+        .row[data-kind="proxy"]
+        .controls
+        > :is(select, input) {
+        flex: 1 1 100%;
+      }
+      .preview:not([data-device="desktop"])[data-mode="before"]
+        #list-toolbar-style {
+        inline-size: 100%;
+      }
+      .preview:not([data-device="desktop"])[data-mode="after"] .card {
+        background: var(--card);
+        border-radius: 16px;
+      }
+      .preview:not([data-device="desktop"])[data-mode="after"] .row {
+        margin: 0;
+        border-radius: 0;
+        background: transparent;
+      }
+      .preview:not([data-device="desktop"])[data-mode="after"] .row + .row {
+        border-top: 1px solid var(--line);
+      }
+      .preview:not([data-device="desktop"])[data-mode="after"]
+        .row[data-kind="select"],
+      .preview:not([data-device="desktop"])[data-mode="after"]
+        .row[data-kind="action"] {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+      }
+      .preview:not([data-device="desktop"])[data-mode="after"]
+        .row[data-kind="select"]
+        .controls,
+      .preview:not([data-device="desktop"])[data-mode="after"]
+        .row[data-kind="action"]
+        .controls {
+        max-width: none;
+        justify-content: flex-start;
+        min-width: 0;
+      }
+      .preview:not([data-device="desktop"])[data-mode="after"]
+        .controls
+        > select,
+      .preview[data-mode="after"] .row[data-layout="wide"] .controls > select {
+        flex: 1 1 100%;
+      }
+      .preview:not([data-device="desktop"])[data-mode="after"]
+        .row[data-kind="action"]
+        .controls
+        > button {
+        flex: 1 1 max-content;
+      }
+      .preview:not([data-device="desktop"])[data-mode="before"]
+        .controls
+        > .range-reset {
+        flex: none;
+      }
+      .preview[data-mode="after"]
+        .row[data-layout="wide"]
+        .controls
+        > input[type="url"] {
+        flex-basis: 100%;
+      }
+      .preview[data-mode="before"] .proposed-heading,
+      .preview[data-device="desktop"] .proposed-heading {
+        display: none;
+      }
+      .notes {
+        color: #c8c0d1;
+        max-width: 800px;
+        margin-top: 18px;
+      }
+      .notes p {
+        margin-top: 10px;
+      }
+      dialog {
+        color: var(--text);
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        width: min(90%, 420px);
+        padding: 20px;
+      }
+      dialog::backdrop {
+        background: #0b0913a0;
+      }
+      dialog p {
+        margin-block: 10px 16px;
+      }
+      dialog button {
+        background: var(--field);
+        color: var(--text);
+        border: 0;
+        border-radius: 7px;
+        padding: 6px 12px;
+      }
+      .controls > button[data-destructive],
+      .preview[data-mode="after"]
+        :is(.template-actions, .highlight-actions, .tag-row-actions)
+        > button[data-destructive],
+      #demo-confirm {
+        background: var(--danger);
+        color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header class="intro">
+        <h1>RSS Dashboard settings review</h1>
+        <a
+          href="https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1819"
+          >Issue #1819</a
+        >
+      </header>
+      <div class="toolbar">
+        <div class="choice">
+          <span id="device-label">Viewport</span>
+          <div
+            class="segments"
+            role="group"
+            aria-labelledby="device-label"
+            data-control="device"
+          >
+            <button type="button" data-value="phone" aria-pressed="false">
+              Mobile
+            </button>
+            <button type="button" data-value="tablet" aria-pressed="true">
+              Tablet
+            </button>
+            <button type="button" data-value="desktop" aria-pressed="false">
+              Desktop
+            </button>
+          </div>
+        </div>
+        <div class="choice">
+          <span id="mode-label">Layout</span>
+          <div
+            class="segments"
+            role="group"
+            aria-labelledby="mode-label"
+            data-control="mode"
+          >
+            <button type="button" data-value="before" aria-pressed="true">
+              Before
+            </button>
+            <button type="button" data-value="after" aria-pressed="false">
+              After
+            </button>
+          </div>
+        </div>
+        <div class="choice">
+          <span id="theme-label">Theme</span>
+          <div
+            class="segments"
+            role="group"
+            aria-labelledby="theme-label"
+            data-control="theme"
+          >
+            <button type="button" data-value="dark" aria-pressed="true">
+              Dark
+            </button>
+            <button type="button" data-value="light" aria-pressed="false">
+              Light
+            </button>
+          </div>
+        </div>
+        <label class="choice">
+          <span>Jump to</span>
+          <select id="section"></select>
+        </label>
+      </div>
+      <p class="report" id="report" role="status"></p>
+      <div class="stage">
+        <section
+          class="preview"
+          data-device="tablet"
+          data-mode="before"
+          data-theme="dark"
+          aria-label="Settings preview"
+        >
+          <aside class="host">
+            <p>Plugin settings</p>
+            <strong>RSS Dashboard</strong>
+          </aside>
+          <div class="pane" tabindex="0" aria-label="Tags settings">
+            <h2>RSS Dashboard</h2>
+            <nav class="plugin-tabs" aria-label="Settings tabs"></nav>
+            <div id="rows"></div>
+          </div>
+        </section>
+      </div>
+      <details class="notes">
+        <summary>Prototype scope and sources</summary>
+        <p>
+          General, Display, Sidebar, Media, Article saving, Highlights,
+          Import/Export, and Tags are available for comparison. Storage and
+          Rules were skipped in this review. The strip follows the plugin’s tab
+          order.
+        </p>
+        <p>
+          Before models the layout rules at dev commit
+          <code>cfbc3a35</code> using <code>src/styles/settings.css</code> and
+          the corresponding settings renderers. After is a design draft for
+          #1819. The device sizes and host framing are illustrative. The
+          supplied tablet screenshots show the plugin’s Storage and Tags views
+          and informed the available space and dark palette.
+        </p>
+        <p>
+          Controls use sample values shared between previews. Actions and
+          settings changes are simulated in this page. Reload to restore the
+          sample values.
+        </p>
+      </details>
+    </main>
+    <dialog aria-labelledby="demo-title" aria-describedby="demo-copy">
+      <form method="dialog">
+        <h2 id="demo-title"></h2>
+        <p id="demo-copy"></p>
+        <button id="demo-close" value="close" autofocus>Close</button>
+        <button id="demo-confirm" value="confirm" hidden></button>
+      </form>
+    </dialog>
+    <dialog
+      class="template-dialog"
+      aria-labelledby="saved-template-title"
+    ></dialog>
+    <dialog id="highlight-editor" aria-labelledby="highlight-editor-heading">
+      <h2 id="highlight-editor-heading">Edit highlight word</h2>
+      <form class="template-form">
+        <label
+          >Word or phrase<input type="text" id="edit-highlight-text" required
+        /></label>
+        <div class="template-actions">
+          <button type="button" id="cancel-highlight-edit">Cancel</button>
+          <button type="submit">Save</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog
+      id="tag-dialog"
+      class="template-dialog"
+      aria-labelledby="tag-dialog-heading"
+    ></dialog>
+    <script>
+      // Keep the tab inventory separate from the review data so later tabs can use the same viewer.
+      const tabNames = [
+        "General",
+        "Storage",
+        "Display",
+        "Sidebar",
+        "Media",
+        "Article saving",
+        "Rules",
+        "Highlights",
+        "Import/Export",
+        "Tags",
+        "About",
+      ];
+      const locations = [
+        "Main view (split)",
+        "Right sidebar",
+        "Left sidebar",
+        "Inline (inside dashboard)",
+      ];
+      const custom = "Custom...";
+      const general = [
+        {
+          label: "View and navigation",
+          proposed: true,
+          rows: [
+            [
+              "shortcuts",
+              "Keyboard shortcuts",
+              "Open the reference of the plugin's keyboard shortcuts",
+              "action",
+              ["View"],
+            ],
+            [
+              "style",
+              "View style",
+              "Choose between list, card, and feed view for articles",
+              "select",
+              ["List view", "Card view", "Feed view"],
+              "Card view",
+            ],
+            [
+              "dashboard",
+              "Dashboard view location",
+              "Choose where to open the RSS dashboard",
+              "select",
+              ["Main view", "Right sidebar", "Left sidebar"],
+            ],
+            [
+              "reader",
+              "Reader view location",
+              "Choose where to open articles/media when clicked",
+              "select",
+              locations,
+            ],
+            [
+              "saved",
+              "Saved article open location",
+              "Choose where to open saved article files",
+              "select",
+              locations,
+            ],
+            [
+              "web",
+              "Use web viewer",
+              "Use web viewer core plugin for articles when available",
+              "switch",
+              false,
+            ],
+            [
+              "pages",
+              "Results shown per page",
+              "Number of articles shown per page across all dashboard views. All shows every article on one page. Mixed appears when the views have different sizes from an earlier version; choosing a size sets them all to it.",
+              "select",
+              ["All", "10", "20", "40", "50", "60", "80", "100"],
+              "50",
+            ],
+          ],
+        },
+        {
+          label: "Global feeds",
+          rows: [
+            [
+              "refresh",
+              "Auto-refresh interval",
+              "How often to refresh all feeds automatically, in minutes. Off by default. A feed can override this in its edit dialog. On mobile, an interval under 60 minutes is raised to 60 when the plugin loads.",
+              "select",
+              [
+                "Off",
+                "5 minutes",
+                "10 minutes",
+                "15 minutes",
+                "30 minutes",
+                "1 hour",
+                "2 hours",
+                "4 hours",
+                "8 hours",
+                "12 hours",
+                "24 hours",
+                custom,
+              ],
+            ],
+            [
+              "delay",
+              "Startup refresh delay",
+              "Delay before the first refresh after Obsidian opens, in seconds. The default is 5. A value that is not a number of zero or more is ignored.",
+              "number",
+              5,
+            ],
+            [
+              "items",
+              "Max item limit",
+              "Most articles to keep per feed, counted in items. Used for new feeds and as the fallback for feeds without their own limit. The default is 50, and the unlimited option means no limit. Protected articles do not count against it. On mobile, a limit above 50 is lowered to 50 when the plugin loads.",
+              "select",
+              [
+                "Unlimited",
+                "10 items",
+                "25 items",
+                "50 items",
+                "100 items",
+                "200 items",
+                "500 items",
+                "1000 items",
+                custom,
+              ],
+              "50 items",
+            ],
+          ],
+        },
+        {
+          label: "Data retention",
+          rows: [
+            [
+              "duration",
+              "Default auto delete duration (new feeds)",
+              "Days to keep articles before auto-delete, for new feeds. The default is 30, and a feed can override it. Auto-delete removes every article older than this cutoff, read or unread, unless a retention protection below applies. This also limits the timeframe window for shown articles.",
+              "select",
+              [
+                "Disabled",
+                "1 day",
+                "3 days",
+                "1 week",
+                "2 weeks",
+                "1 month",
+                "2 months",
+                "3 months",
+                "6 months",
+                "1 year",
+                custom,
+              ],
+              "1 month",
+            ],
+          ],
+        },
+        {
+          label: "Protected from auto-deletion",
+          rows: [
+            [
+              "starred",
+              "Protect starred articles",
+              "Keep starred articles when retention limits are applied",
+              "switch",
+              true,
+            ],
+            [
+              "vault",
+              "Protect saved articles",
+              "Keep articles saved to your vault when retention limits are applied",
+              "switch",
+              true,
+            ],
+            [
+              "tagged",
+              "Protect tagged articles",
+              "Keep articles that have at least one tag when retention limits are applied",
+              "switch",
+              false,
+            ],
+            [
+              "unread",
+              "Protect unread articles",
+              "Keep unread articles when retention limits are applied",
+              "switch",
+              false,
+            ],
+            [
+              "first-seen",
+              "Use first-seen date for undated items",
+              "When an article has no publish date (common with some proxied feeds), use the date it was first seen instead of hiding it from sorting and auto-delete. Off by default. Display and filters follow the setting right away; auto-delete uses it on the next feed refresh.",
+              "switch",
+              false,
+            ],
+          ],
+        },
+        {
+          label: "Mobile navigation",
+          mobile: true,
+          rows: [
+            [
+              "swipe",
+              "Swipe between panels",
+              "Swipe right to open the sidebar and left to return to the article, and swipe right in the reader to go back to the dashboard. This turns off Obsidian's own swipe gestures, such as swipe-to-open-sidebar, inside this plugin's views and relies on Obsidian internals, so an Obsidian update could change it. If a sidebar reader location is saved from desktop use, mobile opens articles in main view instead.",
+              "switch",
+              false,
+            ],
+          ],
+        },
+        {
+          label: "Proxy",
+          rows: [
+            [
+              "proxy",
+              "Enable CORS proxy",
+              "On by default, set to auto. When a direct fetch fails (for example a block on iOS), the plugin retries through a third-party CORS proxy, so the feed or article URL is sent to that proxy. Turn this off to keep fetches direct.",
+              "switch",
+              true,
+            ],
+            [
+              "proxy-url",
+              "Proxy URL",
+              "Base URL of the CORS proxy. The default, auto, tries each built-in proxy in turn when a direct fetch fails, relaying the URL to those third-party services. Pick one proxy or enter your own to use only that.",
+              "proxy",
+            ],
+            [
+              "proxy-test",
+              "Test proxy connections",
+              "Requests https://example.com/ through each proxy: under 2 s is fast, from 2 s to 5 s is slow, and no answer in 5 s is a timeout. Covers full-article fetches only, not feed refresh.",
+              "action",
+              ["Test all proxies", "Test selected proxy"],
+            ],
+          ],
+        },
+      ];
+
+      const readerDefaults = {
+        "reader-size": "100%",
+        "reader-height": "160%",
+        "reader-font": "Theme default",
+        "reader-alignment": "Justify",
+        "reader-spacing": "Theme default",
+      };
+      const dateExample = "May 9, 2026, 11:39 AM";
+      const display = [
+        {
+          heading: "Dashboard",
+          label: "Cover images",
+          proposed: true,
+          rows: [
+            [
+              "cover-images",
+              "Show cover images",
+              "Display cover-image previews in dashboard card and feed views. Turning this off reduces remote image loading and can improve browsing performance.",
+              "switch",
+              true,
+            ],
+            [
+              "fetch-covers",
+              "Show fetch all covers button",
+              "Show a button in the dashboard header that fetches cover images for every card on the page. It needs cover images to be shown.",
+              "switch",
+              true,
+            ],
+          ],
+        },
+        {
+          label: "Image cache",
+          proposed: true,
+          rows: [
+            [
+              "cache-enabled",
+              "Allow image caching",
+              "Store card and feed preview images locally to improve browsing performance. Each image is limited to one megabyte and uses additional vault storage. RSS dashboard does not include this cache in feed or settings sync, but a sync tool that copies plugin files may copy it.",
+              "switch",
+              false,
+            ],
+            [
+              "cache-limit",
+              "Image cache limit",
+              "Maximum storage for cached dashboard preview images, in MiB. Lowering this limit removes least-recently-used cached images immediately.",
+              "range",
+              {
+                min: 1,
+                max: 1024,
+                defaultValue: 100,
+                unit: "MiB",
+                exact: true,
+                rejectOutOfRange: true,
+              },
+            ],
+            [
+              "cache-unlimited",
+              "No cache size limit",
+              "Do not limit total image-cache storage. The one-megabyte limit for each image still applies.",
+              "switch",
+              false,
+            ],
+            [
+              "clear-cache",
+              "Clear image cache",
+              "Cached image storage: 12.4 MB.",
+              "action",
+              ["Clear image cache"],
+            ],
+          ],
+        },
+        {
+          label: "Article presentation",
+          proposed: true,
+          rows: [
+            [
+              "show-summary",
+              "Show summary",
+              "Display the content summary in card view and feed view",
+              "switch",
+              true,
+            ],
+            [
+              "cards-per-row",
+              "Cards per row",
+              "Set card columns in dashboard card view (0 = auto)",
+              "range",
+              {
+                min: 0,
+                max: 6,
+                defaultValue: 0,
+                unit: "columns",
+                exact: true,
+                auto: true,
+              },
+            ],
+            [
+              "card-spacing",
+              "Card spacing",
+              "Adjust the spacing between cards in dashboard card view",
+              "range",
+              { min: 0, max: 40, defaultValue: 15, unit: "px", exact: true },
+            ],
+            [
+              "article-title",
+              "Article title size",
+              "Scale the title text in the dashboard article list (card, list, and feed views)",
+              "range",
+              {
+                min: 50,
+                max: 200,
+                step: 5,
+                defaultValue: 100,
+                unit: "%",
+                existingReset: true,
+              },
+            ],
+            [
+              "card-press",
+              "Card press animation",
+              "Cards shrink slightly while pressed on touch devices",
+              "switch",
+              true,
+            ],
+          ],
+        },
+        {
+          label: "Dashboard behavior",
+          proposed: true,
+          rows: [
+            [
+              "filter-status",
+              "Show filter status bar",
+              "Show the dashboard status bar with retrieved and filtered article counts",
+              "switch",
+              true,
+            ],
+            [
+              "version-status",
+              "Show version in status bar",
+              "Display the plugin version, build identifier, and build timestamp in Obsidian's status bar.",
+              "switch",
+              false,
+            ],
+            [
+              "pagination",
+              "Pagination position",
+              "Choose whether dashboard pagination appears above or below the articles",
+              "select",
+              ["Bottom", "Top"],
+            ],
+            [
+              "auto-read",
+              'Automatically mark article "read" upon opening',
+              "When an article is opened, it will be automatically marked as read",
+              "switch",
+              false,
+            ],
+            [
+              "article-date",
+              "Article date display",
+              `Choose whether article dates are shown as relative ('2 days ago') or absolute ('${dateExample}').`,
+              "select",
+              [
+                "Relative (e.g. '2 days ago')",
+                `Absolute (e.g. '${dateExample}')`,
+              ],
+            ],
+            [
+              "left-handed",
+              "Left-handed layout",
+              "Mirror the article footer in card and feed view so the read action sits within left-thumb reach on the right. This setting is per device. Turning it on here does not change your other devices.",
+              "switch",
+              false,
+            ],
+            [
+              "startup-filters",
+              "Startup filters",
+              "Choose which status and tag filters to apply when opening the dashboard. With and, an article must match every selected filter; with or, matching any one is enough. Applying also resets the default filter to all.",
+              "action",
+              ["All"],
+            ],
+          ],
+        },
+        {
+          label: "Reader",
+          rows: [
+            [
+              "reader-fetched",
+              "Show fetched content first",
+              "Open articles on the fetched page instead of the RSS content once it loads. An article you have already started reading stays on the RSS content. A feed can override this in its feed options.",
+              "switch",
+              false,
+            ],
+            [
+              "reader-size",
+              "Font size",
+              "Choose the reader body font size preset",
+              "select",
+              [
+                "80%",
+                "90%",
+                "100%",
+                "110%",
+                "120%",
+                "130%",
+                "150%",
+                "175%",
+                "200%",
+              ],
+              readerDefaults["reader-size"],
+            ],
+            [
+              "reader-height",
+              "Line height",
+              "Choose the reader line height preset",
+              "select",
+              [
+                "100%",
+                "110%",
+                "120%",
+                "130%",
+                "140%",
+                "150%",
+                "160%",
+                "180%",
+                "200%",
+              ],
+              readerDefaults["reader-height"],
+            ],
+            [
+              "reader-font",
+              "Font",
+              "Choose the reader font family",
+              "select",
+              ["Theme default", "Serif", "Sans", "Mono"],
+              readerDefaults["reader-font"],
+            ],
+            [
+              "reader-alignment",
+              "Alignment",
+              "Choose how reader paragraphs align",
+              "select",
+              ["Justify", "Left"],
+              readerDefaults["reader-alignment"],
+            ],
+            [
+              "reader-spacing",
+              "Paragraph spacing",
+              "Choose the spacing between reader paragraphs",
+              "select",
+              ["Theme default", "Tight", "Normal", "Loose"],
+              readerDefaults["reader-spacing"],
+            ],
+            [
+              "reset-reader",
+              "Reset reader format",
+              "Restore the reader format defaults",
+              "action",
+              ["Reset"],
+            ],
+          ],
+        },
+        {
+          label: "Mobile toolbar",
+          rows: [
+            [
+              "card-toolbar",
+              "Show toolbar in card view (mobile)",
+              "Show per-article action buttons in card view on mobile",
+              "switch",
+              true,
+            ],
+            [
+              "list-toolbar",
+              "Show toolbar in list view",
+              "Show per-article action buttons in list view",
+              "switch",
+              true,
+            ],
+            [
+              "list-toolbar-style",
+              "List toolbar style",
+              "Choose how action buttons are laid out in list view, on desktop and mobile. Minimal shows only the read toggle; save, star, and tags stay in the right-click menu and the article header.",
+              "select",
+              ["Left grid (2x2)", "Bottom row", "Minimal (read/unread only)"],
+              "Minimal (read/unread only)",
+            ],
+          ],
+        },
+      ];
+
+      const sidebarIcons = [
+        ["discover", "Discover", "◈"],
+        ["divider", "Divider", "│"],
+        ["add-feed", "Add feed", "⊕"],
+        ["manage-feeds", "Manage feeds", "✎"],
+        ["search", "Search", "⌕"],
+        ["tags", "Tags", "◇"],
+        ["add-folder", "Add folder", "⊞"],
+        ["sort", "Sort", "↕"],
+        ["collapse-all", "Collapse all", "⇕"],
+        ["settings", "Settings", "⚙"],
+      ];
+      const badgeRows = [
+        ["badge-all", "All feeds badge", "the All feeds row", "#8e44ad"],
+        ["badge-folders", "Folders badge", "folder rows", "#d85b9f"],
+        ["badge-feeds", "Feeds badge", "feed rows", "#8e44ad"],
+      ].map(([id, name, target, color]) => [
+        id,
+        name,
+        `Show the unread count badge on ${target}. Use the switch to turn it on or off, then pick its color or type a hex value.`,
+        "badge",
+        color,
+      ]);
+      const sidebar = [
+        {
+          label: "Sidebar",
+          rows: [
+            [
+              "default-rss-icon",
+              "Hide default RSS icon",
+              "Hide the default RSS icon for regular feeds in the sidebar. This also hides the fallback icon on Mastodon feeds.",
+              "switch",
+              false,
+            ],
+          ],
+        },
+        {
+          label: "Unread badges",
+          proposed: true,
+          rows: badgeRows,
+        },
+        {
+          label: "Feed visibility",
+          proposed: true,
+          rows: [
+            [
+              "hide-empty-feeds",
+              "Hide empty feeds/no unread articles",
+              "Hide feeds in the sidebar if they have zero articles or zero unread articles",
+              "switch",
+              false,
+            ],
+            [
+              "feed-error-badges",
+              "Show feed fetch error badges",
+              "Show a warning icon in the sidebar for feeds that failed to fetch",
+              "switch",
+              true,
+            ],
+          ],
+        },
+        {
+          label: "Icon visibility",
+          description:
+            "Choose which icons appear in the sidebar header toolbar and in what order.",
+          rows: [
+            [
+              "hide-toolbar",
+              "Hide toolbar entirely",
+              "Hide all icons in the sidebar header",
+              "switch",
+              false,
+            ],
+            ...sidebarIcons.map(([id, name]) => [
+              `icon-${id}`,
+              name,
+              `Show the ${name} icon in the sidebar header`,
+              "icon",
+            ]),
+            [
+              "reset-icon-order",
+              "Reset icon order & visibility",
+              "",
+              "action",
+              ["Reset"],
+            ],
+          ],
+        },
+        {
+          label: "Sidebar padding",
+          rows: [
+            [
+              "sidebar-padding-left",
+              "Left padding",
+              "Adjust left padding for folder and feed rows in the sidebar",
+              "range",
+              { min: 0, max: 40, defaultValue: 2, unit: "px", exact: true },
+            ],
+            [
+              "sidebar-padding-right",
+              "Right padding",
+              "Adjust right padding for folder and feed rows in the sidebar",
+              "range",
+              { min: 0, max: 40, defaultValue: 2, unit: "px", exact: true },
+            ],
+          ],
+        },
+        {
+          label: "Row spacing",
+          rows: [
+            [
+              "sidebar-row-spacing",
+              "Sidebar row spacing",
+              "Adjust the height between folder and feed rows in the sidebar",
+              "range",
+              { min: 0, max: 44, defaultValue: 10, unit: "px", exact: true },
+            ],
+            [
+              "sidebar-row-indent",
+              "Sidebar row indentation",
+              "Adjust the indentation of feeds nested inside folders in the sidebar",
+              "range",
+              { min: 0, max: 50, defaultValue: 20, unit: "px", exact: true },
+            ],
+          ],
+        },
+        {
+          label: "Feed icons",
+          rows: [
+            [
+              "youtube-icons",
+              "YouTube profile images",
+              "YouTube RSS feeds do not provide channel profile images. Videos will always use the default video play icon.",
+              "info",
+            ],
+            [
+              "rss-site-icons",
+              "Use site icons/favicons for RSS feeds",
+              "Replace the standard RSS feed icon with the feed's own logo when it has one, otherwise the site favicon",
+              "switch",
+              false,
+            ],
+            [
+              "podcast-art",
+              "Use album/show artwork for Podcast feeds",
+              "Replace the standard podcast mic icon with the album/show artwork when one is available",
+              "switch",
+              false,
+            ],
+            [
+              "mastodon-icons",
+              "Use profile images for Mastodon feeds",
+              "Replace the standard Mastodon feed icon with the feed profile image when one is available, otherwise the site favicon",
+              "switch",
+              false,
+            ],
+          ],
+        },
+      ];
+
+      const media = [
+        {
+          label: "Playback progress",
+          rows: [
+            [
+              "remember-progress",
+              "Remember playback progress",
+              "Save and restore podcast and video playback position across reader and plugin restarts",
+              "switch",
+              true,
+            ],
+            [
+              "clear-progress",
+              "Clear saved playback progress",
+              "Remove all remembered podcast and video resume positions stored by the plugin",
+              "action",
+              ["Clear progress"],
+            ],
+          ],
+        },
+        {
+          label: "Video player",
+          rows: [
+            [
+              "video-focus",
+              "Video focus mode",
+              "Show only the video for YouTube videos and Twitch VODs: hide the description, related videos, watch link and source line. The stored description is kept for search and saved notes.",
+              "switch",
+              false,
+            ],
+          ],
+        },
+        {
+          label: "Podcast player",
+          rows: [
+            [
+              "podcast-speed",
+              "Default play speed",
+              "Default playback speed for podcast episodes",
+              "select",
+              ["0.75x", "1x", "1.25x", "1.5x", "1.75x", "2x", "2.5x", "3x"],
+              "1x",
+            ],
+            [
+              "podcast-chapters",
+              "Show chapter markers on the seek bar",
+              "Markers appear for episodes whose description lists timestamps in a recognized form. Many shows list none, so most episodes have no markers.",
+              "switch",
+              true,
+            ],
+            [
+              "podcast-sleep-band",
+              "Show the sleep timer band on the seek bar",
+              "While a sleep timer is running, the band previews the audio that will play before it stops. Turning this off leaves the timer itself unchanged.",
+              "switch",
+              true,
+            ],
+            [
+              "podcast-theme",
+              "Player theme",
+              "Choose a visual theme for the podcast player",
+              "select",
+              [
+                "Default",
+                "Minimal",
+                "Gradient",
+                "Spotify",
+                "Nord",
+                "Dracula",
+                "Solarized dark",
+                "Catppuccin mocha",
+                "Gruvbox",
+                "Tokyo night",
+              ],
+            ],
+            [
+              "apple-podcast-links",
+              "Apple podcast links",
+              "Apple podcast links show in a podcast's open menu. Off by default.",
+              "switch",
+              false,
+            ],
+          ],
+        },
+        {
+          label: "Third-party services",
+          rows: [
+            [
+              "youtube-terms",
+              "YouTube terms of service",
+              [
+                "This plugin uses the YouTube IFrame API for video playback. By using this feature, you agree to be bound by the ",
+                {
+                  text: "YouTube terms of service",
+                  href: "https://www.youtube.com/t/terms",
+                },
+                ". Playing a video in the Reader also contacts Obsidian's embed host (releases.obsidian.md) with the video ID.",
+              ],
+              "info",
+            ],
+          ],
+        },
+      ];
+
+      const saveVersions = ["RSS content", "Fetched content"];
+      const builtInTemplate = [
+        "---",
+        'title: "{{title}}"',
+        'date: "{{date}}"',
+        "tags: [{{tags}}]",
+        'source: "{{source}}"',
+        'contentSource: "{{contentSource}}"',
+        'link: "{{link}}"',
+        'author: "{{author}}"',
+        'feedTitle: "{{feedTitle}}"',
+        'summary: "{{summary}}"',
+        'guid: "{{guid}}"',
+        "---",
+        "# {{title}}",
+        "",
+        "{{content}}",
+        "",
+        "[Source]({{link}})",
+      ].join("\n");
+      const templateVariables = [
+        {
+          heading: "Article dates",
+          variables: [
+            {
+              name: "date",
+              description:
+                "The article date in a long, readable format. {{dateShort}}, {{date:YYYY/MM/DD}}, {{isoDate}}, and {{isoDateTime}} are other formats of this same article timestamp. In notes saved from the web viewer, {{date}} is the save date instead.",
+            },
+            {
+              name: "dateShort",
+              description: "The article date as YYYY-MM-DD.",
+            },
+            {
+              name: "date:YYYY/MM/DD",
+              description:
+                "The article date in a custom format. Put any Moment.js format after date: — for example {{date:DD/MM/YYYY}}, {{date:MM-DD-YYYY}}, {{date:YYYY-MM-DD HH:mm}}, or {{date:D MMMM YYYY}}. Tokens are case-sensitive: MM is the month and mm the minutes, DD the day of the month and dd the weekday.",
+            },
+            {
+              name: "isoDate",
+              description:
+                "The article date as a full ISO 8601 timestamp in UTC.",
+            },
+            {
+              name: "isoDateTime",
+              description: "The same full ISO 8601 timestamp as {{isoDate}}.",
+            },
+          ],
+        },
+        {
+          heading: "First-seen dates",
+          variables: [
+            {
+              name: "firstSeen",
+              description:
+                "Not derived from the article timestamp. When the dashboard first saw the article, independent of the “Use first-seen date for undated items” display setting. If none was recorded, this falls back to the article date (the publish date, or the save date when there is none), which is not a true first-seen value.",
+            },
+            {
+              name: "firstSeenISO",
+              description:
+                "The first-seen date as a local YYYY-MM-DD date, such as 2024-04-30. Independent of the article timestamp, and uses the same fallback as {{firstSeen}}.",
+            },
+          ],
+        },
+        {
+          heading: "Save date and time",
+          variables: [
+            {
+              name: "saveDate",
+              description:
+                "The local date the article was saved, as YYYY-MM-DD. The save moment is independent of the article timestamp.",
+            },
+            {
+              name: "saveTime12",
+              description:
+                "The local save time in 12-hour format, such as 02:45 PM. Taken from the same save moment as {{saveDate}}.",
+            },
+            {
+              name: "saveTime24",
+              description:
+                "The local save time in 24-hour format, such as 14:45. Taken from the same save moment as {{saveDate}}.",
+            },
+          ],
+        },
+        {
+          heading: "Article and feed details",
+          variables: [
+            { name: "title", description: "The article title." },
+            {
+              name: "author",
+              description:
+                "The article author. When the feed lists several authors, their names are joined with a comma and a space, such as Ada, Grace. There is no separate authors variable.",
+            },
+            {
+              name: "feedTitle",
+              description: "The title of the feed the article came from.",
+            },
+            {
+              name: "source",
+              description:
+                "The feed title. This currently produces the same value as {{feedTitle}}.",
+            },
+            {
+              name: "guid",
+              description: "The article identifier supplied by the feed.",
+            },
+            {
+              name: "tags",
+              description:
+                "Comma-separated tag names. Add brackets in your template to format them as a YAML list, such as tags: [{{tags}}].",
+            },
+            {
+              name: "language",
+              description:
+                "The language code, such as en-US, from the article page or the feed. The line is left out when the language is unknown.",
+            },
+          ],
+        },
+        {
+          heading: "Content",
+          variables: [
+            {
+              name: "summary",
+              description:
+                "A plain-text cut of about 220 characters from the feed item’s content or description.",
+            },
+            {
+              name: "description",
+              description:
+                "The article page’s own description after a successful full fetch. Otherwise, the feed description, when it passes the quality check.",
+            },
+            {
+              name: "excerpt",
+              description:
+                "A short preview, only when there is no {{description}}.",
+            },
+            {
+              name: "content",
+              description:
+                "The content selected for this save. A saved template can set its own “Save version”, which wins over the “Default save version” setting; otherwise the setting chooses between Fetched content (the full article) and RSS content (the feed item’s content, which falls back to the feed description, then the summary). {{content}} only controls where that content is placed in the template.",
+            },
+            {
+              name: "contentSource",
+              description:
+                "Which version this save wrote: RSS content or Fetched content. It reports the version written, not the one requested, so a save that asked for Fetched content and fell back to the feed item’s own text reads RSS content. This is not the feed title, which is {{source}}.",
+            },
+          ],
+        },
+        {
+          heading: "Links and media",
+          variables: [
+            { name: "link", description: "The article’s URL." },
+            {
+              name: "audioUrl",
+              description:
+                "The publisher-provided audio URL for the article. It is a source address, not a downloaded file, and is empty when the feed has no audio URL.",
+            },
+            {
+              name: "image",
+              description:
+                "The article’s image URL, when available. It is only a URL: to show the picture, use it as the address of a Markdown image, ![](address). When your note puts it in the note body and the article has an image, the saved note adds no image of its own above the content and leaves the article’s own copy of that image out of the content, so the image appears once, where you placed it.",
+            },
+          ],
+        },
+      ];
+      const articleSaving = [
+        {
+          label: "Saving behavior",
+          proposed: true,
+          rows: [
+            [
+              "save-path",
+              "Save path",
+              "Default folder to save articles. Leave it blank to save to the vault root.",
+              "path",
+              "RSS articles/",
+            ],
+            [
+              "saved-tag",
+              "Add saved tag",
+              "Automatically add the saved tag to saved articles",
+              "switch",
+              true,
+            ],
+            [
+              "save-version",
+              "Default save version",
+              "Choose what {{content}} saves. RSS content is the feed item's content, falling back to the feed description, then the summary. Fetched content is the article page; if fetching fails, the RSS content is saved and marked as a fallback. {{content}} controls placement in the template; {{summary}} keeps its existing output.",
+              "select",
+              saveVersions,
+              "Fetched content",
+            ],
+            [
+              "fetch-timeout",
+              "Fetch timeout",
+              "Timeout in seconds for fetching full article content (prevents hanging)",
+              "range",
+              { min: 5, max: 30, defaultValue: 10, unit: "seconds" },
+            ],
+          ],
+        },
+        {
+          label: "Default template",
+          description:
+            "Article saves use a feed-assigned template first, then the global default saved template, then the standalone fallback below. The saved tag remains a global option; a saved template can set its own save version.",
+          rows: [
+            ["article-template", "Default article template", "", "template"],
+          ],
+        },
+        {
+          label: "Template variables",
+          hideHeading: true,
+          content: renderTemplateReference,
+          rows: [],
+        },
+        {
+          label: "Saved templates",
+          content: renderSavedArticleTemplates,
+          rows: [],
+        },
+      ];
+
+      const defaultHighlightColor = "#ffd700";
+      const highlights = [
+        {
+          label: "Word highlighting",
+          proposed: true,
+          rows: [
+            [
+              "highlights-enabled",
+              "Enable word highlighting",
+              "Highlight specified words in article titles, summaries, and content",
+              "switch",
+              false,
+            ],
+          ],
+        },
+        {
+          label: "Highlight locations",
+          description: "Choose where to apply highlights:",
+          rows: [
+            [
+              "highlight-titles",
+              "Highlight in titles",
+              "Apply highlights to article titles in the list/card view",
+              "switch",
+              true,
+            ],
+            [
+              "highlight-summaries",
+              "Highlight in summaries",
+              "Apply highlights to article summaries in card view and feed view",
+              "switch",
+              true,
+            ],
+            [
+              "highlight-content",
+              "Highlight in content",
+              "Apply highlights to article content in reader view",
+              "switch",
+              true,
+            ],
+          ],
+        },
+        {
+          label: "Highlight words",
+          description: "Words and phrases to highlight in articles:",
+          content: renderHighlightWords,
+          rows: [],
+        },
+        {
+          label: "Add new word",
+          rows: [
+            [
+              "highlight-text",
+              "Word or phrase",
+              "",
+              "path",
+              "",
+              "Enter word to highlight",
+            ],
+            [
+              "highlight-whole",
+              "Whole word only",
+              "Only highlight complete words (not partial matches)",
+              "switch",
+              false,
+            ],
+            [
+              "highlight-case",
+              "Case sensitive",
+              "Only match this word/phrase with exact letter case",
+              "switch",
+              false,
+            ],
+            [
+              "highlight-color",
+              "Highlight color",
+              "",
+              "color",
+              defaultHighlightColor,
+            ],
+            ["add-highlight", "", "", "action", ["Add word"]],
+          ],
+        },
+      ];
+      const backupDefaults = {
+        "backup-data": false,
+        "backup-feeds": true,
+        "backup-preferences": true,
+      };
+      const importExport = [
+        {
+          label: "Backup & restore (data.json)",
+          description:
+            'Import or export your full dashboard dataset as a single flat JSON file, including preferences, folders, feeds, and stored article retrievals. This is always the full legacy-format file, even when Shard storage is enabled — it will not match the small pointer file named data.json in your vault in that mode. Use "Portable data bundle" below for a bundle that matches shard storage.',
+          transfer: [
+            "Import legacy data.json",
+            "Export legacy data.json",
+            "Copy legacy data.json to clipboard",
+          ],
+        },
+        {
+          label: "Portable data bundle",
+          description:
+            "Import or export a portable data bundle (a feed bundle and a settings bundle together) for cross-device migration. Exports as rss-dashboard-portable-bundle.json",
+          transfer: [
+            "Import portable data bundle",
+            "Export portable data bundle",
+            "Copy portable data bundle to clipboard",
+          ],
+        },
+        {
+          label: "Feed bundle",
+          description:
+            "Import or export feeds, folders, tags, articles, and article state — no app settings. Exports as rss-dashboard-feed-bundle.json",
+          transfer: [
+            "Import feed bundle",
+            "Export feed bundle",
+            "Copy feed bundle to clipboard",
+          ],
+        },
+        {
+          label: "App preferences",
+          description:
+            "Import or export app preferences, including storage settings — no feeds, folders, tags, or articles. Exports as rss-dashboard-settings-bundle.json",
+          transfer: [
+            "Import settings bundle",
+            "Export settings bundle",
+            "Copy settings bundle to clipboard",
+          ],
+        },
+        {
+          label: "User preferences file",
+          description:
+            "Import or export plugin preferences. Exports as rss-dashboard-user-preferences.json",
+          transfer: [
+            "Import user preferences",
+            "Export user preferences",
+            "Copy user preferences to clipboard",
+          ],
+        },
+        {
+          label: "OPML",
+          description:
+            "Import or export an OPML subscription list containing your configured feed addresses. Import offers update, which adds new feeds, and replace, which replaces all feeds and folders with the file's.",
+          transfer: [
+            "Import OPML/XML",
+            "Export OPML",
+            "Copy feeds.opml to clipboard",
+          ],
+        },
+        {
+          label: "Starred imports",
+          description:
+            "Import starred articles from a Google Reader-compatible starred.json export. Feeds you don't already subscribe to are created in the New-feed folder (default: Starred imports). Import labels as tags is on by default. Label-derived tags come from the export's Inoreader labels.",
+          transfer: ["Import starred articles"],
+        },
+        {
+          label: "Automatic backups",
+          description:
+            "Automatic backup copies of your data files. A backup is written on the first meaningful change in each session, again when the plugin unloads only if later changes made it stale, and before a storage migration to v2.",
+          rows: [
+            [
+              "backup-data",
+              "Back up data.json",
+              "Saves a copy to data.json.backup beside data.json: in the plugin folder, or in the metadata folder when a metadata location is set.",
+              "switch",
+              backupDefaults["backup-data"],
+            ],
+            [
+              "backup-feeds",
+              "Back up feeds (feeds.opml)",
+              "Saves a copy to feeds.opml.backup in the plugin folder.",
+              "switch",
+              backupDefaults["backup-feeds"],
+            ],
+            [
+              "backup-preferences",
+              "Back up user preferences",
+              "Saves a copy to rss-dashboard-user-preferences.json.backup in the plugin folder.",
+              "switch",
+              backupDefaults["backup-preferences"],
+            ],
+          ],
+        },
+        {
+          label: "Factory reset",
+          description:
+            "Restore all plugin settings to their default values, remove your feeds, reset folders and tags to their defaults, and clear plugin-managed data. Existing backup files and saved article markdown files are left untouched.",
+          transfer: ["Factory reset"],
+          reset: true,
+        },
+      ];
+      const tagPalettes = [
+        {
+          name: "System",
+          colors: [
+            { name: "Red", hex: "#FF383C" },
+            { name: "Orange", hex: "#FF8D28" },
+            { name: "Yellow", hex: "#FFCC00" },
+            { name: "Green", hex: "#34C759" },
+            { name: "Mint", hex: "#00C8B3" },
+            { name: "Teal", hex: "#00C3D0" },
+            { name: "Cyan", hex: "#00C0E8" },
+            { name: "Blue", hex: "#0088FF" },
+            { name: "Purple", hex: "#8A5CF5" },
+            { name: "Pink", hex: "#FF2D55" },
+            { name: "Brown", hex: "#AC7F5E" },
+          ],
+        },
+        {
+          name: "Vintage",
+          colors: [
+            { name: "Red", hex: "#C65B50" },
+            { name: "Orange", hex: "#D88745" },
+            { name: "Yellow", hex: "#D6B94C" },
+            { name: "Green", hex: "#72966A" },
+            { name: "Mint", hex: "#80B7A5" },
+            { name: "Teal", hex: "#579B9A" },
+            { name: "Cyan", hex: "#78B7C4" },
+            { name: "Blue", hex: "#547CA5" },
+            { name: "Purple", hex: "#7E6AA8" },
+            { name: "Pink", hex: "#D77991" },
+            { name: "Brown", hex: "#A98263" },
+          ],
+        },
+        {
+          name: "Pastel",
+          colors: [
+            { name: "Red", hex: "#D77F86" },
+            { name: "Orange", hex: "#E6AC7C" },
+            { name: "Yellow", hex: "#E6D27C" },
+            { name: "Green", hex: "#9DBB91" },
+            { name: "Mint", hex: "#8FC9BD" },
+            { name: "Teal", hex: "#72B4B8" },
+            { name: "Cyan", hex: "#8DC5D4" },
+            { name: "Blue", hex: "#86A9D3" },
+            { name: "Purple", hex: "#B5A3DC" },
+            { name: "Pink", hex: "#DEA0B5" },
+            { name: "Brown", hex: "#BDA18A" },
+          ],
+        },
+        {
+          // The extreme of each hue, top-right of the RGB picker: one channel at
+          // FF and one at 00 (Brown is the dark end of its hue, since full
+          // brightness would just be orange). Loud on purpose, not tuned for text.
+          name: "High Contrast",
+          colors: [
+            { name: "Red", hex: "#FF0022" },
+            { name: "Orange", hex: "#FF6200" },
+            { name: "Yellow", hex: "#FFE600" },
+            { name: "Green", hex: "#00FF2A" },
+            { name: "Mint", hex: "#00FFA2" },
+            { name: "Teal", hex: "#00FFF7" },
+            { name: "Cyan", hex: "#00CCFF" },
+            { name: "Blue", hex: "#004CFF" },
+            { name: "Purple", hex: "#7700FF" },
+            { name: "Pink", hex: "#FF00A2" },
+            { name: "Brown", hex: "#803000" },
+          ],
+        },
+      ];
+      const tagAutoDefaults = {
+        "tag-auto-video": ["Video"],
+        "tag-auto-mastodon": [],
+        "tag-auto-youtube": ["Video"],
+        "tag-auto-podcast": [],
+        "tag-auto-rss": [],
+        "tag-auto-smallweb": [],
+      };
+      const tags = [
+        {
+          label: "Auto tagging",
+          rows: [
+            [
+              "tag-auto-video",
+              "Tag for video articles",
+              "Default tag for RSS articles with detected video content (YouTube feeds use the dedicated tag below)",
+              "tag-select",
+              "Select default video tags",
+            ],
+            [
+              "tag-auto-mastodon",
+              "Default Mastodon tag",
+              "Default tag for Mastodon feeds",
+              "tag-select",
+              "Select default Mastodon tags",
+            ],
+            [
+              "tag-auto-youtube",
+              "Default YouTube tag",
+              "Tag used for auto-tagged YouTube content",
+              "tag-select",
+              "Select default YouTube tags",
+            ],
+            [
+              "tag-auto-podcast",
+              "Default podcast tag",
+              "Default tag for podcast episodes",
+              "tag-select",
+              "Select default podcast tags",
+            ],
+            [
+              "tag-auto-rss",
+              "Default RSS tag",
+              "Default tag for RSS articles",
+              "tag-select",
+              "Select default RSS tags",
+            ],
+            [
+              "tag-auto-smallweb",
+              "Default smallweb tag",
+              "Default tag for smallweb articles",
+              "tag-select",
+              "Select default smallweb tags",
+            ],
+            [
+              "tag-reset-names",
+              "Reset tag names",
+              "Restore all tag names to their out-of-the-box defaults.",
+              "action",
+              ["Reset tag names"],
+            ],
+          ],
+        },
+        {
+          label: "Tag shape",
+          description:
+            "Sets the corner shape of every tag chip in the dashboard, Reader, tag menus, and podcast views.",
+          content: renderTagShapes,
+        },
+        {
+          label: "Tag appearance defaults",
+          rows: [
+            [
+              "tag-default-background",
+              "Background",
+              "",
+              "tag-color",
+              "#8a5cf5",
+            ],
+            ["tag-default-text", "Text", "", "tag-color", "#ffffff"],
+            [
+              "tag-draft-preview",
+              "Preview",
+              "Preview the new defaults here. Nothing changes until you apply.",
+              "tag-preview",
+            ],
+            [
+              "apply-tag-defaults",
+              "Apply tag defaults",
+              "Choose whether existing tags change too, or only new ones.",
+              "action",
+              ["Apply"],
+            ],
+            [
+              "clear-tag-overrides",
+              "Reset all tags to defaults",
+              "Clear every tag's background and text overrides.",
+              "action",
+              ["Reset all tags to defaults"],
+            ],
+          ],
+        },
+        {
+          label: "Existing tags",
+          proposed: true,
+          content: renderExistingTags,
+        },
+        {
+          label: "Add new tag",
+          rows: [
+            ["tag-new-background", "Tag color", "", "tag-color", "#8a5cf5"],
+            ["tag-new-text", "Tag text color", "", "tag-color", "#ffffff"],
+            ["tag-name", "Tag name", "", "tag-new"],
+          ],
+        },
+      ];
+      const reviewedTabs = {
+        General: general,
+        Display: display,
+        Sidebar: sidebar,
+        Media: media,
+        "Article saving": articleSaving,
+        Highlights: highlights,
+        "Import/Export": importExport,
+        Tags: tags,
+      };
+      let currentTab = "Tags";
+      const devices = {
+        phone: { width: 393, height: 852, label: "Mobile · touch" },
+        tablet: { width: 800, height: 1000, label: "Tablet · touch" },
+        desktop: { width: 960, height: 680, label: "Narrow desktop · mouse" },
+      };
+      const preview = document.querySelector(".preview");
+      const pane = document.querySelector(".pane");
+      const stage = document.querySelector(".stage");
+      const tabStrip = document.querySelector(".plugin-tabs");
+      const sectionPicker = document.querySelector("#section");
+      const demo = document.querySelector("dialog");
+      const demoClose = document.querySelector("#demo-close");
+      const demoConfirm = document.querySelector("#demo-confirm");
+      let confirmAction;
+      let sampleResumePositions = 3;
+      const savedTemplates = [];
+      let globalTemplate;
+      let savedTemplateList;
+      let templateReference;
+      let variablesMode;
+      let variablesOpen = false;
+      const highlightWords = [
+        {
+          text: "open source",
+          color: defaultHighlightColor,
+          enabled: true,
+          whole: true,
+          caseSensitive: false,
+        },
+        {
+          text: "Community archives and long-term preservation",
+          color: "#78c6a3",
+          enabled: false,
+          whole: false,
+          caseSensitive: true,
+        },
+      ];
+      let highlightList;
+      let editingHighlight;
+      const highlightEditor = document.querySelector("#highlight-editor");
+      const editHighlightText = document.querySelector("#edit-highlight-text");
+      const tagDialog = document.querySelector("#tag-dialog");
+      const tagSelections = new Map();
+      const tagList = [
+        { name: "Important", background: "#e74c3c" },
+        { name: "Read later", background: "#3498db" },
+        { name: "Video", background: "#d04747" },
+        { name: "Podcast", background: "#8e44ad" },
+      ];
+      let tagDefaults = { background: "#8a5cf5", text: "#ffffff" };
+      let tagShape = "999px";
+      let tagListElement;
+      const fields = new Map();
+      const sections = [];
+
+      function element(tag, parent, className, text) {
+        const node = document.createElement(tag);
+        if (className) node.className = className;
+        if (text !== undefined) node.textContent = text;
+        parent.append(node);
+        return node;
+      }
+
+      function addField(tag, parent, id, name, describedBy) {
+        const field = element(tag, parent);
+        field.id = id;
+        field.setAttribute("aria-label", name);
+        if (document.getElementById(describedBy))
+          field.setAttribute("aria-describedby", describedBy);
+        return field;
+      }
+
+      function addHelp(parent, id, content) {
+        const paragraph = element("p", parent, "help");
+        paragraph.id = id;
+        for (const part of Array.isArray(content) ? content : [content]) {
+          if (typeof part === "string") {
+            paragraph.append(part);
+            continue;
+          }
+          const link = element("a", paragraph, "", part.text);
+          link.href = part.href;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+        }
+      }
+
+      function renderTransferActions(parent, group) {
+        const [primary, exportLabel, copyLabel] = group.transfer;
+        const controls = element("div", parent, "controls transfer-actions");
+        const addButton = (holder, label, compact = false) => {
+          const button = element(
+            "button",
+            holder,
+            compact ? "transfer-copy" : "",
+            compact ? "⧉" : label,
+          );
+          button.type = "button";
+          if (compact) button.setAttribute("aria-label", label);
+          return button;
+        };
+        const main = addButton(controls, primary);
+        if (group.reset) {
+          main.dataset.destructive = "";
+          const feedback = element("p", parent, "help action-feedback");
+          feedback.id = "factory-preview-status";
+          feedback.setAttribute("role", "status");
+          main.addEventListener("click", () => {
+            openDemo(
+              "Factory reset?",
+              "In RSS Dashboard, this resets plugin settings and clears plugin-managed data. In this prototype, it restores the three sample automatic backup switches.",
+              primary,
+              () => {
+                for (const [id, checked] of Object.entries(backupDefaults))
+                  fields.get(id).control.checked = checked;
+                feedback.textContent = "Sample backup preferences reset.";
+              },
+            );
+          });
+          return;
+        }
+        const simulate = (button, label, message) => {
+          button.addEventListener("click", () => openDemo(label, message));
+        };
+        simulate(main, primary, "This preview simulates the import action.");
+        if (exportLabel) {
+          const output = element("div", controls, "transfer-export");
+          simulate(
+            addButton(output, exportLabel),
+            exportLabel,
+            "This preview simulates the export action.",
+          );
+          simulate(
+            addButton(output, copyLabel, true),
+            copyLabel,
+            "This preview simulates copying to the clipboard.",
+          );
+        }
+      }
+
+      function paintTag(chip, colors = tagDefaults) {
+        chip.style.setProperty(
+          "--tag-background",
+          colors.background ?? tagDefaults.background,
+        );
+        chip.style.setProperty("--tag-text", colors.text ?? tagDefaults.text);
+        return chip;
+      }
+
+      function makeTagChip(parent, label, colors) {
+        return paintTag(element("span", parent, "tag-chip", label), colors);
+      }
+
+      function renderTagShapes(parent) {
+        const group = element("div", parent, "tag-shape-options");
+        group.setAttribute("role", "radiogroup");
+        group.setAttribute("aria-label", "Tag shape");
+        const options = [
+          ["Rectangle", "0px"],
+          ["Squircle", "6px"],
+          ["Pill", "999px"],
+        ].map(([label, radius]) => {
+          const button = element("button", group);
+          button.type = "button";
+          button.setAttribute("role", "radio");
+          button.setAttribute("aria-label", `${label}, ${radius}`);
+          button.dataset.radius = radius;
+          makeTagChip(button, label).style.setProperty("--tag-radius", radius);
+          return button;
+        });
+        const select = (button) => {
+          tagShape = button.dataset.radius;
+          preview.style.setProperty("--tag-radius", tagShape);
+          for (const option of options) {
+            option.setAttribute("aria-checked", String(option === button));
+            option.tabIndex = option === button ? 0 : -1;
+          }
+        };
+        for (const [index, button] of options.entries()) {
+          button.addEventListener("click", () => select(button));
+          button.addEventListener("keydown", (event) => {
+            const keys = {
+              ArrowRight: (index + 1) % 3,
+              ArrowDown: (index + 1) % 3,
+              ArrowLeft: (index + 2) % 3,
+              ArrowUp: (index + 2) % 3,
+              Home: 0,
+              End: 2,
+            };
+            if (!(event.key in keys)) return;
+            event.preventDefault();
+            const next = options[keys[event.key]];
+            select(next);
+            next.focus();
+          });
+        }
+        select(options.find((option) => option.dataset.radius === tagShape));
+      }
+
+      function addTagColor(parent, id, name, helpId, initial) {
+        const controls = element("div", parent, "tag-colors");
+        const tools = element("div", controls, "tag-color-tools");
+        const picker = addColor(tools, id, name, helpId, initial);
+        const random = element("button", tools, "", "⚄");
+        random.type = "button";
+        random.setAttribute("aria-label", `Randomize ${name.toLowerCase()}`);
+        const palettes = element("div", controls, "tag-palettes");
+        const palette = addField(
+          "select",
+          palettes,
+          `${id}-palette`,
+          `Palette for ${name}`,
+          "",
+        );
+        populateOptions(
+          palette,
+          tagPalettes.map(({ name }) => name),
+        );
+        const color = addField(
+          "select",
+          palettes,
+          `${id}-preset`,
+          `Color for ${name}`,
+          "",
+        );
+        function sync() {
+          const { colors } = tagPalettes.find(
+            ({ name }) => name === palette.value,
+          );
+          const options = colors.map(
+            ({ name, hex }) => new Option(`${name} ${hex}`, hex.toLowerCase()),
+          );
+          const custom = !options.some(
+            (option) => option.value === picker.value,
+          );
+          if (custom)
+            options.unshift(
+              new Option(`Custom ${picker.value.toUpperCase()}`, picker.value),
+            );
+          color.replaceChildren(...options);
+          color.value = picker.value;
+          color.dataset.custom = String(custom);
+        }
+        picker.addEventListener("input", sync);
+        palette.addEventListener("change", sync);
+        color.addEventListener("change", () =>
+          setTagPicker(picker, color.value),
+        );
+        random.addEventListener("click", () => {
+          const hex = Math.floor(Math.random() * 0x1000000)
+            .toString(16)
+            .padStart(6, "0");
+          setTagPicker(picker, `#${hex}`);
+        });
+        sync();
+        return picker;
+      }
+
+      function setTagPicker(picker, value) {
+        picker.value = value;
+        picker.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+
+      function tagDialogContent(title) {
+        tagDialog.replaceChildren();
+        tagDialog.dataset.theme = preview.dataset.theme;
+        element("h2", tagDialog, "", title).id = "tag-dialog-heading";
+        return element("div", tagDialog, "template-form");
+      }
+
+      function tagDialogActions(container, choices) {
+        const actions = element("div", container, "template-actions");
+        for (const [label, action] of choices) {
+          const button = element("button", actions, "", label);
+          button.type = "button";
+          button.addEventListener("click", action);
+        }
+      }
+
+      function addAutoTagControl(parent, id, menuTitle) {
+        const summary = element("button", parent, "auto-tag-summary");
+        const box = element("div", parent, "auto-tag-box");
+        const selectedTags = element("ul", box, "auto-tag-items");
+        selectedTags.setAttribute("aria-label", "Selected tags");
+        const add = element("button", box, "auto-tag-add", "Add tag");
+        const openPicker = () => {
+          const content = tagDialogContent(menuTitle);
+          const list = element("div", content, "tag-choice-list");
+          const selection = new Set(tagSelections.get(id));
+          for (const tag of tagList) {
+            const label = element("label", list);
+            const checkbox = element("input", label);
+            checkbox.type = "checkbox";
+            checkbox.checked = selection.has(tag.name);
+            makeTagChip(label, tag.name, tag);
+            checkbox.addEventListener("change", () => {
+              if (checkbox.checked) selection.add(tag.name);
+              else selection.delete(tag.name);
+            });
+          }
+          tagDialogActions(content, [
+            ["Cancel", () => tagDialog.close()],
+            [
+              "Apply",
+              () => {
+                tagSelections.set(id, [...selection]);
+                syncAutoTagControls();
+                tagDialog.close();
+              },
+            ],
+          ]);
+          tagDialog.showModal();
+        };
+        for (const [button, label] of [
+          [summary, menuTitle],
+          [add, `Add tag · ${menuTitle}`],
+        ]) {
+          button.type = "button";
+          button.setAttribute("aria-label", label);
+          button.setAttribute("aria-haspopup", "dialog");
+          button.addEventListener("click", openPicker);
+        }
+        return { summary, add, selectedTags };
+      }
+
+      function syncAutoTagControls(reset = false) {
+        const byName = new Map(tagList.map((tag) => [tag.name, tag]));
+        for (const [id, initial] of Object.entries(tagAutoDefaults)) {
+          const next = (
+            reset ? initial : (tagSelections.get(id) ?? initial)
+          ).filter((name) => byName.has(name));
+          tagSelections.set(id, next);
+          const { summary, add, selectedTags } = fields.get(id).control;
+          summary.textContent = next.join(", ") || "None";
+          summary.disabled = add.disabled = tagList.length === 0;
+          selectedTags.replaceChildren();
+          for (const name of next) {
+            makeTagChip(element("li", selectedTags), name, byName.get(name));
+          }
+          selectedTags.hidden = next.length === 0;
+        }
+      }
+
+      function readTagColors(prefix) {
+        return {
+          background: fields.get(`tag-${prefix}-background`).control.value,
+          text: fields.get(`tag-${prefix}-text`).control.value,
+        };
+      }
+
+      function syncTagDraft() {
+        const draft = readTagColors("default");
+        paintTag(fields.get("tag-draft-preview").control, draft);
+        fields.get("apply-tag-defaults").control[0].disabled =
+          draft.background === tagDefaults.background &&
+          draft.text === tagDefaults.text;
+      }
+
+      function openApplyTagDefaults() {
+        const proposed = readTagColors("default");
+        const form = tagDialogContent("Apply new tag defaults?");
+        element(
+          "p",
+          form,
+          "help",
+          "Change every tag that uses the defaults now, or keep today’s colors on existing tags and use the new defaults only for tags you create from now on.",
+        );
+        const comparison = element("div", form, "tag-default-comparison");
+        for (const [label, colors] of [
+          ["Now", tagDefaults],
+          ["After", proposed],
+        ]) {
+          const column = element("div", comparison);
+          element("p", column, "help", label);
+          makeTagChip(column, "Tag", colors);
+        }
+        const apply = (future) => {
+          for (const key of ["background", "text"]) {
+            if (proposed[key] === tagDefaults[key]) continue;
+            if (future)
+              for (const tag of tagList) tag[key] ??= tagDefaults[key];
+            const input = fields.get(`tag-new-${key}`).control;
+            if (input.value === tagDefaults[key])
+              setTagPicker(input, proposed[key]);
+          }
+          tagDefaults = proposed;
+          for (const chip of preview.querySelectorAll(
+            ".tag-shape-options .tag-chip",
+          ))
+            paintTag(chip);
+          syncTagDraft();
+          syncAutoTagControls();
+          refreshExistingTags();
+          tagDialog.close();
+        };
+        tagDialogActions(form, [
+          ["Cancel", () => tagDialog.close()],
+          ["Future tags only", () => apply(true)],
+          ["All tags", () => apply(false)],
+        ]);
+        tagDialog.showModal();
+      }
+
+      function renderExistingTags(parent) {
+        tagListElement = parent;
+        refreshExistingTags();
+      }
+
+      function refreshExistingTags() {
+        tagListElement.replaceChildren();
+        for (const tag of tagList) {
+          const row = element("div", tagListElement, "row");
+          const label = element("div", row, "info");
+          makeTagChip(label, tag.name, tag);
+          const actions = element("div", row, "controls tag-row-actions");
+          const edit = element("button", actions, "", "Edit");
+          edit.type = "button";
+          edit.setAttribute("aria-label", `Edit ${tag.name}`);
+          edit.addEventListener("click", () => editPreviewTag(tag));
+          const remove = element("button", actions, "", "Delete");
+          remove.type = "button";
+          remove.dataset.destructive = "";
+          remove.setAttribute("aria-label", `Delete ${tag.name}`);
+          remove.addEventListener("click", () => {
+            openDemo(
+              "Delete tag?",
+              `“${tag.name}” will be removed from your sample tags.`,
+              "Delete",
+              () => {
+                tagList.splice(tagList.indexOf(tag), 1);
+                syncAutoTagControls();
+                refreshExistingTags();
+                (
+                  tagListElement.querySelector("button") ??
+                  fields.get("tag-name").control
+                ).focus();
+              },
+            );
+          });
+        }
+      }
+
+      function editPreviewTag(tag) {
+        const form = tagDialogContent("Add/edit tag");
+        const label = element("label", form, "", "Tag name");
+        const name = element("input", label);
+        name.value = tag.name;
+        name.addEventListener("input", () => name.setCustomValidity(""));
+        const chip = makeTagChip(element("div", form), tag.name, tag);
+        const updates = {};
+        const redraw = () => {
+          chip.textContent = name.value.trim() || tag.name;
+          paintTag(chip, updates);
+        };
+        for (const [key, text] of [
+          ["background", "Background"],
+          ["text", "Text"],
+        ]) {
+          element("h3", form, "", text);
+          const defaultRow = element(
+            "label",
+            form,
+            "template-default-field",
+            "Use default",
+          );
+          const inherit = element("input", defaultRow);
+          inherit.type = "checkbox";
+          defaultRow.prepend(inherit);
+          inherit.checked = !tag[key];
+          const controls = element("div", form);
+          const picker = addTagColor(
+            controls,
+            `tag-modal-${key}`,
+            text,
+            "",
+            tag[key] ?? tagDefaults[key],
+          );
+          const sync = () => {
+            controls.hidden = inherit.checked;
+            updates[key] = inherit.checked ? undefined : picker.value;
+            redraw();
+          };
+          inherit.addEventListener("change", sync);
+          picker.addEventListener("input", sync);
+          sync();
+        }
+        name.addEventListener("input", redraw);
+        tagDialogActions(form, [
+          ["Cancel", () => tagDialog.close()],
+          [
+            "Save changes",
+            () => {
+              const next = validateTagName(name, tag);
+              if (!next) return;
+              for (const [id, selection] of tagSelections) {
+                tagSelections.set(
+                  id,
+                  selection.map((value) => (value === tag.name ? next : value)),
+                );
+              }
+              const index = tagList.indexOf(tag);
+              Object.assign(tag, updates, { name: next });
+              tagDialog.close();
+              syncAutoTagControls();
+              refreshExistingTags();
+              tagListElement
+                .querySelectorAll("button")
+                [index * 2]?.focus({ preventScroll: true });
+            },
+          ],
+        ]);
+        tagDialog.showModal();
+        name.select();
+      }
+
+      function validateTagName(input, current) {
+        const name = input.value.trim();
+        const duplicate = tagList.some(
+          (tag) =>
+            tag !== current && tag.name.toLowerCase() === name.toLowerCase(),
+        );
+        input.setCustomValidity(
+          !name
+            ? "Please enter a tag name!"
+            : duplicate
+              ? "A tag with this name already exists!"
+              : "",
+        );
+        return input.reportValidity() ? name : undefined;
+      }
+
+      function addNewTagControls(parent, id) {
+        const input = addPath(parent, id, "Tag name", "", "", "Enter tag name");
+        const chip = makeTagChip(parent, "Preview");
+        const add = element("button", parent, "", "Add tag");
+        add.type = "button";
+        const sync = () => {
+          chip.textContent = input.value.trim() || "Preview";
+          paintTag(chip, readTagColors("new"));
+        };
+        input.addEventListener("input", () => {
+          input.setCustomValidity("");
+          sync();
+        });
+        for (const key of ["background", "text"]) {
+          fields.get(`tag-new-${key}`).control.addEventListener("input", sync);
+        }
+        add.addEventListener("click", () => {
+          const name = validateTagName(input);
+          if (!name) return;
+          const tag = { name };
+          const colors = readTagColors("new");
+          for (const key of ["background", "text"]) {
+            if (colors[key] !== tagDefaults[key]) tag[key] = colors[key];
+            setTagPicker(
+              fields.get(`tag-new-${key}`).control,
+              tagDefaults[key],
+            );
+          }
+          tagList.push(tag);
+          refreshExistingTags();
+          syncAutoTagControls();
+          input.value = "";
+          input.dispatchEvent(new Event("input"));
+          input.focus();
+        });
+        sync();
+        return input;
+      }
+
+      function resetTagOverrides() {
+        openDemo(
+          "Reset all tags to defaults?",
+          "All sample tag background and text overrides will be cleared.",
+          "Reset",
+          () => {
+            for (const tag of tagList) {
+              delete tag.background;
+              delete tag.text;
+            }
+            syncAutoTagControls();
+            refreshExistingTags();
+          },
+        );
+      }
+
+      function addPath(parent, id, name, helpId, initial, placeholder = "") {
+        const wrapper = element("div", parent, "hex-field path-field");
+        const input = addField("input", wrapper, id, name, helpId);
+        input.type = "text";
+        input.value = initial;
+        input.placeholder = placeholder;
+        const clear = element("button", wrapper, "", "×");
+        clear.type = "button";
+        clear.setAttribute(
+          "aria-label",
+          id === "save-path" ? "Clear folder" : `Clear ${name.toLowerCase()}`,
+        );
+        const update = () => {
+          clear.hidden = input.value === "";
+        };
+        input.addEventListener("input", update);
+        clear.addEventListener("click", () => {
+          input.value = "";
+          update();
+          input.focus();
+        });
+        update();
+        return input;
+      }
+
+      function addColor(parent, id, name, helpId, initial) {
+        const picker = addField("input", parent, id, name, helpId);
+        picker.type = "color";
+        picker.className = "badge-swatch";
+        picker.value = initial;
+        return picker;
+      }
+
+      function renderHighlightWords(parent) {
+        highlightList = parent;
+        refreshHighlightWords();
+      }
+
+      function refreshHighlightWords() {
+        highlightList.replaceChildren();
+        if (highlightWords.length === 0) {
+          element(
+            "p",
+            highlightList,
+            "row help",
+            "No highlight words configured. Add words below to highlight them in articles.",
+          );
+          return;
+        }
+        highlightWords.forEach((word, index) => {
+          const row = element("div", highlightList, "row");
+          row.dataset.kind = "highlight";
+          const info = element("div", row, "info");
+          const name = element("button", info, "highlight-name", word.text);
+          const status = element("p", info, "help");
+          status.id = `highlight-word-${index}-status`;
+          const controls = element("div", row, "controls");
+          const toggle = addSwitch(
+            controls,
+            `highlight-word-${index}-enabled`,
+            `Enable ${word.text}`,
+            status.id,
+            word.enabled,
+          );
+          const details = element("div", controls, "highlight-details");
+          const color = addColor(
+            details,
+            `highlight-word-${index}-color`,
+            `Color for ${word.text}`,
+            "",
+            word.color,
+          );
+          const options = element("div", details, "highlight-options");
+          const whole = element("button", options, "highlight-whole");
+          whole.setAttribute(
+            "aria-label",
+            `Whole-word matching for ${word.text}`,
+          );
+          const matchCase = element("button", options, "highlight-case");
+          matchCase.setAttribute(
+            "aria-label",
+            `Case-sensitive matching for ${word.text}`,
+          );
+          const actions = element("div", details, "highlight-actions");
+          const edit = element("button", actions, "highlight-edit", "Edit");
+          edit.setAttribute("aria-label", `Edit ${word.text}`);
+          const remove = element(
+            "button",
+            actions,
+            "highlight-delete",
+            "Delete",
+          );
+          remove.dataset.destructive = "";
+          remove.setAttribute("aria-label", `Delete ${word.text}`);
+          for (const button of [name, whole, matchCase, edit, remove])
+            button.type = "button";
+
+          function sync() {
+            const match = word.whole ? "Whole word" : "Partial match";
+            status.textContent = [
+              match,
+              word.enabled ? "Enabled" : "Disabled",
+              ...(word.caseSensitive ? ["Case sensitive"] : []),
+            ].join(" | ");
+            whole.textContent = word.whole ? "Whole word" : "Partial";
+            whole.setAttribute("aria-pressed", String(word.whole));
+            matchCase.textContent = word.caseSensitive
+              ? "Case: on"
+              : "Case: off";
+            matchCase.setAttribute("aria-pressed", String(word.caseSensitive));
+          }
+          toggle.addEventListener("change", () => {
+            word.enabled = toggle.checked;
+            sync();
+          });
+          color.addEventListener("input", () => {
+            word.color = color.value;
+          });
+          whole.addEventListener("click", () => {
+            word.whole = !word.whole;
+            sync();
+          });
+          matchCase.addEventListener("click", () => {
+            word.caseSensitive = !word.caseSensitive;
+            sync();
+          });
+          const open = () => {
+            editingHighlight = word;
+            editHighlightText.value = word.text;
+            editHighlightText.setCustomValidity("");
+            highlightEditor.dataset.theme = preview.dataset.theme;
+            highlightEditor.showModal();
+            editHighlightText.select();
+          };
+          name.addEventListener("click", open);
+          edit.addEventListener("click", open);
+          remove.addEventListener("click", () => {
+            openDemo(
+              "Delete highlight word?",
+              `Are you sure you want to delete “${word.text}”?`,
+              "Delete",
+              () => {
+                highlightWords.splice(highlightWords.indexOf(word), 1);
+                refreshHighlightWords();
+                (
+                  highlightList.querySelector(".highlight-name") ??
+                  fields.get("highlight-text").control
+                ).focus();
+              },
+            );
+          });
+          sync();
+        });
+      }
+
+      function readHighlightText(input, current) {
+        const text = input.value.trim();
+        const duplicate = highlightWords.some(
+          (word) => word !== current && word.text === text,
+        );
+        input.setCustomValidity(
+          !text
+            ? "Please enter a word to highlight"
+            : duplicate
+              ? "This word is already in the list"
+              : "",
+        );
+        return input.reportValidity() ? text : undefined;
+      }
+
+      function addHighlightWord() {
+        const input = fields.get("highlight-text").control;
+        const text = readHighlightText(input);
+        if (!text) return;
+        const whole = fields.get("highlight-whole").control;
+        const matchCase = fields.get("highlight-case").control;
+        const color = fields.get("highlight-color").control;
+        highlightWords.push({
+          text,
+          color: color.value,
+          enabled: true,
+          whole: whole.checked,
+          caseSensitive: matchCase.checked,
+        });
+        input.value = "";
+        input.dispatchEvent(new Event("input"));
+        whole.checked = matchCase.checked = false;
+        color.value = defaultHighlightColor;
+        refreshHighlightWords();
+        input.focus();
+      }
+
+      function addDefaultTemplate(parent, id, name, helpId) {
+        const hint = element("p", parent, "help");
+        hint.id = helpId;
+        const body = addField("textarea", parent, id, name, helpId);
+        body.className = "template-body";
+        body.rows = 10;
+        body.value = builtInTemplate;
+        const status = element("p", parent, "help");
+        status.id = "default-template-status";
+        status.setAttribute("role", "status");
+        const actions = element("div", parent, "template-actions");
+        const [useDefault, save, reset, clear] = [
+          "Use as default",
+          "Save as template",
+          "Reset",
+          "Clear",
+        ].map((label) => {
+          const button = element("button", actions, "", label);
+          button.type = "button";
+          return button;
+        });
+        clear.dataset.destructive = "";
+        function refresh() {
+          status.textContent = `Default saves use: ${globalTemplate?.name ?? "the template above"}`;
+          useDefault.setAttribute("aria-disabled", String(!globalTemplate));
+          const isBuiltIn = body.value === builtInTemplate;
+          hint.textContent = isBuiltIn
+            ? "The built-in template. It is used when neither the feed nor the global default saved template sets one."
+            : "Your custom template. It is used when neither the feed nor the global default saved template sets one. Frontmatter properties can start at the beginning of each line.";
+          if (
+            (isBuiltIn && document.activeElement === reset) ||
+            (body.value === "{{content}}" && document.activeElement === clear)
+          )
+            save.focus();
+          reset.disabled = isBuiltIn;
+          clear.disabled = body.value === "{{content}}";
+        }
+        useDefault.addEventListener("click", () => {
+          if (!globalTemplate) return;
+          globalTemplate = undefined;
+          refreshSavedTemplates();
+        });
+        save.addEventListener("click", () => openSavedTemplate(body.value));
+        const replace = (heading, message, action, value) => {
+          openDemo(heading, message, action, () => {
+            body.value = value;
+            refresh();
+            save.focus();
+          });
+        };
+        reset.addEventListener("click", () =>
+          replace(
+            "Reset template?",
+            "This replaces the default article template with the built-in template. Saved templates are not changed.",
+            "Reset",
+            builtInTemplate,
+          ),
+        );
+        clear.addEventListener("click", () =>
+          replace(
+            "Clear template?",
+            "This replaces the default article template with a minimal {{content}} template. Saved templates are not changed.",
+            "Clear",
+            "{{content}}",
+          ),
+        );
+        body.addEventListener("input", refresh);
+        refresh();
+        return { refresh };
+      }
+
+      function renderTemplateReference(parent) {
+        templateReference = element("details", parent, "template-reference");
+        element("summary", templateReference, "", "Template variables");
+        const content = element(
+          "div",
+          templateReference,
+          "template-reference-body",
+        );
+        element(
+          "p",
+          content,
+          "",
+          "These placeholders are replaced when an article is saved.",
+        );
+        const status = element("p", content, "help action-feedback");
+        status.setAttribute("role", "status");
+        for (const { heading, variables } of templateVariables) {
+          element("h4", content, "", heading);
+          const list = element("ul", content);
+          for (const { name, description } of variables) {
+            const token = `{{${name}}}`;
+            const row = element("li", list);
+            const chip = element("button", row, "template-chip");
+            chip.type = "button";
+            chip.setAttribute("aria-label", `Copy ${token}`);
+            element("code", chip, "", token);
+            row.append(` — ${description}`);
+            chip.addEventListener("click", async () => {
+              try {
+                await navigator.clipboard.writeText(token);
+                status.textContent = `Copied ${token}`;
+              } catch {
+                status.textContent = `Couldn't copy ${token}`;
+              }
+            });
+          }
+        }
+      }
+
+      function updateReference(mode) {
+        if (variablesMode === mode) return;
+        if (variablesMode === "after") variablesOpen = templateReference.open;
+        templateReference.open = mode === "before" || variablesOpen;
+        variablesMode = mode;
+      }
+
+      function renderSavedArticleTemplates(parent) {
+        savedTemplateList = parent;
+        refreshSavedTemplates();
+      }
+
+      function refreshSavedTemplates() {
+        fields.get("article-template").control.refresh();
+        savedTemplateList.replaceChildren();
+        if (savedTemplates.length === 0) {
+          element(
+            "p",
+            savedTemplateList,
+            "row help",
+            "No saved templates yet. Save the current template using the button above.",
+          );
+          return;
+        }
+        for (const entry of savedTemplates) {
+          const row = element("div", savedTemplateList, "row");
+          row.dataset.kind = "action";
+          const info = element("div", row, "info");
+          element("p", info, "name", entry.name);
+          if (entry === globalTemplate)
+            element("p", info, "help", "Global default");
+          const actions = element(
+            "div",
+            row,
+            "controls saved-template-actions",
+          );
+          const edit = element("button", actions, "", "Edit");
+          const remove = element("button", actions, "", "Delete");
+          edit.type = remove.type = "button";
+          edit.setAttribute("aria-label", `Edit ${entry.name}`);
+          remove.setAttribute("aria-label", `Delete ${entry.name}`);
+          edit.addEventListener("click", () =>
+            openSavedTemplate(entry.body, entry),
+          );
+          remove.addEventListener("click", () => {
+            openDemo(
+              "Delete this template?",
+              `“${entry.name}” will be removed. Feeds using it fall back to the global default.`,
+              "Delete",
+              () => {
+                savedTemplates.splice(savedTemplates.indexOf(entry), 1);
+                if (entry === globalTemplate) globalTemplate = undefined;
+                refreshSavedTemplates();
+                document
+                  .querySelector(".template-actions button:nth-child(2)")
+                  .focus({ preventScroll: true });
+              },
+            );
+          });
+        }
+      }
+
+      function openSavedTemplate(body, entry) {
+        const dialog = document.querySelector(".template-dialog");
+        dialog.replaceChildren();
+        dialog.dataset.theme = preview.dataset.theme;
+        element(
+          "h2",
+          dialog,
+          "",
+          entry ? "Edit saved template" : "Create saved template",
+        ).id = "saved-template-title";
+        const form = element("form", dialog, "template-form");
+        const field = (tag, name, value) => {
+          const label = element("label", form, "", name);
+          const input = element(tag, label);
+          input.value = value;
+          return input;
+        };
+        const name = field("input", "Template name", entry?.name ?? "");
+        name.required = true;
+        const templateBody = field("textarea", "Template body", body);
+        templateBody.rows = 7;
+        const folder = field("input", "Custom folder", entry?.folder ?? "");
+        const filename = field(
+          "input",
+          "Filename pattern",
+          entry?.filename ?? "",
+        );
+        element(
+          "p",
+          form,
+          "help",
+          "Leave blank to use the article title. The .md extension is added automatically.",
+        ).id = "preview-filename-help";
+        filename.setAttribute("aria-describedby", "preview-filename-help");
+        const version = field("select", "Save version", "");
+        const defaultVersion = fields.get("save-version").control.value;
+        version.append(
+          new Option(`Use Default save version (${defaultVersion})`, ""),
+          ...saveVersions.map((option) => new Option(option)),
+        );
+        version.value = entry?.version ?? "";
+        element(
+          "p",
+          form,
+          "help",
+          "Applies to every save that uses this template, including the global default template.",
+        ).id = "preview-version-help";
+        version.setAttribute("aria-describedby", "preview-version-help");
+        const defaultField = element(
+          "label",
+          form,
+          "template-default-field",
+          "Make global default",
+        );
+        const useDefault = element("input", defaultField);
+        useDefault.type = "checkbox";
+        useDefault.checked = Boolean(entry && entry === globalTemplate);
+        defaultField.prepend(useDefault);
+        element(
+          "p",
+          form,
+          "help",
+          "A feed-assigned template takes precedence over the global default. The standalone template is used when no saved default is selected.",
+        );
+        const actions = element("div", form, "template-actions");
+        const cancel = element("button", actions, "", "Cancel");
+        cancel.type = "button";
+        cancel.addEventListener("click", () => dialog.close());
+        element("button", actions, "", "Save").type = "submit";
+        name.addEventListener("input", () => name.setCustomValidity(""));
+        form.addEventListener("submit", (event) => {
+          event.preventDefault();
+          const value = name.value.trim();
+          const duplicate = savedTemplates.some(
+            (other) =>
+              other !== entry &&
+              other.name.toLowerCase() === value.toLowerCase(),
+          );
+          if (!value || duplicate) {
+            name.setCustomValidity(
+              value
+                ? "Template names must be unique."
+                : "Enter a template name.",
+            );
+            name.reportValidity();
+            return;
+          }
+          const target = entry ?? {};
+          Object.assign(target, {
+            name: value,
+            body: templateBody.value,
+            folder: folder.value.trim(),
+            filename: filename.value.trim(),
+            version: version.value,
+          });
+          if (!entry) savedTemplates.push(target);
+          if (useDefault.checked) globalTemplate = target;
+          else if (globalTemplate === target) globalTemplate = undefined;
+          dialog.close();
+          refreshSavedTemplates();
+          if (entry)
+            savedTemplateList
+              .querySelectorAll("button")
+              [savedTemplates.indexOf(target) * 2]?.focus({
+                preventScroll: true,
+              });
+        });
+        dialog.showModal();
+        name.focus();
+      }
+
+      function populateOptions(select, choices, selected = choices[0]) {
+        select.replaceChildren(...choices.map((choice) => new Option(choice)));
+        select.value = choices.includes(selected) ? selected : choices[0];
+      }
+
+      function addSwitch(parent, id, name, helpId, checked) {
+        const input = addField("input", parent, id, name, helpId);
+        input.type = "checkbox";
+        input.className = "switch";
+        input.setAttribute("role", "switch");
+        input.checked = checked;
+        return input;
+      }
+
+      function addBadge(parent, id, name, helpId, initial) {
+        addSwitch(parent, id, `Show ${name}`, helpId, true);
+        const group = element("div", parent, "badge-color");
+        const picker = addField(
+          "input",
+          group,
+          `${id}-color`,
+          `${name} color`,
+          helpId,
+        );
+        picker.type = "color";
+        picker.className = "badge-swatch";
+        picker.value = initial;
+        const wrapper = element("div", group, "hex-field");
+        const hex = addField(
+          "input",
+          wrapper,
+          `${id}-hex`,
+          `${name} hex color`,
+          helpId,
+        );
+        hex.type = "text";
+        hex.value = initial;
+        hex.placeholder = initial;
+        hex.spellcheck = false;
+        hex.autocomplete = "off";
+        const clear = element("button", wrapper, "", "×");
+        clear.type = "button";
+        clear.setAttribute("aria-label", `Clear ${name} hex input`);
+
+        function syncFromHex() {
+          const value = hex.value.trim().replace(/^#/, "");
+          const valid = /^(?:[0-9a-f]{3}|[0-9a-f]{6})$/i.test(value);
+          clear.hidden = hex.value === "";
+          hex.setAttribute(
+            "aria-invalid",
+            String(!valid && hex.value.trim() !== ""),
+          );
+          if (valid) {
+            const expanded =
+              value.length === 3 ? value.replace(/./g, "$&$&") : value;
+            picker.value = `#${expanded.toLowerCase()}`;
+          }
+        }
+
+        picker.addEventListener("input", () => {
+          hex.value = picker.value;
+          syncFromHex();
+        });
+        hex.addEventListener("input", syncFromHex);
+        clear.addEventListener("click", () => {
+          hex.value = "";
+          syncFromHex();
+          hex.focus();
+        });
+      }
+
+      function setupIconOrder() {
+        const toolbar = fields.get("hide-toolbar").control;
+        const reset = fields.get("reset-icon-order");
+        const rows = reset.item.parentElement;
+        let dragging = null;
+        let dropTarget = null;
+        const icons = sidebarIcons.map(([id, name, glyph]) => {
+          const { item, control: toggle } = fields.get(`icon-${id}`);
+          const label = item.querySelector(".name");
+          const grip = element("button", label, "icon-grip", "⠿");
+          grip.type = "button";
+          grip.setAttribute("aria-label", `Drag to reorder ${name}`);
+          const previewIcon = element("span", label, "icon-glyph", glyph);
+          previewIcon.setAttribute("aria-hidden", "true");
+          label.prepend(grip, previewIcon);
+          const [up, down] = ["up", "down"].map((direction) => {
+            const button = element(
+              "button",
+              toggle.parentElement,
+              "icon-move",
+              direction === "up" ? "↑" : "↓",
+            );
+            button.type = "button";
+            button.setAttribute("aria-label", `Move ${name} ${direction}`);
+            toggle.before(button);
+            const delta = direction === "up" ? -1 : 1;
+            button.addEventListener("click", () => {
+              const order = currentOrder();
+              const neighbor = order[order.indexOf(item) + delta];
+              if (!neighbor || toolbar.checked) return;
+              place(item, neighbor, delta > 0);
+              const nextFocus = button.disabled
+                ? delta > 0
+                  ? up
+                  : down
+                : button;
+              nextFocus.focus({ preventScroll: true });
+            });
+            return button;
+          });
+          item.addEventListener("dragover", (event) => {
+            if (!dragging || dragging === item || toolbar.checked) return;
+            event.preventDefault();
+            if (dropTarget && dropTarget !== item)
+              delete dropTarget.dataset.drop;
+            dropTarget = item;
+            item.dataset.drop = isAfter(event, item) ? "after" : "before";
+          });
+          item.addEventListener("dragleave", (event) => {
+            if (item.contains(event.relatedTarget)) return;
+            delete item.dataset.drop;
+          });
+          item.addEventListener("drop", (event) => {
+            if (!dragging || dragging === item || toolbar.checked) return;
+            event.preventDefault();
+            place(dragging, item, isAfter(event, item));
+            clearDrag();
+          });
+          grip.addEventListener("dragstart", (event) => {
+            if (toolbar.checked) {
+              event.preventDefault();
+              return;
+            }
+            dragging = item;
+            item.dataset.dragging = "";
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", id);
+          });
+          grip.addEventListener("dragend", clearDrag);
+          return { item, toggle, grip, up, down };
+        });
+
+        function isAfter(event, item) {
+          const bounds = item.getBoundingClientRect();
+          return event.clientY > bounds.top + bounds.height / 2;
+        }
+
+        function clearDrag() {
+          if (dragging) delete dragging.dataset.dragging;
+          if (dropTarget) delete dropTarget.dataset.drop;
+          dragging = dropTarget = null;
+        }
+
+        function currentOrder() {
+          return [...rows.querySelectorAll('[data-kind="icon"]')];
+        }
+
+        function update() {
+          const order = currentOrder();
+          const hidden = toolbar.checked;
+          for (const { item, toggle, grip, up, down } of icons) {
+            toggle.disabled = grip.disabled = hidden;
+            grip.draggable = !hidden;
+            up.disabled = hidden || item === order[0];
+            down.disabled = hidden || item === order.at(-1);
+          }
+        }
+
+        function place(item, target, after) {
+          if (after) target.after(item);
+          else target.before(item);
+          update();
+        }
+
+        toolbar.addEventListener("change", () => {
+          clearDrag();
+          update();
+        });
+        reset.control[0].addEventListener("click", () => {
+          toolbar.checked = false;
+          for (const { item, toggle } of icons) {
+            toggle.checked = true;
+            reset.item.before(item);
+          }
+          update();
+        });
+        update();
+      }
+
+      function addActions(parent, actions, settingName, id) {
+        return actions.map((action) => {
+          const button = element("button", parent, "", action);
+          button.type = "button";
+          if (id === "clear-progress") button.dataset.destructive = "";
+          button.addEventListener("click", () => {
+            if (id === "reset-icon-order") return;
+            if (id === "tag-reset-names") {
+              syncAutoTagControls(true);
+              return;
+            }
+            if (id === "apply-tag-defaults") {
+              openApplyTagDefaults();
+              return;
+            }
+            if (id === "clear-tag-overrides") {
+              resetTagOverrides();
+              return;
+            }
+            if (id === "add-highlight") {
+              addHighlightWord();
+              return;
+            }
+            if (id === "reset-reader") {
+              for (const [key, value] of Object.entries(readerDefaults))
+                fields.get(key).control.value = value;
+              return;
+            }
+            if (id === "clear-cache") {
+              openDemo(
+                "Clear image cache?",
+                "This clears the sample cache shown in the prototype.",
+                action,
+                () => {
+                  document.querySelector("#clear-cache-help").textContent =
+                    "Cached image storage: 0 B.";
+                },
+              );
+              return;
+            }
+            if (id === "clear-progress") {
+              openDemo(
+                "Clear saved playback progress?",
+                "Remove every remembered podcast and video resume position. This cannot be undone.",
+                action,
+                () => {
+                  document.querySelector("#playback-feedback").textContent =
+                    sampleResumePositions
+                      ? `Cleared ${sampleResumePositions} sample resume positions.`
+                      : "No sample playback progress remains.";
+                  sampleResumePositions = 0;
+                },
+              );
+              return;
+            }
+            openDemo(
+              settingName,
+              `${action} is simulated in this settings preview.`,
+            );
+          });
+          return button;
+        });
+      }
+
+      function openDemo(heading, message, action, onConfirm) {
+        confirmAction = onConfirm;
+        demo.dataset.theme = preview.dataset.theme;
+        demo.querySelector("h2").textContent = heading;
+        demo.querySelector("p").textContent = message;
+        demoClose.textContent = onConfirm ? "Cancel" : "Close";
+        demoConfirm.textContent = action ?? "";
+        demoConfirm.hidden = !onConfirm;
+        demo.returnValue = "";
+        demo.showModal();
+      }
+
+      demo.addEventListener("close", () => {
+        if (demo.returnValue === "confirm") confirmAction?.();
+        confirmAction = undefined;
+      });
+
+      function addRange(parent, id, name, helpId, settings) {
+        const {
+          min,
+          max,
+          step = 1,
+          defaultValue,
+          unit,
+          exact,
+          auto,
+          existingReset,
+          rejectOutOfRange,
+        } = settings;
+        const spokenValue = (value) => {
+          if (auto && value === 0) return "Auto";
+          return unit === "%"
+            ? `${value}%`
+            : `${value} ${auto && value === 1 ? "column" : unit}`;
+        };
+        const output = element("output", parent, "range-value");
+        const track = addField("input", parent, id, name, helpId);
+        track.className = "range-track";
+        track.type = "range";
+        output.htmlFor.add(id);
+        let input, suffix;
+        if (exact) {
+          output.dataset.exact = "";
+          const editor = element("div", parent, "range-editor");
+          input = addField(
+            "input",
+            editor,
+            `${id}-exact`,
+            `${name}, exact value${auto ? " (0 for Auto)" : ` in ${unit}`}`,
+            helpId,
+          );
+          input.type = "number";
+          suffix = element("span", editor, "range-unit");
+        }
+        for (const field of [track, input].filter(Boolean)) {
+          field.min = min;
+          field.max = max;
+          field.step = step;
+        }
+        const reset = element(
+          "button",
+          parent,
+          existingReset ? "range-reset" : "range-reset proposed-control",
+          "↶",
+        );
+        reset.type = "button";
+        reset.setAttribute(
+          "aria-label",
+          `Restore ${name} to ${spokenValue(defaultValue)}`,
+        );
+        let value = defaultValue;
+        let disabled = false;
+
+        function refresh() {
+          track.disabled = disabled;
+          if (input) input.disabled = disabled;
+          reset.disabled =
+            disabled ||
+            (preview.dataset.mode === "after" && value === defaultValue);
+        }
+
+        function setValue(next) {
+          value = next;
+          track.value = value;
+          track.setAttribute("aria-valuetext", spokenValue(value));
+          output.value = spokenValue(value);
+          if (input) {
+            input.value = value;
+            suffix.textContent = auto
+              ? value === 0
+                ? "Auto"
+                : value === 1
+                  ? "column"
+                  : unit
+              : unit;
+          }
+          refresh();
+        }
+
+        track.addEventListener("input", () => setValue(track.valueAsNumber));
+        if (input) {
+          const commit = () => {
+            const next = input.valueAsNumber;
+            const valid = rejectOutOfRange
+              ? Number.isInteger(next) && next >= min && next <= max
+              : Number.isFinite(next);
+            setValue(
+              valid ? Math.min(max, Math.max(min, Math.trunc(next))) : value,
+            );
+          };
+          input.addEventListener("change", commit);
+          input.addEventListener("blur", commit);
+          input.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") input.blur();
+          });
+        }
+        reset.addEventListener("click", () => setValue(defaultValue));
+        setValue(defaultValue);
+        return {
+          refresh,
+          setDisabled(next) {
+            disabled = next;
+            refresh();
+          },
+        };
+      }
+
+      function addControls(parent, [id, name, , kind, options, initial]) {
+        const helpId = `${id}-help`;
+        if (kind === "action") return addActions(parent, options, name, id);
+        if (kind === "tag-color")
+          return addTagColor(parent, id, name, helpId, options);
+        if (kind === "tag-select")
+          return addAutoTagControl(parent, id, options);
+        if (kind === "tag-preview") return makeTagChip(parent, "Preview");
+        if (kind === "tag-new") return addNewTagControls(parent, id);
+        if (kind === "path")
+          return addPath(parent, id, name, helpId, options, initial);
+        if (kind === "color")
+          return addColor(parent, id, name, helpId, options);
+        if (kind === "template")
+          return addDefaultTemplate(parent, id, name, helpId);
+        if (kind === "badge")
+          return addBadge(parent, id, name, helpId, options);
+        if (kind === "switch" || kind === "icon")
+          return addSwitch(
+            parent,
+            id,
+            kind === "icon" ? `Show ${name} icon` : name,
+            helpId,
+            kind === "icon" || options,
+          );
+        if (kind === "range")
+          return addRange(parent, id, name, helpId, options);
+        if (kind === "proxy") {
+          const preset = addField("select", parent, id, "Proxy preset", helpId);
+          populateOptions(preset, [
+            "Auto-cycle (try all proxies on failure)",
+            "Example built-in proxy",
+            "Add new proxy URL...",
+          ]);
+          const url = addField(
+            "input",
+            parent,
+            "proxy-address",
+            "Proxy URL",
+            helpId,
+          );
+          url.type = "url";
+          url.placeholder = "https://proxy.example/?url=";
+          url.value = "auto";
+          const [save] = addActions(parent, ["Save proxy URL"], name);
+          preset.addEventListener("change", () => {
+            const customProxy = preset.selectedIndex === 2;
+            url.value = ["auto", "https://proxy.example/?url=", ""][
+              preset.selectedIndex
+            ];
+            save.hidden = !customProxy;
+            fields.get("proxy-test").control[1].disabled =
+              preset.selectedIndex !== 1;
+          });
+          save.hidden = true;
+          return preset;
+        }
+        if (kind === "select") {
+          const select = addField("select", parent, id, name, helpId);
+          populateOptions(select, options, initial);
+          if (options.includes(custom)) {
+            const number = addField(
+              "input",
+              parent,
+              `${id}-custom`,
+              `Custom ${name.toLowerCase()}`,
+              helpId,
+            );
+            number.type = "number";
+            number.min = id === "refresh" ? "0" : "1";
+            number.hidden = true;
+            select.addEventListener("change", () => {
+              number.hidden = select.value !== custom;
+            });
+          }
+          return select;
+        }
+        const input = addField("input", parent, id, name, helpId);
+        input.type = "number";
+        input.min = "0";
+        input.value = options;
+        return input;
+      }
+
+      for (const tab of tabNames) {
+        if (!reviewedTabs[tab]) {
+          element("span", tabStrip, "", tab);
+          continue;
+        }
+        const button = element("button", tabStrip, "", tab);
+        button.type = "button";
+        button.dataset.tab = tab;
+        button.addEventListener("click", () => {
+          if (currentTab === tab) return;
+          currentTab = tab;
+          updatePreview();
+          pane.scrollTop = 0;
+        });
+      }
+      for (const [tab, groups] of Object.entries(reviewedTabs)) {
+        for (const [index, group] of groups.entries()) {
+          const section = element(
+            "section",
+            document.querySelector("#rows"),
+            "group",
+          );
+          section.id = `${tab.toLowerCase().replace(/[ /]+/g, "-")}-section-${index}`;
+          if (group.transfer) section.dataset.transfer = "";
+          if (group.heading) element("h3", section, "", group.heading);
+          if (!group.hideHeading) {
+            element(
+              group.heading ? "h4" : "h3",
+              section,
+              group.proposed ? "proposed-heading" : "",
+              group.label,
+            );
+          }
+          if (group.description)
+            element("p", section, "group-help", group.description);
+          const card = element("div", section, "card");
+          sections.push({ section, tab, ...group });
+          for (const row of group.rows ?? []) {
+            const [id, name, help, kind] = row;
+            const item = element("div", card, "row");
+            item.dataset.kind = kind;
+            if (id === "proxy-url" || id === "proxy-test")
+              item.dataset.layout = "wide";
+            const info = element("div", item, "info");
+            if (name) element("p", info, "name", name);
+            info.hidden = !name && !help;
+            if (help) addHelp(info, `${id}-help`, help);
+            if (id === "clear-progress") {
+              const feedback = element("p", info, "help action-feedback");
+              feedback.id = "playback-feedback";
+              feedback.setAttribute("role", "status");
+            }
+            if (kind === "info") continue;
+            const control = addControls(element("div", item, "controls"), row);
+            fields.set(id, { item, control });
+          }
+          group.content?.(card);
+          if (group.transfer) renderTransferActions(card, group);
+        }
+      }
+      setupIconOrder();
+      syncAutoTagControls();
+      fields
+        .get("tag-default-background")
+        .control.addEventListener("input", syncTagDraft);
+      fields
+        .get("tag-default-text")
+        .control.addEventListener("input", syncTagDraft);
+      syncTagDraft();
+      fields
+        .get("highlight-text")
+        .control.addEventListener("input", (event) =>
+          event.target.setCustomValidity(""),
+        );
+      editHighlightText.addEventListener("input", () =>
+        editHighlightText.setCustomValidity(""),
+      );
+      document
+        .querySelector("#cancel-highlight-edit")
+        .addEventListener("click", () => highlightEditor.close());
+      highlightEditor
+        .querySelector("form")
+        .addEventListener("submit", (event) => {
+          event.preventDefault();
+          const text = readHighlightText(editHighlightText, editingHighlight);
+          if (!text) return;
+          const index = highlightWords.indexOf(editingHighlight);
+          editingHighlight.text = text;
+          highlightEditor.close();
+          refreshHighlightWords();
+          highlightList
+            .querySelectorAll(".highlight-edit")
+            [index]?.focus({ preventScroll: true });
+        });
+      const cacheLimit = fields.get("cache-limit").control;
+      fields
+        .get("cache-unlimited")
+        .control.addEventListener("change", (event) => {
+          cacheLimit.setDisabled(event.target.checked);
+        });
+      fields.get("cover-images").control.addEventListener("change", (event) => {
+        fields.get("fetch-covers").control.disabled = !event.target.checked;
+      });
+      fields.get("proxy-test").control[1].disabled = true;
+      fields.get("proxy").control.addEventListener("change", (event) => {
+        for (const id of ["proxy-url", "proxy-test"])
+          fields.get(id).item.hidden = !event.target.checked;
+      });
+
+      function fitPreview() {
+        const padding =
+          parseFloat(getComputedStyle(stage).paddingInlineStart) * 2;
+        const available = stage.clientWidth - padding;
+        preview.style.zoom = Math.min(
+          1,
+          available / devices[preview.dataset.device].width,
+        );
+      }
+
+      function jumpWithinPane(target) {
+        const top =
+          target.getBoundingClientRect().top - pane.getBoundingClientRect().top;
+        pane.scrollTop += top / Number(preview.style.zoom) - 12;
+      }
+
+      function updatePreview() {
+        const { device, mode } = preview.dataset;
+        updateReference(mode);
+        const { width, height, label } = devices[device];
+        const isDesktop = device === "desktop";
+        preview.style.setProperty("--device-width", `${width}px`);
+        preview.style.setProperty("--device-height", `${height}px`);
+        const selectedSection = sectionPicker.value;
+        const visibleSections = sections.filter(
+          ({ tab, mobile }) => tab === currentTab && (!mobile || !isDesktop),
+        );
+        for (const group of sections)
+          group.section.hidden = !visibleSections.includes(group);
+        for (const button of tabStrip.querySelectorAll("button")) {
+          if (button.dataset.tab === currentTab)
+            button.setAttribute("aria-current", "page");
+          else button.removeAttribute("aria-current");
+        }
+        pane.setAttribute("aria-label", `${currentTab} settings`);
+        sectionPicker.replaceChildren(
+          ...visibleSections.map(
+            ({ section, label }) => new Option(label, section.id),
+          ),
+        );
+        if (
+          visibleSections.some(({ section }) => section.id === selectedSection)
+        )
+          sectionPicker.value = selectedSection;
+        const reader = fields.get("reader").control;
+        populateOptions(
+          reader,
+          isDesktop ? locations : [locations[0], locations[3]],
+          reader.value,
+        );
+        for (const { control } of fields.values()) control?.refresh?.();
+        const version =
+          mode === "after" ? "Proposed layout" : "Current layout model";
+        document.querySelector("#report").textContent =
+          `${currentTab} · ${version} · ${label} · ${width} × ${height} CSS px`;
+        fitPreview();
+      }
+
+      for (const group of document.querySelectorAll("[data-control]")) {
+        group.addEventListener("click", (event) => {
+          const button = event.target.closest("button");
+          if (!button || button.getAttribute("aria-pressed") === "true") return;
+          const top = pane.getBoundingClientRect().top;
+          const anchor = [...pane.querySelectorAll(".row")].find(
+            (row) =>
+              row.getClientRects().length &&
+              row.getBoundingClientRect().bottom > top,
+          );
+          preview.dataset[group.dataset.control] = button.dataset.value;
+          for (const option of group.querySelectorAll("button"))
+            option.setAttribute("aria-pressed", String(option === button));
+          updatePreview();
+          if (pane.scrollTop > 0 && anchor?.getClientRects().length)
+            jumpWithinPane(anchor);
+        });
+      }
+      sectionPicker.addEventListener("change", () => {
+        jumpWithinPane(document.getElementById(sectionPicker.value));
+      });
+      new ResizeObserver(fitPreview).observe(stage);
+      updatePreview();
+    </script>
+  </body>
+</html>

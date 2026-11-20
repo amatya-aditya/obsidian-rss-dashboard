@@ -283,6 +283,25 @@ describe("Math Rendering Utilities", () => {
       expect(renderedParagraph?.querySelectorAll("span.math").length).toBe(0);
     });
 
+    it("keeps parenthesized currency as text while rendering following math", async () => {
+      const container = createDiv();
+      const paragraph = createEl("p");
+      paragraph.textContent =
+        "One company ($778.8 million); another ($403.1 million). Formula $2+2$.";
+      container.appendChild(paragraph);
+      document.body.appendChild(container);
+
+      await processMathElements(container, getContext());
+
+      const renderedParagraph = container.querySelector("p");
+      const mathSpans = renderedParagraph?.querySelectorAll("span.math");
+      expect(mathSpans).toHaveLength(1);
+      expect(mathSpans?.[0].getAttribute("data-math")).toBe("$2+2$");
+      expect(renderedParagraph?.textContent).toContain(
+        "One company ($778.8 million); another ($403.1 million). Formula",
+      );
+    });
+
     it("ignores already rendered math spans to prevent double parsing", async () => {
       const container = createDiv();
       const existingSpan = createSpan();

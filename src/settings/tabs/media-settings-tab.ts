@@ -5,6 +5,7 @@
  * Exports:
  *   - renderMediaSettingsTab(containerEl, plugin)
  */
+import { createSettingsGroup } from "../settings-layout";
 import { App, Notice, Setting } from "obsidian";
 import { PodcastTheme } from "../../types/types";
 import type { MediaSettings } from "../../types/types";
@@ -71,9 +72,10 @@ export function renderMediaSettingsTab(
   containerEl: HTMLElement,
   plugin: MediaSettingsPlugin,
 ): void {
-  new Setting(containerEl).setName("Playback progress").setHeading();
+  const progress = createSettingsGroup(containerEl);
+  new Setting(progress).setName("Playback progress").setHeading();
 
-  new Setting(containerEl)
+  new Setting(progress)
     .setName("Remember playback progress")
     .setDesc(
       "Save and restore podcast and video playback position across reader and plugin restarts",
@@ -87,7 +89,7 @@ export function renderMediaSettingsTab(
         }),
     );
 
-  new Setting(containerEl)
+  new Setting(progress)
     .setName("Clear saved playback progress")
     .setDesc(
       "Remove all remembered podcast and video resume positions stored by the plugin",
@@ -116,9 +118,10 @@ export function renderMediaSettingsTab(
     });
 
   // ── Video player ──────────────────────────────────────────────────────────
-  new Setting(containerEl).setName("Video player").setHeading();
+  const video = createSettingsGroup(containerEl);
+  new Setting(video).setName("Video player").setHeading();
 
-  new Setting(containerEl)
+  new Setting(video)
     .setName("Video focus mode")
     .setDesc(
       "Show only the video for YouTube videos and Twitch VODs: hide the description, related videos, watch link and source line. The stored description is kept for search and saved notes.",
@@ -134,9 +137,10 @@ export function renderMediaSettingsTab(
     );
 
   // ── Podcast player ────────────────────────────────────────────────────────
-  new Setting(containerEl).setName("Podcast player").setHeading();
+  const podcast = createSettingsGroup(containerEl);
+  new Setting(podcast).setName("Podcast player").setHeading();
 
-  new Setting(containerEl)
+  new Setting(podcast)
     .setName("Default play speed")
     .setDesc("Default playback speed for podcast episodes")
     .addDropdown((dropdown) =>
@@ -156,9 +160,9 @@ export function renderMediaSettingsTab(
         }),
     );
 
-  renderPodcastSeekBarSettings(containerEl, plugin);
+  renderPodcastSeekBarSettings(podcast, plugin);
 
-  new Setting(containerEl)
+  new Setting(podcast)
     .setName("Player theme")
     .setDesc("Choose a visual theme for the podcast player")
     .addDropdown((dropdown) =>
@@ -185,7 +189,7 @@ export function renderMediaSettingsTab(
         }),
     );
 
-  new Setting(containerEl)
+  new Setting(podcast)
     .setName("Apple podcast links")
     .setDesc(
       "Apple podcast links show in a podcast's open menu. Off by default.",
@@ -199,9 +203,10 @@ export function renderMediaSettingsTab(
         }),
     );
 
-  new Setting(containerEl).setName("Third-party services").setHeading();
+  const services = createSettingsGroup(containerEl);
+  new Setting(services).setName("Third-party services").setHeading();
 
-  const youtubeTosSetting = new Setting(containerEl).setName(
+  const youtubeTosSetting = new Setting(services).setName(
     "YouTube terms of service",
   );
 

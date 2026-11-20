@@ -57,3 +57,15 @@ describe("articleHtmlToMarkdown block links (#1200)", () => {
     expect(markdown).toBe(`![Photo](${imageUrl})`);
   });
 });
+
+describe("articleHtmlToMarkdown math", () => {
+  it("escapes currency signs while preserving dollar and backslash math", () => {
+    const markdown = articleHtmlToMarkdown(
+      String.raw`<p>Revenue ($778.8 million); valuation ($403.1 million). Formula $2+2$ and \(x^2\).</p>`,
+    );
+
+    expect(markdown).toBe(
+      String.raw`Revenue (\$778.8 million); valuation (\$403.1 million). Formula $2+2$ and $x^2$.`,
+    );
+  });
+});

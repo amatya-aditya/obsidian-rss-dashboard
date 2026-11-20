@@ -10,7 +10,7 @@ const responsiveSettingsRows = [
   {
     file: "settings.css",
     selector:
-      ".rss-dashboard-settings-tab-content .setting-item:not(.setting-item-heading)",
+      ".rss-dashboard-settings-tab-content:where( :not(.rss-dashboard-settings-reviewed) ) .setting-item:not(.setting-item-heading)",
     maxWidth: 1200,
   },
   {
@@ -29,20 +29,9 @@ const responsiveSettingsRows = [
     maxWidth: 520,
   },
   {
-    file: "settings-keyword-filters.css",
-    selector: ".rss-dashboard-highlight-word-setting.setting-item",
-    maxWidth: 1024,
-  },
-  {
     file: "settings-icon-proxy.css",
     selector: ".rss-proxy-setting-item.setting-item",
     maxWidth: 768,
-  },
-  {
-    file: "tag-color-palette.css",
-    selector:
-      ".rss-dashboard-settings-tab-content .rss-dashboard-tag-color-setting.setting-item",
-    maxWidth: 1200,
   },
 ] as const;
 
@@ -104,6 +93,7 @@ function hasCssDeclarations(
   file: string,
   selector: string,
   declarations: ReadonlyArray<Readonly<[string, string]>>,
+  containerWidth?: number,
 ): boolean {
   const css = readFileSync(
     path.resolve(testDir, `../../../src/styles/${file}`),
@@ -118,6 +108,27 @@ function hasCssDeclarations(
     );
     if (!normalizedSelectors?.includes(selector)) return;
 
+    if (containerWidth !== undefined) {
+      let ancestor:
+        | { type: string; name?: string; params?: string; parent?: unknown }
+        | undefined = rule.parent;
+      let insideContainer = false;
+      while (ancestor && !insideContainer) {
+        if (
+          ancestor.type === "atrule" &&
+          ancestor.name === "container" &&
+          /rss-dashboard-settings/.test(ancestor.params ?? "") &&
+          new RegExp(`max-width:\\s*${containerWidth}px`).test(
+            ancestor.params ?? "",
+          )
+        ) {
+          insideContainer = true;
+        }
+        ancestor = ancestor.parent as typeof ancestor;
+      }
+      if (!insideContainer) return;
+    }
+
     const hasAllDeclarations = declarations.every(([prop, value]) =>
       rule.nodes?.some(
         (node) =>
@@ -130,6 +141,127 @@ function hasCssDeclarations(
   return found;
 }
 
+/** Every value declared for `prop` on rules with exactly this selector. */
+function declarationsFor(
+  file: string,
+  selector: string,
+  prop: string,
+): string[] {
+  const css = readFileSync(
+    path.resolve(testDir, `../../../src/styles/${file}`),
+    "utf8",
+  );
+  const root = postcss.parse(css);
+  const values: string[] = [];
+
+  root.walkRules((rule) => {
+    const normalizedSelectors = rule.selectors?.map((value) =>
+      value.replace(/\s+/g, " ").trim(),
+    );
+    if (!normalizedSelectors?.includes(selector)) return;
+    rule.walkDecls(prop, (decl) => {
+      values.push(decl.value);
+    });
+  });
+
+  return values;
+}
+
+/** Reviewed selectors, ignoring the class when it only appears in `:not(...)`. */
+function isReviewedSelector(selector: string): boolean {
+  return /(^|[^(\w-])\.rss-dashboard-settings-reviewed\b/.test(selector);
+}
+
+/**
+ * Declarations for the given properties that the touch media query still sets on
+ * a reviewed element, as `selector prop: value` strings.
+ */
+function reviewedDeclarationsInTouchMedia(
+  file: string,
+  props: readonly string[],
+): string[] {
+  const css = readFileSync(
+    path.resolve(testDir, `../../../src/styles/${file}`),
+    "utf8",
+  );
+  const root = postcss.parse(css);
+  const found: string[] = [];
+
+  root.walkRules((rule) => {
+    const normalized = rule.selector.replace(/\s+/g, " ").trim();
+    if (!isReviewedSelector(normalized)) return;
+
+    let ancestor:
+      | { type: string; name?: string; params?: string; parent?: unknown }
+      | undefined = rule.parent;
+    let inTouchMedia = false;
+    while (ancestor && !inTouchMedia) {
+      if (
+        ancestor.type === "atrule" &&
+        ancestor.name === "media" &&
+        /\(hover:\s*none\)/.test(ancestor.params ?? "")
+      ) {
+        inTouchMedia = true;
+      }
+      ancestor = ancestor.parent as typeof ancestor;
+    }
+    if (!inTouchMedia) return;
+
+    rule.walkDecls((decl) => {
+      if (props.includes(decl.prop)) {
+        found.push(`${normalized} ${decl.prop}: ${decl.value}`);
+      }
+    });
+  });
+
+  return found;
+}
+
+/** Reviewed-row stacking rules that the touch media query still forces. */
+function reviewedStackRulesInTouchMedia(file: string): string[] {
+  const css = readFileSync(
+    path.resolve(testDir, `../../../src/styles/${file}`),
+    "utf8",
+  );
+  const root = postcss.parse(css);
+  const selectors: string[] = [];
+
+  root.walkRules((rule) => {
+    const stacksRow = rule.nodes?.some(
+      (node) =>
+        node.type === "decl" &&
+        (node.prop === "flex-direction" ||
+          node.prop === "grid-template-columns") &&
+        (node.value === "column" || node.value === "minmax(0, 1fr)"),
+    );
+    if (!stacksRow) return;
+
+    let ancestor:
+      | { type: string; name?: string; params?: string; parent?: unknown }
+      | undefined = rule.parent;
+    let inTouchMedia = false;
+    while (ancestor && !inTouchMedia) {
+      if (
+        ancestor.type === "atrule" &&
+        ancestor.name === "media" &&
+        /\(hover:\s*none\)/.test(ancestor.params ?? "")
+      ) {
+        inTouchMedia = true;
+      }
+      ancestor = ancestor.parent as typeof ancestor;
+    }
+    if (!inTouchMedia) return;
+
+    const normalized = rule.selector.replace(/\s+/g, " ").trim();
+    // Ignore the reviewed class when it appears inside `:not(...)`.
+    if (/(^|[^(\w-])\.rss-dashboard-settings-reviewed\b/.test(normalized)) {
+      selectors.push(normalized);
+    }
+  });
+
+  return selectors;
+}
+
 describe("responsive settings row layout", () => {
   it.each(responsiveSettingsRows)(
     "stacks $selector only for touch-first devices at its narrow-width breakpoint",
@@ -137,6 +269,133 @@ describe("responsive settings row layout", () => {
       expect(hasTouchFirstStackRule(file, selector, maxWidth)).toBe(true);
     },
   );
+
+  it("keeps Highlights and badge toggles next to wrapping help", () => {
+    expect(
+      hasCssDeclarations(
+        "settings.css",
+        ".rss-dashboard-settings-reviewed :is( .rss-dashboard-sidebar-badge-setting, .rss-dashboard-highlight-word-setting ).setting-item",
+        [
+          ["display", "grid"],
+          ["grid-template-columns", "minmax(0, 1fr) auto"],
+        ],
+      ),
+    ).toBe(true);
+  });
+
+  it("gives Highlights actions their own line in a telephone-width pane", () => {
+    expect(
+      hasCssDeclarations(
+        "settings.css",
+        ".rss-dashboard-settings-reviewed .rss-dashboard-highlight-word-actions",
+        [["flex-basis", "100%"]],
+        400,
+      ),
+    ).toBe(true);
+  });
+
+  it("wraps both tag palette controls together below the width that fits the value", () => {
+    expect(
+      hasCssDeclarations(
+        "tag-color-palette.css",
+        ".rss-dashboard-settings-reviewed .rss-dashboard-tag-color-setting .rss-dashboard-tag-color-palette-control",
+        [
+          ["display", "grid"],
+          ["flex", "1 1 18rem"],
+        ],
+        560,
+      ),
+    ).toBe(true);
+  });
+
+  it("stacks reviewed dropdown rows only at the phone-width pane breakpoint", () => {
+    expect(
+      hasCssDeclarations(
+        "settings.css",
+        ".rss-dashboard-settings-reviewed .setting-item:has(> .setting-item-control > select)",
+        [
+          ["flex-direction", "column"],
+          ["align-items", "stretch"],
+        ],
+        400,
+      ),
+    ).toBe(true);
+  });
+
+  it("sizes reviewed controls by their text and lets the label flex", () => {
+    expect(
+      declarationsFor(
+        "settings.css",
+        ".rss-dashboard-settings-reviewed .setting-item",
+        "flex-wrap",
+      ),
+    ).toContain("wrap");
+    expect(
+      declarationsFor(
+        "settings.css",
+        ".rss-dashboard-settings-reviewed .setting-item-control",
+        "flex",
+      ),
+    ).toEqual(["0 0 auto"]);
+    expect(
+      declarationsFor(
+        "settings.css",
+        ".rss-dashboard-settings-reviewed .setting-item-control",
+        "max-width",
+      ),
+    ).toEqual(["100%"]);
+    expect(
+      declarationsFor(
+        "settings.css",
+        ".rss-dashboard-settings-reviewed .setting-item-control > select",
+        "min-width",
+      ),
+    ).toEqual([]);
+    expect(
+      declarationsFor(
+        "settings.css",
+        ".rss-dashboard-settings-reviewed .setting-item-control > :is(select, button)",
+        "flex",
+      ),
+    ).toEqual(["0 0 auto"]);
+  });
+
+  it("leaves the row background to core on touch", () => {
+    expect(
+      reviewedDeclarationsInTouchMedia("settings.css", [
+        "background",
+        "background-color",
+        "border-top",
+        "border-radius",
+        "padding",
+      ]),
+    ).toEqual([]);
+  });
+
+  it("leaves reviewed rows unstacked on a tablet-sized touch pane", () => {
+    expect(reviewedStackRulesInTouchMedia("settings.css")).toEqual([]);
+    expect(reviewedStackRulesInTouchMedia("tag-color-palette.css")).toEqual([]);
+  });
+
+  it("reserves a shared auto-tag column and pins the button beside wrapping chips", () => {
+    expect(
+      hasCssDeclarations(
+        "settings.css",
+        ".rss-dashboard-settings-reviewed .rss-dashboard-auto-tag-setting.setting-item",
+        [["grid-template-columns", "minmax(0, 1fr) minmax(0, 58%)"]],
+      ),
+    ).toBe(true);
+    expect(
+      hasCssDeclarations(
+        "settings.css",
+        ".rss-dashboard-auto-tag-field .rss-dashboard-auto-tag-add",
+        [
+          ["grid-column", "2"],
+          ["grid-row", "1"],
+        ],
+      ),
+    ).toBe(true);
+  });
 
   it.each([
     {

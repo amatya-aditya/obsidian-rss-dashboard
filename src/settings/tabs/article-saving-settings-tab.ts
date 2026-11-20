@@ -5,6 +5,7 @@
  * Exports:
  *   - renderArticleSavingSettingsTab(containerEl, plugin, onRefresh)
  */
+import { createSettingsGroup } from "../settings-layout";
 import { Notice, Setting, normalizePath } from "obsidian";
 import type { App } from "obsidian";
 import {
@@ -23,6 +24,7 @@ import {
   SavedTemplateEditorModal,
 } from "../modals/settings-modals";
 import { clearTemplateAssignments } from "../../utils/saved-template-utils";
+import { addSettingsSlider } from "../settings-slider";
 import { settingsUiCompatibility } from "../settings-ui-compat";
 import { addActionButtonContent } from "../../utils/action-button-content";
 import { renderTemplateVariableHelp } from "../template-variable-help";
@@ -62,8 +64,10 @@ export function renderArticleSavingSettingsTab(
   plugin: ArticleSavingPluginLike,
   onRefresh: () => void,
 ): void {
-  new Setting(containerEl)
+  const saving = createSettingsGroup(containerEl);
+  new Setting(saving)
     .setName("Save path")
+    .setClass("rss-dashboard-settings-full-width")
     .setDesc(
       "Default folder to save articles. Leave it blank to save to the vault root.",
     )
@@ -80,7 +84,7 @@ export function renderArticleSavingSettingsTab(
       addInputClearButton(text.inputEl, { label: "Clear folder" });
     });
 
-  new Setting(containerEl)
+  new Setting(saving)
     .setName("Add saved tag")
     .setDesc("Automatically add the saved tag to saved articles")
     .addToggle((toggle) =>
@@ -92,7 +96,7 @@ export function renderArticleSavingSettingsTab(
         }),
     );
 
-  new Setting(containerEl)
+  new Setting(saving)
     .setName("Default save version")
     .setDesc(
       "Choose what {{content}} saves. RSS content is the feed item's content, falling back to the feed description, then the summary. Fetched content is the article page; if fetching fails, the RSS content is saved and marked as a fallback. {{content}} controls placement in the template; {{summary}} keeps its existing output.",
@@ -110,28 +114,31 @@ export function renderArticleSavingSettingsTab(
         });
     });
 
-  new Setting(containerEl)
+  const timeoutSetting = new Setting(saving)
     .setName("Fetch timeout")
     .setDesc(
       "Timeout in seconds for fetching full article content (prevents hanging)",
-    )
-    .addSlider((slider) => {
-      slider
-        .setLimits(5, 30, 1)
-        .setValue(plugin.settings.articleSaving.fetchTimeout || 10)
-        .onChange(async (value) => {
-          plugin.settings.articleSaving.fetchTimeout = value;
-          await plugin.saveSettings();
-        });
-      settingsUiCompatibility.presentSliderValue(
-        slider,
-        (value) => `${value} seconds`,
-      );
-    });
+    );
+  const defaultTimeout = DEFAULT_SETTINGS.articleSaving.fetchTimeout;
+  addSettingsSlider(timeoutSetting, {
+    value: plugin.settings.articleSaving.fetchTimeout || defaultTimeout,
+    defaultValue: defaultTimeout,
+    min: 5,
+    max: 30,
+    format: (value) => `${value} seconds`,
+    apply: async (value) => {
+      plugin.settings.articleSaving.fetchTimeout = value;
+      await plugin.saveSettings();
+    },
+  });
 
-  renderDefaultTemplateSection(containerEl, plugin, onRefresh);
+  renderDefaultTemplateSection(
+    createSettingsGroup(containerEl),
+    plugin,
+    onRefresh,
+  );
 
-  renderSavedTemplatesList(containerEl, plugin, onRefresh);
+  renderSavedTemplatesList(createSettingsGroup(containerEl), plugin, onRefresh);
 }
 
 function renderDefaultTemplateSection(
@@ -185,6 +192,7 @@ function renderDefaultTemplateSection(
   ): HTMLButtonElement => {
     const button = templateBtnRow.createEl("button", {
       cls: "rss-dashboard-template-btn",
+      attr: { type: "button" },
     });
     addActionButtonContent(button, iconName, label);
     return button;
@@ -197,6 +205,7 @@ function renderDefaultTemplateSection(
   const saveAsTemplateBtn = createTemplateButton("save", "Save as template");
   const resetBtn = createTemplateButton("rotate-ccw", "Reset");
   const clearBtn = createTemplateButton("eraser", "Clear");
+  settingsUiCompatibility.markDestructiveElement(clearBtn);
 
   const syncTemplateState = (): void => {
     const globalName = resolveGlobalDefaultName();
@@ -297,7 +306,17 @@ function renderDefaultTemplateSection(
     void saveBoxAsTemplate(plugin, onRefresh);
   };
 
-  const helpText = containerEl.createDiv({
+  renderTemplateVariables(containerEl);
+}
+
+/** The collapsible variable reference, expanded when the section first renders. */
+function renderTemplateVariables(containerEl: HTMLElement): void {
+  const details = containerEl.createEl("details", {
+    cls: "rss-dashboard-template-variables",
+    attr: { open: "true" },
+  });
+  details.createEl("summary", { text: "Template variables" });
+  const helpText = details.createDiv({
     cls: "setting-item-description rss-dashboard-template-help",
   });
 

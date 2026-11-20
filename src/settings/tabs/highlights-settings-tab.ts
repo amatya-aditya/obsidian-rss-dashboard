@@ -14,6 +14,8 @@ import {
   ConfirmDeleteModal,
 } from "../modals/settings-modals";
 import { addInputClearButton } from "../../utils/input-clear-button";
+import { createSettingsGroup } from "../settings-layout";
+import { settingsUiCompatibility } from "../settings-ui-compat";
 
 // ── Types (inline to avoid circular deps) ────────────────────────────────────
 
@@ -125,7 +127,8 @@ export function renderHighlightsSettingsTab(
 
   // ── Main toggle ───────────────────────────────────────────────────────────
 
-  new Setting(containerEl)
+  const mainToggleGroup = createSettingsGroup(containerEl);
+  new Setting(mainToggleGroup)
     .setName("Enable word highlighting")
     .setDesc(
       "Highlight specified words in article titles, summaries, and content",
@@ -143,8 +146,9 @@ export function renderHighlightsSettingsTab(
 
   // ── Highlight locations ───────────────────────────────────────────────────
 
-  new Setting(containerEl).setName("Highlight locations").setHeading();
-  containerEl.createEl("p", {
+  const locationsGroup = createSettingsGroup(containerEl);
+  new Setting(locationsGroup).setName("Highlight locations").setHeading();
+  locationsGroup.createEl("p", {
     text: "Choose where to apply highlights:",
     cls: "rss-dashboard-settings-description",
   });
@@ -154,7 +158,7 @@ export function renderHighlightsSettingsTab(
     desc: string,
     key: "highlightInTitles" | "highlightInSummaries" | "highlightInContent",
   ) => {
-    new Setting(containerEl)
+    new Setting(locationsGroup)
       .setName(name)
       .setDesc(desc)
       .addToggle((toggle) =>
@@ -187,13 +191,14 @@ export function renderHighlightsSettingsTab(
 
   // ── Existing words list ───────────────────────────────────────────────────
 
-  new Setting(containerEl).setName("Highlight words").setHeading();
-  containerEl.createEl("p", {
+  const wordsGroup = createSettingsGroup(containerEl);
+  new Setting(wordsGroup).setName("Highlight words").setHeading();
+  wordsGroup.createEl("p", {
     text: "Words and phrases to highlight in articles:",
     cls: "rss-dashboard-settings-description",
   });
 
-  const wordsContainer = containerEl.createDiv({
+  const wordsContainer = wordsGroup.createDiv({
     cls: "rss-dashboard-highlights-words-container",
   });
 
@@ -305,14 +310,15 @@ export function renderHighlightsSettingsTab(
             await rerenderHighlightViews();
           });
         })
-        .addExtraButton((button) =>
+        .addButton((button) =>
           button
             .setIcon("pencil")
             .setTooltip(`Edit "${word.text}"`)
             .onClick(openEditModal),
         )
-        .addExtraButton((button) =>
-          button
+        .addButton((button) => {
+          settingsUiCompatibility.markDestructive(button);
+          return button
             .setIcon("trash")
             .setTooltip(`Delete "${word.text}"`)
             .onClick(async () => {
@@ -331,8 +337,17 @@ export function renderHighlightsSettingsTab(
               );
               onRefresh();
               await refreshHighlightStatusBarOnly();
-            }),
-        );
+            });
+        });
+
+      const controls = wordSetting.controlEl;
+      const enabled = controls.querySelector(".checkbox-container");
+      if (enabled) controls.before(enabled);
+      const actions = Array.from(controls.children).slice(-2);
+      const actionGroup = controls.createDiv({
+        cls: "rss-dashboard-highlight-word-actions",
+      });
+      actionGroup.append(...actions);
 
       wordSetting.nameEl.addClass("rss-dashboard-highlight-word-name-click");
       setTooltip(wordSetting.nameEl, `Edit "${word.text}"`);
@@ -342,9 +357,10 @@ export function renderHighlightsSettingsTab(
 
   // ── Add new word ──────────────────────────────────────────────────────────
 
-  new Setting(containerEl).setName("Add new word").setHeading();
+  const addWordGroup = createSettingsGroup(containerEl);
+  new Setting(addWordGroup).setName("Add new word").setHeading();
 
-  const newWordContainer = containerEl.createDiv();
+  const newWordContainer = addWordGroup.createDiv();
 
   const wordInputSetting = new Setting(newWordContainer)
     .setName("Word or phrase")

@@ -86,25 +86,35 @@ function getTagTrigger(settingEl: HTMLElement): HTMLButtonElement {
 }
 
 function getOpenTagMenu(): HTMLElement {
-  const menu = document.body.querySelector(
-    ".rss-dashboard-tag-multi-select-menu",
+  const menu = document.body.querySelector<HTMLElement>(
+    ".rss-dashboard-auto-tag-dialog",
   );
-  if (!(menu instanceof HTMLElement)) {
-    throw new Error("Tag menu not found");
-  }
+  if (!menu) throw new Error("Auto-tag dialog not found");
   return menu;
 }
 
-function getTagOption(name: string): HTMLButtonElement {
-  const option = Array.from(
-    getOpenTagMenu().querySelectorAll<HTMLButtonElement>(
-      ".rss-dashboard-tag-multi-select-menu-option",
-    ),
-  ).find((el) => el.getAttribute("data-tag-name") === name);
-  if (!(option instanceof HTMLButtonElement)) {
-    throw new Error(`Tag option not found: ${name}`);
-  }
+function getTagOption(name: string): HTMLInputElement {
+  const option = [
+    ...getOpenTagMenu().querySelectorAll<HTMLInputElement>("input"),
+  ].find((input) => input.closest("label")?.textContent === name);
+  if (!option) throw new Error(`Tag option not found: ${name}`);
   return option;
+}
+
+function applyTagSelection(): void {
+  const apply = [...getOpenTagMenu().querySelectorAll("button")].find(
+    (button) => button.textContent === "Apply",
+  );
+  if (!apply) throw new Error("Apply button not found");
+  apply.click();
+}
+
+function selectedChips(row: HTMLElement): HTMLElement[] {
+  return [
+    ...row.querySelectorAll<HTMLElement>(
+      ".rss-dashboard-auto-tag-selected .rss-dashboard-settings-tag-chip",
+    ),
+  ];
 }
 
 const autoTagRows = [
@@ -266,7 +276,7 @@ describe("renderTagsSettingsTab()", () => {
     }
   });
 
-  it("renders selected summaries for single, multiple, and empty selections", () => {
+  it("renders actual chips with their appearance beside the Add tag button", () => {
     const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();
     settings.availableTags = [
@@ -287,18 +297,21 @@ describe("renderTagsSettingsTab()", () => {
 
     renderTagsSettingsTab(containerEl, plugin, vi.fn());
 
-    expect(
-      getTagTrigger(getSettingByName(containerEl, "Tag for video articles"))
-        .textContent,
-    ).toContain("Video");
-    expect(
-      getTagTrigger(getSettingByName(containerEl, "Default YouTube tag"))
-        .textContent,
-    ).toContain("2 tags selected");
-    expect(
-      getTagTrigger(getSettingByName(containerEl, "Default RSS tag"))
-        .textContent,
-    ).toContain("None");
+    const video = getSettingByName(containerEl, "Tag for video articles");
+    const youtube = getSettingByName(containerEl, "Default YouTube tag");
+    const rss = getSettingByName(containerEl, "Default RSS tag");
+    expect(getTagTrigger(video).textContent).toBe("Add tag");
+    expect(selectedChips(video).map((chip) => chip.textContent)).toEqual([
+      "Video",
+    ]);
+    expect(selectedChips(video)[0]?.style.getPropertyValue("--tag-color")).toBe(
+      "#d04747",
+    );
+    expect(selectedChips(youtube).map((chip) => chip.textContent)).toEqual([
+      "Video",
+      "News",
+    ]);
+    expect(selectedChips(rss)).toHaveLength(0);
   });
 
   it("toggles auto-tag selections, persists array settings, and updates aria state", async () => {
@@ -325,24 +338,35 @@ describe("renderTagsSettingsTab()", () => {
       getSettingByName(containerEl, "Tag for video articles"),
     );
     videoTrigger.click();
-    expect(getTagOption("Video").getAttribute("aria-pressed")).toBe("true");
-    expect(getTagOption("News").getAttribute("aria-pressed")).toBe("false");
+    expect(getTagOption("Video").checked).toBe(true);
+    expect(getTagOption("News").checked).toBe(false);
 
     getTagOption("News").click();
+    expect(plugin.settings.media.defaultVideoTags).toEqual(["Video"]);
+    applyTagSelection();
     await flushPromises();
 
     expect(plugin.settings.media.defaultVideoTags).toEqual(["Video", "News"]);
-    expect(videoTrigger.textContent).toContain("2 tags selected");
+    expect(
+      selectedChips(
+        getSettingByName(containerEl, "Tag for video articles"),
+      ).map((chip) => chip.textContent),
+    ).toEqual(["Video", "News"]);
 
     const youtubeTrigger = getTagTrigger(
       getSettingByName(containerEl, "Default YouTube tag"),
     );
     youtubeTrigger.click();
     getTagOption("Video").click();
+    applyTagSelection();
     await flushPromises();
 
     expect(plugin.settings.media.defaultYouTubeTags).toEqual(["News"]);
-    expect(youtubeTrigger.textContent).toContain("News");
+    expect(
+      selectedChips(getSettingByName(containerEl, "Default YouTube tag")).map(
+        (chip) => chip.textContent,
+      ),
+    ).toEqual(["News"]);
     expect(vi.mocked(plugin.saveSettings)).toHaveBeenCalledTimes(2);
   });
 
@@ -369,7 +393,7 @@ describe("renderTagsSettingsTab()", () => {
       wrapper?.classList.contains("rss-dashboard-tag-multi-select--empty"),
     ).toBe(true);
     expect(trigger.disabled).toBe(true);
-    expect(trigger.textContent?.toLowerCase()).toContain("none");
+    expect(trigger.textContent).toBe("Add tag");
   });
 
   it("restores default tag arrays on reset and refreshes the tab", async () => {
@@ -708,9 +732,9 @@ describe("renderTagsSettingsTab()", () => {
     colorInput.value = "#123456";
     colorInput.dispatchEvent(new Event("input"));
 
-    const addBtn = Array.from(containerEl.querySelectorAll("button")).find(
-      (b) => b.textContent === "Add tag",
-    ) as HTMLButtonElement;
+    const addBtn = Array.from(
+      getSettingByName(containerEl, "Tag name").querySelectorAll("button"),
+    ).find((b) => b.textContent === "Add tag") as HTMLButtonElement;
     addBtn.click();
     await flushPromises();
 
@@ -742,9 +766,9 @@ describe("renderTagsSettingsTab()", () => {
     ) as HTMLInputElement;
     nameInput.value = "  spaced  ";
 
-    const addBtn = Array.from(containerEl.querySelectorAll("button")).find(
-      (b) => b.textContent === "Add tag",
-    ) as HTMLButtonElement;
+    const addBtn = Array.from(
+      getSettingByName(containerEl, "Tag name").querySelectorAll("button"),
+    ).find((b) => b.textContent === "Add tag") as HTMLButtonElement;
     addBtn.click();
     await flushPromises();
 
@@ -769,7 +793,9 @@ describe("renderTagsSettingsTab()", () => {
     getSettingByName(containerEl, "Tag text color")
       .querySelector<HTMLInputElement>('input[type="color"]')!
       .dispatchEvent(new Event("change", { bubbles: true }));
-    Array.from(containerEl.querySelectorAll<HTMLButtonElement>("button"))
+    Array.from(
+      getSettingByName(containerEl, "Tag name").querySelectorAll("button"),
+    )
       .find((button) => button.textContent === "Add tag")!
       .click();
     await flushPromises();
@@ -797,9 +823,9 @@ describe("renderTagsSettingsTab()", () => {
     ) as HTMLInputElement;
     nameInput.value = "   ";
 
-    const addBtn = Array.from(containerEl.querySelectorAll("button")).find(
-      (b) => b.textContent === "Add tag",
-    ) as HTMLButtonElement;
+    const addBtn = Array.from(
+      getSettingByName(containerEl, "Tag name").querySelectorAll("button"),
+    ).find((b) => b.textContent === "Add tag") as HTMLButtonElement;
     addBtn.click();
     await flushPromises();
 
@@ -831,9 +857,9 @@ describe("renderTagsSettingsTab()", () => {
     ) as HTMLInputElement;
     nameInput.value = "video";
 
-    const addBtn = Array.from(containerEl.querySelectorAll("button")).find(
-      (b) => b.textContent === "Add tag",
-    ) as HTMLButtonElement;
+    const addBtn = Array.from(
+      getSettingByName(containerEl, "Tag name").querySelectorAll("button"),
+    ).find((b) => b.textContent === "Add tag") as HTMLButtonElement;
     addBtn.click();
     await flushPromises();
 
@@ -1698,12 +1724,7 @@ describe("renderTagsSettingsTab() tag appearance defaults", () => {
       const last = rows[2];
       expect(last.querySelector('input[type="text"]')).not.toBeNull();
       expect(
-        Array.from(last.querySelectorAll("button")).some(
-          (button) => button.textContent === "Add tag",
-        ),
-      ).toBe(true);
-      expect(
-        Array.from(containerEl.querySelectorAll("button")).filter(
+        Array.from(last.querySelectorAll("button")).filter(
           (button) => button.textContent === "Add tag",
         ),
       ).toHaveLength(1);

@@ -5,6 +5,7 @@
  * Exports:
  *   - renderDisplaySettingsTab(containerEl, plugin, onRefresh) — main render fn
  */
+import { createSettingsGroup } from "../settings-layout";
 import { Setting } from "obsidian";
 import RssDashboardPlugin from "../../../main";
 import { renderStartupFiltersSetting } from "./display-startup-filters-menu";
@@ -55,33 +56,35 @@ export function renderDisplaySettingsTab(
 
   new Setting(containerEl).setName("Dashboard").setHeading();
 
-  renderImageCachingSettings(
+  const cache = renderImageCachingSettings(
     containerEl,
     plugin,
     onRefresh,
     rerenderActiveDashboardView,
   );
-  renderImageCacheLimitSettings(containerEl, plugin, onRefresh);
+  renderImageCacheLimitSettings(cache, plugin, onRefresh);
   const disposeClearImageCache = renderClearImageCacheSetting(
-    containerEl,
+    cache,
     plugin,
     onRefresh,
   );
-  renderShowSummarySetting(containerEl, plugin, rerenderActiveDashboardView);
-  renderCardsPerRowSetting(containerEl, plugin);
-  renderCardSpacingSetting(containerEl, plugin);
-  renderArticleTitleSizeSetting(containerEl, plugin);
-  renderCardPressAnimationSetting(containerEl, plugin);
+  const cards = createSettingsGroup(containerEl);
+  renderShowSummarySetting(cards, plugin, rerenderActiveDashboardView);
+  renderCardsPerRowSetting(cards, plugin);
+  renderCardSpacingSetting(cards, plugin);
+  renderArticleTitleSizeSetting(cards, plugin);
+  renderCardPressAnimationSetting(cards, plugin);
+  const dashboard = createSettingsGroup(containerEl);
   renderDashboardBehaviorSettings(
-    containerEl,
+    dashboard,
     plugin,
     rerenderActiveDashboardView,
   );
 
-  renderStartupFiltersSetting(containerEl, plugin);
+  renderStartupFiltersSetting(dashboard, plugin);
 
   renderReaderSettings(
-    containerEl,
+    createSettingsGroup(containerEl),
     plugin,
     onRefresh,
     targetSection,
@@ -90,7 +93,11 @@ export function renderDisplaySettingsTab(
 
   containerEl.createEl("hr", { cls: "rss-dashboard-settings-separator" });
 
-  renderMobileToolbarSettings(containerEl, plugin, targetSection);
+  renderMobileToolbarSettings(
+    createSettingsGroup(containerEl),
+    plugin,
+    targetSection,
+  );
 
   containerEl.createEl("hr", { cls: "rss-dashboard-settings-separator" });
 

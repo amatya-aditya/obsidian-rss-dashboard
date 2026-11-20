@@ -103,6 +103,25 @@ afterEach(() => {
 });
 
 describe("renderArticleSavingSettingsTab()", () => {
+  it("shows the template variable reference expanded by default", () => {
+    const containerEl = createDiv();
+    const plugin = createPlugin();
+
+    renderArticleSavingSettingsTab(containerEl, plugin, vi.fn<() => void>());
+
+    const details = containerEl.querySelector(
+      ".rss-dashboard-template-variables",
+    ) as HTMLDetailsElement;
+    expect(details).not.toBeNull();
+    expect(details.open).toBe(true);
+    expect(details.querySelector("summary")?.textContent).toBe(
+      "Template variables",
+    );
+    expect(
+      details.querySelector(".rss-dashboard-template-help")?.textContent,
+    ).toContain("{{title}}");
+  });
+
   it("explains the default frontmatter template and restores it after reset", async () => {
     const containerEl = createDiv();
     const plugin = createPlugin({

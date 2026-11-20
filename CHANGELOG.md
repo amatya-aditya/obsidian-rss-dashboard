@@ -8,6 +8,8 @@
 
 ### Fixes
 
+- RSS Dashboard settings adapt to narrow panes with compact switches and color controls, room for long labels, slider resets, and visible chips for automatic tags; their two-column row layout now holds until the settings pane is narrower than 400px, so tablet-width windows no longer stretch dropdowns and buttons across the row, each dropdown and button is sized by its own text so no value is clipped, the Article saving **Template variables** reference starts expanded, and rows keep Obsidian’s own row background on phones instead of losing their grouping. [GH Issue #1819](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1819)
+- Currency amounts remain text in Main and Inline Reader and in saved articles, while valid inline math still renders. [GH Issue #1818](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1818)
 - Feed storage folder and Metadata data.json location now use their own full-width row at every size. On touch-first devices, other settings rows stack above their controls at tablet widths. [GH Issue #1813](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1813)
 - Inline Reader now has the **Manage tags** action, so you can add or remove an article's tags while reading it inline. [GH Issue #1809](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1809)
 - Inline Reader now has the **Reader settings** action, and formatting changes there apply the same preferences as Main Reader. [GH Issue #1808](https://github.com/amatya-aditya/obsidian-rss-dashboard/issues/1808)

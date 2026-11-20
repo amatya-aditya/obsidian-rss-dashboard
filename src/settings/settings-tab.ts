@@ -41,6 +41,8 @@ import {
   getInitialTab,
 } from "./tab-names";
 
+const PRESERVED_TABS = new Set<SettingsTabName>(["Storage", "Rules", "About"]);
+
 // ── Main class ────────────────────────────────────────────────────────────────
 
 export class RssDashboardSettingTab extends PluginSettingTab {
@@ -105,6 +107,9 @@ export class RssDashboardSettingTab extends PluginSettingTab {
     const tabContent = containerEl.createDiv(
       "rss-dashboard-settings-tab-content",
     );
+    if (!PRESERVED_TABS.has(this.currentTab)) {
+      tabContent.addClass("rss-dashboard-settings-reviewed");
+    }
 
     /** Shorthand refresh callback passed to tab renderers that need it. */
     const onRefresh = () => this.display();

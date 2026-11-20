@@ -30,9 +30,7 @@ jobs:
         run: npm audit --omit=dev --audit-level=high
 
       - name: Audit all dependencies
-        env:
-          RSS_DASHBOARD_BETA6_AUDIT_EXCEPTION: ${{ github.ref == 'refs/tags/2.8.0-beta.6' }}
-        run: node scripts/audit-dependencies.mjs
+        run: node scripts/check-npm-audit.mjs
 
       - name: Lint and build plugin
         run: npm run build

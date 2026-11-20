@@ -331,7 +331,7 @@ This prevents thrashing the vault adapter during long playback sessions while en
 **Dependency Security**: ✅
 
 - Dependencies are regularly updated; Dependabot opens weekly version-update pull requests
-- Pull requests and releases fail on high or critical `npm audit` findings (`.github/workflows/test.yml` and `.github/workflows/release.yml`)
+- Pull requests and releases fail on high or critical `npm audit` findings, except for current, time-limited entries in [`scripts/npm-audit-exceptions.json`](../scripts/npm-audit-exceptions.json); production dependencies remain under the strict audit (`.github/workflows/test.yml` and `.github/workflows/release.yml`)
 - See `package.json` for complete dependency list
 
 ---
