@@ -26,6 +26,13 @@ import { showEditTagModal, updateTagInSettings } from "../utils/tag-utils";
 import { FolderSuggest } from "../components/folder-suggest";
 import { decorateFolderSelectorInput } from "./feed-manager/folder-selector-field";
 import { addTagColorPaletteControl } from "../components/tag-color-palette-control";
+import { addTagOpacityControl } from "../components/tag-opacity-control";
+import {
+  applyTagAppearance,
+  colorOpacity,
+  colorRgb,
+  colorWithOpacity,
+} from "../utils/tag-colors";
 
 /**
  * Default target folder for every feed created by a starred-article import.
@@ -688,19 +695,49 @@ export class ImportStarredModal extends AccessibleModal {
       cls: "import-new-tags-color-input",
       attr: {
         type: "color",
-        value:
+        value: colorRgb(
           sharedColor ??
-          this.plugin.settings.defaultTagColor ??
-          DEFAULT_TAG_COLOR,
+            this.plugin.settings.defaultTagColor ??
+            DEFAULT_TAG_COLOR,
+        ),
         "aria-label": "Set one color for all new tags",
       },
     });
     colorInput.addEventListener("change", () => {
+      bulkOpacity.setColor(colorInput.value);
       this.recolorNewTags(
         newTags,
-        newTags.map(() => colorInput.value),
+        newTags.map(() => bulkOpacity.value()),
       );
     });
+    const initialOpacity = newTags.every(
+      (tag) =>
+        colorOpacity(tag.color ?? "#000000") ===
+        colorOpacity(firstColor ?? "#000000"),
+    )
+      ? colorOpacity(
+          firstColor ??
+            this.plugin.settings.defaultTagColor ??
+            DEFAULT_TAG_COLOR,
+        )
+      : 100;
+    const bulkOpacity = addTagOpacityControl(
+      header.parentElement ?? actions,
+      colorWithOpacity(colorInput.value, initialOpacity),
+      "Background opacity",
+      () => {
+        this.updateNewTagsColors(
+          newTags,
+          newTags.map(() => bulkOpacity.value()),
+        );
+      },
+    );
+    colorInput.addEventListener("input", () =>
+      bulkOpacity.setColor(colorInput.value),
+    );
+    colorInput.addEventListener("change", () =>
+      bulkOpacity.setColor(colorInput.value),
+    );
     addTagColorPaletteControl({
       container: setColor,
       input: colorInput,
@@ -714,7 +751,19 @@ export class ImportStarredModal extends AccessibleModal {
       icon: "dices",
       onClick: (e) => {
         e.preventDefault();
-        this.recolorNewTags(newTags, randomTagColors(newTags.length));
+        this.recolorNewTags(
+          newTags,
+          randomTagColors(newTags.length).map((color, index) =>
+            colorWithOpacity(
+              color,
+              colorOpacity(
+                newTags[index]?.color ??
+                  this.plugin.settings.defaultTagColor ??
+                  DEFAULT_TAG_COLOR,
+              ),
+            ),
+          ),
+        );
       },
     });
 
@@ -739,6 +788,26 @@ export class ImportStarredModal extends AccessibleModal {
       if (color) this.applyTagEditToCandidates(tag, { ...tag, color });
     });
     this.redrawCandidateTags();
+  }
+
+  private updateNewTagsColors(
+    tags: readonly Tag[],
+    colors: readonly string[],
+  ): void {
+    tags.forEach((tag, index) => {
+      const color = colors[index];
+      if (!color) return;
+      const updated = { ...tag, color };
+      Object.assign(tag, updated);
+      this.applyTagEditToCandidates(tag, updated);
+      this.previewContainer
+        .querySelectorAll<HTMLElement>(".rss-dashboard-tag-badge")
+        .forEach((chip) => {
+          if (chip.textContent?.trim() === tag.name) {
+            applyTagAppearance(chip, tag, this.plugin.settings);
+          }
+        });
+    });
   }
 
   private resetNewTagsAppearance(tags: readonly Tag[]): void {

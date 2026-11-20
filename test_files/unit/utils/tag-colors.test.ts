@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  colorOpacity,
+  colorRgb,
+  colorWithOpacity,
   createTagWithAppearanceChanges,
   DEFAULT_TAG_COLOR,
   DEFAULT_TAG_TEXT_COLOR,
@@ -7,6 +10,20 @@ import {
   randomTagColors,
   resolveTagAppearance,
 } from "../../../src/utils/tag-colors";
+
+describe("tag color opacity", () => {
+  it("keeps legacy opaque hex values intact and treats them as fully opaque", () => {
+    expect(colorOpacity("#12aBcD")).toBe(100);
+    expect(colorWithOpacity("#12aBcD", 100)).toBe("#12aBcD");
+  });
+
+  it("serializes translucent values, including explicit zero opacity", () => {
+    expect(colorWithOpacity("#12abcd", 1)).toBe("rgba(18, 171, 205, 0.01)");
+    expect(colorWithOpacity("#12abcd", 0)).toBe("rgba(18, 171, 205, 0)");
+    expect(colorOpacity("rgba(18, 171, 205, 0.35)")).toBe(35);
+    expect(colorRgb("rgba(18, 171, 205, 0.35)")).toBe("#12abcd");
+  });
+});
 
 function hexToHsl(hex: string): { h: number; s: number; l: number } {
   const r = parseInt(hex.slice(1, 3), 16) / 255;

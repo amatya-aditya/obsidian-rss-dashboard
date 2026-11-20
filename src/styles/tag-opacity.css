@@ -1,0 +1,29 @@
+.rss-dashboard-tag-opacity {
+  margin-top: 6px;
+  min-width: 0;
+}
+
+.rss-dashboard-tag-opacity > summary {
+  width: fit-content;
+  color: var(--text-muted);
+  font-size: var(--font-ui-small);
+  cursor: pointer;
+}
+
+.rss-dashboard-tag-opacity-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+
+.rss-dashboard-tag-opacity-row input[type="range"] {
+  flex: 1;
+  min-width: 100px;
+}
+
+.rss-dashboard-tag-opacity-row span {
+  min-width: 3.5em;
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}

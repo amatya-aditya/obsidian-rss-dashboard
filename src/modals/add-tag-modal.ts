@@ -9,11 +9,52 @@ import {
 import { addInputClearButton } from "../utils/input-clear-button";
 import { applyTagAppearance } from "../utils/tag-colors";
 import { addTagColorPaletteControl } from "../components/tag-color-palette-control";
+import { addTagOpacityControl } from "../components/tag-opacity-control";
+import { colorRgb } from "../utils/tag-colors";
 
 export interface AddTagModalOptions {
   settings: Readonly<RssDashboardSettings>;
   /** Runs after the new tag is in `settings.availableTags` (save, re-render). */
   onAdded: () => void;
+}
+
+function createTagColorField(
+  form: HTMLElement,
+  label: string,
+  value: string,
+  className: string,
+  onChange: () => void,
+  registerCleanup: (cleanup: () => void) => void,
+): {
+  input: HTMLInputElement;
+  opacity: ReturnType<typeof addTagOpacityControl>;
+} {
+  const field = form.createDiv({ cls: "rss-dashboard-tag-modal-color-field" });
+  field.createEl("label", { text: label });
+  const input = field.createEl("input", {
+    attr: {
+      type: "color",
+      value: colorRgb(value),
+      "aria-label": `Tag ${label.toLowerCase()} color`,
+    },
+    cls: `rss-dashboard-tag-modal-color-picker ${className}`,
+  });
+  let opacity: ReturnType<typeof addTagOpacityControl>;
+  const syncColor = () => {
+    opacity.setColor(input.value);
+    onChange();
+  };
+  const cleanup = addTagColorPaletteControl({
+    container: field,
+    input,
+    fieldName: label,
+    onValueChange: syncColor,
+  });
+  registerCleanup(cleanup);
+  opacity = addTagOpacityControl(field, value, "Opacity", onChange);
+  input.addEventListener("input", syncColor);
+  input.addEventListener("change", syncColor);
+  return { input, opacity };
 }
 
 export class AddTagModal extends AccessibleModal {
@@ -41,44 +82,25 @@ export class AddTagModal extends AccessibleModal {
     const defaultTagColor = settings.defaultTagColor ?? DEFAULT_TAG_COLOR;
     const defaultTagTextColor =
       settings.defaultTagTextColor ?? DEFAULT_TAG_TEXT_COLOR;
-    const backgroundField = formContainer.createDiv({
-      cls: "rss-dashboard-tag-modal-color-field",
-    });
-    backgroundField.createEl("label", { text: "Background" });
-    const colorInput = backgroundField.createEl("input", {
-      attr: {
-        type: "color",
-        value: defaultTagColor,
-        "aria-label": "Tag background color",
-      },
-      cls: "rss-dashboard-tag-modal-color-picker rss-dashboard-add-tag-background-color",
-    });
-    this.paletteControlCleanups.push(
-      addTagColorPaletteControl({
-        container: backgroundField,
-        input: colorInput,
-        fieldName: "Background",
-      }),
+    let updatePreview = () => {};
+    const background = createTagColorField(
+      formContainer,
+      "Background",
+      defaultTagColor,
+      "rss-dashboard-add-tag-background-color",
+      () => updatePreview(),
+      (cleanup) => this.paletteControlCleanups.push(cleanup),
     );
-    const textField = formContainer.createDiv({
-      cls: "rss-dashboard-tag-modal-color-field",
-    });
-    textField.createEl("label", { text: "Text" });
-    const textColorInput = textField.createEl("input", {
-      attr: {
-        type: "color",
-        value: defaultTagTextColor,
-        "aria-label": "Tag text color",
-      },
-      cls: "rss-dashboard-add-tag-text-color",
-    });
-    this.paletteControlCleanups.push(
-      addTagColorPaletteControl({
-        container: textField,
-        input: textColorInput,
-        fieldName: "Text",
-      }),
+    const text = createTagColorField(
+      formContainer,
+      "Text",
+      defaultTagTextColor,
+      "rss-dashboard-add-tag-text-color",
+      () => updatePreview(),
+      (cleanup) => this.paletteControlCleanups.push(cleanup),
     );
+    const backgroundOpacity = background.opacity;
+    const textOpacity = text.opacity;
 
     const nameInput = formContainer.createEl("input", {
       attr: {
@@ -94,39 +116,31 @@ export class AddTagModal extends AccessibleModal {
       cls: "rss-dashboard-tag-badge rss-dashboard-tag-modal-preview",
       text: "Preview",
     });
-    const updatePreview = () => {
+    updatePreview = () => {
       preview.textContent = nameInput.value.trim() || "Preview";
       applyTagAppearance(
         preview,
         {
           name: preview.textContent,
-          ...(colorInput.value !== defaultTagColor
-            ? { color: colorInput.value }
+          ...(backgroundOpacity.value() !== defaultTagColor
+            ? { color: backgroundOpacity.value() }
             : {}),
-          ...(textColorInput.value !== defaultTagTextColor
-            ? { textColor: textColorInput.value }
+          ...(textOpacity.value() !== defaultTagTextColor
+            ? { textColor: textOpacity.value() }
             : {}),
         },
         settings,
       );
     };
     nameInput.addEventListener("input", updatePreview);
-    colorInput.addEventListener("input", updatePreview);
-    colorInput.addEventListener("change", updatePreview);
-    textColorInput.addEventListener("input", updatePreview);
-    textColorInput.addEventListener("change", updatePreview);
     updatePreview();
 
     const buttonContainer = contentEl.createDiv({
       cls: "rss-dashboard-modal-buttons",
     });
-
-    const cancelButton = buttonContainer.createEl("button", {
-      text: "Cancel",
-    });
-    cancelButton.addEventListener("click", () => {
-      this.close();
-    });
+    buttonContainer
+      .createEl("button", { text: "Cancel" })
+      .addEventListener("click", () => this.close());
 
     const addButton = buttonContainer.createEl("button", {
       text: "Add tag",
@@ -147,10 +161,13 @@ export class AddTagModal extends AccessibleModal {
 
         const newTag: Tag = createTagWithAppearanceChanges(
           tagName,
-          { background: colorInput.value, text: textColorInput.value },
           {
-            background: colorInput.value !== defaultTagColor,
-            text: textColorInput.value !== defaultTagTextColor,
+            background: backgroundOpacity.value(),
+            text: textOpacity.value(),
+          },
+          {
+            background: backgroundOpacity.value() !== defaultTagColor,
+            text: textOpacity.value() !== defaultTagTextColor,
           },
         );
         settings.availableTags.push(newTag);

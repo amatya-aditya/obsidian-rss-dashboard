@@ -35,6 +35,8 @@ import {
 import { addTagColorPaletteControl } from "../../components/tag-color-palette-control";
 import { addRandomizeColorButton } from "../../components/tag-color-randomize-button";
 import { addInputClearButton } from "../../utils/input-clear-button";
+import { addTagOpacityControl } from "../../components/tag-opacity-control";
+import { colorRgb } from "../../utils/tag-colors";
 
 interface AutoTagSettingConfig {
   name: string;
@@ -106,6 +108,14 @@ function sameColor(a: string, b: string): boolean {
   return a.toLowerCase() === b.toLowerCase();
 }
 
+function addDefaultOpacityRow(
+  setting: HTMLElement,
+  color: string,
+  onChange: () => void,
+): ReturnType<typeof addTagOpacityControl> {
+  return addTagOpacityControl(setting, color, "Opacity", onChange);
+}
+
 function styleAsDefaultTag(chip: HTMLElement, defaults: TagDefaults): void {
   applyTagAppearance(
     chip,
@@ -171,11 +181,13 @@ function updatePristineAddTagColorInputs(
   const defaults = [
     {
       selector: ".rss-dashboard-tag-new-background-color",
-      value: plugin.settings.defaultTagColor ?? DEFAULT_TAG_COLOR,
+      value: colorRgb(plugin.settings.defaultTagColor ?? DEFAULT_TAG_COLOR),
     },
     {
       selector: ".rss-dashboard-tag-new-text-color",
-      value: plugin.settings.defaultTagTextColor ?? DEFAULT_TAG_TEXT_COLOR,
+      value: colorRgb(
+        plugin.settings.defaultTagTextColor ?? DEFAULT_TAG_TEXT_COLOR,
+      ),
     },
   ];
 
@@ -314,8 +326,6 @@ function renderTagAppearanceDefaults(
   new Setting(appearance).setName("Tag appearance defaults").setHeading();
   refreshRenderedTagChips(containerEl, plugin);
 
-  // The pickers edit this draft only. Nothing is saved or recolored until the
-  // user applies it from the card below.
   const draft = savedTagDefaults(plugin.settings);
   let previewChip: HTMLElement | undefined;
   let applyButton: ButtonComponent | undefined;
@@ -334,9 +344,10 @@ function renderTagAppearanceDefaults(
     "rss-dashboard-tag-color-setting",
   );
   backgroundSetting.addColorPicker((colorPicker) => {
-    colorPicker.setValue(draft.background);
+    colorPicker.setValue(colorRgb(draft.background));
     colorPicker.onChange((color) => {
-      draft.background = color;
+      backgroundOpacity.setColor(color);
+      draft.background = backgroundOpacity.value();
       syncDraft();
     });
   });
@@ -357,6 +368,19 @@ function renderTagAppearanceDefaults(
     });
     addRandomizeColorButton({ input: backgroundInput });
   }
+  const backgroundOpacity = addDefaultOpacityRow(
+    backgroundSetting.settingEl,
+    draft.background,
+    () => {
+      draft.background = backgroundOpacity.value();
+      syncDraft();
+    },
+  );
+  backgroundInput?.addEventListener("input", () => {
+    backgroundOpacity.setColor(backgroundInput.value);
+    draft.background = backgroundOpacity.value();
+    syncDraft();
+  });
 
   const textSetting = new Setting(appearance).setName("Text");
   textSetting.settingEl.addClass(
@@ -364,9 +388,10 @@ function renderTagAppearanceDefaults(
     "rss-dashboard-tag-color-setting",
   );
   textSetting.addColorPicker((colorPicker) => {
-    colorPicker.setValue(draft.text);
+    colorPicker.setValue(colorRgb(draft.text));
     colorPicker.onChange((color) => {
-      draft.text = color;
+      textOpacity.setColor(color);
+      draft.text = textOpacity.value();
       syncDraft();
     });
   });
@@ -386,6 +411,19 @@ function renderTagAppearanceDefaults(
     });
     addRandomizeColorButton({ input: textInput });
   }
+  const textOpacity = addDefaultOpacityRow(
+    textSetting.settingEl,
+    draft.text,
+    () => {
+      draft.text = textOpacity.value();
+      syncDraft();
+    },
+  );
+  textInput?.addEventListener("input", () => {
+    textOpacity.setColor(textInput.value);
+    draft.text = textOpacity.value();
+    syncDraft();
+  });
 
   const previewSetting = new Setting(appearance)
     .setName("Preview")
@@ -519,9 +557,35 @@ function renderTagSettingsRow(
     });
 }
 
-/**
- * The "Add new tag" heading, name field, color picker, and Add tag button.
- */
+function createAddTagColorSetting(
+  parent: HTMLElement,
+  label: string,
+  fieldName: string,
+  color: string,
+  className: string,
+): { setting: Setting; input: HTMLInputElement | null } {
+  const setting = new Setting(parent)
+    .setName(label)
+    .addColorPicker((picker) => picker.setValue(colorRgb(color)));
+  setting.settingEl.addClass("rss-dashboard-tag-color-setting");
+  const input = setting.controlEl.querySelector<HTMLInputElement>(
+    'input[type="color"]',
+  );
+  if (input) {
+    input.classList.add(className);
+    input.dataset.rssDashboardDefaultColor = colorRgb(color);
+    addTagColorPaletteControl({
+      container: setting.controlEl,
+      input,
+      fieldName,
+      showFieldLabels: false,
+      showValueReadout: false,
+    });
+    addRandomizeColorButton({ input });
+  }
+  return { setting, input };
+}
+
 function renderAddTagSection(
   containerEl: HTMLElement,
   plugin: RssDashboardPlugin,
@@ -534,50 +598,48 @@ function renderAddTagSection(
   const defaultTagColor = plugin.settings.defaultTagColor ?? DEFAULT_TAG_COLOR;
   const defaultTagTextColor =
     plugin.settings.defaultTagTextColor ?? DEFAULT_TAG_TEXT_COLOR;
-  const tagColorSetting = new Setting(newTagContainer)
-    .setName("Tag color")
-    .addColorPicker((colorPicker) => colorPicker.setValue(defaultTagColor));
-  const tagTextColorSetting = new Setting(newTagContainer)
-    .setName("Tag text color")
-    .addColorPicker((colorPicker) => colorPicker.setValue(defaultTagTextColor));
-  for (const setting of [tagColorSetting, tagTextColorSetting]) {
-    setting.settingEl.addClass("rss-dashboard-tag-color-setting");
-  }
-  const tagColorInput =
-    tagColorSetting.controlEl.querySelector<HTMLInputElement>(
-      'input[type="color"]',
+  let updateNewTagPreview = () => {};
+  const { setting: tagColorSetting, input: tagColorInput } =
+    createAddTagColorSetting(
+      newTagContainer,
+      "Tag color",
+      "Background",
+      defaultTagColor,
+      "rss-dashboard-tag-new-background-color",
     );
-  if (tagColorInput) {
-    tagColorInput.classList.add("rss-dashboard-tag-new-background-color");
-    tagColorInput.dataset.rssDashboardDefaultColor = defaultTagColor;
-    addTagColorPaletteControl({
-      container: tagColorSetting.controlEl,
-      input: tagColorInput,
-      fieldName: "Background",
-      showFieldLabels: false,
-      showValueReadout: false,
-    });
-    addRandomizeColorButton({ input: tagColorInput });
-  }
-  const tagTextColorInput =
-    tagTextColorSetting.controlEl.querySelector<HTMLInputElement>(
-      'input[type="color"]',
+  const backgroundOpacity = addTagOpacityControl(
+    tagColorSetting.settingEl,
+    defaultTagColor,
+    "Opacity",
+    () => updateNewTagPreview(),
+  );
+  tagColorInput?.addEventListener("input", () =>
+    backgroundOpacity.setColor(tagColorInput.value),
+  );
+  tagColorInput?.addEventListener("change", () =>
+    backgroundOpacity.setColor(tagColorInput.value),
+  );
+  const { setting: tagTextColorSetting, input: tagTextColorInput } =
+    createAddTagColorSetting(
+      newTagContainer,
+      "Tag text color",
+      "Text",
+      defaultTagTextColor,
+      "rss-dashboard-tag-new-text-color",
     );
-  if (tagTextColorInput) {
-    tagTextColorInput.classList.add("rss-dashboard-tag-new-text-color");
-    tagTextColorInput.dataset.rssDashboardDefaultColor = defaultTagTextColor;
-    addTagColorPaletteControl({
-      container: tagTextColorSetting.controlEl,
-      input: tagTextColorInput,
-      fieldName: "Text",
-      showFieldLabels: false,
-      showValueReadout: false,
-    });
-    addRandomizeColorButton({ input: tagTextColorInput });
-  }
+  const textOpacity = addTagOpacityControl(
+    tagTextColorSetting.settingEl,
+    defaultTagTextColor,
+    "Opacity",
+    () => updateNewTagPreview(),
+  );
+  tagTextColorInput?.addEventListener("input", () =>
+    textOpacity.setColor(tagTextColorInput.value),
+  );
+  tagTextColorInput?.addEventListener("change", () =>
+    textOpacity.setColor(tagTextColorInput.value),
+  );
 
-  // The name, its field, a live preview of the new tag and the Add tag button
-  // share the last row.
   let nameInput: { inputEl: HTMLInputElement } | undefined;
   const nameSetting = new Setting(newTagContainer)
     .setName("Tag name")
@@ -591,7 +653,7 @@ function renderAddTagSection(
     cls: "rss-dashboard-tag-badge rss-dashboard-tag-new-preview",
     text: "Preview",
   });
-  const updateNewTagPreview = (): void => {
+  updateNewTagPreview = (): void => {
     const name = nameInput?.inputEl.value.trim() || "Preview";
     newTagPreview.textContent = name;
     const defaults = savedTagDefaults(plugin.settings);
@@ -599,8 +661,8 @@ function renderAddTagSection(
       newTagPreview,
       {
         name,
-        color: tagColorInput?.value,
-        textColor: tagTextColorInput?.value,
+        color: backgroundOpacity.value(),
+        textColor: textOpacity.value(),
       },
       {
         availableTags: [],
@@ -644,8 +706,8 @@ function renderAddTagSection(
           createTagWithAppearanceChanges(
             name,
             {
-              background: colorPicker.getValue(),
-              text: textColorPicker.getValue(),
+              background: backgroundOpacity.value(),
+              text: textOpacity.value(),
             },
             {
               background:

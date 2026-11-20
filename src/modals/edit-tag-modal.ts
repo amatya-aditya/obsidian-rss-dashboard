@@ -10,6 +10,8 @@ import { updateTagInSettings } from "../utils/tag-settings";
 import { addInputClearButton } from "../utils/input-clear-button";
 import { addTagColorPaletteControl } from "../components/tag-color-palette-control";
 import { addRandomizeColorButton } from "../components/tag-color-randomize-button";
+import { addTagOpacityControl } from "../components/tag-opacity-control";
+import { colorRgb } from "../utils/tag-colors";
 
 export interface EditTagModalOptions {
   settings: Readonly<RssDashboardSettings>;
@@ -33,6 +35,7 @@ interface TagAppearanceInput {
   config: TagAppearanceInputConfig;
   input: HTMLInputElement;
   useDefault: HTMLInputElement;
+  opacity: ReturnType<typeof addTagOpacityControl>;
 }
 
 const NAME_INPUT_ID = "rss-dashboard-tag-modal-name";
@@ -98,7 +101,8 @@ function createAppearanceSection(
   // clickable; changing it switches the override on.
   useDefault.checked = tag[config.property] === undefined;
   let customValue = tag[config.property] ?? config.fallback;
-  input.value = useDefault.checked ? config.fallback : customValue;
+  let updatingFromDefault = false;
+  input.value = colorRgb(useDefault.checked ? config.fallback : customValue);
 
   registerCleanup(
     addTagColorPaletteControl({
@@ -117,6 +121,17 @@ function createAppearanceSection(
       },
     }),
   );
+  let opacity: ReturnType<typeof addTagOpacityControl>;
+  opacity = addTagOpacityControl(
+    body,
+    tag[config.property] ?? config.fallback,
+    "Opacity",
+    () => {
+      useDefault.checked = false;
+      customValue = opacity.value();
+      onPreviewChange();
+    },
+  );
   // The control adds its Palette and Color rows after the Custom row and
   // leaves its hex readout beside them; put the Custom row last and give it
   // the readout.
@@ -125,21 +140,33 @@ function createAppearanceSection(
   if (readout) customControl.appendChild(readout);
 
   useDefault.addEventListener("change", () => {
-    input.value = useDefault.checked ? config.fallback : customValue;
+    opacity.setValue(useDefault.checked ? config.fallback : customValue);
+    input.value = colorRgb(useDefault.checked ? config.fallback : customValue);
     // `change` refreshes the palette trigger without touching customValue.
+    updatingFromDefault = true;
     input.dispatchEvent(
       new body.ownerDocument.defaultView!.Event("change", { bubbles: true }),
     );
+    updatingFromDefault = false;
     onPreviewChange();
   });
   input.addEventListener("input", () => {
+    useDefault.checked = false;
     customValue = input.value;
+    opacity.setColor(input.value);
     // Unchecked directly, not through a `change` event: that would run the
     // restore branch above and overwrite the color just picked.
-    useDefault.checked = false;
     onPreviewChange();
   });
-  return { config, input, useDefault };
+  input.addEventListener("change", () => {
+    if (!updatingFromDefault) {
+      useDefault.checked = false;
+      customValue = input.value;
+    }
+    opacity.setColor(input.value);
+    onPreviewChange();
+  });
+  return { config, input, useDefault, opacity };
 }
 
 function createTagAppearanceInputs(
@@ -262,10 +289,10 @@ export class EditTagModal extends AccessibleModal {
         name: tag.name,
         ...(controls[0]?.useDefault.checked
           ? {}
-          : { color: controls[0]?.input.value }),
+          : { color: controls[0]?.opacity.value() }),
         ...(controls[1]?.useDefault.checked
           ? {}
-          : { textColor: controls[1]?.input.value }),
+          : { textColor: controls[1]?.opacity.value() }),
       };
       const previewSettings = {
         ...settings,
@@ -318,15 +345,17 @@ export class EditTagModal extends AccessibleModal {
         }
 
         const tagUpdate: Partial<Tag> = { name: newTagName };
+        controls[0]?.opacity.setColor(controls[0].input.value);
+        controls[1]?.opacity.setColor(controls[1].input.value);
         if (controls[0]?.useDefault.checked) {
           tagUpdate.color = undefined;
         } else if (controls[0]) {
-          tagUpdate.color = controls[0].input.value;
+          tagUpdate.color = controls[0].opacity.value();
         }
         if (controls[1]?.useDefault.checked) {
           tagUpdate.textColor = undefined;
         } else if (controls[1]) {
-          tagUpdate.textColor = controls[1].input.value;
+          tagUpdate.textColor = controls[1].opacity.value();
         }
         if (isNew) {
           const newTag: Tag = {
