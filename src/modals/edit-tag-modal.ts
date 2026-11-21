@@ -125,7 +125,7 @@ function createAppearanceSection(
   opacity = addTagOpacityControl(
     body,
     tag[config.property] ?? config.fallback,
-    "Opacity",
+    `${config.name} opacity`,
     () => {
       useDefault.checked = false;
       customValue = opacity.value();

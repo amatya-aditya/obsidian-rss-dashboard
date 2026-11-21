@@ -25,6 +25,7 @@ import {
   createTagWithAppearanceChanges,
   DEFAULT_TAG_COLOR,
   DEFAULT_TAG_TEXT_COLOR,
+  sameTagColor,
 } from "../utils/tag-colors";
 import { AddTagModal } from "../modals/add-tag-modal";
 import { showEditTagModal } from "../utils/tag-utils";
@@ -888,7 +889,7 @@ export class Sidebar {
       const backgroundOpacity = addTagOpacityControl(
         backgroundColorField,
         defaultTagColor,
-        "Opacity",
+        "Background opacity",
       );
       cp.addEventListener("input", () => backgroundOpacity.setColor(cp.value));
       cp.addEventListener("change", () => backgroundOpacity.setColor(cp.value));
@@ -911,7 +912,7 @@ export class Sidebar {
       const textOpacity = addTagOpacityControl(
         textColorField,
         defaultTagTextColor,
-        "Opacity",
+        "Text opacity",
       );
       textColorInput.addEventListener("input", () =>
         textOpacity.setColor(textColorInput.value),
@@ -961,8 +962,11 @@ export class Sidebar {
               text: textOpacity.value(),
             },
             {
-              background: backgroundOpacity.value() !== defaultTagColor,
-              text: textOpacity.value() !== defaultTagTextColor,
+              background: !sameTagColor(
+                backgroundOpacity.value(),
+                defaultTagColor,
+              ),
+              text: !sameTagColor(textOpacity.value(), defaultTagTextColor),
             },
           ),
         );

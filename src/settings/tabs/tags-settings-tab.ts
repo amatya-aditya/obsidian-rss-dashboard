@@ -21,6 +21,7 @@ import {
   createTagWithAppearanceChanges,
   DEFAULT_TAG_COLOR,
   DEFAULT_TAG_TEXT_COLOR,
+  sameTagColor,
 } from "../../utils/tag-colors";
 import { showEditTagModal } from "../../utils/tag-utils";
 import { deleteTagFromSettings } from "../../utils/tag-settings";
@@ -104,16 +105,37 @@ function savedTagDefaults(settings: RssDashboardSettings): TagDefaults {
   };
 }
 
-function sameColor(a: string, b: string): boolean {
-  return a.toLowerCase() === b.toLowerCase();
-}
-
 function addDefaultOpacityRow(
   setting: HTMLElement,
   color: string,
+  label: string,
   onChange: () => void,
 ): ReturnType<typeof addTagOpacityControl> {
-  return addTagOpacityControl(setting, color, "Opacity", onChange);
+  return addTagOpacityControl(setting, color, label, onChange);
+}
+
+function updateDefaultOpacityDraft(
+  draft: TagDefaults,
+  key: keyof TagDefaults,
+  opacity: ReturnType<typeof addTagOpacityControl>,
+  syncDraft: () => void,
+): void {
+  draft[key] = opacity.value();
+  syncDraft();
+}
+
+function syncDefaultColorInput(
+  input: HTMLInputElement | null,
+  opacity: ReturnType<typeof addTagOpacityControl>,
+  draft: TagDefaults,
+  key: keyof TagDefaults,
+  syncDraft: () => void,
+): void {
+  input?.addEventListener("input", () => {
+    opacity.setColor(input.value);
+    draft[key] = opacity.value();
+    syncDraft();
+  });
 }
 
 function styleAsDefaultTag(chip: HTMLElement, defaults: TagDefaults): void {
@@ -297,10 +319,12 @@ async function applyDraftDefaults(
 
   if (choice === "future") {
     pinInheritedDefaults(plugin.settings, {
-      color: sameColor(before.background, after.background)
+      color: sameTagColor(before.background, after.background)
         ? undefined
         : before.background,
-      textColor: sameColor(before.text, after.text) ? undefined : before.text,
+      textColor: sameTagColor(before.text, after.text)
+        ? undefined
+        : before.text,
     });
   }
   plugin.settings.defaultTagColor = after.background;
@@ -333,8 +357,8 @@ function renderTagAppearanceDefaults(
     if (previewChip) styleAsDefaultTag(previewChip, draft);
     const saved = savedTagDefaults(plugin.settings);
     applyButton?.setDisabled(
-      sameColor(draft.background, saved.background) &&
-        sameColor(draft.text, saved.text),
+      sameTagColor(draft.background, saved.background) &&
+        sameTagColor(draft.text, saved.text),
     );
   };
 
@@ -371,16 +395,22 @@ function renderTagAppearanceDefaults(
   const backgroundOpacity = addDefaultOpacityRow(
     backgroundSetting.settingEl,
     draft.background,
-    () => {
-      draft.background = backgroundOpacity.value();
-      syncDraft();
-    },
+    "Default background opacity",
+    () =>
+      updateDefaultOpacityDraft(
+        draft,
+        "background",
+        backgroundOpacity,
+        syncDraft,
+      ),
   );
-  backgroundInput?.addEventListener("input", () => {
-    backgroundOpacity.setColor(backgroundInput.value);
-    draft.background = backgroundOpacity.value();
-    syncDraft();
-  });
+  syncDefaultColorInput(
+    backgroundInput,
+    backgroundOpacity,
+    draft,
+    "background",
+    syncDraft,
+  );
 
   const textSetting = new Setting(appearance).setName("Text");
   textSetting.settingEl.addClass(
@@ -414,16 +444,10 @@ function renderTagAppearanceDefaults(
   const textOpacity = addDefaultOpacityRow(
     textSetting.settingEl,
     draft.text,
-    () => {
-      draft.text = textOpacity.value();
-      syncDraft();
-    },
+    "Default text opacity",
+    () => updateDefaultOpacityDraft(draft, "text", textOpacity, syncDraft),
   );
-  textInput?.addEventListener("input", () => {
-    textOpacity.setColor(textInput.value);
-    draft.text = textOpacity.value();
-    syncDraft();
-  });
+  syncDefaultColorInput(textInput, textOpacity, draft, "text", syncDraft);
 
   const previewSetting = new Setting(appearance)
     .setName("Preview")
@@ -610,7 +634,7 @@ function renderAddTagSection(
   const backgroundOpacity = addTagOpacityControl(
     tagColorSetting.settingEl,
     defaultTagColor,
-    "Opacity",
+    "Background opacity",
     () => updateNewTagPreview(),
   );
   tagColorInput?.addEventListener("input", () =>
@@ -630,7 +654,7 @@ function renderAddTagSection(
   const textOpacity = addTagOpacityControl(
     tagTextColorSetting.settingEl,
     defaultTagTextColor,
-    "Opacity",
+    "Text opacity",
     () => updateNewTagPreview(),
   );
   tagTextColorInput?.addEventListener("input", () =>
@@ -681,13 +705,6 @@ function renderAddTagSection(
     button.setButtonText("Add tag").onClick(() => {
       void (async () => {
         if (!nameInput) return;
-        const colorPicker = tagColorSetting.components[0] as unknown as {
-          getValue: () => string;
-        };
-        const textColorPicker = tagTextColorSetting
-          .components[0] as unknown as {
-          getValue: () => string;
-        };
         const name = nameInput.inputEl.value.trim();
 
         if (!name) {
@@ -710,12 +727,14 @@ function renderAddTagSection(
               text: textOpacity.value(),
             },
             {
-              background:
-                colorPicker.getValue() !==
-                (plugin.settings.defaultTagColor ?? DEFAULT_TAG_COLOR),
-              text:
-                textColorPicker.getValue() !==
-                (plugin.settings.defaultTagTextColor ?? DEFAULT_TAG_TEXT_COLOR),
+              background: !sameTagColor(
+                backgroundOpacity.value(),
+                plugin.settings.defaultTagColor ?? DEFAULT_TAG_COLOR,
+              ),
+              text: !sameTagColor(
+                textOpacity.value(),
+                plugin.settings.defaultTagTextColor ?? DEFAULT_TAG_TEXT_COLOR,
+              ),
             },
           ),
         );

@@ -1644,6 +1644,16 @@ describe("ImportStarredModal", () => {
             ".rss-dashboard-tag-color-palette-control-color-trigger",
           ),
         ).not.toBeNull();
+        expect(
+          setColor.querySelector(
+            ".rss-dashboard-tag-color-palette-control-label",
+          ),
+        ).toBeNull();
+        expect(
+          setColor.querySelector(
+            ".rss-dashboard-tag-color-palette-control-value-readout",
+          ),
+        ).toBeNull();
       });
 
       it.each([
@@ -1675,12 +1685,26 @@ describe("ImportStarredModal", () => {
 
       it("reset sets every new tag back to the default color, on the chips and the article rows", async () => {
         const { content, candidateTags } = await setUpModal();
+        const opacityDisclosure = getNewTagsSection(content)!.querySelector(
+          ".rss-dashboard-tag-opacity",
+        ) as HTMLDetailsElement;
+        opacityDisclosure.open = true;
         button(content, ".import-new-tags-randomize").click();
+        expect(
+          getNewTagsSection(content)!.querySelector<HTMLDetailsElement>(
+            ".rss-dashboard-tag-opacity",
+          )?.open,
+        ).toBe(true);
         expect(Object.values(newTagChipColors(content))).not.toContain(
           "#8a5cf5",
         );
 
         button(content, ".import-new-tags-reset").click();
+        expect(
+          getNewTagsSection(content)!.querySelector<HTMLDetailsElement>(
+            ".rss-dashboard-tag-opacity",
+          )?.open,
+        ).toBe(true);
 
         expect(newTagChipColors(content)).toEqual({
           Design: "#8a5cf5",
@@ -1731,6 +1755,61 @@ describe("ImportStarredModal", () => {
         ).toEqual({ name: "Design", color: "#123456" });
       });
 
+      it("keeps bulk opacity as a preview draft until the bulk Set action", async () => {
+        const { content, candidateTags } = await setUpModal();
+        const opacity = getNewTagsSection(
+          content,
+        )!.querySelector<HTMLInputElement>('input[type="range"]')!;
+        const disclosure = opacity.closest("details") as HTMLDetailsElement;
+        disclosure.open = true;
+        opacity.value = "50";
+        opacity.dispatchEvent(new Event("input", { bubbles: true }));
+
+        expect(newTagChipColors(content)).toEqual({
+          Design: "rgba(138, 92, 245, 0.5)",
+          art: "rgba(138, 92, 245, 0.5)",
+        });
+        expect(rowChipColor(content, "Design")).toBe("#8a5cf5");
+        expect(candidateTags(labeledGuid)).toEqual([
+          { name: "Design" },
+          { name: "art" },
+        ]);
+
+        button(content, ".rss-dashboard-tag-opacity-row button").click();
+        expect(
+          getNewTagsSection(content)!.querySelector<HTMLDetailsElement>(
+            ".rss-dashboard-tag-opacity",
+          )?.open,
+        ).toBe(true);
+        expect(rowChipColor(content, "Design")).toBe("rgba(138, 92, 245, 0.5)");
+        expect(candidateTags(labeledGuid)).toEqual([
+          { name: "Design", color: "rgba(138, 92, 245, 0.5)" },
+          { name: "art", color: "rgba(138, 92, 245, 0.5)" },
+        ]);
+
+        const picker = button(
+          content,
+          ".import-new-tags-set-color input[type='color']",
+        ) as HTMLInputElement;
+        picker.value = "#123456";
+        picker.dispatchEvent(new Event("change", { bubbles: true }));
+        expect(
+          getNewTagsSection(content)!.querySelector<HTMLDetailsElement>(
+            ".rss-dashboard-tag-opacity",
+          )?.open,
+        ).toBe(true);
+
+        expect(newTagChipColors(content)).toEqual({
+          Design: "rgba(18, 52, 86, 0.5)",
+          art: "rgba(18, 52, 86, 0.5)",
+        });
+        expect(rowChipColor(content, "Design")).toBe("rgba(18, 52, 86, 0.5)");
+        expect(candidateTags(labeledGuid)).toEqual([
+          { name: "Design", color: "rgba(18, 52, 86, 0.5)" },
+          { name: "art", color: "rgba(18, 52, 86, 0.5)" },
+        ]);
+      });
+
       it("choosing a named preset recolors every new tag in the import preview", async () => {
         const { content, candidateTags } = await setUpModal();
         const setColor = button(content, ".import-new-tags-set-color");
@@ -1738,6 +1817,10 @@ describe("ImportStarredModal", () => {
           ".rss-dashboard-tag-color-palette-control-color-trigger",
         )!;
 
+        const opacityDisclosure = getNewTagsSection(content)!.querySelector(
+          ".rss-dashboard-tag-opacity",
+        ) as HTMLDetailsElement;
+        opacityDisclosure.open = true;
         trigger.click();
         Array.from(
           setColor.querySelectorAll<HTMLButtonElement>("[role=option]"),
@@ -1746,6 +1829,12 @@ describe("ImportStarredModal", () => {
             (option) => option.getAttribute("aria-label") === "Green #34C759",
           )
           ?.click();
+
+        expect(
+          getNewTagsSection(content)!.querySelector<HTMLDetailsElement>(
+            ".rss-dashboard-tag-opacity",
+          )?.open,
+        ).toBe(true);
 
         expect(newTagChipColors(content)).toEqual({
           Design: "#34c759",

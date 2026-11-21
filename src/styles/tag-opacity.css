@@ -1,6 +1,8 @@
 .rss-dashboard-tag-opacity {
   margin-top: 6px;
   min-width: 0;
+  grid-column: 1 / -1;
+  width: 100%;
 }
 
 .rss-dashboard-tag-opacity > summary {
@@ -15,15 +17,39 @@
   align-items: center;
   gap: 10px;
   padding: 6px 0;
+  min-width: 0;
+  width: 100%;
 }
 
 .rss-dashboard-tag-opacity-row input[type="range"] {
-  flex: 1;
-  min-width: 100px;
+  flex: 1 1 0;
+  min-width: 0;
+  width: 100%;
 }
 
-.rss-dashboard-tag-opacity-row span {
-  min-width: 3.5em;
+.rss-dashboard-tag-opacity-row input[type="number"] {
+  box-sizing: border-box;
+  flex: 0 0 4.5em;
+  width: 4.5em;
+  min-width: 4.5em;
+  max-width: 4.5em;
   text-align: end;
   font-variant-numeric: tabular-nums;
+}
+
+.rss-dashboard-tag-opacity-row .rss-dashboard-tag-opacity-percent {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.rss-dashboard-tag-opacity-row button {
+  flex: 0 0 auto;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .rss-dashboard-tag-opacity {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
 }

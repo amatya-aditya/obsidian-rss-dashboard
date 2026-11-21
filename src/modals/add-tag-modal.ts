@@ -5,6 +5,7 @@ import {
   createTagWithAppearanceChanges,
   DEFAULT_TAG_COLOR,
   DEFAULT_TAG_TEXT_COLOR,
+  sameTagColor,
 } from "../utils/tag-colors";
 import { addInputClearButton } from "../utils/input-clear-button";
 import { applyTagAppearance } from "../utils/tag-colors";
@@ -51,7 +52,7 @@ function createTagColorField(
     onValueChange: syncColor,
   });
   registerCleanup(cleanup);
-  opacity = addTagOpacityControl(field, value, "Opacity", onChange);
+  opacity = addTagOpacityControl(field, value, `${label} opacity`, onChange);
   input.addEventListener("input", syncColor);
   input.addEventListener("change", syncColor);
   return { input, opacity };
@@ -122,10 +123,10 @@ export class AddTagModal extends AccessibleModal {
         preview,
         {
           name: preview.textContent,
-          ...(backgroundOpacity.value() !== defaultTagColor
+          ...(!sameTagColor(backgroundOpacity.value(), defaultTagColor)
             ? { color: backgroundOpacity.value() }
             : {}),
-          ...(textOpacity.value() !== defaultTagTextColor
+          ...(!sameTagColor(textOpacity.value(), defaultTagTextColor)
             ? { textColor: textOpacity.value() }
             : {}),
         },
@@ -166,8 +167,11 @@ export class AddTagModal extends AccessibleModal {
             text: textOpacity.value(),
           },
           {
-            background: backgroundOpacity.value() !== defaultTagColor,
-            text: textOpacity.value() !== defaultTagTextColor,
+            background: !sameTagColor(
+              backgroundOpacity.value(),
+              defaultTagColor,
+            ),
+            text: !sameTagColor(textOpacity.value(), defaultTagTextColor),
           },
         );
         settings.availableTags.push(newTag);

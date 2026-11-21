@@ -214,9 +214,11 @@
 /* Palette, dice, and reset buttons beside the heading. */
 .import-new-tags-actions {
   display: flex;
+  flex: 1 1 260px;
   flex-wrap: wrap;
   align-items: center;
   gap: 2px;
+  min-width: 0;
 }
 
 .import-new-tags-actions .import-new-tags-action {
@@ -257,13 +259,19 @@
 
 .import-new-tags-set-color {
   display: flex;
+  flex: 1 1 220px;
   flex-wrap: wrap;
   align-items: end;
   gap: 6px;
+  width: auto;
+  height: auto;
+  min-height: 32px;
+  min-width: 0;
 }
 
 .import-new-tags-set-color .rss-dashboard-tag-color-palette-control {
   flex: 1 1 220px;
+  min-width: 0;
 }
 
 .import-new-tags-actions .import-new-tags-set-color:focus-within {

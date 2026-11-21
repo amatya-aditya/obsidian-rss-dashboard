@@ -9,6 +9,7 @@ import {
   randomHexColor,
   randomTagColors,
   resolveTagAppearance,
+  sameTagColor,
 } from "../../../src/utils/tag-colors";
 
 describe("tag color opacity", () => {
@@ -22,6 +23,15 @@ describe("tag color opacity", () => {
     expect(colorWithOpacity("#12abcd", 0)).toBe("rgba(18, 171, 205, 0)");
     expect(colorOpacity("rgba(18, 171, 205, 0.35)")).toBe(35);
     expect(colorRgb("rgba(18, 171, 205, 0.35)")).toBe("#12abcd");
+  });
+
+  it("compares colors by normalized RGB and effective slider opacity", () => {
+    expect(
+      sameTagColor("rgba(138,92,245,0.25)", "rgba(138, 92, 245, 0.25)"),
+    ).toBe(true);
+    expect(
+      sameTagColor("rgba(138, 92, 245, 0.25)", "rgba(138, 92, 245, 0.3)"),
+    ).toBe(false);
   });
 });
 

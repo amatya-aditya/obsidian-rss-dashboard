@@ -37,6 +37,14 @@ export function colorRgb(color: string): string {
     : color;
 }
 
+/** Compares colors using the RGB and opacity values exposed by tag controls. */
+export function sameTagColor(a: string, b: string): boolean {
+  return (
+    colorRgb(a).toLowerCase() === colorRgb(b).toLowerCase() &&
+    colorOpacity(a) === colorOpacity(b)
+  );
+}
+
 export interface TagAppearance {
   background: string;
   text: string;
