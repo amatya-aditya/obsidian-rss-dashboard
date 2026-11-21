@@ -26,6 +26,13 @@ import { showEditTagModal, updateTagInSettings } from "../utils/tag-utils";
 import { FolderSuggest } from "../components/folder-suggest";
 import { decorateFolderSelectorInput } from "./feed-manager/folder-selector-field";
 import { addTagColorPaletteControl } from "../components/tag-color-palette-control";
+import { addTagOpacityControl } from "../components/tag-opacity-control";
+import {
+  applyTagAppearance,
+  colorOpacity,
+  colorRgb,
+  colorWithOpacity,
+} from "../utils/tag-colors";
 
 /**
  * Default target folder for every feed created by a starred-article import.
@@ -102,6 +109,7 @@ export class ImportStarredModal extends AccessibleModal {
   private validationErrorKind:
     "invalid_extension" | "invalid_json" | "missing_items" | null = null;
   private previewModel: StarredImportPreviewModel | null = null;
+  private newTagsOpacityOpen = false;
   private unimportableEntries: StarredImportUnimportableEntry[] = [];
   private collapsedFeedUrls = new Set<string>();
   private newFeedFolder = DEFAULT_NEW_FEED_FOLDER;
@@ -313,6 +321,7 @@ export class ImportStarredModal extends AccessibleModal {
     // to the top on every checkbox toggle, not just the inner list.
     const previousContentScrollTop = this.contentEl.scrollTop;
 
+    this.captureNewTagsOpacityOpenState();
     this.previewContainer.removeClass("import-hidden");
     this.previewContainer.addClass("import-visible");
     this.previewContainer.empty();
@@ -639,6 +648,15 @@ export class ImportStarredModal extends AccessibleModal {
       text: `New tags (${newTags.length})`,
     });
     this.renderNewTagsColorActions(header, newTags);
+    const opacityDisclosure = section.querySelector<HTMLDetailsElement>(
+      ".rss-dashboard-tag-opacity",
+    );
+    if (opacityDisclosure) {
+      opacityDisclosure.open = this.newTagsOpacityOpen;
+      opacityDisclosure.addEventListener("toggle", () => {
+        this.newTagsOpacityOpen = opacityDisclosure.open;
+      });
+    }
 
     const list = section.createDiv({ cls: "import-new-tags-list" });
     for (const tag of newTags) {
@@ -688,23 +706,61 @@ export class ImportStarredModal extends AccessibleModal {
       cls: "import-new-tags-color-input",
       attr: {
         type: "color",
-        value:
+        value: colorRgb(
           sharedColor ??
-          this.plugin.settings.defaultTagColor ??
-          DEFAULT_TAG_COLOR,
+            this.plugin.settings.defaultTagColor ??
+            DEFAULT_TAG_COLOR,
+        ),
         "aria-label": "Set one color for all new tags",
       },
     });
     colorInput.addEventListener("change", () => {
+      bulkOpacity.setColor(colorInput.value);
       this.recolorNewTags(
         newTags,
-        newTags.map(() => colorInput.value),
+        newTags.map(() => bulkOpacity.value()),
       );
     });
+    const initialOpacity = newTags.every(
+      (tag) =>
+        colorOpacity(tag.color ?? "#000000") ===
+        colorOpacity(firstColor ?? "#000000"),
+    )
+      ? colorOpacity(
+          firstColor ??
+            this.plugin.settings.defaultTagColor ??
+            DEFAULT_TAG_COLOR,
+        )
+      : 100;
+    const bulkOpacity = addTagOpacityControl(
+      header.parentElement ?? actions,
+      colorWithOpacity(colorInput.value, initialOpacity),
+      "Background opacity",
+      () => {
+        this.previewNewTagsColors(
+          newTags,
+          newTags.map(() => bulkOpacity.value()),
+        );
+      },
+      "Background opacity",
+      () =>
+        this.recolorNewTags(
+          newTags,
+          newTags.map(() => bulkOpacity.value()),
+        ),
+    );
+    colorInput.addEventListener("input", () =>
+      bulkOpacity.setColor(colorInput.value),
+    );
+    colorInput.addEventListener("change", () =>
+      bulkOpacity.setColor(colorInput.value),
+    );
     addTagColorPaletteControl({
       container: setColor,
       input: colorInput,
       fieldName: "Background",
+      showFieldLabels: false,
+      showValueReadout: false,
     });
 
     createIconButton({
@@ -714,7 +770,19 @@ export class ImportStarredModal extends AccessibleModal {
       icon: "dices",
       onClick: (e) => {
         e.preventDefault();
-        this.recolorNewTags(newTags, randomTagColors(newTags.length));
+        this.recolorNewTags(
+          newTags,
+          randomTagColors(newTags.length).map((color, index) =>
+            colorWithOpacity(
+              color,
+              colorOpacity(
+                newTags[index]?.color ??
+                  this.plugin.settings.defaultTagColor ??
+                  DEFAULT_TAG_COLOR,
+              ),
+            ),
+          ),
+        );
       },
     });
 
@@ -739,6 +807,25 @@ export class ImportStarredModal extends AccessibleModal {
       if (color) this.applyTagEditToCandidates(tag, { ...tag, color });
     });
     this.redrawCandidateTags();
+  }
+
+  private previewNewTagsColors(
+    tags: readonly Tag[],
+    colors: readonly string[],
+  ): void {
+    const chips = this.previewContainer.querySelectorAll<HTMLElement>(
+      ".import-new-tags-section .import-new-tags-chip",
+    );
+    tags.forEach((tag, index) => {
+      const color = colors[index];
+      if (!color) return;
+      const previewTag = { ...tag, color };
+      chips.forEach((chip) => {
+        if (chip.textContent?.trim() === tag.name) {
+          applyTagAppearance(chip, previewTag, this.plugin.settings);
+        }
+      });
+    });
   }
 
   private resetNewTagsAppearance(tags: readonly Tag[]): void {
@@ -781,10 +868,18 @@ export class ImportStarredModal extends AccessibleModal {
    * the portal itself stays open for further edits.
    */
   private refreshNewTagsSection(): void {
+    this.captureNewTagsOpacityOpenState();
     this.previewContainer
       .querySelectorAll(".import-new-tags-section")
       .forEach((el) => el.remove());
     this.renderNewTagsSection(this.previewContainer);
+  }
+
+  private captureNewTagsOpacityOpenState(): void {
+    const disclosure = this.previewContainer?.querySelector<HTMLDetailsElement>(
+      ".import-new-tags-section .rss-dashboard-tag-opacity",
+    );
+    if (disclosure) this.newTagsOpacityOpen = disclosure.open;
   }
 
   private renderGroup(

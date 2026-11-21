@@ -21,9 +21,11 @@ import {
 } from "../utils/folder-tag-sync";
 import {
   applyTagAppearance,
+  colorRgb,
   createTagWithAppearanceChanges,
   DEFAULT_TAG_COLOR,
   DEFAULT_TAG_TEXT_COLOR,
+  sameTagColor,
 } from "../utils/tag-colors";
 import { AddTagModal } from "../modals/add-tag-modal";
 import { showEditTagModal } from "../utils/tag-utils";
@@ -32,6 +34,7 @@ import { windowInstanceOf } from "../utils/platform-utils";
 import type { ArticleStateChange } from "../utils/article-update";
 import { addInputClearButton } from "../utils/input-clear-button";
 import { addTagColorPaletteControl } from "./tag-color-palette-control";
+import { addTagOpacityControl } from "./tag-opacity-control";
 import { markMenuItemDestructive } from "../utils/destructive-menu-item";
 import { isDomNode } from "../utils/dom-node";
 import {
@@ -873,7 +876,7 @@ export class Sidebar {
       const cp = backgroundColorField.createEl("input", {
         attr: {
           type: "color",
-          value: defaultTagColor,
+          value: colorRgb(defaultTagColor),
           "aria-label": "Tag background color",
         },
         cls: "rss-dashboard-tag-color-picker",
@@ -883,13 +886,20 @@ export class Sidebar {
         input: cp,
         fieldName: "Background",
       });
+      const backgroundOpacity = addTagOpacityControl(
+        backgroundColorField,
+        defaultTagColor,
+        "Background opacity",
+      );
+      cp.addEventListener("input", () => backgroundOpacity.setColor(cp.value));
+      cp.addEventListener("change", () => backgroundOpacity.setColor(cp.value));
       const textColorField = addRow.createDiv({
         cls: "rss-dashboard-sidebar-add-tag-color-field",
       });
       const textColorInput = textColorField.createEl("input", {
         attr: {
           type: "color",
-          value: defaultTagTextColor,
+          value: colorRgb(defaultTagTextColor),
           "aria-label": "Tag text color",
         },
         cls: "rss-dashboard-tag-color-picker rss-dashboard-sidebar-add-tag-text-color",
@@ -899,6 +909,17 @@ export class Sidebar {
         input: textColorInput,
         fieldName: "Text",
       });
+      const textOpacity = addTagOpacityControl(
+        textColorField,
+        defaultTagTextColor,
+        "Text opacity",
+      );
+      textColorInput.addEventListener("input", () =>
+        textOpacity.setColor(textColorInput.value),
+      );
+      textColorInput.addEventListener("change", () =>
+        textOpacity.setColor(textColorInput.value),
+      );
       const input = addRow.createEl("input", {
         attr: { type: "text", placeholder: "New tag..." },
         cls: "rss-dashboard-sidebar-add-tag-input",
@@ -936,10 +957,16 @@ export class Sidebar {
         this.settings.availableTags.push(
           createTagWithAppearanceChanges(
             val,
-            { background: cp.value, text: textColorInput.value },
             {
-              background: cp.value !== defaultTagColor,
-              text: textColorInput.value !== defaultTagTextColor,
+              background: backgroundOpacity.value(),
+              text: textOpacity.value(),
+            },
+            {
+              background: !sameTagColor(
+                backgroundOpacity.value(),
+                defaultTagColor,
+              ),
+              text: !sameTagColor(textOpacity.value(), defaultTagTextColor),
             },
           ),
         );

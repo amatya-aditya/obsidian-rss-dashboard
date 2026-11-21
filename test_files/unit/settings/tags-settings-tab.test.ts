@@ -803,6 +803,49 @@ describe("renderTagsSettingsTab()", () => {
     expect(settings.availableTags).toEqual([{ name: "Inherited" }]);
   });
 
+  it("stores opacity-only changes as explicit background and text overrides", async () => {
+    const containerEl = document.body.appendChild(createDiv());
+    const settings = cloneSettings();
+    settings.availableTags = [];
+    const plugin = {
+      app: obsidian.App.createMock(),
+      settings,
+      saveSettings: vi.fn(async () => {}),
+      refreshOpenTagColorViews: vi.fn(async () => {}),
+    } as unknown as RssDashboardPlugin;
+    renderTagsSettingsTab(containerEl, plugin, vi.fn());
+
+    getSettingByName(containerEl, "Tag name").querySelector<HTMLInputElement>(
+      'input[type="text"]',
+    )!.value = "Translucent";
+    for (const [settingName, value] of [
+      ["Tag color", "25"],
+      ["Tag text color", "70"],
+    ]) {
+      const slider = getSettingByName(
+        containerEl,
+        settingName,
+      ).querySelector<HTMLInputElement>('input[type="range"]')!;
+      slider.value = value;
+      slider.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    Array.from(
+      getSettingByName(containerEl, "Tag name").querySelectorAll("button"),
+    )
+      .find((button) => button.textContent === "Add tag")!
+      .click();
+    await flushPromises();
+
+    expect(settings.availableTags).toEqual([
+      {
+        name: "Translucent",
+        color: "rgba(138, 92, 245, 0.25)",
+        textColor: "rgba(255, 255, 255, 0.7)",
+      },
+    ]);
+  });
+
   it("rejects a whitespace-only tag name", async () => {
     const containerEl = document.body.appendChild(createDiv());
     const settings = cloneSettings();

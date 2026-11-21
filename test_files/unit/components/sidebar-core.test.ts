@@ -341,6 +341,22 @@ describe("Sidebar Core", () => {
       expect(settings.availableTags).toContainEqual({ name: "New topic" });
     });
 
+    it("keeps normalized translucent defaults inherited when quick-adding unchanged", () => {
+      settings.defaultTagColor = "rgba(138, 92, 245, 0.25)";
+      settings.defaultTagTextColor = "rgba(255, 255, 255, 0.7)";
+      (sidebar as unknown as TestSidebar).isAddTagExpanded = true;
+      sidebar.render();
+      const input = container.querySelector<HTMLInputElement>(
+        ".rss-dashboard-sidebar-add-tag-input",
+      );
+      if (!input) throw new Error("Expected the inline add input");
+
+      input.value = "New topic";
+      input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+
+      expect(settings.availableTags).toContainEqual({ name: "New topic" });
+    });
+
     it("offers palette controls beside both inline tag color pickers", () => {
       (sidebar as unknown as TestSidebar).isAddTagExpanded = true;
       sidebar.render();

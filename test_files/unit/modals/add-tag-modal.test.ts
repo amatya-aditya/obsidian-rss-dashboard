@@ -161,6 +161,20 @@ describe("AddTagModal", () => {
     });
   });
 
+  it("keeps normalized translucent defaults inherited when saved unchanged", () => {
+    const settings = makeSettings();
+    settings.defaultTagColor = "rgba(138, 92, 245, 0.25)";
+    settings.defaultTagTextColor = "rgba(255, 255, 255, 0.7)";
+    new AddTagModal(new App(), { settings, onAdded: vi.fn() }).open();
+
+    nameInput().value = "Science";
+    clickButton("Add tag");
+
+    expect(settings.availableTags[settings.availableTags.length - 1]).toEqual({
+      name: "Science",
+    });
+  });
+
   it("stores only the color changed during creation", () => {
     const settings = makeSettings();
     new AddTagModal(new App(), { settings, onAdded: vi.fn() }).open();

@@ -9,6 +9,42 @@ import type { Tag } from "../types/types";
 export const DEFAULT_TAG_COLOR = "#8a5cf5";
 export const DEFAULT_TAG_TEXT_COLOR = "#ffffff";
 
+export function colorOpacity(color: string): number {
+  const rgba = color.match(
+    /^rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*([\d.]+)\s*\)$/i,
+  );
+  return rgba ? Math.round(Number(rgba[1]) * 100) : 100;
+}
+
+export function colorWithOpacity(color: string, opacity: number): string {
+  const channels = color.match(/^#([\da-f]{6})$/i)?.[1];
+  if (!channels || opacity >= 100) return color;
+  const red = Number.parseInt(channels.slice(0, 2), 16);
+  const green = Number.parseInt(channels.slice(2, 4), 16);
+  const blue = Number.parseInt(channels.slice(4, 6), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${Math.max(0, opacity) / 100})`;
+}
+
+export function colorRgb(color: string): string {
+  const rgba = color.match(
+    /^rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*[\d.]+\s*\)$/i,
+  );
+  return rgba
+    ? `#${rgba
+        .slice(1, 4)
+        .map((channel) => Number(channel).toString(16).padStart(2, "0"))
+        .join("")}`
+    : color;
+}
+
+/** Compares colors using the RGB and opacity values exposed by tag controls. */
+export function sameTagColor(a: string, b: string): boolean {
+  return (
+    colorRgb(a).toLowerCase() === colorRgb(b).toLowerCase() &&
+    colorOpacity(a) === colorOpacity(b)
+  );
+}
+
 export interface TagAppearance {
   background: string;
   text: string;

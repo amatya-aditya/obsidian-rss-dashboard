@@ -107,6 +107,26 @@ describe("EditTagModal", () => {
     expect(document.querySelector(".rss-dashboard-edit-tag-modal")).toBeNull();
   });
 
+  it("saves zero opacity as an explicit transparent override", async () => {
+    const settings = makeSettings();
+    const tag = settings.availableTags[0];
+    new EditTagModal(new App(), { settings, tag }).open();
+
+    const slider = document.querySelector<HTMLInputElement>(
+      ".rss-dashboard-tag-modal-section-background input[type=range]",
+    )!;
+    slider.value = "0";
+    slider.dispatchEvent(new Event("input", { bubbles: true }));
+    document
+      .querySelector<HTMLButtonElement>(
+        ".rss-dashboard-edit-tag-modal .rss-dashboard-primary-button",
+      )!
+      .click();
+    await flushPromises();
+
+    expect(settings.availableTags[0]?.color).toBe("rgba(17, 17, 17, 0)");
+  });
+
   it("applies independent presets to the draft and saves them through Save changes", async () => {
     const settings = makeSettings();
     const tag = { name: "Tech" };
