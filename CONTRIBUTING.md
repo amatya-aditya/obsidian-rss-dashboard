@@ -65,7 +65,17 @@ The pre-commit hook runs the full unit suite instead when you stage a change tha
 
 Staged-file linting uses ESLint's cache in `node_modules/.cache/eslint/`. Type-aware rules can report a new problem in a file you didn't touch when you change a type it depends on; GitHub Actions runs the uncached full lint and build on pull requests and pushes to `dev` or `master`.
 
-The staged-checks step prints one line per passing step and the full output only for a failing one; set `PRECOMMIT_VERBOSE=1` to stream everything. Set `SKIP_GIT_HOOKS=1` to bypass the pre-commit hook. The pre-push hook is informational and does not block pushes; GitHub Actions runs full validation on pull requests and pushes to `dev` or `master`.
+Staged checks report elapsed time and the Vitest file count. If a step fails, open the full log at the path printed by the hook. Set `PRECOMMIT_VERBOSE=1` to stream everything. Set `SKIP_GIT_HOOKS=1` to bypass the pre-commit hook. The pre-push hook is informational and does not block pushes; GitHub Actions runs full validation on pull requests and pushes to `dev` or `master`.
+
+To compare test selection costs, time the commands from the same checkout using
+the paths passed to related mode. Compare elapsed time and the reported test
+file counts before changing hook selection. On Windows PowerShell:
+
+```powershell
+$relatedPaths = @('src/utils/tag-colors.ts') # Use the paths under investigation.
+Measure-Command { npm exec -- vitest related --run --passWithNoTests --config vitest.config.mjs --reporter=dot @relatedPaths | Out-Host }
+Measure-Command { npm run test:unit -- --reporter=dot | Out-Host }
+```
 
 ### Local Development
 
