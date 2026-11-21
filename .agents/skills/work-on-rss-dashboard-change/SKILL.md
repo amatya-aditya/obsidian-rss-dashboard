@@ -18,6 +18,10 @@ workflow proportional to risk while preserving the repository's audit gates.
   verification. Use an available GitHub connector, CLI, or public browser tool.
   If an attempted retrieval fails, use the supplied text and disclose the
   failure.
+- Before implementing a tracked issue, check for existing claims and pull
+  requests using [Claim an Issue Before You Start](../../../CONTRIBUTING.md#claim-an-issue-before-you-start).
+  Record the claim status at intake. If a claim comment is needed, flag it while
+  the user can still act on it and post it only with their authorization.
 - Read `AGENTS.md` and every file it requires. Read
   `.agents/project-context.md` before scoping the implementation.
 - Run `git status --short` and preserve unrelated changes.
