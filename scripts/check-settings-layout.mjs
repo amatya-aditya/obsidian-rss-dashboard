@@ -28,6 +28,7 @@ import {
   readDevToolsActivePort,
 } from "./obsidian-cdp.mjs";
 import { basename, sep } from "node:path";
+import { pathToFileURL } from "node:url";
 import { setTimeout } from "node:timers";
 
 /** The tabs reviewed in #1819; Storage, Rules and About keep their own layout. */
@@ -65,6 +66,7 @@ Options:
                          the vault window and check a phone pane. Implies --touch
                          and defaults --widths to ${MOBILE_WIDTHS.join(",")}.
   --widths <list>        Comma-separated window widths. Default: ${DEFAULT_WIDTHS.join(",")}.
+  --tag-opacity          Open and measure tag opacity controls in the Tags tab.
   --port <n>             Debug port, when the profile has no DevToolsActivePort.
   --help                 Print this text.
 `;
@@ -91,6 +93,8 @@ function parseArgs(argv) {
         .map((entry) => Number(entry.trim()))
         .filter((entry) => Number.isFinite(entry) && entry > 0);
       i += 1;
+    } else if (arg === "--tag-opacity") {
+      options.tagOpacity = true;
     } else if (arg === "--port") {
       options.port = Number(value);
       i += 1;
@@ -261,6 +265,86 @@ async function prepareMobileSettings(pages, options) {
   return connection;
 }
 
+export function auditTagOpacity(pane) {
+  const controls = pane.querySelectorAll("details.rss-dashboard-tag-opacity");
+  if (controls.length < 2) return ["expected at least two opacity disclosures"];
+
+  const issues = [];
+  const pixels = (value) => Number.parseFloat(value) || 0;
+  for (const disclosure of controls) {
+    const wasOpen = disclosure.open;
+    try {
+      disclosure.open = true;
+      const row = disclosure.querySelector(".rss-dashboard-tag-opacity-row");
+      const slider = row?.querySelector('input[type="range"]');
+      const number = row?.querySelector('input[type="number"]');
+      const suffix = row?.querySelector(".rss-dashboard-tag-opacity-percent");
+      const label = slider?.getAttribute("aria-label") ?? "Opacity";
+      if (!slider || !number || !suffix) {
+        issues.push(
+          label + ": slider, number field, or percent suffix missing",
+        );
+        continue;
+      }
+
+      const view = pane.ownerDocument.defaultView;
+      const box = (el) => el.getBoundingClientRect();
+      const visible = (el) =>
+        box(el).width > 0 &&
+        box(el).height > 0 &&
+        view.getComputedStyle(el).visibility === "visible";
+      if (![slider, number, suffix].every(visible)) {
+        issues.push(label + ": slider, number field, or percent suffix hidden");
+        continue;
+      }
+
+      const parent = disclosure.parentElement;
+      const parentStyle = view.getComputedStyle(parent);
+      const availableWidth =
+        parent.clientWidth -
+        pixels(parentStyle.paddingLeft) -
+        pixels(parentStyle.paddingRight);
+      const rowStyle = view.getComputedStyle(row);
+      const rowWidth =
+        row.clientWidth -
+        pixels(rowStyle.paddingLeft) -
+        pixels(rowStyle.paddingRight);
+      const margins = [slider, number, suffix].reduce((total, control) => {
+        const style = view.getComputedStyle(control);
+        return total + pixels(style.marginLeft) + pixels(style.marginRight);
+      }, 0);
+      const expectedWidth =
+        rowWidth -
+        box(number).width -
+        box(suffix).width -
+        margins -
+        2 * pixels(rowStyle.columnGap);
+      if (
+        Math.abs(box(row).width - availableWidth) > 2 ||
+        Math.abs(box(slider).width - expectedWidth) > 2 ||
+        box(slider).right > box(number).left + 2 ||
+        box(number).right > box(suffix).left + 2
+      ) {
+        issues.push(
+          label +
+            ": slider is " +
+            box(slider).width +
+            "px (expected " +
+            expectedWidth +
+            "px), row is " +
+            box(row).width +
+            "px (expected " +
+            availableWidth +
+            "px)",
+        );
+      }
+    } finally {
+      disclosure.open = wasOpen;
+    }
+  }
+  return issues;
+}
+
 async function runSweep(connection, options) {
   const failures = [];
   const truncationNotes = new Set();
@@ -315,6 +399,15 @@ async function runSweep(connection, options) {
       }
       for (const issue of audit.issues)
         failures.push(`${width}px ${tab}: ${issue}`);
+      if (options.tagOpacity && tab === "Tags") {
+        const opacity = await evaluate(
+          connection,
+          `JSON.stringify((${auditTagOpacity.toString()})(document.querySelector('.rss-dashboard-settings-tab-content')))`,
+        );
+        for (const issue of JSON.parse(opacity.value)) {
+          failures.push(`${width}px ${tab}: ${issue}`);
+        }
+      }
       for (const note of audit.truncations) {
         truncationNotes.add(`${width}px ${tab}: ${note}`);
       }
@@ -376,11 +469,16 @@ async function main() {
   return 0;
 }
 
-main()
-  .then((code) => {
-    process.exitCode = code;
-  })
-  .catch((error) => {
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exitCode = 1;
-  });
+if (
+  process.argv[1] &&
+  pathToFileURL(process.argv[1]).href === import.meta.url
+) {
+  main()
+    .then((code) => {
+      process.exitCode = code;
+    })
+    .catch((error) => {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    });
+}

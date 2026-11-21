@@ -560,6 +560,12 @@ sweep: no settings pane or control clips its content, every dropdown row follows
 the 400px pane rule, and every reviewed row keeps a visible fill from the
 platform's own tokens. It covers the eight reviewed tabs at five window widths.
 
+For a build with tag opacity controls, add `--tag-opacity` to the desktop
+sweep and to a mobile sweep with `--widths 390,1024,1366`. The check opens each
+opacity disclosure in Tags, measures the space left beside the numeric field
+and percent suffix, and restores its open state. Missing controls fail the
+check, so use a build from the opacity feature branch until it lands in dev.
+
 ```sh
 # desktop and touch, against the Settings window
 node scripts/obsidian-cdp.mjs --profile "$env:TEMP\<profile>" \
