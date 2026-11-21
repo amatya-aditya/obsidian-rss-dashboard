@@ -64,7 +64,13 @@ plugin folder, reload the plugin, and launch with a debug port and a disposable
 `--user-data-dir` so the CDP route works). Real user data is touched only with
 the user's explicit go-ahead in chat and after a backup.
 
-**Prime the profile, then check it, before item 1.** A disposable
+### Obsidian fixture preflight
+
+Before UI implementation or the first Obsidian checklist item, identify the
+approved disposable vault and its isolated profile. Verify the profile can
+start and the target belongs to that vault.
+
+**Prime the profile, then check it.** A disposable
 `--user-data-dir` has no app archive, so Obsidian boots the installer's build,
 which is older than what the maintainer runs and never says so (#732 spent a
 whole drive on 1.14.4 while the app updates to 1.15.0). Prime, launch, then prove
@@ -73,7 +79,15 @@ what loaded:
 ```sh
 node scripts/obsidian-profile.mjs prime --profile <dir>
 npm run fixture:doctor -- --profile <dir>
+node scripts/obsidian-cdp.mjs --profile <dir> --expect-vault <vault> eval "Boolean(app.plugins.plugins['rss-dashboard'])"
 ```
+
+The guarded expression must return `true` for the enabled plugin. After building
+and loading the branch under test, use the doctor's bundle comparison with
+`--vault <vault>` to confirm that the installed files match the build, then
+repeat the guarded expression after reload. If the disposable target is missing
+or has the wrong vault, report rendered evidence as pending with the failing
+step and continue with source checks.
 
 `doctor` must not fail before the checklist starts. It names the archive the
 profile will load, the `Loaded ... app` line in the profile's `obsidian.log`, the

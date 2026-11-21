@@ -76,6 +76,11 @@ Inspect the live Obsidian community listing only for release, compliance,
 security, platform, storage, or audit-remediation work. For ordinary changes,
 use the local policies and scorecard to avoid unnecessary network work.
 
+For UI changes that need rendered Obsidian evidence, run the
+[fixture preflight](../../../docs/development/test_coverage/test-execution.md#obsidian-fixture-preflight)
+before editing the UI. Report an unavailable fixture while source work can
+still proceed.
+
 ## 4. Plan and Implement with TDD
 
 - Map each acceptance criterion to an automated test or an explicit manual check.
