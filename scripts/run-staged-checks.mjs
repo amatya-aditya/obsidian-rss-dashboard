@@ -2,7 +2,11 @@
 // that exercise them. CI runs the full lint, type-check, and test suite, so
 // this hook trades breadth for a short loop.
 import { spawnSync } from "node:child_process";
+import { mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { stripVTControlCharacters } from "node:util";
 
 const LINTABLE = /\.(?:ts|mjs|cjs|js)$/;
 const TEST_INPUT = /\.(?:ts|mjs|md)$/;
@@ -65,7 +69,16 @@ function stagedPaths() {
   return result.stdout.split("\0").filter(Boolean);
 }
 
-// A passing step costs one line; a failing step replays everything it printed.
+export function vitestFileSummary(output) {
+  const line = stripVTControlCharacters(output)
+    .split(/\r?\n/)
+    .find((entry) => /^\s*Test Files\s+/.test(entry));
+  if (line) return line.trim().replace(/\s+/g, " ");
+  if (/No test files found/.test(output)) return "Test Files 0";
+  return "";
+}
+
+// Passing steps print a summary. Failing steps retain their output in a log.
 // Set PRECOMMIT_VERBOSE=1 to stream every step's output as it runs.
 export function summarizeStep(label, result, elapsedMs) {
   if (result.status === 0) {
@@ -81,7 +94,7 @@ export function summarizeStep(label, result, elapsedMs) {
   };
 }
 
-function runNode(label, script, args) {
+function runNode(label, script, args, summarizeOutput = () => "") {
   if (process.env.PRECOMMIT_VERBOSE === "1") {
     process.stdout.write(`[pre-commit] ${label}\n`);
     const result = spawnSync(process.execPath, [script, ...args], {
@@ -98,10 +111,29 @@ function runNode(label, script, args) {
     maxBuffer: 256 * 1024 * 1024,
   });
   const summary = summarizeStep(label, result, Date.now() - started);
-  process.stdout.write(summary.text);
-  if (!summary.ok) {
+  const details = summarizeOutput(result.stdout ?? "");
+  if (summary.ok) {
+    process.stdout.write(
+      summary.text.trimEnd() + (details ? " — " + details : "") + "\n",
+    );
+    return;
+  }
+
+  let logPath;
+  try {
+    logPath = join(
+      mkdtempSync(join(tmpdir(), "rss-dashboard-hook-")),
+      "failure.log",
+    );
+    writeFileSync(logPath, summary.text + (result.error?.stack ?? ""));
+  } catch {
+    process.stderr.write(summary.text + (result.error?.stack ?? ""));
     process.exit(result.status ?? 1);
   }
+  process.stderr.write(
+    `[pre-commit] ${label} FAILED${details ? " — " + details : ""}. Full output: ${logPath}\n`,
+  );
+  process.exit(result.status ?? 1);
 }
 
 function main() {
@@ -131,15 +163,25 @@ function main() {
   const vitest = "node_modules/vitest/vitest.mjs";
   const vitestArgs = ["--config", "vitest.config.mjs", "--reporter=dot"];
   if (plan.tests.mode === "all") {
-    runNode("Running the full unit suite...", vitest, ["run", ...vitestArgs]);
+    runNode(
+      "Running the full unit suite...",
+      vitest,
+      ["run", ...vitestArgs],
+      vitestFileSummary,
+    );
   } else if (plan.tests.mode === "related") {
-    runNode("Running unit tests related to staged files...", vitest, [
-      "related",
-      "--run",
-      "--passWithNoTests",
-      ...vitestArgs,
-      ...plan.tests.files,
-    ]);
+    runNode(
+      "Running unit tests related to staged files...",
+      vitest,
+      [
+        "related",
+        "--run",
+        "--passWithNoTests",
+        ...vitestArgs,
+        ...plan.tests.files,
+      ],
+      vitestFileSummary,
+    );
   } else {
     process.stdout.write("[pre-commit] No staged code; skipping unit tests.\n");
   }

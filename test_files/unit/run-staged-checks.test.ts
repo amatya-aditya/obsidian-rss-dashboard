@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   planStagedChecks,
   summarizeStep,
+  vitestFileSummary,
 } from "../../scripts/run-staged-checks.mjs";
 
 describe("planStagedChecks", () => {
@@ -71,6 +72,23 @@ describe("planStagedChecks", () => {
     expect(planStagedChecks(["src\\utils\\tag-utils.ts"]).lint).toEqual([
       "src/utils/tag-utils.ts",
     ]);
+  });
+});
+
+describe("vitestFileSummary", () => {
+  it("extracts the file count from the colored dot reporter summary", () => {
+    expect(
+      vitestFileSummary(
+        "...\n\u001b[1m Test Files \u001b[0m  1 failed | 9 passed (10)\n",
+      ),
+    ).toBe("Test Files 1 failed | 9 passed (10)");
+  });
+
+  it("distinguishes an empty selection from a missing summary", () => {
+    expect(vitestFileSummary("No test files found, exiting with code 0")).toBe(
+      "Test Files 0",
+    );
+    expect(vitestFileSummary("A worker stopped before reporting")).toBe("");
   });
 });
 
